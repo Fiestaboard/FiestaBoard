@@ -62,12 +62,11 @@ class ScheduleEntry(BaseModel):
                 if minute not in [0, 15, 30, 45]:
                     errors.append(f"{field_name} must use 15-minute intervals (00, 15, 30, 45)")
         
-        # Validate end_time after start_time
+        # Validate times are not identical (zero-duration schedule)
+        # Note: end_time < start_time is valid (midnight rollover, e.g. 23:00-03:00)
         if time_pattern.match(self.start_time) and time_pattern.match(self.end_time):
-            start_minutes = self._time_to_minutes(self.start_time)
-            end_minutes = self._time_to_minutes(self.end_time)
-            if end_minutes <= start_minutes:
-                errors.append("end_time must be after start_time")
+            if self.start_time == self.end_time:
+                errors.append("end_time must be different from start_time (zero-duration schedule)")
         
         # Validate custom_days when pattern is custom
         if self.day_pattern == "custom":
@@ -121,6 +120,8 @@ class ScheduleEntry(BaseModel):
     def applies_to_time(self, time_str: str) -> bool:
         """Check if this schedule applies to a given time.
         
+        Handles midnight rollover schedules (e.g. 23:00-03:00).
+        
         Args:
             time_str: Time in HH:MM format
             
@@ -131,7 +132,12 @@ class ScheduleEntry(BaseModel):
         start_minutes = self._time_to_minutes(self.start_time)
         end_minutes = self._time_to_minutes(self.end_time)
         
-        return start_minutes <= time_minutes < end_minutes
+        if end_minutes <= start_minutes:
+            # Midnight rollover: active if time >= start OR time < end
+            return time_minutes >= start_minutes or time_minutes < end_minutes
+        else:
+            # Normal range: active if start <= time < end
+            return start_minutes <= time_minutes < end_minutes
 
 
 class ScheduleCreate(BaseModel):

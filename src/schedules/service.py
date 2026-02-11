@@ -235,6 +235,8 @@ class ScheduleService:
     ) -> bool:
         """Check if two time ranges overlap.
         
+        Handles midnight rollover schedules where end_time < start_time.
+        
         Args:
             start1: Start time of first range (HH:MM)
             end1: End time of first range (HH:MM, exclusive)
@@ -244,19 +246,38 @@ class ScheduleService:
         Returns:
             True if times overlap
         """
-        start1_min = self._time_to_minutes(start1)
-        end1_min = self._time_to_minutes(end1)
-        start2_min = self._time_to_minutes(start2)
-        end2_min = self._time_to_minutes(end2)
+        s1 = self._time_to_minutes(start1)
+        e1 = self._time_to_minutes(end1)
+        s2 = self._time_to_minutes(start2)
+        e2 = self._time_to_minutes(end2)
         
-        # Ranges overlap if: start1 < end2 AND start2 < end1
-        return start1_min < end2_min and start2_min < end1_min
+        wrap1 = e1 <= s1  # Schedule 1 crosses midnight
+        wrap2 = e2 <= s2  # Schedule 2 crosses midnight
+        
+        if not wrap1 and not wrap2:
+            # Both normal ranges: standard overlap check
+            return s1 < e2 and s2 < e1
+        elif wrap1 and wrap2:
+            # Both cross midnight: they always overlap (both cover midnight)
+            return True
+        else:
+            # One wraps, one doesn't. Check if the normal range intersects
+            # either part of the wraparound range.
+            # Normalize: make range1 the wrapping one, range2 the normal one
+            if wrap2:
+                s1, e1, s2, e2 = s2, e2, s1, e1
+            # range1 wraps: covers [s1, 1440) and [0, e1)
+            # range2 is normal: covers [s2, e2)
+            # Overlap if range2 intersects [s1, 1440) or [0, e1)
+            return s2 < e1 or e2 > s1
     
     def _detect_gaps(self, schedules: List[ScheduleEntry]) -> List[Gap]:
         """Detect gaps in schedule coverage.
         
         For each day of the week, find time periods with no scheduled page.
         Only report gaps larger than 15 minutes (single time slot).
+        Handles midnight rollover schedules by converting them to minute-level
+        coverage bitmaps.
         
         Args:
             schedules: List of enabled schedules
@@ -264,6 +285,7 @@ class ScheduleService:
         Returns:
             List of gaps found
         """
+        TOTAL_MINUTES = 24 * 60  # 1440 minutes in a day
         gaps = []
         
         # Check each day of the week
@@ -280,44 +302,43 @@ class ScheduleService:
                 ))
                 continue
             
-            # Sort schedules by start time
-            day_schedules.sort(key=lambda s: self._time_to_minutes(s.start_time))
+            # Build a coverage bitmap for the day (True = covered)
+            covered = [False] * TOTAL_MINUTES
+            for sched in day_schedules:
+                s = self._time_to_minutes(sched.start_time)
+                e = self._time_to_minutes(sched.end_time)
+                if e <= s:
+                    # Wraparound: covers [s, 1440) and [0, e)
+                    for m in range(s, TOTAL_MINUTES):
+                        covered[m] = True
+                    for m in range(0, e):
+                        covered[m] = True
+                else:
+                    # Normal: covers [s, e)
+                    for m in range(s, e):
+                        covered[m] = True
             
-            # Check gap at start of day
-            first_start = day_schedules[0].start_time
-            if self._time_to_minutes(first_start) > 0:
-                gap_minutes = self._time_to_minutes(first_start)
-                if gap_minutes > 15:  # Only report gaps > 15 min
-                    gaps.append(Gap(
-                        start_time="00:00",
-                        end_time=first_start,
-                        days=[day]
-                    ))
+            # Find uncovered ranges
+            gap_start = None
+            for m in range(TOTAL_MINUTES):
+                if not covered[m] and gap_start is None:
+                    gap_start = m
+                elif covered[m] and gap_start is not None:
+                    gap_minutes = m - gap_start
+                    if gap_minutes > 15:
+                        gaps.append(Gap(
+                            start_time=self._minutes_to_time(gap_start),
+                            end_time=self._minutes_to_time(m),
+                            days=[day]
+                        ))
+                    gap_start = None
             
-            # Check gaps between schedules
-            for i in range(len(day_schedules) - 1):
-                current_end = day_schedules[i].end_time
-                next_start = day_schedules[i + 1].start_time
-                
-                gap_minutes = (
-                    self._time_to_minutes(next_start) -
-                    self._time_to_minutes(current_end)
-                )
-                
-                if gap_minutes > 15:  # Only report gaps > 15 min
+            # Handle gap at end of day
+            if gap_start is not None:
+                gap_minutes = TOTAL_MINUTES - gap_start
+                if gap_minutes > 15:
                     gaps.append(Gap(
-                        start_time=current_end,
-                        end_time=next_start,
-                        days=[day]
-                    ))
-            
-            # Check gap at end of day
-            last_end = day_schedules[-1].end_time
-            if self._time_to_minutes(last_end) < 23 * 60 + 59:  # Before 23:59
-                gap_minutes = (23 * 60 + 59) - self._time_to_minutes(last_end)
-                if gap_minutes > 15:  # Only report gaps > 15 min
-                    gaps.append(Gap(
-                        start_time=last_end,
+                        start_time=self._minutes_to_time(gap_start),
                         end_time="23:59",
                         days=[day]
                     ))
@@ -360,6 +381,12 @@ class ScheduleService:
         """Convert HH:MM time string to minutes since midnight."""
         parts = time_str.split(":")
         return int(parts[0]) * 60 + int(parts[1])
+    
+    def _minutes_to_time(self, minutes: int) -> str:
+        """Convert minutes since midnight to HH:MM time string."""
+        h = minutes // 60
+        m = minutes % 60
+        return f"{h:02d}:{m:02d}"
     
     def _time_diff_minutes(self, start_time: str, end_time: str) -> int:
         """Calculate difference between two times in minutes."""

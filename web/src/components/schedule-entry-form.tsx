@@ -79,11 +79,12 @@ export function ScheduleEntryForm({
       errors.push("Please select a page");
     }
     
-    // Validate time order
+    // Validate times are not identical (zero-duration schedule)
+    // Note: endMinutes < startMinutes is valid (midnight rollover, e.g. 23:00-03:00)
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = timeToMinutes(endTime);
-    if (endMinutes <= startMinutes) {
-      errors.push("End time must be after start time");
+    if (startMinutes === endMinutes) {
+      errors.push("End time must be different from start time");
     }
     
     // Validate custom days

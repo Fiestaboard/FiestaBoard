@@ -155,12 +155,24 @@ class TestScheduleEntry:
         assert len(errors) > 0
         assert any("15-minute" in err.lower() for err in errors)
     
-    def test_validate_end_after_start(self):
-        """Test validation enforces end_time after start_time."""
+    def test_validate_end_after_start_allows_midnight_rollover(self):
+        """Test that end_time before start_time is valid (midnight rollover)."""
         entry = ScheduleEntry(
             page_id="page-123",
             start_time="17:00",
             end_time="09:00",
+            day_pattern="all",
+            enabled=True
+        )
+        errors = entry.validate_config()
+        assert len(errors) == 0, f"Midnight rollover should be valid, got: {errors}"
+    
+    def test_validate_same_start_end_invalid(self):
+        """Test validation rejects zero-duration schedule (same start and end)."""
+        entry = ScheduleEntry(
+            page_id="page-123",
+            start_time="12:00",
+            end_time="12:00",
             day_pattern="all",
             enabled=True
         )
@@ -221,10 +233,21 @@ class TestScheduleEntry:
         )
         assert valid_entry.is_valid() is True
         
-        invalid_entry = ScheduleEntry(
+        # Midnight rollover is valid (not an error)
+        rollover_entry = ScheduleEntry(
             page_id="page-123",
             start_time="17:00",
             end_time="09:00",
+            day_pattern="all",
+            enabled=True
+        )
+        assert rollover_entry.is_valid() is True
+        
+        # Zero-duration is invalid
+        invalid_entry = ScheduleEntry(
+            page_id="page-123",
+            start_time="12:00",
+            end_time="12:00",
             day_pattern="all",
             enabled=True
         )
