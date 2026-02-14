@@ -84,6 +84,8 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 **→ [Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md)** - Create your own plugins!
 
 ### System Features
+- ✏️ **Rich WYSIWYG Page Editor**: Create and edit pages with a what-you-see-is-what-you-get editor that shows exactly how content will appear on your board—template variables, colors, and alignment in real time
+- 📅 **Schedule Mode**: Visual calendar to schedule which pages display when—set different pages for different times and days. Choose a default page for gaps in the schedule, or turn scheduling off to manually select the active page
 - 📄 **Page-Based Display**: Create and select pages via the web UI
 - 🔄 **Configurable Update Interval**: Adjust how often the board checks for new content (10-3600 seconds)
 - ⚡ **Smart Preview Caching**: Page previews are cached (5 min TTL) for fast UI rendering, while active displays always get fresh data
@@ -363,6 +365,18 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 ### Web UI
 
 ![Web UI Home](./images/web-ui-home.png)
+
+### Rich Page Editor (WYSIWYG)
+
+Create and edit board pages with a rich editor that shows exactly what will appear on your split-flap display—template variables, colors, and formatting in real time.
+
+![Rich Page Editor](./images/page-editor-wysiwyg.png)
+
+### Schedule Mode
+
+Use the visual calendar to schedule which page displays at which time. Set different pages for different times and days of the week. A default page fills any gaps when no slot is scheduled; you can also turn scheduling off and manually choose which page to show.
+
+![Schedule Calendar](./images/schedule-calendar.png)
 
 ### Plugin Displays
 
