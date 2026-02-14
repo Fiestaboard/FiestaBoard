@@ -240,6 +240,7 @@ class TestTinyAbbr:
         assert _tiny_abbr("Big Thunder Mountain Railroad") == "BTMRR"
         assert _tiny_abbr("Seven Dwarfs Mine Train") == "7DMT"
         assert _tiny_abbr("Jungle Cruise") == "JC"
+        assert _tiny_abbr("It's a Small World") == "SMALL"
 
     def test_unknown_ride_fallback(self):
         """Unknown ride name falls back to first 5 chars (spaces removed)."""
