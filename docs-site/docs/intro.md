@@ -10,7 +10,9 @@ sidebar_position: 1
 
 FiestaBoard is an open-source platform that connects to your split-flap display and turns it into a real-time information hub. It features:
 
-- **17+ Built-in Plugins**: Weather, stocks, transit, sports, surf conditions, and more
+- **18 Built-in Plugins**: Weather, stocks, transit, sports, Disney park wait times, ferry schedules, and more
+- **WYSIWYG Page Editor**: Create pages with a visual editor that shows exactly how content will appear
+- **Schedule Mode**: Visual calendar to schedule which pages display when
 - **Modern Web UI**: Manage pages, configure plugins, and monitor your display
 - **Docker Ready**: One-command deployment on any system
 - **Plugin Architecture**: Easily create your own custom data sources
@@ -60,7 +62,9 @@ That's it! 🎉
 | 🚗 Traffic | Travel time with live traffic |
 | 💨 Air Quality | AQI and fog conditions |
 | 🏠 Home Assistant | Smart home status display |
-| And many more... | |
+| 🏰 Disney Parks | Wait times from Queue-Times.com |
+| 🚢 WSDOT Ferries | WA State ferry schedules and alerts |
+| And more... | 18 plugins total |
 
 ## Next Steps
 

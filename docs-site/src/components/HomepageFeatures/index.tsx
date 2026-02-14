@@ -15,8 +15,28 @@ const FeatureList: FeatureItem[] = [
     emoji: '🔌',
     description: (
       <>
-        17+ built-in plugins for weather, stocks, transit, sports scores, surf conditions, 
-        and more. Create your own plugins with our developer guide.
+        18 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times,
+        ferry schedules, and more. Create your own plugins with our developer guide.
+      </>
+    ),
+  },
+  {
+    title: 'WYSIWYG Editor',
+    emoji: '✏️',
+    description: (
+      <>
+        Create pages with a visual editor that shows exactly how content will appear on your 
+        board—template variables, colors, and alignment in real time.
+      </>
+    ),
+  },
+  {
+    title: 'Schedule Mode',
+    emoji: '📅',
+    description: (
+      <>
+        Visual calendar to schedule which pages display when. Set different pages for 
+        different times and days, with a default page for gaps.
       </>
     ),
   },
@@ -27,26 +47,6 @@ const FeatureList: FeatureItem[] = [
       <>
         One-command deployment with Docker Compose. Works on Mac, Linux, Windows, 
         and Raspberry Pi. No complex setup required.
-      </>
-    ),
-  },
-  {
-    title: 'Beautiful Web UI',
-    emoji: '✨',
-    description: (
-      <>
-        Modern web interface to manage pages, configure plugins, and monitor your display. 
-        PWA support for mobile access.
-      </>
-    ),
-  },
-  {
-    title: 'Real-Time Updates',
-    emoji: '⚡',
-    description: (
-      <>
-        Configurable refresh intervals keep your display current. Smart caching 
-        for fast performance and efficient API usage.
       </>
     ),
   },

@@ -13,6 +13,7 @@ FiestaBoard uses a **plugin architecture**—each feature is a self-contained pl
 | 💨 **Air Quality & Fog** | Monitor AQI and fog conditions | Yes (PurpleAir/OWM) |
 | 🚴 **Bay Wheels** | Track bike availability at stations | No |
 | 📅 **Date & Time** | Current date/time with multiple formats | No |
+| 🏰 **Disney Parks Queue Times** | Wait times for Disney parks and rides | No |
 | 📶 **Guest WiFi** | Display WiFi credentials | No |
 | 🏠 **Home Assistant** | Smart home status display | Yes (HA token) |
 | 🎵 **Last.fm Now Playing** | Currently playing music | Yes (Last.fm) |
@@ -25,7 +26,8 @@ FiestaBoard uses a **plugin architecture**—each feature is a self-contained pl
 | 🌊 **Surf Conditions** | Wave height and quality | No |
 | 🚗 **Traffic** | Travel time with live traffic | Yes (Google Routes) |
 | 🕐 **Visual Clock** | Full-screen pixel-art clock | No |
-| 🌤️ **Weather** | Temperature, UV, precipitation | Yes (OpenWeatherMap) |
+| 🌤️ **Weather** | Temperature, UV, precipitation | Yes (WeatherAPI or OWM) |
+| 🚢 **WSDOT Ferries** | WA State ferry schedules and alerts | Yes (free WSDOT API) |
 
 ## Enabling Plugins
 
