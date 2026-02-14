@@ -1,0 +1,116 @@
+{
+  "id": "wsdot",
+  "name": "WSDOT",
+  "version": "1.0.0",
+  "description": "Washington State Ferries: schedules, vessel names, car spots, and alerts",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "ship",
+  "category": "transit",
+
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable WSDOT Ferries",
+        "default": false
+      },
+      "api_access_code": {
+        "type": "string",
+        "title": "WSDOT API Access Code",
+        "description": "Free code from https://www.wsdot.wa.gov/traffic/api/",
+        "ui:widget": "password"
+      },
+      "routes": {
+        "type": "array",
+        "title": "Ferry Routes",
+        "description": "Select the ferry routes you want to monitor.",
+        "maxItems": 4,
+        "ui:widget": "wsdot-route-picker",
+        "items": {
+          "type": "object",
+          "properties": {
+            "route_id": {
+              "type": "integer",
+              "title": "Route ID"
+            }
+          },
+          "required": ["route_id"]
+        }
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "default": 120,
+        "minimum": 60
+      }
+    },
+    "required": ["api_access_code", "routes"]
+  },
+
+  "env_vars": [
+    {
+      "name": "WSDOT_API_ACCESS_CODE",
+      "required": false,
+      "description": "WSDOT API access code (can override UI)"
+    }
+  ],
+
+  "variables": {
+    "simple": [
+      "formatted",
+      "headers",
+      "route_count",
+      "has_alerts"
+    ],
+    "arrays": {
+      "routes": {
+        "label_field": "route_name",
+        "item_fields": [
+          "route_name",
+          "route_id",
+          "formatted",
+          "headers",
+          "departures_ab",
+          "departures_ba",
+          "wait_time_minutes",
+          "alerts"
+        ]
+      },
+      "alerts": {
+        "label_field": "headline",
+        "item_fields": ["headline", "alert_text"]
+      }
+    }
+  },
+
+  "max_lengths": {
+    "formatted": 22,
+    "headers": 22,
+    "route_count": 1,
+    "has_alerts": 3,
+    "routes.*.route_name": 22,
+    "routes.*.formatted": 22,
+    "routes.*.headers": 22,
+    "routes.*.departures_ab.*.scheduled_time": 5,
+    "routes.*.departures_ab.*.vessel_name": 12,
+    "routes.*.departures_ab.*.spots_remaining": 3,
+    "routes.*.departures_ba.*.scheduled_time": 5,
+    "routes.*.departures_ba.*.vessel_name": 12,
+    "routes.*.departures_ba.*.spots_remaining": 3,
+    "alerts.*.headline": 22,
+    "alerts.*.alert_text": 22
+  },
+
+  "color_rules_schema": {
+    "has_alerts": {
+      "type": "match",
+      "description": "Color when alerts active",
+      "default_rules": [
+        {"condition": "==", "value": true, "color": "yellow"}
+      ]
+    }
+  }
+}

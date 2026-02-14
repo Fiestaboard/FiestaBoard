@@ -11,6 +11,25 @@ permissions:
   pull-requests: read
 
 jobs:
+  # Prevent loop: skip release when this run was triggered by our own version-bump push.
+  guard:
+    name: Skip if version-bump commit
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - name: Check if trigger was a version-bump commit
+        id: check
+        run: |
+          MSG="${{ github.event.head_commit.message }}"
+          # Skip when head commit is our version-bump (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
+          if echo "$MSG" | grep -qE '^chore: bump version to '; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Skipping: trigger commit is a version-bump commit."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
   detect-changes:
     name: Detect Changed Paths
     runs-on: ubuntu-latest
@@ -59,16 +78,20 @@ jobs:
   prep:
     name: Prepare Release
     runs-on: ubuntu-latest
+    needs: [guard]
+    if: needs.guard.outputs.skip != 'true'
     outputs:
       version: ${{ steps.version.outputs.version }}
       build_pi: ${{ steps.bump_type.outputs.build_pi }}
       platforms: ${{ steps.bump_type.outputs.build_pi == 'true' && 'linux/amd64,linux/arm/v7,linux/arm64' || 'linux/amd64' }}
     steps:
+      # Use RELEASE_PAT when branch protection/rulesets block GITHUB_TOKEN from pushing to main.
+      # Add repo secret RELEASE_PAT (PAT with repo scope) and allow that user to bypass rules on main.
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

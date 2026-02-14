@@ -8,6 +8,7 @@
 
 # Python
 __pycache__/
+.coverage*
 *.py[cod]
 *$py.class
 *.so
@@ -74,8 +75,3 @@ data/
 # API keys reference (optional - remove if you want to track it)
 API_KEYS.md
 
-# Docs site build artifacts
-docs-site/node_modules/
-docs-site/build/
-docs-site/.docusaurus/
-docs-site/.cache-loader/
