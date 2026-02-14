@@ -12,6 +12,28 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 
+def _uv_to_display_index(uv: Any) -> Optional[int]:
+    """Convert API UV value to display index 0-11+.
+
+    Uses type to distinguish scales: integers are treated as standard
+    0-11+ (e.g. 1 means UV index 1). Floats in (0, 1) are treated as
+    normalized 0-1 and scaled to 0-11; other floats are standard scale.
+    """
+    if uv is None:
+        return None
+    if isinstance(uv, int):
+        return max(0, uv)
+    try:
+        v = float(uv)
+    except (TypeError, ValueError):
+        return None
+    if v < 0:
+        return 0
+    if 0 < v < 1:
+        return round(v * 11)
+    return round(v)
+
+
 class WeatherSource:
     """Fetches current weather data from weather APIs."""
     
@@ -131,7 +153,7 @@ class WeatherSource:
                 "wind_speed": current_data["current"]["wind_mph"],  # Alias for template compatibility
                 "location": current_data["location"]["name"],
                 "location_name": location_name,
-                "uv_index": round(current_data["current"].get("uv", 0)) if current_data["current"].get("uv") is not None else None  # Current UV index (rounded to integer)
+                "uv_index": _uv_to_display_index(current_data["current"].get("uv")),
             }
             
             # Try to fetch forecast data (non-blocking if it fails)
@@ -162,10 +184,11 @@ class WeatherSource:
                         # UV index (use daily max from forecast, or keep current if higher)
                         forecast_uv = day_data.get("uv")
                         if forecast_uv is not None:
-                            forecast_uv_rounded = round(forecast_uv)
-                            # Use the higher of current UV or forecast max UV
-                            if result["uv_index"] is None or forecast_uv_rounded > result["uv_index"]:
-                                result["uv_index"] = forecast_uv_rounded
+                            forecast_uv_index = _uv_to_display_index(forecast_uv)
+                            if forecast_uv_index is not None and (
+                                result["uv_index"] is None or forecast_uv_index > result["uv_index"]
+                            ):
+                                result["uv_index"] = forecast_uv_index
                         
                         # Precipitation chance
                         result["precipitation_chance"] = day_data.get("daily_chance_of_rain", 0)
