@@ -310,6 +310,18 @@ export interface HomeAssistantEntitiesResponse {
   entities: HomeAssistantEntity[];
 }
 
+export interface QueueTimesPark {
+  id: number;
+  name: string;
+  country?: string;
+  timezone?: string;
+}
+
+export interface QueueTimesRide {
+  id: number;
+  name: string;
+}
+
 export interface TemplateValidationResponse {
   valid: boolean;
   errors: Array<{
@@ -988,6 +1000,12 @@ export const api = {
   // Home Assistant endpoints
   getHomeAssistantEntities: () =>
     fetchApi<HomeAssistantEntitiesResponse>("/home-assistant/entities"),
+
+  // Queue-Times (Disney parks) picker
+  getQueueTimesParks: () =>
+    fetchApi<QueueTimesPark[]>("/queue-times/parks"),
+  getQueueTimesRides: (parkId: number) =>
+    fetchApi<QueueTimesRide[]>(`/queue-times/parks/${parkId}/rides`),
 
   // Version endpoint
   getVersion: () =>

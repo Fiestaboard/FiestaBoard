@@ -711,13 +711,17 @@ class TemplateEngine:
                 # This allows plugins to return color codes directly
                 # Only recognize color codes, not color names (to avoid issues with team names like "Green Hornets")
                 if isinstance(value, str):
-                    # Check if value is already a color code like {66}
+                    # Check if value is exactly a color code like {66}
                     color_code_match = re.match(r'^\{(\d+)\}$', value)
                     if color_code_match:
                         code = int(color_code_match.group(1))
                         if 63 <= code <= 70:
                             # Already a valid color code, return as-is
                             return value
+                    # If value already starts with a color code (e.g. {66}RISE), do not add
+                    # a color prefix (which would add an unwanted space after the tile)
+                    if re.match(r'^\{\d+\}', value):
+                        return value
                 
                 # Apply color rules
                 color_prefix = self._get_color_for_value(expr, context)
