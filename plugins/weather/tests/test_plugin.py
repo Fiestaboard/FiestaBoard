@@ -3,7 +3,93 @@
 import pytest
 from unittest.mock import patch, Mock, MagicMock
 
-from plugins.weather.source import WeatherSource
+from plugins.weather.source import WeatherSource, _uv_to_display_index
+
+
+class TestUvToDisplayIndex:
+    """Tests for UV value normalization (0-11+ scale)."""
+
+    def test_uv_none_returns_none(self):
+        assert _uv_to_display_index(None) is None
+
+    def test_uv_zero_returns_zero(self):
+        assert _uv_to_display_index(0) == 0
+        assert _uv_to_display_index(0.0) == 0
+
+    def test_uv_standard_scale_rounded(self):
+        """Values > 1 are treated as 0-11+ and rounded."""
+        assert _uv_to_display_index(2.1) == 2
+        assert _uv_to_display_index(3.8) == 4
+        assert _uv_to_display_index(5) == 5
+        assert _uv_to_display_index(10) == 10
+        assert _uv_to_display_index(11) == 11
+
+    def test_uv_normalized_0_1_scale(self):
+        """Values in (0, 1] are scaled to 0-11 (fixes APIs that return 0-1)."""
+        assert _uv_to_display_index(0.1) == 1   # round(1.1)
+        assert _uv_to_display_index(0.5) == 6   # round(5.5)
+        assert _uv_to_display_index(0.9) == 10  # round(9.9)
+        assert _uv_to_display_index(1.0) == 11  # round(11)
+
+    def test_uv_string_coerced(self):
+        """String values are coerced to float then processed."""
+        assert _uv_to_display_index("7") == 7
+        assert _uv_to_display_index("0.5") == 6
+
+    def test_uv_negative_clamped_to_zero(self):
+        assert _uv_to_display_index(-1) == 0
+
+
+class TestWeatherSourceUvDisplay:
+    """Tests for UV index display (0-11+) when API may use normalized scale."""
+
+    @patch('requests.get')
+    def test_weatherapi_normalized_uv_scale_displayed_correctly(self, mock_get):
+        """When API returns UV on 0-1 scale, we display 0-11."""
+        current_response = Mock()
+        current_response.status_code = 200
+        current_response.json.return_value = {
+            "current": {
+                "temp_f": 70,
+                "feelslike_f": 68,
+                "condition": {"text": "Sunny"},
+                "humidity": 50,
+                "wind_mph": 5,
+                "uv": 0.5,  # normalized: moderate UV -> display 6
+            },
+            "location": {"name": "San Francisco"},
+        }
+        current_response.raise_for_status = Mock()
+
+        forecast_response = Mock()
+        forecast_response.status_code = 200
+        forecast_response.json.return_value = {
+            "forecast": {
+                "forecastday": [{
+                    "day": {
+                        "maxtemp_f": 75,
+                        "mintemp_f": 55,
+                        "uv": 0.9,  # normalized: high UV -> display 10
+                        "daily_chance_of_rain": 0,
+                    },
+                    "astro": {"sunset": "05:36 PM"},
+                }],
+            },
+        }
+        forecast_response.raise_for_status = Mock()
+
+        mock_get.side_effect = [current_response, forecast_response]
+
+        source = WeatherSource(
+            provider="weatherapi",
+            api_key="test_key",
+            locations=[{"location": "San Francisco, CA", "name": "SF"}],
+        )
+        result = source.fetch_current_weather()
+
+        # We take the higher of current (6) and forecast (10)
+        assert result["uv_index"] == 10
+        assert isinstance(result["uv_index"], int)
 
 
 class TestWeatherSource:
