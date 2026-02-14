@@ -116,6 +116,11 @@ function renderSubArraySection(
   const itemFields = subArraySchema.item_fields || [];
   const keyType = subArraySchema.key_type || "index";
   const keyField = subArraySchema.key_field;
+  const labelField = subArraySchema.label_field;
+
+  // Prefer label_field for display (user-friendly name), never raw IDs
+  const getItemLabel = (itemData: any) =>
+    (labelField && itemData[labelField]) || itemData[keyField] || itemData[itemFields[0]];
 
   // Filter entries based on search query (if showAll, show all entries)
   const filteredEntries = showAll 
@@ -123,7 +128,7 @@ function renderSubArraySection(
     : Object.entries(subArrayData).filter(([key, itemData]: [string, any]) => {
         if (!searchQuery.trim()) return true;
     const displayKey = keyType === "dynamic" && keyField ? (itemData[keyField] || key) : key;
-    const displayValue = itemData[keyField] || itemData[itemFields[0]] || displayKey;
+    const displayValue = getItemLabel(itemData) ?? displayKey;
     // Check if search matches subArrayName, key, display value, or any field name
     return (
       matchesSearch(subArrayName, searchQuery) ||
@@ -144,6 +149,7 @@ function renderSubArraySection(
       <Accordion type="single" collapsible className="w-full">
         {filteredEntries.map(([key, itemData]: [string, any]) => {
           const displayKey = keyType === "dynamic" && keyField ? (itemData[keyField] || key) : key;
+          const itemLabel = getItemLabel(itemData) ?? displayKey;
           const filteredFields = showAll
             ? itemFields
             : itemFields.filter(field => 
@@ -162,7 +168,7 @@ function renderSubArraySection(
                     </Badge>
                   )}
                   <span className="text-left">
-                    {itemData[keyField] || itemData[itemFields[0]] || displayKey}
+                    {itemLabel}
                   </span>
                   {itemData.next_arrival && (
                     <span className="text-muted-foreground text-[10px]">

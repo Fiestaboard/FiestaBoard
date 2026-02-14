@@ -299,8 +299,11 @@ export function parseLineContent(text: string): JSONContent[] {
       // Otherwise it's a variable
       else {
         const { varPath, filters } = parseVariable(content);
-        const [pluginId, field] = varPath.split('.');
-        
+        // Keep full path after plugin id (e.g. "parks.0.rides.0.ride_abbr" not just "parks")
+        const firstDot = varPath.indexOf('.');
+        const pluginId = firstDot === -1 ? varPath : varPath.slice(0, firstDot);
+        const field = firstDot === -1 ? '' : varPath.slice(firstDot + 1);
+
         nodes.push({
           type: 'variable',
           attrs: {

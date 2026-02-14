@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { cn } from "@/lib/utils";
+import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
 import { Plus, Trash2, Eye, EyeOff, MapPin, Loader2 } from "lucide-react";
 
 // JSON Schema types (simplified for our use case)
@@ -479,6 +480,195 @@ function WsdotRoutePicker({ name, property, value, onChange, disabled, maxItems 
   );
 }
 
+// Disney Park Queue Times picker: display names, store park_id and ride_ids
+interface ParkRideEntry {
+  park_id: number;
+  ride_ids: number[];
+}
+
+interface DisneyParksTimesPickerProps extends FieldProps {}
+
+function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParksTimesPickerProps) {
+  const [parks, setParks] = useState<QueueTimesPark[]>([]);
+  const [parksLoading, setParksLoading] = useState(true);
+  const [ridesByParkId, setRidesByParkId] = useState<Record<number, QueueTimesRide[]>>({});
+
+  const items = (Array.isArray(value) ? value : []) as ParkRideEntry[];
+
+  const ensureRidesForPark = useCallback((parkId: number) => {
+    setRidesByParkId((prev) => {
+      if (prev[parkId] !== undefined) return prev;
+      api.getQueueTimesRides(parkId).then((data) => {
+        setRidesByParkId((p) => ({ ...p, [parkId]: data }));
+      }).catch(() => {
+        setRidesByParkId((p) => ({ ...p, [parkId]: [] }));
+      });
+      return prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getQueueTimesParks().then((data) => {
+      if (!cancelled) {
+        setParks(data);
+        setParksLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setParksLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    items.forEach((entry) => {
+      if (entry?.park_id) ensureRidesForPark(entry.park_id);
+    });
+  }, [items, ensureRidesForPark]);
+
+  const setEntryAt = (index: number, next: ParkRideEntry) => {
+    const nextItems = [...items];
+    nextItems[index] = next;
+    onChange(nextItems);
+  };
+
+  const setParkAt = (index: number, parkId: number) => {
+    setEntryAt(index, { park_id: parkId, ride_ids: [] });
+    ensureRidesForPark(parkId);
+  };
+
+  const setRidesAt = (index: number, rideIds: number[]) => {
+    setEntryAt(index, { ...items[index], ride_ids: rideIds });
+  };
+
+  const addRideAt = (index: number, rideId: number) => {
+    const entry = items[index];
+    if (!entry || entry.ride_ids.includes(rideId)) return;
+    setRidesAt(index, [...entry.ride_ids, rideId]);
+  };
+
+  const removeRideAt = (index: number, rideIndex: number) => {
+    const entry = items[index];
+    if (!entry) return;
+    const next = entry.ride_ids.filter((_, i) => i !== rideIndex);
+    setRidesAt(index, next);
+  };
+
+  const handleAddPark = () => {
+    const firstId = parks[0]?.id ?? 0;
+    onChange([...items, { park_id: firstId, ride_ids: [] }]);
+    if (firstId) ensureRidesForPark(firstId);
+  };
+
+  const handleRemovePark = (index: number) => {
+    onChange(items.filter((_, i) => i !== index));
+  };
+
+  const parkName = (id: number) => parks.find((p) => p.id === id)?.name ?? `Park ${id}`;
+  const rideName = (parkId: number, rideId: number) =>
+    ridesByParkId[parkId]?.find((r) => r.id === rideId)?.name ?? `Ride ${rideId}`;
+
+  if (parksLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading parks…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {items.map((entry, index) => (
+        <div key={index} className="rounded-lg border p-3 space-y-2">
+          <div className="flex gap-2 items-center">
+            <Select
+              value={entry.park_id ? String(entry.park_id) : ""}
+              onValueChange={(val) => setParkAt(index, parseInt(val, 10))}
+              disabled={disabled}
+            >
+              <SelectTrigger id={`${name}-park-${index}`} className="flex-1">
+                <SelectValue placeholder="Select park" />
+              </SelectTrigger>
+              <SelectContent>
+                {parks.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => handleRemovePark(index)}
+              disabled={disabled}
+              className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+              aria-label="Remove park"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          {entry.park_id > 0 && (
+            <>
+              <div className="text-xs text-muted-foreground">Rides (shown by name)</div>
+              <div className="flex flex-wrap gap-1">
+                {(entry.ride_ids || []).map((rid, rideIndex) => (
+                  <span
+                    key={rid}
+                    className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-sm"
+                  >
+                    {rideName(entry.park_id, rid)}
+                    <button
+                      type="button"
+                      onClick={() => removeRideAt(index, rideIndex)}
+                      disabled={disabled}
+                      className="rounded hover:bg-muted-foreground/20"
+                      aria-label="Remove ride"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <Select
+                value=""
+                onValueChange={(val) => addRideAt(index, parseInt(val, 10))}
+                disabled={disabled}
+              >
+                <SelectTrigger className="w-full max-w-xs">
+                  <SelectValue placeholder="Add ride…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(ridesByParkId[entry.park_id] ?? []).filter(
+                    (r) => !(entry.ride_ids || []).includes(r.id)
+                  ).map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleAddPark}
+        disabled={disabled}
+        className="w-full"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add park
+      </Button>
+    </div>
+  );
+}
+
 interface ArrayFieldProps extends FieldProps {
   itemSchema: SchemaProperty;
 }
@@ -642,6 +832,18 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
             required={required}
             disabled={disabled}
             maxItems={property.maxItems ?? 4}
+          />
+        );
+      }
+      if (property["ui:widget"] === "disney-parks-times-picker") {
+        return (
+          <DisneyParksTimesPicker
+            name={name}
+            property={property}
+            value={value}
+            onChange={onChange}
+            required={required}
+            disabled={disabled}
           />
         );
       }

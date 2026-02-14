@@ -1,0 +1,74 @@
+{
+  "id": "disney_parks_times",
+  "name": "Disney Parks Queue Times",
+  "version": "1.0.0",
+  "description": "Display wait times for Disney parks (Disneyland, California Adventure, Disney World, etc.) from Queue-Times.com",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "landmark",
+  "category": "entertainment",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable Disney Parks Queue Times",
+        "default": false
+      },
+      "parks": {
+        "type": "array",
+        "title": "Parks and rides",
+        "description": "Select one or more Disney parks and the rides to show wait times for.",
+        "ui:widget": "disney-parks-times-picker",
+        "items": {
+          "type": "object",
+          "properties": {
+            "park_id": { "type": "integer", "title": "Park" },
+            "ride_ids": {
+              "type": "array",
+              "title": "Rides",
+              "items": { "type": "integer" }
+            }
+          },
+          "required": ["park_id", "ride_ids"]
+        }
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh interval (seconds)",
+        "default": 300,
+        "minimum": 60
+      }
+    },
+    "required": ["parks"]
+  },
+  "env_vars": [],
+  "variables": {
+    "simple": ["formatted"],
+    "arrays": {
+      "parks": {
+        "label_field": "park_name",
+        "item_fields": ["park_name"],
+        "sub_arrays": {
+          "rides": {
+            "label_field": "ride_name",
+            "item_fields": ["ride_name", "ride_abbr", "tiny_abbr", "wait_time", "is_open", "status", "state_color", "formatted"]
+          }
+        }
+      }
+    },
+    "dynamic": false
+  },
+  "max_lengths": {
+    "formatted": 22,
+    "parks.*.park_name": 22,
+    "parks.*.rides.*.ride_name": 22,
+    "parks.*.rides.*.ride_abbr": 14,
+    "parks.*.rides.*.tiny_abbr": 5,
+    "parks.*.rides.*.wait_time": 3,
+    "parks.*.rides.*.status": 10,
+    "parks.*.rides.*.state_color": 4,
+    "parks.*.rides.*.formatted": 22
+  }
+}

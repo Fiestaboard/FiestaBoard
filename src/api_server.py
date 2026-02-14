@@ -1563,6 +1563,75 @@ async def search_baywheels_stations_by_address(
 
 
 # =============================================================================
+# Queue-Times (Disney Parks) proxy for settings picker
+# =============================================================================
+
+QUEUE_TIMES_BASE = "https://queue-times.com"
+QUEUE_TIMES_CACHE: Dict[str, Any] = {}
+QUEUE_TIMES_CACHE_TIME: Dict[str, float] = {}
+QUEUE_TIMES_CACHE_TTL = 10 * 60  # 10 minutes
+DISNEY_GROUP_ID = 2  # Walt Disney Attractions
+
+
+def _queue_times_get(path: str) -> Any:
+    """Fetch from queue-times.com with simple in-memory cache."""
+    now = time.time()
+    if path in QUEUE_TIMES_CACHE and (now - QUEUE_TIMES_CACHE_TIME.get(path, 0)) < QUEUE_TIMES_CACHE_TTL:
+        return QUEUE_TIMES_CACHE[path]
+    url = f"{QUEUE_TIMES_BASE}{path}"
+    try:
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        QUEUE_TIMES_CACHE[path] = data
+        QUEUE_TIMES_CACHE_TIME[path] = now
+        return data
+    except Exception as e:
+        logger.warning(f"Queue-Times fetch failed for {path}: {e}")
+        if path in QUEUE_TIMES_CACHE:
+            return QUEUE_TIMES_CACHE[path]
+        raise
+
+
+@app.get("/queue-times/parks")
+async def list_disney_parks():
+    """
+    List Disney parks for the settings picker (user-friendly names).
+    Returns parks from Walt Disney Attractions group only.
+    """
+    try:
+        data = _queue_times_get("/parks.json")
+        for group in data:
+            if group.get("id") == DISNEY_GROUP_ID:
+                parks = group.get("parks", [])
+                return [{"id": p["id"], "name": p["name"], "country": p.get("country"), "timezone": p.get("timezone")} for p in parks]
+        return []
+    except Exception as e:
+        logger.error(f"Error listing Disney parks: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to fetch parks from Queue-Times")
+
+
+@app.get("/queue-times/parks/{park_id}/rides")
+async def list_park_rides(park_id: int):
+    """
+    List rides for a park for the settings picker (user-friendly names).
+    Returns id and name for each ride from the park's queue_times.
+    """
+    try:
+        data = _queue_times_get(f"/parks/{park_id}/queue_times.json")
+        rides = []
+        for land in data.get("lands", []):
+            for ride in land.get("rides", []):
+                rides.append({"id": ride["id"], "name": ride["name"]})
+        return rides
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing rides for park {park_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to fetch rides from Queue-Times")
+
+
+# =============================================================================
 # MUNI Endpoints
 # =============================================================================
 

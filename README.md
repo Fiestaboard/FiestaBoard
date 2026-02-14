@@ -65,6 +65,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 - 💨 **[Air Quality & Fog](./plugins/air_fog/README.md)**: Monitor AQI and fog conditions
 - 🚴 **[Bay Wheels](./plugins/baywheels/README.md)**: Track bike availability at multiple stations
 - 📅 **[Date & Time](./plugins/date_time/README.md)**: Current date and time with multiple formats (12h/24h, US dates) and timezone autocomplete
+- 🏰 **[Disney Park Queue Times](./plugins/disney_parks_times/README.md)**: Wait times for Disney parks and rides from Queue-Times.com
 - 📶 **[Guest WiFi](./plugins/guest_wifi/README.md)**: Display WiFi credentials for guests
 - 🏠 **[Home Assistant](./plugins/home_assistant/README.md)**: House status display (doors, garage, locks, etc.)
 - 🎵 **[Last.fm Now Playing](./plugins/last_fm/README.md)**: Display currently playing music via Last.fm scrobbling
