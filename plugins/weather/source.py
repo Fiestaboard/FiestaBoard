@@ -15,19 +15,21 @@ logger = logging.getLogger(__name__)
 def _uv_to_display_index(uv: Any) -> Optional[int]:
     """Convert API UV value to display index 0-11+.
 
-    Some APIs return UV on a normalized 0-1 scale; others use 0-11+.
-    Values in (0, 1] are treated as normalized and scaled to 0-11.
+    Uses type to distinguish scales: integers are treated as standard
+    0-11+ (e.g. 1 means UV index 1). Floats in (0, 1) are treated as
+    normalized 0-1 and scaled to 0-11; other floats are standard scale.
     """
     if uv is None:
         return None
+    if isinstance(uv, int):
+        return max(0, uv)
     try:
         v = float(uv)
     except (TypeError, ValueError):
         return None
     if v < 0:
         return 0
-    if 0 <= v <= 1:
-        # Normalized 0-1 scale: 0 -> 0, 1 -> 11
+    if 0 < v < 1:
         return round(v * 11)
     return round(v)
 

@@ -16,23 +16,27 @@ class TestUvToDisplayIndex:
         assert _uv_to_display_index(0) == 0
         assert _uv_to_display_index(0.0) == 0
 
-    def test_uv_standard_scale_rounded(self):
-        """Values > 1 are treated as 0-11+ and rounded."""
-        assert _uv_to_display_index(2.1) == 2
-        assert _uv_to_display_index(3.8) == 4
+    def test_uv_integer_standard_scale(self):
+        """Integers are always standard 0-11+ (type-based)."""
+        assert _uv_to_display_index(1) == 1
         assert _uv_to_display_index(5) == 5
         assert _uv_to_display_index(10) == 10
         assert _uv_to_display_index(11) == 11
 
-    def test_uv_normalized_0_1_scale(self):
-        """Values in (0, 1] are scaled to 0-11 (fixes APIs that return 0-1)."""
-        assert _uv_to_display_index(0.1) == 1   # round(1.1)
-        assert _uv_to_display_index(0.5) == 6   # round(5.5)
-        assert _uv_to_display_index(0.9) == 10  # round(9.9)
-        assert _uv_to_display_index(1.0) == 11  # round(11)
+    def test_uv_float_standard_scale_rounded(self):
+        """Floats outside (0, 1) are standard scale and rounded."""
+        assert _uv_to_display_index(2.1) == 2
+        assert _uv_to_display_index(3.8) == 4
+        assert _uv_to_display_index(1.0) == 1
 
-    def test_uv_string_coerced(self):
-        """String values are coerced to float then processed."""
+    def test_uv_float_normalized_between_0_and_1(self):
+        """Floats in (0, 1) are treated as normalized and scaled to 0-11."""
+        assert _uv_to_display_index(0.1) == 1
+        assert _uv_to_display_index(0.5) == 6
+        assert _uv_to_display_index(0.9) == 10
+
+    def test_uv_string_coerced_to_float(self):
+        """String values are coerced to float then processed (so "1" -> 1, "0.5" -> 6)."""
         assert _uv_to_display_index("7") == 7
         assert _uv_to_display_index("0.5") == 6
 
