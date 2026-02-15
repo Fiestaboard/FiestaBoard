@@ -10,6 +10,8 @@ Display commute times and live traffic conditions using the Google Routes API.
 
 The Traffic plugin shows real-time driving times between configured origin and destination pairs. It supports up to 4 routes and multiple travel modes.
 
+![Traffic Display](/img/traffic-display.png)
+
 ## Setup
 
 ### 1. Enable the Google Routes API

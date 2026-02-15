@@ -1,5 +1,7 @@
 # Traffic Feature Setup Guide
 
+![Traffic Display](./traffic-display.png)
+
 ## Google Routes API Setup
 
 The Traffic feature uses Google's Routes API (v2) to get real-time travel times. Here's how to set it up properly.

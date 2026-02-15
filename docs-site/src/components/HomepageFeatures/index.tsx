@@ -158,6 +158,14 @@ const PluginShowcaseList: ShowcaseItem[] = [
     description: 'Random quotes from TNG, Voyager, DS9',
     link: '/docs/plugins/overview',
   },
+  {
+    title: 'Traffic',
+    emoji: '🚗',
+    image: '/img/traffic-display.png',
+    alt: 'Traffic commute times displayed on split-flap board',
+    description: 'Live commute times with color-coded traffic status',
+    link: '/docs/plugins/traffic',
+  },
 ];
 
 function Feature({title, emoji, description}: FeatureItem) {
