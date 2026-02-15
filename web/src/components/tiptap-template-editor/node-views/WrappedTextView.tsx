@@ -14,27 +14,23 @@ interface WrappedTextViewProps {
     };
   };
   deleteNode: () => void;
-  selected: boolean;
 }
 
-export function WrappedTextView({ node, deleteNode, selected }: WrappedTextViewProps) {
+export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
   const { text } = node.attrs;
 
   return (
     <NodeViewWrapper
       as="span"
       className={cn(
-        'inline-block align-middle rounded-md px-2 py-0.5 text-xs font-medium cursor-grab select-none',
+        'inline-block align-middle rounded-md px-2 py-0.5 text-xs font-medium cursor-grab',
         'border transition-all duration-150',
         'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300',
         'hover:bg-amber-500/20',
         'active:cursor-grabbing',
         'max-h-[1.2rem] h-auto',
         'mr-0.5', // Small space after the tag
-        selected && 'ring-2 ring-amber-500 ring-offset-1',
       )}
-      contentEditable={false}
-      draggable
       data-drag-handle
       style={{
         display: 'inline-block',

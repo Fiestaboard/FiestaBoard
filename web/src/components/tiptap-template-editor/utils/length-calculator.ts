@@ -20,8 +20,8 @@ export function calculateLineLength(lineContent: JSONContent[]): number {
   for (const node of lineContent) {
     switch (node.type) {
       case 'text':
-        // Regular text counts as actual length
-        tileCount += (node.text || '').length;
+        // Regular text counts as actual length (exclude end-of-line cursor placeholder)
+        tileCount += (node.text || '').replace(/\u200B/g, '').length;
         break;
 
       case 'variable':

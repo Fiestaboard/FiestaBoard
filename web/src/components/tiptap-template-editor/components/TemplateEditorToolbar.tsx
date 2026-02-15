@@ -6,7 +6,7 @@
 
 import { Editor } from '@tiptap/react';
 import { useQuery } from '@tanstack/react-query';
-import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2 } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste } from 'lucide-react';
 import { api } from '@/lib/api';
 import { insertTemplateContent } from '../utils/insertion';
 import { ToolbarDropdown } from './ToolbarDropdown';
@@ -16,7 +16,7 @@ import { FormattingPickerContent } from './FormattingPickerContent';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LineAlignment } from '../extensions/template-paragraph';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface TemplateEditorToolbarProps {
   editor: Editor | null;
@@ -57,34 +57,67 @@ export function TemplateEditorToolbar({
   const hasColors = templateVars?.colors && Object.keys(templateVars.colors).length > 0;
   const hasFormatting = templateVars?.formatting && Object.keys(templateVars.formatting).length > 0;
 
-  // Track undo/redo availability - update on editor state changes
+  // Track undo/redo availability and selection state
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [hasSelection, setHasSelection] = useState(false);
+  const [hasClipboardContent, setHasClipboardContent] = useState(false);
 
   useEffect(() => {
     if (!editor) {
       setCanUndo(false);
       setCanRedo(false);
+      setHasSelection(false);
       return;
     }
 
-    const updateHistoryState = () => {
+    const updateEditorState = () => {
       setCanUndo(editor.can().undo());
       setCanRedo(editor.can().redo());
+      const { from, to } = editor.state.selection;
+      setHasSelection(from !== to);
     };
 
     // Initial state
-    updateHistoryState();
+    updateEditorState();
 
     // Update on editor state changes
-    editor.on('update', updateHistoryState);
-    editor.on('selectionUpdate', updateHistoryState);
+    editor.on('update', updateEditorState);
+    editor.on('selectionUpdate', updateEditorState);
 
     return () => {
-      editor.off('update', updateHistoryState);
-      editor.off('selectionUpdate', updateHistoryState);
+      editor.off('update', updateEditorState);
+      editor.off('selectionUpdate', updateEditorState);
     };
   }, [editor]);
+
+  // Track clipboard content availability for paste button
+  useEffect(() => {
+    const handleClipboardWrite = () => {
+      setHasClipboardContent(true);
+    };
+
+    const checkClipboard = async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        setHasClipboardContent(text.length > 0);
+      } catch {
+        // Can't read clipboard (permission denied or unavailable) — optimistically enable paste
+        setHasClipboardContent(true);
+      }
+    };
+
+    document.addEventListener('copy', handleClipboardWrite);
+    document.addEventListener('cut', handleClipboardWrite);
+    window.addEventListener('focus', checkClipboard);
+    checkClipboard();
+
+    return () => {
+      document.removeEventListener('copy', handleClipboardWrite);
+      document.removeEventListener('cut', handleClipboardWrite);
+      window.removeEventListener('focus', checkClipboard);
+    };
+  }, []);
 
   const handleUndo = () => {
     if (editor && canUndo) {
@@ -97,6 +130,35 @@ export function TemplateEditorToolbar({
       editor.chain().focus().redo().run();
     }
   };
+
+  const handleCut = useCallback(() => {
+    if (editor && hasSelection) {
+      editor.view.focus();
+      document.execCommand('cut');
+      setHasClipboardContent(true);
+    }
+  }, [editor, hasSelection]);
+
+  const handleCopy = useCallback(() => {
+    if (editor && hasSelection) {
+      editor.view.focus();
+      document.execCommand('copy');
+      setHasClipboardContent(true);
+    }
+  }, [editor, hasSelection]);
+
+  const handlePaste = useCallback(async () => {
+    if (!editor) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        editor.chain().focus().insertContent(text).run();
+      }
+    } catch {
+      // Clipboard read failed — focus editor so user can Ctrl+V
+      editor.commands.focus();
+    }
+  }, [editor]);
 
   return (
     <TooltipProvider>
@@ -157,6 +219,81 @@ export function TemplateEditorToolbar({
 
         {/* Divider after undo/redo */}
         <div className="h-6 w-px bg-border mx-1" />
+
+        {/* Cut/Copy/Paste Controls */}
+        <div className="flex items-center gap-0.5 rounded-md border border-border/50 overflow-hidden bg-background">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleCut}
+                disabled={!hasSelection}
+                className={cn(
+                  "px-2 py-1.5 transition-colors",
+                  hasSelection
+                    ? "hover:bg-muted/50"
+                    : "opacity-40 cursor-not-allowed",
+                  "border-r border-border/50"
+                )}
+                aria-label="Cut"
+              >
+                <Scissors className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Cut (Ctrl+X)</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleCopy}
+                disabled={!hasSelection}
+                className={cn(
+                  "px-2 py-1.5 transition-colors",
+                  hasSelection
+                    ? "hover:bg-muted/50"
+                    : "opacity-40 cursor-not-allowed",
+                  "border-r border-border/50"
+                )}
+                aria-label="Copy"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Copy (Ctrl+C)</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handlePaste}
+                disabled={!hasClipboardContent}
+                className={cn(
+                  "px-2 py-1.5 transition-colors",
+                  hasClipboardContent
+                    ? "hover:bg-muted/50"
+                    : "opacity-40 cursor-not-allowed"
+                )}
+                aria-label="Paste"
+              >
+                <ClipboardPaste className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Paste (Ctrl+V)</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Divider after clipboard controls */}
+        <div className="h-6 w-px bg-border mx-1" />
+
         {/* Variables Dropdown */}
         {hasVariables ? (
           <ToolbarDropdown

@@ -16,26 +16,22 @@ interface VariableNodeViewProps {
     };
   };
   deleteNode: () => void;
-  selected: boolean;
 }
 
-export function VariableNodeView({ node, deleteNode, selected }: VariableNodeViewProps) {
+export function VariableNodeView({ node, deleteNode }: VariableNodeViewProps) {
   const { pluginId, field, filters, maxLength } = node.attrs;
 
   return (
     <NodeViewWrapper
       as="span"
       className={cn(
-        'inline-flex flex-nowrap items-center gap-1 rounded-full px-1.5 py-0 text-xs font-medium cursor-grab select-none',
+        'inline-flex flex-nowrap items-center gap-1 rounded-full px-1.5 py-0 text-xs font-medium cursor-grab',
         'border border-dashed transition-all duration-150',
         'bg-indigo-500/15 border-indigo-500/30 text-indigo-700 dark:text-indigo-300',
         'hover:bg-indigo-500/20',
         'active:cursor-grabbing',
         'mr-0.5', // Small space after the tag
-        selected && 'ring-2 ring-indigo-500 ring-offset-1',
       )}
-      contentEditable={false}
-      draggable
       data-drag-handle
       style={{
         display: 'inline-flex',

@@ -19,6 +19,7 @@ import { SymbolNode } from './extensions/symbol-node';
 import { WrappedTextNode } from './extensions/wrapped-text-node';
 import { UppercaseText } from './extensions/uppercase-text';
 import { LineConstraints } from './extensions/line-constraints';
+import { LineNavigation } from './extensions/line-navigation';
 import { parseTemplateSimple, serializeTemplateSimple, parseLineContent } from './utils/serialization';
 import { BOARD_LINES, BOARD_WIDTH } from './utils/constants';
 import { calculateLineLength } from './utils/length-calculator';
@@ -147,6 +148,7 @@ export function TipTapTemplateEditor({
       FillSpaceNode,
       SymbolNode,
       WrappedTextNode,
+      LineNavigation, // Enter = navigate to next line, Shift+Enter = blocked
       // UppercaseText, // Disabled - using CSS + serialization instead
       // LineConstraints, // Disabled - handling in handleKeyDown and serialization instead
     ],
@@ -225,28 +227,7 @@ export function TipTapTemplateEditor({
             return false;
           }
         
-        // Handle Enter key - insert hardBreak instead of new paragraph, limit to 6 lines
-        if (event.key === 'Enter' && !event.shiftKey) {
-          event.preventDefault();
-          
-          // Count existing hard breaks
-          let hardBreakCount = 0;
-          state.doc.descendants((node) => {
-            if (node.type.name === 'hardBreak') {
-              hardBreakCount++;
-            }
-          });
-          
-          // If we already have 5 or more hard breaks (6+ lines), prevent adding more
-          if (hardBreakCount >= 5) {
-            return true; // Block
-          }
-          
-          // Insert a hardBreak instead of creating a new paragraph
-          const tr = state.tr.replaceSelectionWith(state.schema.nodes.hardBreak.create());
-          view.dispatch(tr);
-          return true;
-        }
+        // Enter is handled by the LineNavigation extension (not here).
         
         // Handle Cut (Ctrl/Cmd + X) - copy to clipboard and delete
         if ((event.ctrlKey || event.metaKey) && event.key === 'x') {
@@ -461,6 +442,25 @@ export function TipTapTemplateEditor({
           return '';
         }
       },
+    },
+    onSelectionUpdate: ({ editor }) => {
+      // Toggle .selected-inline on atom node DOM elements that are inside the
+      // current range selection so color tiles etc. get a visible highlight.
+      const container = editor.view.dom;
+      container.querySelectorAll('.selected-inline').forEach(el => {
+        el.classList.remove('selected-inline');
+      });
+      const { selection } = editor.state;
+      if (!selection.empty) {
+        editor.state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+          if (node.isAtom && node.isInline) {
+            const domNode = editor.view.nodeDOM(pos);
+            if (domNode instanceof HTMLElement) {
+              domNode.classList.add('selected-inline');
+            }
+          }
+        });
+      }
     },
     onUpdate: ({ editor }) => {
       // Skip onChange if we're manually updating wrap (to prevent state overwrite)
@@ -938,6 +938,24 @@ export function TipTapTemplateEditor({
         .ProseMirror [data-type="color-tile"]::before,
         .ProseMirror [data-type="color-tile"]::after {
           content: none;
+        }
+        
+        /* Selection highlighting for inline atom nodes.
+           user-select: all makes the browser include the whole node in
+           range selections (shift+arrow, click-drag) so they highlight
+           with the native selection color just like regular text. */
+        .ProseMirror [data-node-view-wrapper] {
+          -webkit-user-select: all;
+          user-select: all;
+        }
+        
+        /* Range-selection highlight for inline atom nodes (color tiles,
+           variables, symbols, fill-space).  onSelectionUpdate adds this
+           class to any atom node DOM element inside the selection range. */
+        .ProseMirror .selected-inline {
+          outline: 2px solid hsl(var(--primary));
+          outline-offset: 1px;
+          border-radius: 3px;
         }
       `}</style>
     </div>
