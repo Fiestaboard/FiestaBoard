@@ -16,6 +16,7 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? "github" : "list",
   timeout: 60_000,
+  globalSetup: "./tests/global-setup.ts",
 
   use: {
     /* Base URL points to the Next.js dev server */
@@ -37,7 +38,7 @@ export default defineConfig({
       /* 1. Mock Vestaboard board API (port 7000 — matches BoardClient.LOCAL_API_PORT) */
       command: "python ../integration-tests/mock-board/server.py",
       port: 7000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
     },
     {
       /* 2. FastAPI backend (pointed at mock board on localhost:7000) */
@@ -45,17 +46,17 @@ export default defineConfig({
         "uvicorn src.api_server:app --host 0.0.0.0 --port 8000",
       port: 8000,
       cwd: "..",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       env: {
-        DATA_DIR: "/tmp/fiestaboard-integration-data",
         PYTHONPATH: "..",
+        FIESTA_API_URL: "http://localhost:8000",
       },
     },
     {
       /* 3. Next.js UI dev server */
       command: "npm run dev",
       port: 3000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 120_000,
     },
   ],

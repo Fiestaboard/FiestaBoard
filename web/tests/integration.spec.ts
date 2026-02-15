@@ -5,19 +5,49 @@
  *   Playwright browser  →  Next.js UI  →  FastAPI backend  →  Mock Vestaboard API
  *
  * Coverage:
- *   1. Setup wizard (board connection via Local API)
- *   2. Page creation (template page)
- *   3. Navigating between pages
- *   4. Schedule creation
+ *   1. Mock Board API health checks
+ *   2. Setup wizard (board connection via Local API)
+ *   3. Navigation between sections
+ *   4. Page creation (template page)
+ *   5. Schedule creation
+ *
+ * NOTE: Tests run sequentially. The wizard test runs first and configures
+ * the board so subsequent tests have a working backend.
  */
 import { test, expect, getMockBoardState } from "./helpers";
 
 // ---------------------------------------------------------------------------
-// 1. Setup Wizard
+// 1. Mock Board API & Backend Health
+// ---------------------------------------------------------------------------
+
+test.describe("Infrastructure", () => {
+  test("mock board server is running and responsive", async () => {
+    const state = await getMockBoardState();
+    expect(state).toHaveProperty("current_message");
+    expect(state.current_message).toHaveLength(6);
+    expect(state.current_message[0]).toHaveLength(22);
+  });
+
+  test("API health check responds OK", async () => {
+    const res = await fetch("http://localhost:8000/health");
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    expect(data.status).toBe("ok");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2. Setup Wizard
 // ---------------------------------------------------------------------------
 
 test.describe("Setup Wizard", () => {
   test("completes the wizard using Local API mode", async ({ page }) => {
+    // Ensure no lingering wizard completion state
+    await page.addInitScript(() => {
+      localStorage.removeItem("fiestaboard_wizard_complete");
+      localStorage.removeItem("fiestaboard_wizard_progress");
+    });
+
     // Navigate to the app — on first run the wizard should appear
     await page.goto("/");
 
@@ -43,24 +73,24 @@ test.describe("Setup Wizard", () => {
     await expect(page.getByText("Connected!")).toBeVisible({ timeout: 15_000 });
 
     // Proceed to Step 2
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Step 2: Add Data Sources — just proceed
     await expect(
       page.getByRole("heading", { name: "Add Data Sources" })
     ).toBeVisible();
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Step 3: You're All Set — finish
     await expect(page.getByText("Setup Complete!")).toBeVisible();
 
-    // Click through to the dashboard
+    // Click through to the dashboard (could be either label)
     const dashboardButton = page.getByRole("button", {
       name: /Go to Dashboard|Skip/,
     });
     await dashboardButton.click();
 
-    // Should land on the Dashboard
+    // Should land on the Dashboard after reload
     await expect(
       page.getByRole("heading", { name: "Dashboard" })
     ).toBeVisible({ timeout: 15_000 });
@@ -68,35 +98,71 @@ test.describe("Setup Wizard", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Page creation
+// 3. Navigation
+// ---------------------------------------------------------------------------
+
+test.describe("Navigation", () => {
+  test("navigates between main sections", async ({ page }) => {
+    // After the wizard test, the board is configured and wizard is complete.
+    // Set localStorage to suppress the wizard just in case.
+    await page.addInitScript(() => {
+      localStorage.setItem("fiestaboard_wizard_complete", "true");
+    });
+
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" })
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Navigate to Pages
+    await page.getByRole("link", { name: "Pages" }).first().click();
+    await expect(
+      page.getByRole("heading", { name: "Pages", exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Navigate to Schedule
+    await page.getByRole("link", { name: "Schedule" }).first().click();
+    await expect(
+      page.getByRole("heading", { name: "Schedule", exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Navigate to Settings
+    await page.getByRole("link", { name: "Settings" }).first().click();
+    await expect(
+      page.getByRole("heading", { name: "Settings", exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Navigate back to Dashboard
+    await page.getByRole("link", { name: "Home" }).first().click();
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" })
+    ).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. Page creation
 // ---------------------------------------------------------------------------
 
 test.describe("Page Management", () => {
-  test.beforeEach(async ({ page }) => {
-    // Mark the wizard as complete so it doesn't appear
-    await page.goto("/");
-    await page.evaluate(() => {
+  test("creates a new template page", async ({ page }) => {
+    await page.addInitScript(() => {
       localStorage.setItem("fiestaboard_wizard_complete", "true");
     });
-  });
 
-  test("creates a new template page", async ({ page }) => {
     // Navigate to the Pages section
     await page.goto("/pages");
     await expect(
-      page.getByRole("heading", { name: "Pages" })
+      page.getByRole("heading", { name: "Pages", exact: true })
     ).toBeVisible({ timeout: 15_000 });
 
-    // Click "New" / create page button
-    const newButton = page.getByRole("link", { name: /new/i }).or(
-      page.getByRole("button", { name: /new|create/i })
-    );
-    await newButton.click();
+    // Click "New" button
+    await page.getByRole("button", { name: /New/ }).click();
 
     // Wait for the page builder to appear
-    await expect(page.getByText(/Create Page|Page Name/)).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(
+      page.getByText("Create Page").first()
+    ).toBeVisible({ timeout: 10_000 });
 
     // Fill in page name
     const nameInput = page.getByPlaceholder("My Custom Page");
@@ -110,97 +176,45 @@ test.describe("Page Management", () => {
     }
 
     // Save the page
-    const saveButton = page
-      .getByRole("button", { name: /save/i })
-      .or(page.locator('[title="Save Page"]'));
-    await saveButton.click();
+    const saveButton = page.locator('[title="Save Page"]').or(
+      page.getByRole("button", { name: /save/i })
+    );
+    await saveButton.first().click();
 
-    // Verify the page was saved — look for success toast or navigation
+    // After save, the app navigates back to /pages or shows a toast
     await expect(
-      page.getByText(/saved|success/i).or(
-        page.getByRole("heading", { name: "Pages" })
+      page.getByText("Page created").first().or(
+        page.getByRole("heading", { name: "Pages", exact: true })
       )
-    ).toBeVisible({ timeout: 10_000 });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 3. Navigation
-// ---------------------------------------------------------------------------
-
-test.describe("Navigation", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.evaluate(() => {
-      localStorage.setItem("fiestaboard_wizard_complete", "true");
-    });
-  });
-
-  test("navigates between main sections", async ({ page }) => {
-    await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" })
     ).toBeVisible({ timeout: 15_000 });
-
-    // Navigate to Pages
-    await page.getByRole("link", { name: "Pages" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Pages" })
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Navigate to Schedule
-    await page.getByRole("link", { name: "Schedule" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: /schedule/i })
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Navigate to Settings
-    await page.getByRole("link", { name: "Settings" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: /settings/i })
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Navigate back to Dashboard
-    await page.getByRole("link", { name: "Home" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" })
-    ).toBeVisible({ timeout: 10_000 });
   });
 });
 
 // ---------------------------------------------------------------------------
-// 4. Schedule creation
+// 5. Schedule creation
 // ---------------------------------------------------------------------------
 
 test.describe("Schedule Management", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-    await page.evaluate(() => {
+  test("creates a schedule entry", async ({ page }) => {
+    await page.addInitScript(() => {
       localStorage.setItem("fiestaboard_wizard_complete", "true");
     });
-  });
 
-  test("creates a schedule entry", async ({ page }) => {
     await page.goto("/schedule");
     await expect(
-      page.getByRole("heading", { name: /schedule/i })
+      page.getByRole("heading", { name: "Schedule", exact: true })
     ).toBeVisible({ timeout: 15_000 });
 
-    // Look for a button to add a new schedule entry
-    const addButton = page
-      .getByRole("button", { name: /add|new|create/i })
-      .first();
-    await addButton.click();
+    // Click "Add Schedule" button
+    await page.getByRole("button", { name: "Add Schedule" }).first().click();
 
-    // Wait for the schedule form dialog/modal
+    // Wait for the schedule form dialog — title is "Add Schedule" in the dialog
     await expect(
-      page.getByText(/create schedule|new schedule|schedule entry/i)
+      page.getByText("Add Schedule").first()
     ).toBeVisible({ timeout: 10_000 });
 
-    // Select a page (the first available one)
-    const pageSelect = page.locator("#page").or(
-      page.getByLabel("Page")
-    );
+    // Select a page (the first available one) via the Radix select trigger
+    const pageSelect = page.locator("#page");
     if (await pageSelect.isVisible().catch(() => false)) {
       await pageSelect.click();
       // Click first available option
@@ -210,10 +224,8 @@ test.describe("Schedule Management", () => {
       }
     }
 
-    // Set start and end times
-    const startTime = page.locator("#start-time").or(
-      page.getByLabel("Start Time")
-    );
+    // Set start time
+    const startTime = page.locator("#start-time");
     if (await startTime.isVisible().catch(() => false)) {
       await startTime.click();
       const option0900 = page.getByRole("option", { name: "09:00" });
@@ -222,9 +234,8 @@ test.describe("Schedule Management", () => {
       }
     }
 
-    const endTime = page.locator("#end-time").or(
-      page.getByLabel("End Time")
-    );
+    // Set end time
+    const endTime = page.locator("#end-time");
     if (await endTime.isVisible().catch(() => false)) {
       await endTime.click();
       const option1700 = page.getByRole("option", { name: "17:00" });
@@ -235,7 +246,7 @@ test.describe("Schedule Management", () => {
 
     // Submit the schedule
     const submitButton = page.getByRole("button", {
-      name: /create schedule|save|submit/i,
+      name: "Create Schedule",
     });
     if (await submitButton.isEnabled({ timeout: 3_000 }).catch(() => false)) {
       await submitButton.click();
@@ -243,27 +254,7 @@ test.describe("Schedule Management", () => {
 
     // Verify the schedule page is still showing (no crash)
     await expect(
-      page.getByRole("heading", { name: /schedule/i })
+      page.getByRole("heading", { name: "Schedule", exact: true })
     ).toBeVisible({ timeout: 10_000 });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 5. Mock Board API Verification
-// ---------------------------------------------------------------------------
-
-test.describe("Mock Board API", () => {
-  test("mock board server is running and responsive", async () => {
-    const state = await getMockBoardState();
-    expect(state).toHaveProperty("current_message");
-    expect(state.current_message).toHaveLength(6);
-    expect(state.current_message[0]).toHaveLength(22);
-  });
-
-  test("API health check responds OK", async () => {
-    const res = await fetch("http://localhost:8000/health");
-    expect(res.ok).toBe(true);
-    const data = await res.json();
-    expect(data.status).toBe("ok");
   });
 });

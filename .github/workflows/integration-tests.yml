@@ -66,6 +66,7 @@ jobs:
         run: |
           rm -rf /tmp/fiestaboard-integration-data
           mkdir -p /tmp/fiestaboard-integration-data
+          rm -f data/config.json data/settings.json data/pages.json data/schedules.json
 
       # --- Run tests ---
       - name: Run integration tests
@@ -73,6 +74,7 @@ jobs:
         run: npx playwright test --reporter=github
         env:
           CI: true
+          FIESTA_API_URL: http://localhost:8000
 
       # --- Upload artefacts on failure ---
       - name: Upload Playwright report
