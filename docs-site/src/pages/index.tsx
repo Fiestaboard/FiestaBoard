@@ -35,7 +35,7 @@ function HomepageHeader() {
           </Link>
           <Link
             className={clsx('button button--outline button--lg', styles.githubButton)}
-            href="https://github.com/roblesi/FiestaBoard">
+            href="https://github.com/Fiestaboard/FiestaBoard">
             ⭐ View on GitHub
           </Link>
         </div>
