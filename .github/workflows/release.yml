@@ -84,6 +84,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       build_pi: ${{ steps.bump_type.outputs.build_pi }}
       platforms: ${{ steps.bump_type.outputs.build_pi == 'true' && 'linux/amd64,linux/arm/v7,linux/arm64' || 'linux/amd64' }}
+      owner_lower: ${{ steps.owner_lower.outputs.owner_lower }}
     steps:
       # Use RELEASE_PAT when branch protection/rulesets block GITHUB_TOKEN from pushing to main.
       # Add repo secret RELEASE_PAT (PAT with repo scope) and allow that user to bypass rules on main.
@@ -92,6 +93,10 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Set owner lowercase for GHCR
+        id: owner_lower
+        run: echo "owner_lower=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -208,14 +213,14 @@ jobs:
           build-args: |
             VERSION=${{ needs.prep.outputs.version }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/fiestaboard-api:${{ needs.prep.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/fiestaboard-api:latest
+            ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:${{ needs.prep.outputs.version }}
+            ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:latest
           cache-from: |
             type=gha
-            type=registry,ref=ghcr.io/${{ github.repository_owner }}/fiestaboard-api:buildcache
+            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:buildcache
           cache-to: |
             type=gha,mode=max
-            type=registry,ref=ghcr.io/${{ github.repository_owner }}/fiestaboard-api:buildcache,mode=max
+            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:buildcache,mode=max
 
   build-ui:
     name: Build UI Image
@@ -247,14 +252,14 @@ jobs:
           build-args: |
             VERSION=${{ needs.prep.outputs.version }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/fiestaboard-ui:${{ needs.prep.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/fiestaboard-ui:latest
+            ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:${{ needs.prep.outputs.version }}
+            ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:latest
           cache-from: |
             type=gha
-            type=registry,ref=ghcr.io/${{ github.repository_owner }}/fiestaboard-ui:buildcache
+            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:buildcache
           cache-to: |
             type=gha,mode=max
-            type=registry,ref=ghcr.io/${{ github.repository_owner }}/fiestaboard-ui:buildcache,mode=max
+            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:buildcache,mode=max
 
   release:
     name: Create Release
@@ -329,8 +334,8 @@ jobs:
             
             releaseNotes += `**Platforms:** ${platforms}\n\n`;
             releaseNotes += `\`\`\`bash\n`;
-            releaseNotes += `docker pull ghcr.io/${{ github.repository_owner }}/fiestaboard-api:${version}\n`;
-            releaseNotes += `docker pull ghcr.io/${{ github.repository_owner }}/fiestaboard-ui:${version}\n`;
+            releaseNotes += `docker pull ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:${version}\n`;
+            releaseNotes += `docker pull ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:${version}\n`;
             releaseNotes += `\`\`\`\n`;
             
             if (buildPi) {
