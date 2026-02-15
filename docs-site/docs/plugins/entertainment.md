@@ -108,6 +108,8 @@ GUEST_WIFI_PASSWORD=mypassword123
 
 Display wave height and swell conditions. **No API key required.**
 
+![Surf Conditions Display](/img/surf-display.png)
+
 ### Sun Art
 
 A full-screen artistic sun pattern that changes based on the sun's position throughout the day. **No API key required.**

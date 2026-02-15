@@ -396,6 +396,10 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 ![Weather Display](./plugins/weather/docs/weather-display.png)
 
+**Surf Conditions**: Live surf reports with wave height, swell period, and quality ratings
+
+![Surf Conditions Display](./plugins/surf/docs/surf-display.png)
+
 ### Other Available Features
 
 The board can display various screens:
@@ -408,7 +412,6 @@ The board can display various screens:
 - **Bay Wheels**: Track bike availability at multiple stations
 - **Muni Transit**: Real-time SF Muni arrival predictions
 - **Traffic**: Travel time to destinations with live traffic
-- **Surf Conditions**: Live surf reports with wave height and quality ratings
 
 **System Features:**
 - **Silence Schedule**: Configure quiet hours when the board won't update (e.g., 8pm-7am)
