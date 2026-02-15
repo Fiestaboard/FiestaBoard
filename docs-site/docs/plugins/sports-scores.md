@@ -47,6 +47,8 @@ SPORTS_API_KEY=your_key_here
 
 ## Example Display
 
+![Sports Scores Display](/img/sports-scores-display.png)
+
 ```
 ┌──────────────────────┐
 │  SPORTS SCORES       │
