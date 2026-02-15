@@ -396,6 +396,10 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 ![Weather Display](./plugins/weather/docs/weather-display.png)
 
+**Air Quality & Fog**: Monitor AQI, fog conditions, visibility, and dew point
+
+![Air Quality & Fog Display](./plugins/air_fog/docs/air-fog-display.png)
+
 ### Other Available Features
 
 The board can display various screens:
@@ -404,7 +408,6 @@ The board can display various screens:
 - **Home Assistant**: House status with green ([G]) and red ([R]) indicators
 - **Star Trek Quotes**: Inspiring quotes from TNG, Voyager, and DS9
 - **Guest WiFi**: SSID and password for guests
-- **Air Quality & Fog**: Monitor AQI and fog conditions
 - **Bay Wheels**: Track bike availability at multiple stations
 - **Muni Transit**: Real-time SF Muni arrival predictions
 - **Traffic**: Travel time to destinations with live traffic

@@ -158,6 +158,14 @@ const PluginShowcaseList: ShowcaseItem[] = [
     description: 'Random quotes from TNG, Voyager, DS9',
     link: '/docs/plugins/overview',
   },
+  {
+    title: 'Air Quality & Fog',
+    emoji: '💨',
+    image: '/img/air-fog-display.png',
+    alt: 'Air quality and fog conditions displayed on split-flap board',
+    description: 'AQI monitoring, fog detection, dew point',
+    link: '/docs/plugins/overview',
+  },
 ];
 
 function Feature({title, emoji, description}: FeatureItem) {
