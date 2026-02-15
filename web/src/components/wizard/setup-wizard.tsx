@@ -152,8 +152,6 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     }
   };
 
-  const wizardTitle = "Welcome to FiestaBoard";
-
   // Step titles
   const stepTitles = [
     "Connect Your Board",
@@ -177,37 +175,20 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         {/* Header */}
         <header className="flex-shrink-0 px-4 sm:px-6 pt-6 sm:pt-10 pb-4">
           <div className="max-w-lg mx-auto text-center">
-            {/* Desktop: stacked icon above title */}
-            <div className="hidden sm:inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4 overflow-hidden">
+            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-4 overflow-hidden">
               <Image
                 src="/icons/icon-96x96.png"
                 alt="FiestaBoard"
                 width={48}
                 height={48}
-                className="w-12 h-12"
+                className="w-10 h-10 sm:w-12 sm:h-12"
               />
             </div>
-            {/* Mobile: inline icon + title row */}
-            <div className="flex sm:hidden items-center justify-center gap-2 mb-1">
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 overflow-hidden flex-shrink-0">
-                <Image
-                  src="/icons/icon-96x96.png"
-                  alt="FiestaBoard"
-                  width={36}
-                  height={36}
-                  className="w-7 h-7"
-                />
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {wizardTitle}
-              </h1>
-            </div>
-            <h1 className="hidden sm:block text-3xl font-bold tracking-tight">
-              {wizardTitle}
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Welcome to FiestaBoard
             </h1>
             <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-              <span className="hidden sm:inline">Let&apos;s get you set up in just a few steps</span>
-              <span className="sm:hidden">Quick setup ahead! <span role="img" aria-label="party">🎉</span></span>
+              Let&apos;s get you set up in just a few steps
             </p>
           </div>
         </header>
