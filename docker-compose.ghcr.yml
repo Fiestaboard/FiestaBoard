@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # API Service - REST API for controlling the FiestaBoard display
   fiestaboard-api:
-    image: ghcr.io/roblesi/fiestaboard-api:latest
+    image: ghcr.io/fiestaboard/fiestaboard-api:latest
     container_name: fiestaboard-api
     env_file:
       - .env
@@ -30,7 +30,7 @@ services:
 
   # Web UI - Monitoring and control interface
   fiestaboard-ui:
-    image: ghcr.io/roblesi/fiestaboard-ui:latest
+    image: ghcr.io/fiestaboard/fiestaboard-ui:latest
     container_name: fiestaboard-ui
     restart: unless-stopped
     pull_policy: always
