@@ -420,6 +420,10 @@ The board can display various screens:
 - [OpenWeatherMap](https://openweathermap.org/api)
 - [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/)
 
+## Considering a Vestaboard?
+
+If you're thinking about buying a board, please consider using [my referral link](https://web.vestaboard.com/referral?vbref=ZDGYOT) for a $200 discount — it helps support this project at no extra cost to you.
+
 ## Support the Project
 
 FiestaBoard is free and open source. If you find it useful and want to support continued development, consider buying me a coffee! ☕
