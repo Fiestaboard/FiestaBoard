@@ -308,38 +308,6 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
     return templateLines.map((content, i) => applyAlignment(lineAlignments[i], lineWrapEnabled[i], content));
   };
 
-  // Get raw text representation (6 lines joined by newlines)
-  const _getRawText = (): string => {
-    return getTemplateWithAlignments().join("\n");
-  };
-
-  // Parse raw text back into template lines and alignments
-  // Enforces exactly 6 lines - truncates extras, pads if fewer
-  const _parseRawText = (rawText: string) => {
-    // Split and limit to exactly 6 lines
-    let lines = rawText.split("\n");
-    
-    // If more than 6 lines, truncate (don't allow adding more)
-    if (lines.length > 6) {
-      lines = lines.slice(0, 6);
-    }
-    
-    const newContents: string[] = [];
-    const newAlignments: LineAlignment[] = [];
-    
-    for (let i = 0; i < 6; i++) {
-      const line = lines[i] || "";
-      const { alignment, wrapEnabled, content } = extractAlignment(line);
-      newAlignments.push(alignment);
-      newWrapStates.push(wrapEnabled);
-      newContents.push(content);
-    }
-    
-    setTemplateLines(newContents);
-    setLineAlignments(newAlignments);
-    setLineWrapEnabled(newWrapStates);
-  };
-
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {

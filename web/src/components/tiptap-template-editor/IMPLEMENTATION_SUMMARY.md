@@ -28,7 +28,6 @@ All 12 planned todos have been completed successfully!
 - ✅ Length calculation tests - Character counting accuracy
 
 #### 5. Migration Support
-- ✅ Feature flags system (`lib/feature-flags.ts`)
 - ✅ Migration guide with rollback plan
 - ✅ Comprehensive documentation
 
@@ -65,8 +64,6 @@ web/src/__tests/
 ├── tiptap-serialization.test.ts              # Serialization tests
 └── tiptap-length-calculator.test.ts          # Length calculation tests
 
-web/src/lib/
-└── feature-flags.ts                          # Feature flag utilities
 ```
 
 ## Key Features
@@ -105,29 +102,16 @@ import { TipTapLineEditor } from '@/components/tiptap-template-editor/TipTapLine
 />
 ```
 
-### Option 2: Feature Flag (Gradual Rollout)
+### Option 2: Gradual Rollout
+
+Use an environment variable for gradual rollout:
 
 1. Add to `.env.local`:
    ```env
    NEXT_PUBLIC_USE_TIPTAP_EDITOR=true
    ```
 
-2. In your component:
-   ```tsx
-   import { useTipTapEditor } from '@/lib/feature-flags';
-   import { TemplateLineEditor } from '@/components/template-line-editor';
-   import { TipTapLineEditor } from '@/components/tiptap-template-editor/TipTapLineEditor';
-
-   const Editor = useTipTapEditor() ? TipTapLineEditor : TemplateLineEditor;
-
-   <Editor value={line} onChange={setLine} />
-   ```
-
-3. Users can override in browser console:
-   ```javascript
-   localStorage.setItem('use_tiptap_editor', 'true');
-   location.reload();
-   ```
+2. In your component, conditionally choose the editor based on the environment variable.
 
 ## Testing
 
@@ -197,7 +181,6 @@ npm test -- tiptap
 ✅ Character counting accurate
 ✅ Tests passing
 ✅ Documentation complete
-✅ Feature flag system ready
 ✅ Migration plan defined
 
 The TipTap Rich Template Editor is **ready for testing and gradual rollout**!

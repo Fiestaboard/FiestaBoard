@@ -25,7 +25,7 @@ import { TipTapLineEditor } from '@/components/tiptap-template-editor/TipTapLine
 
 ## Feature Flag Approach
 
-For gradual rollout, use feature flags:
+For gradual rollout, use environment variables and localStorage:
 
 ### Step 1: Add Environment Variable
 
@@ -38,12 +38,11 @@ NEXT_PUBLIC_USE_TIPTAP_EDITOR=true
 ### Step 2: Conditional Component
 
 ```tsx
-import { useTipTapEditor } from '@/lib/feature-flags';
 import { TemplateLineEditor } from '@/components/template-line-editor';
 import { TipTapLineEditor } from '@/components/tiptap-template-editor/TipTapLineEditor';
 
 function PageBuilder() {
-  const useTipTap = useTipTapEditor();
+  const useTipTap = process.env.NEXT_PUBLIC_USE_TIPTAP_EDITOR === 'true';
   
   const Editor = useTipTap ? TipTapLineEditor : TemplateLineEditor;
   
@@ -73,16 +72,6 @@ location.reload();
 // Use environment default
 localStorage.removeItem('use_tiptap_editor');
 location.reload();
-```
-
-Or use the helper functions:
-
-```tsx
-import { enableTipTapEditor, disableTipTapEditor } from '@/lib/feature-flags';
-
-// In settings UI:
-<button onClick={enableTipTapEditor}>Enable New Editor</button>
-<button onClick={disableTipTapEditor}>Use Legacy Editor</button>
 ```
 
 ## Compatibility

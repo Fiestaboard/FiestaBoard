@@ -44,10 +44,6 @@ CSS transitions provide:
    - Shows progress bar at top of screen
    - Provides visual feedback during navigation
 
-4. **`useReducedMotion`** (`hooks/use-reduced-motion.ts`)
-   - Detects user's motion preference
-   - Used to disable animations when needed
-
 ### Transition Types
 
 | Type | Duration | Animation | Use Case |
