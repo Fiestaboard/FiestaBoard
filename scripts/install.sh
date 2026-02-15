@@ -176,9 +176,32 @@ if [ "$SKIP_CONFIG" = false ]; then
     echo ""
 fi
 
-# Step 3: Start FiestaBoard
+# Step 3: Create config.json and data directory
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Step 3: Starting FiestaBoard..."
+echo "Step 3: Setting up project files..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Create config.json if it doesn't exist
+if [ ! -f "$PROJECT_DIR/config.json" ]; then
+    cp "$PROJECT_DIR/config.example.json" "$PROJECT_DIR/config.json"
+    echo -e "${GREEN}✓ Created config.json from template${NC}"
+else
+    echo -e "${GREEN}✓ config.json already exists${NC}"
+fi
+
+# Create data directory if it doesn't exist
+if [ ! -d "$PROJECT_DIR/data" ]; then
+    mkdir -p "$PROJECT_DIR/data"
+    echo -e "${GREEN}✓ Created data directory${NC}"
+else
+    echo -e "${GREEN}✓ data directory already exists${NC}"
+fi
+echo ""
+
+# Step 4: Start FiestaBoard
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Step 4: Starting FiestaBoard..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

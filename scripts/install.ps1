@@ -171,9 +171,36 @@ if (-not $skipConfig) {
     Write-Host ""
 }
 
-# Step 3: Start FiestaBoard
+# Step 3: Create config.json and data directory
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
-Write-Host "Step 3: Starting FiestaBoard..." -ForegroundColor Yellow
+Write-Host "Step 3: Setting up project files..." -ForegroundColor Yellow
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host ""
+
+# Create config.json if it doesn't exist
+$configPath = Join-Path $ProjectDir "config.json"
+$configExample = Join-Path $ProjectDir "config.example.json"
+if (-not (Test-Path $configPath)) {
+    Copy-Item $configExample $configPath
+    Write-Host "✓ Created config.json from template" -ForegroundColor Green
+} else {
+    Write-Host "✓ config.json already exists" -ForegroundColor Green
+}
+
+# Create data directory if it doesn't exist
+$dataDir = Join-Path $ProjectDir "data"
+if (-not (Test-Path $dataDir)) {
+    New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+    Write-Host "✓ Created data directory" -ForegroundColor Green
+} else {
+    Write-Host "✓ data directory already exists" -ForegroundColor Green
+}
+
+Write-Host ""
+
+# Step 4: Start FiestaBoard
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host "Step 4: Starting FiestaBoard..." -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
 Write-Host ""
 

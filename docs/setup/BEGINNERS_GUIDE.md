@@ -100,13 +100,20 @@ We've made this super easy! Just run one script and it will handle everything fo
 
 ### What the script does:
 
-The installation script will:
-- ✅ Check that Docker is installed and running
-- ✅ Guide you through entering your API keys
-- ✅ Ask for your location (optional)
-- ✅ Create the configuration file automatically
-- ✅ Build and start all the services
-- ✅ Tell you when everything is ready!
+The installation script runs in 4 steps:
+
+**Step 1 — Checks prerequisites:** Verifies Docker and Docker Compose are installed and running. If something is missing, it tells you exactly what to install and where to get it.
+
+**Step 2 — Configures API keys (interactive):** The script will ask you to paste in two API keys:
+- **Board API Key** — it shows you where to get this (web.vestaboard.com → Settings → API)
+- **Weather API Key** — it shows you where to sign up (weatherapi.com, free, no credit card)
+- **Location** (optional) — defaults to San Francisco, CA if you just press Enter
+
+It creates a `.env` file with your keys. If you already have a `.env` file, it will ask if you want to keep it or start fresh (with a backup).
+
+**Step 3 — Sets up project files:** Creates `config.json` (board configuration) and the `data/` directory (for persistent storage) if they don't exist.
+
+**Step 4 — Starts FiestaBoard:** Builds the Docker containers (this takes a few minutes the first time) and starts everything. When it's done, it shows you the URLs to access FiestaBoard.
 
 Just follow the prompts and enter your API keys when asked. The script will handle the rest!
 

@@ -18,13 +18,22 @@ Built for San Francisco life, but works anywhere.
 .\scripts\install.ps1
 ```
 
-The script will guide you through everything! 🎉
+The script walks you through the entire setup interactively:
+1. ✅ Checks that Docker is installed and running
+2. ✅ Prompts you for your Board API key and Weather API key (with instructions on where to get them)
+3. ✅ Optionally sets your location for weather data
+4. ✅ Creates the `.env` and `config.json` configuration files
+5. ✅ Builds and starts all Docker containers
+6. ✅ Tells you when everything is ready
+
+**New to this?** See the [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) for detailed step-by-step instructions including how to install Docker and get your API keys.
 
 ### Manual Setup
 
 ```bash
-# 1. Create .env file with your API keys
+# 1. Create configuration files
 cp env.example .env
+cp config.example.json config.json
 # Edit .env and add: BOARD_READ_WRITE_KEY and WEATHER_API_KEY
 
 # 2. Run it! (first time builds images)
