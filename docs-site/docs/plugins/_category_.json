@@ -1,0 +1,8 @@
+{
+  "label": "Plugins",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "Configure and use FiestaBoard plugins."
+  }
+}
