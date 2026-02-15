@@ -22,7 +22,7 @@ const config: Config = {
 
   // GitHub pages deployment config.
   organizationName: 'Fiestaboard',
-  projectName: 'fiestaboard.github.io',
+  projectName: 'FiestaBoard',
 
   onBrokenLinks: 'throw',
 
