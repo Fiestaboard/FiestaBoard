@@ -21,7 +21,7 @@ const config: Config = {
   baseUrl: '/',
 
   // GitHub pages deployment config.
-  organizationName: 'roblesi',
+  organizationName: 'Fiestaboard',
   projectName: 'FiestaBoard',
 
   onBrokenLinks: 'throw',
@@ -40,7 +40,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/roblesi/FiestaBoard/tree/main/docs-site/',
+            'https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/',
         },
         blog: false, // Disable blog for now - keep it simple
         theme: {
@@ -69,7 +69,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: 'https://github.com/roblesi/FiestaBoard',
+          href: 'https://github.com/Fiestaboard/FiestaBoard',
           label: 'GitHub',
           position: 'right',
         },
@@ -96,11 +96,11 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/roblesi/FiestaBoard',
+              href: 'https://github.com/Fiestaboard/FiestaBoard',
             },
             {
               label: 'Issues',
-              href: 'https://github.com/roblesi/FiestaBoard/issues',
+              href: 'https://github.com/Fiestaboard/FiestaBoard/issues',
             },
           ],
         },

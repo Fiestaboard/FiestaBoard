@@ -33,7 +33,7 @@ The script will guide you through the setup process.
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/roblesi/FiestaBoard.git
+git clone https://github.com/Fiestaboard/FiestaBoard.git
 cd FiestaBoard
 ```
 
