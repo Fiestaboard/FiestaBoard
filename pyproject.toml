@@ -42,9 +42,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/roblesi/fiestaboard"
-Repository = "https://github.com/roblesi/fiestaboard"
-Issues = "https://github.com/roblesi/fiestaboard/issues"
+Homepage = "https://github.com/Fiestaboard/FiestaBoard"
+Repository = "https://github.com/Fiestaboard/FiestaBoard"
+Issues = "https://github.com/Fiestaboard/FiestaBoard/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "src.__version__"}

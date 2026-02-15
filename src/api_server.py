@@ -1604,7 +1604,9 @@ async def list_disney_parks():
         for group in data:
             if group.get("id") == DISNEY_GROUP_ID:
                 parks = group.get("parks", [])
-                return [{"id": p["id"], "name": p["name"], "country": p.get("country"), "timezone": p.get("timezone")} for p in parks]
+                out = [{"id": p["id"], "name": p["name"], "country": p.get("country"), "timezone": p.get("timezone")} for p in parks]
+                out.sort(key=lambda x: (x.get("name") or "").lower())
+                return out
         return []
     except Exception as e:
         logger.error(f"Error listing Disney parks: {e}", exc_info=True)
@@ -1623,6 +1625,7 @@ async def list_park_rides(park_id: int):
         for land in data.get("lands", []):
             for ride in land.get("rides", []):
                 rides.append({"id": ride["id"], "name": ride["name"]})
+        rides.sort(key=lambda x: (x.get("name") or "").lower())
         return rides
     except HTTPException:
         raise

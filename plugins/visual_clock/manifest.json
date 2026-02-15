@@ -6,7 +6,7 @@
   "author": "FiestaBoard",
   "icon": "clock",
   "category": "art",
-  "repository": "https://github.com/roblesi/FiestaBoard",
+  "repository": "https://github.com/Fiestaboard/FiestaBoard",
   "documentation": "README.md",
   "settings_schema": {
     "type": "object",
