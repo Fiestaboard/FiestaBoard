@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'FiestaBoard',
   tagline: 'Turn your split-flap display into a living dashboard',
-  favicon: 'img/logo.png',
+  favicon: 'img/fiesta-icon.png',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
