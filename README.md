@@ -384,6 +384,10 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 ![Stocks Display](./images/stocks-display.png)
 
+**Muni Transit**: Real-time SF Muni arrival predictions for bus, light rail, and cable car lines
+
+![Muni Transit Display](./plugins/muni/docs/muni-display.png)
+
 **Nearby Aircraft**: Real-time nearby aircraft information with call signs, altitude, and ground speed
 
 ![Nearby Aircraft Display](./plugins/nearby_aircraft/docs/nearby-aircraft-display.png)

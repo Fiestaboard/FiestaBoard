@@ -119,6 +119,14 @@ const PluginShowcaseList: ShowcaseItem[] = [
     link: '/docs/plugins/weather',
   },
   {
+    title: 'Muni Transit',
+    emoji: '🚇',
+    image: '/img/muni-display.png',
+    alt: 'Muni transit arrivals displayed on split-flap board',
+    description: 'Real-time SF Muni arrival predictions',
+    link: '/docs/plugins/transit',
+  },
+  {
     title: 'Stocks',
     emoji: '📈',
     image: '/img/stocks-display.png',

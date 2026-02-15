@@ -10,6 +10,8 @@ FiestaBoard includes several transit-focused plugins for tracking public transpo
 
 Display San Francisco Muni bus and rail arrival predictions.
 
+![Muni Transit Display](/img/muni-display.png)
+
 ### Setup
 
 1. Register for a free API key at [511.org](https://511.org/open-data/token)

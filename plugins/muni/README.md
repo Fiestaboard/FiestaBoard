@@ -2,6 +2,8 @@
 
 Display San Francisco Muni transit arrival times with multi-stop and multi-line support.
 
+![Muni Transit Display](./docs/muni-display.png)
+
 **→ [Setup Guide](./docs/SETUP.md)** - API key registration and stop configuration
 
 ## Overview

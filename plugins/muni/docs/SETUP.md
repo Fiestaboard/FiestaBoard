@@ -2,6 +2,8 @@
 
 SF Muni integration provides real-time arrival predictions for San Francisco Municipal Railway (Muni) bus, light rail, and cable car lines. The visual stop finder makes it easy to find and monitor stops near your locations.
 
+![Muni Transit Display](./muni-display.png)
+
 ## Overview
 
 **What it does:**
