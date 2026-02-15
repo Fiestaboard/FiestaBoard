@@ -1,3 +1,7 @@
+# Build docs in this repo (Fiestaboard/FiestaBoard) and deploy them to
+# the Fiestaboard/fiestaboard.github.io repo via force-push.
+# That repo auto-publishes to https://fiestaboard.github.io since it is
+# the organization's GitHub Pages repo.
 name: Deploy Docs
 
 on:
@@ -10,19 +14,17 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build Docs
+  build-and-deploy:
+    name: Build & Deploy Docs
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout source repo
         uses: actions/checkout@v6
 
       - name: Set up Node.js
@@ -40,19 +42,16 @@ jobs:
         working-directory: docs-site
         run: npm run build
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs-site/build
-
-  deploy:
-    name: Deploy Docs
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # Force-push the built static site to fiestaboard.github.io.
+      # That repo serves from main automatically — no Pages config needed here.
+      - name: Deploy to fiestaboard.github.io
+        run: |
+          cd docs-site/build
+          git init -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "docs: deploy from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
+          git push --force "https://x-access-token:${DEPLOY_TOKEN}@github.com/Fiestaboard/fiestaboard.github.io.git" main
+        env:
+          DEPLOY_TOKEN: ${{ secrets.RELEASE_PAT }}
