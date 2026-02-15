@@ -222,6 +222,41 @@ class TestManifestValidity:
             "Invalid version formats found:\n" + "\n".join(f"  - {v}" for v in invalid_versions)
         )
 
+    def test_repository_url_capitalization(self):
+        """CI Test: If manifest has repository URL, it must use canonical capitalization.
+
+        Expected: https://github.com/FiestaBoard/FiestaBoard
+        (Org 'FiestaBoard' and repo 'FiestaBoard' with capital B.)
+        """
+        canonical_repo_url = "https://github.com/FiestaBoard/FiestaBoard"
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        wrong_urls: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            repo = manifest.get("repository")
+            if repo is None:
+                continue
+
+            if repo != canonical_repo_url:
+                wrong_urls.append(
+                    f"{plugin_dir.name}: repository is '{repo}' "
+                    f"(expected '{canonical_repo_url}')"
+                )
+
+        assert not wrong_urls, (
+            "Manifests with incorrect repository URL (check capitalization):\n"
+            + "\n".join(f"  - {w}" for w in wrong_urls)
+        )
+
 
 class TestPluginStructure:
     """Tests for plugin directory structure."""
