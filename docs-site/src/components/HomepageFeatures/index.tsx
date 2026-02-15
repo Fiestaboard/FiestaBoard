@@ -158,6 +158,14 @@ const PluginShowcaseList: ShowcaseItem[] = [
     description: 'Random quotes from TNG, Voyager, DS9',
     link: '/docs/plugins/overview',
   },
+  {
+    title: 'Guest WiFi',
+    emoji: '📶',
+    image: '/img/guest-wifi-display.png',
+    alt: 'Guest WiFi credentials displayed on split-flap board',
+    description: 'Display WiFi credentials for guests',
+    link: '/docs/plugins/overview',
+  },
 ];
 
 function Feature({title, emoji, description}: FeatureItem) {

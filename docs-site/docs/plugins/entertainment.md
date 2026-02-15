@@ -81,6 +81,8 @@ Display random quotes from Star Trek: The Next Generation, Voyager, and Deep Spa
 
 Display your guest WiFi network name and password. **No API key required.**
 
+![Guest WiFi Display](/img/guest-wifi-display.png)
+
 ### Setup
 
 1. Enable the Guest WiFi plugin in the Web UI

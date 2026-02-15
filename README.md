@@ -396,6 +396,10 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 ![Weather Display](./plugins/weather/docs/weather-display.png)
 
+**Guest WiFi**: Display guest WiFi network name and password for visitors
+
+![Guest WiFi Display](./plugins/guest_wifi/docs/guest-wifi-display.png)
+
 ### Other Available Features
 
 The board can display various screens:
