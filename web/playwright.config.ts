@@ -41,7 +41,7 @@ export default defineConfig({
       reuseExistingServer: true,
     },
     {
-      /* 2. FastAPI backend (pointed at mock board on localhost:7000) */
+      /* 2. FastAPI backend — cwd is ".." (repo root) so uvicorn can find src.api_server */
       command:
         "uvicorn src.api_server:app --host 0.0.0.0 --port 8000",
       port: 8000,

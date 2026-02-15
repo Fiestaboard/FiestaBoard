@@ -146,7 +146,7 @@ class MockBoardHandler(BaseHTTPRequestHandler):
         else:
             self._send_json(404, {"error": "Not found"})
 
-    def log_message(self, format, *args):
+    def log_message(self, fmt, *args):
         """Suppress default request logging."""
 
 

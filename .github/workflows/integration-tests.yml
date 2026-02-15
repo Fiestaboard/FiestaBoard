@@ -54,6 +54,7 @@ jobs:
       - name: Install UI dependencies
         working-directory: web
         run: |
+          # Fix npm bug with optional dependencies (https://github.com/npm/cli/issues/4828)
           rm -rf node_modules package-lock.json
           npm install
 
