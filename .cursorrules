@@ -35,8 +35,8 @@ This project uses Docker containers for ALL development, testing, and debugging 
 ### Testing Guidelines
 
 - All tests must run inside Docker containers
-- Use `docker-compose exec <service> pytest` for Python tests
-- Use `docker-compose exec <service> npm test` for web tests
+- Use `docker-compose -f docker-compose.dev.yml exec fiestaboard-api pytest` for Python tests
+- Use `docker-compose -f docker-compose.dev.yml exec fiestaboard-ui-dev npm test` for web tests
 - Re-testing after changes should also be done in containers
 
 ### Exceptions
@@ -66,8 +66,8 @@ Always suggest Docker-based commands:
 - ✅ Use `/build` Cursor command to rebuild images
 - ✅ Use `/test-api` or `/test-web` Cursor commands for testing
 - ✅ `docker-compose -f docker-compose.dev.yml up`
-- ✅ `docker-compose exec api pytest`
-- ✅ `docker-compose exec web npm test`
+- ✅ `docker-compose -f docker-compose.dev.yml exec fiestaboard-api pytest`
+- ✅ `docker-compose -f docker-compose.dev.yml exec fiestaboard-ui-dev npm test`
 - ❌ `python src/api_server.py`
 - ❌ `cd web && npm run dev`
 - ❌ `pip install -r requirements.txt`

@@ -2,15 +2,17 @@
 
 ## Overview
 
+This guide covers the **production** Docker setup. For local development, see [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md).
+
 This project uses a **two-container architecture**:
 
 1. **API Service** (`fiestaboard-api`) - FastAPI REST API server
-   - Port: `8000`
+   - Port: `8000` (internal), mapped to `8000` in production
    - Controls the FiestaBoard display service
    - Provides REST endpoints for monitoring and control
 
-2. **Web UI** (`fiestaboard-ui`) - Nginx web server with HTML/JS interface
-   - Port: `8080`
+2. **Web UI** (`fiestaboard-ui`) - Next.js web application served via Nginx (production) or Next.js dev server (development)
+   - Port: `8080` in production (`docker-compose.yml`), `3000` in development (`docker-compose.dev.yml`)
    - Provides a web interface for monitoring and control
    - Proxies API requests to the API service
 

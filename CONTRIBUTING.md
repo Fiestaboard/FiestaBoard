@@ -8,6 +8,7 @@ Thank you for your interest in contributing to FiestaBoard. This document explai
 - [Development workflow](#development-workflow)
 - [Submitting changes](#submitting-changes)
 - [Code and documentation standards](#code-and-documentation-standards)
+- [Cursor IDE (optional)](#cursor-ide-optional)
 - [Plugins](#plugins)
 - [Security](#security)
 
@@ -51,21 +52,23 @@ git checkout -b docs-update-readme  # for documentation
 
 ### 3. Run tests locally
 
-All tests run inside Docker:
+All tests run inside Docker containers. Start the dev environment first, then run tests:
 
 ```bash
-# Platform/API tests
+# Start the dev environment
 docker-compose -f docker-compose.dev.yml up -d
-docker-compose exec fiestaboard-api pytest
+
+# Platform/API tests
+docker-compose -f docker-compose.dev.yml exec fiestaboard-api pytest
 
 # Web UI tests
-docker-compose exec fiestaboard-ui-dev npm run test:run
+docker-compose -f docker-compose.dev.yml exec fiestaboard-ui-dev npm run test:run
 
 # Plugin validation (if you changed plugins)
-docker-compose exec fiestaboard-api python scripts/validate_plugins.py --verbose
+docker-compose -f docker-compose.dev.yml exec fiestaboard-api python scripts/validate_plugins.py --verbose
 
 # Plugin tests (if you changed a specific plugin)
-docker-compose exec fiestaboard-api python scripts/run_plugin_tests.py --plugin=my_plugin
+docker-compose -f docker-compose.dev.yml exec fiestaboard-api python scripts/run_plugin_tests.py --plugin=my_plugin
 ```
 
 CI runs on push/PR; make sure the same commands (or their CI equivalents) pass locally.
@@ -112,6 +115,41 @@ If the repo is set to “Squash and merge” on GitHub, the maintainer can squas
 - **Privacy**: Do not use real personal data (addresses, coordinates, phone numbers, etc.) in code, tests, or docs. Use generic examples (e.g. `example@example.com`, well-known public coordinates).
 - **Python**: The project uses pylint (see `.pylintrc`) and expects platform tests to pass. New platform code should be covered by tests.
 - **Temporary files**: Do not leave temporary markdown or implementation notes in the repo root. Put lasting docs in `docs/` or the right plugin/docs folder.
+
+---
+
+## Cursor IDE (optional)
+
+This project is developed with [Cursor](https://cursor.com/), an AI-powered code editor. **Cursor is not required** — all development can be done with any editor using the `docker-compose` commands documented above. But if you do use Cursor, you'll benefit from:
+
+### Cursor commands
+
+Pre-built commands (in `.cursor/commands/`) automate common development tasks. Type `/` followed by the command name in Cursor's chat to run them:
+
+| Command | Description |
+|---------|-------------|
+| `/setup` | Check prerequisites (Docker, Homebrew), create `.env` and `config.json` |
+| `/start` | Start all dev containers in the background |
+| `/stop` | Stop all dev containers |
+| `/restart` | Full rebuild (no cache) and restart — use after dependency changes |
+| `/redeploy-quick` | Quick rebuild (with cache) and restart |
+| `/build` | Rebuild Docker images without restarting |
+| `/test-api` | Run API/platform tests (`pytest`) inside Docker |
+| `/test-web` | Run web UI tests (`vitest`) inside Docker |
+| `/logs` | Stream live logs from all containers |
+| `/status` | Show container status |
+
+### Cursor rules
+
+The `.cursorrules` file at the repo root configures Cursor's AI assistant with project conventions — Docker-first workflow, plugin architecture patterns, documentation standards, and security rules. The AI will follow these when suggesting code.
+
+### Cursor plans
+
+The `.cursor/plans/` directory contains implementation plans that Cursor can reference when working on larger features. These provide structured context for complex changes.
+
+### Not using Cursor?
+
+Every Cursor command maps to one or more `docker-compose` commands. See the [Local Development guide](./docs/setup/LOCAL_DEVELOPMENT.md#cursor-ide-shortcuts) for the full mapping, or just use the `docker-compose` commands directly.
 
 ---
 

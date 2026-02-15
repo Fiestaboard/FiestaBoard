@@ -57,7 +57,7 @@ API keys are like passwords that let FiestaBoard talk to your board and get weat
 ### Option A: If you have Git installed:
 1. Open Terminal (Mac/Linux) or Command Prompt (Windows)
 2. Navigate to where you want FiestaBoard (like your Documents folder)
-3. Type: `git clone https://github.com/yourusername/FiestaBoard.git`
+3. Type: `git clone https://github.com/Fiestaboard/FiestaBoard.git`
 4. Press Enter
 
 ### Option B: If you don't have Git:

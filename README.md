@@ -214,7 +214,7 @@ See `env.example` for all available environment variables.
 docker-compose -f docker-compose.dev.yml up --build
 
 # Access Web UI at http://localhost:3000
-# Access API at http://localhost:8000
+# Access API at http://localhost:6969
 ```
 
 The development environment includes hot reload for both Python and Next.js code.

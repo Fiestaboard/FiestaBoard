@@ -1,5 +1,5 @@
 {
-  "name": "Vestaboard Display Service",
+  "name": "FiestaBoard Display Service",
   "image": "mcr.microsoft.com/devcontainers/python:3.10",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
@@ -25,7 +25,7 @@
     }
   },
   "remoteEnv": {
-    "VB_READ_WRITE_KEY": "${localEnv:VB_READ_WRITE_KEY}",
+    "BOARD_READ_WRITE_KEY": "${localEnv:BOARD_READ_WRITE_KEY}",
     "WEATHER_API_KEY": "${localEnv:WEATHER_API_KEY}"
   }
 }
