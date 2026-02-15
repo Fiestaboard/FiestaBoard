@@ -35,7 +35,7 @@ jobs:
       - name: Deploy to fiestaboard.github.io
         uses: peaceiris/actions-gh-pages@v4
         with:
-          personal_token: ${{ secrets.DOCS_DEPLOY_TOKEN }}
+          personal_token: ${{ secrets.RELEASE_PAT }}
           external_repository: Fiestaboard/fiestaboard.github.io
           publish_dir: docs-site/build
           publish_branch: main
