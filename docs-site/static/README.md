@@ -6,4 +6,4 @@ This is an **auto-generated** documentation site for [FiestaBoard](https://githu
 
 To make changes to the documentation, visit the source repository:
 
-🔗 **[Fiestaboard/FiestaBoard](https://github.com/Fiestaboard/FiestaBoard)** — see the `docs/` and `docs-site/` directories.
+🔗 **[FiestaBoard/FiestaBoard](https://github.com/Fiestaboard/FiestaBoard)** — see the `docs/` and `docs-site/` directories.
