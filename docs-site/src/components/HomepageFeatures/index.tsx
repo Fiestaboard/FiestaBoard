@@ -111,6 +111,14 @@ const FeatureShowcaseList: ShowcaseItem[] = [
 
 const PluginShowcaseList: ShowcaseItem[] = [
   {
+    title: 'Air Quality & Fog',
+    emoji: '💨',
+    image: '/img/air-fog-display.png',
+    alt: 'Air quality and fog conditions displayed on split-flap board',
+    description: 'AQI monitoring and fog detection with color-coded alerts',
+    link: '/docs/plugins/overview',
+  },
+  {
     title: 'Weather',
     emoji: '🌤️',
     image: '/img/weather-display.png',

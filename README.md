@@ -384,6 +384,10 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 ![Stocks Display](./images/stocks-display.png)
 
+**Air Quality & Fog**: Monitor AQI and fog conditions with color-coded status indicators
+
+![Air Quality & Fog Display](./plugins/air_fog/docs/air-fog-display.png)
+
 **Nearby Aircraft**: Real-time nearby aircraft information with call signs, altitude, and ground speed
 
 ![Nearby Aircraft Display](./plugins/nearby_aircraft/docs/nearby-aircraft-display.png)

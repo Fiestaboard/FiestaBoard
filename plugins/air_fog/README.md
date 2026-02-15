@@ -2,6 +2,8 @@
 
 Display air quality index (AQI) and fog/visibility conditions.
 
+![Air Quality & Fog Display](./docs/air-fog-display.png)
+
 **→ [Setup Guide](./docs/SETUP.md)** - API key registration and configuration
 
 ## Overview
