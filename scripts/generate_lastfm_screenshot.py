@@ -16,6 +16,13 @@ from PIL import Image, ImageDraw, ImageFont
 from src.board_chars import BoardChars
 from src.text_to_board import text_to_board_array
 
+# Sample display text for Last.fm Now Playing
+SAMPLE_DISPLAY_TEXT = """   NOW PLAYING
+
+ BOHEMIAN RHAPSODY
+       QUEEN
+"""
+
 # Official FiestaBoard color hex values (from web/src/lib/board-colors.ts)
 COLOR_HEX = {
     BoardChars.RED: "#eb4034",
@@ -157,11 +164,11 @@ def render_pattern(pattern_array, tile_size=40, gap=3):
                         try:
                             font = ImageFont.truetype(path, size=int(tile_size * 0.6))
                             break
-                        except:
+                        except (OSError, IOError):
                             continue
                     if font is None:
                         font = ImageFont.load_default()
-                except:
+                except (OSError, IOError):
                     font = ImageFont.load_default()
                 
                 # Calculate text position (centered)
@@ -181,7 +188,7 @@ def render_pattern(pattern_array, tile_size=40, gap=3):
     
     return img
 
-def generate_lastfm_screenshot(output_path: Path):
+def generate_lastfm_screenshot(output_path: Path, display_text: str = SAMPLE_DISPLAY_TEXT):
     """Generate a screenshot of the Last.fm plugin display.
     
     Creates a sample "Now Playing" display with:
@@ -191,16 +198,9 @@ def generate_lastfm_screenshot(output_path: Path):
     
     Args:
         output_path: Path to save the image
+        display_text: Optional custom display text (defaults to sample)
     """
     print("Generating Last.fm Now Playing screenshot...")
-    
-    # Create a sample display matching the plugin's get_formatted_display method
-    # Example: "Bohemian Rhapsody" by "Queen"
-    display_text = """   NOW PLAYING
-
- BOHEMIAN RHAPSODY
-       QUEEN
-"""
     
     # Convert text to board array
     pattern_array = text_to_board_array(display_text, use_color_tiles=False)
