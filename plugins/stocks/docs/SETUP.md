@@ -156,6 +156,10 @@ Access specific stocks using index (0-4):
 
 ## Example Templates
 
+### Default Format (Matches Screenshot)
+
+![Stocks Display](./stocks-display.png)
+
 ### Simple List
 
 ```
