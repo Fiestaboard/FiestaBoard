@@ -250,7 +250,7 @@ $waited = 0
 $healthy = $false
 while ($waited -lt $maxWait) {
     $services = Invoke-Compose @("ps") 2>&1 | Out-String
-    if ($services -match "Up|running") {
+    if ($services -imatch "Up|running") {
         $healthy = $true
         break
     }
