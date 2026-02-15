@@ -37,10 +37,10 @@ cp config.example.json config.json
 # Edit .env and add: BOARD_READ_WRITE_KEY and WEATHER_API_KEY
 
 # 2. Run it! (first time builds images)
-docker-compose up --build
+docker compose up --build
 
 # Or for subsequent runs (uses cached images)
-docker-compose up
+docker compose up
 ```
 
 That's it! 🎉
@@ -59,10 +59,12 @@ That's it! 🎉
 
 **To stop:**
 ```bash
-docker-compose down
+docker compose down
 ```
 
-**For development/testing:** Just run `docker-compose up` - it works great for local dev! See [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md) for more options.
+> **Note:** Some older systems use `docker-compose` (with a hyphen) instead of `docker compose` (with a space). If one doesn't work, try the other.
+
+**For development/testing:** Just run `docker compose up` - it works great for local dev! See [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md) for more options.
 
 ---
 
@@ -146,10 +148,10 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 4. **Build and run with Docker Compose**:
    ```bash
    # First time (builds images)
-   docker-compose up --build
+   docker compose up --build
    
    # Or run in background
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
 
 5. **Access the services**:
@@ -164,7 +166,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 
 7. **View logs**:
    ```bash
-   docker-compose logs -f
+   docker compose logs -f
    ```
 
 ### Advanced Setup
@@ -220,7 +222,7 @@ See `env.example` for all available environment variables.
 
 ```bash
 # Build and run for development
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 
 # Access Web UI at http://localhost:3000
 # Access API at http://localhost:6969
@@ -295,13 +297,13 @@ FiestaBoard/
 
 ```bash
 # Build and start services
-docker-compose up --build
+docker compose up --build
 
 # Run in background
-docker-compose up -d --build
+docker compose up -d --build
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
 See [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md) for detailed development workflows.
@@ -333,7 +335,7 @@ See deployment guides for detailed instructions.
 ### Docker Issues
 
 - Ensure Docker is running: `docker ps`
-- Check container logs: `docker-compose logs`
+- Check container logs: `docker compose logs`
 - Verify `.env` file is readable
 
 ## Documentation

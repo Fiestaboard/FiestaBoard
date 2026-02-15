@@ -55,7 +55,12 @@ fi
 echo -e "${GREEN}✓ Docker is installed and running${NC}"
 
 # Check for Docker Compose
-if ! command -v docker-compose &> /dev/null; then
+# Try docker-compose (v1) first, then docker compose (v2 plugin)
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+else
     echo -e "${RED}✗ Docker Compose is not installed!${NC}"
     echo ""
     echo "Docker Compose usually comes with Docker Desktop."
@@ -212,15 +217,29 @@ echo "(This may take a few minutes the first time)"
 echo ""
 
 # Start in background
-docker-compose up -d --build
+$COMPOSE_CMD up -d --build
 
 # Wait for services to be ready
 echo ""
 echo "Waiting for services to start..."
-sleep 10
+
+# Poll for healthy containers (up to 60 seconds)
+MAX_WAIT=60
+WAITED=0
+HEALTHY=false
+while [ $WAITED -lt $MAX_WAIT ]; do
+    # Check for "Up" (v1) or "running" (v2) in container status
+    if $COMPOSE_CMD ps 2>/dev/null | grep -qiE "(Up|running)"; then
+        HEALTHY=true
+        break
+    fi
+    sleep 5
+    WAITED=$((WAITED + 5))
+    echo "  Still starting... (${WAITED}s)"
+done
 
 # Check if services are running
-if docker-compose ps | grep -q "Up"; then
+if [ "$HEALTHY" = true ]; then
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}✓ FiestaBoard is running!${NC}"
@@ -241,19 +260,19 @@ if docker-compose ps | grep -q "Up"; then
     echo "3. Watch your board update! 🎉"
     echo ""
     echo "To stop FiestaBoard later, run:"
-    echo "  docker-compose down"
+    echo "  $COMPOSE_CMD down"
     echo ""
     echo "To start it again, run:"
-    echo "  docker-compose up -d"
+    echo "  $COMPOSE_CMD up -d"
     echo ""
     echo "View logs with:"
-    echo "  docker-compose logs -f"
+    echo "  $COMPOSE_CMD logs -f"
     echo ""
 else
     echo -e "${RED}✗ Something went wrong starting the services${NC}"
     echo ""
     echo "Check the logs with:"
-    echo "  docker-compose logs"
+    echo "  $COMPOSE_CMD logs"
     echo ""
     exit 1
 fi

@@ -144,14 +144,16 @@ Your board should now be updating automatically! Here are some tips:
 ### To stop FiestaBoard:
 - Go back to your Terminal/Command Prompt window
 - Press `Ctrl+C` (on both Mac and Windows)
-- Then type: `docker-compose down` and press Enter
+- Then type: `docker compose down` and press Enter
+
+> **Note:** Some systems use `docker-compose` (with a hyphen) instead of `docker compose` (with a space). If one doesn't work, try the other.
 
 ### To start it again later:
 - Open Terminal/Command Prompt/PowerShell
 - Navigate to the FiestaBoard folder
   - Mac/Linux: `cd Documents/FiestaBoard`
   - Windows: `cd Documents\FiestaBoard`
-- Type: `docker-compose up -d` and press Enter
+- Type: `docker compose up -d` and press Enter
 - Go to `http://localhost:8080` and click Start Service
 
 ## Need Help?
@@ -163,7 +165,7 @@ Your board should now be updating automatically! Here are some tips:
 
 **"Connection refused" when accessing http://localhost:8080**
 - Wait a minute after starting, then refresh your browser
-- Make sure Docker containers are running: `docker-compose ps`
+- Make sure Docker containers are running: `docker compose ps`
 
 **"Invalid API key"**
 - Double-check you copied the keys correctly (no extra spaces!)

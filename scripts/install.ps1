@@ -53,10 +53,25 @@ try {
 }
 
 # Check for Docker Compose
+# Try docker-compose (v1) first, then docker compose (v2 plugin)
+$ComposeCmd = $null
 try {
-    $null = docker-compose --version
-    Write-Host "✓ Docker Compose is installed" -ForegroundColor Green
-} catch {
+    $null = docker-compose --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        $ComposeCmd = "docker-compose"
+    }
+} catch {}
+
+if (-not $ComposeCmd) {
+    try {
+        $null = docker compose version 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $ComposeCmd = "docker compose"
+        }
+    } catch {}
+}
+
+if (-not $ComposeCmd) {
     Write-Host "✗ Docker Compose is not installed!" -ForegroundColor Red
     Write-Host ""
     Write-Host "Docker Compose usually comes with Docker Desktop."
@@ -64,6 +79,8 @@ try {
     Write-Host ""
     exit 1
 }
+
+Write-Host "✓ Docker Compose is installed" -ForegroundColor Green
 
 Write-Host ""
 
@@ -206,21 +223,44 @@ Write-Host ""
 
 Set-Location $ProjectDir
 
+# Helper function to run compose commands
+function Invoke-Compose {
+    param([string[]]$Args)
+    if ($ComposeCmd -eq "docker-compose") {
+        & docker-compose @Args
+    } else {
+        & docker compose @Args
+    }
+}
+
 Write-Host "Building and starting Docker containers..."
 Write-Host "(This may take a few minutes the first time)"
 Write-Host ""
 
 # Start in background
-docker-compose up -d --build
+Invoke-Compose @("up", "-d", "--build")
 
 # Wait for services to be ready
 Write-Host ""
 Write-Host "Waiting for services to start..."
-Start-Sleep -Seconds 10
+
+# Poll for healthy containers (up to 60 seconds)
+$maxWait = 60
+$waited = 0
+$healthy = $false
+while ($waited -lt $maxWait) {
+    $services = Invoke-Compose @("ps") 2>&1 | Out-String
+    if ($services -match "Up|running") {
+        $healthy = $true
+        break
+    }
+    Start-Sleep -Seconds 5
+    $waited += 5
+    Write-Host "  Still starting... (${waited}s)"
+}
 
 # Check if services are running
-$services = docker-compose ps
-if ($services -match "Up") {
+if ($healthy) {
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
     Write-Host "✓ FiestaBoard is running!" -ForegroundColor Green
@@ -241,19 +281,19 @@ if ($services -match "Up") {
     Write-Host "3. Watch your board update! 🎉"
     Write-Host ""
     Write-Host "To stop FiestaBoard later, run:"
-    Write-Host "  docker-compose down"
+    Write-Host "  $ComposeCmd down"
     Write-Host ""
     Write-Host "To start it again, run:"
-    Write-Host "  docker-compose up -d"
+    Write-Host "  $ComposeCmd up -d"
     Write-Host ""
     Write-Host "View logs with:"
-    Write-Host "  docker-compose logs -f"
+    Write-Host "  $ComposeCmd logs -f"
     Write-Host ""
 } else {
     Write-Host "✗ Something went wrong starting the services" -ForegroundColor Red
     Write-Host ""
     Write-Host "Check the logs with:"
-    Write-Host "  docker-compose logs"
+    Write-Host "  $ComposeCmd logs"
     Write-Host ""
     exit 1
 }
