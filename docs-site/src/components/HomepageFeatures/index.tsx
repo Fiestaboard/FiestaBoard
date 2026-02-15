@@ -235,7 +235,7 @@ export default function HomepageFeatures(): ReactNode {
             </p>
           </div>
           {FeatureShowcaseList.map((props, idx) => (
-            <FeatureShowcase key={idx} {...props} reverse={idx % 2 === 1} />
+            <FeatureShowcase key={props.title} {...props} reverse={idx % 2 === 1} />
           ))}
         </div>
       </section>
@@ -252,8 +252,8 @@ export default function HomepageFeatures(): ReactNode {
             </p>
           </div>
           <div className={styles.pluginGrid}>
-            {PluginShowcaseList.map((props, idx) => (
-              <PluginCard key={idx} {...props} />
+            {PluginShowcaseList.map((props) => (
+              <PluginCard key={props.title} {...props} />
             ))}
           </div>
           <div className="text--center margin-top--lg">
