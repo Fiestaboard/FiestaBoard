@@ -39,7 +39,13 @@
 
 /* Hero section styling */
 .hero--primary {
-  background: linear-gradient(135deg, #f5a623 0%, #f8e71c 100%);
+  background: linear-gradient(135deg, #b35900 0%, #c07800 100%);
+  color: #fff;
+}
+
+.hero--primary .hero__title,
+.hero--primary .hero__subtitle {
+  color: #fff;
 }
 
 [data-theme='dark'] .hero--primary {

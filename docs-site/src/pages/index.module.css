@@ -25,8 +25,8 @@
 .heroDescription {
   max-width: 700px;
   margin: 1rem auto;
-  font-size: 1.1rem;
-  opacity: 0.9;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .buttons {
@@ -39,6 +39,12 @@
 }
 
 .githubButton {
+  color: #fff;
+  border-color: #fff;
+}
+
+.githubButton:hover {
   color: #1a1a1a;
-  border-color: #1a1a1a;
+  background-color: #fff;
+  border-color: #fff;
 }
