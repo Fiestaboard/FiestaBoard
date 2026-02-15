@@ -1,0 +1,64 @@
+---
+sidebar_position: 6
+---
+
+# Sports Scores Plugin
+
+Display recent sports scores from NFL, Soccer, NHL, and NBA on your board.
+
+## Overview
+
+The Sports Scores plugin fetches recent match results and displays formatted scores. It supports multiple leagues and updates automatically.
+
+## Setup
+
+The Sports Scores plugin works **without an API key** using free data from TheSportsDB. For enhanced data, you can optionally provide an API key.
+
+### Basic Setup (No API Key)
+
+1. Go to **Integrations** in the Web UI
+2. Toggle the Sports Scores plugin on
+3. Configure your preferred leagues
+
+### Enhanced Setup (Optional API Key)
+
+1. Sign up at [thesportsdb.com](https://www.thesportsdb.com/)
+2. Get a free API key
+3. Add to `.env`:
+
+```bash
+SPORTS_API_KEY=your_key_here
+```
+
+## Supported Leagues
+
+| League | Sport |
+|--------|-------|
+| NFL | 🏈 American Football |
+| NBA | 🏀 Basketball |
+| NHL | 🏒 Hockey |
+| Soccer | ⚽ Various soccer leagues |
+
+## Available Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{sports_scores.scores}` | Formatted recent scores | `NFL CHIEFS 27 BILLS 24` |
+
+## Example Display
+
+```
+┌──────────────────────┐
+│  SPORTS SCORES       │
+│  NFL  CHIEFS 27      │
+│       BILLS  24      │
+│  NBA  LAKERS 112     │
+│       CELTS  108     │
+│                      │
+└──────────────────────┘
+```
+
+## Next Steps
+
+- [Plugins Overview](/docs/plugins/overview) — See all available plugins
+- [Plugin Configuration](/docs/plugins/configuration) — General plugin management

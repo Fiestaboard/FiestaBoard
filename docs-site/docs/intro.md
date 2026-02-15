@@ -68,6 +68,11 @@ That's it! 🎉
 
 ## Next Steps
 
+- [Beginners Guide](/docs/setup/beginners-guide) - Step-by-step setup for new users
 - [Setup Guide](/docs/setup/quick-start) - Detailed installation instructions
+- [Features Overview](/docs/features/page-editor) - Page editor, scheduling, and more
 - [Plugin Configuration](/docs/plugins/overview) - Configure your data sources
+- [Reference](/docs/reference/api-endpoints) - API endpoints, character codes, and colors
+- [Deployment](/docs/deployment/raspberry-pi) - Raspberry Pi and production deployment
 - [Plugin Development](/docs/development/plugin-guide) - Create custom plugins
+- [Troubleshooting](/docs/troubleshooting) - Common issues and solutions

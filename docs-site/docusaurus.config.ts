@@ -89,6 +89,31 @@ const config: Config = {
               label: 'Setup Guide',
               to: '/docs/setup/quick-start',
             },
+            {
+              label: 'Plugins',
+              to: '/docs/plugins/overview',
+            },
+          ],
+        },
+        {
+          title: 'Features',
+          items: [
+            {
+              label: 'Page Editor',
+              to: '/docs/features/page-editor',
+            },
+            {
+              label: 'Schedule Mode',
+              to: '/docs/features/schedule',
+            },
+            {
+              label: 'API Reference',
+              to: '/docs/reference/api-endpoints',
+            },
+            {
+              label: 'Troubleshooting',
+              to: '/docs/troubleshooting',
+            },
           ],
         },
         {
@@ -101,6 +126,10 @@ const config: Config = {
             {
               label: 'Issues',
               href: 'https://github.com/Fiestaboard/FiestaBoard/issues',
+            },
+            {
+              label: 'Contributing',
+              to: '/docs/development/contributing',
             },
           ],
         },
