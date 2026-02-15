@@ -20,10 +20,11 @@ jobs:
     steps:
       - name: Check if trigger was a version-bump commit
         id: check
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          MSG="${{ github.event.head_commit.message }}"
           # Skip when head commit is our version-bump (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
-          if echo "$MSG" | grep -qE '^chore: bump version to '; then
+          if echo "$COMMIT_MSG" | head -1 | grep -qE '^chore: bump version to '; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "Skipping: trigger commit is a version-bump commit."
           else

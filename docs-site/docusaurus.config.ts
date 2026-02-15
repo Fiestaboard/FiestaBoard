@@ -15,14 +15,14 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://fiestaboard.app',
+  url: 'https://fiestaboard.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
 
   // GitHub pages deployment config.
   organizationName: 'Fiestaboard',
-  projectName: 'FiestaBoard',
+  projectName: 'fiestaboard.github.io',
 
   onBrokenLinks: 'throw',
 
