@@ -14,18 +14,17 @@ The Traffic feature uses Google's Routes API (v2) to get real-time travel times.
 
 ### Step 2: Set Up Billing
 
-⚠️ **Important**: The Routes API requires a billing account, even though it has a free tier.
+⚠️ **Important**: The Routes API requires a billing account.
 
 1. Go to **Billing** in the Google Cloud Console
 2. Link a billing account to your project
 3. The Routes API includes:
-   - **$200 free credit per month** (for new users)
-   - First **$200 of usage free every month** (for all users)
-   - After that: ~$0.005 per request
+   - **10,000 free requests per month** (Essentials tier)
+   - After that: ~$5 per 1,000 additional requests
 
 **Typical Usage Costs:**
-- Checking 1 route every 5 minutes = ~8,640 requests/month = **FREE** (well under $200)
-- Checking 5 routes every 5 minutes = ~43,200 requests/month = ~$16/month
+- Checking 1 route every 5 minutes = ~8,640 requests/month = **~$0** (most covered by free tier)
+- Checking 5 routes every 5 minutes = ~43,200 requests/month = ~$166/month
 
 ### Step 3: Create an API Key
 
@@ -111,7 +110,7 @@ If addresses aren't working, you can use latitude,longitude coordinates:
 4. Use this format in the Traffic settings: `40.7128,-74.0060` (no spaces)
 
 **Example**:
-- Origin: `40.7128,-74.0060` (San Francisco)
+- Origin: `37.7749,-122.4194` (San Francisco)
 - Destination: `37.7899,-122.4001` (Downtown SF)
 
 ## Address Format Tips
@@ -143,7 +142,7 @@ Each mode returns different routes optimized for that transportation type.
 
 ## API Limits & Quotas
 
-- **Free tier**: $200/month in free usage
+- **Free tier**: 10,000 requests/month (Essentials tier)
 - **Rate limit**: No hard limit, but be reasonable
 - **Recommended refresh**: 5-10 minutes (our default is 5 minutes)
 

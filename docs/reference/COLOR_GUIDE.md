@@ -68,21 +68,21 @@ Temp: {65}75°F
 
 Each series has a signature color:
 
-- **{65} Yellow**: TNG (The Next Generation)
-  - Represents the classic gold command uniforms
+- **{67} Blue**: TNG (The Next Generation)
+  - Represents the blue science uniforms
   
-- **{67} Blue**: Voyager
-  - Represents the blue/teal science uniforms
+- **{64} Orange**: Voyager
+  - Represents the command uniforms
   
-- **{63} Red**: DS9 (Deep Space Nine)
-  - Represents the command red uniforms
+- **{68} Violet**: DS9 (Deep Space Nine)
+  - Represents the station's distinctive color
 
 **Example Display:**
 ```
 Make it so.
 
 - Picard
-  {65}TNG
+  {67}TNG
 ```
 
 ### 4. Guest WiFi
@@ -213,11 +213,13 @@ Edit `src/formatters/message_formatter.py`:
 
 ```python
 series_info = {
-    "tng": {"name": "TNG", "color": "{66}"},  # Change to green
+    "tng": {"name": "TNG", "color": "{65}"},  # Change to yellow
     "voyager": {"name": "VOY", "color": "{63}"},  # Change to red
     "ds9": {"name": "DS9", "color": "{67}"}  # Change to blue
 }
 ```
+
+The current defaults are: TNG = Blue `{67}`, Voyager = Orange `{64}`, DS9 = Violet `{68}`.
 
 ### Adding New Color Uses
 

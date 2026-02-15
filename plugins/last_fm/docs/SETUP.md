@@ -136,7 +136,7 @@ This means the scrobbler isn't sending the "now playing" notification. Try:
 
 ### Rate limiting
 
-The Last.fm API allows ~5 requests per second. FiestaBoard's default 30-second refresh interval stays well under this limit. If you've set a very low refresh interval, consider increasing it.
+The Last.fm API does not publish an exact rate limit, but recommends conservative usage (roughly 1 request per second as a safe guideline). FiestaBoard's default 30-second refresh interval stays well under this limit. If you've set a very low refresh interval, consider increasing it.
 
 ## Privacy Note
 

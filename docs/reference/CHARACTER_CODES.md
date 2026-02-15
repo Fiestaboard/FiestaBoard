@@ -19,13 +19,13 @@ We've implemented weather symbols using available characters:
 
 | Condition | Symbol | Character Code | Description |
 |-----------|--------|----------------|-------------|
-| Clear/Sunny | `*` | 48 (ASTERISK) | Sunny weather |
-| Partly Cloudy | `%` | 49 (PERCENT) | Partly cloudy |
+| Clear/Sunny | `O` | 15 (O) | Sunny weather |
+| Partly Cloudy | `%` | 54 (PERCENT) | Partly cloudy |
 | Cloudy/Overcast | `O` | 15 (O) | Cloudy weather |
-| Rain | `/` | 45 (SLASH) | Rainy weather |
-| Thunderstorm | `!` | 40 (EXCLAMATION) | Stormy weather |
-| Snow | `*` | 48 (ASTERISK) | Snowy weather |
-| Fog/Mist | `~` | 44 (DASH) | Foggy conditions |
+| Rain | `/` | 59 (SLASH) | Rainy weather |
+| Thunderstorm | `!` | 37 (EXCLAMATION) | Stormy weather |
+| Snow | `O` | 15 (O) | Snowy weather |
+| Fog/Mist | `-` | 44 (DASH) | Foggy conditions |
 
 ## Usage in Code
 
@@ -36,8 +36,8 @@ from src.board_chars import get_weather_symbol
 
 symbol_info = get_weather_symbol("Sunny")
 # Returns: {
-#     "symbol": "*",
-#     "char_code": 48,
+#     "symbol": "O",
+#     "char_code": 15,
 #     "description": "Sunny"
 # }
 ```
@@ -58,7 +58,7 @@ weather_data = {
 
 message = formatter.format_weather(weather_data)
 # Output:
-# San Francisco: * Sunny
+# San Francisco: O Sunny
 # Temp: 75°F
 ```
 
@@ -66,7 +66,7 @@ message = formatter.format_weather(weather_data)
 
 ### Sunny Weather
 ```
-San Francisco: * Sunny
+San Francisco: O Sunny
 Temp: 75°F
 ```
 
@@ -101,9 +101,9 @@ BoardChars.ONE   # 28
 # ... etc
 
 # Symbols
-BoardChars.ASTERISK  # 48
-BoardChars.SLASH     # 45
-BoardChars.PERCENT   # 49
+BoardChars.EXCLAMATION  # 37
+BoardChars.SLASH        # 59
+BoardChars.PERCENT      # 54
 ```
 
 ## Converting Text to Codes
@@ -121,7 +121,7 @@ codes = BoardChars.text_to_codes("HELLO")
 
 ## Notes
 
-1. **Character codes are approximate**: The exact mapping may vary. These are based on common patterns and may need verification against official board documentation.
+1. **Character codes**: These mappings are based on the [official Vestaboard character codes documentation](https://docs.vestaboard.com/docs/charactercodes/).
 
 2. **No true icons**: The board doesn't support graphical icons, so we use creative character combinations.
 

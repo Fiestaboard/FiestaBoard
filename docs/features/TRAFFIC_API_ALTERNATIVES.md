@@ -54,9 +54,9 @@ This guide compares different routing/traffic API providers to help you choose t
 ### 2. Google Routes API (Current Fallback)
 
 **Pricing:**
-- **Free Tier:** None (pay per use)
-- **Cost:** $0.015-0.02 per request (volume discounts available)
-- **Monthly estimate:** 1,000 requests = $15-20
+- **Free Tier:** 10,000 requests/month (Essentials tier, as of March 2025)
+- **Cost:** ~$5 per 1,000 requests after free tier
+- **Monthly estimate:** 1,000 requests = **FREE** (within free tier)
 
 **Features:**
 - Excellent real-time traffic data
@@ -76,9 +76,8 @@ This guide compares different routing/traffic API providers to help you choose t
 - Reliable service
 
 **Cons:**
-- ❌ Expensive (no free tier)
-- ❌ $158/month for 4,140 requests
-- ❌ Costs add up quickly
+- ❌ Limited free tier (10,000 requests/month)
+- ❌ Costs add up for high-volume usage
 
 **Setup:**
 1. Go to Google Cloud Console
@@ -196,21 +195,21 @@ Based on 1,440 requests/month (with caching enabled):
 
 | Provider | Free Tier | Cost/Request | Monthly Cost | Savings vs Google |
 |----------|-----------|--------------|--------------|-------------------|
-| **HERE** (recommended) | 250k/month | $0.002 | **$0** (free) | **100%** |
-| Google Routes | None | $0.015-0.02 | $21-29 | 0% (baseline) |
-| Google Distance Matrix | None | $0.005-0.01 | $7-14 | 50-67% |
-| TomTom | 75k/month | $0.0033 | **$0** (free) | **100%** |
-| Mapbox | 100k/month | $0.001-0.005 | **$0** (free) | **100%** |
+| **HERE** (recommended) | 250k/month | $0.001 | **$0** (free) | **100%** |
+| Google Routes | 10k/month | ~$0.005 | **$0** (free) | 0% (baseline) |
+| Google Distance Matrix | 10k/month | ~$0.005 | **$0** (free) | 0% |
+| TomTom | 75k/month | ~$0.00075 | **$0** (free) | **100%** |
+| Mapbox | 100k/month | $0.002 | **$0** (free) | **100%** |
 
 **Without caching** (8,640 requests/month):
 
 | Provider | Monthly Cost | Savings vs Google |
 |----------|--------------|-------------------|
 | **HERE** | **$0** (free) | **100%** |
-| Google Routes | $130-173 | 0% (baseline) |
-| Google Distance Matrix | $43-86 | 50-67% |
-| TomTom | $28 | 78% |
-| Mapbox | $9-43 | 75-93% |
+| Google Routes | **$0** (within 10k free tier) | 0% (baseline) |
+| Google Distance Matrix | **$0** (within 10k free tier) | 0% |
+| TomTom | **$0** (free) | **100%** |
+| Mapbox | **$0** (free) | **100%** |
 
 ## Migration Guide
 

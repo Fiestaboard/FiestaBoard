@@ -222,7 +222,7 @@ To add support for additional sports:
 
 ### API Rate Limits
 
-The free tier has rate limits (30 requests/minute). The plugin handles 429 responses gracefully by logging warnings and continuing with other sports.
+The free tier has rate limits (100 requests/minute). The plugin handles 429 responses gracefully by logging warnings and continuing with other sports.
 
 ### Team Name Abbreviation
 

@@ -309,7 +309,7 @@ SPORTS_SCORES_REFRESH_SECONDS=300
 - **600 seconds** (10 min): Less frequent, reduces API calls
 - **1800 seconds** (30 min): Casual monitoring
 
-**Note:** Free tier has rate limits (30 requests/minute). Adjust refresh interval accordingly.
+**Note:** Free tier has rate limits (100 requests/minute). Adjust refresh interval accordingly.
 
 ### Display Layout
 
@@ -378,7 +378,7 @@ The `formatted` variable provides clean, board-friendly output:
 Sports Scores uses **TheSportsDB API**:
 
 - **API**: https://www.thesportsdb.com/
-- **Free Tier**: API key "123" (30 requests/minute)
+- **Free Tier**: API key "123" (100 requests/minute)
 - **Premium**: Higher limits, live scores, more features
 - **Coverage**: NFL, Soccer, NHL, NBA and more
 - **Update Frequency**: Real-time during events

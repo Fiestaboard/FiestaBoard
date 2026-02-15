@@ -86,7 +86,7 @@ This plugin uses the Last.fm `user.getRecentTracks` endpoint:
 
 - **Endpoint**: `http://ws.audioscrobbler.com/2.0/`
 - **Method**: `user.getRecentTracks`
-- **Rate Limits**: ~5 requests/second (we stay well under this)
+- **Rate Limits**: Last.fm recommends conservative usage; FiestaBoard's default refresh interval stays well within limits
 - **Cost**: FREE
 
 The `@attr.nowplaying` attribute in the response indicates if a track is currently being played, providing true real-time status.

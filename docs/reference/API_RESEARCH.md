@@ -62,8 +62,8 @@ This document contains detailed research findings for all APIs that will be inte
 - **Character Codes**: Reference table available in board documentation
 
 ### Python Libraries
-- **`fiesta`** library available on PyPI: `pip install fiesta`
-- Provides `ReadWriteClient` class for easier integration
+- **`vesta`** library available on PyPI: `pip install vesta`
+- Provides client classes for easier integration
 - Handles character encoding and message formatting
 
 ### Important Notes
