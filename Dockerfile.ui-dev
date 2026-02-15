@@ -1,6 +1,6 @@
 # Development Dockerfile for UI with nginx pre-installed
 # This avoids reinstalling nginx and npm packages on every container start
-FROM node:20-alpine
+FROM node:25-alpine
 
 # Install nginx at build time (not runtime)
 RUN apk add --no-cache nginx
