@@ -27,6 +27,9 @@ function HomepageHeader() {
           monitor the markets, check surf conditions, or display Star Trek wisdom. All beautifully formatted, 
           endlessly customizable, and running in Docker with zero hassle.
         </p>
+        <p className={styles.heroDescriptionShort}>
+          Weather, stocks, sports & more — in Docker 🐳
+        </p>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"

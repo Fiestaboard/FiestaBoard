@@ -29,6 +29,28 @@
   color: rgba(255, 255, 255, 0.95);
 }
 
+.heroDescriptionShort {
+  display: none;
+}
+
+@media screen and (max-width: 996px) {
+  .heroLogo {
+    width: 80px;
+    height: 80px;
+  }
+
+  .heroDescription {
+    display: none;
+  }
+
+  .heroDescriptionShort {
+    display: block;
+    margin: 0.5rem auto;
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
 .buttons {
   display: flex;
   align-items: center;
