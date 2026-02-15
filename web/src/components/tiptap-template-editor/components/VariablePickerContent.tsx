@@ -5,7 +5,7 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { useMemo, useDeferredValue, useState, useRef, useEffect } from "react";
+import { useMemo, useDeferredValue, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -394,16 +394,6 @@ function renderArraySection(
 
 export function VariablePickerContent({ onInsert }: VariablePickerContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-focus search input when component mounts
-  useEffect(() => {
-    // Small delay to ensure the dropdown is fully rendered
-    const timer = setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const { data: templateVars, isLoading: isLoadingVars } = useQuery({
     queryKey: ["template-variables"],
@@ -564,7 +554,7 @@ export function VariablePickerContent({ onInsert }: VariablePickerContentProps) 
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            ref={searchInputRef}
+            autoFocus
             type="text"
             placeholder="Search variables..."
             value={searchQuery}
