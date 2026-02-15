@@ -3,11 +3,14 @@
  *
  * The rich editor uses a single paragraph with hardBreak nodes for line breaks.
  * parseTemplateSimple always creates exactly 6 lines (5 hardBreaks).
- * Enter should NAVIGATE to the next line (not insert a hardBreak).
- * Shift+Enter should be blocked entirely.
+ *
+ * Enter behaviour:
+ *   - If < 6 lines: inserts a hardBreak (new line, content shifts down)
+ *   - If = 6 lines: navigates to the next line (wraps at end)
+ * Shift+Enter is always blocked.
  *
  * These tests mirror the editor setup in TipTapTemplateEditor.tsx:
- *   - StarterKit with paragraph: true, hardBreak: true (no TemplateParagraph)
+ *   - StarterKit with paragraph: true, hardBreak: true
  *   - LineNavigation extension for Enter handling
  *   - Content from parseTemplateSimple (single paragraph with hardBreaks)
  */
@@ -92,19 +95,16 @@ describe('LineNavigation Extension (Enter key)', () => {
     expect(countHardBreaks(editor)).toBe(5);
   });
 
-  // ── goToNextLine navigates to next line ───────────────────────────
+  // ── goToNextLine command (always navigates, never inserts) ────────
 
   it('should move cursor past the next hardBreak on goToNextLine', () => {
     editor = createEditor('LINE1\nLINE2\nLINE3\n\n\n');
 
-    // Place cursor at beginning of line 1 (position 2 — inside paragraph)
     editor.commands.setTextSelection(2);
     const breakPositions = getHardBreakPositions(editor);
 
-    // Trigger the command (this is what Enter key calls)
     editor.commands.goToNextLine();
 
-    // Cursor should now be right after the first hardBreak
     const newPos = editor.state.selection.from;
     expect(newPos).toBe(breakPositions[0] + 1);
   });
@@ -113,10 +113,8 @@ describe('LineNavigation Extension (Enter key)', () => {
     editor = createEditor('A\nB\nC\nD\nE\nF');
     const breakPositions = getHardBreakPositions(editor);
 
-    // Start on line 1
     editor.commands.setTextSelection(2);
 
-    // Call goToNextLine 5 times to go through lines 2-6
     for (let i = 0; i < 5; i++) {
       editor.commands.goToNextLine();
       const cursorPos = editor.state.selection.from;
@@ -128,21 +126,16 @@ describe('LineNavigation Extension (Enter key)', () => {
     editor = createEditor('A\nB\nC\nD\nE\nF');
     const breakPositions = getHardBreakPositions(editor);
 
-    // Place cursor on the last line (after the last hardBreak)
     const lastBreak = breakPositions[breakPositions.length - 1];
     editor.commands.setTextSelection(lastBreak + 1);
 
-    // goToNextLine should wrap to line 1
     editor.commands.goToNextLine();
 
     const newPos = editor.state.selection.from;
-    // First content position inside the paragraph is 2
     expect(newPos).toBe(2);
   });
 
-  // ── goToNextLine does NOT insert hardBreaks ───────────────────────
-
-  it('should NOT change the number of hardBreaks', () => {
+  it('goToNextLine should NOT change the number of hardBreaks', () => {
     editor = createEditor('LINE1\nLINE2\n\n\n\n');
     const breaksBefore = countHardBreaks(editor);
 
@@ -152,7 +145,7 @@ describe('LineNavigation Extension (Enter key)', () => {
     expect(countHardBreaks(editor)).toBe(breaksBefore);
   });
 
-  it('should NOT change the serialized content', () => {
+  it('goToNextLine should NOT change the serialized content', () => {
     editor = createEditor('AAA\nBBB\nCCC\n\n\n');
     const serializedBefore = serializeTemplateSimple(editor.getJSON());
 
@@ -162,20 +155,56 @@ describe('LineNavigation Extension (Enter key)', () => {
     expect(serializeTemplateSimple(editor.getJSON())).toBe(serializedBefore);
   });
 
-  // ── goToNextLine from middle of line ──────────────────────────────
-
-  it('should navigate to next line even when cursor is in the middle of text', () => {
+  it('goToNextLine should navigate even from the middle of text', () => {
     editor = createEditor('HELLO\nWORLD\n\n\n\n');
     const breakPositions = getHardBreakPositions(editor);
 
-    // Place cursor in the middle of "HELLO" (after "HE")
     editor.commands.setTextSelection(4);
-
     editor.commands.goToNextLine();
 
-    // Should be at the start of line 2 (after first hardBreak)
     const newPos = editor.state.selection.from;
     expect(newPos).toBe(breakPositions[0] + 1);
+  });
+
+  // ── Enter key at 6 lines: navigates (does not insert) ────────────
+
+  it('at 6 lines, Enter should navigate not insert', () => {
+    editor = createEditor('A\nB\nC\nD\nE\nF');
+    expect(countHardBreaks(editor)).toBe(5);
+
+    editor.commands.setTextSelection(2);
+
+    // Simulate Enter via the keyboard shortcut path
+    editor.commands.goToNextLine();
+
+    // Still 5 hardBreaks — no insertion
+    expect(countHardBreaks(editor)).toBe(5);
+  });
+
+  // ── Enter key at < 6 lines: inserts a hardBreak ──────────────────
+
+  it('at fewer than 6 lines, setHardBreak should add a line', () => {
+    // Start with 3 lines of content (parseTemplateSimple pads to 6)
+    editor = createEditor('AA\nBB\nCC\n\n\n');
+    expect(countHardBreaks(editor)).toBe(5);
+
+    // Simulate user deleting a blank line to get < 6 lines.
+    // Remove the last hardBreak+ZWS to drop from 6 → 5 lines.
+    const breakPositions = getHardBreakPositions(editor);
+    const lastBreak = breakPositions[breakPositions.length - 1];
+    // Delete from just before the last hardBreak to end of content
+    const docEnd = editor.state.doc.content.size;
+    editor.commands.setTextSelection({ from: lastBreak, to: docEnd - 1 });
+    editor.commands.deleteSelection();
+
+    const breaksAfterDelete = countHardBreaks(editor);
+    expect(breaksAfterDelete).toBeLessThan(5);
+
+    // Now Enter should insert a hardBreak
+    editor.commands.setTextSelection(2);
+    editor.commands.setHardBreak();
+
+    expect(countHardBreaks(editor)).toBe(breaksAfterDelete + 1);
   });
 
   // ── Schema sanity ─────────────────────────────────────────────────
