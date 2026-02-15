@@ -63,6 +63,8 @@ The plugin uses colors to indicate state:
 
 ## Example Display
 
+![Home Assistant Display](/img/home-assistant-display.png)
+
 ```
 ┌──────────────────────┐
 │   HOME STATUS        │

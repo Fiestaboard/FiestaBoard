@@ -158,6 +158,14 @@ const PluginShowcaseList: ShowcaseItem[] = [
     description: 'Random quotes from TNG, Voyager, DS9',
     link: '/docs/plugins/overview',
   },
+  {
+    title: 'Home Assistant',
+    emoji: '🏠',
+    image: '/img/home-assistant-display.png',
+    alt: 'Home Assistant smart home status displayed on split-flap board',
+    description: 'Smart home device states with color indicators',
+    link: '/docs/plugins/home-assistant',
+  },
 ];
 
 function Feature({title, emoji, description}: FeatureItem) {

@@ -2,6 +2,8 @@
 
 Display entity states from your Home Assistant instance.
 
+![Home Assistant Display](./docs/home-assistant-display.png)
+
 **→ [Setup Guide](./docs/SETUP.md)** - Access token setup and configuration
 
 ## Overview
