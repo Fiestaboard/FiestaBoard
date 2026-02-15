@@ -140,7 +140,7 @@ class SportsScoresPlugin(PluginBase):
                 all_games.extend(games)
                 
                 # Add delay between sports to avoid rate limits (free API: 100 req/min)
-                # Wait 2.5 seconds between sports to stay safely under limit
+                # Using conservative 2.5s delay to stay well under limit
                 if sport != sports[-1]:  # Don't delay after last sport
                     import time
                     time.sleep(2.5)
