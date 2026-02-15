@@ -15,26 +15,22 @@ interface SymbolNodeViewProps {
     };
   };
   deleteNode: () => void;
-  selected: boolean;
 }
 
-export function SymbolNodeView({ node, deleteNode, selected }: SymbolNodeViewProps) {
+export function SymbolNodeView({ node, deleteNode }: SymbolNodeViewProps) {
   const { name, character } = node.attrs;
 
   return (
     <NodeViewWrapper
       as="span"
       className={cn(
-        'group inline-block align-middle rounded px-1 py-0.5 text-xs font-mono cursor-grab select-none',
+        'group inline-block align-middle rounded px-1 py-0.5 text-xs font-mono cursor-grab',
         'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300',
         'hover:bg-amber-500/20',
         'transition-all duration-150',
         'active:cursor-grabbing',
         'max-h-[1.2rem] h-auto',
-        selected && 'ring-2 ring-amber-500 ring-offset-1',
       )}
-      contentEditable={false}
-      draggable
       data-drag-handle
       title={`Symbol: ${name} → "${character}"`}
       style={{

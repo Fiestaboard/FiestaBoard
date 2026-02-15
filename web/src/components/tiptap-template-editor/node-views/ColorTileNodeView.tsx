@@ -16,10 +16,9 @@ interface ColorTileNodeViewProps {
     };
   };
   deleteNode: () => void;
-  selected: boolean;
 }
 
-export function ColorTileNodeView({ node, deleteNode, selected }: ColorTileNodeViewProps) {
+export function ColorTileNodeView({ node, deleteNode }: ColorTileNodeViewProps) {
   const { color, code } = node.attrs;
   const colorKey = color.toLowerCase() as keyof typeof FIESTABOARD_COLORS;
   const bgColor = FIESTABOARD_COLORS[colorKey] || FIESTABOARD_COLORS.red;
@@ -37,14 +36,11 @@ export function ColorTileNodeView({ node, deleteNode, selected }: ColorTileNodeV
     <NodeViewWrapper
       as="span"
       className={cn(
-        'relative rounded-[3px] cursor-grab select-none',
+        'relative rounded-[3px] cursor-grab',
         'transition-all duration-150',
         'hover:scale-105',
         'active:cursor-grabbing active:scale-100',
-        selected && 'ring-2 ring-offset-1 ring-primary',
       )}
-      contentEditable={false}
-      draggable
       data-drag-handle
       style={{ 
         backgroundColor: bgColor,
@@ -55,6 +51,7 @@ export function ColorTileNodeView({ node, deleteNode, selected }: ColorTileNodeV
         boxShadow,
         display: 'inline-block',
         verticalAlign: 'middle',
+        marginLeft: '1px',
         marginRight: '1px',
         whiteSpace: 'nowrap',
       }}
@@ -71,8 +68,21 @@ export function ColorTileNodeView({ node, deleteNode, selected }: ColorTileNodeV
         }}
       />
       
-      {/* Hidden text for screen readers */}
-      <span className="sr-only">{color} color tile</span>
+      {/* Block character gives the browser selectable text so the native
+          selection highlight (blue overlay) is visible on the tile.
+          Transparent color keeps it invisible until selected. */}
+      <span
+        aria-label={`${color} color tile`}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          color: 'transparent',
+          overflow: 'hidden',
+          lineHeight: '1rem',
+          fontSize: '1rem',
+          pointerEvents: 'none',
+        }}
+      >{'\u2588'}</span>
     </NodeViewWrapper>
   );
 }

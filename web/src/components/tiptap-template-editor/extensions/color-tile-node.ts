@@ -20,6 +20,10 @@ export const ColorTileNode = Node.create({
 
   atom: true, // Single unit, non-editable
 
+  selectable: false, // Treat as character: arrow keys skip past, shift+arrow selects
+
+  draggable: true, // TipTap-managed drag (integrates with ProseMirror events)
+
   addAttributes() {
     return {
       color: {

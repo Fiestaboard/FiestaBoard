@@ -7,6 +7,14 @@ import { JSONContent } from '@tiptap/react';
 import { BOARD_COLORS, SYMBOL_CHARS, FILL_SPACE_VAR, FILL_SPACE_REPEAT_VAR } from './constants';
 
 /**
+ * Zero-width space (U+200B) inserted at the start and end of each line so
+ * the caret always has a text node to sit in (fixes cursor not showing at
+ * line boundaries and cursor "selecting" atom nodes on arrow navigation).
+ * Stripped on serialize so it never appears in saved template strings.
+ */
+const CURSOR_ANCHOR_CHAR = '\u200B';
+
+/**
  * Simplified parser - treats template as single block with line breaks
  */
 export function parseTemplateSimple(template: string): JSONContent {
@@ -17,11 +25,17 @@ export function parseTemplateSimple(template: string): JSONContent {
   const content: JSONContent[] = [];
   
   lines.forEach((line, index) => {
+    // Leading ZWS so cursor renders at the start of the line
+    content.push({ type: 'text', text: CURSOR_ANCHOR_CHAR });
+
     // Parse line content (plain text, no alignment prefixes to extract)
     if (line) {
       const lineNodes = parseLineContent(line);
       content.push(...lineNodes);
     }
+    
+    // Trailing ZWS so cursor renders at the end of the line
+    content.push({ type: 'text', text: CURSOR_ANCHOR_CHAR });
     
     // Add hard break between lines (except after last line)
     if (index < lines.length - 1) {
@@ -29,13 +43,17 @@ export function parseTemplateSimple(template: string): JSONContent {
     }
   });
   
-  // Pad with empty breaks to ensure 6 lines total
+  // Pad with empty breaks to ensure 6 lines total; each padded line gets ZWS so cursor shows
   const currentLines = lines.length;
   for (let i = currentLines; i < 6; i++) {
     if (content.length > 0 && content[content.length - 1].type !== 'hardBreak') {
       content.push({ type: 'hardBreak' });
     }
-    if (i < 5) { // Don't add break after 6th line
+    // Leading + trailing ZWS (on empty lines they collapse to one, but keep
+    // the pair for consistency with content lines)
+    content.push({ type: 'text', text: CURSOR_ANCHOR_CHAR });
+    content.push({ type: 'text', text: CURSOR_ANCHOR_CHAR });
+    if (i < 5) {
       content.push({ type: 'hardBreak' });
     }
   }
@@ -100,8 +118,8 @@ export function serializeTemplateSimple(doc: JSONContent): string {
 function serializeNodeContent(node: JSONContent): string {
   switch (node.type) {
     case 'text':
-      // Convert to uppercase during serialization (validation-based, "chill" UX)
-      return (node.text || '').toUpperCase();
+      // Strip end-of-line cursor placeholder and convert to uppercase
+      return (node.text || '').replace(/\u200B/g, '').toUpperCase();
     
     case 'variable':
       const filters = node.attrs?.filters || [];
@@ -244,6 +262,9 @@ function applyAlignment(alignment: string, wrapEnabled: boolean, content: string
   return prefixes.join('') + content;
 }
 
+/** Node types that are inline atoms (cursor can't sit inside them). */
+const ATOM_NODE_TYPES = new Set(['variable', 'colorTile', 'fillSpace', 'symbol']);
+
 /**
  * Parse line content into TipTap nodes
  * Exported for use in insertion utilities
@@ -378,7 +399,17 @@ export function parseLineContent(text: string): JSONContent[] {
     }
   }
 
-  return nodes;
+  // Post-process: insert ZWS between consecutive atom nodes so the cursor
+  // has a text position to render between them (e.g. {{red}}{{blue}}).
+  const result: JSONContent[] = [];
+  for (const node of nodes) {
+    const prev = result[result.length - 1];
+    if (prev && ATOM_NODE_TYPES.has(prev.type!) && ATOM_NODE_TYPES.has(node.type!)) {
+      result.push({ type: 'text', text: '\u200B' });
+    }
+    result.push(node);
+  }
+  return result;
 }
 
 /**

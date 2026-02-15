@@ -22,6 +22,10 @@ export const VariableNode = Node.create({
 
   atom: true, // Treat as single unit (non-editable, non-splittable)
 
+  selectable: false, // Treat as character: arrow keys skip past, shift+arrow selects
+
+  draggable: true, // TipTap-managed drag (integrates with ProseMirror events)
+
   addAttributes() {
     return {
       pluginId: {
