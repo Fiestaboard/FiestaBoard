@@ -40,13 +40,13 @@ jobs:
       version: ${{ steps.filter.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Detect changed paths
         id: filter
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
@@ -89,7 +89,7 @@ jobs:
       # Use RELEASE_PAT when branch protection/rulesets block GITHUB_TOKEN from pushing to main.
       # Add repo secret RELEASE_PAT (PAT with repo scope) and allow that user to bypass rules on main.
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
@@ -99,13 +99,13 @@ jobs:
         run: echo "owner_lower=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
       - name: Determine version bump type and build platforms
         id: bump_type
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -190,7 +190,7 @@ jobs:
     if: needs.prep.result == 'success' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.version == 'true')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -204,7 +204,7 @@ jobs:
 
       - name: Build and push API image
         id: build-api
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.api
@@ -229,7 +229,7 @@ jobs:
     if: needs.prep.result == 'success' && (needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.version == 'true')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -243,7 +243,7 @@ jobs:
 
       - name: Build and push UI image
         id: build-ui
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.ui
@@ -268,14 +268,14 @@ jobs:
     if: always() && needs.prep.result == 'success'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
         id: create-release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -364,7 +364,7 @@ jobs:
     if: failure() && (needs.build-api.result == 'failure' || needs.build-ui.result == 'failure')
     steps:
       - name: Revert merge
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
