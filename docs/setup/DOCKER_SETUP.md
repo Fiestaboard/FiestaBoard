@@ -11,8 +11,9 @@ This project uses a **two-container architecture**:
    - Controls the FiestaBoard display service
    - Provides REST endpoints for monitoring and control
 
-2. **Web UI** (`fiestaboard-ui`) - Next.js web application served via Nginx (production) or Next.js dev server (development)
-   - Port: `8080` in production (`docker-compose.yml`), `3000` in development (`docker-compose.dev.yml`)
+2. **Web UI** (`fiestaboard-ui`) - Next.js web application
+   - Production: served via Nginx on port `8080` (`docker-compose.yml`)
+   - Development: Next.js dev server on port `3000` (`docker-compose.dev.yml`)
    - Provides a web interface for monitoring and control
    - Proxies API requests to the API service
 
