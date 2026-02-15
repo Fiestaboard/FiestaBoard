@@ -10,14 +10,16 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
-    name: Build and Deploy Docs
+  build:
+    name: Build Docs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -38,10 +40,19 @@ jobs:
         working-directory: docs-site
         run: npm run build
 
-      - name: Deploy to fiestaboard.github.io
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          personal_token: ${{ secrets.DEPLOY_TOKEN }}
-          external_repository: Fiestaboard/fiestaboard.github.io
-          publish_dir: docs-site/build
-          publish_branch: main
+          path: docs-site/build
+
+  deploy:
+    name: Deploy Docs
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
