@@ -388,6 +388,10 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 ![Nearby Aircraft Display](./plugins/nearby_aircraft/docs/nearby-aircraft-display.png)
 
+**Bay Wheels**: Track bike availability at multiple Bay Area stations — no API key required
+
+![Bay Wheels Display](./plugins/baywheels/docs/baywheels-display.png)
+
 **Sports Scores**: Display recent match scores from NFL, Soccer, NHL, and NBA
 
 ![Sports Scores Display](./plugins/sports_scores/docs/sports-scores-display.png)

@@ -70,6 +70,8 @@ WSDOT_API_KEY=your_wsdot_key_here
 
 Track Bay Area bike share (Lyft) availability at nearby stations. **No API key required.**
 
+![Bay Wheels Display](/img/baywheels-display.png)
+
 ### Setup
 
 1. Enable the Bay Wheels plugin in the Web UI

@@ -151,6 +151,14 @@ const PluginShowcaseList: ShowcaseItem[] = [
     link: '/docs/plugins/overview',
   },
   {
+    title: 'Bay Wheels',
+    emoji: '🚴',
+    image: '/img/baywheels-display.png',
+    alt: 'Bay Wheels bike availability on split-flap board',
+    description: 'Real-time bike share station availability',
+    link: '/docs/plugins/transit',
+  },
+  {
     title: 'Star Trek Quotes',
     emoji: '🖖',
     image: '/img/star-trek-quotes-display.png',
