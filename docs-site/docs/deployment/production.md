@@ -1,0 +1,118 @@
+---
+sidebar_position: 2
+---
+
+# Production Deployment
+
+Best practices for deploying FiestaBoard in a production environment.
+
+## Docker Compose for Production
+
+Use the production-optimized Docker Compose file:
+
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+Or use pre-built images from GitHub Container Registry:
+
+```bash
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+## Recommended Configuration
+
+### Environment Variables
+
+```bash
+# In .env
+REFRESH_INTERVAL_SECONDS=60    # Don't refresh too frequently
+LOG_LEVEL=WARNING              # Reduce log verbosity in production
+SILENCE_START_TIME=22:00       # Set quiet hours
+SILENCE_END_TIME=07:00
+```
+
+### Data Backup
+
+Back up the `data/` directory regularly to preserve your pages, schedules, and settings:
+
+```bash
+# Simple backup
+cp -r data/ data-backup-$(date +%Y%m%d)/
+
+# Or use a cron job
+0 2 * * * tar -czf /backups/fiestaboard-$(date +\%Y\%m\%d).tar.gz /path/to/FiestaBoard/data/
+```
+
+## Updating
+
+```bash
+# Pull latest changes
+git pull
+
+# Rebuild and restart
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+:::tip Zero-Downtime Updates
+Pull the latest code and rebuild the images first, then bring down the old containers and start the new ones. The downtime is minimal — just a few seconds while containers swap.
+:::
+
+## Monitoring
+
+### Health Checks
+
+FiestaBoard provides a health endpoint:
+
+```bash
+curl http://localhost:8000/health
+```
+
+You can use this with monitoring tools like Uptime Kuma or Healthchecks.io.
+
+### Logs
+
+```bash
+# View all logs
+docker-compose logs -f
+
+# View API logs only
+docker-compose logs -f api
+
+# View UI logs only
+docker-compose logs -f ui
+```
+
+## Security Considerations
+
+- **Never commit `.env` files** to version control
+- **Restrict API access** — The API runs on port 8000 with no authentication by default
+- **Use a reverse proxy** — For external access, put FiestaBoard behind Nginx or Traefik with HTTPS
+- **Keep Docker updated** — Regularly update Docker and Docker Compose
+
+## Running Behind a Reverse Proxy
+
+If you want to access FiestaBoard from outside your local network, use a reverse proxy with HTTPS:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name fiestaboard.yourdomain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## Next Steps
+
+- [Raspberry Pi](/docs/deployment/raspberry-pi) — Deploy on a Raspberry Pi
+- [Docker Setup](/docs/setup/docker-setup) — Docker architecture details
+- [Cloud API](/docs/setup/cloud-api) — Remote board access via cloud API
