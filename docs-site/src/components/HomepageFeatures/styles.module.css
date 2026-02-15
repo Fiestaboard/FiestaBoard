@@ -10,3 +10,173 @@
   display: block;
   margin-bottom: 1rem;
 }
+
+/* Section titles */
+.sectionTitle {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.sectionSubtitle {
+  font-size: 1.2rem;
+  color: var(--ifm-color-emphasis-600);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Feature showcase with alternating screenshot + text */
+.showcase {
+  padding: 3rem 0;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.showcaseRow {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+  margin-bottom: 3rem;
+}
+
+.showcaseRow:last-child {
+  margin-bottom: 0;
+}
+
+.showcaseRowReverse {
+  flex-direction: row-reverse;
+}
+
+.showcaseImage {
+  flex: 1.2;
+  min-width: 0;
+}
+
+.showcaseImage img {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='dark'] .showcaseImage img {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.showcaseContent {
+  flex: 0.8;
+}
+
+.showcaseContent h3 {
+  font-size: 1.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.showcaseContent p {
+  font-size: 1.1rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1rem;
+}
+
+.showcaseEmoji {
+  margin-right: 0.3rem;
+}
+
+@media screen and (max-width: 768px) {
+  .showcaseRow,
+  .showcaseRowReverse {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+/* Plugin showcase grid */
+.pluginShowcase {
+  padding: 3rem 0;
+}
+
+.pluginGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media screen and (max-width: 996px) {
+  .pluginGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .pluginGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pluginCard {
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ifm-color-emphasis-100);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.pluginCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  color: inherit;
+}
+
+[data-theme='dark'] .pluginCard:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.pluginCardImage {
+  overflow: hidden;
+}
+
+.pluginCardImage img {
+  width: 100%;
+  display: block;
+}
+
+.pluginCardBody {
+  padding: 1rem;
+}
+
+.pluginCardBody h4 {
+  margin-bottom: 0.4rem;
+  font-size: 1.1rem;
+}
+
+.pluginCardBody p {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0;
+}
+
+/* Call to action section */
+.ctaSection {
+  padding: 4rem 0;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.ctaTitle {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.ctaSubtitle {
+  font-size: 1.15rem;
+  color: var(--ifm-color-emphasis-600);
+  max-width: 550px;
+  margin: 0 auto 1.5rem;
+}
+
+.ctaButtons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
