@@ -28,48 +28,48 @@ COLOR_OPEN = "{66}"   # green - operating normally
 COLOR_CLOSED = "{63}"  # red - closed / not operating
 
 # Known tiny abbreviations (max 5 chars) from common Disney fan usage (wdwmagic, touringplans, etc.).
-# Keys are lowercase substrings to match in ride name; longest match wins.
-# Rise of the Resistance -> "RISE" per common shorthand.
+# Keys are lowercase substrings to match in ride name; longest match wins. Sorted alphabetically by key.
 _KNOWN_TINY_ABBR: List[tuple] = [
-    ("star wars: rise of the resistance", "RISE"),
-    ("rise of the resistance", "RISE"),
-    ("seven dwarfs mine train", "7DMT"),
-    ("big thunder mountain railroad", "BTMRR"),
-    ("millennium falcon", "MFSR"),
-    ("smugglers run", "MFSR"),
-    ("mickey and minnie's runaway railway", "MMRR"),
-    ("runaway railway", "MMRR"),
-    ("haunted mansion", "HM"),
-    ("expedition everest", "EE"),
-    ("frozen ever after", "FEA"),
-    ("flight of passage", "FoP"),
-    ("navi river journey", "NRJ"),
-    ("na'vi river journey", "NRJ"),
-    ("pirates of the caribbean", "PotC"),
-    ("peter pan's flight", "PPF"),
-    ("rock 'n' roller coaster", "RNR"),
-    ("rock n roller coaster", "RNR"),
-    ("tower of terror", "ToT"),
-    ("twilight zone tower of terror", "ToT"),
-    ("toy story midway mania", "TSMM"),
-    ("toy story mania", "TSMM"),
-    ("test track", "TT"),
-    ("spaceship earth", "SE"),
-    ("splash mountain", "SplMt"),
-    ("space mountain", "SM"),
-    ("carousel of progress", "CoP"),
-    ("it's a small world", "SMALL"),
-    ("small world", "SMALL"),
+    ("big thunder mountain railroad", "THUND"),
+    ("buzz lightyear", "BUZZ"),
+    ("carousel of progress", "COP"),
     ("country bear jamboree", "CBJ"),
+    ("expedition everest", "EE"),
+    ("flight of passage", "FOP"),
+    ("frozen ever after", "FRZN"),
+    ("guardians of the galaxy", "GOTG"),
+    ("haunted mansion", "HM"),
+    ("indiana jones", "INDY"),
+    ("it's a small world", "SMALL"),
+    ("jungle cruise", "JUNGL"),
     ("kilimanjaro safaris", "KS"),
-    ("mission: space", "MS"),
+    ("living with the land", "LWTL"),
+    ("mickey and minnie's runaway railway", "MMRR"),
+    ("millennium falcon", "MFSR"),
     ("mission space", "MS"),
-    ("guardians of the galaxy", "GotG"),
+    ("mission: space", "MS"),
+    ("na'vi river journey", "NRJ"),
+    ("navi river journey", "NRJ"),
+    ("peter pan's flight", "PPF"),
+    ("pirates of the caribbean", "POTC"),
+    ("rise of the resistance", "RISE"),
+    ("rock n roller coaster", "RNR"),
+    ("rock 'n' roller coaster", "RNR"),
+    ("runaway railway", "MMRR"),
+    ("seven dwarfs mine train", "7DMT"),
+    ("small world", "SMALL"),
+    ("soarin", "SOARN"),
+    ("soarin'", "SOARN"),
+    ("space mountain", "SMNT"),
+    ("spaceship earth", "SE"),
+    ("splash mountain", "SPLMT"),
     ("star tours", "ST"),
-    ("jungle cruise", "JC"),
-    ("living with the land", "LwtL"),
-    ("soarin'", "Soar"),
-    ("soarin", "Soar"),
+    ("star wars: rise of the resistance", "RISE"),
+    ("test track", "TT"),
+    ("tower of terror", "TOT"),
+    ("toy story mania", "TSMM"),
+    ("toy story midway mania", "TSMM"),
+    ("twilight zone tower of terror", "TOT"),
 ]
 
 
@@ -85,8 +85,8 @@ def _abbreviate_ride_name(name: str, max_len: int = RIDE_ABBR_LEN) -> str:
 
 def _tiny_abbr(name: str, max_len: int = TINY_ABBR_LEN) -> str:
     """Very short ride name (max 5 chars); use known abbreviations when possible.
-    Single-rider lines get a trailing '1' so they differ from the main line (e.g. SM1 vs SM).
-    No spaces in the result so the board doesn't show blank tiles between letters.
+    Single-rider lines get a trailing '1' so they differ from the main line (e.g. SMNT1 vs SMNT).
+    No spaces in the result; always uppercase for board display.
     """
     n = (name or "").strip().lower()
     if not n:
@@ -98,10 +98,10 @@ def _tiny_abbr(name: str, max_len: int = TINY_ABBR_LEN) -> str:
         if key_phrase in n and len(key_phrase) > len(match):
             match, abbr = key_phrase, known
     if abbr:
-        base = abbr[:max_len]
+        base = abbr[:max_len].upper()
     else:
-        # Fallback: first max_len chars of name, with any spaces removed then truncate
-        base = "".join((name or "").strip().split())[:max_len]
+        # Fallback: first max_len chars of name, spaces removed, then uppercase for board
+        base = "".join((name or "").strip().split())[:max_len].upper()
     if is_single_rider:
         if len(base) < max_len:
             base = (base + "1")[:max_len]

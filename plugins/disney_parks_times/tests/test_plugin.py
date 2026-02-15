@@ -82,7 +82,7 @@ class TestDisneyParksTimesPlugin:
         assert rides[0]["is_open"] is True
         # Formatted has no space between color and abbreviation (board shows one tile, not blank then abbr)
         formatted = rides[0]["formatted"]
-        assert formatted.startswith("{66}SM"), f"formatted should be color then abbr with no space: {formatted!r}"
+        assert formatted.startswith("{66}SMNT"), f"formatted should be color then abbr with no space: {formatted!r}"
         assert result.formatted_lines is not None
         assert len(result.formatted_lines) <= 6
 
@@ -235,22 +235,24 @@ class TestTinyAbbr:
 
     def test_other_known_abbreviations(self):
         """Other Disney rides use common fan abbreviations."""
-        assert _tiny_abbr("Space Mountain") == "SM"
+        assert _tiny_abbr("Space Mountain") == "SMNT"
         assert _tiny_abbr("Haunted Mansion") == "HM"
-        assert _tiny_abbr("Big Thunder Mountain Railroad") == "BTMRR"
+        assert _tiny_abbr("Big Thunder Mountain Railroad") == "THUND"
         assert _tiny_abbr("Seven Dwarfs Mine Train") == "7DMT"
-        assert _tiny_abbr("Jungle Cruise") == "JC"
+        assert _tiny_abbr("Jungle Cruise") == "JUNGL"
         assert _tiny_abbr("It's a Small World") == "SMALL"
+        assert _tiny_abbr("Indiana Jones Adventure") == "INDY"
+        assert _tiny_abbr("Buzz Lightyear Astro Blasters") == "BUZZ"
 
     def test_unknown_ride_fallback(self):
         """Unknown ride name falls back to first 5 chars (spaces removed)."""
-        assert _tiny_abbr("Some Other Ride") == "SomeO"
+        assert _tiny_abbr("Some Other Ride") == "SOMEO"
 
     def test_single_rider_gets_trailing_one(self):
         """Single-rider lines get '1' suffix so they differ from main line."""
-        assert _tiny_abbr("Space Mountain - Single Rider") == "SM1"
+        assert _tiny_abbr("Space Mountain - Single Rider") == "SMNT1"
         assert _tiny_abbr("Haunted Mansion Single Rider") == "HM1"
-        assert _tiny_abbr("Big Thunder Mountain Railroad - Single Rider") == "BTMR1"  # 5 chars: trim one, add 1
+        assert _tiny_abbr("Big Thunder Mountain Railroad - Single Rider") == "THUN1"  # 5 chars: trim one, add 1
         assert _tiny_abbr("Seven Dwarfs Mine Train - Single Rider") == "7DMT1"
 
     def test_no_spaces_in_abbreviations(self):
