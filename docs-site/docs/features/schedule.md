@@ -76,7 +76,7 @@ Every 60 seconds, the display service:
 
 ## Known Limitations
 
-- **No midnight spanning** — Schedules cannot cross midnight (e.g., 11 PM to 1 AM). As a workaround, create two separate entries: one from 11 PM to 11:59 PM and another from 12 AM to 1 AM.
+- **No midnight spanning** — Schedules cannot cross midnight (e.g., 11 PM to 1 AM). As a workaround, create two separate entries: one from 11 PM to 11:59 PM and another from 12 AM to 1 AM. The system handles the transition automatically with no gap.
 - **Switching delay** — There may be up to a 60-second delay when switching between scheduled pages.
 - **Recommended limit** — For optimal performance, keep the total number of schedule entries under 50.
 

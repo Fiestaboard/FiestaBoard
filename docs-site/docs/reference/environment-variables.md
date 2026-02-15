@@ -12,7 +12,7 @@ These must be set for FiestaBoard to function:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `BOARD_READ_WRITE_KEY` | Board API key for sending content | `your_api_key` |
+| `BOARD_READ_WRITE_KEY` | Board API key for sending content (local mode) | `your_api_key` |
 | `WEATHER_API_KEY` | Weather data API key | `your_weather_key` |
 | `WEATHER_PROVIDER` | Weather API provider | `weatherapi` or `openweathermap` |
 | `WEATHER_LOCATION` | Location for weather data | `San Francisco, CA` |
@@ -22,11 +22,15 @@ These must be set for FiestaBoard to function:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BOARD_READ_WRITE_KEY` | Board Read/Write API key | — |
-| `FB_API_MODE` | API mode | `local` |
-| `FB_READ_WRITE_KEY` | Cloud API key (when `FB_API_MODE=cloud`) | — |
+| `BOARD_READ_WRITE_KEY` | Board Read/Write API key (used in local mode) | — |
+| `FB_API_MODE` | API mode (`local` or `cloud`) | `local` |
+| `FB_READ_WRITE_KEY` | Board API key (used when `FB_API_MODE=cloud`) | — |
 | `BOARD_TRANSITION` | Transition animation style | — |
 | `BOARD_TRANSITION_SPEED` | Transition speed (ms) | — |
+
+:::info Board API Key Variables
+Use `BOARD_READ_WRITE_KEY` for local mode (default). Use `FB_READ_WRITE_KEY` with `FB_API_MODE=cloud` for cloud mode. See the [Cloud API Setup](/docs/setup/cloud-api) guide for details.
+:::
 
 ## Weather
 
