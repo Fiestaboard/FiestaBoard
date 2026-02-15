@@ -54,7 +54,7 @@
     "@types/react-big-calendar": "^1.16.0",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.2",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.1.4",
     "jsdom": "^27.3.0",
     "msw": "^2.12.4",
