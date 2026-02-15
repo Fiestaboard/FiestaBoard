@@ -32,12 +32,20 @@ jobs:
             
             for (const label of labelsToRemove) {
               console.log(`Removing existing label: ${label}`);
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                name: label
-              });
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  name: label
+                });
+              } catch (error) {
+                if (error.status === 404) {
+                  console.log(`Label "${label}" not found on PR, skipping removal`);
+                } else {
+                  console.log(`Failed to remove label "${label}": ${error.message}`);
+                }
+              }
             }
             
             // Determine version bump type from PR title
