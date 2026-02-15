@@ -1,0 +1,53 @@
+/**
+ * FiestaBoard Documentation Theme
+ * Using FiestaBoard branding colors based on the taco icon
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  /* Primary: FiestaBoard Orange */
+  --ifm-color-primary: #f5a623;
+  --ifm-color-primary-dark: #e09510;
+  --ifm-color-primary-darker: #d48d0f;
+  --ifm-color-primary-darkest: #af740c;
+  --ifm-color-primary-light: #f6b03d;
+  --ifm-color-primary-lighter: #f7b749;
+  --ifm-color-primary-lightest: #f9c873;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(245, 166, 35, 0.15);
+  
+  /* Additional FiestaBoard colors */
+  --fiesta-red: #eb4034;
+  --fiesta-orange: #f5a623;
+  --fiesta-yellow: #f8e71c;
+  --fiesta-green: #7ed321;
+  --fiesta-blue: #4a90d9;
+  --fiesta-violet: #9b59b6;
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #f5a623;
+  --ifm-color-primary-dark: #e09510;
+  --ifm-color-primary-darker: #d48d0f;
+  --ifm-color-primary-darkest: #af740c;
+  --ifm-color-primary-light: #f6b03d;
+  --ifm-color-primary-lighter: #f7b749;
+  --ifm-color-primary-lightest: #f9c873;
+  --docusaurus-highlighted-code-line-bg: rgba(245, 166, 35, 0.25);
+}
+
+/* Hero section styling */
+.hero--primary {
+  background: linear-gradient(135deg, #f5a623 0%, #f8e71c 100%);
+}
+
+[data-theme='dark'] .hero--primary {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
+/* Button hover effects */
+.button--secondary:hover {
+  background-color: var(--ifm-color-primary-light);
+  border-color: var(--ifm-color-primary-light);
+}
