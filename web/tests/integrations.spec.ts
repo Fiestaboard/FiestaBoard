@@ -7,10 +7,11 @@
  *
  * NOTE: Tests run sequentially. The wizard must have completed.
  */
-import { test, expect } from "./helpers";
+import { test, expect, configureBoard } from "./helpers";
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
+  await configureBoard();
   await page.addInitScript(() => {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });

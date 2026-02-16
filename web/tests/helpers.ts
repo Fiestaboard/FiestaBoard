@@ -13,13 +13,6 @@ export const test = base.extend<{ resetBackend: void }>({
     // Reset mock board state before the test
     await fetch("http://localhost:7000/mock/reset", { method: "POST" });
 
-    // Wipe persisted data so the backend behaves as first-run
-    await fetch("http://localhost:8000/debug/reset-config", {
-      method: "POST",
-    }).catch(() => {
-      // Endpoint may not exist — not critical
-    });
-
     await use();
   }, { auto: true }],
 });
@@ -30,6 +23,38 @@ export { expect };
 export async function getMockBoardState() {
   const res = await fetch("http://localhost:7000/mock/state");
   return res.json();
+}
+
+/**
+ * Configure the board via the API so the app is no longer in first-run mode.
+ * Call this in tests that need a working backend without running the wizard.
+ */
+export async function configureBoard() {
+  await fetch("http://localhost:8000/config/board", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_mode: "local",
+      local_api_key: "test-key",
+      host: "localhost",
+    }),
+  });
+}
+
+/**
+ * Clear the board configuration so the backend returns to first-run mode.
+ * Use this before tests that need the setup wizard to appear.
+ */
+export async function clearBoardConfig() {
+  await fetch("http://localhost:8000/config/board", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_mode: "local",
+      local_api_key: "",
+      host: "",
+    }),
+  });
 }
 
 /** Wait until the API server is ready. */

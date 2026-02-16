@@ -14,7 +14,7 @@
  * NOTE: Tests run sequentially. The wizard test runs first and configures
  * the board so subsequent tests have a working backend.
  */
-import { test, expect, getMockBoardState } from "./helpers";
+import { test, expect, getMockBoardState, clearBoardConfig } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // 1. Mock Board API & Backend Health
@@ -42,6 +42,9 @@ test.describe("Infrastructure", () => {
 
 test.describe("Setup Wizard", () => {
   test("completes the wizard using Local API mode", async ({ page }) => {
+    // Clear any board config so the backend reports first-run mode
+    await clearBoardConfig();
+
     // Ensure no lingering wizard completion state
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");

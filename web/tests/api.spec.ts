@@ -15,9 +15,14 @@
  *   - Dev-mode toggle
  *   - Debug endpoints (test-connection, system-info)
  */
-import { test, expect } from "./helpers";
+import { test, expect, configureBoard } from "./helpers";
 
 const API = "http://localhost:8000";
+
+// Ensure the board is configured before each API test
+test.beforeEach(async () => {
+  await configureBoard();
+});
 
 // ---------------------------------------------------------------------------
 // Version & Config

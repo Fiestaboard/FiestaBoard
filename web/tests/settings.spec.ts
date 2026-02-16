@@ -9,10 +9,11 @@
  * NOTE: Tests run sequentially and depend on the board being
  * configured (Setup Wizard must have completed in an earlier suite).
  */
-import { test, expect } from "./helpers";
+import { test, expect, configureBoard } from "./helpers";
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
+  await configureBoard();
   await page.addInitScript(() => {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });
@@ -56,19 +57,23 @@ test.describe("Settings Page", () => {
       // Get initial state
       const initialChecked = await devModeSwitch.isChecked();
 
-      // Toggle it
+      // Toggle it and wait for the API response
+      const toggleResponse = page.waitForResponse(
+        (r) => r.url().includes("/dev-mode") && r.status() === 200
+      );
       await devModeSwitch.click();
-
-      // Wait a beat for the API call
-      await page.waitForTimeout(1_000);
+      await toggleResponse;
 
       // Verify it changed
       const newChecked = await devModeSwitch.isChecked();
       expect(newChecked).toBe(!initialChecked);
 
-      // Toggle back to original
+      // Toggle back to original and wait for the API response
+      const revertResponse = page.waitForResponse(
+        (r) => r.url().includes("/dev-mode") && r.status() === 200
+      );
       await devModeSwitch.click();
-      await page.waitForTimeout(1_000);
+      await revertResponse;
     }
   });
 
