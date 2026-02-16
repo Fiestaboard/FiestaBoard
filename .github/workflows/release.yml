@@ -83,6 +83,7 @@ jobs:
     if: needs.guard.outputs.skip != 'true'
     outputs:
       version: ${{ steps.version.outputs.version }}
+      release_sha: ${{ steps.commit.outputs.release_sha }}
       build_pi: ${{ steps.bump_type.outputs.build_pi }}
       platforms: ${{ steps.bump_type.outputs.build_pi == 'true' && 'linux/amd64,linux/arm/v7,linux/arm64' || 'linux/amd64' }}
       owner_lower: ${{ steps.owner_lower.outputs.owner_lower }}
@@ -179,10 +180,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Commit version bump
+        id: commit
         run: |
           git add package.json web/package.json src/__init__.py
-          git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
           git push
+          echo "release_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
   build-api:
     name: Build API Image
@@ -192,6 +195,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prep.outputs.release_sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -231,6 +236,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prep.outputs.release_sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -271,6 +278,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
+          ref: ${{ needs.prep.outputs.release_sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -281,15 +289,16 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const version = '${{ needs.prep.outputs.version }}';
+            const releaseSha = '${{ needs.prep.outputs.release_sha }}';
             const tagName = `v${version}`;
             
-            // Create a tag
+            // Create a tag pointing to the version-bump commit
             try {
               await github.rest.git.createRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: `refs/tags/${tagName}`,
-                sha: context.sha
+                sha: releaseSha
               });
               console.log(`Created tag: ${tagName}`);
             } catch (error) {
@@ -312,7 +321,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   base: lastRelease.tag_name,
-                  head: context.sha
+                  head: releaseSha
                 });
                 
                 releaseNotes += comparison.commits
