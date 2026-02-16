@@ -353,7 +353,7 @@ export function PageGridSelector({
       <div className="text-center text-sm text-muted-foreground py-4">
         <p>No pages created yet.</p>
         <p className="mt-1">
-          <a href="/pages/new" className="text-primary hover:underline">
+          <a href={`/pages/new${deviceTypeFilter ? `?device=${deviceTypeFilter}` : ''}`} className="text-primary hover:underline">
             Create your first page
           </a>
         </p>
