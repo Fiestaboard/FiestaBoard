@@ -83,9 +83,9 @@ cd FiestaBoard
 4. Extract the ZIP file
 5. Open a terminal/PowerShell and navigate to the extracted folder
 
-## Step 4: Configure FiestaBoard
+## Step 4: Run the Install Wizard
 
-### Using the Install Script (Easiest)
+The install wizard handles everything — it collects your board API key, creates the configuration file, and starts the server.
 
 ```bash
 # Mac/Linux
@@ -95,55 +95,9 @@ cd FiestaBoard
 .\scripts\install.ps1
 ```
 
-The script will guide you through entering your board API key and settings.
+The script will guide you through entering your board API key and settings. When it finishes, FiestaBoard is running!
 
-### Manual Configuration
-
-1. Create your configuration file:
-
-```bash
-cp env.example .env
-```
-
-2. Open `.env` in any text editor and fill in your board key:
-
-For Local API:
-```bash
-BOARD_API_MODE=local
-BOARD_LOCAL_API_KEY=your_local_api_key_here
-BOARD_HOST=192.168.0.11
-TIMEZONE=America/Los_Angeles
-```
-
-For Cloud API:
-```bash
-BOARD_API_MODE=cloud
-BOARD_READ_WRITE_KEY=your_board_api_key_here
-TIMEZONE=America/Los_Angeles
-```
-
-:::tip Finding Your Timezone
-Use the [TZ database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) for your timezone. Common examples:
-- US East: `America/New_York`
-- US Central: `America/Chicago`
-- US Mountain: `America/Denver`
-- US Pacific: `America/Los_Angeles`
-- UK: `Europe/London`
-:::
-
-## Step 5: Start FiestaBoard
-
-```bash
-docker-compose up --build
-```
-
-The first time you run this, it will download and build everything. This may take a few minutes.
-
-:::info
-You'll see a lot of text scrolling by — that's normal! Wait until you see messages indicating the services are running.
-:::
-
-## Step 6: Open the Web UI
+## Step 5: Open the Web UI
 
 1. Open your web browser
 2. Go to **http://localhost:8080**
@@ -151,12 +105,12 @@ You'll see a lot of text scrolling by — that's normal! Wait until you see mess
 
 ![FiestaBoard Dashboard](/img/web-ui-home.png)
 
-## Step 7: Start the Display Service
+## Step 6: Start the Display Service
 
 1. In the web UI, click the **"▶ Start Service"** button
 2. Your board will start updating with content!
 
-## Step 8: Enable Plugins
+## Step 7: Enable Plugins
 
 Now that your server is running, add the data sources you care about:
 

@@ -12,9 +12,11 @@ You bring the board. You bring the API keys for the services you care about. Fie
 - **Your board's API key** (Local API or Cloud Read/Write key)
 - **Docker and Docker Compose** installed ([Get Docker](https://www.docker.com/products/docker-desktop/))
 
-That's it. Plugins that pull data from external services (weather, traffic, etc.) will need their own API keys, but you can add those later through the web UI.
+That's it. The installation wizard walks you through the rest. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
 
-### Easiest: Use the Installation Script
+### Installation
+
+Run the setup wizard — it will collect your board API key, create the config, and start the server:
 
 ```bash
 # Mac/Linux
@@ -24,31 +26,13 @@ That's it. Plugins that pull data from external services (weather, traffic, etc.
 .\scripts\install.ps1
 ```
 
-The script will guide you through setup.
+Once it finishes:
 
-### Manual Setup
-
-```bash
-# 1. Create your config file
-cp env.example .env
-# Edit .env and add your board API key (BOARD_READ_WRITE_KEY or BOARD_LOCAL_API_KEY)
-
-# 2. Start the server
-docker-compose up --build
-```
-
-### Access Your Server
-
-- **Web UI**: http://localhost:8080 — manage pages, configure plugins, start the display service
-- **API**: http://localhost:8000 — REST API endpoints
-- **API Docs**: http://localhost:8000/docs — interactive API documentation
-
-![Web UI Home](./images/web-ui-home.png)
-
-**To start updating your board:**
 1. Open http://localhost:8080 in your browser
 2. Click "▶ Start Service"
 3. Your board will start displaying content!
+
+![Web UI Home](./images/web-ui-home.png)
 
 **To stop:**
 ```bash
@@ -108,10 +92,11 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 
 **Hosting a FiestaBoard server** (running it to control your board) and **developing FiestaBoard** (contributing code) are different workflows:
 
-| | Hosting | Development |
+| | Hosting (Self-Hosting) | Development |
 |---|---|---|
 | **Goal** | Run the server to control your board | Contribute code or build plugins |
-| **Setup** | `docker-compose up --build` | `docker-compose -f docker-compose.dev.yml up --build` |
+| **Setup** | Run the install wizard — it handles everything | `docker-compose -f docker-compose.dev.yml up --build` |
+| **Configuration** | Wizard creates `.env` for you; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
 | **Web UI** | http://localhost:8080 | http://localhost:3000 |
 | **Hot reload** | No | Yes (Python + Next.js) |
 | **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
@@ -120,23 +105,21 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 
 ## Configuration
 
-Configuration is done via environment variables in `.env`:
+The install wizard handles initial configuration for self-hosting. After setup, plugins are enabled and configured through the **web UI's Integrations page**.
 
-### Required (to start the server)
+The `.env` file created by the wizard contains your board connection settings. You generally don't need to edit it directly — but you can for advanced tuning or to add plugin API keys before starting the server.
+
+> **For development:** If you're contributing code or building plugins, see `env.example` for the full list of environment variables. The [Environment Variables Reference](./docs-site/docs/reference/environment-variables.md) documents every option.
+
+### Board Connection (set by wizard)
 
 - `BOARD_API_MODE`: `local` (default) or `cloud` — how FiestaBoard connects to your board
-- `BOARD_LOCAL_API_KEY`: Your board's Local API key (when using local mode)
-- `BOARD_HOST`: Your board's IP address or hostname (when using local mode)
-- `BOARD_READ_WRITE_KEY`: Your board's Read/Write API key (when using cloud mode)
-
-### Optional (core settings)
-
-- `TIMEZONE`: Timezone name (default: "America/Los_Angeles")
-- `REFRESH_INTERVAL_SECONDS`: How often the board updates in seconds (default: 60)
+- `BOARD_LOCAL_API_KEY` / `BOARD_HOST`: For local mode
+- `BOARD_READ_WRITE_KEY`: For cloud mode
 
 ### Plugin API Keys
 
-Plugins are enabled via the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key — add them to `.env` as you enable plugins.
+Plugins are enabled via the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key — the web UI links to setup instructions for each one. You can also add keys to `.env` directly if you prefer.
 
 | Plugin | API Key | Documentation |
 |--------|---------|-------------|
@@ -214,7 +197,7 @@ FiestaBoard/
 
 ## Getting Your Board API Key
 
-You need your board's API key to connect FiestaBoard to your display. There are two connection modes:
+You need your board's API key before running the install wizard. There are two connection modes:
 
 ### Local API (Recommended)
 
@@ -225,13 +208,6 @@ Faster, supports transition animations, works over your local network.
 3. Copy your Local API key
 4. Note your board's IP address
 
-```bash
-# In .env
-BOARD_API_MODE=local
-BOARD_LOCAL_API_KEY=your_local_api_key_here
-BOARD_HOST=192.168.0.11
-```
-
 ### Cloud API (Alternative)
 
 Works from anywhere with internet. No transition animation support.
@@ -241,13 +217,9 @@ Works from anywhere with internet. No transition animation support.
 3. Enable **Read/Write API**
 4. Copy your Read/Write API key
 
-```bash
-# In .env
-BOARD_API_MODE=cloud
-BOARD_READ_WRITE_KEY=your_read_write_api_key_here
-```
+> The install wizard will ask for your board API key and write it to `.env` for you. If you're setting up manually (e.g., for development), see `env.example` for the variable names.
 
-See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details.
+See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details on cloud vs local mode.
 
 ## Deployment
 

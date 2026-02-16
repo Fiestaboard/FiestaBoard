@@ -29,23 +29,14 @@ If you already own a split-flap display, FiestaBoard gives you a self-hosted pla
 
 ### Using the Installation Script
 
+The install wizard handles everything — it collects your board API key, creates the configuration, and starts the server:
+
 ```bash
 # Mac/Linux
 ./scripts/install.sh
 
 # Windows (PowerShell)
 .\scripts\install.ps1
-```
-
-### Manual Setup
-
-```bash
-# 1. Create .env file with your board API key
-cp env.example .env
-# Edit .env and add your board key
-
-# 2. Start the server
-docker-compose up --build
 ```
 
 **Access your FiestaBoard:**

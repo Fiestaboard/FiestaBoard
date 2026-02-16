@@ -14,11 +14,11 @@ Get FiestaBoard running in minutes with Docker Compose.
 - **Your board's API key** (Local API or Cloud Read/Write key)
 - **Docker** and **Docker Compose** installed on your system
 
-That's it. Plugins that need external API keys (weather, traffic, etc.) can be configured later through the web UI.
+That's it. The install wizard handles the rest. Plugins that need external API keys (weather, traffic, etc.) can be configured later through the web UI.
 
-## Installation
+## Installation (Recommended)
 
-### Option 1: Installation Script (Recommended)
+Run the setup wizard — it will collect your board API key, create the configuration, and start the server:
 
 ```bash
 # Mac/Linux
@@ -28,9 +28,50 @@ That's it. Plugins that need external API keys (weather, traffic, etc.) can be c
 .\scripts\install.ps1
 ```
 
-The script will guide you through the setup process.
+The script guides you through everything. When it finishes, FiestaBoard is running.
 
-### Option 2: Manual Setup
+## Access Your Dashboard
+
+Once running, access FiestaBoard at:
+
+| Service | URL |
+|---------|-----|
+| **Web UI** | http://localhost:8080 |
+| **API** | http://localhost:8000 |
+| **API Docs** | http://localhost:8000/docs |
+
+## Start the Display Service
+
+1. Open http://localhost:8080 in your browser
+2. Click the **"▶ Start Service"** button
+3. Your board will start updating!
+
+## Stop FiestaBoard
+
+```bash
+docker-compose down
+```
+
+## Getting Your Board API Key
+
+Have your board API key ready before running the wizard.
+
+### Local API (Recommended)
+
+1. Open the board's mobile app
+2. Go to **Settings** → **Local API**
+3. Copy your API key and note the board's IP address
+
+### Cloud API (Alternative)
+
+1. Go to [web.vestaboard.com](https://web.vestaboard.com)
+2. Navigate to the API section
+3. Enable Read/Write API
+4. Copy your Read/Write API key
+
+## Manual Setup (Advanced)
+
+If you prefer not to use the wizard (or are setting up a development environment), you can configure FiestaBoard manually:
 
 1. **Clone the repository**
 
@@ -65,49 +106,10 @@ TIMEZONE=America/Los_Angeles
 4. **Start FiestaBoard**
 
 ```bash
-# Build and run (first time)
-docker-compose up --build
-
-# Or run in background
 docker-compose up -d --build
 ```
 
-## Access Your Dashboard
-
-Once running, access FiestaBoard at:
-
-| Service | URL |
-|---------|-----|
-| **Web UI** | http://localhost:8080 |
-| **API** | http://localhost:8000 |
-| **API Docs** | http://localhost:8000/docs |
-
-## Start the Display Service
-
-1. Open http://localhost:8080 in your browser
-2. Click the **"▶ Start Service"** button
-3. Your board will start updating!
-
-## Stop FiestaBoard
-
-```bash
-docker-compose down
-```
-
-## Getting Your Board API Key
-
-### Local API (Recommended)
-
-1. Open the board's mobile app
-2. Go to **Settings** → **Local API**
-3. Copy your API key and note the board's IP address
-
-### Cloud API (Alternative)
-
-1. Go to [web.vestaboard.com](https://web.vestaboard.com)
-2. Navigate to the API section
-3. Enable Read/Write API
-4. Copy your Read/Write API key
+See `env.example` for all available environment variables.
 
 ## Next Steps
 

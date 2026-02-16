@@ -6,7 +6,12 @@ keywords: [FiestaBoard environment variables, .env config, configuration referen
 
 # Environment Variables
 
-All FiestaBoard configuration is done through the `.env` file. This page documents every available environment variable.
+This is a **reference page** for all available `.env` configuration variables. Most self-hosting users don't need to edit `.env` directly — the [install wizard](/docs/setup/quick-start) creates it during setup, and plugins are configured through the web UI's Integrations page.
+
+This reference is useful for:
+- **Development** — setting up a local dev environment
+- **Advanced configuration** — tuning settings the web UI doesn't expose
+- **Troubleshooting** — understanding what each variable controls
 
 ## Required Variables
 

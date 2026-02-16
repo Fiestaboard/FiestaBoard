@@ -6,11 +6,11 @@ keywords: [FiestaBoard API keys, weather API, Google Routes API, plugin configur
 
 # API Keys
 
-FiestaBoard only requires your board's API key to start. Plugin API keys are optional and added as you enable plugins through the web UI.
+FiestaBoard only requires your board's API key to start — and the install wizard collects it for you during setup. Plugin API keys are optional and added as you enable plugins through the web UI.
 
 ## Required: Board API Key
 
-You need one of these to connect FiestaBoard to your display:
+The install wizard asks for this during setup. If you need to find or change your key later:
 
 ### Local API Key (Recommended)
 
@@ -19,13 +19,6 @@ Faster updates, supports transition animations, requires same-network access.
 1. Open the board's mobile app
 2. Go to **Settings** → **Local API**
 3. Copy your API key and note the board's IP address
-
-```bash
-# In .env
-BOARD_API_MODE=local
-BOARD_LOCAL_API_KEY=your_key_here
-BOARD_HOST=192.168.0.11
-```
 
 ### Cloud Read/Write API Key
 
@@ -37,11 +30,7 @@ Works from anywhere with internet. No transition animation support.
 4. Enable the **Read/Write API**
 5. Copy your API key
 
-```bash
-# In .env
-BOARD_API_MODE=cloud
-BOARD_READ_WRITE_KEY=your_key_here
-```
+> If you're setting up manually (without the wizard), see `env.example` for the environment variable names (`BOARD_LOCAL_API_KEY`, `BOARD_HOST`, `BOARD_READ_WRITE_KEY`, etc.).
 
 ## Plugin API Keys
 
