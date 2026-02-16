@@ -30,27 +30,14 @@ test.describe("Integrations Page", () => {
       page.getByRole("heading", { name: /integrations/i })
     ).toBeVisible({ timeout: 15_000 });
 
-    // The page should display some plugin cards or a list
-    // Plugins are grouped by category — look for any plugin name
-    // that should be present in the default installation
-    const pluginNames = [
-      "Weather",
-      "Date",
-      "Time",
-      "Stocks",
-      "Traffic",
-    ];
+    // At least one known plugin name from the default installation
+    // should be visible on the page
+    const pluginLocator = page
+      .getByText("Weather", { exact: false })
+      .or(page.getByText("Date", { exact: false }))
+      .or(page.getByText("Stocks", { exact: false }))
+      .or(page.getByText("Traffic", { exact: false }));
 
-    // At least one known plugin name should be visible
-    let foundPlugin = false;
-    for (const name of pluginNames) {
-      const el = page.getByText(name, { exact: false }).first();
-      if (await el.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        foundPlugin = true;
-        break;
-      }
-    }
-
-    expect(foundPlugin).toBe(true);
+    await expect(pluginLocator.first()).toBeVisible({ timeout: 10_000 });
   });
 });

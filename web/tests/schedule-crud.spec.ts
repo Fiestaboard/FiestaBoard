@@ -94,20 +94,26 @@ test.describe("Schedule CRUD", () => {
     const created = await createRes.json();
     const scheduleId = created.id;
 
+    // Verify the schedule exists via API
+    const listBefore = await fetch(`${API}/schedules`);
+    const dataBefore = await listBefore.json();
+    expect(dataBefore.schedules.some((s: { id: string }) => s.id === scheduleId)).toBe(true);
+
     // Delete via API
     const deleteRes = await fetch(`${API}/schedules/${scheduleId}`, {
       method: "DELETE",
     });
     expect(deleteRes.ok).toBe(true);
 
-    // Navigate to schedule page and verify the deleted slot is not shown
+    // Verify the schedule no longer exists via API
+    const listAfter = await fetch(`${API}/schedules`);
+    const dataAfter = await listAfter.json();
+    expect(dataAfter.schedules.some((s: { id: string }) => s.id === scheduleId)).toBe(false);
+
+    // Navigate to schedule page and verify it loads without errors
     await page.goto("/schedule");
     await expect(
       page.getByRole("heading", { name: "Schedule", exact: true })
     ).toBeVisible({ timeout: 15_000 });
-
-    // The "18:00" / "22:00" entry from the deleted schedule should not
-    // be present as a schedule entry label
-    // (Note: time labels may still appear in the grid but not as entries)
   });
 });

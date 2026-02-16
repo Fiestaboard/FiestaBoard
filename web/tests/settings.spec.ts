@@ -51,30 +51,25 @@ test.describe("Settings Page", () => {
       page.getByRole("heading", { name: "Settings", exact: true })
     ).toBeVisible({ timeout: 15_000 });
 
-    // Find the dev mode switch
+    // Dev mode switch should be visible in General Settings
     const devModeSwitch = page.locator("#dev-mode");
-    if (await devModeSwitch.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      // Get initial state
-      const initialChecked = await devModeSwitch.isChecked();
+    await expect(devModeSwitch).toBeVisible({ timeout: 5_000 });
 
-      // Toggle it and wait for the API response
-      const toggleResponse = page.waitForResponse(
-        (r) => r.url().includes("/dev-mode") && r.status() === 200
-      );
-      await devModeSwitch.click();
-      await toggleResponse;
+    // Click the switch and verify the API call succeeds
+    const toggleResponse = page.waitForResponse(
+      (r) => r.url().includes("/dev-mode") && r.status() === 200
+    );
+    await devModeSwitch.click();
+    const response = await toggleResponse;
+    const data = await response.json();
+    expect(data).toHaveProperty("dev_mode");
 
-      // Verify it changed
-      const newChecked = await devModeSwitch.isChecked();
-      expect(newChecked).toBe(!initialChecked);
-
-      // Toggle back to original and wait for the API response
-      const revertResponse = page.waitForResponse(
-        (r) => r.url().includes("/dev-mode") && r.status() === 200
-      );
-      await devModeSwitch.click();
-      await revertResponse;
-    }
+    // Toggle back and verify the revert API call also succeeds
+    const revertResponse = page.waitForResponse(
+      (r) => r.url().includes("/dev-mode") && r.status() === 200
+    );
+    await devModeSwitch.click();
+    await revertResponse;
   });
 
   test("can navigate to integrations from settings", async ({ page }) => {
@@ -83,21 +78,15 @@ test.describe("Settings Page", () => {
       page.getByRole("heading", { name: "Settings", exact: true })
     ).toBeVisible({ timeout: 15_000 });
 
-    // Look for a link or button that goes to integrations
+    // Click the integrations link/button
     const integrationsLink = page
       .getByRole("link", { name: /integrations/i })
       .or(page.getByRole("button", { name: /integrations/i }));
 
-    if (
-      await integrationsLink
-        .first()
-        .isVisible({ timeout: 5_000 })
-        .catch(() => false)
-    ) {
-      await integrationsLink.first().click();
-      await expect(
-        page.getByRole("heading", { name: /integrations/i })
-      ).toBeVisible({ timeout: 10_000 });
-    }
+    await expect(integrationsLink.first()).toBeVisible({ timeout: 5_000 });
+    await integrationsLink.first().click();
+    await expect(
+      page.getByRole("heading", { name: /integrations/i })
+    ).toBeVisible({ timeout: 10_000 });
   });
 });
