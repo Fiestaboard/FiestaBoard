@@ -37,9 +37,9 @@ COLOR_MARKER_PATTERN = re.compile(
 )
 
 
-def text_to_board_array(text: str, use_color_tiles: bool = True) -> List[List[int]]:
+def text_to_board_array(text: str, use_color_tiles: bool = True, rows: int = 6, cols: int = 22) -> List[List[int]]:
     """
-    Convert formatted text to 6x22 board character array.
+    Convert formatted text to board character array.
     
     Color markers like {red} or {67} produce ONE solid color tile at that position.
     They do NOT color subsequent text - the board doesn't support colored text.
@@ -51,25 +51,27 @@ def text_to_board_array(text: str, use_color_tiles: bool = True) -> List[List[in
     - "62°F" as regular text
     
     Args:
-        text: Formatted text string (newline-separated, max 6 lines)
+        text: Formatted text string (newline-separated)
         use_color_tiles: If True (default), render color markers as solid color tiles.
                         If False, strip color markers entirely.
+        rows: Number of rows (default 6 for flagship, 3 for note)
+        cols: Number of columns (default 22 for flagship, 15 for note)
         
     Returns:
-        6x22 array of character codes (0-71)
+        rows x cols array of character codes (0-71)
     """
     # Initialize empty board (all spaces)
-    board = [[BoardChars.SPACE] * 22 for _ in range(6)]
+    board = [[BoardChars.SPACE] * cols for _ in range(rows)]
     
-    # Split into lines (max 6)
-    lines = text.split('\n')[:6]
+    # Split into lines (max rows)
+    lines = text.split('\n')[:rows]
     
     # Process each line
     for row_idx, line in enumerate(lines):
         col_idx = 0
         pos = 0
         
-        while pos < len(line) and col_idx < 22:
+        while pos < len(line) and col_idx < cols:
             # Check for color marker at current position
             match = COLOR_MARKER_PATTERN.match(line, pos)
             
@@ -185,23 +187,25 @@ def format_board_array_preview(board: List[List[int]]) -> str:
     return '\n'.join(lines)
 
 
-def validate_board_array(board: List[List[int]]) -> bool:
+def validate_board_array(board: List[List[int]], rows: int = 6, cols: int = 22) -> bool:
     """
     Validate that a board array is properly formatted.
     
     Args:
-        board: 6x22 character array
+        board: Character array
+        rows: Expected number of rows (default 6)
+        cols: Expected number of columns (default 22)
         
     Returns:
         True if valid, False otherwise
     """
-    if not isinstance(board, list) or len(board) != 6:
-        logger.error(f"Invalid board: expected 6 rows, got {len(board) if isinstance(board, list) else 'not a list'}")
+    if not isinstance(board, list) or len(board) != rows:
+        logger.error(f"Invalid board: expected {rows} rows, got {len(board) if isinstance(board, list) else 'not a list'}")
         return False
     
     for i, row in enumerate(board):
-        if not isinstance(row, list) or len(row) != 22:
-            logger.error(f"Invalid row {i}: expected 22 columns, got {len(row) if isinstance(row, list) else 'not a list'}")
+        if not isinstance(row, list) or len(row) != cols:
+            logger.error(f"Invalid row {i}: expected {cols} columns, got {len(row) if isinstance(row, list) else 'not a list'}")
             return False
         
         for j, code in enumerate(row):

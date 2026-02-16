@@ -22,15 +22,25 @@ logger = logging.getLogger(__name__)
 PREVIEW_CACHE_TTL = 300
 
 
-# Default welcome page template (6 lines for board)
-DEFAULT_PAGE_TEMPLATE = [
-    "      Welcome to      ",
-    "     FiestaBoard      ",
-    "                      ",
-    "   Create a new page  ",
-    "    to get started    ",
-    "                      ",
-]
+# Default welcome page templates per device type
+DEFAULT_PAGE_TEMPLATES = {
+    "flagship": [
+        "      Welcome to      ",
+        "     FiestaBoard      ",
+        "                      ",
+        "   Create a new page  ",
+        "    to get started    ",
+        "                      ",
+    ],
+    "note": [
+        "   Welcome to  ",
+        "  FiestaBoard  ",
+        "               ",
+    ],
+}
+
+# Backward compatibility alias
+DEFAULT_PAGE_TEMPLATE = DEFAULT_PAGE_TEMPLATES["flagship"]
 
 
 @dataclass
@@ -117,6 +127,7 @@ class PageService:
         page = Page(
             name=data.name,
             type=data.type,
+            device_type=data.device_type,
             display_type=data.display_type,
             rows=data.rows,
             template=data.template,
@@ -287,10 +298,12 @@ class PageService:
                 error="Composite page missing row configuration"
             )
         
+        from ..devices import get_dimensions
+        dims = get_dimensions(page.device_type)
         display_service = get_display_service()
         
-        # Initialize 6 empty lines
-        output_lines = ["                      "] * 6  # 22 spaces
+        # Initialize empty lines for the device
+        output_lines = [" " * dims.cols] * dims.rows
         source_data = {}
         
         for row_config in page.rows:
@@ -307,9 +320,10 @@ class PageService:
             # Get the specified row if it exists
             if row_config.row_index < len(source_lines):
                 source_line = source_lines[row_config.row_index]
-                # Pad or truncate to 22 characters
-                source_line = source_line[:22].ljust(22)
-                output_lines[row_config.target_row] = source_line
+                # Pad or truncate to device width
+                source_line = source_line[:dims.cols].ljust(dims.cols)
+                if row_config.target_row < dims.rows:
+                    output_lines[row_config.target_row] = source_line
         
         formatted = '\n'.join(output_lines)
         

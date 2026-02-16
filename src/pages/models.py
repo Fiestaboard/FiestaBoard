@@ -11,6 +11,8 @@ from typing import Optional, List, Literal
 from pydantic import BaseModel, Field, ConfigDict
 import uuid
 
+from ..devices import DeviceType, get_dimensions, DEFAULT_DEVICE_TYPE
+
 
 PageType = Literal["single", "composite", "template"]
 
@@ -19,10 +21,11 @@ class RowConfig(BaseModel):
     """Configuration for a single row in a composite page.
     
     Specifies which row from which source should be placed at which position.
+    Row limits depend on the device type of the parent page.
     """
     source: str  # Display type (weather, datetime, etc.)
-    row_index: int = Field(ge=0, le=5)  # Which row from source (0-5)
-    target_row: int = Field(ge=0, le=5)  # Where to place in output (0-5)
+    row_index: int = Field(ge=0)  # Which row from source
+    target_row: int = Field(ge=0)  # Where to place in output
 
 
 class Page(BaseModel):
@@ -32,10 +35,15 @@ class Page(BaseModel):
     - single: Displays a single source type
     - composite: Combines specific rows from multiple sources
     - template: Custom content with templated variables
+    
+    Each page targets a specific device type (flagship: 22x6, note: 15x3).
     """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str = Field(min_length=1, max_length=100)
     type: PageType
+    
+    # Device type: "flagship" (22x6) or "note" (15x3)
+    device_type: DeviceType = Field(default=DEFAULT_DEVICE_TYPE)
     
     # For single pages: which display type to show
     display_type: Optional[str] = None
@@ -43,7 +51,7 @@ class Page(BaseModel):
     # For composite pages: row configuration
     rows: Optional[List[RowConfig]] = None
     
-    # For template pages: 6 lines of template text
+    # For template pages: lines of template text
     # Templates can include {{variable}} syntax for dynamic data
     # and {color} syntax for board colors
     template: Optional[List[str]] = None
@@ -55,7 +63,7 @@ class Page(BaseModel):
     # Valid strategies: column, reverse-column, edges-to-center, row, diagonal, random
     transition_strategy: Optional[str] = None
     transition_interval_ms: Optional[int] = Field(default=None, ge=0, le=5000)
-    transition_step_size: Optional[int] = Field(default=None, ge=1, le=22)
+    transition_step_size: Optional[int] = Field(default=None, ge=1)
     
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -73,6 +81,8 @@ class Page(BaseModel):
             List of validation error messages (empty if valid)
         """
         errors = []
+        dims = get_dimensions(self.device_type)
+        max_row = dims.rows - 1
         
         if self.type == "single":
             if not self.display_type:
@@ -86,12 +96,18 @@ class Page(BaseModel):
                 target_rows = [r.target_row for r in self.rows]
                 if len(target_rows) != len(set(target_rows)):
                     errors.append("Composite page has duplicate target rows")
+                # Check row indices are within device limits
+                for r in self.rows:
+                    if r.row_index > max_row:
+                        errors.append(f"Row index {r.row_index} exceeds max {max_row} for {self.device_type}")
+                    if r.target_row > max_row:
+                        errors.append(f"Target row {r.target_row} exceeds max {max_row} for {self.device_type}")
         
         elif self.type == "template":
             if not self.template or len(self.template) == 0:
                 errors.append("Template page requires template content")
-            elif len(self.template) > 6:
-                errors.append("Template cannot have more than 6 lines")
+            elif len(self.template) > dims.rows:
+                errors.append(f"Template cannot have more than {dims.rows} lines for {self.device_type}")
         
         return errors
     
@@ -104,6 +120,7 @@ class PageCreate(BaseModel):
     """Request model for creating a new page."""
     name: str = Field(min_length=1, max_length=100)
     type: PageType
+    device_type: DeviceType = Field(default=DEFAULT_DEVICE_TYPE)
     display_type: Optional[str] = None
     rows: Optional[List[RowConfig]] = None
     template: Optional[List[str]] = None
@@ -111,7 +128,7 @@ class PageCreate(BaseModel):
     # Transition settings (per-page override)
     transition_strategy: Optional[str] = None
     transition_interval_ms: Optional[int] = Field(default=None, ge=0, le=5000)
-    transition_step_size: Optional[int] = Field(default=None, ge=1, le=22)
+    transition_step_size: Optional[int] = Field(default=None, ge=1)
 
 
 class PageUpdate(BaseModel):
@@ -124,5 +141,5 @@ class PageUpdate(BaseModel):
     # Transition settings (per-page override, use ... sentinel to leave unchanged)
     transition_strategy: Optional[str] = None
     transition_interval_ms: Optional[int] = Field(default=None, ge=0, le=5000)
-    transition_step_size: Optional[int] = Field(default=None, ge=1, le=22)
+    transition_step_size: Optional[int] = Field(default=None, ge=1)
 
