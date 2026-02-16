@@ -145,6 +145,10 @@ Access individual stops using index (0-3):
 
 ## Example Templates
 
+### Default Format (Matches Screenshot)
+
+![Muni Transit Display](./muni-display.png)
+
 ### Simple Single Stop
 
 ```
