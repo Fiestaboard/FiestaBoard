@@ -91,8 +91,8 @@ class DockerManager:
             else:
                 # Map service names to container names
                 service_map = {
-                    "api": "fiestaboard-api",
-                    "ui": "fiestaboard-ui"
+                    "api": "fiestaboard",
+                    "ui": "fiestaboard"
                 }
                 container_name = service_map.get(service_name)
                 if not container_name:
@@ -185,9 +185,9 @@ class DockerManager:
             
             # Map service names to container names
             service_map = {
-                "api": "fiestaboard-api",
-                "ui": "fiestaboard-ui",
-                "all": "fiestaboard"  # Will match both
+                "api": "fiestaboard",
+                "ui": "fiestaboard",
+                "all": "fiestaboard"
             }
             
             search_term = service_map.get(service_name, service_name)

@@ -40,11 +40,13 @@ jobs:
               - 'src/**'
               - 'requirements.txt'
               - 'requirements-dev.txt'
+              - 'Dockerfile'
               - 'Dockerfile.api'
               - 'tests/**'
               - '.pylintrc'
             ui:
               - 'web/**'
+              - 'Dockerfile'
               - 'Dockerfile.ui'
               - 'Dockerfile.ui-dev'
               - 'nginx.conf'
