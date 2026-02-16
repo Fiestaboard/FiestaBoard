@@ -164,6 +164,10 @@ Access the first game directly (without array index):
 
 ## Example Templates
 
+### Default Format (Matches Screenshot)
+
+![Sports Scores Display](./sports-scores-display.png)
+
 ### Simple List
 
 ```
