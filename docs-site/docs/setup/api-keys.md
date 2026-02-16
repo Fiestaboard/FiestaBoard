@@ -1,5 +1,7 @@
 ---
 sidebar_position: 6
+description: "Get API keys for FiestaBoard plugins including weather, traffic, sports, and transit services."
+keywords: [FiestaBoard API keys, weather API, Google Routes API, plugin configuration, API setup]
 ---
 
 # Getting API Keys

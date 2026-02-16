@@ -1,5 +1,7 @@
 ---
 sidebar_position: 3
+description: "Set quiet hours on your FiestaBoard to silence split-flap display updates during nighttime or specific periods."
+keywords: [FiestaBoard silence schedule, quiet hours, do not disturb, night mode, split-flap quiet, Vestaboard silence]
 ---
 
 # Silence Schedule

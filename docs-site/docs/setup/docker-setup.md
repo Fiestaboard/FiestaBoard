@@ -1,5 +1,7 @@
 ---
 sidebar_position: 4
+description: "Understand FiestaBoard's Docker architecture, container configuration, and docker-compose setup for production and development."
+keywords: [FiestaBoard Docker, docker-compose, container setup, architecture, nginx, Flask, React]
 ---
 
 # Docker Setup

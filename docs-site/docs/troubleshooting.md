@@ -1,5 +1,7 @@
 ---
 sidebar_position: 8
+description: "Fix common FiestaBoard issues including connection errors, Docker problems, plugin failures, and display troubleshooting."
+keywords: [FiestaBoard troubleshooting, debug, common issues, error fixes, split-flap display problems]
 ---
 
 # Troubleshooting

@@ -33,6 +33,55 @@ const config: Config = {
     locales: ['en'],
   },
 
+  headTags: [
+    {
+      tagName: 'meta',
+      attributes: {
+        name: 'keywords',
+        content: 'split-flap display, dashboard, Vestaboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display',
+      },
+    },
+    {
+      tagName: 'meta',
+      attributes: {
+        name: 'author',
+        content: 'FiestaBoard',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'canonical',
+        href: 'https://fiestaboard.github.io',
+      },
+    },
+    {
+      tagName: 'script',
+      attributes: {
+        type: 'application/ld+json',
+      },
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'FiestaBoard',
+        description: 'Open-source software that transforms split-flap displays into living dashboards. Display weather, stocks, sports scores, transit times, and more.',
+        url: 'https://fiestaboard.github.io',
+        applicationCategory: 'UtilitiesApplication',
+        operatingSystem: 'Linux, macOS, Windows',
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+        sourceOrganization: {
+          '@type': 'Organization',
+          name: 'FiestaBoard',
+          url: 'https://github.com/Fiestaboard/FiestaBoard',
+        },
+      }),
+    },
+  ],
+
   presets: [
     [
       'classic',
@@ -46,12 +95,26 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
+        sitemap: {
+          lastmod: 'date',
+          changefreq: 'weekly',
+          priority: 0.5,
+          filename: 'sitemap.xml',
+        },
       } satisfies Preset.Options,
     ],
   ],
 
   themeConfig: {
     image: 'img/logo.png',
+    metadata: [
+      {name: 'description', content: 'FiestaBoard transforms your split-flap display into a living dashboard. Display weather, stocks, sports scores, transit times, and more with Docker deployment.'},
+      {name: 'og:type', content: 'website'},
+      {name: 'og:site_name', content: 'FiestaBoard'},
+      {name: 'twitter:card', content: 'summary_large_image'},
+      {name: 'twitter:title', content: 'FiestaBoard - Split-Flap Display Dashboard'},
+      {name: 'twitter:description', content: 'Transform your split-flap display into a living dashboard with weather, stocks, sports, and more.'},
+    ],
     colorMode: {
       respectPrefersColorScheme: true,
     },

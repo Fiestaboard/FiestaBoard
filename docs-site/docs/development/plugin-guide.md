@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+description: "Build custom FiestaBoard plugins with this developer guide covering the plugin API, structure, and best practices."
+keywords: [FiestaBoard plugin development, create plugin, plugin API, custom plugin, developer guide, Python plugin]
 ---
 
 # Plugin Development Guide

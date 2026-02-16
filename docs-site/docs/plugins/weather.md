@@ -1,5 +1,7 @@
 ---
 sidebar_position: 3
+description: "Display live weather data including temperature, conditions, and UV index on your split-flap display with FiestaBoard."
+keywords: [FiestaBoard weather plugin, weather display, temperature, UV index, split-flap weather, Vestaboard weather]
 ---
 
 # Weather Plugin

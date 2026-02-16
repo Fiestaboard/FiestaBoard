@@ -1,5 +1,7 @@
 ---
 sidebar_position: 7
+description: "Show real-time public transit arrivals including SF Muni on your split-flap display with FiestaBoard."
+keywords: [FiestaBoard transit plugin, SF Muni, public transit, bus arrivals, train times, split-flap transit]
 ---
 
 # Transit Plugins

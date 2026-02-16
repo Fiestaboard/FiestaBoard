@@ -1,5 +1,7 @@
 ---
 sidebar_position: 2
+description: "Production deployment best practices for running FiestaBoard reliably with Docker, SSL, and monitoring."
+keywords: [FiestaBoard production, deployment guide, Docker production, SSL setup, self-hosted, best practices]
 ---
 
 # Production Deployment

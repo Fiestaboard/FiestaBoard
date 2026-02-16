@@ -1,5 +1,7 @@
 ---
 sidebar_position: 2
+description: "Reference table of split-flap character codes used by FiestaBoard and Vestaboard for display encoding."
+keywords: [FiestaBoard character codes, split-flap characters, Vestaboard encoding, character map, display characters]
 ---
 
 # Character Codes

@@ -1,5 +1,7 @@
 ---
 sidebar_position: 5
+description: "Configure FiestaBoard Cloud API for remote access to your split-flap display from anywhere over the internet."
+keywords: [FiestaBoard cloud API, remote access, Vestaboard API, cloud setup, remote control, display management]
 ---
 
 # Cloud API Setup

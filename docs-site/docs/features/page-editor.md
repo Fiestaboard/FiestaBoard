@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+description: "Use FiestaBoard's WYSIWYG page editor to create and design custom content for your split-flap display."
+keywords: [FiestaBoard page editor, WYSIWYG, display content, custom pages, split-flap editor, Vestaboard editor]
 ---
 
 # Page Editor

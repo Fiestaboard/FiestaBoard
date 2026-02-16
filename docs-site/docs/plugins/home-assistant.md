@@ -1,5 +1,7 @@
 ---
 sidebar_position: 5
+description: "Integrate Home Assistant with FiestaBoard to show smart home sensor states on your split-flap display."
+keywords: [FiestaBoard Home Assistant, smart home, IoT display, sensor data, home automation, Vestaboard Home Assistant]
 ---
 
 # Home Assistant Plugin

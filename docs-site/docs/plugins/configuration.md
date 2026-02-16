@@ -1,5 +1,7 @@
 ---
 sidebar_position: 2
+description: "Enable and configure FiestaBoard plugins through the web UI or environment variables for your split-flap display."
+keywords: [FiestaBoard plugin configuration, enable plugins, plugin settings, environment variables, plugin setup]
 ---
 
 # Plugin Configuration
