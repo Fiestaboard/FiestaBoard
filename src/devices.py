@@ -34,7 +34,7 @@ class BoardInstance:
     device type, and display color. Designed to support multiple
     boards with independent schedules in the future.
     """
-    id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = ""
     device_type: str = "flagship"
     board_color: str = "black"
@@ -53,7 +53,7 @@ class BoardInstance:
     @classmethod
     def from_dict(cls, data: dict) -> "BoardInstance":
         return cls(
-            id=data.get("id", str(uuid.uuid4())[:8]),
+            id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", ""),
             device_type=data.get("device_type", "flagship"),
             board_color=data.get("board_color", "black"),

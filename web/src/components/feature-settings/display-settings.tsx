@@ -120,8 +120,12 @@ export function DisplaySettings() {
                 )}
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <Input
-                    value={board.name}
-                    onChange={(e) => handleUpdateBoard(board.id, { name: e.target.value })}
+                    defaultValue={board.name}
+                    onBlur={(e) => {
+                      if (e.target.value !== board.name) {
+                        handleUpdateBoard(board.id, { name: e.target.value });
+                      }
+                    }}
                     className="h-7 text-sm font-medium bg-transparent border-0 border-b border-transparent hover:border-border focus:border-border rounded-none px-0"
                   />
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">

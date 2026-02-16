@@ -117,12 +117,14 @@ class BoardSettings:
     def devices(self) -> List[str]:
         """Backward-compatible list of unique device types across all boards."""
         from ..devices import DEVICE_TYPES
-        seen = []
+        seen: set[str] = set()
+        result = []
         for b in self.boards:
             dt = b.get("device_type", "flagship")
             if dt not in seen and dt in DEVICE_TYPES:
-                seen.append(dt)
-        return seen if seen else ["flagship"]
+                seen.add(dt)
+                result.append(dt)
+        return result if result else ["flagship"]
     
     def to_dict(self) -> dict:
         return {

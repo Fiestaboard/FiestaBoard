@@ -2361,7 +2361,7 @@ async def update_board_settings(request: dict):
     - boards: list of board instance objects (new format)
     """
     if not any(k in request for k in ("board_type", "devices", "boards")):
-        raise HTTPException(status_code=400, detail="board_type, devices, or boards parameter required")
+        raise HTTPException(status_code=400, detail="At least one of board_type, devices, or boards is required")
     
     settings_service = get_settings_service()
     
