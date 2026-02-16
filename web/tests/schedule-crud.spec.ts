@@ -55,7 +55,7 @@ test.describe("Schedule CRUD", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         page_id: pageId,
-        days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        day_pattern: "weekdays",
         start_time: "10:00",
         end_time: "14:00",
       }),
@@ -84,7 +84,7 @@ test.describe("Schedule CRUD", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         page_id: pageId,
-        days: ["saturday", "sunday"],
+        day_pattern: "weekends",
         start_time: "18:00",
         end_time: "22:00",
       }),

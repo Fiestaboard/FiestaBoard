@@ -184,7 +184,7 @@ test.describe("API – Schedules", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         page_id: pageId,
-        days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        day_pattern: "weekdays",
         start_time: "08:00",
         end_time: "12:00",
       }),
