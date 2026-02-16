@@ -31,51 +31,6 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-  detect-changes:
-    name: Detect Changed Paths
-    runs-on: ubuntu-latest
-    outputs:
-      api: ${{ steps.filter.outputs.api }}
-      ui: ${{ steps.filter.outputs.ui }}
-      shared: ${{ steps.filter.outputs.shared }}
-      version: ${{ steps.filter.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed paths
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          filters: |
-            api:
-              - 'src/**'
-              - 'plugins/**'
-              - 'requirements.txt'
-              - 'requirements-dev.txt'
-              - 'Dockerfile.api'
-              - 'tests/**'
-              - '.pylintrc'
-            ui:
-              - 'web/**'
-              - 'Dockerfile.ui'
-              - 'Dockerfile.ui-dev'
-              - 'nginx.conf'
-              - 'nginx-dev.conf'
-              - 'start-dev-ui.sh'
-            shared:
-              - 'docker-compose*.yml'
-              - '.github/workflows/**'
-              - 'package.json'
-              - 'scripts/version-sync.js'
-            version:
-              - 'package.json'
-              - 'web/package.json'
-              - 'src/__init__.py'
-
   prep:
     name: Prepare Release
     runs-on: ubuntu-latest
@@ -190,8 +145,8 @@ jobs:
   build-api:
     name: Build API Image
     runs-on: ubuntu-latest
-    needs: [prep, detect-changes]
-    if: needs.prep.result == 'success' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.version == 'true')
+    needs: [prep]
+    if: needs.prep.result == 'success'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -231,8 +186,8 @@ jobs:
   build-ui:
     name: Build UI Image
     runs-on: ubuntu-latest
-    needs: [prep, detect-changes]
-    if: needs.prep.result == 'success' && (needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.version == 'true')
+    needs: [prep]
+    if: needs.prep.result == 'success'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
