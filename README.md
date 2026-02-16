@@ -75,7 +75,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 - ⚡ **Smart Preview Caching**: Page previews are cached (5 min TTL) for fast UI rendering, while active displays always get fresh data
 - 🌙 **Silence Schedule**: Configure quiet hours when the board won't update
 - 🐳 **Docker Ready**: Containerized for easy deployment on any system
-- ⚙️ **Highly Configurable**: Environment-based configuration for all features
+- ⚙️ **Highly Configurable**: Configure plugins, API keys, and settings from the web UI
 - 🔒 **Secure**: API token support for all integrations
 
 ---
@@ -105,9 +105,9 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 
 ## Configuration
 
-The install wizard handles initial configuration for self-hosting. After setup, plugins are enabled and configured through the **web UI's Integrations page**.
+The install wizard handles initial configuration for self-hosting. After setup, everything else — plugins, API keys, and settings — is configured through the **web UI**.
 
-The `.env` file created by the wizard contains your board connection settings. You generally don't need to edit it directly — but you can for advanced tuning or to add plugin API keys before starting the server.
+Go to the **Integrations** page to enable plugins, enter API keys, and adjust settings. No need to edit config files.
 
 > **For development:** If you're contributing code or building plugins, see `env.example` for the full list of environment variables. The [Environment Variables Reference](./docs-site/docs/reference/environment-variables.md) documents every option.
 
@@ -117,9 +117,9 @@ The `.env` file created by the wizard contains your board connection settings. Y
 - `BOARD_LOCAL_API_KEY` / `BOARD_HOST`: For local mode
 - `BOARD_READ_WRITE_KEY`: For cloud mode
 
-### Plugin API Keys
+### Plugins
 
-Plugins are enabled via the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key — the web UI links to setup instructions for each one. You can also add keys to `.env` directly if you prefer.
+Plugins are enabled and configured through the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key — the Integrations page links to setup instructions and has fields to enter your keys.
 
 | Plugin | API Key | Documentation |
 |--------|---------|-------------|

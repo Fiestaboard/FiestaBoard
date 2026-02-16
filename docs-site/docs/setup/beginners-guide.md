@@ -116,8 +116,7 @@ Now that your server is running, add the data sources you care about:
 
 1. Go to the **Integrations** page in the web UI
 2. Enable the plugins you want
-3. For plugins that need API keys (weather, traffic, etc.), follow the setup link shown in the UI
-4. Add those API keys to your `.env` file and restart
+3. For plugins that need API keys (weather, traffic, etc.), enter them directly in the Integrations page — it links to setup instructions for each one
 
 > **Tip:** Many plugins work without any API key — Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more. Start with those!
 

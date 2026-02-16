@@ -116,7 +116,7 @@ Now that your server is running, you can enable plugins to display different dat
 
 1. In the web interface, go to the **Integrations** page
 2. Enable the plugins you want (Weather, Stocks, Transit, etc.)
-3. For plugins that need API keys, follow the setup link shown in the UI
+3. For plugins that need API keys, enter them directly in the Integrations page — it links to setup instructions for each one
 4. Create pages using the **Page Editor** to design what appears on your board
 
 > **Tip:** Many plugins work without any API key (Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, and more). Start with those while you gather API keys for others.

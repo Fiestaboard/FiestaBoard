@@ -69,9 +69,9 @@ Have your board API key ready before running the wizard.
 3. Enable Read/Write API
 4. Copy your Read/Write API key
 
-## Manual Setup (Advanced)
+## Manual Setup (Development)
 
-If you prefer not to use the wizard (or are setting up a development environment), you can configure FiestaBoard manually:
+If you're setting up a development environment or prefer not to use the wizard, you can configure FiestaBoard manually:
 
 1. **Clone the repository**
 
@@ -109,7 +109,9 @@ TIMEZONE=America/Los_Angeles
 docker-compose up -d --build
 ```
 
-See `env.example` for all available environment variables.
+5. **Configure plugins in the web UI** — go to the Integrations page at http://localhost:8080 to enable plugins and enter API keys.
+
+See `env.example` for all available environment variables (useful for development).
 
 ## Next Steps
 
