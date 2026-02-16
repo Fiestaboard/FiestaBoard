@@ -51,6 +51,13 @@ MUNI 33 - 12 MIN
 {64}{64} TRAFFIC {64}{64}
 HOME TO WORK 25M`;
 
+const stocksMessage = `     STOCK PRICES
+{green}GOOG  $191.41  1.18%{/green}
+{green}AAPL  $237.30  0.52%{/green}
+{red}MSFT  $414.22 -0.35%{/red}
+{green}TSLA  $342.15  2.87%{/green}
+{green}NVDA  $136.02  1.95%{/green}`;
+
 const multiColorBar = `{63}{63}{64}{64}{65}{65}{66}{66}{67}{67}{68}{68}
 {red}RED{/red} {orange}ORANGE{/orange} {yellow}YELLOW{/yellow}
 {green}GREEN{/green} {blue}BLUE{/blue} {violet}VIOLET{/violet}
@@ -91,6 +98,14 @@ export const WeatherDisplay: Story = {
 export const TransitDisplay: Story = {
   args: {
     message: transitMessage,
+    size: "md",
+    isLoading: false,
+  },
+};
+
+export const StocksDisplay: Story = {
+  args: {
+    message: stocksMessage,
     size: "md",
     isLoading: false,
   },
