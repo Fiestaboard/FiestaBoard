@@ -157,6 +157,10 @@ Surf quality is automatically calculated based on swell period and wind conditio
 
 ## Example Templates
 
+### Default Format (Matches Screenshot)
+
+![Surf Conditions Display](./surf-display.png)
+
 ### Compact Report
 
 ```

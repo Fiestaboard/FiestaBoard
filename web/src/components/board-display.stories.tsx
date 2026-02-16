@@ -51,6 +51,13 @@ MUNI 33 - 12 MIN
 {64}{64} TRAFFIC {64}{64}
 HOME TO WORK 25M`;
 
+const surfMessage = `{67}{67}{67} SURF REPORT {67}{67}{67}
+OB SURF: 4.5FT @ 12S
+{green}EXCELLENT{/green}
+WIND: 8MPH W
+SWELL PERIOD: 12S
+{green}GO SURF!{/green}`;
+
 const multiColorBar = `{63}{63}{64}{64}{65}{65}{66}{66}{67}{67}{68}{68}
 {red}RED{/red} {orange}ORANGE{/orange} {yellow}YELLOW{/yellow}
 {green}GREEN{/green} {blue}BLUE{/blue} {violet}VIOLET{/violet}
@@ -91,6 +98,14 @@ export const WeatherDisplay: Story = {
 export const TransitDisplay: Story = {
   args: {
     message: transitMessage,
+    size: "md",
+    isLoading: false,
+  },
+};
+
+export const SurfDisplay: Story = {
+  args: {
+    message: surfMessage,
     size: "md",
     isLoading: false,
   },
