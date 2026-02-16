@@ -51,6 +51,13 @@ MUNI 33 - 12 MIN
 {64}{64} TRAFFIC {64}{64}
 HOME TO WORK 25M`;
 
+const airFogMessage = `{66}{66}   AIR & FOG    {64}{64}
+{orange}FOG: HEAVY{/orange}
+{green}AIR: GOOD{/green}
+AQI:42 VIS:0.8MI
+HUM:95% TEMP:54°F
+DEW POINT: 53°F`;
+
 const multiColorBar = `{63}{63}{64}{64}{65}{65}{66}{66}{67}{67}{68}{68}
 {red}RED{/red} {orange}ORANGE{/orange} {yellow}YELLOW{/yellow}
 {green}GREEN{/green} {blue}BLUE{/blue} {violet}VIOLET{/violet}
@@ -91,6 +98,14 @@ export const WeatherDisplay: Story = {
 export const TransitDisplay: Story = {
   args: {
     message: transitMessage,
+    size: "md",
+    isLoading: false,
+  },
+};
+
+export const AirFogDisplay: Story = {
+  args: {
+    message: airFogMessage,
     size: "md",
     isLoading: false,
   },

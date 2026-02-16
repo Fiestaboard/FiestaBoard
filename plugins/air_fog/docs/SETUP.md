@@ -227,7 +227,9 @@ Triggered when:
 
 ## Example Templates
 
-### Compact Alert
+### Compact Alert (Matches Screenshot)
+
+![Air Quality & Fog Display](./air-fog-display.png)
 
 ```
 {center}AIR & FOG
