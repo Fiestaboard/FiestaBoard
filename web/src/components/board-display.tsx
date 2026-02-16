@@ -869,7 +869,7 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
     const result = messageToGrid(messageForGrid, dims.rows, dims.cols, deviceType);
     console.log('[BoardDisplay] grid created:', result !== null, 'grid rows:', result?.length);
     return result;
-  }, [message, dims.rows, dims.cols]);
+  }, [message, dims.rows, dims.cols, deviceType]);
   
   // Increased padding for more pronounced bezel - more vertical space to match real board
   const paddingClasses = {

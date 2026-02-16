@@ -111,13 +111,16 @@ export function TipTapTemplateEditor({
   className,
   showAlignmentControls = true,
   onLineAlignmentChange,
-  lineAlignments = ['left', 'left', 'left', 'left', 'left', 'left'],
+  lineAlignments,
   onLineWrapChange,
-  lineWrapEnabled = [false, false, false, false, false, false],
+  lineWrapEnabled,
   showToolbar = true,
   boardWidth = BOARD_WIDTH,
   boardLines = BOARD_LINES,
 }: TipTapTemplateEditorProps) {
+  // Use device-aware defaults when props not provided
+  const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
+  const effectiveWrapEnabled = lineWrapEnabled || Array.from({ length: boardLines }, () => false);
   // Track if we're manually updating wrap to prevent onChange from overwriting state
   const isUpdatingWrap = useRef(false);
   
@@ -658,7 +661,7 @@ export function TipTapTemplateEditor({
     }
 
     // Get current wrap state and toggle it
-    const currentWrap = lineWrapEnabled[lineIndex] || false;
+    const currentWrap = effectiveWrapEnabled[lineIndex] || false;
     const newWrap = !currentWrap;
     
     // Notify parent of wrap change (parent handles state)
@@ -706,7 +709,7 @@ export function TipTapTemplateEditor({
   }, [editor, editor?.state?.selection?.$from?.pos]);
   
   const currentAlignment = currentLineIndex !== null && currentLineIndex >= 0 && currentLineIndex < boardLines
-    ? lineAlignments[currentLineIndex] || 'left'
+    ? effectiveAlignments[currentLineIndex] || 'left'
     : 'left';
 
   if (!editor) {
@@ -721,7 +724,7 @@ export function TipTapTemplateEditor({
     );
   }
   const currentWrapEnabled = currentLineIndex !== null && currentLineIndex >= 0 && currentLineIndex < boardLines
-    ? lineWrapEnabled[currentLineIndex] || false
+    ? effectiveWrapEnabled[currentLineIndex] || false
     : false;
 
   return (

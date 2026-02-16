@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from .models import Page, PageCreate, PageUpdate, RowConfig
 from .storage import PageStorage
+from ..devices import get_dimensions
 from ..displays.service import get_display_service, DisplayResult
 from ..templates.engine import get_template_engine
 from ..settings.service import get_settings_service
@@ -298,7 +299,6 @@ class PageService:
                 error="Composite page missing row configuration"
             )
         
-        from ..devices import get_dimensions
         dims = get_dimensions(page.device_type)
         display_service = get_display_service()
         
