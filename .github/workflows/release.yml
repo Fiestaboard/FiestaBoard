@@ -181,7 +181,7 @@ jobs:
       - name: Commit version bump
         run: |
           git add package.json web/package.json src/__init__.py
-          git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
           git push
 
   build-api:
