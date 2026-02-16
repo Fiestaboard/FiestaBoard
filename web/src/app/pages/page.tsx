@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -15,7 +15,14 @@ export default function PagesPage() {
   const { data: boardSettings } = useBoardSettings();
   const configuredDevices = useMemo(() => boardSettings?.devices ?? ["flagship"], [boardSettings]);
   const hasMultipleDevices = configuredDevices.length > 1;
-  const [activeTab, setActiveTab] = useState<DeviceType>(configuredDevices[0] as DeviceType);
+  const [activeTab, setActiveTab] = useState<DeviceType>("flagship");
+
+  // Sync activeTab when configured devices change
+  useEffect(() => {
+    if (!configuredDevices.includes(activeTab)) {
+      setActiveTab(configuredDevices[0] as DeviceType);
+    }
+  }, [configuredDevices, activeTab]);
 
   const handleSelectPage = useCallback((pageId: string) => {
     push(`/pages/edit/${pageId}`, { transitionType: "slide-up" });

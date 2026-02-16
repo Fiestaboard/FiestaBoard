@@ -471,7 +471,7 @@ export function StepBoardSetup({
               checked={config.devices.includes("flagship")}
               onCheckedChange={(checked) => {
                 const devices = checked
-                  ? [...config.devices.filter(d => d !== "flagship"), "flagship"]
+                  ? [...config.devices, "flagship"]
                   : config.devices.filter(d => d !== "flagship");
                 if (devices.length === 0) return;
                 onConfigChange({ ...config, devices });
@@ -488,7 +488,7 @@ export function StepBoardSetup({
               checked={config.devices.includes("note")}
               onCheckedChange={(checked) => {
                 const devices = checked
-                  ? [...config.devices.filter(d => d !== "note"), "note"]
+                  ? [...config.devices, "note"]
                   : config.devices.filter(d => d !== "note");
                 if (devices.length === 0) return;
                 onConfigChange({ ...config, devices });
