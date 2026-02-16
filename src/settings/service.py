@@ -94,12 +94,42 @@ class PollingSettings:
 
 @dataclass
 class BoardSettings:
-    """Board display settings for UI rendering."""
+    """Board display settings for UI rendering.
+    
+    Supports multiple board instances, each with its own device type
+    and board color. The `devices` property provides backward-compatible
+    access to the list of unique device types across all boards.
+    """
     board_type: Optional[Literal["black", "white"]] = "black"
-    devices: List[str] = field(default_factory=lambda: ["flagship"])
+    boards: List[dict] = field(default_factory=list)
+    
+    def __post_init__(self):
+        # Ensure at least one board exists
+        if not self.boards:
+            from ..devices import BoardInstance
+            self.boards = [BoardInstance(
+                name="Flagship",
+                device_type="flagship",
+                board_color=self.board_type or "black",
+            ).to_dict()]
+    
+    @property
+    def devices(self) -> List[str]:
+        """Backward-compatible list of unique device types across all boards."""
+        from ..devices import DEVICE_TYPES
+        seen = []
+        for b in self.boards:
+            dt = b.get("device_type", "flagship")
+            if dt not in seen and dt in DEVICE_TYPES:
+                seen.append(dt)
+        return seen if seen else ["flagship"]
     
     def to_dict(self) -> dict:
-        return asdict(self)
+        return {
+            "board_type": self.board_type,
+            "boards": self.boards,
+            "devices": self.devices,
+        }
     
     @classmethod
     def from_dict(cls, data: dict) -> "BoardSettings":
@@ -107,13 +137,22 @@ class BoardSettings:
         # Validate board type
         if board_type not in ["black", "white", None]:
             board_type = "black"
-        devices = data.get("devices", ["flagship"])
-        # Validate devices
-        from ..devices import DEVICE_TYPES
-        valid_devices = [d for d in devices if d in DEVICE_TYPES]
-        if not valid_devices:
-            valid_devices = ["flagship"]
-        return cls(board_type=board_type, devices=valid_devices)
+        
+        boards = data.get("boards", [])
+        
+        # Migrate from legacy devices-only format
+        if not boards and "devices" in data:
+            from ..devices import BoardInstance
+            devices = data["devices"]
+            if isinstance(devices, list):
+                for dt in devices:
+                    boards.append(BoardInstance(
+                        name="Flagship" if dt == "flagship" else "Note",
+                        device_type=dt,
+                        board_color=board_type or "black",
+                    ).to_dict())
+        
+        return cls(board_type=board_type, boards=boards)
 
 
 @dataclass
@@ -422,7 +461,10 @@ class SettingsService:
         return self._board
     
     def set_devices(self, devices: List[str]) -> BoardSettings:
-        """Set the configured device types.
+        """Set the configured device types (backward-compatible).
+        
+        Creates/updates board instances to match the desired device type list.
+        Preserves existing board instances where possible.
         
         Args:
             devices: List of device type strings (e.g. ["flagship", "note"])
@@ -430,14 +472,98 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
-        from ..devices import DEVICE_TYPES
+        from ..devices import DEVICE_TYPES, BoardInstance
         valid_devices = [d for d in devices if d in DEVICE_TYPES]
         if not valid_devices:
             raise ValueError(f"At least one valid device required. Valid types: {DEVICE_TYPES}")
         
-        self._board.devices = valid_devices
+        # Keep existing boards that match requested device types
+        existing_by_type = {}
+        for b in self._board.boards:
+            dt = b.get("device_type", "flagship")
+            if dt not in existing_by_type:
+                existing_by_type[dt] = b
+        
+        new_boards = []
+        for dt in valid_devices:
+            if dt in existing_by_type:
+                new_boards.append(existing_by_type[dt])
+            else:
+                new_boards.append(BoardInstance(
+                    name="Flagship" if dt == "flagship" else "Note",
+                    device_type=dt,
+                    board_color=self._board.board_type or "black",
+                ).to_dict())
+        
+        self._board.boards = new_boards
         self._save_to_file()
         logger.info(f"Configured devices set to: {valid_devices}")
+        return self._board
+    
+    def set_boards(self, boards: List[dict]) -> BoardSettings:
+        """Set the configured board instances.
+        
+        Each board must have at least a device_type. 
+        ID and name are auto-generated if not provided.
+        
+        Args:
+            boards: List of board instance dicts
+            
+        Returns:
+            Updated BoardSettings
+        """
+        from ..devices import BoardInstance
+        if not boards:
+            raise ValueError("At least one board instance is required")
+        
+        validated = []
+        for b in boards:
+            instance = BoardInstance.from_dict(b)
+            validated.append(instance.to_dict())
+        
+        self._board.boards = validated
+        self._save_to_file()
+        logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
+        return self._board
+    
+    def add_board(self, board: dict) -> BoardSettings:
+        """Add a new board instance.
+        
+        Args:
+            board: Board instance dict with at least device_type
+            
+        Returns:
+            Updated BoardSettings
+        """
+        from ..devices import BoardInstance
+        instance = BoardInstance.from_dict(board)
+        self._board.boards.append(instance.to_dict())
+        self._save_to_file()
+        logger.info(f"Added board: {instance.name} ({instance.device_type})")
+        return self._board
+    
+    def remove_board(self, board_id: str) -> BoardSettings:
+        """Remove a board instance by ID.
+        
+        Args:
+            board_id: The ID of the board to remove
+            
+        Returns:
+            Updated BoardSettings
+            
+        Raises:
+            ValueError: If board not found or if it's the last board
+        """
+        if len(self._board.boards) <= 1:
+            raise ValueError("Cannot remove the last board. At least one board is required.")
+        
+        new_boards = [b for b in self._board.boards if b.get("id") != board_id]
+        if len(new_boards) == len(self._board.boards):
+            raise ValueError(f"Board with ID '{board_id}' not found")
+        
+        self._board.boards = new_boards
+        self._save_to_file()
+        logger.info(f"Removed board: {board_id}")
         return self._board
     
     # Schedule settings

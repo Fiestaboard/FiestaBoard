@@ -419,9 +419,17 @@ export interface PollingSettings {
   interval_seconds: number;
 }
 
+export interface BoardInstance {
+  id: string;
+  name: string;
+  device_type: DeviceType;
+  board_color: "black" | "white";
+}
+
 export interface BoardSettings {
   board_type: "black" | "white" | null;
-  devices: DeviceType[];
+  boards: BoardInstance[];
+  devices: DeviceType[]; // Computed from boards for backward compat
 }
 
 // Schedule types
@@ -995,11 +1003,21 @@ export const api = {
 
   // Board settings
   getBoardSettings: () => fetchApi<BoardSettings>("/settings/board"),
-  updateBoardSettings: (updates: { board_type?: "black" | "white" | null; devices?: DeviceType[] }) =>
+  updateBoardSettings: (updates: { board_type?: "black" | "white" | null; devices?: DeviceType[]; boards?: BoardInstance[] }) =>
     fetchApi<{ status: string; settings: BoardSettings }>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
+    }),
+  addBoard: (board: { device_type: DeviceType; name?: string; board_color?: "black" | "white" }) =>
+    fetchApi<{ status: string; settings: BoardSettings }>("/settings/board/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(board),
+    }),
+  removeBoard: (boardId: string) =>
+    fetchApi<{ status: string; settings: BoardSettings }>(`/settings/board/${boardId}`, {
+      method: "DELETE",
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 

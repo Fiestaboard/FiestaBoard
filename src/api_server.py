@@ -2347,10 +2347,7 @@ async def get_board_settings():
     """Get current board display settings."""
     settings_service = get_settings_service()
     board = settings_service.get_board_settings()
-    return {
-        "board_type": board.board_type,
-        "devices": board.devices
-    }
+    return board.to_dict()
 
 
 @app.put("/settings/board")
@@ -2360,10 +2357,11 @@ async def update_board_settings(request: dict):
     
     Body may include:
     - board_type: "black", "white", or null for default
-    - devices: list of device types (e.g. ["flagship", "note"])
+    - devices: list of device types (backward-compatible, e.g. ["flagship", "note"])
+    - boards: list of board instance objects (new format)
     """
-    if "board_type" not in request and "devices" not in request:
-        raise HTTPException(status_code=400, detail="board_type or devices parameter required")
+    if not any(k in request for k in ("board_type", "devices", "boards")):
+        raise HTTPException(status_code=400, detail="board_type, devices, or boards parameter required")
     
     settings_service = get_settings_service()
     
@@ -2371,10 +2369,46 @@ async def update_board_settings(request: dict):
         if "board_type" in request:
             board_type = request["board_type"]
             settings_service.set_board_type(board_type)
-        if "devices" in request:
+        if "boards" in request:
+            settings_service.set_boards(request["boards"])
+        elif "devices" in request:
             devices = request["devices"]
             settings_service.set_devices(devices)
         board = settings_service.get_board_settings()
+        return {
+            "status": "success",
+            "settings": board.to_dict()
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/settings/board/add")
+async def add_board(request: dict):
+    """Add a new board instance.
+    
+    Body should include:
+    - device_type: "flagship" or "note"
+    - name: optional display name
+    - board_color: optional "black" or "white"
+    """
+    settings_service = get_settings_service()
+    try:
+        board = settings_service.add_board(request)
+        return {
+            "status": "success",
+            "settings": board.to_dict()
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/settings/board/{board_id}")
+async def remove_board(board_id: str):
+    """Remove a board instance by ID."""
+    settings_service = get_settings_service()
+    try:
+        board = settings_service.remove_board(board_id)
         return {
             "status": "success",
             "settings": board.to_dict()
@@ -2420,10 +2454,7 @@ async def get_all_settings():
         },
         "transitions": transitions.to_dict(),
         "output": output.to_dict(),
-        "board": {
-            "board_type": board.board_type,
-            "devices": board.devices
-        },
+        "board": board.to_dict(),
         "status": {
             "running": _service_running,
             "dev_mode": _dev_mode

@@ -812,15 +812,46 @@ export const handlers = [
   http.get(`${API_BASE}/settings/board`, () => {
     return HttpResponse.json({
       board_type: "black",
+      boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
       devices: ["flagship"]
     });
   }),
 
   http.put(`${API_BASE}/settings/board`, async ({ request }) => {
-    const body = await request.json() as { board_type?: "black" | "white" | null; devices?: string[] };
+    const body = await request.json() as { board_type?: "black" | "white" | null; devices?: string[]; boards?: object[] };
     return HttpResponse.json({
       status: "success",
-      settings: { board_type: body.board_type ?? "black", devices: body.devices ?? ["flagship"] }
+      settings: {
+        board_type: body.board_type ?? "black",
+        boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+        devices: body.devices ?? ["flagship"]
+      }
+    });
+  }),
+
+  http.post(`${API_BASE}/settings/board/add`, async ({ request }) => {
+    const body = await request.json() as { device_type: string; name?: string; board_color?: string };
+    return HttpResponse.json({
+      status: "success",
+      settings: {
+        board_type: "black",
+        boards: [
+          { id: "default", name: "Flagship", device_type: "flagship", board_color: "black" },
+          { id: "new", name: body.name || (body.device_type === "note" ? "Note" : "Flagship"), device_type: body.device_type, board_color: body.board_color || "black" }
+        ],
+        devices: ["flagship", body.device_type]
+      }
+    });
+  }),
+
+  http.delete(`${API_BASE}/settings/board/:boardId`, () => {
+    return HttpResponse.json({
+      status: "success",
+      settings: {
+        board_type: "black",
+        boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+        devices: ["flagship"]
+      }
     });
   }),
 ];

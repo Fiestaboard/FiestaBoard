@@ -3,7 +3,9 @@
 Defines the supported Vestaboard device types and their physical constraints.
 """
 
-from typing import Literal, Dict, NamedTuple
+import uuid
+from typing import Literal, Dict, NamedTuple, Optional
+from dataclasses import dataclass, asdict, field
 
 
 DeviceType = Literal["flagship", "note"]
@@ -22,6 +24,40 @@ DEVICE_DIMENSIONS: Dict[str, DeviceDimensions] = {
     "flagship": DeviceDimensions(rows=6, cols=22),
     "note": DeviceDimensions(rows=3, cols=15),
 }
+
+
+@dataclass
+class BoardInstance:
+    """A configured Vestaboard instance.
+    
+    Represents a single physical board with its own identity,
+    device type, and display color. Designed to support multiple
+    boards with independent schedules in the future.
+    """
+    id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    name: str = ""
+    device_type: str = "flagship"
+    board_color: str = "black"
+    
+    def __post_init__(self):
+        if self.device_type not in DEVICE_TYPES:
+            self.device_type = "flagship"
+        if self.board_color not in ("black", "white"):
+            self.board_color = "black"
+        if not self.name:
+            self.name = "Flagship" if self.device_type == "flagship" else "Note"
+    
+    def to_dict(self) -> dict:
+        return asdict(self)
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "BoardInstance":
+        return cls(
+            id=data.get("id", str(uuid.uuid4())[:8]),
+            name=data.get("name", ""),
+            device_type=data.get("device_type", "flagship"),
+            board_color=data.get("board_color", "black"),
+        )
 
 
 def get_dimensions(device_type: str) -> DeviceDimensions:
