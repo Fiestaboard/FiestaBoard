@@ -59,8 +59,7 @@ After merging a PR with the `pi` label:
 
 ```bash
 # On your Raspberry Pi
-docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
-docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
+docker pull ghcr.io/fiestaboard/fiestaboard:latest
 docker-compose up -f docker-compose.ghcr.yml up -d
 ```
 

@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
-  # API Service - REST API for controlling the FiestaBoard display
-  fiestaboard-api:
-    image: fiestaboard-api
+  # FiestaBoard - Unified container with API + Web UI
+  fiestaboard:
+    image: fiestaboard
     build:
       context: .
-      dockerfile: Dockerfile.api
-    container_name: fiestaboard-api
+      dockerfile: Dockerfile
+    container_name: fiestaboard
     env_file:
       - .env
     environment:
@@ -17,7 +15,7 @@ services:
       - FIESTA_API_URL=${FIESTA_API_URL:-}
     restart: unless-stopped
     ports:
-      - "6969:8000"
+      - "3000:3000"
     volumes:
       # Persist data (including config) to local filesystem
       - ./data:/app/data
@@ -27,32 +25,8 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=5)"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
-
-  # Web UI - Monitoring and control interface
-  fiestaboard-ui:
-    image: fiestaboard-ui
-    build:
-      context: .
-      dockerfile: Dockerfile.ui
-    container_name: fiestaboard-ui
-    restart: unless-stopped
-    ports:
-      - "4420:3000"
-    depends_on:
-      - fiestaboard-api
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+      start_period: 10s

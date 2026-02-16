@@ -24,8 +24,8 @@ docker-compose -f docker-compose.dev.yml logs -f
 
 **Access:**
 - Web UI: http://localhost:3000
-- API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- API: http://localhost:6969
+- API Docs: http://localhost:6969/docs
 
 ### Hot Reload
 
