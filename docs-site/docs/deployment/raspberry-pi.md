@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+description: "Deploy FiestaBoard on a Raspberry Pi 3B+, Zero 2W, or Pi 4 to run your split-flap display dashboard 24/7."
+keywords: [FiestaBoard Raspberry Pi, Pi deployment, Raspberry Pi 4, Pi Zero 2W, self-hosted, split-flap Pi]
 ---
 
 # Raspberry Pi Deployment

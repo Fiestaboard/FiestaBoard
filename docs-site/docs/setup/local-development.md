@@ -1,5 +1,7 @@
 ---
 sidebar_position: 2
+description: "Set up a FiestaBoard local development environment with Python, Node.js, and hot-reload for contributing or customizing."
+keywords: [FiestaBoard development, local setup, dev environment, Python, Node.js, hot reload]
 ---
 
 # Local Development

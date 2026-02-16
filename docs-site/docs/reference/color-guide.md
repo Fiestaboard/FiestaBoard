@@ -1,5 +1,7 @@
 ---
 sidebar_position: 3
+description: "Use FiestaBoard's 8 color codes to add colored tiles and formatting to your split-flap display layouts."
+keywords: [FiestaBoard colors, color codes, display colors, split-flap colors, Vestaboard colors, tile colors]
 ---
 
 # Color Guide

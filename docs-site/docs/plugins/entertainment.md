@@ -1,5 +1,7 @@
 ---
 sidebar_position: 8
+description: "Display Disney park wait times and other entertainment data on your split-flap display with FiestaBoard."
+keywords: [FiestaBoard entertainment plugin, Disney wait times, theme park, split-flap entertainment, Vestaboard fun]
 ---
 
 # Entertainment Plugins

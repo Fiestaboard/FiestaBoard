@@ -1,5 +1,7 @@
 ---
 sidebar_position: 4
+description: "Complete reference of FiestaBoard .env configuration variables for API keys, display settings, and plugin options."
+keywords: [FiestaBoard environment variables, .env config, configuration reference, settings, env file]
 ---
 
 # Environment Variables

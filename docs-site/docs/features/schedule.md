@@ -1,5 +1,7 @@
 ---
 sidebar_position: 2
+description: "Configure FiestaBoard's schedule mode to automatically rotate pages on your split-flap display at set times."
+keywords: [FiestaBoard schedule, page rotation, timed display, auto rotate, scheduled content, Vestaboard scheduler]
 ---
 
 # Schedule Mode

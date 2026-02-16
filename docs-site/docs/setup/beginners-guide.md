@@ -1,5 +1,7 @@
 ---
 sidebar_position: 3
+description: "Step-by-step beginner guide to installing and configuring FiestaBoard for your Vestaboard split-flap display."
+keywords: [FiestaBoard beginner guide, first time setup, step by step, Vestaboard tutorial, installation guide]
 ---
 
 # Beginners Guide

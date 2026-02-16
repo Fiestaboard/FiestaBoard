@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+description: "Complete FiestaBoard REST API reference with endpoints for pages, schedules, plugins, and display control."
+keywords: [FiestaBoard API, REST API, API endpoints, API reference, display API, split-flap API]
 ---
 
 # API Endpoints

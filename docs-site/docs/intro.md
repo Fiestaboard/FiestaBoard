@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+description: "FiestaBoard transforms Vestaboard split-flap displays into live dashboards with weather, sports, traffic, and more."
+keywords: [FiestaBoard, split-flap display, Vestaboard, smart dashboard, live display, open source]
 ---
 
 # Introduction to FiestaBoard

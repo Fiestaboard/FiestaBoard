@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+description: "Explore FiestaBoard's plugin system with weather, sports, traffic, transit, and entertainment plugins for split-flap displays."
+keywords: [FiestaBoard plugins, plugin overview, available plugins, split-flap integrations, Vestaboard plugins]
 ---
 
 # Plugins Overview
