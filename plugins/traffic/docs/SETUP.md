@@ -161,6 +161,10 @@ Each mode returns different routes optimized for that transportation type.
 3. Check Docker logs for detailed error messages
 4. Make sure you're using Routes API (v2), not the older Directions API
 
+## Display Example
+
+![Traffic Display](./traffic-display.png)
+
 ## Example Configuration
 
 Here's a complete example for a morning commute:

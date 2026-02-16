@@ -51,6 +51,13 @@ MUNI 33 - 12 MIN
 {64}{64} TRAFFIC {64}{64}
 HOME TO WORK 25M`;
 
+const trafficMessage = `{center}TRAFFIC
+{green}WORK{/green}      25M {red}+5M{/red}
+{green}HOME{/green}      18M
+{green}GYM{/green}       12M
+{yellow}SCHOOL{/yellow}   15M {red}+3M{/red}
+{66} LIGHT {65} MOD {63} HEAVY`;
+
 const multiColorBar = `{63}{63}{64}{64}{65}{65}{66}{66}{67}{67}{68}{68}
 {red}RED{/red} {orange}ORANGE{/orange} {yellow}YELLOW{/yellow}
 {green}GREEN{/green} {blue}BLUE{/blue} {violet}VIOLET{/violet}
@@ -91,6 +98,14 @@ export const WeatherDisplay: Story = {
 export const TransitDisplay: Story = {
   args: {
     message: transitMessage,
+    size: "md",
+    isLoading: false,
+  },
+};
+
+export const TrafficDisplay: Story = {
+  args: {
+    message: trafficMessage,
     size: "md",
     isLoading: false,
   },
