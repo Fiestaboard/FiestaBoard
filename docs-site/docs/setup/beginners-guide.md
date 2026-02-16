@@ -1,6 +1,6 @@
 ---
 sidebar_position: 3
-description: "Step-by-step beginner guide to installing and configuring FiestaBoard for your Vestaboard split-flap display."
+description: "Step-by-step beginner guide to installing and configuring FiestaBoard for your split-flap display."
 keywords: [FiestaBoard beginner guide, first time setup, step by step, Vestaboard tutorial, installation guide]
 ---
 
@@ -11,8 +11,8 @@ A step-by-step guide for getting FiestaBoard running, even if you've never used 
 ## What You'll Need
 
 - A computer (Mac, Windows, or Linux)
-- A split-flap display board
-- An internet connection
+- A split-flap display that's already set up and working with the board's app
+- Your board's API key (you'll get this in Step 2)
 - About 15 minutes
 
 ## Step 1: Install Docker
@@ -46,25 +46,23 @@ sudo sh get-docker.sh
 sudo apt-get install docker-compose-plugin
 ```
 
-## Step 2: Get Your API Keys
+## Step 2: Get Your Board API Key
 
-You'll need two API keys to get started:
+Your board API key is what lets FiestaBoard send content to your display.
 
-### Board API Key (Required)
+### Local API (Recommended — faster, supports animations)
+
+1. Open the board's mobile app
+2. Go to **Settings** → **Local API**
+3. Copy the API key and note your board's IP address
+
+### Cloud API (Alternative — works from anywhere)
 
 1. Go to [web.vestaboard.com](https://web.vestaboard.com)
 2. Log in with your board account
 3. Navigate to the API section
 4. Enable the **Read/Write API**
 5. Copy the API key — you'll need it in Step 4
-
-### Weather API Key (Required)
-
-1. Go to [weatherapi.com](https://www.weatherapi.com/)
-2. Click **Sign Up** (it's free!)
-3. Verify your email
-4. Go to your dashboard and copy your API key
-5. Free tier gives you 1 million calls/month — more than enough
 
 ## Step 3: Download FiestaBoard
 
@@ -97,7 +95,7 @@ cd FiestaBoard
 .\scripts\install.ps1
 ```
 
-The script will guide you through entering your API keys and other settings.
+The script will guide you through entering your board API key and settings.
 
 ### Manual Configuration
 
@@ -107,18 +105,20 @@ The script will guide you through entering your API keys and other settings.
 cp env.example .env
 ```
 
-2. Open `.env` in any text editor and fill in your keys:
+2. Open `.env` in any text editor and fill in your board key:
 
+For Local API:
 ```bash
-# Required - paste your keys here
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=your_local_api_key_here
+BOARD_HOST=192.168.0.11
+TIMEZONE=America/Los_Angeles
+```
+
+For Cloud API:
+```bash
+BOARD_API_MODE=cloud
 BOARD_READ_WRITE_KEY=your_board_api_key_here
-WEATHER_API_KEY=your_weather_api_key_here
-
-# Your location for weather data
-WEATHER_PROVIDER=weatherapi
-WEATHER_LOCATION=San Francisco, CA
-
-# Your timezone
 TIMEZONE=America/Los_Angeles
 ```
 
@@ -156,11 +156,22 @@ You'll see a lot of text scrolling by — that's normal! Wait until you see mess
 1. In the web UI, click the **"▶ Start Service"** button
 2. Your board will start updating with content!
 
+## Step 8: Enable Plugins
+
+Now that your server is running, add the data sources you care about:
+
+1. Go to the **Integrations** page in the web UI
+2. Enable the plugins you want
+3. For plugins that need API keys (weather, traffic, etc.), follow the setup link shown in the UI
+4. Add those API keys to your `.env` file and restart
+
+> **Tip:** Many plugins work without any API key — Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more. Start with those!
+
 ## What's Next?
 
 Now that FiestaBoard is running:
 
-- **Configure plugins** — Go to the [Integrations](/docs/plugins/overview) page to enable weather, stocks, transit, and more
+- **Configure plugins** — Go to the [Integrations](/docs/plugins/overview) page to enable data sources
 - **Create pages** — Use the [Page Editor](/docs/features/page-editor) to design what appears on your board
 - **Set up schedules** — Use [Schedule Mode](/docs/features/schedule) to automate when different pages display
 
@@ -190,9 +201,10 @@ Another application is using port 8080 or 8000. Stop the other application or ch
 
 ### "Board not updating"
 
-1. Check that your `BOARD_READ_WRITE_KEY` is correct in `.env`
+1. Check that your board API key is correct in `.env`
 2. Make sure the display service is started (click the ▶ button in the web UI)
-3. Check the API docs at `http://localhost:8000/docs` for error messages
+3. For local mode: verify your board is on the same network
+4. Check the logs: `docker-compose logs -f`
 
 ### Need more help?
 

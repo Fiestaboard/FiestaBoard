@@ -1,20 +1,35 @@
 ---
 sidebar_position: 6
-description: "Get API keys for FiestaBoard plugins including weather, traffic, sports, and transit services."
+description: "API keys for FiestaBoard — only your board key is required to start. Plugin API keys are added as you enable them."
 keywords: [FiestaBoard API keys, weather API, Google Routes API, plugin configuration, API setup]
 ---
 
-# Getting API Keys
+# API Keys
 
-FiestaBoard integrates with several external services. This page explains how to get the API keys you need.
+FiestaBoard only requires your board's API key to start. Plugin API keys are optional and added as you enable plugins through the web UI.
 
-## Required API Keys
+## Required: Board API Key
 
-These are needed for basic functionality:
+You need one of these to connect FiestaBoard to your display:
 
-### Board Read/Write API Key
+### Local API Key (Recommended)
 
-**Required** for sending content to your board.
+Faster updates, supports transition animations, requires same-network access.
+
+1. Open the board's mobile app
+2. Go to **Settings** → **Local API**
+3. Copy your API key and note the board's IP address
+
+```bash
+# In .env
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=your_key_here
+BOARD_HOST=192.168.0.11
+```
+
+### Cloud Read/Write API Key
+
+Works from anywhere with internet. No transition animation support.
 
 1. Go to [web.vestaboard.com](https://web.vestaboard.com)
 2. Log in with your board account
@@ -24,140 +39,46 @@ These are needed for basic functionality:
 
 ```bash
 # In .env
+BOARD_API_MODE=cloud
 BOARD_READ_WRITE_KEY=your_key_here
 ```
 
-### Weather API Key
+## Plugin API Keys
 
-**Required** for the weather plugin.
+These are optional — add them as you enable plugins. Many plugins work without any API key at all.
 
-**Option 1: WeatherAPI.com (Recommended)**
-1. Sign up at [weatherapi.com](https://www.weatherapi.com/)
-2. Free tier: 1 million calls/month, no credit card required
-3. Copy your API key from the dashboard
+### Plugins That Need API Keys
 
-**Option 2: OpenWeatherMap**
-1. Sign up at [openweathermap.org](https://openweathermap.org/api)
-2. Free tier: 1,000 calls/day
-3. Copy your API key
+| Plugin | Where to Get the Key | Free Tier |
+|--------|---------------------|-----------|
+| Weather | [weatherapi.com](https://www.weatherapi.com/) or [openweathermap.org](https://openweathermap.org/api) | 1M calls/month (WeatherAPI) |
+| Traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | $200/month credit |
+| Home Assistant | Your HA instance → Profile → Long-Lived Access Tokens | Self-hosted |
+| Last.fm | [last.fm/api/account/create](https://www.last.fm/api/account/create) | Unlimited |
+| Muni Transit | [511.org/open-data/token](https://511.org/open-data/token) | Free |
+| WSDOT Ferries | [wsdot.wa.gov/traffic/api](https://wsdot.wa.gov/traffic/api/) | Free |
+| Air Quality | PurpleAir or OpenWeatherMap | Varies |
 
-```bash
-# In .env
-WEATHER_API_KEY=your_key_here
-WEATHER_PROVIDER=weatherapi  # or "openweathermap"
-```
+### Plugins With Optional API Keys
 
-## Optional API Keys
+| Plugin | API Key | What It Unlocks |
+|--------|---------|----------------|
+| Stocks | [finnhub.io](https://finnhub.io/) | Better symbol search/autocomplete |
+| Sports Scores | [thesportsdb.com](https://www.thesportsdb.com/) | Extended data |
+| Nearby Aircraft | [OpenSky Network](https://opensky-network.org/) | Higher rate limits |
 
-These unlock additional plugins:
+### Plugins That Need No API Key
 
-### Google Routes API (Traffic Plugin)
+These work out of the box:
 
-For commute times and live traffic conditions.
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select existing)
-3. Enable the **Routes API**
-4. Set up billing (required, but $200/month free credit)
-5. Create an API key under **Credentials**
-
-```bash
-# In .env
-GOOGLE_ROUTES_API_KEY=your_key_here
-```
-
-See the [Traffic Plugin](/docs/plugins/traffic) guide for detailed setup.
-
-### Home Assistant Token
-
-For displaying smart home device states.
-
-1. Open your Home Assistant instance
-2. Go to your profile (click your name in the sidebar)
-3. Scroll to **Long-Lived Access Tokens**
-4. Click **Create Token**
-5. Copy the token
-
-```bash
-# In .env
-HOME_ASSISTANT_URL=http://your-ha-instance:8123
-HOME_ASSISTANT_TOKEN=your_token_here
-```
-
-### Last.fm API Key
-
-For displaying currently playing music.
-
-1. Create an account at [last.fm](https://www.last.fm/)
-2. Go to [last.fm/api/account/create](https://www.last.fm/api/account/create)
-3. Fill in the application details
-4. Copy your API key
-
-```bash
-# In .env
-LASTFM_API_KEY=your_key_here
-LASTFM_USERNAME=your_username
-```
-
-### 511.org API Key (Muni Transit)
-
-For San Francisco Muni transit predictions.
-
-1. Register at [511.org](https://511.org/open-data/token)
-2. Request an API key (free)
-3. Copy the key
-
-```bash
-# In .env
-MUNI_API_KEY=your_key_here
-```
-
-### WSDOT API Key (Washington State Ferries)
-
-For ferry schedules and alerts.
-
-1. Go to [wsdot.wa.gov/traffic/api](https://wsdot.wa.gov/traffic/api/)
-2. Request a free API key
-3. Copy the key
-
-```bash
-# In .env
-WSDOT_API_KEY=your_key_here
-```
-
-### PurpleAir / OpenWeatherMap (Air Quality)
-
-For AQI and fog conditions.
-
-```bash
-# In .env - use one of:
-PURPLEAIR_API_KEY=your_key_here
-# or
-OWM_API_KEY=your_openweathermap_key
-```
-
-## API Key Summary
-
-| Plugin | API Key Required | Free Tier | Sign Up |
-|--------|-----------------|-----------|---------|
-| Weather | ✅ Required | 1M calls/month | [weatherapi.com](https://www.weatherapi.com/) |
-| Traffic | ✅ Required | $200/month credit | [Google Cloud](https://console.cloud.google.com/) |
-| Home Assistant | ✅ Required | Self-hosted | Your HA instance |
-| Last.fm | ✅ Required | Unlimited | [last.fm](https://www.last.fm/api/) |
-| Muni Transit | ✅ Required | Free | [511.org](https://511.org/open-data/token) |
-| WSDOT Ferries | ✅ Required | Free | [wsdot.wa.gov](https://wsdot.wa.gov/traffic/api/) |
-| Air Quality | ✅ Required | Varies | PurpleAir or OWM |
-| Stocks | Optional | Free | [finnhub.io](https://finnhub.io/) |
-| Sports Scores | Optional | Free | [thesportsdb.com](https://www.thesportsdb.com/) |
-| Bay Wheels | ❌ None | — | — |
-| Date & Time | ❌ None | — | — |
-| Disney Parks | ❌ None | — | — |
-| Guest WiFi | ❌ None | — | — |
-| Star Trek Quotes | ❌ None | — | — |
-| Sun Art | ❌ None | — | — |
-| Surf | ❌ None | — | — |
-| Visual Clock | ❌ None | — | — |
-| Nearby Aircraft | Optional | Free | [OpenSky Network](https://opensky-network.org/) |
+- Bay Wheels
+- Date & Time
+- Disney Parks
+- Guest WiFi
+- Star Trek Quotes
+- Sun Art
+- Surf
+- Visual Clock
 
 ## Next Steps
 

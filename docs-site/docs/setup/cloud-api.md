@@ -30,10 +30,10 @@ Update your `.env` file:
 
 ```bash
 # Set API mode to cloud
-FB_API_MODE=cloud
+BOARD_API_MODE=cloud
 
 # Your Read/Write API key
-FB_READ_WRITE_KEY=your_cloud_api_key_here
+BOARD_READ_WRITE_KEY=your_cloud_api_key_here
 ```
 
 ### Step 3: Restart FiestaBoard
@@ -67,7 +67,7 @@ REFRESH_INTERVAL_SECONDS=30
 
 ### 401 Unauthorized
 
-- Double-check your `FB_READ_WRITE_KEY` in `.env`
+- Double-check your `BOARD_READ_WRITE_KEY` in `.env`
 - Make sure you're using the correct API key from web.vestaboard.com
 
 ### Rate Limit Errors
@@ -77,7 +77,7 @@ REFRESH_INTERVAL_SECONDS=30
 
 ### Board Not Updating
 
-1. Verify `FB_API_MODE=cloud` is set in `.env`
+1. Verify `BOARD_API_MODE=cloud` is set in `.env`
 2. Check that your API key is valid
 3. Check the logs: `docker-compose logs -f api`
 

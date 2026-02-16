@@ -1,12 +1,18 @@
 # FiestaBoard <img src="fiesta-icon.png" alt="FiestaBoard" width="32" height="32" style="vertical-align: middle;">
 
-**Turn your split-flap display into a living dashboard.** FiestaBoard transforms your iconic split-flap display into a real-time information hub—track your morning commute, monitor the markets, check surf conditions, or display Star Trek wisdom. All beautifully formatted, endlessly customizable, and running in Docker with zero hassle.
+**FiestaBoard is an open-source server that lets you control what appears on your split-flap display.** If you already own a split-flap display (like a Vestaboard), FiestaBoard gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you — weather, stocks, transit, sports, surf conditions, and more — and display it on your board.
 
-Built for San Francisco life, but works anywhere.
+You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-## 🚀 TLDR - Quick Start
+## 🚀 Quick Start
 
-**Just want to get it running? Here's the fastest way:**
+### Prerequisites
+
+- **A split-flap display** you already own and have set up
+- **Your board's API key** (Local API or Cloud Read/Write key)
+- **Docker and Docker Compose** installed ([Get Docker](https://www.docker.com/products/docker-desktop/))
+
+That's it. Plugins that pull data from external services (weather, traffic, etc.) will need their own API keys, but you can add those later through the web UI.
 
 ### Easiest: Use the Installation Script
 
@@ -18,42 +24,36 @@ Built for San Francisco life, but works anywhere.
 .\scripts\install.ps1
 ```
 
-The script will guide you through everything! 🎉
+The script will guide you through setup.
 
 ### Manual Setup
 
 ```bash
-# 1. Create .env file with your API keys
+# 1. Create your config file
 cp env.example .env
-# Edit .env and add: BOARD_READ_WRITE_KEY and WEATHER_API_KEY
+# Edit .env and add your board API key (BOARD_READ_WRITE_KEY or BOARD_LOCAL_API_KEY)
 
-# 2. Run it! (first time builds images)
+# 2. Start the server
 docker-compose up --build
-
-# Or for subsequent runs (uses cached images)
-docker-compose up
 ```
 
-That's it! 🎉
+### Access Your Server
 
-**Access:**
-- **Web UI**: http://localhost:8080 (start service, send messages, monitor)
-- **API**: http://localhost:8000 (REST API endpoints)
-- **API Docs**: http://localhost:8000/docs (interactive API documentation)
+- **Web UI**: http://localhost:8080 — manage pages, configure plugins, start the display service
+- **API**: http://localhost:8000 — REST API endpoints
+- **API Docs**: http://localhost:8000/docs — interactive API documentation
 
 ![Web UI Home](./images/web-ui-home.png)
 
-**To start the display service:**
+**To start updating your board:**
 1. Open http://localhost:8080 in your browser
-2. Click "▶ Start Service" button
-3. Your board will start updating!
+2. Click "▶ Start Service"
+3. Your board will start displaying content!
 
 **To stop:**
 ```bash
 docker-compose down
 ```
-
-**For development/testing:** Just run `docker-compose up` - it works great for local dev! See [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md) for more options.
 
 ---
 
@@ -98,126 +98,78 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 
 ## 👋 New to Technical Setup?
 
-**Not comfortable with Docker or terminal commands?** We've got you covered! Check out our step-by-step beginner's guide that walks through everything in plain language.
+**Not comfortable with Docker or terminal commands?** Check out the step-by-step beginner's guide:
 
-**→ [Complete Beginner's Setup Guide](./docs/setup/BEGINNERS_GUIDE.md)**
+**→ [Beginner's Setup Guide](./docs/setup/BEGINNERS_GUIDE.md)**
 
 ---
 
-## Quick Start (Detailed)
+## Hosting vs. Development
 
-### Prerequisites
+**Hosting a FiestaBoard server** (running it to control your board) and **developing FiestaBoard** (contributing code) are different workflows:
 
-- Docker and Docker Compose installed
-- Board Read/Write API key
-- Weather API key (WeatherAPI.com recommended)
-- (Optional) Home Assistant server with access token
+| | Hosting | Development |
+|---|---|---|
+| **Goal** | Run the server to control your board | Contribute code or build plugins |
+| **Setup** | `docker-compose up --build` | `docker-compose -f docker-compose.dev.yml up --build` |
+| **Web UI** | http://localhost:8080 | http://localhost:3000 |
+| **Hot reload** | No | Yes (Python + Next.js) |
+| **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
 
-### Basic Setup
-
-1. **Clone or navigate to the project directory**
-
-2. **Create `.env` file**:
-   ```bash
-   cp env.example .env
-   ```
-
-3. **Edit `.env` and add your API keys**:
-   ```bash
-   # Required
-   BOARD_READ_WRITE_KEY=your_board_key_here
-   WEATHER_API_KEY=your_weather_api_key_here
-   WEATHER_PROVIDER=weatherapi
-   WEATHER_LOCATION=San Francisco, CA
-   TIMEZONE=America/Los_Angeles
-   ```
-   
-   > **Note**: Plugins are enabled via the web UI's **Integrations** page, not environment variables. See each plugin's setup guide for API keys and configuration.
-
-4. **Build and run with Docker Compose**:
-   ```bash
-   # First time (builds images)
-   docker-compose up --build
-   
-   # Or run in background
-   docker-compose up -d --build
-   ```
-
-5. **Access the services**:
-   - **Web UI**: http://localhost:8080
-   - **API**: http://localhost:8000
-   - **API Docs**: http://localhost:8000/docs
-
-6. **Start the display service**:
-   - Open http://localhost:8080 in your browser
-   - Click "▶ Start Service" button
-   - Your board will begin updating!
-
-7. **View logs**:
-   ```bash
-   docker-compose logs -f
-   ```
-
-### Advanced Setup
-
-For detailed setup instructions for specific plugins, see each plugin's README:
-- **Home Assistant**: [plugins/home_assistant/README.md](./plugins/home_assistant/README.md)
-- **Weather**: [plugins/weather/README.md](./plugins/weather/README.md)
-- **Stocks**: [plugins/stocks/README.md](./plugins/stocks/README.md)
-
-Browse `plugins/*/README.md` for all plugin documentation. Each plugin's README includes a link to its setup guide.
+---
 
 ## Configuration
 
-All configuration is done via environment variables in `.env`:
+Configuration is done via environment variables in `.env`:
 
-### Required
+### Required (to start the server)
 
-- `BOARD_READ_WRITE_KEY`: Your board Read/Write API key
-- `WEATHER_API_KEY`: Your weather API key
+- `BOARD_API_MODE`: `local` (default) or `cloud` — how FiestaBoard connects to your board
+- `BOARD_LOCAL_API_KEY`: Your board's Local API key (when using local mode)
+- `BOARD_HOST`: Your board's IP address or hostname (when using local mode)
+- `BOARD_READ_WRITE_KEY`: Your board's Read/Write API key (when using cloud mode)
 
-### Core Configuration
+### Optional (core settings)
 
-- `WEATHER_PROVIDER`: `weatherapi` (default) or `openweathermap`
-- `WEATHER_LOCATION`: Location string (default: "San Francisco, CA")
 - `TIMEZONE`: Timezone name (default: "America/Los_Angeles")
-- `REFRESH_INTERVAL_SECONDS`: Update frequency in seconds (default: 300 = 5 minutes)
+- `REFRESH_INTERVAL_SECONDS`: How often the board updates in seconds (default: 60)
 
-### Plugin Configuration
+### Plugin API Keys
 
-All plugins can be configured via the web UI (**Integrations** page) or environment variables. Each plugin has its own setup documentation in `plugins/<plugin_name>/docs/SETUP.md`.
+Plugins are enabled via the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key — add them to `.env` as you enable plugins.
 
-| Plugin | API Key Required | Documentation |
-|--------|-----------------|-------------|
-| Air/Fog | Yes (PurpleAir/OWM) | [plugins/air_fog/README.md](./plugins/air_fog/README.md) |
-| Bay Wheels | No | [plugins/baywheels/README.md](./plugins/baywheels/README.md) |
-| Date & Time | No | [plugins/date_time/README.md](./plugins/date_time/README.md) |
-| Guest WiFi | No | [plugins/guest_wifi/README.md](./plugins/guest_wifi/README.md) |
-| Home Assistant | Yes (HA token) | [plugins/home_assistant/README.md](./plugins/home_assistant/README.md) |
-| Muni Transit | Yes (free 511.org) | [plugins/muni/README.md](./plugins/muni/README.md) |
-| Nearby Aircraft | No (optional OpenSky) | [plugins/nearby_aircraft/README.md](./plugins/nearby_aircraft/README.md) |
-| Sports Scores | No (optional TheSportsDB) | [plugins/sports_scores/README.md](./plugins/sports_scores/README.md) |
-| Star Trek Quotes | No | [plugins/star_trek_quotes/README.md](./plugins/star_trek_quotes/README.md) |
-| Stocks | No (optional Finnhub) | [plugins/stocks/README.md](./plugins/stocks/README.md) |
-| Surf | No | [plugins/surf/README.md](./plugins/surf/README.md) |
-| Traffic | Yes (Google Routes) | [plugins/traffic/README.md](./plugins/traffic/README.md) |
-| Weather | Yes (OpenWeatherMap) | [plugins/weather/README.md](./plugins/weather/README.md) |
+| Plugin | API Key | Documentation |
+|--------|---------|-------------|
+| Weather | WeatherAPI.com or OpenWeatherMap | [plugins/weather/README.md](./plugins/weather/README.md) |
+| Traffic | Google Routes API | [plugins/traffic/README.md](./plugins/traffic/README.md) |
+| Home Assistant | HA long-lived access token | [plugins/home_assistant/README.md](./plugins/home_assistant/README.md) |
+| Muni Transit | 511.org (free) | [plugins/muni/README.md](./plugins/muni/README.md) |
+| Air/Fog | PurpleAir / OpenWeatherMap | [plugins/air_fog/README.md](./plugins/air_fog/README.md) |
+| Stocks | Finnhub (optional) | [plugins/stocks/README.md](./plugins/stocks/README.md) |
+| Nearby Aircraft | OpenSky (optional) | [plugins/nearby_aircraft/README.md](./plugins/nearby_aircraft/README.md) |
+| Sports Scores | TheSportsDB (optional) | [plugins/sports_scores/README.md](./plugins/sports_scores/README.md) |
+| Bay Wheels | None | [plugins/baywheels/README.md](./plugins/baywheels/README.md) |
+| Date & Time | None | [plugins/date_time/README.md](./plugins/date_time/README.md) |
+| Disney Parks | None | [plugins/disney_parks_times/README.md](./plugins/disney_parks_times/README.md) |
+| Guest WiFi | None | [plugins/guest_wifi/README.md](./plugins/guest_wifi/README.md) |
+| Star Trek Quotes | None | [plugins/star_trek_quotes/README.md](./plugins/star_trek_quotes/README.md) |
+| Sun Art | None | [plugins/sun_art/README.md](./plugins/sun_art/README.md) |
+| Surf | None | [plugins/surf/README.md](./plugins/surf/README.md) |
+| Visual Clock | None | [plugins/visual_clock/README.md](./plugins/visual_clock/README.md) |
+| WSDOT Ferries | WSDOT API key | [plugins/wsdot/README.md](./plugins/wsdot/README.md) |
+| Last.fm | Last.fm API key | [plugins/last_fm/README.md](./plugins/last_fm/README.md) |
 
 See `env.example` for all available environment variables.
 
 ## Local Development
 
-### Docker Compose (Recommended)
+If you want to contribute to FiestaBoard or build plugins, use the development environment:
 
 ```bash
-# Build and run for development
 docker-compose -f docker-compose.dev.yml up --build
-
-# Access Web UI at http://localhost:3000
-# Access API at http://localhost:8000
+# Web UI at http://localhost:3000 (hot reload)
+# API at http://localhost:8000 (auto-reload)
 ```
-
-The development environment includes hot reload for both Python and Next.js code.
 
 For detailed development workflows, see [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md).
 
@@ -260,87 +212,100 @@ FiestaBoard/
 └── .env                            # Environment variables
 ```
 
-## API Keys
+## Getting Your Board API Key
 
-### Board API
+You need your board's API key to connect FiestaBoard to your display. There are two connection modes:
+
+### Local API (Recommended)
+
+Faster, supports transition animations, works over your local network.
+
+1. Open the board's mobile app
+2. Go to **Settings** → **Local API**
+3. Copy your Local API key
+4. Note your board's IP address
+
+```bash
+# In .env
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=your_local_api_key_here
+BOARD_HOST=192.168.0.11
+```
+
+### Cloud API (Alternative)
+
+Works from anywhere with internet. No transition animation support.
 
 1. Go to [web.vestaboard.com](https://web.vestaboard.com)
-2. Navigate to API section
-3. Enable Read/Write API
+2. Navigate to **Settings** → **API**
+3. Enable **Read/Write API**
 4. Copy your Read/Write API key
 
-### Weather
+```bash
+# In .env
+BOARD_API_MODE=cloud
+BOARD_READ_WRITE_KEY=your_read_write_api_key_here
+```
 
-**Recommended: WeatherAPI.com**
-- Sign up at [weatherapi.com](https://www.weatherapi.com/)
-- Free tier: 1 million calls/month
-- No credit card required
-
-**Alternative: OpenWeatherMap**
-- Sign up at [openweathermap.org](https://openweathermap.org/)
-- Free tier: 1,000 calls/day
+See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details.
 
 ## Deployment
 
-### Local Development
+### Hosting the Server
 
 ```bash
-# Build and start services
-docker-compose up --build
-
-# Run in background
+# Start the server
 docker-compose up -d --build
 
-# Stop services
+# Stop the server
 docker-compose down
+
+# View logs
+docker-compose logs -f
 ```
 
-See [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md) for detailed development workflows.
-
 ### Production Deployment
-
-FiestaBoard supports multiple deployment options:
 
 - **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: ARM-compatible builds
 - **Docker Compose**: Use `docker-compose.yml` for production deployments
 
-See deployment guides for detailed instructions.
-
 
 ## Troubleshooting
 
-### API Key Errors
+### Board Not Updating
 
-- Verify your `.env` file exists and contains valid keys
-- Check that keys don't have extra spaces or quotes
-- For the board: Ensure Read/Write API is enabled in your account
-
-### Weather API Errors
-
-- Verify your API key is correct
-- Check API rate limits haven't been exceeded
-- Ensure location string is valid
+- Make sure you clicked "▶ Start Service" in the web UI
+- Check your board API key in `.env` is correct
+- Verify your `BOARD_API_MODE` matches the key type you're using
+- For local mode: ensure your board is on the same network
 
 ### Docker Issues
 
 - Ensure Docker is running: `docker ps`
 - Check container logs: `docker-compose logs`
-- Verify `.env` file is readable
+- Verify `.env` file exists and is readable
+
+### Plugin Issues
+
+- Check the plugin's setup guide: `plugins/<plugin_name>/docs/SETUP.md`
+- Verify API keys are correct and don't have extra spaces
+- Check API rate limits haven't been exceeded
 
 ## Documentation
 
-### Setup Guides
+### Setup
 - **[Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md)**: Step-by-step setup for non-technical users
-- **[Local Development](./docs/setup/LOCAL_DEVELOPMENT.md)**: Development environment setup
-- **[Docker Setup](./docs/setup/DOCKER_SETUP.md)**: Docker configuration details
-- **[Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md)**: Production API configuration
+- **[Docker Setup](./docs/setup/DOCKER_SETUP.md)**: Docker architecture details
+- **[Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md)**: Cloud API configuration
+
+### Development
+- **[Local Development](./docs/setup/LOCAL_DEVELOPMENT.md)**: Development environment for contributors
+- **[Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md)**: Create your own plugins
 
 ### Plugin Documentation
-Each plugin includes its own documentation:
-- **Developer docs**: `plugins/<plugin>/README.md` - How the plugin works
-- **Setup guide**: `plugins/<plugin>/docs/SETUP.md` - User-facing configuration
-
-See **[Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md)** to create your own plugins.
+Each plugin includes its own docs:
+- **Plugin README**: `plugins/<plugin>/README.md`
+- **Setup guide**: `plugins/<plugin>/docs/SETUP.md`
 
 ### Deployment Guides
 - **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: Build on Raspberry Pi

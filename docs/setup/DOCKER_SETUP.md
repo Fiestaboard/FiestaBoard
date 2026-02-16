@@ -188,7 +188,7 @@ curl -X POST http://localhost:8000/send-message \
 
 Both services use the same `.env` file. Key variables:
 
-- `FB_READ_WRITE_KEY` - Board API key (required)
+- `BOARD_READ_WRITE_KEY` - Board API key (required for cloud mode)
 - `WEATHER_API_KEY` - Weather API key (required)
 - `WEATHER_PROVIDER` - "weatherapi" or "openweathermap"
 - And more... (see `env.example`)

@@ -1,12 +1,12 @@
 ---
 sidebar_position: 2
-description: "Set up a FiestaBoard local development environment with Python, Node.js, and hot-reload for contributing or customizing."
+description: "Set up a FiestaBoard development environment with hot-reload for contributing code or building plugins."
 keywords: [FiestaBoard development, local setup, dev environment, Python, Node.js, hot reload]
 ---
 
 # Local Development
 
-Set up a development environment for FiestaBoard.
+This guide is for **contributors and plugin developers** who want to work on FiestaBoard's code. If you just want to host a FiestaBoard server to control your board, see the [Quick Start](/docs/setup/quick-start) instead.
 
 ## Development with Docker Compose
 
