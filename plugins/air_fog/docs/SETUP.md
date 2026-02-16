@@ -227,6 +227,10 @@ Triggered when:
 
 ## Example Templates
 
+### Default Format (Matches Screenshot)
+
+![Air Quality & Fog Display](./air-fog-display.png)
+
 ### Compact Alert
 
 ```
