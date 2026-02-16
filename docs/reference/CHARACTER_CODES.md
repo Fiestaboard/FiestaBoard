@@ -119,6 +119,27 @@ codes = BoardChars.text_to_codes("HELLO")
 # Returns: [8, 5, 12, 12, 15]
 ```
 
+## Board Dimensions
+
+FiestaBoard supports multiple Vestaboard device types:
+
+| Device | Rows | Columns | Total Characters |
+|--------|------|---------|------------------|
+| **Flagship** | 6 | 22 | 132 |
+| **Note** | 3 | 15 | 45 |
+
+Pages are device-specific — each page targets a specific device type, and the editor and preview adapt to the correct dimensions.
+
+## Device-Specific Characters
+
+Some character codes render differently depending on the target device:
+
+| Code | Flagship | Note |
+|------|----------|------|
+| 62 | `°` (Degree) | `❤` (Heart) |
+
+When creating pages for the Note device, code 62 will display as a red heart icon instead of the degree symbol.
+
 ## Notes
 
 1. **Character codes are approximate**: The exact mapping may vary. These are based on common patterns and may need verification against official board documentation.
@@ -127,7 +148,9 @@ codes = BoardChars.text_to_codes("HELLO")
 
 3. **Color support**: The board supports colors via FBML (Board Markup Language), which could be used to enhance weather displays (e.g., yellow for sunny, blue for rain).
 
-4. **Extensibility**: The `get_weather_symbol()` function can be extended to support more conditions or use different character combinations.
+4. **Device-specific characters**: Some codes (like 62) render differently on Flagship vs Note devices.
+
+5. **Extensibility**: The `get_weather_symbol()` function can be extended to support more conditions or use different character combinations.
 
 ## Future Enhancements
 

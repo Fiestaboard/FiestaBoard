@@ -52,6 +52,18 @@ http://localhost:8000
 | `DELETE` | `/pages/{id}` | Delete a page |
 | `GET` | `/pages/{id}/preview` | Preview a page (with variables resolved) |
 
+### Page Fields
+
+When creating or updating a page, the following fields are available:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Page name (required) |
+| `type` | string | `"template"`, `"single"`, or `"composite"` |
+| `device_type` | string | `"flagship"` (22×6) or `"note"` (15×3). Default: `"flagship"` |
+| `template` | string[] | Template lines for template-type pages |
+| `duration_seconds` | number | How long to display (10–3600s, default 300) |
+
 ### Batch Operations
 
 | Method | Endpoint | Description |

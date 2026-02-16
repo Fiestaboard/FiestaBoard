@@ -14,14 +14,30 @@ The page editor is the core of FiestaBoard's content creation experience. It pro
 
 ![Page Editor](/img/page-editor-wysiwyg.png)
 
+## Device Types
+
+FiestaBoard supports multiple Vestaboard devices with different display sizes:
+
+| Device | Dimensions | Total Characters |
+|--------|-----------|------------------|
+| **Flagship** | 6 rows × 22 columns | 132 |
+| **Note** | 3 rows × 15 columns | 45 |
+
+Pages are device-specific. The **Pages** section has **Flagship** and **Note** tabs to organize pages by device type. The editor and live preview automatically adapt to the selected device's dimensions.
+
+:::tip
+The Vestaboard Note supports a heart character (❤) at code 62, which displays as a degree symbol (°) on the Flagship.
+:::
+
 ## Creating a New Page
 
 1. Open the FiestaBoard Web UI at `http://localhost:8080`
 2. Navigate to the **Pages** section
-3. Click **New Page**
-4. Give your page a name
-5. Use the editor to compose your content
-6. Click **Save**
+3. Select the **Flagship** or **Note** tab for your target device
+4. Click **New Page**
+5. Give your page a name
+6. Use the editor to compose your content (dimensions match your target device)
+7. Click **Save**
 
 ## Using Template Variables
 
@@ -69,14 +85,20 @@ See the [Color Guide](/docs/reference/color-guide) for detailed usage examples.
 
 ## Page Layout
 
-The board display is a grid of **6 rows × 22 columns** (132 characters total). The editor reflects this layout so you can see exactly how your content will be positioned.
+The board display dimensions depend on the target device:
+
+- **Flagship**: 6 rows × 22 columns (132 characters)
+- **Note**: 3 rows × 15 columns (45 characters)
+
+The editor reflects the target device's layout so you can see exactly how your content will be positioned.
 
 ### Tips for Good Layouts
 
-- **Keep text concise** — You have limited characters per row
+- **Keep text concise** — You have limited characters per row (22 for Flagship, 15 for Note)
 - **Use alignment** — Center important information for readability
 - **Mix data sources** — Combine multiple plugin variables on one page
 - **Test with preview** — Use the live preview to check formatting before saving
+- **Design per device** — Create separate pages optimized for each device's dimensions
 
 ## Managing Pages
 

@@ -70,6 +70,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 **→ [Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md)** - Create your own plugins!
 
 ### System Features
+- 📱 **Multi-Device Support**: Create pages for both Vestaboard Flagship (22×6) and Note (15×3) — editor and preview adapt to each device's dimensions
 - ✏️ **Rich WYSIWYG Page Editor**: Create and edit pages with a what-you-see-is-what-you-get editor that shows exactly how content will appear on your board—template variables, colors, and alignment in real time
 - 📅 **Schedule Mode**: Visual calendar to schedule which pages display when—set different pages for different times and days. Choose a default page for gaps in the schedule, or turn scheduling off to manually select the active page
 - 📄 **Page-Based Display**: Create and select pages via the web UI
