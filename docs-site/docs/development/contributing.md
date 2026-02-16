@@ -36,7 +36,7 @@ The development environment provides:
 - **Hot reload** for Python backend changes
 - **Hot reload** for Next.js frontend changes
 - Web UI at `http://localhost:3000`
-- API at `http://localhost:8000`
+- API at `http://localhost:3000`
 
 ## Making Changes
 
