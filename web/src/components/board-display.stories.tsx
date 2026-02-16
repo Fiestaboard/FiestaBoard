@@ -51,6 +51,13 @@ MUNI 33 - 12 MIN
 {64}{64} TRAFFIC {64}{64}
 HOME TO WORK 25M`;
 
+const homeAssistantMessage = `{yellow}{orange}   HOUSE STATUS    {orange}{yellow}
+FRONT DOOR    CLOSED
+GARAGE          OPEN
+BACK DOOR     LOCKED
+LIVING ROOM   CLOSED
+TEMPERATURE   72  F`;
+
 const multiColorBar = `{63}{63}{64}{64}{65}{65}{66}{66}{67}{67}{68}{68}
 {red}RED{/red} {orange}ORANGE{/orange} {yellow}YELLOW{/yellow}
 {green}GREEN{/green} {blue}BLUE{/blue} {violet}VIOLET{/violet}
@@ -91,6 +98,14 @@ export const WeatherDisplay: Story = {
 export const TransitDisplay: Story = {
   args: {
     message: transitMessage,
+    size: "md",
+    isLoading: false,
+  },
+};
+
+export const HomeAssistantDisplay: Story = {
+  args: {
+    message: homeAssistantMessage,
     size: "md",
     isLoading: false,
   },
