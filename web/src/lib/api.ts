@@ -208,6 +208,9 @@ export interface SetActivePageResponse {
 // Page types
 export type PageType = "single" | "composite" | "template";
 
+// Device types
+export type DeviceType = "flagship" | "note";
+
 export interface RowConfig {
   source: string;
   row_index: number;
@@ -218,6 +221,7 @@ export interface Page {
   id: string;
   name: string;
   type: PageType;
+  device_type: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -233,6 +237,7 @@ export interface Page {
 export interface PageCreate {
   name: string;
   type: PageType;
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];

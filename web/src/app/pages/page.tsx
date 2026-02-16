@@ -1,22 +1,25 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { useViewTransition } from "@/hooks/use-view-transition";
+import type { DeviceType } from "@/lib/api";
 
 export default function PagesPage() {
   const { push } = useViewTransition();
+  const [activeTab, setActiveTab] = useState<DeviceType>("flagship");
 
   const handleSelectPage = useCallback((pageId: string) => {
     push(`/pages/edit/${pageId}`, { transitionType: "slide-up" });
   }, [push]);
 
   const handleCreateNew = useCallback(() => {
-    push("/pages/new", { transitionType: "slide-up" });
-  }, [push]);
+    push(`/pages/new?device=${activeTab}`, { transitionType: "slide-up" });
+  }, [push, activeTab]);
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -49,11 +52,28 @@ export default function PagesPage() {
             </div>
           </CardHeader>
           <CardContent className="px-4 sm:px-6">
-            <PageGridSelector
-              onSelectPage={handleSelectPage}
-              showActiveIndicator={false}
-              label="SELECT PAGE TO EDIT"
-            />
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="flagship">Flagship</TabsTrigger>
+                <TabsTrigger value="note">Note</TabsTrigger>
+              </TabsList>
+              <TabsContent value="flagship">
+                <PageGridSelector
+                  onSelectPage={handleSelectPage}
+                  showActiveIndicator={false}
+                  label="SELECT FLAGSHIP PAGE TO EDIT"
+                  deviceTypeFilter="flagship"
+                />
+              </TabsContent>
+              <TabsContent value="note">
+                <PageGridSelector
+                  onSelectPage={handleSelectPage}
+                  showActiveIndicator={false}
+                  label="SELECT NOTE PAGE TO EDIT"
+                  deviceTypeFilter="note"
+                />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

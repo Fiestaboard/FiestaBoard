@@ -121,6 +121,7 @@ export const mockPage: Page = {
   id: "page-1",
   name: "Weather Page",
   type: "single",
+  device_type: "flagship",
   display_type: "weather",
   duration_seconds: 300,
   created_at: "2024-01-01T00:00:00Z",
@@ -130,6 +131,7 @@ export const mockCompositePage: Page = {
   id: "page-2",
   name: "Composite Page",
   type: "composite",
+  device_type: "flagship",
   rows: [
     { source: "weather", row_index: 0, target_row: 0 },
     { source: "datetime", row_index: 1, target_row: 1 },
@@ -491,6 +493,7 @@ export const handlers = [
       id: "new-page-" + Date.now(),
       name: body.name,
       type: body.type,
+      device_type: body.device_type || "flagship",
       display_type: body.display_type,
       rows: body.rows,
       template: body.template,

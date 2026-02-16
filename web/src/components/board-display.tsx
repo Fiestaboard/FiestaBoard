@@ -2,9 +2,16 @@
 
 import { useMemo, memo, useState, useEffect, useRef, useCallback } from "react";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
+import type { DeviceType } from "@/lib/api";
 
 const ROWS = 6;
 const COLS = 22;
+
+// Device dimensions lookup
+const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
+  flagship: { rows: 6, cols: 22 },
+  note: { rows: 3, cols: 15 },
+};
 
 // All displayable board characters (codes 0-71)
 const BOARD_CHARS = [
@@ -20,6 +27,9 @@ const BOARD_CHARS = [
   // Color tiles (63-71) - represented as color codes
   '63', '64', '65', '66', '67', '68', '69', '70', '71'
 ];
+
+// Extended characters that are not in BOARD_CHARS but can appear from device substitutions
+const EXTRA_CHARS: Record<string, boolean> = { '❤': true };
 
 // Backward compatibility alias
 const FIESTABOARD_CHARS = BOARD_CHARS;
@@ -92,20 +102,27 @@ function parseLine(line: string): Token[] {
   return tokens;
 }
 
-// Convert message string to 6x22 grid of tokens
-function messageToGrid(message: string): Token[][] {
+// Convert message string to grid of tokens with configurable dimensions
+function messageToGrid(message: string, rows: number = ROWS, cols: number = COLS, deviceType: string = "flagship"): Token[][] {
   const lines = message.split("\n");
   const grid: Token[][] = [];
+  const isNote = deviceType === "note";
 
-  for (let row = 0; row < ROWS; row++) {
+  for (let row = 0; row < rows; row++) {
     const line = lines[row] || "";
     const tokens = parseLine(line);
     const rowTokens: Token[] = [];
     
-    // Fill to COLS width
-    for (let col = 0; col < COLS; col++) {
+    // Fill to cols width
+    for (let col = 0; col < cols; col++) {
       if (col < tokens.length) {
-        rowTokens.push(tokens[col]);
+        const token = tokens[col];
+        // On Note, degree symbol (code 62) displays as heart
+        if (isNote && token.type === "char" && token.value === "°") {
+          rowTokens.push({ type: "char", value: "❤" });
+        } else {
+          rowTokens.push(token);
+        }
       } else {
         rowTokens.push({ type: "char", value: " " });
       }
@@ -630,9 +647,14 @@ const CharTile = memo(function CharTile({
           }
           
           // Regular character tile
-          const targetChar = BOARD_CHARS[targetCharIndex];
+          // Use original token value for extended chars (like ❤ on Note) that aren't in BOARD_CHARS
+          const originalChar = getCharFromToken(token);
+          const targetChar = EXTRA_CHARS[originalChar] ? originalChar : BOARD_CHARS[targetCharIndex];
           const isColor = isColorTile(targetChar);
           const charBg = isColor ? (ALL_COLOR_CODES[targetChar] || tileBg) : tileBg;
+          // Heart character should render in red
+          const isHeart = targetChar === '❤';
+          const charColor = isHeart ? '#eb4034' : textColor;
           
           return (
             <div
@@ -648,7 +670,7 @@ const CharTile = memo(function CharTile({
               {!isColor && targetChar !== ' ' && (
                 <span 
                   className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none relative z-10`}
-                  style={{ color: textColor }}
+                  style={{ color: charColor }}
                 >
                   {targetChar}
                 </span>
@@ -828,22 +850,26 @@ interface BoardDisplayProps {
   size?: "sm" | "md" | "lg";
   className?: string;
   boardType?: "black" | "white";
+  deviceType?: DeviceType;
 }
 
 // Backward compatibility alias
 interface FiestaboardDisplayProps extends BoardDisplayProps {}
 
-export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = false, size = "md", className = "", boardType = "black" }: BoardDisplayProps) {
+export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = false, size = "md", className = "", boardType = "black", deviceType = "flagship" }: BoardDisplayProps) {
+  // Get dimensions for the device type
+  const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
+  
   // Memoize grid calculation to avoid recalculating on every render
   const grid = useMemo(() => {
-    console.log('[BoardDisplay] message:', message, 'type:', typeof message, 'isLoading:', isLoading);
+    console.log('[BoardDisplay] message:', message, 'type:', typeof message, 'isLoading:', isLoading, 'deviceType:', deviceType);
     // Convert null to empty string to show blank grid
     // This ensures we always have a grid (even if blank) and use the new tile transitions
     const messageForGrid = message ?? "";
-    const result = messageToGrid(messageForGrid);
+    const result = messageToGrid(messageForGrid, dims.rows, dims.cols, deviceType);
     console.log('[BoardDisplay] grid created:', result !== null, 'grid rows:', result?.length);
     return result;
-  }, [message]);
+  }, [message, dims.rows, dims.cols]);
   
   // Increased padding for more pronounced bezel - more vertical space to match real board
   const paddingClasses = {
@@ -930,12 +956,13 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Only re-render if message, isLoading, size, className, or boardType changes
+  // Only re-render if message, isLoading, size, className, boardType, or deviceType changes
   return prevProps.message === nextProps.message &&
          prevProps.isLoading === nextProps.isLoading &&
          prevProps.size === nextProps.size &&
          prevProps.className === nextProps.className &&
-         prevProps.boardType === nextProps.boardType;
+         prevProps.boardType === nextProps.boardType &&
+         prevProps.deviceType === nextProps.deviceType;
 });
 
 // Backward compatibility alias
