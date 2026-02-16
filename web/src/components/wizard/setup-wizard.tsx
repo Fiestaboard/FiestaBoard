@@ -36,12 +36,16 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     cloud_key: string;
     host: string;
     connectionVerified: boolean;
+    devices: string[];
+    board_color: "black" | "white";
   }>({
     api_mode: "cloud",
     local_api_key: "",
     cloud_key: "",
     host: "",
     connectionVerified: false,
+    devices: ["flagship"],
+    board_color: "black",
   });
 
   // Plugin config state

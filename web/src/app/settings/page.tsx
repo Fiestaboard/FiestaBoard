@@ -1,6 +1,7 @@
 "use client";
 
 import { BoardSettings } from "@/components/feature-settings/board-settings";
+import { DisplaySettings } from "@/components/feature-settings/display-settings";
 import { DebugSettings } from "@/components/feature-settings/debug-settings";
 import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
@@ -28,6 +29,12 @@ export default function SettingsPage() {
           <section>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">General Settings</h2>
             <GeneralSettings />
+          </section>
+
+          {/* Board Display Settings */}
+          <section>
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Board Display</h2>
+            <DisplaySettings />
           </section>
 
           {/* Board Connection */}

@@ -21,6 +21,8 @@ interface BoardConfig {
   cloud_key: string;
   host: string;
   connectionVerified: boolean;
+  devices: string[];
+  board_color: "black" | "white";
 }
 
 interface PluginConfig {
@@ -91,6 +93,16 @@ export function StepWelcome({
           } catch (e) {
             console.warn("Failed to save guest_wifi config:", e);
           }
+        }
+
+        // Save board display settings (devices & color)
+        try {
+          await api.updateBoardSettings({
+            devices: boardConfig.devices as import("@/lib/api").DeviceType[],
+            board_type: boardConfig.board_color,
+          });
+        } catch (e) {
+          console.warn("Failed to save board display settings:", e);
         }
 
         setConfigSaved(true);

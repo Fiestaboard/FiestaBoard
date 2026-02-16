@@ -1,17 +1,21 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { useViewTransition } from "@/hooks/use-view-transition";
+import { useBoardSettings } from "@/hooks/use-board";
 import type { DeviceType } from "@/lib/api";
 
 export default function PagesPage() {
   const { push } = useViewTransition();
-  const [activeTab, setActiveTab] = useState<DeviceType>("flagship");
+  const { data: boardSettings } = useBoardSettings();
+  const configuredDevices = useMemo(() => boardSettings?.devices ?? ["flagship"], [boardSettings]);
+  const hasMultipleDevices = configuredDevices.length > 1;
+  const [activeTab, setActiveTab] = useState<DeviceType>(configuredDevices[0] as DeviceType);
 
   const handleSelectPage = useCallback((pageId: string) => {
     push(`/pages/edit/${pageId}`, { transitionType: "slide-up" });
@@ -52,28 +56,45 @@ export default function PagesPage() {
             </div>
           </CardHeader>
           <CardContent className="px-4 sm:px-6">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="flagship">Flagship</TabsTrigger>
-                <TabsTrigger value="note">Note</TabsTrigger>
-              </TabsList>
-              <TabsContent value="flagship">
-                <PageGridSelector
-                  onSelectPage={handleSelectPage}
-                  showActiveIndicator={false}
-                  label="SELECT FLAGSHIP PAGE TO EDIT"
-                  deviceTypeFilter="flagship"
-                />
-              </TabsContent>
-              <TabsContent value="note">
-                <PageGridSelector
-                  onSelectPage={handleSelectPage}
-                  showActiveIndicator={false}
-                  label="SELECT NOTE PAGE TO EDIT"
-                  deviceTypeFilter="note"
-                />
-              </TabsContent>
-            </Tabs>
+            {hasMultipleDevices ? (
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
+                <TabsList className="mb-4">
+                  {configuredDevices.includes("flagship") && (
+                    <TabsTrigger value="flagship">Flagship</TabsTrigger>
+                  )}
+                  {configuredDevices.includes("note") && (
+                    <TabsTrigger value="note">Note</TabsTrigger>
+                  )}
+                </TabsList>
+                {configuredDevices.includes("flagship") && (
+                  <TabsContent value="flagship">
+                    <PageGridSelector
+                      onSelectPage={handleSelectPage}
+                      showActiveIndicator={false}
+                      label="SELECT FLAGSHIP PAGE TO EDIT"
+                      deviceTypeFilter="flagship"
+                    />
+                  </TabsContent>
+                )}
+                {configuredDevices.includes("note") && (
+                  <TabsContent value="note">
+                    <PageGridSelector
+                      onSelectPage={handleSelectPage}
+                      showActiveIndicator={false}
+                      label="SELECT NOTE PAGE TO EDIT"
+                      deviceTypeFilter="note"
+                    />
+                  </TabsContent>
+                )}
+              </Tabs>
+            ) : (
+              <PageGridSelector
+                onSelectPage={handleSelectPage}
+                showActiveIndicator={false}
+                label="SELECT PAGE TO EDIT"
+                deviceTypeFilter={configuredDevices[0] as DeviceType}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

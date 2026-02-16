@@ -7,8 +7,8 @@ animations and output targets, which can be controlled from the UI.
 import json
 import logging
 import os
-from dataclasses import dataclass, asdict
-from typing import Optional, Literal
+from dataclasses import dataclass, asdict, field
+from typing import Optional, Literal, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,7 @@ class PollingSettings:
 class BoardSettings:
     """Board display settings for UI rendering."""
     board_type: Optional[Literal["black", "white"]] = "black"
+    devices: List[str] = field(default_factory=lambda: ["flagship"])
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -106,7 +107,13 @@ class BoardSettings:
         # Validate board type
         if board_type not in ["black", "white", None]:
             board_type = "black"
-        return cls(board_type=board_type)
+        devices = data.get("devices", ["flagship"])
+        # Validate devices
+        from ..devices import DEVICE_TYPES
+        valid_devices = [d for d in devices if d in DEVICE_TYPES]
+        if not valid_devices:
+            valid_devices = ["flagship"]
+        return cls(board_type=board_type, devices=valid_devices)
 
 
 @dataclass
@@ -412,6 +419,25 @@ class SettingsService:
         self._board.board_type = board_type
         self._save_to_file()
         logger.info(f"Board type set to: {board_type}")
+        return self._board
+    
+    def set_devices(self, devices: List[str]) -> BoardSettings:
+        """Set the configured device types.
+        
+        Args:
+            devices: List of device type strings (e.g. ["flagship", "note"])
+            
+        Returns:
+            Updated BoardSettings
+        """
+        from ..devices import DEVICE_TYPES
+        valid_devices = [d for d in devices if d in DEVICE_TYPES]
+        if not valid_devices:
+            raise ValueError(f"At least one valid device required. Valid types: {DEVICE_TYPES}")
+        
+        self._board.devices = valid_devices
+        self._save_to_file()
+        logger.info(f"Configured devices set to: {valid_devices}")
         return self._board
     
     # Schedule settings

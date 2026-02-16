@@ -811,15 +811,16 @@ export const handlers = [
   // Board settings endpoints
   http.get(`${API_BASE}/settings/board`, () => {
     return HttpResponse.json({
-      board_type: "black"
+      board_type: "black",
+      devices: ["flagship"]
     });
   }),
 
   http.put(`${API_BASE}/settings/board`, async ({ request }) => {
-    const body = await request.json() as { board_type: "black" | "white" | null };
+    const body = await request.json() as { board_type?: "black" | "white" | null; devices?: string[] };
     return HttpResponse.json({
       status: "success",
-      settings: { board_type: body.board_type }
+      settings: { board_type: body.board_type ?? "black", devices: body.devices ?? ["flagship"] }
     });
   }),
 ];

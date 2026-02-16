@@ -2348,7 +2348,8 @@ async def get_board_settings():
     settings_service = get_settings_service()
     board = settings_service.get_board_settings()
     return {
-        "board_type": board.board_type
+        "board_type": board.board_type,
+        "devices": board.devices
     }
 
 
@@ -2357,17 +2358,23 @@ async def update_board_settings(request: dict):
     """
     Update board display settings.
     
-    Body should include:
+    Body may include:
     - board_type: "black", "white", or null for default
+    - devices: list of device types (e.g. ["flagship", "note"])
     """
-    if "board_type" not in request:
-        raise HTTPException(status_code=400, detail="board_type parameter required")
+    if "board_type" not in request and "devices" not in request:
+        raise HTTPException(status_code=400, detail="board_type or devices parameter required")
     
     settings_service = get_settings_service()
     
     try:
-        board_type = request["board_type"]
-        board = settings_service.set_board_type(board_type)
+        if "board_type" in request:
+            board_type = request["board_type"]
+            settings_service.set_board_type(board_type)
+        if "devices" in request:
+            devices = request["devices"]
+            settings_service.set_devices(devices)
+        board = settings_service.get_board_settings()
         return {
             "status": "success",
             "settings": board.to_dict()
@@ -2414,7 +2421,8 @@ async def get_all_settings():
         "transitions": transitions.to_dict(),
         "output": output.to_dict(),
         "board": {
-            "board_type": board.board_type
+            "board_type": board.board_type,
+            "devices": board.devices
         },
         "status": {
             "running": _service_running,

@@ -421,6 +421,7 @@ export interface PollingSettings {
 
 export interface BoardSettings {
   board_type: "black" | "white" | null;
+  devices: DeviceType[];
 }
 
 // Schedule types
@@ -994,11 +995,11 @@ export const api = {
 
   // Board settings
   getBoardSettings: () => fetchApi<BoardSettings>("/settings/board"),
-  updateBoardSettings: (board_type: "black" | "white" | null) =>
+  updateBoardSettings: (updates: { board_type?: "black" | "white" | null; devices?: DeviceType[] }) =>
     fetchApi<{ status: string; settings: BoardSettings }>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ board_type }),
+      body: JSON.stringify(updates),
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 
