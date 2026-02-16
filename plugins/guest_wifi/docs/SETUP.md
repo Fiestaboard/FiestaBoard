@@ -49,6 +49,8 @@ docker-compose restart
 
 When enabled, the board will show:
 
+![Guest WiFi Display](./guest-wifi-display.png)
+
 ```
 Guest WiFi
 

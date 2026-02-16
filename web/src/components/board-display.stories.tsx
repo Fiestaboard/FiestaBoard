@@ -33,6 +33,8 @@ type Story = StoryObj<typeof meta>;
 // Sample messages for different scenarios
 const simpleMessage = "HELLO WORLD\nWELCOME TO\nFIESTABOARD";
 
+const guestWifiMessage = `      GUEST WIFI\n\nNETWORK: MyWiFi5G\n\nPASSWORD: Welcome123`;
+
 const coloredMessage = `{red}BRUSH YOUR TEETH!{/red}
 {blue}SPENCER{/blue}
 {green}ROBBIE{/green}
@@ -91,6 +93,14 @@ export const WeatherDisplay: Story = {
 export const TransitDisplay: Story = {
   args: {
     message: transitMessage,
+    size: "md",
+    isLoading: false,
+  },
+};
+
+export const GuestWifiDisplay: Story = {
+  args: {
+    message: guestWifiMessage,
     size: "md",
     isLoading: false,
   },
