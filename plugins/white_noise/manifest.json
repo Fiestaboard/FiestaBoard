@@ -1,0 +1,73 @@
+{
+  "id": "white_noise",
+  "name": "White Noise",
+  "version": "1.0.0",
+  "description": "Gentle rain / white noise mode — softly cascading tiles that create a soothing ambient pitter-patter",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "cloud-rain",
+  "category": "art",
+
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable White Noise",
+        "default": false
+      },
+      "intensity": {
+        "type": "string",
+        "title": "Rain Intensity",
+        "description": "How many drops appear per frame. 'light' is a gentle drizzle, 'heavy' is a steady rain.",
+        "enum": ["light", "medium", "heavy"],
+        "default": "light"
+      },
+      "drop_color": {
+        "type": "string",
+        "title": "Drop Color",
+        "description": "Tile color for the raindrops.",
+        "enum": ["white", "blue", "violet"],
+        "default": "white"
+      }
+    }
+  },
+
+  "env_vars": [
+    {
+      "name": "WHITE_NOISE_ENABLED",
+      "required": false,
+      "description": "Enable the white noise rain effect",
+      "default": "false"
+    },
+    {
+      "name": "WHITE_NOISE_INTENSITY",
+      "required": false,
+      "description": "Rain intensity: light, medium, or heavy",
+      "default": "light"
+    },
+    {
+      "name": "WHITE_NOISE_DROP_COLOR",
+      "required": false,
+      "description": "Raindrop tile color: white, blue, or violet",
+      "default": "white"
+    }
+  ],
+
+  "variables": {
+    "simple": [
+      "white_noise",
+      "intensity",
+      "drop_color",
+      "active_drops"
+    ]
+  },
+
+  "max_lengths": {
+    "white_noise": 200,
+    "intensity": 6,
+    "drop_color": 6,
+    "active_drops": 3
+  }
+}
