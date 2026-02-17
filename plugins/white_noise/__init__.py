@@ -50,7 +50,7 @@ class WhiteNoisePlugin(PluginBase):
     """
 
     def __init__(self, manifest: Dict[str, Any]):
-        """Initialise the white noise plugin."""
+        """Initialize the white noise plugin."""
         super().__init__(manifest)
         # Persistent rain state: list of (row, col) for active drops
         self._drops: List[List[int]] = []
@@ -165,13 +165,13 @@ class WhiteNoisePlugin(PluginBase):
         return board
 
     def _board_to_string(self, board: List[List[int]]) -> str:
-        """Convert board array to the colour-marker string format.
+        """Convert board array to the color-marker string format.
 
         Args:
             board: 6×22 array of character codes.
 
         Returns:
-            Newline-separated string using ``{colour}`` markers.
+            Newline-separated string using ``{color}`` markers.
         """
         color_map = {
             BoardChars.RED: "{red}",
