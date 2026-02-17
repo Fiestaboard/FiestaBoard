@@ -6,32 +6,43 @@ keywords: [FiestaBoard environment variables, .env config, configuration referen
 
 # Environment Variables
 
-All FiestaBoard configuration is done through the `.env` file. This page documents every available environment variable.
+This is a **reference page** for developers and advanced users. Most users don't need to edit `.env` at all — the [install wizard](/docs/setup/quick-start) creates it during setup, and **all plugin configuration (API keys, settings, etc.) is done through the web UI's Integrations page**.
+
+This reference is useful for:
+- **Development** — setting up a local dev environment
+- **Advanced configuration** — tuning settings the web UI doesn't expose
+- **Troubleshooting** — understanding what each variable controls
+
+:::tip
+**Plugin API keys should be entered through the web UI**, not `.env`. The Integrations page provides setup instructions and validates your keys. Environment variables listed below for plugins are supported for backward compatibility but the web UI is the recommended way to configure them.
+:::
 
 ## Required Variables
 
-These must be set for FiestaBoard to function:
+These must be set for FiestaBoard to connect to your board:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `BOARD_READ_WRITE_KEY` | Board API key for sending content (local mode) | `your_api_key` |
-| `WEATHER_API_KEY` | Weather data API key | `your_weather_key` |
-| `WEATHER_PROVIDER` | Weather API provider | `weatherapi` or `openweathermap` |
-| `WEATHER_LOCATION` | Location for weather data | `San Francisco, CA` |
+| `BOARD_API_MODE` | API connection mode | `local` or `cloud` |
+| `BOARD_LOCAL_API_KEY` | Board Local API key (when `BOARD_API_MODE=local`) | `your_api_key` |
+| `BOARD_HOST` | Board IP or hostname (when `BOARD_API_MODE=local`) | `192.168.0.11` |
+| `BOARD_READ_WRITE_KEY` | Board Read/Write API key (when `BOARD_API_MODE=cloud`) | `your_api_key` |
 | `TIMEZONE` | Your local timezone | `America/Los_Angeles` |
 
 ## Board Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BOARD_READ_WRITE_KEY` | Board Read/Write API key (used in local mode) | — |
-| `FB_API_MODE` | API mode (`local` or `cloud`) | `local` |
-| `FB_READ_WRITE_KEY` | Board API key (used when `FB_API_MODE=cloud`) | — |
-| `BOARD_TRANSITION` | Transition animation style | — |
-| `BOARD_TRANSITION_SPEED` | Transition speed (ms) | — |
+| `BOARD_API_MODE` | API mode (`local` or `cloud`) | `local` |
+| `BOARD_LOCAL_API_KEY` | Local API key | — |
+| `BOARD_HOST` | Board IP or hostname (local mode) | — |
+| `BOARD_READ_WRITE_KEY` | Cloud Read/Write API key | — |
+| `BOARD_TRANSITION_STRATEGY` | Transition animation style (local mode only) | — |
+| `BOARD_TRANSITION_INTERVAL_MS` | Delay between animation steps | `0` |
+| `BOARD_TRANSITION_STEP_SIZE` | Columns/rows per animation step | `0` |
 
 :::info Board API Key Variables
-Use `BOARD_READ_WRITE_KEY` for local mode (default). Use `FB_READ_WRITE_KEY` with `FB_API_MODE=cloud` for cloud mode. See the [Cloud API Setup](/docs/setup/cloud-api) guide for details.
+Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_READ_WRITE_KEY` for cloud mode. See the [Cloud API Setup](/docs/setup/cloud-api) guide for details.
 :::
 
 ## Weather
@@ -90,16 +101,18 @@ Use `BOARD_READ_WRITE_KEY` for local mode (default). Use `FB_READ_WRITE_KEY` wit
 ## Example `.env` File
 
 ```bash
-# Board Configuration
-BOARD_READ_WRITE_KEY=your_board_key_here
-
-# Weather
-WEATHER_API_KEY=your_weather_key_here
-WEATHER_PROVIDER=weatherapi
-WEATHER_LOCATION=San Francisco, CA
+# Board Configuration (required)
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=your_local_api_key_here
+BOARD_HOST=192.168.0.11
 
 # Timezone
 TIMEZONE=America/Los_Angeles
+
+# Optional: Weather
+WEATHER_API_KEY=your_weather_key_here
+WEATHER_PROVIDER=weatherapi
+WEATHER_LOCATION=San Francisco, CA
 
 # Optional: Traffic
 GOOGLE_ROUTES_API_KEY=your_google_key

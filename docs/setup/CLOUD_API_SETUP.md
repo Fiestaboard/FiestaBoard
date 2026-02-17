@@ -33,14 +33,14 @@ Add these lines to your `.env` file:
 
 ```bash
 # Switch to Cloud API mode
-FB_API_MODE=cloud
+BOARD_API_MODE=cloud
 
 # Add your Read/Write API key
-FB_READ_WRITE_KEY=your_read_write_key_here
+BOARD_READ_WRITE_KEY=your_read_write_key_here
 
 # You can leave these empty when using Cloud mode:
-# FB_LOCAL_API_KEY=
-# FB_HOST=
+# BOARD_LOCAL_API_KEY=
+# BOARD_HOST=
 ```
 
 ### 3. Test the Cloud API
@@ -73,26 +73,26 @@ Or use the Cursor command:
 
 ## Switching Between Local and Cloud
 
-You can easily switch between Local and Cloud API by changing `FB_API_MODE`:
+You can easily switch between Local and Cloud API by changing `BOARD_API_MODE`:
 
 **Local API** (faster, with transitions):
 ```bash
-FB_API_MODE=local
-FB_LOCAL_API_KEY=your_local_key
-FB_HOST=192.168.0.11
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=your_local_key
+BOARD_HOST=192.168.0.11
 ```
 
 **Cloud API** (remote access):
 ```bash
-FB_API_MODE=cloud
-FB_READ_WRITE_KEY=your_read_write_key
+BOARD_API_MODE=cloud
+BOARD_READ_WRITE_KEY=your_read_write_key
 ```
 
 ## Troubleshooting
 
 ### "401 Unauthorized" Error
 
-- Check that your `FB_READ_WRITE_KEY` is correct
+- Check that your `BOARD_READ_WRITE_KEY` is correct
 - Make sure you copied the entire key (no spaces/newlines)
 - Verify Read/Write API is enabled in the web dashboard
 

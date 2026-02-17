@@ -1,11 +1,11 @@
 # Local Development Guide
 
-This guide explains how to develop the FiestaBoard Display Service locally using Docker.
+This guide is for **contributors and plugin developers** who want to work on FiestaBoard's code. If you just want to host a FiestaBoard server to control your board, see the [Quick Start](../../README.md#-quick-start) in the README instead.
 
 ## Prerequisites
 
 - Docker and Docker Compose installed
-- A `.env` file with your API keys (copy from `env.example`)
+- A `.env` file with your board API key (copy from `env.example`)
 
 ## Development Workflow
 

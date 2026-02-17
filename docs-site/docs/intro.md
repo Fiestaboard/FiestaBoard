@@ -1,16 +1,16 @@
 ---
 sidebar_position: 1
-description: "FiestaBoard transforms Vestaboard split-flap displays into live dashboards with weather, sports, traffic, and more."
+description: "FiestaBoard is an open-source server that lets split-flap display owners use plugins to get data onto their board."
 keywords: [FiestaBoard, split-flap display, Vestaboard, smart dashboard, live display, open source]
 ---
 
 # Introduction to FiestaBoard
 
-**FiestaBoard** transforms your split-flap display into a living dashboard. Track your morning commute, monitor the markets, check surf conditions, or display Star Trek wisdom—all beautifully formatted and running in Docker with zero hassle.
+**FiestaBoard** is an open-source server that connects to your split-flap display and lets you control what it shows. You bring the board and the API keys for the services you care about — FiestaBoard handles pulling data from those services and formatting it for your display.
 
-## What is FiestaBoard?
+## What Does FiestaBoard Do?
 
-FiestaBoard is an open-source platform that connects to your split-flap display and turns it into a real-time information hub. It features:
+If you already own a split-flap display, FiestaBoard gives you a self-hosted platform with a plugin system to get data onto your board:
 
 - **18 Built-in Plugins**: Weather, stocks, transit, sports, Disney park wait times, ferry schedules, and more
 - **WYSIWYG Page Editor**: Create pages with a visual editor that shows exactly how content will appear
@@ -21,9 +21,15 @@ FiestaBoard is an open-source platform that connects to your split-flap display 
 
 ## Quick Start
 
-The fastest way to get started:
+### Prerequisites
+
+- **A split-flap display** you already own
+- **Your board's API key**
+- **Docker and Docker Compose** installed
 
 ### Using the Installation Script
+
+The install wizard handles everything — it collects your board API key, creates the configuration, and starts the server:
 
 ```bash
 # Mac/Linux
@@ -32,19 +38,6 @@ The fastest way to get started:
 # Windows (PowerShell)
 .\scripts\install.ps1
 ```
-
-### Manual Setup
-
-```bash
-# 1. Create .env file with your API keys
-cp env.example .env
-# Edit .env and add: BOARD_READ_WRITE_KEY and WEATHER_API_KEY
-
-# 2. Run it! (first time builds images)
-docker-compose up --build
-```
-
-That's it! 🎉
 
 **Access your FiestaBoard:**
 - **Web UI**: http://localhost:8080

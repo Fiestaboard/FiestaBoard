@@ -1,6 +1,6 @@
 ---
 sidebar_position: 3
-description: "Step-by-step beginner guide to installing and configuring FiestaBoard for your Vestaboard split-flap display."
+description: "Step-by-step beginner guide to installing and configuring FiestaBoard for your split-flap display."
 keywords: [FiestaBoard beginner guide, first time setup, step by step, Vestaboard tutorial, installation guide]
 ---
 
@@ -11,8 +11,8 @@ A step-by-step guide for getting FiestaBoard running, even if you've never used 
 ## What You'll Need
 
 - A computer (Mac, Windows, or Linux)
-- A split-flap display board
-- An internet connection
+- A split-flap display that's already set up and working with the board's app
+- Your board's API key (you'll get this in Step 2)
 - About 15 minutes
 
 ## Step 1: Install Docker
@@ -46,25 +46,23 @@ sudo sh get-docker.sh
 sudo apt-get install docker-compose-plugin
 ```
 
-## Step 2: Get Your API Keys
+## Step 2: Get Your Board API Key
 
-You'll need two API keys to get started:
+Your board API key is what lets FiestaBoard send content to your display.
 
-### Board API Key (Required)
+### Local API (Recommended — faster, supports animations)
+
+1. Open the board's mobile app
+2. Go to **Settings** → **Local API**
+3. Copy the API key and note your board's IP address
+
+### Cloud API (Alternative — works from anywhere)
 
 1. Go to [web.vestaboard.com](https://web.vestaboard.com)
 2. Log in with your board account
 3. Navigate to the API section
 4. Enable the **Read/Write API**
 5. Copy the API key — you'll need it in Step 4
-
-### Weather API Key (Required)
-
-1. Go to [weatherapi.com](https://www.weatherapi.com/)
-2. Click **Sign Up** (it's free!)
-3. Verify your email
-4. Go to your dashboard and copy your API key
-5. Free tier gives you 1 million calls/month — more than enough
 
 ## Step 3: Download FiestaBoard
 
@@ -85,9 +83,9 @@ cd FiestaBoard
 4. Extract the ZIP file
 5. Open a terminal/PowerShell and navigate to the extracted folder
 
-## Step 4: Configure FiestaBoard
+## Step 4: Run the Install Wizard
 
-### Using the Install Script (Easiest)
+The install wizard handles everything — it collects your board API key, creates the configuration file, and starts the server.
 
 ```bash
 # Mac/Linux
@@ -97,53 +95,9 @@ cd FiestaBoard
 .\scripts\install.ps1
 ```
 
-The script will guide you through entering your API keys and other settings.
+The script will guide you through entering your board API key and settings. When it finishes, FiestaBoard is running!
 
-### Manual Configuration
-
-1. Create your configuration file:
-
-```bash
-cp env.example .env
-```
-
-2. Open `.env` in any text editor and fill in your keys:
-
-```bash
-# Required - paste your keys here
-BOARD_READ_WRITE_KEY=your_board_api_key_here
-WEATHER_API_KEY=your_weather_api_key_here
-
-# Your location for weather data
-WEATHER_PROVIDER=weatherapi
-WEATHER_LOCATION=San Francisco, CA
-
-# Your timezone
-TIMEZONE=America/Los_Angeles
-```
-
-:::tip Finding Your Timezone
-Use the [TZ database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) for your timezone. Common examples:
-- US East: `America/New_York`
-- US Central: `America/Chicago`
-- US Mountain: `America/Denver`
-- US Pacific: `America/Los_Angeles`
-- UK: `Europe/London`
-:::
-
-## Step 5: Start FiestaBoard
-
-```bash
-docker-compose up --build
-```
-
-The first time you run this, it will download and build everything. This may take a few minutes.
-
-:::info
-You'll see a lot of text scrolling by — that's normal! Wait until you see messages indicating the services are running.
-:::
-
-## Step 6: Open the Web UI
+## Step 5: Open the Web UI
 
 1. Open your web browser
 2. Go to **http://localhost:8080**
@@ -151,16 +105,26 @@ You'll see a lot of text scrolling by — that's normal! Wait until you see mess
 
 ![FiestaBoard Dashboard](/img/web-ui-home.png)
 
-## Step 7: Start the Display Service
+## Step 6: Start the Display Service
 
 1. In the web UI, click the **"▶ Start Service"** button
 2. Your board will start updating with content!
+
+## Step 7: Enable Plugins
+
+Now that your server is running, add the data sources you care about:
+
+1. Go to the **Integrations** page in the web UI
+2. Enable the plugins you want
+3. For plugins that need API keys (weather, traffic, etc.), enter them directly in the Integrations page — it links to setup instructions for each one
+
+> **Tip:** Many plugins work without any API key — Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more. Start with those!
 
 ## What's Next?
 
 Now that FiestaBoard is running:
 
-- **Configure plugins** — Go to the [Integrations](/docs/plugins/overview) page to enable weather, stocks, transit, and more
+- **Configure plugins** — Go to the [Integrations](/docs/plugins/overview) page to enable data sources
 - **Create pages** — Use the [Page Editor](/docs/features/page-editor) to design what appears on your board
 - **Set up schedules** — Use [Schedule Mode](/docs/features/schedule) to automate when different pages display
 
@@ -190,9 +154,10 @@ Another application is using port 8080 or 8000. Stop the other application or ch
 
 ### "Board not updating"
 
-1. Check that your `BOARD_READ_WRITE_KEY` is correct in `.env`
+1. Check that your board API key is correct in `.env`
 2. Make sure the display service is started (click the ▶ button in the web UI)
-3. Check the API docs at `http://localhost:8000/docs` for error messages
+3. For local mode: verify your board is on the same network
+4. Check the logs: `docker-compose logs -f`
 
 ### Need more help?
 

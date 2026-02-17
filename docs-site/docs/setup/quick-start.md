@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-description: "Get FiestaBoard running in minutes with Docker. Quick setup guide for your Vestaboard split-flap display dashboard."
+description: "Get FiestaBoard running in minutes with Docker. Quick setup guide for your split-flap display."
 keywords: [FiestaBoard quick start, Docker setup, getting started, Vestaboard setup, split-flap dashboard]
 ---
 
@@ -10,15 +10,15 @@ Get FiestaBoard running in minutes with Docker Compose.
 
 ## Prerequisites
 
+- **A split-flap display** you already own and have set up
+- **Your board's API key** (Local API or Cloud Read/Write key)
 - **Docker** and **Docker Compose** installed on your system
-- A split-flap board with Read/Write API key
-- A Weather API key (free from WeatherAPI.com)
 
-## Installation
+That's it. The install wizard handles the rest. Plugins that need external API keys (weather, traffic, etc.) can be configured later through the web UI.
 
-### Option 1: Installation Script (Recommended)
+## Installation (Recommended)
 
-The easiest way to get started is with our installation script:
+Run the setup wizard — it will collect your board API key, create the configuration, and start the server:
 
 ```bash
 # Mac/Linux
@@ -28,43 +28,7 @@ The easiest way to get started is with our installation script:
 .\scripts\install.ps1
 ```
 
-The script will guide you through the setup process.
-
-### Option 2: Manual Setup
-
-1. **Clone the repository**
-
-```bash
-git clone https://github.com/Fiestaboard/FiestaBoard.git
-cd FiestaBoard
-```
-
-2. **Create your environment file**
-
-```bash
-cp env.example .env
-```
-
-3. **Edit `.env` with your API keys**
-
-```bash
-# Required
-BOARD_READ_WRITE_KEY=your_board_key_here
-WEATHER_API_KEY=your_weather_api_key_here
-WEATHER_PROVIDER=weatherapi
-WEATHER_LOCATION=San Francisco, CA
-TIMEZONE=America/Los_Angeles
-```
-
-4. **Start FiestaBoard**
-
-```bash
-# Build and run (first time)
-docker-compose up --build
-
-# Or run in background
-docker-compose up -d --build
-```
+The script guides you through everything. When it finishes, FiestaBoard is running.
 
 ## Access Your Dashboard
 
@@ -88,24 +52,69 @@ Once running, access FiestaBoard at:
 docker-compose down
 ```
 
-## Getting API Keys
+## Getting Your Board API Key
 
-### Board API Key
+Have your board API key ready before running the wizard.
+
+### Local API (Recommended)
+
+1. Open the board's mobile app
+2. Go to **Settings** → **Local API**
+3. Copy your API key and note the board's IP address
+
+### Cloud API (Alternative)
 
 1. Go to [web.vestaboard.com](https://web.vestaboard.com)
 2. Navigate to the API section
 3. Enable Read/Write API
 4. Copy your Read/Write API key
 
-### Weather API Key
+## Manual Setup (Development)
 
-**Recommended: WeatherAPI.com**
-- Sign up at [weatherapi.com](https://www.weatherapi.com/)
-- Free tier: 1 million calls/month
-- No credit card required
+If you're setting up a development environment or prefer not to use the wizard, you can configure FiestaBoard manually:
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/Fiestaboard/FiestaBoard.git
+cd FiestaBoard
+```
+
+2. **Create your environment file**
+
+```bash
+cp env.example .env
+```
+
+3. **Edit `.env` with your board API key**
+
+For Local API (recommended):
+```bash
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=your_local_api_key_here
+BOARD_HOST=192.168.0.11
+TIMEZONE=America/Los_Angeles
+```
+
+For Cloud API:
+```bash
+BOARD_API_MODE=cloud
+BOARD_READ_WRITE_KEY=your_board_key_here
+TIMEZONE=America/Los_Angeles
+```
+
+4. **Start FiestaBoard**
+
+```bash
+docker-compose up -d --build
+```
+
+5. **Configure plugins in the web UI** — go to the Integrations page at http://localhost:8080 to enable plugins and enter API keys.
+
+See `env.example` for all available environment variables (useful for development).
 
 ## Next Steps
 
-- [Configure Plugins](/docs/plugins/overview) - Enable and configure data sources
-- [Local Development](/docs/setup/local-development) - Set up a development environment
+- [Configure Plugins](/docs/plugins/overview) - Enable and configure data sources via the Integrations page
+- [Local Development](/docs/setup/local-development) - Set up a development environment for contributing
 - [Create Custom Plugins](/docs/development/plugin-guide) - Build your own plugins
