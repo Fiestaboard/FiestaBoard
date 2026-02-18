@@ -96,4 +96,57 @@ test.describe("Pages CRUD", () => {
       timeout: 10_000,
     });
   });
+
+  test("pages have device_type field defaulting to flagship", async () => {
+    const pageName = `Device Type Test ${Date.now()}`;
+    const createRes = await fetch(`${API_URL}/pages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: pageName,
+        type: "template",
+        template: ["DEVICE TYPE", "", "", "", "", ""],
+      }),
+    });
+    expect(createRes.ok).toBe(true);
+    const created = await createRes.json();
+    expect(created.page.device_type).toBe("flagship");
+
+    // List endpoint also returns device_type
+    const listRes = await fetch(`${API_URL}/pages`);
+    const listData = await listRes.json();
+    const found = listData.pages.find(
+      (p: { id: string }) => p.id === created.page.id,
+    );
+    expect(found).toBeDefined();
+    expect(found.device_type).toBe("flagship");
+
+    await fetch(`${API_URL}/pages/${created.page.id}`, { method: "DELETE" });
+  });
+
+  test("can create a Note page with 3 lines", async () => {
+    const pageName = `Note E2E ${Date.now()}`;
+    const createRes = await fetch(`${API_URL}/pages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: pageName,
+        type: "template",
+        device_type: "note",
+        template: ["HELLO NOTE", "", ""],
+      }),
+    });
+    expect(createRes.ok).toBe(true);
+    const created = await createRes.json();
+    expect(created.page.device_type).toBe("note");
+    expect(created.page.template).toHaveLength(3);
+
+    // Verify via GET
+    const getRes = await fetch(`${API_URL}/pages/${created.page.id}`);
+    expect(getRes.ok).toBe(true);
+    const getData = await getRes.json();
+    expect(getData.device_type).toBe("note");
+
+    await fetch(`${API_URL}/pages/${created.page.id}`, { method: "DELETE" });
+  });
 });

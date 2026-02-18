@@ -14,7 +14,7 @@
  * NOTE: Tests run sequentially. The wizard test runs first and configures
  * the board so subsequent tests have a working backend.
  */
-import { test, expect, getMockBoardState, clearBoardConfig, API_URL, BOARD_HOST } from "./helpers";
+import { test, expect, getMockBoardState, clearBoardConfig, configureBoard, suppressWizard, API_URL, BOARD_HOST } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // 1. Mock Board API & Backend Health
@@ -106,11 +106,8 @@ test.describe("Setup Wizard", () => {
 
 test.describe("Navigation", () => {
   test("navigates between main sections", async ({ page }) => {
-    // After the wizard test, the board is configured and wizard is complete.
-    // Set localStorage to suppress the wizard just in case.
-    await page.addInitScript(() => {
-      localStorage.setItem("fiestaboard_wizard_complete", "true");
-    });
+    await configureBoard();
+    await suppressWizard(page);
 
     await page.goto("/");
     await expect(
@@ -149,9 +146,8 @@ test.describe("Navigation", () => {
 
 test.describe("Page Management", () => {
   test("creates a new template page", async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem("fiestaboard_wizard_complete", "true");
-    });
+    await configureBoard();
+    await suppressWizard(page);
 
     // Navigate to the Pages section
     await page.goto("/pages");
@@ -197,9 +193,8 @@ test.describe("Page Management", () => {
 
 test.describe("Schedule Management", () => {
   test("creates a schedule entry", async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem("fiestaboard_wizard_complete", "true");
-    });
+    await configureBoard();
+    await suppressWizard(page);
 
     await page.goto("/schedule");
     await expect(
