@@ -12,6 +12,20 @@ from .config_manager import get_config_manager
 logger = logging.getLogger(__name__)
 
 
+class classproperty:                         # noqa: N801
+    """Descriptor that acts like @property but on the class itself.
+
+    Python 3.13 removed support for stacking @classmethod on @property.
+    This descriptor provides the same behavior.
+    """
+
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, obj, objtype=None):
+        return self.func(objtype)
+
+
 class Config:
     """Application configuration loaded from config.json file.
     
@@ -47,44 +61,37 @@ class Config:
     
     # ==================== Board API Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def BOARD_API_MODE(cls) -> str:
         """API mode: 'local' or 'cloud'."""
         return cls._get_board().get("api_mode", "local")
     
-    @classmethod
-    @property
+    @classproperty
     def BOARD_LOCAL_API_KEY(cls) -> str:
         """Local API key."""
         return cls._get_board().get("local_api_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def BOARD_READ_WRITE_KEY(cls) -> str:
         """Cloud API read/write key."""
         return cls._get_board().get("cloud_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def BOARD_HOST(cls) -> str:
         """Board host address."""
         return cls._get_board().get("host", "")
     
-    @classmethod
-    @property
+    @classproperty
     def BOARD_TRANSITION_STRATEGY(cls) -> Optional[str]:
         """Transition animation strategy."""
         return cls._get_board().get("transition_strategy")
     
-    @classmethod
-    @property
+    @classproperty
     def BOARD_TRANSITION_INTERVAL_MS(cls) -> Optional[int]:
         """Transition step interval in milliseconds."""
         return cls._get_board().get("transition_interval_ms")
     
-    @classmethod
-    @property
+    @classproperty
     def BOARD_TRANSITION_STEP_SIZE(cls) -> Optional[int]:
         """Transition step size."""
         return cls._get_board().get("transition_step_size")
@@ -97,38 +104,31 @@ class Config:
         return cls.BOARD_LOCAL_API_KEY
     
     # Backward compatibility aliases
-    @classmethod
-    @property
+    @classproperty
     def FB_API_MODE(cls) -> str:
         return cls.BOARD_API_MODE
     
-    @classmethod
-    @property
+    @classproperty
     def FB_LOCAL_API_KEY(cls) -> str:
         return cls.BOARD_LOCAL_API_KEY
     
-    @classmethod
-    @property
+    @classproperty
     def FB_READ_WRITE_KEY(cls) -> str:
         return cls.BOARD_READ_WRITE_KEY
     
-    @classmethod
-    @property
+    @classproperty
     def FB_HOST(cls) -> str:
         return cls.BOARD_HOST
     
-    @classmethod
-    @property
+    @classproperty
     def FB_TRANSITION_STRATEGY(cls) -> Optional[str]:
         return cls.BOARD_TRANSITION_STRATEGY
     
-    @classmethod
-    @property
+    @classproperty
     def FB_TRANSITION_INTERVAL_MS(cls) -> Optional[int]:
         return cls.BOARD_TRANSITION_INTERVAL_MS
     
-    @classmethod
-    @property
+    @classproperty
     def FB_TRANSITION_STEP_SIZE(cls) -> Optional[int]:
         return cls.BOARD_TRANSITION_STEP_SIZE
     
@@ -138,34 +138,29 @@ class Config:
     
     # ==================== Output Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def OUTPUT_TARGET(cls) -> str:
         """Output target: 'ui', 'board', or 'both'."""
         return cls._get_general().get("output_target", "board")
     
     # ==================== Weather Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def WEATHER_API_KEY(cls) -> str:
         """Weather API key."""
         return cls._get_feature("weather").get("api_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def WEATHER_PROVIDER(cls) -> str:
         """Weather provider: 'weatherapi' or 'openweathermap'."""
         return cls._get_feature("weather").get("provider", "weatherapi")
     
-    @classmethod
-    @property
+    @classproperty
     def WEATHER_LOCATION(cls) -> str:
         """Weather location."""
         return cls._get_feature("weather").get("location", "San Francisco, CA")
     
-    @classmethod
-    @property
+    @classproperty
     def WEATHER_LOCATIONS(cls) -> List[Dict[str, str]]:
         """Weather locations to monitor (list of dicts with location and name)."""
         feature_config = cls._get_feature("weather")
@@ -188,212 +183,180 @@ class Config:
         
         return []
     
-    @classmethod
-    @property
+    @classproperty
     def WEATHER_ENABLED(cls) -> bool:
         """Whether weather is enabled."""
         return cls._get_feature("weather").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def WEATHER_REFRESH_SECONDS(cls) -> int:
         """Weather data refresh interval in seconds."""
         return cls._get_feature("weather").get("refresh_seconds", 300)
     
     # ==================== DateTime Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def TIMEZONE(cls) -> str:
         """Timezone for datetime display."""
         return cls._get_feature("date_time").get("timezone", "America/Los_Angeles")
     
-    @classmethod
-    @property
+    @classproperty
     def DATETIME_ENABLED(cls) -> bool:
         """Whether datetime is enabled."""
         return cls._get_feature("date_time").get("enabled", True)
     
     # ==================== General Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def GENERAL_TIMEZONE(cls) -> str:
         """General timezone configuration (used as default for all time displays)."""
         return cls._get_general().get("timezone", "America/Los_Angeles")
     
-    @classmethod
-    @property
+    @classproperty
     def REFRESH_INTERVAL_SECONDS(cls) -> int:
         """Refresh interval in seconds."""
         return cls._get_general().get("refresh_interval_seconds", 300)
     
     # ==================== Star Trek Quotes Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def STAR_TREK_QUOTES_ENABLED(cls) -> bool:
         """Whether Star Trek quotes are enabled."""
         return cls._get_feature("star_trek_quotes").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def STAR_TREK_QUOTES_RATIO(cls) -> str:
         """Star Trek quotes ratio (TNG:Voyager:DS9)."""
         return cls._get_feature("star_trek_quotes").get("ratio", "3:5:9")
     
     # ==================== Surf Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def SURF_ENABLED(cls) -> bool:
         """Whether surf data is enabled."""
         return cls._get_feature("surf").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def SURF_LATITUDE(cls) -> float:
         """Surf location latitude (default: Ocean Beach, SF)."""
         return cls._get_feature("surf").get("latitude", 37.7599)
     
-    @classmethod
-    @property
+    @classproperty
     def SURF_LONGITUDE(cls) -> float:
         """Surf location longitude (default: Ocean Beach, SF)."""
         return cls._get_feature("surf").get("longitude", -122.5121)
     
-    @classmethod
-    @property
+    @classproperty
     def SURF_REFRESH_SECONDS(cls) -> int:
         """Surf data refresh interval in seconds."""
         return cls._get_feature("surf").get("refresh_seconds", 600)
     
     # ==================== Guest WiFi Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def GUEST_WIFI_ENABLED(cls) -> bool:
         """Whether Guest WiFi display is enabled."""
         return cls._get_feature("guest_wifi").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def GUEST_WIFI_SSID(cls) -> str:
         """Guest WiFi SSID."""
         return cls._get_feature("guest_wifi").get("ssid", "")
     
-    @classmethod
-    @property
+    @classproperty
     def GUEST_WIFI_PASSWORD(cls) -> str:
         """Guest WiFi password."""
         return cls._get_feature("guest_wifi").get("password", "")
     
-    @classmethod
-    @property
+    @classproperty
     def GUEST_WIFI_REFRESH_SECONDS(cls) -> int:
         """Guest WiFi refresh interval."""
         return cls._get_feature("guest_wifi").get("refresh_seconds", 60)
     
     # ==================== Home Assistant Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def HOME_ASSISTANT_ENABLED(cls) -> bool:
         """Whether Home Assistant is enabled."""
         return cls._get_feature("home_assistant").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def HOME_ASSISTANT_BASE_URL(cls) -> str:
         """Home Assistant base URL."""
         return cls._get_feature("home_assistant").get("base_url", "")
     
-    @classmethod
-    @property
+    @classproperty
     def HOME_ASSISTANT_ACCESS_TOKEN(cls) -> str:
         """Home Assistant access token."""
         return cls._get_feature("home_assistant").get("access_token", "")
     
-    @classmethod
-    @property
+    @classproperty
     def HOME_ASSISTANT_ENTITIES(cls) -> str:
         """Home Assistant entities (JSON string for compatibility)."""
         entities = cls._get_feature("home_assistant").get("entities", [])
         import json
         return json.dumps(entities)
     
-    @classmethod
-    @property
+    @classproperty
     def HOME_ASSISTANT_TIMEOUT(cls) -> int:
         """Home Assistant request timeout."""
         return cls._get_feature("home_assistant").get("timeout", 5)
     
-    @classmethod
-    @property
+    @classproperty
     def HOME_ASSISTANT_REFRESH_SECONDS(cls) -> int:
         """Home Assistant refresh interval."""
         return cls._get_feature("home_assistant").get("refresh_seconds", 30)
     
     # ==================== Air Quality / Fog Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def AIR_FOG_ENABLED(cls) -> bool:
         """Whether air quality/fog monitoring is enabled."""
         return cls._get_feature("air_fog").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def PURPLEAIR_API_KEY(cls) -> str:
         """PurpleAir API key for air quality data."""
         return cls._get_feature("air_fog").get("purpleair_api_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def PURPLEAIR_SENSOR_ID(cls) -> Optional[str]:
         """Optional specific PurpleAir sensor ID."""
         return cls._get_feature("air_fog").get("purpleair_sensor_id")
     
-    @classmethod
-    @property
+    @classproperty
     def OPENWEATHERMAP_API_KEY(cls) -> str:
         """OpenWeatherMap API key for visibility/fog data."""
         return cls._get_feature("air_fog").get("openweathermap_api_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def AIR_FOG_LATITUDE(cls) -> float:
         """Latitude for air/fog monitoring."""
         return cls._get_feature("air_fog").get("latitude", 37.7749)
     
-    @classmethod
-    @property
+    @classproperty
     def AIR_FOG_LONGITUDE(cls) -> float:
         """Longitude for air/fog monitoring."""
         return cls._get_feature("air_fog").get("longitude", -122.4194)
     
-    @classmethod
-    @property
+    @classproperty
     def AIR_FOG_REFRESH_SECONDS(cls) -> int:
         """Air/fog data refresh interval in seconds."""
         return cls._get_feature("air_fog").get("refresh_seconds", 300)
     
     # ==================== Muni Transit Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def MUNI_ENABLED(cls) -> bool:
         """Whether Muni transit is enabled."""
         return cls._get_feature("muni").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def MUNI_API_KEY(cls) -> str:
         """511.org API key."""
         return cls._get_feature("muni").get("api_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def MUNI_STOP_CODE(cls) -> str:
         """Muni stop code to monitor (backward compatibility - returns first code)."""
         stop_codes = cls.MUNI_STOP_CODES
@@ -402,8 +365,7 @@ class Config:
         # Fallback to old config format
         return cls._get_feature("muni").get("stop_code", "")
     
-    @classmethod
-    @property
+    @classproperty
     def MUNI_STOP_CODES(cls) -> List[str]:
         """Muni stop codes to monitor (list)."""
         feature_config = cls._get_feature("muni")
@@ -423,8 +385,7 @@ class Config:
         
         return []
     
-    @classmethod
-    @property
+    @classproperty
     def MUNI_STOP_NAMES(cls) -> List[str]:
         """Muni stop names for display (list)."""
         feature_config = cls._get_feature("muni")
@@ -433,40 +394,34 @@ class Config:
             return stop_names
         return []
     
-    @classmethod
-    @property
+    @classproperty
     def MUNI_LINE_NAME(cls) -> str:
         """Optional line name filter (e.g., 'N' for N-Judah)."""
         return cls._get_feature("muni").get("line_name", "")
     
-    @classmethod
-    @property
+    @classproperty
     def MUNI_REFRESH_SECONDS(cls) -> int:
         """Muni data refresh interval in seconds."""
         return cls._get_feature("muni").get("refresh_seconds", 60)
     
-    @classmethod
-    @property
+    @classproperty
     def TRANSIT_CACHE_ENABLED(cls) -> bool:
         """Whether regional transit cache is enabled."""
         return cls._get_feature("muni").get("transit_cache_enabled", True)
     
-    @classmethod
-    @property
+    @classproperty
     def TRANSIT_CACHE_REFRESH_SECONDS(cls) -> int:
         """Regional transit cache refresh interval in seconds."""
         return cls._get_feature("muni").get("transit_cache_refresh_seconds", 90)
     
     # ==================== Bay Wheels Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def BAYWHEELS_ENABLED(cls) -> bool:
         """Whether Bay Wheels integration is enabled."""
         return cls._get_feature("baywheels").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def BAYWHEELS_STATION_ID(cls) -> str:
         """Bay Wheels station ID to monitor (backward compatibility - returns first ID)."""
         station_ids = cls.BAYWHEELS_STATION_IDS
@@ -475,8 +430,7 @@ class Config:
         # Fallback to old config format
         return cls._get_feature("baywheels").get("station_id", "")
     
-    @classmethod
-    @property
+    @classproperty
     def BAYWHEELS_STATION_IDS(cls) -> List[str]:
         """Bay Wheels station IDs to monitor (list)."""
         feature_config = cls._get_feature("baywheels")
@@ -500,52 +454,44 @@ class Config:
         
         return []
     
-    @classmethod
-    @property
+    @classproperty
     def BAYWHEELS_STATION_NAME(cls) -> str:
         """Display name for the Bay Wheels station (backward compatibility)."""
         return cls._get_feature("baywheels").get("station_name", "19TH")
     
-    @classmethod
-    @property
+    @classproperty
     def BAYWHEELS_REFRESH_SECONDS(cls) -> int:
         """Bay Wheels data refresh interval in seconds."""
         return cls._get_feature("baywheels").get("refresh_seconds", 60)
     
     # ==================== Traffic Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def TRAFFIC_ENABLED(cls) -> bool:
         """Whether traffic monitoring is enabled."""
         return cls._get_feature("traffic").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def GOOGLE_ROUTES_API_KEY(cls) -> str:
         """Google Routes API key."""
         return cls._get_feature("traffic").get("api_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def TRAFFIC_ORIGIN(cls) -> str:
         """Traffic route origin (address or lat,lng)."""
         return cls._get_feature("traffic").get("origin", "")
     
-    @classmethod
-    @property
+    @classproperty
     def TRAFFIC_DESTINATION(cls) -> str:
         """Traffic route destination (address or lat,lng)."""
         return cls._get_feature("traffic").get("destination", "")
     
-    @classmethod
-    @property
+    @classproperty
     def TRAFFIC_DESTINATION_NAME(cls) -> str:
         """Display name for traffic destination."""
         return cls._get_feature("traffic").get("destination_name", "DOWNTOWN")
     
-    @classmethod
-    @property
+    @classproperty
     def TRAFFIC_ROUTES(cls) -> List[Dict[str, str]]:
         """Traffic routes to monitor (list of dicts with origin, destination, destination_name)."""
         feature_config = cls._get_feature("traffic")
@@ -572,28 +518,24 @@ class Config:
         
         return []
     
-    @classmethod
-    @property
+    @classproperty
     def TRAFFIC_REFRESH_SECONDS(cls) -> int:
         """Traffic data refresh interval in seconds."""
         return cls._get_feature("traffic").get("refresh_seconds", 300)
     
     # ==================== Silence Schedule Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def SILENCE_SCHEDULE_ENABLED(cls) -> bool:
         """Whether silence schedule is enabled."""
         return cls._get_feature("silence_schedule").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def SILENCE_SCHEDULE_START_TIME(cls) -> str:
         """Silence schedule start time (HH:MM format)."""
         return cls._get_feature("silence_schedule").get("start_time", "20:00")
     
-    @classmethod
-    @property
+    @classproperty
     def SILENCE_SCHEDULE_END_TIME(cls) -> str:
         """Silence schedule end time (HH:MM format)."""
         return cls._get_feature("silence_schedule").get("end_time", "07:00")
@@ -633,20 +575,17 @@ class Config:
     
     # ==================== Stocks Configuration ====================
     
-    @classmethod
-    @property
+    @classproperty
     def STOCKS_ENABLED(cls) -> bool:
         """Whether stocks monitoring is enabled."""
         return cls._get_feature("stocks").get("enabled", False)
     
-    @classmethod
-    @property
+    @classproperty
     def FINNHUB_API_KEY(cls) -> str:
         """Finnhub API key for stock symbol search (optional)."""
         return cls._get_feature("stocks").get("finnhub_api_key", "")
     
-    @classmethod
-    @property
+    @classproperty
     def STOCKS_SYMBOLS(cls) -> List[str]:
         """List of stock symbols to monitor (max 5)."""
         feature_config = cls._get_feature("stocks")
@@ -658,14 +597,12 @@ class Config:
             return [symbols] if symbols else []
         return []
     
-    @classmethod
-    @property
+    @classproperty
     def STOCKS_TIME_WINDOW(cls) -> str:
         """Time window for price comparison (human-readable format)."""
         return cls._get_feature("stocks").get("time_window", "1 Day")
     
-    @classmethod
-    @property
+    @classproperty
     def STOCKS_REFRESH_SECONDS(cls) -> int:
         """Stocks data refresh interval in seconds."""
         return cls._get_feature("stocks").get("refresh_seconds", 300)

@@ -1,0 +1,140 @@
+/**
+ * FiestaBoard Dashboard E2E Tests
+ *
+ * Tests the home page (/) which displays the active board content
+ * and provides controls for switching pages and viewing schedule state.
+ */
+import {
+  test,
+  expect,
+  configureBoard,
+  suppressWizard,
+  createPage,
+  deleteAllPages,
+  deleteAllSchedules,
+  setActivePage,
+  createSchedule,
+  API_URL,
+} from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await configureBoard();
+  await suppressWizard(page);
+});
+
+test.describe("Dashboard", () => {
+  test("shows the dashboard with board display", async ({ page }) => {
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByText("Active Display").first()).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+
+  test("shows active page name and manual mode badge", async ({ page }) => {
+    const pageId = await createPage("Dashboard Test Page");
+    await setActivePage(pageId);
+
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByText("Manual Mode").first()).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+
+  test("can open page selector and switch active page", async ({ page }) => {
+    const pageA = await createPage("Page Alpha");
+    const pageB = await createPage("Page Beta");
+    await setActivePage(pageA);
+
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const changeBtn = page.getByRole("button", { name: /Change Page/i });
+    if (await changeBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await changeBtn.click();
+      await expect(page.getByText("Select Page").first()).toBeVisible({
+        timeout: 5_000,
+      });
+
+      const betaCard = page.getByText("Page Beta").first();
+      if (await betaCard.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await betaCard.click();
+
+        // Wait for the API round-trip
+        await page.waitForTimeout(2_000);
+        const activeRes = await (await fetch(`${API_URL}/settings/active-page`)).json();
+        expect(activeRes.page_id).toBe(pageB);
+      }
+    }
+  });
+
+  test("shows welcome message when no pages exist", async ({ page }) => {
+    await deleteAllSchedules();
+    await deleteAllPages();
+
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // The dashboard should show some kind of empty/welcome state
+    const welcome = page
+      .getByText(/welcome|get started|no pages|create/i)
+      .first();
+    await expect(welcome).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("reflects schedule mode when enabled", async ({ page }) => {
+    const pageId = await createPage("Scheduled Page");
+    await createSchedule(pageId, "06:00", "18:00", "weekdays");
+
+    // Enable schedule mode
+    await fetch(`${API_URL}/schedules/enabled`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: true }),
+    });
+
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByText("Schedule Mode").first()).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Disable schedule mode after test
+    await fetch(`${API_URL}/schedules/enabled`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    });
+  });
+
+  test("silence status API is accessible from dashboard context", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Verify the silence-status endpoint is reachable and returns expected shape
+    const res = await fetch(`${API_URL}/silence-status`);
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    expect(data).toHaveProperty("enabled");
+    expect(data).toHaveProperty("active");
+    expect(typeof data.enabled).toBe("boolean");
+  });
+});

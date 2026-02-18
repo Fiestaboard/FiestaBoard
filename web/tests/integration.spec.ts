@@ -14,7 +14,7 @@
  * NOTE: Tests run sequentially. The wizard test runs first and configures
  * the board so subsequent tests have a working backend.
  */
-import { test, expect, getMockBoardState } from "./helpers";
+import { test, expect, getMockBoardState, clearBoardConfig, API_URL, BOARD_HOST } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // 1. Mock Board API & Backend Health
@@ -29,7 +29,7 @@ test.describe("Infrastructure", () => {
   });
 
   test("API health check responds OK", async () => {
-    const res = await fetch("http://localhost:8000/health");
+    const res = await fetch(`${API_URL}/health`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data.status).toBe("ok");
@@ -42,6 +42,9 @@ test.describe("Infrastructure", () => {
 
 test.describe("Setup Wizard", () => {
   test("completes the wizard using Local API mode", async ({ page }) => {
+    // Clear any board config so the backend reports first-run mode
+    await clearBoardConfig();
+
     // Ensure no lingering wizard completion state
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
@@ -65,7 +68,7 @@ test.describe("Setup Wizard", () => {
     await page.getByText("Local API").click();
 
     // Fill in board host and API key
-    await page.getByLabel("Board IP Address").fill("localhost");
+    await page.getByLabel("Board IP Address").fill(BOARD_HOST);
     await page.getByLabel("Local API Key").fill("test-key");
 
     // Click "Test Connection" and wait for success
@@ -181,11 +184,9 @@ test.describe("Page Management", () => {
     );
     await saveButton.first().click();
 
-    // After save, the app navigates back to /pages or shows a toast
+    // After save, the app shows a toast and/or navigates to /pages
     await expect(
-      page.getByText("Page created").first().or(
-        page.getByRole("heading", { name: "Pages", exact: true })
-      )
+      page.getByRole("heading", { name: "Pages", exact: true })
     ).toBeVisible({ timeout: 15_000 });
   });
 });
