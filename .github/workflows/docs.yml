@@ -1,5 +1,5 @@
 # Build docs in this repo (Fiestaboard/FiestaBoard) and deploy them to
-# the Fiestaboard/fiestaboard.github.io repo via force-push.
+# the Fiestaboard/fiestaboard.github.io repo as incremental commits.
 # That repo auto-publishes to https://fiestaboard.github.io since it is
 # the organization's GitHub Pages repo.
 name: Deploy Docs
@@ -42,16 +42,26 @@ jobs:
         working-directory: docs-site
         run: npm run build
 
-      # Force-push the built static site to fiestaboard.github.io.
+      # Push the built static site to fiestaboard.github.io as an incremental commit.
       # That repo serves from main automatically — no Pages config needed here.
       - name: Deploy to fiestaboard.github.io
         run: |
-          cd docs-site/build
-          git init -b main
+          REPO_URL="https://x-access-token:${DEPLOY_TOKEN}@github.com/Fiestaboard/fiestaboard.github.io.git"
+          git clone --depth 1 "$REPO_URL" deploy-target
+          cd deploy-target
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Remove old site files but keep .git
+          git rm -rf --ignore-unmatch .
+          # Copy in the new build (including hidden files like .nojekyll)
+          cp -r ../docs-site/build/. .
           git add .
-          git commit -m "docs: deploy from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
-          git push --force "https://x-access-token:${DEPLOY_TOKEN}@github.com/Fiestaboard/fiestaboard.github.io.git" main
+          # Only push if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."
+          else
+            git commit -m "docs: deploy from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
+            git push origin main
+          fi
         env:
           DEPLOY_TOKEN: ${{ secrets.RELEASE_PAT }}
