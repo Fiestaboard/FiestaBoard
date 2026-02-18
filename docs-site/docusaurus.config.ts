@@ -95,6 +95,10 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
+        gtag: {
+          trackingID: 'G-5D2S6D6PNC',
+          anonymizeIP: true,
+        },
         sitemap: {
           lastmod: 'date',
           changefreq: 'weekly',
