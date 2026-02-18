@@ -78,7 +78,7 @@ class DadJokesPlugin(PluginBase):
         joke = result.data["joke"]
 
         # Word wrap joke to fit 22-char lines
-        lines = [""]
+        lines = []
         words = joke.split()
         current_line = ""
 
@@ -86,13 +86,13 @@ class DadJokesPlugin(PluginBase):
             if len(current_line) + len(word) + 1 <= 22:
                 current_line = f"{current_line} {word}".strip()
             else:
-                if len(lines) < 5:
+                if len(lines) < 6:
                     lines.append(current_line)
                     current_line = word
                 else:
                     break
 
-        if current_line and len(lines) < 5:
+        if current_line and len(lines) < 6:
             lines.append(current_line)
 
         # Pad to 6 lines

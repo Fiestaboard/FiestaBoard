@@ -150,7 +150,7 @@ class TestDadJokesPlugin:
 
     @patch("plugins.dad_jokes.requests.get")
     def test_get_formatted_display(self, mock_get, plugin):
-        """Test formatted display returns lines."""
+        """Test formatted display returns lines with proper content."""
         mock_response = Mock()
         mock_response.json.return_value = {
             "id": "abc123",
@@ -165,6 +165,12 @@ class TestDadJokesPlugin:
         assert lines is not None
         assert len(lines) == 6
         assert all(isinstance(line, str) for line in lines)
+        # The joke text should appear in the non-empty lines
+        content = " ".join(line for line in lines if line)
+        assert "scientists" in content
+        # Each line should fit within 22 characters
+        for line in lines:
+            assert len(line) <= 22
 
     @patch("plugins.dad_jokes.requests.get")
     def test_get_formatted_display_returns_none_on_error(self, mock_get, plugin):
