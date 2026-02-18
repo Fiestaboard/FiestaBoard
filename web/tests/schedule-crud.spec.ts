@@ -7,9 +7,9 @@
  *
  * NOTE: Tests run sequentially. The wizard must have completed.
  */
-import { test, expect, configureBoard } from "./helpers";
+import { test, expect, configureBoard, API_URL } from "./helpers";
 
-const API = "http://localhost:8000";
+const API = API_URL;
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {

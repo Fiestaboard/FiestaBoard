@@ -112,19 +112,52 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 
 ## Running the Tests
 
+### Local development (Docker + host Playwright)
+
+This is the recommended local workflow. Docker provides all backend services;
+Playwright runs on the host and connects to them.
+
+**One-time setup** (install Playwright's Chromium browser):
+
 ```bash
-# Run all E2E tests (starts all 3 servers automatically)
-cd web && npm run test:integration
-
-# Run a specific test file
-cd web && npx playwright test tests/api.spec.ts
-
-# Run with headed browser for debugging
-cd web && npx playwright test --headed
-
-# Run with UI mode
-cd web && npx playwright test --ui
+cd web && npx playwright install chromium
 ```
+
+**Every run:**
+
+```bash
+# 1. Start Docker services (includes mock board on port 7000)
+docker-compose -f docker-compose.dev.yml up -d
+
+# 2. Run tests from the web/ directory
+#    MOCK_BOARD_HOST tells the API container where to find the mock board
+cd web && MOCK_BOARD_HOST=fiestaboard-mock-board npm run test:integration
+```
+
+`MOCK_BOARD_HOST` is the hostname the API container uses to reach the mock
+board. In Docker, containers talk to each other by service name
+(`fiestaboard-mock-board`). In CI, everything runs on `localhost` (the default).
+
+Playwright's `reuseExistingServer: true` means it will use the already-running
+Docker services on ports 3000 (UI), 8000 (API), and 7000 (mock board) without
+trying to start new processes.
+
+**Run a specific test file:**
+
+```bash
+cd web && npx playwright test tests/api.spec.ts
+```
+
+**Run with headed browser for debugging:**
+
+```bash
+cd web && npx playwright test --headed
+```
+
+### CI (merge queue)
+
+Tests run automatically via `.github/workflows/integration-tests.yml` when a PR
+enters the merge queue. No action needed.
 
 ## Architecture
 

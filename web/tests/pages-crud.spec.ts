@@ -8,7 +8,7 @@
  * NOTE: Tests run sequentially. The wizard must have completed and
  * pages must be accessible.
  */
-import { test, expect, configureBoard } from "./helpers";
+import { test, expect, configureBoard, API_URL } from "./helpers";
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
@@ -27,7 +27,7 @@ test.describe("Pages CRUD", () => {
     const pageName = `E2E Page ${Date.now()}`;
 
     // Create a page via API so we can verify it shows in the UI
-    const createRes = await fetch("http://localhost:8000/pages", {
+    const createRes = await fetch(`${API_URL}/pages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -54,7 +54,7 @@ test.describe("Pages CRUD", () => {
     const pageName = `Delete Me ${Date.now()}`;
 
     // Create a page via API
-    const createRes = await fetch("http://localhost:8000/pages", {
+    const createRes = await fetch(`${API_URL}/pages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -80,7 +80,7 @@ test.describe("Pages CRUD", () => {
 
     // Delete via API (UI delete usually requires confirmation dialog
     // interaction which varies; API delete is deterministic)
-    const deleteRes = await fetch(`http://localhost:8000/pages/${pageId}`, {
+    const deleteRes = await fetch(`${API_URL}/pages/${pageId}`, {
       method: "DELETE",
     });
     expect(deleteRes.ok).toBe(true);

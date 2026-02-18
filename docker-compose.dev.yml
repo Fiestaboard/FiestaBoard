@@ -8,7 +8,7 @@ services:
     env_file:
       - .env
     ports:
-      - "6969:8000"
+      - "8000:8000"
     environment:
       - PRODUCTION=false
       # Don't set FIESTA_API_URL - let frontend determine dynamically based on request hostname
@@ -43,11 +43,26 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:6969
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
       - WATCHPACK_POLLING=true  # Enable polling for file changes in Docker
     command: sh /start-dev-ui.sh
     depends_on:
       - fiestaboard-api
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Mock Vestaboard API - for integration/E2E testing only
+  fiestaboard-mock-board:
+    image: python:3.11-alpine
+    container_name: fiestaboard-mock-board
+    volumes:
+      - ./integration-tests/mock-board/server.py:/server.py:ro
+    ports:
+      - "7000:7000"
+    command: python /server.py
     logging:
       driver: "json-file"
       options:

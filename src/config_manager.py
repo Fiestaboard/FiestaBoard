@@ -319,11 +319,30 @@ class ConfigManager:
             logger.error(f"Failed to save config: {e}")
             raise
 
+    @staticmethod
+    def _is_placeholder(value: str) -> bool:
+        """Return True if a string looks like an unedited .env placeholder.
+
+        Recognises patterns such as ``your_api_key_here``, ``changeme``,
+        ``replace_me``, ``example_key``, etc.  These ship in the default
+        ``.env`` / ``env.example`` and should never be treated as real
+        configuration.
+        """
+        v = value.lower().strip()
+        if v.startswith("your_") or v.startswith("your-"):
+            return True
+        if v.endswith("_here") or v.endswith("-here"):
+            return True
+        if v in ("changeme", "replace_me", "replace-me", "example", "placeholder"):
+            return True
+        return False
+
     def _apply_env_overrides(self) -> None:
         """Apply environment variable overrides to config.
         
         Only sets values if they're empty in config (allows env vars to provide defaults).
         Environment variables take precedence for initial setup but UI changes are preserved.
+        Placeholder values from .env (e.g. ``your_api_key_here``) are ignored.
         """
         changed = False
         
@@ -346,6 +365,9 @@ class ConfigManager:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
                 value = os.getenv(alt_env_var, "").strip()
+            if value and ConfigManager._is_placeholder(value):
+                logger.debug(f"Ignoring placeholder value for {env_var}")
+                return False
             if value and not config.get(key):
                 config[key] = value
                 logger.info(f"Applied {env_var} from environment variable")
