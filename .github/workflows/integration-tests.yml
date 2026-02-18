@@ -15,9 +15,13 @@ concurrency:
 
 jobs:
   integration-tests:
-    name: Integration Tests
+    name: Integration Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
 
     steps:
       - name: Checkout code
@@ -50,6 +54,12 @@ jobs:
           rm -rf node_modules package-lock.json
           npm install
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+
       - name: Install Playwright browsers
         working-directory: web
         run: npx playwright install chromium --with-deps
@@ -62,18 +72,32 @@ jobs:
           rm -f data/config.json data/settings.json data/pages.json data/schedules.json
 
       # --- Run tests ---
-      - name: Run integration tests
+      - name: Run integration tests (shard ${{ matrix.shard }}/3)
         working-directory: web
-        run: npx playwright test --reporter=github
+        run: npx playwright test --shard=${{ matrix.shard }}/3 --reporter=github
         env:
           CI: true
           FIESTA_API_URL: http://localhost:8000
 
       # --- Upload artefacts on failure ---
-      - name: Upload Playwright report
+      - name: Upload test results
         uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
-          path: web/playwright-report/
+          name: playwright-results-shard-${{ matrix.shard }}
+          path: web/test-results/
           retention-days: 14
+
+  integration-report:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: always()
+    steps:
+      - name: Check shard results
+        run: |
+          if [ "${{ needs.integration-tests.result }}" != "success" ]; then
+            echo "Integration test shards failed or were cancelled"
+            exit 1
+          fi
+          echo "All integration test shards passed"
