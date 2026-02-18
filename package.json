@@ -1,6 +1,6 @@
 {
   "name": "fiestaboard",
-  "version": "1.32.38",
+  "version": "1.32.39",
   "private": true,
   "scripts": {
     "dev": "npm-run-all --parallel dev:api dev:web",
