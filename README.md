@@ -4,6 +4,8 @@
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
+**📖 [Documentation](https://fiestaboard.github.io)**
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -264,6 +266,8 @@ docker-compose logs -f
 - Check API rate limits haven't been exceeded
 
 ## Documentation
+
+**📖 Full documentation is available at [fiestaboard.github.io](https://fiestaboard.github.io)**
 
 ### Setup
 - **[Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md)**: Step-by-step setup for non-technical users
