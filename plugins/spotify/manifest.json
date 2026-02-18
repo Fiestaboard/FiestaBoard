@@ -1,0 +1,88 @@
+{
+  "id": "spotify",
+  "name": "Spotify Now Playing",
+  "version": "1.0.0",
+  "description": "Display what's currently playing on Spotify directly via the Spotify Web API.",
+  "author": "FiestaBoard",
+  "icon": "music",
+  "category": "entertainment",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "client_id": {
+        "type": "string",
+        "title": "Client ID",
+        "description": "Your Spotify application Client ID (from developer.spotify.com/dashboard)"
+      },
+      "client_secret": {
+        "type": "string",
+        "title": "Client Secret",
+        "description": "Your Spotify application Client Secret",
+        "ui:widget": "password"
+      },
+      "refresh_token": {
+        "type": "string",
+        "title": "Refresh Token",
+        "description": "OAuth refresh token obtained during setup (see Setup Guide)",
+        "ui:widget": "password"
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "How often to check for now playing updates. Lower values = more real-time but more API calls.",
+        "default": 30,
+        "minimum": 10
+      },
+      "show_album": {
+        "type": "boolean",
+        "title": "Show Album Name",
+        "description": "Include album name in the formatted output",
+        "default": false
+      },
+      "enabled": {
+        "type": "boolean",
+        "title": "Enabled",
+        "default": false
+      }
+    },
+    "required": ["client_id", "client_secret", "refresh_token"]
+  },
+  "env_vars": [
+    {
+      "name": "SPOTIFY_CLIENT_ID",
+      "required": false,
+      "description": "Spotify application Client ID (can also be set in UI)"
+    },
+    {
+      "name": "SPOTIFY_CLIENT_SECRET",
+      "required": false,
+      "description": "Spotify application Client Secret (can also be set in UI)"
+    },
+    {
+      "name": "SPOTIFY_REFRESH_TOKEN",
+      "required": false,
+      "description": "Spotify OAuth refresh token (can also be set in UI)"
+    }
+  ],
+  "variables": {
+    "simple": [
+      "title",
+      "artist",
+      "album",
+      "is_playing",
+      "artwork_url",
+      "track_url",
+      "formatted",
+      "status"
+    ]
+  },
+  "max_lengths": {
+    "title": 22,
+    "artist": 22,
+    "album": 22,
+    "formatted": 22,
+    "status": 22
+  }
+}
