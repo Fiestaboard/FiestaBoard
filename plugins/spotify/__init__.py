@@ -259,8 +259,12 @@ class SpotifyPlugin(PluginBase):
             images = album_info.get("images", [])
             artwork_url = ""
             if images:
-                # Images are sorted by size (largest first)
-                artwork_url = images[0].get("url", "")
+                # Pick the largest image by height, falling back to first
+                largest = max(
+                    images,
+                    key=lambda img: img.get("height", 0) if isinstance(img, dict) else 0,
+                )
+                artwork_url = largest.get("url", "") if isinstance(largest, dict) else ""
 
             # Track URL
             external_urls = item.get("external_urls", {})

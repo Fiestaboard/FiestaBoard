@@ -53,12 +53,9 @@ You need to perform a one-time OAuth authorization to get a refresh token. The r
 
 ### Option B: Using a Helper Tool
 
-Several online tools can help you generate a Spotify refresh token:
+There are third-party tools online that can help generate a Spotify refresh token. However, **we strongly recommend Option A above** (the manual process) as it keeps your credentials entirely under your control.
 
-- [Spotify Token Generator](https://getyourspotifyrefreshtoken.netlify.app/)
-- Use the `user-read-currently-playing` scope when authorizing
-
-**Important**: Only use tools you trust, as they will have access to your Spotify authorization code.
+> **⚠️ Security Warning**: Third-party token generators require your Spotify authorization code and may have access to your account. Only use tools you fully trust and understand. FiestaBoard does not endorse any third-party tool.
 
 ## Step 3: Configure FiestaBoard
 
