@@ -275,18 +275,18 @@ jobs:
         working-directory: web
         run: npx playwright install chromium
 
-      - name: Upload node_modules
-        uses: actions/upload-artifact@v6
-        with:
-          name: e2e-node-modules
-          path: web/node_modules
-          retention-days: 1
+      - name: Archive dependencies
+        run: |
+          tar -czf /tmp/e2e-node-modules.tar.gz -C web node_modules
+          tar -czf /tmp/e2e-playwright.tar.gz -C ~/.cache ms-playwright
 
-      - name: Upload Playwright browsers
+      - name: Upload dependencies
         uses: actions/upload-artifact@v6
         with:
-          name: e2e-playwright
-          path: ~/.cache/ms-playwright
+          name: e2e-deps
+          path: |
+            /tmp/e2e-node-modules.tar.gz
+            /tmp/e2e-playwright.tar.gz
           retention-days: 1
 
   e2e-tests:
@@ -319,17 +319,16 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Download node_modules
+      - name: Download dependencies
         uses: actions/download-artifact@v4
         with:
-          name: e2e-node-modules
-          path: web/node_modules
+          name: e2e-deps
+          path: /tmp/e2e-deps
 
-      - name: Download Playwright browsers
-        uses: actions/download-artifact@v4
-        with:
-          name: e2e-playwright
-          path: ~/.cache/ms-playwright
+      - name: Extract dependencies
+        run: |
+          tar -xzf /tmp/e2e-deps/e2e-node-modules.tar.gz -C web
+          tar -xzf /tmp/e2e-deps/e2e-playwright.tar.gz -C ~/.cache
 
       - name: Install Playwright system dependencies
         working-directory: web

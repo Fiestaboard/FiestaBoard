@@ -50,18 +50,18 @@ jobs:
         working-directory: web
         run: npx playwright install chromium
 
-      - name: Upload node_modules
-        uses: actions/upload-artifact@v6
-        with:
-          name: integration-node-modules
-          path: web/node_modules
-          retention-days: 1
+      - name: Archive dependencies
+        run: |
+          tar -czf /tmp/integration-node-modules.tar.gz -C web node_modules
+          tar -czf /tmp/integration-playwright.tar.gz -C ~/.cache ms-playwright
 
-      - name: Upload Playwright browsers
+      - name: Upload dependencies
         uses: actions/upload-artifact@v6
         with:
-          name: integration-playwright
-          path: ~/.cache/ms-playwright
+          name: integration-deps
+          path: |
+            /tmp/integration-node-modules.tar.gz
+            /tmp/integration-playwright.tar.gz
           retention-days: 1
 
   integration-tests:
@@ -94,17 +94,16 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Download node_modules
+      - name: Download dependencies
         uses: actions/download-artifact@v4
         with:
-          name: integration-node-modules
-          path: web/node_modules
+          name: integration-deps
+          path: /tmp/integration-deps
 
-      - name: Download Playwright browsers
-        uses: actions/download-artifact@v4
-        with:
-          name: integration-playwright
-          path: ~/.cache/ms-playwright
+      - name: Extract dependencies
+        run: |
+          tar -xzf /tmp/integration-deps/integration-node-modules.tar.gz -C web
+          tar -xzf /tmp/integration-deps/integration-playwright.tar.gz -C ~/.cache
 
       - name: Install Playwright system dependencies
         working-directory: web
