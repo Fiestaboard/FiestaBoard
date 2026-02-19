@@ -2,10 +2,10 @@
 # Install with: pip install -r requirements-dev.txt
 
 # Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-coverage>=7.0.0
+pytest>=9.0.0
+pytest-cov>=7.0.0
+coverage>=7.13.0
 
 # Linting
-pylint>=3.0.0
+pylint>=4.0.0
 
