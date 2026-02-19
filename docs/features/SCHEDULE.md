@@ -251,4 +251,3 @@ Potential improvements for future versions:
 
 - [Plugin Development](../development/PLUGIN_DEVELOPMENT.md) - Create data sources for pages
 - [Local Development](../setup/LOCAL_DEVELOPMENT.md) - Set up development environment
-- [API Research](../reference/API_RESEARCH.md) - Technical API details
