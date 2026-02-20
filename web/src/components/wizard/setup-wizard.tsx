@@ -36,7 +36,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     cloud_key: string;
     host: string;
     connectionVerified: boolean;
-    devices: string[];
+    device_type: "flagship" | "note";
     board_color: "black" | "white";
   }>({
     api_mode: "cloud",
@@ -44,7 +44,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     cloud_key: "",
     host: "",
     connectionVerified: false,
-    devices: ["flagship"],
+    device_type: "flagship",
     board_color: "black",
   });
 
@@ -71,6 +71,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           local_api_key: saved.boardConfig!.local_api_key || "",
           cloud_key: saved.boardConfig!.cloud_key || "",
           host: saved.boardConfig!.host || "",
+          device_type: saved.boardConfig!.device_type || "flagship",
+          board_color: saved.boardConfig!.board_color || "black",
         }));
       }
       if (saved.plugins) {
@@ -91,6 +93,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         local_api_key: boardConfig.local_api_key,
         cloud_key: boardConfig.cloud_key,
         host: boardConfig.host,
+        device_type: boardConfig.device_type,
+        board_color: boardConfig.board_color,
       },
       plugins: pluginConfig,
     };

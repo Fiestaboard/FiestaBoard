@@ -244,8 +244,8 @@ test.describe("Note pages – Send to Board", () => {
       "",
     ]);
 
-    // Send the page to the board
-    const sendRes = await fetch(`${API_URL}/pages/${id}/send`, {
+    // Send the page to the board (force target=board to bypass output target settings)
+    const sendRes = await fetch(`${API_URL}/pages/${id}/send?target=board`, {
       method: "POST",
     });
     expect(sendRes.ok).toBe(true);
@@ -277,7 +277,7 @@ test.describe("Note pages – Send to Board", () => {
       "",
     ]);
 
-    const sendRes = await fetch(`${API_URL}/pages/${id}/send`, {
+    const sendRes = await fetch(`${API_URL}/pages/${id}/send?target=board`, {
       method: "POST",
     });
     expect(sendRes.ok).toBe(true);
@@ -293,5 +293,98 @@ test.describe("Note pages – Send to Board", () => {
     for (const row of lastMessage.characters) {
       expect(row).toHaveLength(22);
     }
+  });
+
+  test("Note page character encoding fidelity: specific text produces expected codes", async () => {
+    await fetch(`${MOCK_BOARD_URL}/mock/reset`, { method: "POST" });
+
+    // "HI" on row 1 should encode to H=8, I=9, then blanks
+    const id = await createNotePage(`Encoding ${Date.now()}`, ["HI", "", ""]);
+
+    const sendRes = await fetch(`${API_URL}/pages/${id}/send?target=board`, {
+      method: "POST",
+    });
+    expect(sendRes.ok).toBe(true);
+    const sendData = await sendRes.json();
+    expect(sendData.sent_to_board).toBe(true);
+
+    const state = await getMockBoardState();
+    const last = state.history[state.history.length - 1];
+    expect(last.dimensions).toEqual([3, 15]);
+
+    // H=8, I=9, rest are blank (0)
+    expect(last.characters[0][0]).toBe(8);
+    expect(last.characters[0][1]).toBe(9);
+    for (let c = 2; c < 15; c++) {
+      expect(last.characters[0][c]).toBe(0);
+    }
+    // Rows 2+3 are blank
+    for (const row of [last.characters[1], last.characters[2]]) {
+      for (const code of row) {
+        expect(code).toBe(0);
+      }
+    }
+  });
+
+  test("special characters encode correctly on board send", async () => {
+    await fetch(`${MOCK_BOARD_URL}/mock/reset`, { method: "POST" });
+
+    // "A!@+" exercises letter + punctuation codes
+    const id = await createNotePage(`Specials ${Date.now()}`, ["A!@+", "", ""]);
+
+    const sendRes = await fetch(`${API_URL}/pages/${id}/send?target=board`, {
+      method: "POST",
+    });
+    expect(sendRes.ok).toBe(true);
+    expect((await sendRes.json()).sent_to_board).toBe(true);
+
+    const state = await getMockBoardState();
+    const row0 = state.history[state.history.length - 1].characters[0];
+    expect(row0[0]).toBe(1);   // A
+    expect(row0[1]).toBe(37);  // !
+    expect(row0[2]).toBe(38);  // @
+    expect(row0[3]).toBe(46);  // +
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Heart character and code 62
+// ---------------------------------------------------------------------------
+
+test.describe("Note pages – Heart / Degree character", () => {
+  test("code 62 is delivered to the board for degree symbol on Note page", async () => {
+    await fetch(`${MOCK_BOARD_URL}/mock/reset`, { method: "POST" });
+
+    // The backend text_to_board_array maps '°' to code 62
+    const id = await createNotePage(`Heart ${Date.now()}`, ["A°B", "", ""]);
+
+    const sendRes = await fetch(`${API_URL}/pages/${id}/send?target=board`, {
+      method: "POST",
+    });
+    expect(sendRes.ok).toBe(true);
+    expect((await sendRes.json()).sent_to_board).toBe(true);
+
+    const state = await getMockBoardState();
+    const row0 = state.history[state.history.length - 1].characters[0];
+    expect(row0[0]).toBe(1);   // A
+    expect(row0[1]).toBe(62);  // ° -> code 62 (heart on Note)
+    expect(row0[2]).toBe(2);   // B
+  });
+
+  test("UI preview renders code 62 as heart on Note device", async ({ page }) => {
+    // Create a Note page with degree symbol via API (ensures ° is in the template)
+    const id = await createNotePage(`HeartUI ${Date.now()}`, ["A°B", "", ""]);
+
+    // Navigate to the edit page where the builder shows the live preview
+    await page.goto(`/pages/edit/${id}`);
+
+    // Wait for the preview char tiles to appear
+    const firstTile = page.locator('[data-testid="char-tile-0-0"]');
+    await expect(firstTile).toBeVisible({ timeout: 15_000 });
+
+    // Tile at (0,0) = A, tile at (0,1) = heart on Note, tile at (0,2) = B
+    await expect(firstTile).toHaveAttribute("data-target-char", "A");
+    const heartTile = page.locator('[data-testid="char-tile-0-1"]');
+    await expect(heartTile).toHaveAttribute("data-target-char", "❤");
   });
 });

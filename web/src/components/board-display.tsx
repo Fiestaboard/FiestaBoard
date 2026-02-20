@@ -13,19 +13,45 @@ const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
   note: { rows: 3, cols: 15 },
 };
 
-// All displayable board characters (codes 0-71)
+// All displayable board characters indexed by character code (0-71).
+// Undefined codes (43, 45, 51, 57, 58, 61) use ' ' as placeholder so
+// array indices stay aligned with Vestaboard character codes.
 const BOARD_CHARS = [
-  ' ',  // 0 - Space
+  ' ',  // 0  - Blank
   // A-Z (1-26)
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
   'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
   // Numbers 1-9 (27-35), 0 (36)
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-  // Special characters (37-62)
-  '!', '@', '#', '$', '(', ')', '-', '&', '=', ';', ':',
-  "'", '"', '%', ',', '.', '/', '?', '°',
-  // Color tiles (63-71) - represented as color codes
-  '63', '64', '65', '66', '67', '68', '69', '70', '71'
+  // Special characters (37-62), with placeholders for undefined codes
+  '!',  // 37
+  '@',  // 38
+  '#',  // 39
+  '$',  // 40
+  '(',  // 41
+  ')',  // 42
+  ' ',  // 43 - undefined
+  '-',  // 44
+  ' ',  // 45 - undefined
+  '+',  // 46
+  '&',  // 47
+  '=',  // 48
+  ';',  // 49
+  ':',  // 50
+  ' ',  // 51 - undefined
+  "'",  // 52
+  '"',  // 53
+  '%',  // 54
+  ',',  // 55
+  '.',  // 56
+  ' ',  // 57 - undefined
+  ' ',  // 58 - undefined
+  '/',  // 59
+  '?',  // 60
+  ' ',  // 61 - undefined
+  '°',  // 62 - Degree on Flagship, Heart on Note
+  // Color tiles (63-71)
+  '63', '64', '65', '66', '67', '68', '69', '70', '71',
 ];
 
 // Extended characters that are not in BOARD_CHARS but can appear from device substitutions

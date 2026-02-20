@@ -35,8 +35,8 @@ test.describe("Settings Page", () => {
       timeout: 10_000,
     });
 
-    // Board Connection section
-    await expect(page.getByText("Board Connection").first()).toBeVisible();
+    // Boards section
+    await expect(page.getByText("Boards").first()).toBeVisible();
 
     // Debug Tools section
     await expect(page.getByText("Debug Tools").first()).toBeVisible();

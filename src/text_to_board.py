@@ -153,6 +153,7 @@ def format_board_array_preview(board: List[List[int]]) -> str:
         41: '(',   # Left paren
         42: ')',   # Right paren
         44: '-',   # Dash/hyphen
+        46: '+',   # Plus
         47: '&',   # Ampersand
         48: '=',   # Equals
         49: ';',   # Semicolon

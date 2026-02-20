@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { 
@@ -18,8 +17,6 @@ import {
   EyeOff,
   Key,
   KeyRound,
-  Monitor,
-  Smartphone
 } from "lucide-react";
 
 interface BoardConfig {
@@ -28,7 +25,7 @@ interface BoardConfig {
   cloud_key: string;
   host: string;
   connectionVerified: boolean;
-  devices: string[];
+  device_type: "flagship" | "note";
   board_color: "black" | "white";
 }
 
@@ -49,6 +46,9 @@ export function StepBoardSetup({
   isLoading,
   setIsLoading,
 }: StepBoardSetupProps) {
+  const configRef = useRef(config);
+  configRef.current = config;
+
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
@@ -121,36 +121,53 @@ export function StepBoardSetup({
     setIsLoading(true);
     setTestMessage("");
 
+    // Read the latest config from the ref to avoid stale closures
+    const cfg = configRef.current;
+
     try {
       const result = await api.testBoardConnection({
-        api_mode: config.api_mode,
-        local_api_key: config.api_mode === "local" ? config.local_api_key : undefined,
-        cloud_key: config.api_mode === "cloud" ? config.cloud_key : undefined,
-        host: config.api_mode === "local" ? config.host : undefined,
+        api_mode: cfg.api_mode,
+        local_api_key: cfg.api_mode === "local" ? cfg.local_api_key : undefined,
+        cloud_key: cfg.api_mode === "cloud" ? cfg.cloud_key : undefined,
+        host: cfg.api_mode === "local" ? cfg.host : undefined,
       });
 
       if (result.success) {
         setTestStatus("success");
         setTestMessage(result.message);
         
-        // Save the config to the server
+        // Save per-board instance first (primary source of truth for settings page)
+        await api.updateBoardSettings({
+          boards: [{
+            name: "My Board",
+            device_type: cfg.device_type,
+            board_color: cfg.board_color,
+            api_mode: cfg.api_mode,
+            host: cfg.host,
+            local_api_key: cfg.local_api_key,
+            cloud_key: cfg.cloud_key,
+            enabled: true,
+          } as import("@/lib/api").BoardInstance],
+        });
+
+        // Then save global connection config (used by validation/first-run detection)
         await api.updateBoardConfig({
-          api_mode: config.api_mode,
-          local_api_key: config.local_api_key,
-          cloud_key: config.cloud_key,
-          host: config.host,
+          api_mode: cfg.api_mode,
+          local_api_key: cfg.local_api_key,
+          cloud_key: cfg.cloud_key,
+          host: cfg.host,
         });
         
-        onConfigChange({ ...config, connectionVerified: true });
+        onConfigChange({ ...cfg, connectionVerified: true });
       } else {
         setTestStatus("error");
         setTestMessage(result.message || "Connection failed");
-        onConfigChange({ ...config, connectionVerified: false });
+        onConfigChange({ ...cfg, connectionVerified: false });
       }
     } catch (error) {
       setTestStatus("error");
       setTestMessage(error instanceof Error ? error.message : "Connection test failed");
-      onConfigChange({ ...config, connectionVerified: false });
+      onConfigChange({ ...configRef.current, connectionVerified: false });
     } finally {
       setIsLoading(false);
     }
@@ -452,67 +469,64 @@ export function StepBoardSetup({
         )}
       </div>
 
-      {/* Device & Board Color Selection */}
+      {/* Device Type & Board Color */}
       <div className="space-y-4 pt-4 border-t">
-        <div>
-          <Label className="text-sm font-medium">Your Devices</Label>
-          <p className="text-xs text-muted-foreground mt-1">
-            Select which Vestaboard devices you own
-          </p>
-        </div>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Monitor className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Flagship</span>
-              <span className="text-xs text-muted-foreground">22×6</span>
-            </div>
-            <Switch
-              checked={config.devices.includes("flagship")}
-              onCheckedChange={(checked) => {
-                const devices = checked
-                  ? [...config.devices, "flagship"]
-                  : config.devices.filter(d => d !== "flagship");
-                if (devices.length === 0) return;
-                onConfigChange({ ...config, devices });
-              }}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Smartphone className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Note</span>
-              <span className="text-xs text-muted-foreground">15×3</span>
-            </div>
-            <Switch
-              checked={config.devices.includes("note")}
-              onCheckedChange={(checked) => {
-                const devices = checked
-                  ? [...config.devices, "note"]
-                  : config.devices.filter(d => d !== "note");
-                if (devices.length === 0) return;
-                onConfigChange({ ...config, devices });
-              }}
-            />
+          <Label className="text-sm font-medium">Board Type</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => onConfigChange({ ...config, device_type: "flagship" })}
+              className={cn(
+                "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
+                config.device_type === "flagship"
+                  ? "border-primary bg-primary/5"
+                  : "border-muted hover:border-muted-foreground/30"
+              )}
+            >
+              <span className="font-medium text-sm">Flagship</span>
+              <span className="text-xs text-muted-foreground">22 × 6 characters</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfigChange({ ...config, device_type: "note" })}
+              className={cn(
+                "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
+                config.device_type === "note"
+                  ? "border-primary bg-primary/5"
+                  : "border-muted hover:border-muted-foreground/30"
+              )}
+            >
+              <span className="font-medium text-sm">Note</span>
+              <span className="text-xs text-muted-foreground">15 × 3 characters</span>
+            </button>
           </div>
         </div>
-        <div className="pt-2">
+
+        <div className="space-y-3">
           <Label className="text-sm font-medium">Board Color</Label>
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-2">
-              <div
-                className="h-4 w-4 rounded border"
-                style={{ backgroundColor: config.board_color === "white" ? "#fafafa" : "#0d0d0d" }}
-              />
-              <span className="text-sm">
-                {config.board_color === "white" ? "White" : "Black"}
-              </span>
-            </div>
-            <Switch
-              checked={config.board_color === "white"}
-              onCheckedChange={(checked) => {
-                onConfigChange({ ...config, board_color: checked ? "white" : "black" });
-              }}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onConfigChange({ ...config, board_color: "black" })}
+              aria-label="Black"
+              className={cn(
+                "h-8 w-8 rounded-full border-2 bg-[#0d0d0d] transition-colors",
+                config.board_color === "black"
+                  ? "border-primary ring-2 ring-primary/30"
+                  : "border-muted-foreground/30 hover:border-muted-foreground"
+              )}
+            />
+            <button
+              type="button"
+              onClick={() => onConfigChange({ ...config, board_color: "white" })}
+              aria-label="White"
+              className={cn(
+                "h-8 w-8 rounded-full border-2 bg-[#fafafa] transition-colors",
+                config.board_color === "white"
+                  ? "border-primary ring-2 ring-primary/30"
+                  : "border-muted-foreground/30 hover:border-muted-foreground"
+              )}
             />
           </div>
         </div>

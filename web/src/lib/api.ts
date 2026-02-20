@@ -424,6 +424,11 @@ export interface BoardInstance {
   name: string;
   device_type: DeviceType;
   board_color: "black" | "white";
+  enabled: boolean;
+  api_mode: "local" | "cloud";
+  host: string;
+  local_api_key: string;
+  cloud_key: string;
 }
 
 export interface BoardSettings {
@@ -1009,7 +1014,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     }),
-  addBoard: (board: { device_type: DeviceType; name?: string; board_color?: "black" | "white" }) =>
+  addBoard: (board: Partial<BoardInstance> & { device_type: DeviceType }) =>
     fetchApi<{ status: string; settings: BoardSettings }>("/settings/board/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

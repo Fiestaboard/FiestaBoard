@@ -21,7 +21,7 @@ interface BoardConfig {
   cloud_key: string;
   host: string;
   connectionVerified: boolean;
-  devices: string[];
+  device_type: "flagship" | "note";
   board_color: "black" | "white";
 }
 
@@ -95,16 +95,6 @@ export function StepWelcome({
           }
         }
 
-        // Save board display settings (devices & color)
-        try {
-          await api.updateBoardSettings({
-            devices: boardConfig.devices as import("@/lib/api").DeviceType[],
-            board_type: boardConfig.board_color,
-          });
-        } catch (e) {
-          console.warn("Failed to save board display settings:", e);
-        }
-
         setConfigSaved(true);
       }
 
@@ -156,7 +146,7 @@ export function StepWelcome({
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-green-500" />
             <span>
-              Board connected via {boardConfig.api_mode === "cloud" ? "Cloud" : "Local"} API
+              My Board ({boardConfig.device_type === "flagship" ? "Flagship" : "Note"}) connected via {boardConfig.api_mode === "cloud" ? "Cloud" : "Local"} API
               {boardConfig.api_mode === "local" && ` (${boardConfig.host})`}
             </span>
           </div>

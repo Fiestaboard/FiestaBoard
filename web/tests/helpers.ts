@@ -201,6 +201,28 @@ export async function setActivePage(id: string | null): Promise<void> {
   if (!res.ok) throw new Error(`setActivePage failed: ${res.status}`);
 }
 
+/**
+ * Reset to a single configured Flagship board.
+ * Useful in afterEach to ensure clean multi-board state.
+ */
+export async function resetToSingleBoard() {
+  await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      boards: [{
+        name: "My Board",
+        device_type: "flagship",
+        board_color: "black",
+        enabled: true,
+        api_mode: "local",
+        host: BOARD_HOST,
+        local_api_key: "test-key",
+      }],
+    }),
+  });
+}
+
 /** Suppress the setup wizard by injecting localStorage before navigation. */
 export function suppressWizard(page: import("@playwright/test").Page) {
   return page.addInitScript(() => {

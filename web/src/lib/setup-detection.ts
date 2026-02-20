@@ -17,6 +17,8 @@ export interface WizardProgress {
     local_api_key?: string;
     cloud_key?: string;
     host?: string;
+    device_type?: "flagship" | "note";
+    board_color?: "black" | "white";
   };
   plugins?: {
     date_time?: {

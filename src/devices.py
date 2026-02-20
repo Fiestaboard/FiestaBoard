@@ -26,26 +26,44 @@ DEVICE_DIMENSIONS: Dict[str, DeviceDimensions] = {
 }
 
 
+VALID_API_MODES = ("local", "cloud")
+
+
 @dataclass
 class BoardInstance:
     """A configured Vestaboard instance.
     
     Represents a single physical board with its own identity,
-    device type, and display color. Designed to support multiple
-    boards with independent schedules in the future.
+    device type, display color, and connection settings.
+    Each board has its own API credentials and connection mode.
     """
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = ""
     device_type: str = "flagship"
     board_color: str = "black"
+    enabled: bool = True
+    api_mode: str = "local"
+    host: str = ""
+    local_api_key: str = ""
+    cloud_key: str = ""
     
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
             self.device_type = "flagship"
         if self.board_color not in ("black", "white"):
             self.board_color = "black"
+        if self.api_mode not in VALID_API_MODES:
+            self.api_mode = "local"
+        if not isinstance(self.enabled, bool):
+            self.enabled = bool(self.enabled)
         if not self.name:
-            self.name = "Flagship" if self.device_type == "flagship" else "Note"
+            self.name = "My Board"
+    
+    @property
+    def is_connection_configured(self) -> bool:
+        if self.api_mode == "cloud":
+            return bool(self.cloud_key)
+        return bool(self.local_api_key and self.host)
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -57,6 +75,11 @@ class BoardInstance:
             name=data.get("name", ""),
             device_type=data.get("device_type", "flagship"),
             board_color=data.get("board_color", "black"),
+            enabled=data.get("enabled", True),
+            api_mode=data.get("api_mode", "local"),
+            host=data.get("host", ""),
+            local_api_key=data.get("local_api_key", ""),
+            cloud_key=data.get("cloud_key", ""),
         )
 
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { BoardSettings } from "@/components/feature-settings/board-settings";
 import { DisplaySettings } from "@/components/feature-settings/display-settings";
 import { DebugSettings } from "@/components/feature-settings/debug-settings";
 import { GeneralSettings } from "@/components/general-settings";
@@ -31,16 +30,10 @@ export default function SettingsPage() {
             <GeneralSettings />
           </section>
 
-          {/* Board Display Settings */}
+          {/* Boards */}
           <section>
-            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Board Display</h2>
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Boards</h2>
             <DisplaySettings />
-          </section>
-
-          {/* Board Connection */}
-          <section>
-            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Board Connection</h2>
-            <BoardSettings />
           </section>
 
           {/* Integrations Link */}

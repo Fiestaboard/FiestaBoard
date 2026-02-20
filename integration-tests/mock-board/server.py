@@ -31,6 +31,18 @@ VALID_DIMENSIONS = {
 BLANK_BOARD = [[0] * 22 for _ in range(6)]
 BLANK_NOTE = [[0] * 15 for _ in range(3)]
 
+# Character encoding for text-mode requests (matches Vestaboard spec)
+CHAR_TO_CODE = {
+    " ": 0,
+    "!": 37, "@": 38, "#": 39, "$": 40,
+    "(": 41, ")": 42, "-": 44, "+": 46,
+    "&": 47, "=": 48, ";": 49, ":": 50,
+    "'": 52, '"': 53, "%": 54, ",": 55,
+    ".": 56, "/": 59, "?": 60,
+}
+
+MAX_CHAR_CODE = 71
+
 
 def _blank_for_dims(rows, cols):
     return [[0] * cols for _ in range(rows)]
@@ -140,6 +152,19 @@ class MockBoardHandler(BaseHTTPRequestHandler):
                         ),
                     })
                     return
+
+                # Validate character codes are in range 0-71
+                for r_idx, row in enumerate(chars):
+                    for c_idx, code in enumerate(row):
+                        if not isinstance(code, int) or code < 0 or code > MAX_CHAR_CODE:
+                            self._send_json(400, {
+                                "error": (
+                                    f"Invalid character code {code} at row {r_idx}, "
+                                    f"col {c_idx}. Must be 0-{MAX_CHAR_CODE}."
+                                ),
+                            })
+                            return
+
                 _state.set_message(chars, strategy=body.get("strategy"), dimensions=dims)
                 self._send_json(200, {"ok": True})
 
@@ -164,12 +189,14 @@ class MockBoardHandler(BaseHTTPRequestHandler):
                             break
                         continue
                     if col_idx < cols and row_idx < rows:
-                        if ch == " ":
-                            chars[row_idx][col_idx] = 0
-                        elif "A" <= ch <= "Z":
+                        if "A" <= ch <= "Z":
                             chars[row_idx][col_idx] = ord(ch) - ord("A") + 1
-                        elif "0" <= ch <= "9":
-                            chars[row_idx][col_idx] = ord(ch) - ord("0") + 27
+                        elif "1" <= ch <= "9":
+                            chars[row_idx][col_idx] = ord(ch) - ord("1") + 27
+                        elif ch == "0":
+                            chars[row_idx][col_idx] = 36
+                        elif ch in CHAR_TO_CODE:
+                            chars[row_idx][col_idx] = CHAR_TO_CODE[ch]
                         else:
                             chars[row_idx][col_idx] = 0
                         col_idx += 1

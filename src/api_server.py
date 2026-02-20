@@ -1303,18 +1303,17 @@ async def send_display(
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Display not available")
     
-    # Determine target
+    # Determine target -- an explicit target overrides dev_mode
+    explicit_target = target is not None
     if target is None:
-        # Use settings-based logic
         send_to_board = settings_service.should_send_to_board(_dev_mode)
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate
+    # Send to board if appropriate (explicit target bypasses dev_mode guard)
     sent_to_board = False
-    if send_to_board and not _dev_mode:
+    if send_to_board and (explicit_target or not _dev_mode):
         transition = settings_service.get_transition_settings()
-        # Convert to board array for proper character/color support
         board_array = text_to_board_array(result.formatted)
         success, was_sent = service.vb_client.send_characters(
             board_array,
@@ -3065,22 +3064,21 @@ async def send_page(page_id: str, target: Optional[str] = None):
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
     
-    # Determine target
+    # Determine target -- an explicit target overrides dev_mode
+    explicit_target = target is not None
     if target is None:
         send_to_board = settings_service.should_send_to_board(_dev_mode)
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate
+    # Send to board if appropriate (explicit target bypasses dev_mode guard)
     sent_to_board = False
-    if send_to_board and not _dev_mode:
+    if send_to_board and (explicit_target or not _dev_mode):
         # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
         if Config.is_silence_mode_active():
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
             sent_to_board = False
-            # Don't raise error, just skip sending
         else:
-            # Use page-level transitions if set, otherwise fall back to system defaults
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
