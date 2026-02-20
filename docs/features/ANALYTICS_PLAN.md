@@ -2,9 +2,11 @@
 
 ## Overview
 
-This document proposes a privacy-first, opt-in analytics system for FiestaBoard. The goal is to understand how FiestaBoard is being used (which plugins are popular, common configurations, error rates) so that development efforts can be prioritized — while respecting users' privacy and the constraints of running on a local network.
+This document proposes a privacy-first, opt-in analytics system for FiestaBoard. The goal is to understand how FiestaBoard is being used — which plugins are popular, what kinds of content are displayed, how often boards update, and what errors occur — so that development efforts can be prioritized while respecting users' privacy and the constraints of running on a local network.
 
 **Key Principle:** Analytics must be **opt-in with a default of opt-out**. No data is ever collected or transmitted unless the user explicitly enables it.
+
+**Key Privacy Rule:** We **never** collect message content — no actual text, words, or readable messages. We may collect anonymous aggregate characteristics of what's displayed (color tile counts, symbol counts, blank space counts) to understand *what kind* of content is shown, but never the content itself.
 
 ---
 
@@ -34,182 +36,623 @@ Home Assistant is the gold standard for opt-in analytics in the self-hosted/loca
 
 ---
 
-## Recommended Approach for FiestaBoard
+## Three Workstreams
 
-### Architecture: Lightweight Outbound Telemetry
+This effort spans three separate areas of work:
 
-Since FiestaBoard runs on users' local networks (often Raspberry Pi), we should **not** ask users to host an analytics server locally. Instead, the approach is:
-
-1. **FiestaBoard backend** collects anonymous usage metrics locally
-2. **On a schedule** (once per day), if the user has opted in, a small JSON payload is sent to a FiestaBoard project-owned endpoint
-3. **The endpoint** ingests data into a lightweight analytics backend for the FiestaBoard maintainers
+| # | Workstream | Repo | Description |
+|---|---|---|---|
+| **1** | **FiestaBoard App** | `Fiestaboard/FiestaBoard` | Collect metrics locally, opt-in UI, daily payload sender |
+| **2** | **Cloud Ingest Service** | `Fiestaboard/analytics-ingest` (new repo) | AWS-hosted API to receive + store JSON payloads |
+| **3** | **Public Transparency Site** | `Fiestaboard/analytics-public` (new repo) | Static site showing aggregated anonymous data publicly |
 
 ```
-┌─────────────────────────────┐         ┌──────────────────────────────┐
-│  User's Local Network       │         │  FiestaBoard Project Server  │
-│                             │         │  (maintained by project)     │
-│  ┌───────────────────────┐  │  HTTPS  │  ┌────────────────────────┐ │
-│  │  FiestaBoard Backend  │──│────────>│──│  Ingest API Endpoint   │ │
-│  │  (Python/FastAPI)     │  │ 1x/day  │  │  (simple POST handler) │ │
-│  │                       │  │         │  └──────────┬─────────────┘ │
-│  │  - Collects metrics   │  │         │             │               │
-│  │  - Logs payload       │  │         │  ┌──────────▼─────────────┐ │
-│  │  - Sends if opted in  │  │         │  │  Storage + Dashboard   │ │
-│  └───────────────────────┘  │         │  │  (Umami, Grafana, or   │ │
-│                             │         │  │   simple DB + charts)  │ │
-└─────────────────────────────┘         │  └────────────────────────┘ │
+┌─────────────────────────────┐         ┌──────────────────────────────┐      ┌──────────────────────┐
+│  Workstream 1               │         │  Workstream 2                │      │  Workstream 3        │
+│  User's Local Network       │         │  AWS Cloud Infrastructure    │      │  Public Site         │
+│                             │         │                              │      │                      │
+│  ┌───────────────────────┐  │  HTTPS  │  ┌────────────────────────┐ │      │  ┌────────────────┐  │
+│  │  FiestaBoard App      │──│────────>│──│  API Gateway + Lambda  │ │      │  │  Static Site   │  │
+│  │  (Python/FastAPI)     │  │ 1x/day  │  │  (ingest endpoint)     │ │      │  │  (S3 + CF)     │  │
+│  │                       │  │         │  └──────────┬─────────────┘ │      │  │                │  │
+│  │  - Collects metrics   │  │         │             │               │      │  │  Aggregated    │  │
+│  │  - Opt-in UI toggle   │  │         │  ┌──────────▼─────────────┐ │ JSON │  │  charts &      │  │
+│  │  - Logs payload       │  │         │  │  DynamoDB              │─│─────>│  │  stats         │  │
+│  │  - Sends if opted in  │  │         │  │  (telemetry storage)   │ │      │  │                │  │
+│  └───────────────────────┘  │         │  └──────────┬─────────────┘ │      │  │  analytics.    │  │
+│                             │         │             │               │      │  │  fiestaboard.  │  │
+└─────────────────────────────┘         │  ┌──────────▼─────────────┐ │      │  │  com           │  │
+                                        │  │  Lambda (aggregation)  │ │      │  └────────────────┘  │
+                                        │  │  (daily cron job)      │ │      │                      │
+                                        │  └────────────────────────┘ │      └──────────────────────┘
                                         └──────────────────────────────┘
 ```
 
+---
+
+## Workstream 1: FiestaBoard App Changes
+
+### Architecture: Lightweight Outbound Telemetry
+
+Since FiestaBoard runs on users' local networks (often Raspberry Pi), we should **not** ask users to host an analytics server locally. Instead:
+
+1. **FiestaBoard backend** collects anonymous usage metrics locally (in memory, never persisted to disk except the config toggle)
+2. **On a schedule** (once per day), if the user has opted in, a small JSON payload is sent to the project-owned AWS endpoint
+3. **Transparency**: the exact payload is logged at INFO level before sending so users can inspect it
+
 ### Why Not Self-Hosted Analytics on the User's Pi?
 
-- Grafana + Prometheus/InfluxDB are too heavy for a Raspberry Pi running FiestaBoard
+- Grafana + Prometheus/InfluxDB are too heavy for a Raspberry Pi already running FiestaBoard
 - Users shouldn't have to manage an analytics stack
 - The project needs aggregated data across all installations, not per-user dashboards
 - Local-only analytics wouldn't help the maintainers understand usage patterns
 
 ---
 
-## What to Collect
+## Comprehensive Data Collection Inventory
 
-Following Home Assistant's tiered model, FiestaBoard analytics would have two levels:
+Everything below is derived from what the FiestaBoard codebase actually tracks today. This is the **complete list** of what would be collected — nothing else.
 
-### Level 1: Basic Analytics (lightweight)
+### Level 1: Basic Analytics
 
-| Data Point | Example | Purpose |
-|---|---|---|
-| Anonymous installation UUID | `a1b2c3d4-...` | Count unique installations (generated once, stored locally) |
-| FiestaBoard version | `1.32.44` | Track adoption of updates |
-| Platform | `linux/arm64` | Understand deployment targets |
-| Python version | `3.11.2` | Know minimum version to support |
-| Board API mode | `local` or `cloud` | Understand connection patterns |
-| Uptime (hours) | `168` | Gauge reliability |
+Minimal system information. No usage patterns.
 
-### Level 2: Usage Analytics (more detail, still anonymous)
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Anonymous installation UUID | `"a1b2c3d4-e5f6-..."` | Generated once on opt-in | Count unique installations |
+| FiestaBoard version | `"1.32.44"` | Package version | Track update adoption |
+| Platform / architecture | `"linux/arm64"` | `platform` module | Understand deployment targets (Pi vs x86) |
+| Python version | `"3.11.2"` | `sys.version` | Know minimum version to support |
+| Board API mode | `"local"` or `"cloud"` | `config.json → board.api_mode` | Understand local vs cloud board usage |
+| Output target | `"board"`, `"ui"`, or `"both"` | `config.json → general.output_target` | Know how people use FiestaBoard |
+| Uptime since last restart (hours) | `168` | Process start time | Gauge reliability and restart frequency |
 
-| Data Point | Example | Purpose |
-|---|---|---|
-| Enabled plugins (names only) | `["weather", "stocks", "muni"]` | Prioritize plugin development |
-| Number of pages | `5` | Understand content complexity |
-| Number of schedules | `3` | Track schedule feature adoption |
-| Template usage (template names) | `["weather_basic", "stocks_ticker"]` | Know which templates are popular |
-| Output target | `board`, `ui`, `both` | Understand display preferences |
-| Error count (last 24h) | `2` | Track stability |
+### Level 2: Usage Analytics
+
+How FiestaBoard is being used — still anonymous, no content.
+
+#### Plugin Analytics
+
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Enabled plugin names | `["weather", "stocks", "muni"]` | `PluginRegistry._enabled` | Which plugins are popular |
+| Plugin states | `{"weather": "active", "stocks": "error", "muni": "setup"}` | `PluginResult.available` + `PluginResult.error` | Understand plugin health |
+| Plugin error messages (generic) | `{"stocks": "API timeout"}` | `PluginResult.error` | Surface common plugin failures (for maintainers — see note below) |
+| Plugin load errors | `{"my_broken_plugin": "ImportError"}` | `PluginLoader.load_errors` | Identify broken plugin installs |
+| Number of enabled plugins | `3` | Count of enabled plugins | Complexity of typical setups |
+| Plugin refresh intervals | `{"weather": 300, "stocks": 300}` | Plugin config `refresh_seconds` | Understand polling load |
+
+> **Note on error messages:** Plugin error messages are collected only for maintainer use (to identify common failures and fix them). These are **not** displayed on the public transparency site. Error messages are sanitized to strip any URLs, paths, or API key fragments before collection.
+
+#### Page & Content Analytics
+
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Total page count | `5` | `PageService.list_pages()` | Content complexity |
+| Pages by type | `{"single": 2, "composite": 2, "template": 1}` | `Page.page_type` | Which page types are popular |
+| Template names used | `["weather_basic", "stocks_ticker"]` | `Page.template` metadata | Which templates are popular |
+| Average page duration (seconds) | `300` | `Page.duration_seconds` | How long content is displayed |
+
+#### Board Content Characteristics (Anonymous — Never Message Content)
+
+These metrics describe *what kind* of content is shown without revealing *what* the content says. Derived from the 6×22 character code grid (codes 0–71) after rendering.
+
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Blank space count (avg per board) | `42` | Count of code `0` in 6×22 grid | How much of the board is used vs empty |
+| Letter count (avg per board) | `55` | Count of codes `1-26` in grid | Text density |
+| Number count (avg per board) | `12` | Count of codes `27-36` in grid | Numeric content prevalence |
+| Symbol count (avg per board) | `8` | Count of codes `37-62` in grid | Punctuation/symbol usage |
+| Color tile count (avg per board) | `15` | Count of codes `63-71` in grid | How much color is used |
+| Color tile breakdown | `{"red": 3, "green": 5, "blue": 7}` | Count per color code `63-70` | Which colors are popular |
+| Board fill percentage (avg) | `68%` | `(132 - blank_count) / 132 * 100` | How full boards typically are |
+
+> **Critical privacy note:** We count character *categories* (letters, numbers, symbols, colors, blanks) — we NEVER capture the actual character codes, sequences, or positions. `55 letters` tells us the board has text; it does NOT tell us what the text says.
+
+#### Schedule Analytics
+
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Schedule mode enabled | `true` | Settings service | Is scheduling being used |
+| Number of schedule entries | `6` | `ScheduleService.list_schedules()` | Schedule complexity |
+| Day patterns used | `{"all": 2, "weekdays": 3, "custom": 1}` | `ScheduleEntry.day_pattern` | How people structure their schedules |
+| Has default page set | `true` | Settings service | Gap-fill behavior |
+| Silence schedule enabled | `true` | `config.json → features.silence_schedule.enabled` | Nighttime silence adoption |
+
+#### Message Update Frequency
+
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Board updates sent (last 24h) | `48` | Counter in `DisplayService` | How often the board changes |
+| Board updates skipped — unchanged (last 24h) | `240` | Counter in `DisplayService` | Cache hit rate |
+| Board updates skipped — silence mode (last 24h) | `96` | Counter in `DisplayService` | Silence mode effectiveness |
+| Board send failures (last 24h) | `2` | Counter in `DisplayService` | Board connectivity issues |
+| Average time between board changes (minutes) | `30` | Derived from update counter | Content rotation speed |
+
+#### Transition Animation Analytics
+
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Transition strategy | `"column"` or `null` | `config.json → board.transition_strategy` | Which animations are popular |
+| Custom transition interval set | `true`/`false` | Whether `transition_interval_ms` is non-null | Are users customizing animations |
+| Custom transition step size set | `true`/`false` | Whether `transition_step_size` is non-null | Are users customizing animations |
+| Per-page transition overrides count | `2` | Pages with non-null transition settings | Page-level animation usage |
+
+### Level 3: Diagnostics (Maintainer-Only — NOT on Public Site)
+
+Error details for debugging. Transmitted to the ingest service but **never** shown on the public transparency site.
+
+| Data Point | Example Value | Source | Purpose |
+|---|---|---|---|
+| Plugin error details (sanitized) | `{"stocks": "HTTPError 429"}` | `PluginResult.error` | Debug plugin API issues |
+| Plugin load failures | `{"bad_plugin": "ModuleNotFoundError: No module named 'foo'"}` | `PluginLoader.load_errors` | Identify dependency issues |
+| Board API connection errors (last 24h) | `3` | Counter in `BoardClient` | Track board connectivity |
+| Board API error types | `["ConnectionTimeout", "HTTPError 401"]` | `BoardClient` error handling | Diagnose board API issues |
+| Config validation errors | `["Missing board.host"]` | `ConfigManager.validate()` | Identify setup problems |
+| Last error timestamp (relative) | `"2h ago"` | Relative time, not absolute | Recency of issues |
+
+> **Sanitization rules for error messages:**
+> - Strip file paths (replace with `<path>`)
+> - Strip URLs (replace with `<url>`)
+> - Strip anything resembling an API key (replace with `<key>`)
+> - Strip IP addresses (replace with `<ip>`)
+> - Keep only the error type and generic message
 
 ### What Is NEVER Collected
 
-- API keys or credentials
-- Board content or messages
-- IP addresses or MAC addresses
-- Location data (cities, coordinates, lat/lng)
-- Home Assistant entity names, states, or URLs
-- WiFi SSIDs or passwords
-- Stock symbols or personal configuration values
-- Any data that could identify a user, household, or network
+| Category | Examples | Why Not |
+|---|---|---|
+| **Message content** | Actual text on the board, character sequences, word patterns | Core privacy principle — we never read your messages |
+| **Character positions or sequences** | Which characters are in which cells | Could reconstruct messages |
+| **API keys or credentials** | Weather API key, board API key, HA access token | Sensitive secrets |
+| **Location data** | Cities, ZIP codes, coordinates, lat/lng | Personally identifying |
+| **Network information** | IP addresses, MAC addresses, hostnames, WiFi SSIDs | Personally identifying |
+| **Home Assistant data** | Entity names, states, URLs, device names | Third-party private data |
+| **Personal configuration** | Stock symbols, surf spots, transit stops, WiFi passwords | Reveals personal interests/location |
+| **Timestamps** | Absolute times, timezone names | Could correlate with geography |
+| **File paths** | Config file locations, plugin install paths | Reveals system info |
 
 ---
 
-## Implementation Plan
+## Workstream 1: FiestaBoard App Implementation
 
-### Phase 1: Backend Opt-In Infrastructure
+### Config Changes
 
-**Config addition** — Add an `analytics` section to `config.json`:
+Add an `analytics` section to `config.json`:
 
 ```json
 {
   "analytics": {
     "enabled": false,
     "level": "basic",
-    "installation_id": null
+    "installation_id": null,
+    "diagnostics_enabled": false,
+    "last_sent": null
   }
 }
 ```
 
 - `enabled`: Always `false` by default (opt-out)
 - `level`: `"basic"` or `"usage"` — controls how much data is shared
-- `installation_id`: Auto-generated UUID on first opt-in, stored locally
+- `installation_id`: Auto-generated UUID v4 on first opt-in, stored locally
+- `diagnostics_enabled`: Separate opt-in for error/diagnostics data (Level 3)
+- `last_sent`: ISO timestamp of last successful send (for once-per-day scheduling)
 
-**Backend module** — New `src/analytics/` module:
+### New Backend Module: `src/analytics/`
 
-- `collector.py` — Gathers metrics from config, plugin registry, pages, schedules
-- `sender.py` — Builds the JSON payload and sends it via HTTPS POST (once per day)
-- `privacy.py` — Ensures no sensitive data leaks into the payload (validation/filtering)
+| File | Responsibility |
+|---|---|
+| `__init__.py` | Module init |
+| `collector.py` | Gathers all metrics from config, plugins, pages, schedules, counters |
+| `counters.py` | In-memory counters for board updates, errors, send stats (reset daily) |
+| `content_stats.py` | Analyzes 6×22 board grid to produce anonymous content characteristics (character category counts, color breakdown, fill %) — never captures actual content |
+| `sanitizer.py` | Strips sensitive data from error messages (paths, URLs, IPs, keys) |
+| `sender.py` | Builds JSON payload, logs it, sends via HTTPS POST |
+| `payload.py` | Defines the exact JSON schema for each level (Basic, Usage, Diagnostics) |
 
-**Transparency logging** — Before sending, log the exact JSON payload at `INFO` level so users can inspect what was sent.
+### Payload Schema
 
-### Phase 2: Frontend Opt-In UI
+```json
+{
+  "schema_version": 1,
+  "level": "usage",
+  "timestamp_utc": "2026-02-20T07:00:00Z",
 
-**Settings page addition:**
+  "basic": {
+    "installation_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "version": "1.32.44",
+    "platform": "linux/arm64",
+    "python_version": "3.11.2",
+    "board_api_mode": "local",
+    "output_target": "board",
+    "uptime_hours": 168
+  },
 
-- New "Analytics" card in the Settings page
-- Toggle: "Help improve FiestaBoard by sharing anonymous usage data"
-- Radio/select: "Basic" or "Usage" level
-- "What do we collect?" expandable section explaining each data point
-- "Preview payload" button showing the exact JSON that would be sent
-- Default state: OFF
+  "usage": {
+    "plugins": {
+      "enabled": ["weather", "stocks", "muni", "date_time"],
+      "states": {
+        "weather": "active",
+        "stocks": "error",
+        "muni": "active",
+        "date_time": "active"
+      },
+      "count": 4
+    },
+    "pages": {
+      "total": 5,
+      "by_type": { "single": 2, "composite": 2, "template": 1 },
+      "templates_used": ["weather_basic", "stocks_ticker"],
+      "avg_duration_seconds": 300
+    },
+    "content": {
+      "avg_blank_spaces": 42,
+      "avg_letter_count": 55,
+      "avg_number_count": 12,
+      "avg_symbol_count": 8,
+      "avg_color_tile_count": 15,
+      "color_breakdown": { "red": 3, "orange": 0, "yellow": 2, "green": 5, "blue": 7, "violet": 0, "white": 3, "black": 0 },
+      "avg_fill_percentage": 68
+    },
+    "schedules": {
+      "schedule_mode_enabled": true,
+      "entry_count": 6,
+      "day_patterns": { "all": 2, "weekdays": 3, "custom": 1 },
+      "has_default_page": true,
+      "silence_schedule_enabled": true
+    },
+    "updates": {
+      "board_sends_24h": 48,
+      "board_skipped_unchanged_24h": 240,
+      "board_skipped_silence_24h": 96,
+      "board_send_failures_24h": 2,
+      "avg_minutes_between_changes": 30
+    },
+    "transitions": {
+      "strategy": "column",
+      "custom_interval": false,
+      "custom_step_size": false,
+      "per_page_overrides": 2
+    }
+  },
 
-### Phase 3: Project-Side Ingest + Dashboard
+  "diagnostics": {
+    "plugin_errors": { "stocks": "HTTPError 429" },
+    "plugin_load_errors": {},
+    "board_api_errors_24h": 3,
+    "board_api_error_types": ["ConnectionTimeout"],
+    "config_validation_errors": [],
+    "last_error_relative": "2h ago"
+  }
+}
+```
 
-**Recommended stack for the project server:**
+### Frontend Settings UI
 
-| Option | Pros | Cons | Cost |
+Add an "Analytics" card to the existing Settings page:
+
+```
+┌──────────────────────────────────────────────────┐
+│  📊 Analytics                                    │
+│                                                  │
+│  Help improve FiestaBoard by sharing anonymous   │
+│  usage data. No message content is ever sent.    │
+│                                                  │
+│  [  OFF  /  ON  ]     ← Toggle (default: OFF)   │
+│                                                  │
+│  Level:  ○ Basic   ● Usage                       │
+│                                                  │
+│  □ Include diagnostics (error details            │
+│    for maintainers — not shown publicly)         │
+│                                                  │
+│  [▸ What do we collect?]   ← Expandable details  │
+│  [▸ Preview payload]       ← Shows exact JSON    │
+│                                                  │
+│  Status: Last sent 2h ago ✓                      │
+└──────────────────────────────────────────────────┘
+```
+
+### In-Memory Counters
+
+New counters tracked in the `DisplayService` main loop (reset every 24 hours):
+
+```python
+class AnalyticsCounters:
+    board_sends: int = 0              # Successful send_characters() calls
+    board_skipped_unchanged: int = 0  # Skipped because content unchanged
+    board_skipped_silence: int = 0    # Skipped because silence mode active
+    board_send_failures: int = 0      # Failed send_characters() calls
+    board_api_error_types: List[str]  # Deduplicated error type names
+    last_error_time: Optional[datetime]
+    content_stats_samples: List[dict] # Rolling window of last N content snapshots
+```
+
+Content stats are sampled from the 6×22 grid whenever a board update is sent. The last N samples (e.g., 10) are averaged to produce the daily `content` section.
+
+---
+
+## Workstream 2: Cloud Ingest Service (New Repo)
+
+### Repository: `Fiestaboard/analytics-ingest`
+
+A lightweight AWS serverless stack to receive, store, and aggregate telemetry payloads.
+
+### Architecture (AWS Serverless — Minimal Cost)
+
+```
+                                ┌─────────────────────────┐
+  HTTPS POST /v1/telemetry ───> │  API Gateway (HTTP API) │  ← Free tier: 1M requests/mo
+                                └───────────┬─────────────┘
+                                            │
+                                ┌───────────▼─────────────┐
+                                │  Lambda: ingest         │  ← Free tier: 1M invocations/mo
+                                │  - Validate schema      │
+                                │  - Check rate limit     │
+                                │  - Strip any PII        │
+                                │  - Write to DynamoDB    │
+                                └───────────┬─────────────┘
+                                            │
+                                ┌───────────▼─────────────┐
+                                │  DynamoDB               │  ← Free tier: 25 GB, 25 WCU
+                                │  Table: telemetry       │
+                                │  PK: installation_id    │
+                                │  SK: timestamp          │
+                                │  TTL: 90 days           │
+                                └───────────┬─────────────┘
+                                            │
+                                ┌───────────▼─────────────┐
+                                │  Lambda: aggregate      │  ← Cron: daily via EventBridge
+                                │  - Scan last 24h data   │
+                                │  - Compute aggregates   │
+                                │  - Write JSON to S3     │
+                                └───────────┬─────────────┘
+                                            │
+                                ┌───────────▼─────────────┐
+                                │  S3: aggregated-data    │  ← Public JSON files
+                                │  - summary.json         │
+                                │  - plugins.json         │
+                                │  - versions.json        │
+                                └─────────────────────────┘
+```
+
+### Why AWS Serverless?
+
+| Requirement | Solution |
+|---|---|
+| As cheap as possible | AWS free tier covers ~90% of expected load |
+| No earned revenue | Free tier + pay-per-use = $0-2/month at scale |
+| Low maintenance | Serverless = no servers to patch or monitor |
+| Scalable if FiestaBoard grows | Lambda + DynamoDB scale automatically |
+| Secure | API Gateway handles TLS; Lambda runs in VPC |
+
+### Estimated Cost Breakdown
+
+Assuming 500 active installations sending 1 payload/day:
+
+| Service | Free Tier | Monthly Usage | Cost |
 |---|---|---|---|
-| **Umami** (self-hosted) | MIT license, lightweight, privacy-first, simple dashboard | Needs a small VPS | ~$5/mo VPS |
-| **Simple API + SQLite + Grafana** | Full control, minimal dependencies, Grafana dashboards | More custom code to maintain | ~$5/mo VPS |
-| **GitHub Pages + JSON** | Zero cost, data stored as JSON files in a repo | No real-time dashboard, manual processing | Free |
+| API Gateway (HTTP API) | 1M requests/mo | 15,000 requests/mo | **$0.00** |
+| Lambda (ingest) | 1M invocations/mo | 15,000 invocations/mo | **$0.00** |
+| Lambda (aggregate) | Included above | 30 invocations/mo | **$0.00** |
+| DynamoDB | 25 GB storage, 25 RCU/WCU | ~500 MB, <5 WCU | **$0.00** |
+| S3 (aggregated JSON) | 5 GB storage | <1 MB | **$0.00** |
+| CloudFront (public site) | 1 TB transfer/mo | <1 GB | **$0.00** |
+| Route 53 (domain) | — | 1 hosted zone | **$0.50/mo** |
+| **Total** | | | **~$0.50/mo** |
 
-**Recommended: Simple API + SQLite + Grafana**
+Even at 5,000 installations, cost stays under **$2/month** due to the pay-per-use model and DynamoDB TTL (auto-deletes old data).
 
-- A minimal FastAPI or Flask endpoint receives the daily POST
-- Data is stored in SQLite (lightweight, no DB server needed)
-- Grafana reads from SQLite for dashboards
-- Hosted on a small VPS or free-tier cloud service
-- Total cost: $0-5/month
+### Ingest Lambda: Key Logic
 
-### Phase 4: Public Dashboard (Optional)
+```python
+# Pseudocode for ingest Lambda
+def handler(event, context):
+    payload = json.loads(event['body'])
 
-- Like Home Assistant's [analytics.home-assistant.io](https://analytics.home-assistant.io/), publish an aggregated public dashboard
-- Shows: total installations, most popular plugins, version distribution
-- No individual installation data is ever public
+    # 1. Validate schema version
+    if payload.get('schema_version') != 1:
+        return {'statusCode': 400, 'body': 'Unknown schema'}
+
+    # 2. Validate installation_id format (UUID v4)
+    if not is_valid_uuid(payload['basic']['installation_id']):
+        return {'statusCode': 400, 'body': 'Invalid ID'}
+
+    # 3. Rate limit: max 1 payload per installation per 20 hours
+    if was_recently_sent(payload['basic']['installation_id']):
+        return {'statusCode': 429, 'body': 'Too frequent'}
+
+    # 4. Defense-in-depth: strip any unexpected fields
+    clean = strip_to_schema(payload)
+
+    # 5. Write to DynamoDB with 90-day TTL
+    dynamodb.put_item(
+        TableName='telemetry',
+        Item={
+            'installation_id': clean['basic']['installation_id'],
+            'timestamp': clean['timestamp_utc'],
+            'data': clean,
+            'ttl': int(time.time()) + (90 * 86400)
+        }
+    )
+
+    return {'statusCode': 200, 'body': 'OK'}
+```
+
+### Aggregation Lambda: Daily Cron
+
+Runs daily via EventBridge rule. Scans all records from the last 24 hours and produces aggregated JSON files:
+
+**`summary.json`** — Written to S3, served publicly:
+```json
+{
+  "generated_at": "2026-02-20T00:00:00Z",
+  "total_installations": 342,
+  "active_last_30d": 285,
+  "version_distribution": {
+    "1.32.44": 180,
+    "1.32.43": 95,
+    "1.31.0": 10
+  },
+  "platform_distribution": {
+    "linux/arm64": 220,
+    "linux/amd64": 100,
+    "darwin/arm64": 22
+  },
+  "board_api_mode": {
+    "local": 290,
+    "cloud": 52
+  }
+}
+```
+
+**`plugins.json`** — Plugin popularity:
+```json
+{
+  "generated_at": "2026-02-20T00:00:00Z",
+  "plugin_usage": {
+    "weather": { "enabled_count": 280, "active": 270, "error": 8, "setup": 2 },
+    "date_time": { "enabled_count": 310, "active": 308, "error": 1, "setup": 1 },
+    "stocks": { "enabled_count": 95, "active": 88, "error": 5, "setup": 2 },
+    "muni": { "enabled_count": 45, "active": 42, "error": 2, "setup": 1 }
+  },
+  "avg_plugins_per_install": 3.2
+}
+```
+
+**`content.json`** — Anonymous content characteristics:
+```json
+{
+  "generated_at": "2026-02-20T00:00:00Z",
+  "avg_board_fill_percentage": 65,
+  "avg_color_tiles_per_board": 12,
+  "most_popular_colors": ["green", "red", "blue"],
+  "avg_updates_per_day": 45,
+  "avg_pages_per_install": 4.2,
+  "page_type_distribution": { "single": 45, "composite": 35, "template": 20 }
+}
+```
+
+### Infrastructure as Code
+
+The repo should use **AWS SAM** (Serverless Application Model) or **AWS CDK** for infrastructure:
+
+```
+analytics-ingest/
+├── template.yaml          # SAM template (API GW + Lambda + DynamoDB + S3 + EventBridge)
+├── src/
+│   ├── ingest/            # Ingest Lambda function
+│   │   ├── handler.py
+│   │   ├── validator.py
+│   │   └── requirements.txt
+│   └── aggregate/         # Aggregation Lambda function
+│       ├── handler.py
+│       ├── aggregator.py
+│       └── requirements.txt
+├── tests/
+│   ├── test_ingest.py
+│   └── test_aggregate.py
+├── samconfig.toml         # Deployment config
+└── README.md
+```
+
+---
+
+## Workstream 3: Public Transparency Site (New Repo)
+
+### Repository: `Fiestaboard/analytics-public`
+
+A simple static site that displays aggregated analytics data. Similar to [analytics.home-assistant.io](https://analytics.home-assistant.io/).
+
+### Purpose
+
+- **Transparency**: Users can see exactly what aggregate data looks like
+- **Trust**: Shows we only have anonymous, aggregated numbers
+- **Community**: Fun to see FiestaBoard's growth and popular plugins
+
+### Architecture
+
+```
+analytics-public/
+├── src/
+│   ├── index.html         # Main page
+│   ├── styles.css         # Simple styling
+│   └── app.js             # Fetch JSON from S3, render charts
+├── public/                # Static assets
+└── README.md
+```
+
+- **Hosting**: S3 + CloudFront (free tier) or GitHub Pages (free)
+- **Domain**: `analytics.fiestaboard.com` (optional)
+- **Data source**: Reads JSON files from the S3 bucket (Workstream 2 output)
+- **Charts**: Lightweight JS library (e.g., Chart.js at ~60KB)
+- **Updates**: Automatically refreshed when aggregation Lambda runs daily
+
+### What the Public Site Shows
+
+| Section | Content | Data Source |
+|---|---|---|
+| **Installations** | Total active installations, 30-day trend | `summary.json` |
+| **Versions** | Pie chart of version distribution | `summary.json` |
+| **Platforms** | Bar chart of linux/arm64 vs amd64 vs macOS | `summary.json` |
+| **Plugins** | Ranked list of most popular plugins | `plugins.json` |
+| **Plugin Health** | % of plugins in active vs error state | `plugins.json` |
+| **Content** | Average board fill %, color usage, updates/day | `content.json` |
+| **Pages** | Avg pages per install, type breakdown | `content.json` |
+
+### What the Public Site NEVER Shows
+
+- Individual installation data
+- Error messages or diagnostic details
+- Any data that could identify a specific user
+- Raw telemetry payloads
 
 ---
 
 ## Security Considerations
 
 ### Data in Transit
-- All telemetry is sent over **HTTPS only**
-- The ingest endpoint uses TLS 1.2+
+- All telemetry is sent over **HTTPS only** (API Gateway enforces TLS 1.2+)
 - No sensitive data is included in the payload (defense in depth)
 
 ### Data at Rest
-- On the user's device: only the installation UUID is stored (in `config.json`)
-- On the project server: anonymous data only, 90-day max retention
-- SQLite DB access restricted to the project maintainers
+- **User's device**: Only the installation UUID + opt-in flag stored in `config.json`
+- **DynamoDB**: Anonymous data only, 90-day TTL auto-deletes old records
+- **S3**: Only aggregated JSON files (no individual records)
+- **Encryption**: DynamoDB + S3 encrypted at rest (AWS default)
 
 ### Network Safety (Local Network Concerns)
 - Telemetry only sends **outbound** HTTPS requests — no inbound ports opened
 - No listening services added to the user's network
-- Payload is small (~1KB JSON) — negligible bandwidth
+- Payload is small (~2KB JSON) — negligible bandwidth
 - Sent once per day — no continuous data stream
-- If the network blocks outbound requests, the send silently fails (no retries, no errors shown to users)
+- If the network blocks outbound requests, the send silently fails (no retries, no error UI)
+
+### API Security
+- **Rate limiting**: API Gateway throttle + per-installation rate limit in Lambda (1 request per 20 hours)
+- **Schema validation**: Only allowlisted fields accepted; unexpected fields stripped
+- **No authentication needed**: Payloads contain no sensitive data, and the installation UUID is random
+- **Abuse prevention**: Payload size limit (10KB max), DynamoDB write throttling
 
 ### Privacy Guarantees
-- **No fingerprinting**: The installation UUID is randomly generated, not derived from hardware
+- **No fingerprinting**: Installation UUID is randomly generated, not derived from hardware
 - **No tracking across networks**: Moving the Pi to a new network doesn't change behavior
-- **No correlation**: The UUID cannot be linked back to a person, household, or network
-- **User control**: Opt-out at any time; opting out stops all transmission immediately
-- **Data deletion**: If a user opts out, their installation UUID can be removed from the server on request
-- **Open source**: The analytics collection and sending code is fully open source and auditable
+- **No correlation**: UUID cannot be linked to a person, household, or network
+- **User control**: Opt-out at any time; stops all transmission immediately
+- **Data deletion**: DynamoDB TTL auto-expires data; users can request immediate deletion
+- **Open source**: All three repos (app, ingest, public site) are fully open source and auditable
+- **Error sanitization**: All error messages stripped of paths, URLs, IPs, and API key fragments
 
 ### Threat Model
 
 | Threat | Mitigation |
 |---|---|
-| Man-in-the-middle interception | HTTPS/TLS for all transmissions |
-| Payload contains sensitive data | Validation layer strips any non-allowlisted fields before sending |
-| Server breach exposes user data | Only anonymous UUIDs + version/plugin names stored — no PII |
+| Man-in-the-middle interception | HTTPS/TLS for all transmissions (API Gateway enforced) |
+| Payload contains sensitive data | Allowlist-based validation in both app and Lambda |
+| Server breach exposes user data | Only anonymous UUIDs + plugin names stored — no PII; DynamoDB encrypted at rest |
 | Analytics enabled without consent | Default is `false`; requires explicit user action in UI |
 | UUID used to track users | UUID is random, not hardware-derived; user can regenerate or delete |
+| DDoS on ingest endpoint | API Gateway throttling + Lambda concurrency limits + rate limiting |
+| Aggregated data reveals individuals | Minimum threshold: don't show stats for categories with <5 installations |
 
 ---
 
@@ -226,7 +669,8 @@ Following Home Assistant's tiered model, FiestaBoard analytics would have two le
 
 3. User toggles ON
    └─> Shown explanation of what's collected
-       Asked to choose: Basic or Usage level
+       Asked to choose level: Basic or Usage
+       Optional checkbox: Include diagnostics
        "Preview what will be sent" button available
 
 4. User confirms
@@ -235,13 +679,15 @@ Following Home Assistant's tiered model, FiestaBoard analytics would have two le
        First payload sent after 15 minutes
 
 5. Daily operation
-   └─> Once per day, payload is built, logged, and sent via HTTPS
+   └─> Once per day, payload is built, logged at INFO, and sent via HTTPS
        If send fails, silently retried next day
+       Counters reset after successful send
 
 6. User toggles OFF
    └─> analytics.enabled = false
        No more data collected or sent
        Existing installation_id kept (in case user re-enables)
+       Counters stop incrementing
 ```
 
 ---
@@ -249,32 +695,64 @@ Following Home Assistant's tiered model, FiestaBoard analytics would have two le
 ## Alternatives Considered
 
 ### Grafana on the Pi
-- **Rejected**: Too resource-heavy for a Raspberry Pi that's already running FiestaBoard + board communication. Grafana + a time-series DB would add ~500MB RAM usage.
+- **Rejected**: Too resource-heavy for a Raspberry Pi. Grafana + InfluxDB/Prometheus would add ~500MB RAM usage to a device already running FiestaBoard + board communication.
 
 ### PostHog Self-Hosted
-- **Rejected**: Overkill for this use case. PostHog is designed for product analytics with session replay, feature flags, etc. Too heavy.
+- **Rejected**: Overkill. PostHog is designed for product analytics with session replay, feature flags, etc. Too heavy and expensive to run.
 
 ### Google Analytics / Mixpanel / Amplitude
-- **Rejected**: Third-party services conflict with FiestaBoard's self-hosted ethos. Users may not trust sending data to big tech analytics platforms.
+- **Rejected**: Third-party services conflict with FiestaBoard's self-hosted ethos. Users won't trust sending data to big tech analytics platforms.
+
+### VPS with SQLite + Grafana
+- **Rejected**: Costs $5+/month for a VPS. Requires server maintenance, patching, monitoring. AWS serverless is cheaper and maintenance-free.
+
+### Cloudflare Workers + KV
+- **Considered**: Very cheap, but less flexible for aggregation queries. KV is key-value only — harder to scan and aggregate compared to DynamoDB.
 
 ### No Analytics (Status Quo)
-- **Rejected**: Without usage data, development decisions are based on guesswork. Knowing which plugins are popular, what platforms are common, and what errors occur helps prioritize work.
+- **Rejected**: Without usage data, development decisions are guesswork. Knowing which plugins are popular, what errors occur, and how boards are configured helps prioritize work.
 
 ---
 
-## Open Questions
+## Implementation Phases
 
-1. **Where to host the ingest endpoint?** Options: small VPS, free-tier cloud function (AWS Lambda, Cloudflare Workers), or a GitHub Actions workflow that processes data.
-2. **Should there be a public dashboard?** Home Assistant publishes theirs — this builds community trust but requires ongoing maintenance.
-3. **Should onboarding prompt for analytics?** Home Assistant asks during setup. FiestaBoard could add an optional prompt on first launch.
-4. **Data retention policy?** Home Assistant uses 60 days. Proposed 90 days for FiestaBoard, but could be shorter.
+### Phase 1: FiestaBoard App — Backend Collection (Workstream 1)
+- [ ] Add `analytics` config section with defaults
+- [ ] Create `src/analytics/` module (collector, counters, content_stats, sanitizer, sender, payload)
+- [ ] Add in-memory counters to `DisplayService` main loop
+- [ ] Add content stats sampling on board updates
+- [ ] Add daily send scheduler (once per 24h if opted in)
+- [ ] Add transparency logging (log payload at INFO before send)
+- [ ] Add unit tests for collector, sanitizer, and payload builder
 
----
+### Phase 2: FiestaBoard App — Frontend Opt-In UI (Workstream 1)
+- [ ] Add Analytics settings card to Settings page
+- [ ] Toggle for enable/disable (default OFF)
+- [ ] Level selector (Basic / Usage)
+- [ ] Diagnostics opt-in checkbox
+- [ ] "What do we collect?" expandable section
+- [ ] "Preview payload" button
+- [ ] Status indicator (last sent time)
 
-## Next Steps
+### Phase 3: Cloud Ingest Service (Workstream 2)
+- [ ] Create `Fiestaboard/analytics-ingest` repository
+- [ ] SAM/CDK template for API Gateway + Lambda + DynamoDB + S3 + EventBridge
+- [ ] Ingest Lambda with validation, rate limiting, schema enforcement
+- [ ] Aggregation Lambda with daily cron
+- [ ] Unit tests for both Lambdas
+- [ ] CI/CD pipeline for deployment
+- [ ] Domain setup (optional: `api.analytics.fiestaboard.com`)
 
-1. **Review this plan** — Get team/community feedback on the approach
-2. **Implement Phase 1** — Backend config + collection + sending module
-3. **Implement Phase 2** — Settings UI toggle and payload preview
-4. **Set up Phase 3** — Deploy ingest endpoint + Grafana dashboard
-5. **Document** — Add user-facing docs explaining the analytics feature
+### Phase 4: Public Transparency Site (Workstream 3)
+- [ ] Create `Fiestaboard/analytics-public` repository
+- [ ] Static site with Chart.js visualizations
+- [ ] Fetch aggregated JSON from S3
+- [ ] Sections: installations, versions, platforms, plugins, content stats
+- [ ] Deploy via S3 + CloudFront or GitHub Pages
+- [ ] Domain setup (optional: `analytics.fiestaboard.com`)
+
+### Phase 5: Documentation & Launch
+- [ ] User-facing docs explaining the analytics feature
+- [ ] Blog post / changelog entry announcing the feature
+- [ ] Link to public transparency site from Settings page
+- [ ] Community feedback period before expanding collection
