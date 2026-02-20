@@ -32,6 +32,7 @@ from .schedules.service import get_schedule_service
 from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .templates.engine import get_template_engine, reset_template_engine
 from .text_to_board import text_to_board_array
+from .devices import get_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -2286,7 +2287,8 @@ async def set_active_page(request: dict):
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
-            board_array = text_to_board_array(result.formatted)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
                 strategy=strategy,
@@ -3084,8 +3086,8 @@ async def send_page(page_id: str, target: Optional[str] = None):
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
-            # Convert to board array for proper character/color support
-            board_array = text_to_board_array(result.formatted)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
                 strategy=strategy,

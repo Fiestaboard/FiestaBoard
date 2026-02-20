@@ -1,9 +1,7 @@
 /**
- * Single 6-line TipTap Template Editor
- * Replaces 6 separate line editors with one unified editor
- * - 6 lines, 22 characters wide each
- * - Per-line alignment support
- * - Visual rendering of custom nodes (variables, colors, symbols, fill_space)
+ * TipTap Template Editor
+ * Unified rich-text editor for Vestaboard templates.
+ * Supports variable line counts (6 for Flagship, 3 for Note) via boardLines prop.
  */
 "use client";
 
@@ -155,11 +153,11 @@ export function TipTapTemplateEditor({
       FillSpaceNode,
       SymbolNode,
       WrappedTextNode,
-      LineNavigation, // Enter = navigate to next line, Shift+Enter = blocked
+      LineNavigation.configure({ maxLines: boardLines }),
       // UppercaseText, // Disabled - using CSS + serialization instead
       // LineConstraints, // Disabled - handling in handleKeyDown and serialization instead
     ],
-    content: parseTemplateSimple(value || ''),
+    content: parseTemplateSimple(value || '', boardLines),
     editorProps: {
       attributes: {
         class: cn(
@@ -479,7 +477,7 @@ export function TipTapTemplateEditor({
         return;
       }
       const doc = editor.getJSON();
-      const templateString = serializeTemplateSimple(doc);
+      const templateString = serializeTemplateSimple(doc, boardLines);
       onChange(templateString);
     },
     onFocus: () => {
@@ -594,10 +592,9 @@ export function TipTapTemplateEditor({
   // Update editor content when value changes externally
   useEffect(() => {
     if (editor && editor.state) {
-      const currentSerialized = serializeTemplateSimple(editor.getJSON());
+      const currentSerialized = serializeTemplateSimple(editor.getJSON(), boardLines);
       if (value !== currentSerialized) {
-        // Preserve history to allow undo/redo after external updates
-        editor.commands.setContent(parseTemplateSimple(value || ''), false, {
+        editor.commands.setContent(parseTemplateSimple(value || '', boardLines), false, {
           preserveWhitespace: true,
         });
       }
