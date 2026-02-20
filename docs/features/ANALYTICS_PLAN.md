@@ -267,7 +267,7 @@ Following Home Assistant's tiered model, FiestaBoard analytics would have two le
 1. **Where to host the ingest endpoint?** Options: small VPS, free-tier cloud function (AWS Lambda, Cloudflare Workers), or a GitHub Actions workflow that processes data.
 2. **Should there be a public dashboard?** Home Assistant publishes theirs — this builds community trust but requires ongoing maintenance.
 3. **Should onboarding prompt for analytics?** Home Assistant asks during setup. FiestaBoard could add an optional prompt on first launch.
-4. **Data retention policy?** Proposed 90 days, but could be shorter.
+4. **Data retention policy?** Home Assistant uses 60 days. Proposed 90 days for FiestaBoard, but could be shorter.
 
 ---
 
