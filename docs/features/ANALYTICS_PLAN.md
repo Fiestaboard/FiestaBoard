@@ -124,6 +124,40 @@ How FiestaBoard is being used — still anonymous, no content.
 
 > **Note on error messages:** Plugin error messages are collected only for maintainer use (to identify common failures and fix them). These are **not** displayed on the public transparency site. Error messages are sanitized to strip any URLs, paths, or API key fragments before collection.
 
+#### Automatic Coverage for Future Plugins
+
+Plugin analytics uses **auto-discovery** — it iterates the `PluginRegistry` at collection time rather than maintaining a hardcoded list of plugin names. This means **any plugin added to the `plugins/` directory in the future is automatically covered by analytics with zero code changes**.
+
+How it works:
+
+1. FiestaBoard's plugin loader scans the `plugins/` directory for subdirectories containing a `manifest.json`
+2. Each plugin is loaded into the `PluginRegistry` with its manifest metadata (id, name, version, category, settings schema)
+3. The analytics collector iterates `registry.list_plugins()` to enumerate **all** plugins — current and future
+4. For each plugin, the collector reads: enabled/disabled state, plugin state (active/error/setup), and sanitized error messages
+5. Plugin metadata from the manifest (id, version, category) is included — but **never** plugin configuration values
+
+```python
+# Pseudocode: how analytics auto-discovers plugins
+def collect_plugin_analytics():
+    registry = get_plugin_registry()
+    plugin_data = {}
+
+    for plugin_id, plugin in registry.plugins.items():
+        manifest = registry.get_manifest(plugin_id)
+        result = registry.fetch_plugin_data(plugin_id)
+
+        plugin_data[plugin_id] = {
+            "state": determine_state(result),  # "active", "error", or "setup"
+            "version": manifest.get("version"),
+            "category": manifest.get("category"),
+            "error": sanitize(result.error) if result.error else None,
+        }
+
+    return plugin_data
+```
+
+**What this means for plugin developers:** When you create a new plugin using the `_template/` scaffold and place it in `plugins/`, analytics will automatically track its adoption, state, and any errors — with no extra configuration needed. The `manifest.json` already declares everything analytics needs (id, name, version, category).
+
 #### Page & Content Analytics
 
 | Data Point | Example Value | Source | Purpose |
@@ -419,28 +453,129 @@ A lightweight AWS serverless stack to receive, store, and aggregate telemetry pa
 
 | Requirement | Solution |
 |---|---|
-| As cheap as possible | AWS free tier covers ~90% of expected load |
-| No earned revenue | Free tier + pay-per-use = $0-2/month at scale |
-| Low maintenance | Serverless = no servers to patch or monitor |
-| Scalable if FiestaBoard grows | Lambda + DynamoDB scale automatically |
-| Secure | API Gateway handles TLS; Lambda runs in VPC |
+| As cheap as possible | Pay-per-use pricing; most services have always-free tiers |
+| No earned revenue | Designed to stay under $5/month even at scale |
+| Low maintenance | Serverless = no servers to patch, no OS updates, no uptime monitoring |
+| Scalable if FiestaBoard grows | Lambda + DynamoDB scale automatically from 10 to 100,000 installations |
+| Secure | API Gateway enforces TLS; Lambda runs in isolated containers |
 
-### Estimated Cost Breakdown
+### Real AWS Cost Breakdown
 
-Assuming 500 active installations sending 1 payload/day:
+Below are actual AWS prices (as of early 2026) with worked math for three realistic scenarios. All prices are for **us-east-1** region. Prices may vary slightly by region.
 
-| Service | Free Tier | Monthly Usage | Cost |
+#### AWS Per-Unit Pricing Reference
+
+| Service | Unit | Price | Free Tier | Free Tier Expiry |
+|---|---|---|---|---|
+| **API Gateway** (HTTP API) | 1M requests | $1.00 | 1M requests/mo | 12 months |
+| **Lambda** (requests) | 1M invocations | $0.20 | 1M invocations/mo | **Never** (always free) |
+| **Lambda** (compute) | 1 GB-second | $0.0000167 | 400,000 GB-sec/mo | **Never** (always free) |
+| **DynamoDB** (on-demand writes) | 1M write request units | $1.25 | 25 WCU provisioned | **Never** (always free) |
+| **DynamoDB** (on-demand reads) | 1M read request units | $0.25 | 25 RCU provisioned | **Never** (always free) |
+| **DynamoDB** (storage) | 1 GB/month | $0.25 | 25 GB | **Never** (always free) |
+| **S3** (storage) | 1 GB/month | $0.023 | 5 GB | 12 months |
+| **S3** (PUT requests) | 1,000 requests | $0.005 | 2,000 PUTs/mo | 12 months |
+| **S3** (GET requests) | 1,000 requests | $0.0004 | 20,000 GETs/mo | 12 months |
+| **CloudFront** | 1 TB transfer out | ~$0.085 | 1 TB/mo + 10M requests | **Never** (always free) |
+| **EventBridge** (scheduled rules) | 1 invocation | $0.0000546 | — | — |
+| **Route 53** (hosted zone) | 1 zone/month | $0.50 | — | — |
+| **Route 53** (DNS queries) | 1M queries | $0.40 | — | — |
+
+#### Scenario 1: Early Stage — 100 Installations
+
+100 FiestaBoard installations opt in, each sending 1 payload (~2KB) per day.
+
+| Service | Monthly Usage | Calculation | Monthly Cost |
 |---|---|---|---|
-| API Gateway (HTTP API) | 1M requests/mo | 15,000 requests/mo | **$0.00** |
-| Lambda (ingest) | 1M invocations/mo | 15,000 invocations/mo | **$0.00** |
-| Lambda (aggregate) | Included above | 30 invocations/mo | **$0.00** |
-| DynamoDB | 25 GB storage, 25 RCU/WCU | ~500 MB, <5 WCU | **$0.00** |
-| S3 (aggregated JSON) | 5 GB storage | <1 MB | **$0.00** |
-| CloudFront (public site) | 1 TB transfer/mo | <1 GB | **$0.00** |
-| Route 53 (domain) | — | 1 hosted zone | **$0.50/mo** |
-| **Total** | | | **~$0.50/mo** |
+| API Gateway | 3,000 requests | 100 installs × 30 days | **$0.00** (within free tier) |
+| Lambda: ingest | 3,000 invocations, ~1.5 GB-sec | 128MB × 0.5s per invocation | **$0.00** (always-free tier) |
+| Lambda: aggregate | 30 invocations, ~15 GB-sec | 512MB × 1s daily | **$0.00** (always-free tier) |
+| DynamoDB writes | 3,000 writes/mo | 1 write per payload | **$0.00** (on-demand: $0.004) |
+| DynamoDB reads | ~3,100 reads/mo | Daily scan for aggregation | **$0.00** (on-demand: $0.001) |
+| DynamoDB storage | ~18 MB | 100 installs × 2KB × 90 days | **$0.00** (under 25 GB always-free) |
+| S3 storage | <1 MB | 3 JSON files, updated daily | **$0.00** (under 5 GB free tier) |
+| S3 requests | ~60 PUTs, ~5,000 GETs | Daily writes + public site reads | **$0.00** (within free tier) |
+| CloudFront | <100 MB transfer | Public site traffic | **$0.00** (within always-free tier) |
+| EventBridge | 30 invocations | 1 daily cron | **$0.00** ($0.002) |
+| Route 53 zone | 1 hosted zone | analytics.fiestaboard.com | **$0.50** |
+| Route 53 queries | ~5,000 queries | DNS lookups | **$0.00** ($0.002) |
+| | | | |
+| **Total (Year 1)** | | API Gateway in free trial | **$0.50/mo ($6.00/yr)** |
+| **Total (Year 2+)** | | API Gateway free tier expired | **$0.50/mo ($6.00/yr)** |
 
-Even at 5,000 installations, cost stays under **$2/month** due to the pay-per-use model and DynamoDB TTL (auto-deletes old data).
+> At 100 installations, all usage is so small that per-request costs round to $0.00 even after the 12-month free tier expires. The only fixed cost is the Route 53 hosted zone.
+
+#### Scenario 2: Growth Stage — 1,000 Installations
+
+1,000 installations opt in, each sending 1 payload per day.
+
+| Service | Monthly Usage | Calculation | Monthly Cost |
+|---|---|---|---|
+| API Gateway | 30,000 requests | 1,000 × 30 days | **$0.00** (free tier Year 1) |
+| Lambda: ingest | 30,000 invocations, ~15 GB-sec | | **$0.00** (always-free tier) |
+| Lambda: aggregate | 30 invocations, ~30 GB-sec | Larger scan | **$0.00** (always-free tier) |
+| DynamoDB writes | 30,000 writes/mo | | **$0.04** (on-demand) |
+| DynamoDB reads | ~31,000 reads/mo | | **$0.01** (on-demand) |
+| DynamoDB storage | ~180 MB | 1,000 × 2KB × 90 days | **$0.00** (under 25 GB) |
+| S3 | <1 MB storage, ~60 PUTs, ~50,000 GETs | Public site traffic up | **$0.02** |
+| CloudFront | <500 MB transfer | | **$0.00** (always-free tier) |
+| EventBridge | 30 invocations | | **$0.00** |
+| Route 53 | 1 zone + ~50,000 queries | | **$0.52** |
+| | | | |
+| **Total (Year 1)** | | API Gateway in free trial | **$0.59/mo ($7.08/yr)** |
+| **Total (Year 2+)** | | API Gateway: 30K req × $1/1M = $0.03 | **$0.62/mo ($7.44/yr)** |
+
+#### Scenario 3: Mature Stage — 5,000 Installations
+
+5,000 installations opt in, each sending 1 payload per day.
+
+| Service | Monthly Usage | Calculation | Monthly Cost |
+|---|---|---|---|
+| API Gateway | 150,000 requests | 5,000 × 30 days | **$0.00** (free tier Year 1) |
+| Lambda: ingest | 150,000 invocations, ~75 GB-sec | | **$0.00** (always-free tier) |
+| Lambda: aggregate | 30 invocations, ~150 GB-sec | Larger scans | **$0.00** (always-free tier) |
+| DynamoDB writes | 150,000 writes/mo | | **$0.19** (on-demand) |
+| DynamoDB reads | ~155,000 reads/mo | | **$0.04** (on-demand) |
+| DynamoDB storage | ~900 MB | 5,000 × 2KB × 90 days | **$0.00** (under 25 GB) |
+| S3 | <1 MB, ~60 PUTs, ~200,000 GETs | | **$0.08** |
+| CloudFront | <2 GB transfer | | **$0.00** (always-free tier) |
+| EventBridge | 30 invocations | | **$0.00** |
+| Route 53 | 1 zone + ~200,000 queries | | **$0.58** |
+| | | | |
+| **Total (Year 1)** | | API Gateway in free trial | **$0.89/mo ($10.68/yr)** |
+| **Total (Year 2+)** | | API Gateway: 150K req × $1/1M = $0.15 | **$1.04/mo ($12.48/yr)** |
+
+#### Cost Summary Table
+
+| Scenario | Installations | Year 1 Monthly | Year 2+ Monthly | Annual Cost (Year 2+) |
+|---|---|---|---|---|
+| **Early** | 100 | $0.50 | $0.50 | **$6.00/yr** |
+| **Growth** | 1,000 | $0.59 | $0.62 | **$7.44/yr** |
+| **Mature** | 5,000 | $0.89 | $1.04 | **$12.48/yr** |
+| **Large** (extrapolated) | 10,000 | $1.48 | $1.78 | **$21.36/yr** |
+
+> **Bottom line:** The entire analytics infrastructure costs between **$6 and $22 per year** depending on scale. The dominant cost is the $0.50/month Route 53 hosted zone — everything else is pennies. Even at 10,000 installations, the total annual cost is about the price of two months of Netflix.
+
+#### Optional: Skip Route 53 Entirely
+
+If we use a subdomain on an existing domain (e.g., GitHub Pages CNAME, or Cloudflare DNS pointing to the API Gateway URL), the Route 53 cost disappears entirely:
+
+| Scenario | Without Route 53 | Annual Cost |
+|---|---|---|
+| 100 installations | $0.00/mo | **~$0/yr** |
+| 1,000 installations | $0.12/mo | **$1.44/yr** |
+| 5,000 installations | $0.54/mo | **$6.48/yr** |
+
+#### What Could Cause Unexpected Costs?
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| DDoS on the ingest endpoint | Millions of Lambda invocations + DynamoDB writes | API Gateway throttle (100 req/sec default), Lambda concurrency limit (10), DynamoDB on-demand auto-scaling with billing alarm |
+| Runaway installations sending too frequently | Higher-than-expected request volume | Rate limiting in Lambda (1 per install per 20h), payload size cap (10KB) |
+| DynamoDB storage growth | Storage costs if TTL stops working | TTL is built into DynamoDB — it auto-deletes. Set CloudWatch alarm on table size >1 GB |
+| Forgetting to set up billing alerts | Surprise bill | **Step 1 of deployment: set $5/month billing alarm in AWS Budgets (free)** |
+
+**Recommended safeguard:** Set a **$5/month AWS Budget alarm** as the very first step of deployment. This sends an email alert if projected costs exceed $5 — giving time to investigate before any real cost accumulates.
 
 ### Ingest Lambda: Key Logic
 
