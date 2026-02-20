@@ -288,7 +288,6 @@ Each plugin includes its own docs:
 - **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: Build on Raspberry Pi
 
 ### Reference
-- **[API Research](./docs/reference/API_RESEARCH.md)**: API integration details
 - **[Character Codes](./docs/reference/CHARACTER_CODES.md)**: Board character reference
 - **[Color Guide](./docs/reference/COLOR_GUIDE.md)**: Color coding reference
 

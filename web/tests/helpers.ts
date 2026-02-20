@@ -111,6 +111,7 @@ export async function createNotePage(
   return createPage(name, template, "note");
 }
 
+
 /** Delete a page via the API. */
 export async function deletePage(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/pages/${id}`, { method: "DELETE" });
