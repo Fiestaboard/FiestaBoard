@@ -667,13 +667,235 @@ Runs daily via EventBridge rule. Scans all records from the last 24 hours and pr
 }
 ```
 
-### Infrastructure as Code
+### Infrastructure as Code: Deployment Technology
 
-The repo should use **AWS SAM** (Serverless Application Model) or **AWS CDK** for infrastructure:
+We need a tool to define our entire AWS stack (API Gateway, Lambda, DynamoDB, S3, EventBridge, CloudFront) as code so it can be deployed repeatably, version-controlled, and updated safely. Here's a comparison of the major options:
+
+#### Options Evaluated
+
+| Tool | What It Is | Language | License |
+|---|---|---|---|
+| **AWS SAM** | AWS-native serverless deployment framework built on CloudFormation | YAML templates | Apache 2.0 (open source) |
+| **Terraform** | Multi-cloud Infrastructure as Code tool by HashiCorp | HCL (HashiCorp Config Language) | BSL 1.1 (source-available, **not** open source since Aug 2023) |
+| **OpenTofu** | Community fork of Terraform, maintained by Linux Foundation | HCL | Apache 2.0 (open source) |
+| **AWS CDK** | AWS Infrastructure as Code using programming languages | TypeScript, Python, etc. | Apache 2.0 (open source) |
+| **SST** | Modern serverless framework built on AWS CDK | TypeScript | MIT (open source) |
+
+#### Detailed Comparison
+
+| Factor | AWS SAM | Terraform / OpenTofu | AWS CDK | SST |
+|---|---|---|---|---|
+| **Learning curve** | Low — simplified YAML, great docs | Medium — HCL syntax, state management | Medium — mixing code + CloudFormation concepts | Medium — TypeScript + CDK concepts |
+| **Local testing** | ✅ Built-in (`sam local invoke`, `sam local start-api`) | ❌ No built-in Lambda emulation | ❌ No built-in (use SAM CLI alongside) | ✅ Live Lambda dev mode |
+| **Multi-cloud** | ❌ AWS only | ✅ AWS, Azure, GCP, 100+ providers | ❌ AWS only | ❌ AWS only |
+| **Serverless focus** | ✅ Purpose-built for Lambda + API GW + DynamoDB | ⚠️ Generic — serverless is one of many use cases | ⚠️ Generic — supports everything | ✅ Serverless-focused |
+| **Deploy command** | `sam build && sam deploy` | `terraform apply` / `tofu apply` | `cdk deploy` | `sst deploy` |
+| **Rollback** | ✅ Automatic (CloudFormation) | ⚠️ Manual state management | ✅ Automatic (CloudFormation) | ✅ Automatic (CloudFormation) |
+| **State management** | None needed (CloudFormation manages it) | Requires S3 bucket + DynamoDB lock table for remote state | None needed (CloudFormation manages it) | None needed (CloudFormation manages it) |
+| **CI/CD integration** | ✅ `sam deploy` in GitHub Actions | ✅ `terraform apply` in GitHub Actions | ✅ `cdk deploy` in GitHub Actions | ✅ `sst deploy` in GitHub Actions |
+| **Template verbosity for our stack** | ~60 lines YAML for all resources | ~150 lines HCL for same resources | ~80 lines TypeScript | ~50 lines TypeScript |
+| **Community size** | Large (AWS-backed) | Very large (but split: Terraform vs OpenTofu) | Growing (AWS-backed) | Smaller, startup-focused |
+| **License concerns** | None (Apache 2.0) | ⚠️ Terraform: BSL 1.1 — not open source. OpenTofu: Apache 2.0 | None (Apache 2.0) | None (MIT) |
+
+#### Recommendation: **AWS SAM**
+
+For the FiestaBoard analytics ingest service, **AWS SAM** is the best fit. Here's why:
+
+1. **Purpose-built for exactly our stack.** SAM was designed for Lambda + API Gateway + DynamoDB + S3 + EventBridge. Our entire infrastructure is ~60 lines of YAML — no boilerplate, no abstractions to learn.
+
+2. **Lowest learning curve.** A contributor who has never used IaC before can read a SAM template and understand it. YAML is declarative and self-documenting. Compare that to learning HCL (Terraform) or mixing TypeScript with CDK constructs.
+
+3. **No state management headache.** SAM uses CloudFormation under the hood, which manages state automatically in AWS. Terraform/OpenTofu require setting up a separate S3 bucket + DynamoDB table just to store infrastructure state — that's more infrastructure to manage our infrastructure.
+
+4. **Built-in local testing.** `sam local invoke` and `sam local start-api` let contributors test Lambda functions on their laptop without deploying to AWS. This is critical for an open source project where contributors may not have AWS accounts.
+
+5. **Simple deployment.** Two commands: `sam build && sam deploy --guided`. The guided deploy walks you through every setting. After the first deploy, `sam deploy` is a single command.
+
+6. **Open source license.** SAM is Apache 2.0 — no licensing concerns for an open source project. Terraform's BSL 1.1 license is source-available but **not** open source, which is a philosophical mismatch for FiestaBoard.
+
+7. **Zero extra cost.** SAM is a CLI tool + template format. It compiles down to CloudFormation, which is free. No additional services or subscriptions.
+
+#### Why Not Terraform?
+
+Terraform is the most popular IaC tool and many people's first instinct, but it has drawbacks for this specific use case:
+
+- **License concern:** In August 2023, HashiCorp changed Terraform's license from MPL 2.0 (open source) to BSL 1.1 (source-available, not open source). This restricts competitors from offering Terraform-as-a-service. While this doesn't directly affect FiestaBoard (we're not a competitor to HashiCorp), using a non-open-source tool to deploy an open source project's infrastructure is a philosophical mismatch. The community fork **OpenTofu** (Apache 2.0, Linux Foundation) is the open source alternative, but it's still maturing.
+
+- **State management overhead:** Terraform requires a "backend" to store infrastructure state. For AWS, this means creating an S3 bucket + DynamoDB lock table before you can even begin deploying the actual infrastructure. SAM/CloudFormation manages state automatically — zero setup.
+
+- **Not serverless-focused:** Terraform is a general-purpose IaC tool. Defining a Lambda + API Gateway setup requires ~150 lines of HCL with explicit IAM roles, policies, and resource connections. SAM does this in ~60 lines with built-in shortcuts like `Events: Api:` that auto-create API Gateway routes.
+
+- **Overkill for our scope:** We're deploying 6 AWS resources. Terraform's power shines for complex multi-cloud, multi-environment setups with dozens of services. For a simple serverless stack, it adds unnecessary complexity.
+
+#### Why Not CDK or SST?
+
+- **CDK** requires contributors to know TypeScript or Python AND understand CloudFormation constructs. It's powerful but adds a layer of abstraction that's unnecessary for a simple stack.
+- **SST** is excellent for TypeScript-heavy serverless projects but is a younger ecosystem with more frequent breaking changes. It also requires a TypeScript toolchain — our analytics ingest is Python Lambda functions, so TypeScript would only be used for infrastructure, not application code.
+
+#### What Deployment Looks Like
+
+With SAM, deploying the entire analytics stack is this simple:
+
+```bash
+# First time setup (one-time, interactive)
+$ pip install aws-sam-cli
+$ cd analytics-ingest
+$ sam build
+$ sam deploy --guided
+
+# Subsequent deployments (one command)
+$ sam build && sam deploy
+```
+
+The `sam deploy --guided` flow:
+```
+Setting default arguments for 'sam deploy'
+=========================================
+Stack Name [fiestaboard-analytics]:
+AWS Region [us-east-1]:
+Confirm changes before deploy [Y/n]: y
+Allow SAM CLI IAM role creation [Y/n]: y
+Save arguments to configuration file [Y/n]: y
+
+Deploying...
+✓ API Gateway created
+✓ Ingest Lambda deployed
+✓ Aggregate Lambda deployed
+✓ DynamoDB table created
+✓ S3 bucket created
+✓ EventBridge rule created
+✓ CloudFront distribution created
+
+Outputs:
+  ApiUrl: https://abc123.execute-api.us-east-1.amazonaws.com/v1/telemetry
+```
+
+#### Example SAM Template (Our Actual Stack)
+
+This is approximately what the full `template.yaml` would look like:
+
+```yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: FiestaBoard Analytics Ingest Service
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: python3.12
+    MemorySize: 128
+
+Resources:
+  # DynamoDB table for telemetry storage
+  TelemetryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: fiestaboard-telemetry
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: installation_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: installation_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # S3 bucket for aggregated public JSON
+  AggregatedDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: fiestaboard-analytics-public
+
+  # Ingest Lambda — receives daily telemetry payloads
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/ingest/
+      Handler: handler.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TelemetryTable
+      Events:
+        TelemetryApi:
+          Type: HttpApi
+          Properties:
+            Path: /v1/telemetry
+            Method: POST
+
+  # Aggregation Lambda — daily cron to compute stats
+  AggregateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/aggregate/
+      Handler: handler.lambda_handler
+      MemorySize: 512
+      Timeout: 60
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref TelemetryTable
+        - S3CrudPolicy:
+            BucketName: !Ref AggregatedDataBucket
+      Events:
+        DailyCron:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 2 * * ? *)
+            Description: Daily aggregation at 2 AM UTC
+
+Outputs:
+  ApiUrl:
+    Description: Telemetry ingest endpoint
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/v1/telemetry"
+  BucketName:
+    Description: S3 bucket for aggregated data
+    Value: !Ref AggregatedDataBucket
+```
+
+**That's the entire infrastructure** — API Gateway, 2 Lambda functions, DynamoDB with TTL, S3, and a daily EventBridge cron — in ~70 lines of readable YAML.
+
+#### CI/CD: GitHub Actions Deployment
+
+Deployments can be automated via GitHub Actions in the `analytics-ingest` repo:
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy Analytics Stack
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: aws-actions/setup-sam@v2
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - run: sam build
+      - run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+```
+
+Merging to `main` automatically deploys the stack. No manual steps, no SSH into servers, no downtime.
+
+#### Repository Structure (Updated)
 
 ```
 analytics-ingest/
-├── template.yaml          # SAM template (API GW + Lambda + DynamoDB + S3 + EventBridge)
+├── template.yaml          # SAM template — defines ALL infrastructure
+├── samconfig.toml         # Deployment defaults (region, stack name)
 ├── src/
 │   ├── ingest/            # Ingest Lambda function
 │   │   ├── handler.py
@@ -686,7 +908,9 @@ analytics-ingest/
 ├── tests/
 │   ├── test_ingest.py
 │   └── test_aggregate.py
-├── samconfig.toml         # Deployment config
+├── .github/
+│   └── workflows/
+│       └── deploy.yml     # Auto-deploy on merge to main
 └── README.md
 ```
 
@@ -871,7 +1095,7 @@ analytics-public/
 
 ### Phase 3: Cloud Ingest Service (Workstream 2)
 - [ ] Create `Fiestaboard/analytics-ingest` repository
-- [ ] SAM/CDK template for API Gateway + Lambda + DynamoDB + S3 + EventBridge
+- [ ] AWS SAM template (`template.yaml`) for API Gateway + Lambda + DynamoDB + S3 + EventBridge
 - [ ] Ingest Lambda with validation, rate limiting, schema enforcement
 - [ ] Aggregation Lambda with daily cron
 - [ ] Unit tests for both Lambdas
