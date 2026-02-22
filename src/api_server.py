@@ -314,7 +314,7 @@ def run_service_background():
         try:
             logger.info("Starting background display service...")
             service.run()
-        except Exception as e:
+        except BaseException as e:
             logger.error(f"Service error: {e}", exc_info=True)
         finally:
             _service_running = False

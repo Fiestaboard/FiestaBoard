@@ -1,7 +1,6 @@
 """Main application entry point for FiestaBoard Display Service."""
 
 import logging
-import sys
 import time
 import signal
 from datetime import datetime
@@ -311,9 +310,9 @@ class DisplayService:
         """Run the main service loop."""
         self.running = True
         
-        if not self.initialize():
-            logger.error("Initialization failed, exiting")
-            sys.exit(1)
+        if not self.vb_client and not self.initialize():
+            logger.error("Initialization failed")
+            return
         
         schedule.clear()
         

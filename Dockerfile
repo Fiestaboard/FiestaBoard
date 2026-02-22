@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir fastapi uvicorn[standard]
+    pip install --no-cache-dir fastapi uvicorn[standard] supervisor
 
 # --- Stage 2: Build Next.js UI ---
 FROM node:25-alpine AS ui-builder
@@ -86,40 +86,18 @@ RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx /var/lib/nginx/body
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
 
-# Create startup script that runs API, Next.js, and nginx
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'set -e' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Start the API server in background' >> /app/start.sh && \
-    echo 'echo "Starting API server on port 8000..."' >> /app/start.sh && \
-    echo 'cd /app && python -m uvicorn src.api_server:app --host 127.0.0.1 --port 8000 &' >> /app/start.sh && \
-    echo 'API_PID=$!' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Start Next.js server in background' >> /app/start.sh && \
-    echo 'echo "Starting Next.js server on port 3001..."' >> /app/start.sh && \
-    echo 'cd /app/web && PORT=3001 HOSTNAME=127.0.0.1 node server.js &' >> /app/start.sh && \
-    echo 'NEXTJS_PID=$!' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Wait for services to start' >> /app/start.sh && \
-    echo 'sleep 2' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Start nginx in foreground' >> /app/start.sh && \
-    echo 'echo "Starting nginx on port 3000..."' >> /app/start.sh && \
-    echo 'nginx -g "daemon off;" &' >> /app/start.sh && \
-    echo 'NGINX_PID=$!' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Wait for any process to exit' >> /app/start.sh && \
-    echo 'wait $API_PID $NEXTJS_PID $NGINX_PID' >> /app/start.sh && \
-    chmod +x /app/start.sh && \
-    chown appuser:appuser /app/start.sh
+# Copy supervisord configs for process supervision
+COPY supervisord.conf /app/supervisord.conf
+COPY supervisord-dev.conf /app/supervisord-dev.conf
+RUN chown appuser:appuser /app/supervisord.conf /app/supervisord-dev.conf
 
 USER appuser
 
 # Expose single port
 EXPOSE 3000
 
-# Health check via nginx
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3000/ || exit 1
+# Health check via nginx -> API
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-CMD ["/bin/sh", "/app/start.sh"]
+CMD ["supervisord", "-c", "/app/supervisord.conf"]

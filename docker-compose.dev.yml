@@ -19,6 +19,7 @@ services:
       - ./tests:/app/tests
       - ./scripts:/app/scripts
       - ./start-dev.sh:/app/start-dev.sh:ro
+      - ./supervisord-dev.conf:/app/supervisord-dev.conf:ro
     command: ["/bin/sh", "/app/start-dev.sh"]
     logging:
       driver: "json-file"
