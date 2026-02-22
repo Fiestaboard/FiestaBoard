@@ -139,10 +139,19 @@ const config: Config = {
       },
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
-          position: 'left',
+          type: 'dropdown',
           label: 'Documentation',
+          position: 'left',
+          items: [
+            {type: 'doc', docId: 'intro', label: 'Getting Started'},
+            {type: 'doc', docId: 'setup/quick-start', label: 'Setup'},
+            {type: 'doc', docId: 'features/page-editor', label: 'Features'},
+            {type: 'doc', docId: 'plugins/overview', label: 'Plugins'},
+            {type: 'doc', docId: 'deployment/production', label: 'Deployment'},
+            {type: 'doc', docId: 'development/contributing', label: 'Development'},
+            {type: 'doc', docId: 'reference/api-endpoints', label: 'API Reference'},
+            {type: 'doc', docId: 'troubleshooting', label: 'Troubleshooting'},
+          ],
         },
         {
           href: 'https://discord.gg/wc9dDfte',
