@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -706,10 +706,11 @@ async def get_board_config():
     }
 
 
-# Backward compatibility endpoint
-@app.get("/config/board")
-async def get_board_config_compat():
-    """Backward compatibility endpoint. Use /config/board instead."""
+# Deprecated backward compatibility endpoint - redirects to /config/board
+async def get_board_config_compat(response: Response):
+    """Deprecated: Use /config/board instead."""
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = '</config/board>; rel="successor-version"'
     return await get_board_config()
 
 
@@ -748,10 +749,11 @@ async def update_board_config(request: dict):
     }
 
 
-# Backward compatibility endpoint
-@app.put("/config/board")
-async def update_board_config_compat(request: dict):
-    """Backward compatibility endpoint. Use /config/board instead."""
+# Deprecated backward compatibility endpoint - redirects to /config/board
+async def update_board_config_compat(request: dict, response: Response):
+    """Deprecated: Use /config/board instead."""
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = '</config/board>; rel="successor-version"'
     return await update_board_config(request)
 
 
@@ -1165,9 +1167,12 @@ async def get_display(display_type: str):
     }
 
 
+# Deprecated: use /plugins/{plugin_id}/data instead
 @app.get("/displays/{display_type}/raw")
-async def get_display_raw(display_type: str):
+async def get_display_raw(display_type: str, response: Response):
     """
+    Deprecated: Use /plugins/{plugin_id}/data instead.
+
     Get raw data from a display source (before formatting).
     
     This is useful for debugging or building custom displays.
@@ -1178,6 +1183,8 @@ async def get_display_raw(display_type: str):
     Returns:
         Raw data dictionary from the source.
     """
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = f'</plugins/{display_type}/data>; rel="successor-version"'
     
     display_service = get_display_service()
     result = display_service.get_display(display_type)
