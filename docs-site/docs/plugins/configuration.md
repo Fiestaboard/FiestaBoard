@@ -12,7 +12,7 @@ Learn how to enable, configure, and manage FiestaBoard plugins.
 
 ### Via the Web UI (Recommended)
 
-1. Open `http://localhost:3000`
+1. Open `http://localhost:4420`
 2. Go to the **Integrations** page
 3. Toggle plugins **on** or **off**
 4. Click on a plugin to configure its settings
@@ -21,16 +21,16 @@ Learn how to enable, configure, and manage FiestaBoard plugins.
 
 ```bash
 # Enable a plugin
-curl -X POST http://localhost:3000/plugins/weather/enable
+curl -X POST http://localhost:4420/plugins/weather/enable
 
 # Disable a plugin
-curl -X POST http://localhost:3000/plugins/weather/disable
+curl -X POST http://localhost:4420/plugins/weather/disable
 
 # Get plugin configuration
-curl http://localhost:3000/plugins/weather/config
+curl http://localhost:4420/plugins/weather/config
 
 # Update plugin configuration
-curl -X PUT http://localhost:3000/plugins/weather/config \
+curl -X PUT http://localhost:4420/plugins/weather/config \
   -H "Content-Type: application/json" \
   -d '{"location": "San Francisco, CA"}'
 ```
@@ -88,13 +88,13 @@ You can query plugin data directly:
 
 ```bash
 # Get all available variables from a plugin
-curl http://localhost:3000/plugins/weather/variables
+curl http://localhost:4420/plugins/weather/variables
 
 # Get raw plugin data
-curl http://localhost:3000/plugins/weather/data
+curl http://localhost:4420/plugins/weather/data
 
 # List all plugins and their status
-curl http://localhost:3000/plugins
+curl http://localhost:4420/plugins
 ```
 
 ## Next Steps

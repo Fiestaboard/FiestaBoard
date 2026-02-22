@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "3000:3000"
+      - "4420:3000"
     volumes:
       # Persist data (including config) to local filesystem
       - ./data:/app/data

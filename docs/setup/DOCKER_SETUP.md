@@ -5,10 +5,39 @@
 This project uses a **single-container architecture** for simplicity and portability:
 
 - **FiestaBoard** (`fiestaboard`) - Unified container running API + Web UI
-  - Port: `3000` (single port for everything)
+  - Port: `4420` (single port for everything)
   - Nginx reverse proxy routes requests to the appropriate backend
   - API (FastAPI) runs internally on port 8000
   - Web UI (Next.js) runs internally on port 3001
+
+## Port Configuration
+
+FiestaBoard defaults to port **4420** on the host. Inside the container, an nginx reverse proxy on port 3000 handles routing to the backend services:
+
+```
+Host (port 4420) ──> Nginx (port 3000 inside container)
+                       ├── /api/*  ──> FastAPI (port 8000)
+                       └── /*      ──> Next.js (port 3001)
+```
+
+The internal ports (3000, 8000, 3001) are never exposed to the host directly.
+
+### Using a Custom Port
+
+To change the host port, edit the left side of the `ports` mapping in your docker-compose file:
+
+```yaml
+ports:
+  - "8080:3000"   # access FiestaBoard at localhost:8080
+```
+
+Or with `docker run`:
+
+```bash
+docker run -d -p 8080:3000 fiestaboard
+```
+
+The container-side port (right of the colon) must stay `3000` -- that's where nginx listens inside the container. Only the host-side port (left of the colon) changes.
 
 ## Quick Start
 
@@ -27,8 +56,8 @@ docker-compose down
 
 ### Access
 
-- **Web UI**: http://localhost:3000
-- **API Docs**: http://localhost:3000/docs (FastAPI auto-generated docs)
+- **Web UI**: http://localhost:4420
+- **API Docs**: http://localhost:4420/docs (FastAPI auto-generated docs)
 
 ## Development
 
@@ -46,7 +75,7 @@ docker build -t fiestaboard .
 docker run -d \
   --name fiestaboard \
   --env-file .env \
-  -p 3000:3000 \
+  -p 4420:3000 \
   -v ./data:/app/data \
   fiestaboard
 ```
@@ -77,24 +106,24 @@ docker run -d \
 
 ### Test Health
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:4420/health
 ```
 
 ### Test Service Status
 ```bash
-curl http://localhost:3000/status
+curl http://localhost:4420/status
 ```
 
 ### Toggle Dev Mode
 ```bash
-curl -X POST http://localhost:3000/dev-mode \
+curl -X POST http://localhost:4420/dev-mode \
   -H "Content-Type: application/json" \
   -d '{"dev_mode": true}'
 ```
 
 ### Send Custom Message
 ```bash
-curl -X POST http://localhost:3000/send-message \
+curl -X POST http://localhost:4420/send-message \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello from API!"}'
 ```
@@ -116,7 +145,7 @@ curl -X POST http://localhost:3000/send-message \
 3. **Check port conflicts:**
    ```bash
    # Check if port is in use
-   lsof -i :3000
+   lsof -i :4420
    ```
 
 ### API Not Responding
@@ -133,14 +162,14 @@ curl -X POST http://localhost:3000/send-message \
 
 3. **Test API directly:**
    ```bash
-   curl http://localhost:3000/health
+   curl http://localhost:4420/health
    ```
 
 ### Web UI Can't Connect to API
 
 1. **Check the service is running:**
    ```bash
-   curl http://localhost:3000/health
+   curl http://localhost:4420/health
    ```
 
 2. **Check container logs:**

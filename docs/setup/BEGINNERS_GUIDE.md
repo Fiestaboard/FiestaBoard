@@ -105,7 +105,7 @@ We've made this easy! Just run one script and it handles everything.
 Once the installation script completes:
 
 1. **Open your web browser** (Chrome, Safari, Firefox, etc.)
-2. **Go to:** `http://localhost:3000`
+2. **Go to:** `http://localhost:4420`
 3. You'll see the FiestaBoard control panel!
 4. **Click the green "▶ Start Service" button**
 5. **Watch your board** - it should start updating!
@@ -134,7 +134,7 @@ Your board should now be updating automatically!
 - Open Terminal/Command Prompt/PowerShell
 - Navigate to the FiestaBoard folder
 - Type: `docker-compose up -d` and press Enter
-- Go to `http://localhost:3000` and click Start Service
+- Go to `http://localhost:4420` and click Start Service
 
 ## Need Help?
 
@@ -143,7 +143,7 @@ Your board should now be updating automatically!
 **"Docker is not running"**
 - Make sure Docker Desktop is open and the whale icon is in your menu bar (Mac) or system tray (Windows)
 
-**"Connection refused" when accessing http://localhost:3000**
+**"Connection refused" when accessing http://localhost:4420**
 - Wait a minute after starting, then refresh your browser
 - Make sure Docker containers are running: `docker-compose ps`
 

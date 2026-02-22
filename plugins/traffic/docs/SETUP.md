@@ -44,7 +44,7 @@ The Traffic feature uses Google's Routes API (v2) to get real-time travel times.
 Add the API key to your configuration:
 
 **Option A: Via Web UI (Recommended)**
-1. Open http://localhost:3000
+1. Open http://localhost:4420
 2. Go to Settings → Features
 3. Find "Traffic" and toggle it on
 4. Paste your API key in the "Google Routes API Key" field

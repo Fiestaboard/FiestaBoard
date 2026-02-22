@@ -2,7 +2,7 @@
 
 ## Single-Container Architecture
 
-This project uses a **unified single container** for all environments (production, development, and CI). The container runs the Python API, Next.js web UI, and nginx reverse proxy together. All traffic goes through port 3000 via nginx.
+This project uses a **unified single container** for all environments (production, development, and CI). The container runs the Python API, Next.js web UI, and nginx reverse proxy together. All traffic goes through port 4420 on the host, mapped to nginx on port 3000 inside the container.
 
 ### Architecture Overview
 

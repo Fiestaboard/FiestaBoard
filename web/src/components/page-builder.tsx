@@ -45,7 +45,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { api, PageCreate, PageUpdate, PageType, DeviceType } from "@/lib/api";
-import { useBoardSettings } from "@/hooks/use-board";
+import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
 
@@ -146,6 +146,11 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
   const dims = DEVICE_DIMENSIONS[deviceType] || DEVICE_DIMENSIONS.flagship;
   const numLines = dims.rows;
+
+  // Preview board color - defaults to the user's configured board color
+  const defaultBoardColor = getEffectiveBoardColor(boardSettings);
+  const [previewBoardColor, setPreviewBoardColor] = useState<"black" | "white" | null>(null);
+  const effectiveBoardColor = previewBoardColor ?? defaultBoardColor;
 
   // Helper to create arrays of the correct length
   const emptyLines = () => Array.from({ length: numLines }, () => "");
@@ -815,7 +820,30 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
               {/* Live preview */}
               <div className="mt-4">
-                <label className="text-xs sm:text-sm font-medium mb-2 block">Preview</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs sm:text-sm font-medium">Preview</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground mr-0.5">Board color</span>
+                    <button
+                      onClick={() => setPreviewBoardColor("black")}
+                      aria-label="Preview as black board"
+                      className={`h-5 w-5 rounded-full border-2 bg-[#0d0d0d] transition-colors ${
+                        effectiveBoardColor === "black"
+                          ? "border-primary ring-1 ring-primary/30"
+                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                      }`}
+                    />
+                    <button
+                      onClick={() => setPreviewBoardColor("white")}
+                      aria-label="Preview as white board"
+                      className={`h-5 w-5 rounded-full border-2 bg-[#fafafa] transition-colors ${
+                        effectiveBoardColor === "white"
+                          ? "border-primary ring-1 ring-primary/30"
+                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                      }`}
+                    />
+                  </div>
+                </div>
                 <div className="flex justify-center">
                   <BoardDisplay 
                     message={(() => {
@@ -909,7 +937,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       return result;
                     })()}
                     size="md"
-                    boardType={boardSettings?.board_type ?? "black"}
+                    boardType={effectiveBoardColor}
                     deviceType={deviceType}
                   />
                 </div>

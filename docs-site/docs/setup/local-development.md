@@ -16,11 +16,11 @@ The recommended way to develop FiestaBoard:
 # Build and run development environment
 docker-compose -f docker-compose.dev.yml up --build
 
-# Access Web UI and API at http://localhost:3000 (single container, same as production)
-# API base path: http://localhost:3000/api/
+# Access Web UI and API at http://localhost:4420 (single container, same as production)
+# API base path: http://localhost:4420/api/
 ```
 
-The development environment uses the **same single-container layout** as production (API + UI + nginx on port 3000), with mounted source volumes for Python API hot-reload. Web UI changes require a container rebuild (`--build`).
+The development environment uses the **same single-container layout** as production (API + UI + nginx on port 4420), with mounted source volumes for Python API hot-reload. Web UI changes require a container rebuild (`--build`).
 
 ## Project Structure
 
@@ -41,7 +41,7 @@ FiestaBoard/
 ├── docs-site/                  # Docusaurus documentation
 ├── tests/                      # Platform test suite
 ├── Dockerfile                  # Unified Dockerfile (API + Web UI + nginx in one image)
-├── docker-compose.yml          # Production compose (single container, port 3000)
+├── docker-compose.yml          # Production compose (single container, port 4420)
 └── docker-compose.dev.yml      # Development compose (single container with hot-reload + optional test/Storybook services)
 ```
 

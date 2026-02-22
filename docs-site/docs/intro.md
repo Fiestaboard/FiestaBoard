@@ -42,9 +42,9 @@ The install wizard handles everything. It collects your board API key, creates t
 ```
 
 **Access your FiestaBoard:**
-- **Web UI**: http://localhost:3000
-- **API**: http://localhost:3000
-- **API Docs**: http://localhost:3000/docs
+- **Web UI**: http://localhost:4420
+- **API**: http://localhost:4420
+- **API Docs**: http://localhost:4420/docs
 
 ## Available Plugins
 

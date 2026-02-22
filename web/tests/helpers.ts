@@ -11,7 +11,7 @@
  */
 import { test as base, expect } from "@playwright/test";
 
-export const API_URL = `http://localhost:${process.env.API_PORT || "3000"}/api`;
+export const API_URL = `http://localhost:${process.env.API_PORT || "4420"}/api`;
 export const MOCK_BOARD_PORT = parseInt(process.env.MOCK_BOARD_PORT || "7000", 10);
 export const MOCK_BOARD_URL = `http://localhost:${MOCK_BOARD_PORT}`;
 /** Second mock board port for multi-board e2e (when mock started with PORTS=7000,7001). */

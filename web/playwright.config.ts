@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * Playwright configuration for FiestaBoard integration tests.
  *
- * Tests run against the unified container (same as production) on port 3000.
+ * Tests run against the unified container (same as production) on port 4420.
  * CI workflows build the Docker image, start the container + mock board,
  * then invoke Playwright. Locally, start the dev container first:
  *   docker-compose -f docker-compose.dev.yml up -d
@@ -20,7 +20,7 @@ export default defineConfig({
   globalSetup: "./tests/global-setup.ts",
 
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:4420",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },

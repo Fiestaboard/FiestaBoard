@@ -9,7 +9,7 @@ keywords: [FiestaBoard Docker, docker-compose, container setup, architecture, ng
 FiestaBoard runs as a single Docker container. This page explains the architecture and how to configure it.
 
 :::info Upgrading from V1?
-V1 used two containers (`fiestaboard-api` on port 8000 and `fiestaboard-ui` on port 8080). V2 consolidates everything into one container on port 3000. See the [V2 Migration Guide](/docs/setup/v2-migration#docker-architecture-migration) for full upgrade instructions.
+V1 used two containers (`fiestaboard-api` on port 8000 and `fiestaboard-ui` on port 8080). V2 consolidates everything into one container on port 4420. See the [V2 Migration Guide](/docs/setup/v2-migration#docker-architecture-migration) for full upgrade instructions.
 :::
 
 ## Architecture
@@ -18,17 +18,17 @@ FiestaBoard runs in a single unified container:
 
 | Container | Service | Port | Description |
 |-----------|---------|------|-------------|
-| `fiestaboard` | Nginx + FastAPI + Next.js | 3000 | Web UI, REST API, display service, plugin system |
+| `fiestaboard` | Nginx + FastAPI + Next.js | 4420 | Web UI, REST API, display service, plugin system |
 
 ```
 ┌──────────────────────────────────────────────┐
 │                   Browser                     │
-│              http://localhost:3000             │
+│              http://localhost:4420             │
 └──────────────────┬───────────────────────────┘
                    │
 ┌──────────────────▼───────────────────────────┐
 │            fiestaboard (Nginx)                │
-│              Port 3000                        │
+│              Port 4420                        │
 │   ┌────────────┐  ┌───────────────────────┐  │
 │   │ Static UI  │  │  Proxy /api → FastAPI │  │
 │   └────────────┘  └───────────────────────┘  │
@@ -69,9 +69,9 @@ docker-compose -f docker-compose.ghcr.yml up -d
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| Web UI | http://localhost:3000 | Main application interface |
-| API | http://localhost:3000 | API access (via nginx proxy) |
-| API Docs | http://localhost:3000/docs | Interactive FastAPI documentation |
+| Web UI | http://localhost:4420 | Main application interface |
+| API | http://localhost:4420 | API access (via nginx proxy) |
+| API Docs | http://localhost:4420/docs | Interactive FastAPI documentation |
 
 ## Key API Endpoints
 

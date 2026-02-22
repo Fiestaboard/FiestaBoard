@@ -36,6 +36,13 @@ const ScheduleCalendarView = dynamic(
     ),
   }
 );
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays } from "lucide-react";
 import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern } from "@/lib/api";
 import { toast } from "sonner";
@@ -295,22 +302,6 @@ export default function SchedulePage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-6xl">
-        {/* Board selector when multiple boards */}
-        {boards.length > 1 && (
-          <div className="mb-4 flex flex-wrap gap-2" data-testid="board-selector">
-            {boards.map((b: { id: string; name?: string }) => (
-              <Button
-                key={b.id}
-                variant={selectedBoardId === b.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedBoardId(b.id)}
-              >
-                {b.name || `Board ${b.id.slice(0, 8)}`}
-              </Button>
-            ))}
-          </div>
-        )}
-
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Schedule</h1>
@@ -321,6 +312,40 @@ export default function SchedulePage() {
             Times shown in: {Intl.DateTimeFormat().resolvedOptions().timeZone}
           </p>
         </div>
+
+        {/* Board selector when multiple boards */}
+        {boards.length > 1 && (
+          <div className="mb-6" data-testid="board-selector">
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">Board</label>
+            {boards.length <= 3 ? (
+              <div className="flex flex-wrap gap-2">
+                {boards.map((b: { id: string; name?: string }) => (
+                  <Button
+                    key={b.id}
+                    variant={selectedBoardId === b.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedBoardId(b.id)}
+                  >
+                    {b.name || `Board ${b.id.slice(0, 8)}`}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Select a board" />
+                </SelectTrigger>
+                <SelectContent>
+                  {boards.map((b: { id: string; name?: string }) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name || `Board ${b.id.slice(0, 8)}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
 
         {/* Schedule Mode Toggle */}
         <Card className="mb-6">

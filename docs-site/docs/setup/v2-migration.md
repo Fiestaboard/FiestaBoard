@@ -13,7 +13,7 @@ V2 is fully backward compatible for existing single-board Flagship setups. Exist
 :::
 
 :::caution Breaking: Single-container architecture
-V2 replaces the previous two-container setup with a single unified container. The web UI port changed from **8080 → 3000** and the API is no longer exposed on its own dedicated port. See the [Docker Architecture Migration](#docker-architecture-migration) section below.
+V2 replaces the previous two-container setup with a single unified container. The web UI port changed from **8080 → 4420** and the API is no longer exposed on its own dedicated port. See the [Docker Architecture Migration](#docker-architecture-migration) section below.
 :::
 
 ## What's New in V2
@@ -102,7 +102,7 @@ Two new endpoints manage multiple board instances:
 Add a new board instance.
 
 ```bash
-curl -X POST http://localhost:3000/settings/board/add \
+curl -X POST http://localhost:4420/settings/board/add \
   -H "Content-Type: application/json" \
   -d '{
     "device_type": "note",
@@ -128,7 +128,7 @@ curl -X POST http://localhost:3000/settings/board/add \
 Remove a board instance by its UUID.
 
 ```bash
-curl -X DELETE http://localhost:3000/settings/board/abc123-...
+curl -X DELETE http://localhost:4420/settings/board/abc123-...
 ```
 
 ---
@@ -153,9 +153,9 @@ This is the biggest infrastructure change in V2. FiestaBoard moved from two sepa
 | | V1 | V2 |
 |---|---|---|
 | **Architecture** | Two containers | One container |
-| **Web UI URL** | `http://localhost:8080` | `http://localhost:3000` |
-| **API URL** | `http://localhost:8000` (direct) | `http://localhost:3000` (same port, proxied via nginx) |
-| **API Docs** | `http://localhost:8000/docs` | `http://localhost:3000/docs` |
+| **Web UI URL** | `http://localhost:8080` | `http://localhost:4420` |
+| **API URL** | `http://localhost:8000` (direct) | `http://localhost:4420` (same port, proxied via nginx) |
+| **API Docs** | `http://localhost:8000/docs` | `http://localhost:4420/docs` |
 | **docker-compose services** | `fiestaboard-api` + `fiestaboard-ui` | `fiestaboard` |
 | **Dockerfile** | `Dockerfile.api` + `Dockerfile.ui` | `Dockerfile` (unified) |
 | **Volumes** | Separate source mounts per service | `./data:/app/data` only |
@@ -174,7 +174,7 @@ Browser → http://localhost:8000 → fiestaboard-api (FastAPI)
 **V2 (single container)**
 
 ```
-Browser → http://localhost:3000 → nginx
+Browser → http://localhost:4420 → nginx
                                     ├── /api/* → FastAPI (internal :8000)
                                     └── /*     → Next.js (internal :3001)
 ```
@@ -201,9 +201,9 @@ Browser → http://localhost:3000 → nginx
    docker-compose up -d --build
    ```
 
-5. **Update any bookmarks or firewall rules** — the web UI is now on port **3000** (not 8080).
+5. **Update any bookmarks or firewall rules** — the web UI is now on port **4420** (not 8080).
 
-6. **Update any direct API clients** that called `http://your-server:8000` to use `http://your-server:3000` instead. All API paths remain the same.
+6. **Update any direct API clients** that called `http://your-server:8000` to use `http://your-server:4420` instead. All API paths remain the same.
 
 :::tip
 Your `data/` directory (pages, schedules, settings) is fully preserved — it is still mounted at `./data:/app/data`.
@@ -213,9 +213,9 @@ Your `data/` directory (pages, schedules, settings) is fully preserved — it is
 
 | Service | V1 Port | V2 Port |
 |---------|---------|---------|
-| Web UI | 8080 | 3000 |
-| API (direct) | 8000 | ~~not exposed~~ (proxied at :3000) |
-| API Docs | 8000/docs | 3000/docs |
+| Web UI | 8080 | 4420 |
+| API (direct) | 8000 | ~~not exposed~~ (proxied at :4420) |
+| API Docs | 8000/docs | 4420/docs |
 
 ### Docker image names
 
@@ -279,9 +279,9 @@ No manual data conversion is needed.
    docker-compose up -d --build
    ```
 
-4. **Update your bookmarks** — the web UI is now at `http://localhost:3000` (was port 8080).
+4. **Update your bookmarks** — the web UI is now at `http://localhost:4420` (was port 8080).
 
-5. **Open the web UI** at `http://localhost:3000` — your existing pages will appear under the **Flagship** tab, and your board configuration is preserved.
+5. **Open the web UI** at `http://localhost:4420` — your existing pages will appear under the **Flagship** tab, and your board configuration is preserved.
 
 6. **Optional**: Visit **Settings → Boards** to set your board's device type and color, or to add a Note if you have one.
 
@@ -305,7 +305,7 @@ If you deploy containers through a management UI (Portainer, Synology Container 
 4. **Deploy the new unified container** using image `ghcr.io/fiestaboard/fiestaboard:latest`:
 
    - **Volume**: Mount the **same host data path** from step 1 to `/app/data`
-   - **Port**: Map host port `3000` to container port `3000`
+   - **Port**: Map host port `4420` to container port `3000`
    - **Environment variables**: Copy the same env vars from your old `fiestaboard-api` container (or use the same `.env` file). Remove `NEXT_PUBLIC_API_URL` if present.
    - **Restart policy**: `unless-stopped` (recommended)
 
@@ -315,13 +315,13 @@ If you deploy containers through a management UI (Portainer, Synology Container 
    docker run -d \
      --name fiestaboard \
      --restart unless-stopped \
-     -p 3000:3000 \
+     -p 4420:3000 \
      -v /path/to/your/data:/app/data \
      --env-file /path/to/your/.env \
      ghcr.io/fiestaboard/fiestaboard:latest
    ```
 
-5. **Verify**: Open `http://your-server:3000` — your pages and settings should be there.
+5. **Verify**: Open `http://your-server:4420` — your pages and settings should be there.
 
 6. **Clean up**: Once confirmed, remove the old V1 images to free disk space:
 
@@ -330,7 +330,7 @@ If you deploy containers through a management UI (Portainer, Synology Container 
    docker image rm ghcr.io/fiestaboard/fiestaboard-ui:latest
    ```
 
-7. **Update bookmarks and firewall rules** — web UI is now on port **3000** (was 8080), API is on port **3000** (was 8000).
+7. **Update bookmarks and firewall rules** — web UI is now on port **4420** (was 8080), API is on port **4420** (was 8000).
 
 ### From the `.env` file (manual setup)
 

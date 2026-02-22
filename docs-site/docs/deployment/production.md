@@ -68,7 +68,7 @@ Pull the latest code and rebuild the images first, then bring down the old conta
 FiestaBoard provides a health endpoint:
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:4420/health
 ```
 
 You can use this with monitoring tools like Uptime Kuma or Healthchecks.io.
@@ -103,7 +103,7 @@ server {
     ssl_certificate_key /path/to/key.pem;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:4420;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }

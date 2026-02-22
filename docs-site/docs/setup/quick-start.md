@@ -41,13 +41,13 @@ Once running, access FiestaBoard at:
 
 | Service | URL |
 |---------|-----|
-| **Web UI** | http://localhost:3000 |
-| **API** | http://localhost:3000 |
-| **API Docs** | http://localhost:3000/docs |
+| **Web UI** | http://localhost:4420 |
+| **API** | http://localhost:4420 |
+| **API Docs** | http://localhost:4420/docs |
 
 ## Start the Display Service
 
-1. Open http://localhost:3000 in your browser
+1. Open http://localhost:4420 in your browser
 2. Click the **"▶ Start Service"** button
 3. Your board will start updating!
 
@@ -114,7 +114,7 @@ TIMEZONE=America/Los_Angeles
 docker-compose up -d --build
 ```
 
-5. **Configure plugins in the web UI** - go to the Integrations page at http://localhost:3000 to enable plugins and enter API keys.
+5. **Configure plugins in the web UI** - go to the Integrations page at http://localhost:4420 to enable plugins and enter API keys.
 
 See `env.example` for all available environment variables (useful for development).
 

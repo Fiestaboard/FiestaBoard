@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useTransition, useRef, useDeferredValue, useCallback, useState } from "react";
-import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings } from "@/hooks/use-board";
+import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -367,7 +367,7 @@ export function ActivePageDisplay() {
               message={displayMessage} 
               isLoading={isLoadingPreview || (!!activePageId && !previewData)}
               size="md"
-              boardType={boardSettings?.board_type ?? "black"}
+              boardType={getEffectiveBoardColor(boardSettings)}
               deviceType={activeDeviceType}
             />
           </div>

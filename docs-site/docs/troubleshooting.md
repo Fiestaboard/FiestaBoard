@@ -96,7 +96,7 @@ If using Docker, ensure both are on the same Docker network or use the host's IP
 
 **Checklist**:
 1. Is the container running? `docker-compose ps`
-2. Try accessing the health endpoint: `http://localhost:3000/api/health`
+2. Try accessing the health endpoint: `http://localhost:4420/api/health`
 3. Check container logs: `docker-compose logs -f fiestaboard`
 
 ### Changes not saving
@@ -120,7 +120,7 @@ docker-compose logs -f fiestaboard
 
 ### Interactive API Documentation
 
-Visit `http://localhost:3000/docs` for the Swagger UI where you can test API endpoints directly.
+Visit `http://localhost:4420/docs` for the Swagger UI where you can test API endpoints directly.
 
 ### Open an Issue
 

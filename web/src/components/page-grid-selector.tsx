@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useMemo, useState, memo } from "react";
-import { usePages, useBoardSettings } from "@/hooks/use-board";
+import { usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LayoutTemplate, Loader2 } from "lucide-react";
 import { BoardDisplay } from "@/components/board-display";
@@ -379,7 +379,7 @@ export function PageGridSelector({
             isPending={isPending}
             onSelect={onSelectPage}
             showActiveIndicator={showActiveIndicator}
-            boardType={boardSettings?.board_type ?? "black"}
+            boardType={getEffectiveBoardColor(boardSettings)}
           />
         ))}
       </div>

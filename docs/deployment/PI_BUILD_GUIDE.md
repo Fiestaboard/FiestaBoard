@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "3000:3000"
+      - "4420:3000"
     volumes:
       - ./data:/app/data
 ```
@@ -57,7 +57,7 @@ Start FiestaBoard:
 docker compose up -d
 ```
 
-Once running, open **http://\<your-pi-ip\>:3000** in a browser on any device on your network.
+Once running, open **http://\<your-pi-ip\>:4420** in a browser on any device on your network.
 
 ### Updating
 

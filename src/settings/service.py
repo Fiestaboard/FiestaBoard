@@ -592,6 +592,10 @@ class SettingsService:
             validated.append(instance.to_dict())
         
         self._board.boards = validated
+        # Keep board_type in sync with the first board's color
+        first_color = validated[0].get("board_color") if validated else None
+        if first_color in ("black", "white"):
+            self._board.board_type = first_color
         self._save_to_file()
         logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
         return self._board

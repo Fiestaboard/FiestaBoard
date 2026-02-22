@@ -51,13 +51,13 @@ docker-compose up
 ```
 
 **Access:**
-- **Web UI**: http://localhost:3000 (start service, send messages, monitor)
-- **API Docs**: http://localhost:3000/docs (interactive API documentation)
+- **Web UI**: http://localhost:4420 (start service, send messages, monitor)
+- **API Docs**: http://localhost:4420/docs (interactive API documentation)
 
 ![Web UI Home](./images/web-ui-home.png)
 
 **To start the display service:**
-1. Open http://localhost:3000 in your browser
+1. Open http://localhost:4420 in your browser
 2. Click "▶ Start Service" button
 3. Your board will start updating!
 **To stop:**
@@ -129,7 +129,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 | **Goal** | Run the server to control your board | Contribute code or build plugins |
 | **Setup** | Run the install wizard — it handles everything | `docker-compose -f docker-compose.dev.yml up --build` |
 | **Configuration** | Wizard creates `.env` for you; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
-| **Web UI** | http://localhost:3000 | http://localhost:3000 |
+| **Web UI** | http://localhost:4420 | http://localhost:4420 |
 | **Hot reload** | No | Yes (Python API auto-reloads; UI requires rebuild) |
 | **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
 
@@ -164,11 +164,11 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
    ```
 
 5. **Access the service**:
-   - **Web UI**: http://localhost:3000
-   - **API Docs**: http://localhost:3000/docs
+   - **Web UI**: http://localhost:4420
+   - **API Docs**: http://localhost:4420/docs
 
 6. **Start the display service**:
-   - Open http://localhost:3000 in your browser
+   - Open http://localhost:4420 in your browser
    - Click "▶ Start Service" button
    - Your board will begin updating!
 
@@ -236,8 +236,8 @@ If you want to contribute to FiestaBoard or build plugins, use the development e
 ```bash
 docker-compose -f docker-compose.dev.yml up --build
 
-# Access Web UI + API at http://localhost:3000 (single container, same layout as production)
-# API base path: http://localhost:3000/api/
+# Access Web UI + API at http://localhost:4420 (single container, same layout as production)
+# API base path: http://localhost:4420/api/
 ```
 
 For detailed development workflows, see [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md).
