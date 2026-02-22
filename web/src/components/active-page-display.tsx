@@ -132,10 +132,10 @@ export function ActivePageDisplay() {
     }
   }, [isSheetOpen]);
   
-  // Fetch schedule status
+  // Fetch schedule status (no board_id - gets default board's schedule)
   const { data: schedulesData } = useQuery({
-    queryKey: ["schedules"],
-    queryFn: api.getSchedules,
+    queryKey: ["schedules", "default"],
+    queryFn: () => api.getSchedules(undefined),
   });
   
   const scheduleEnabled = schedulesData?.enabled || false;

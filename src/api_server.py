@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Response
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -1310,18 +1310,25 @@ async def send_display(
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Display not available")
     
-    # Determine target -- an explicit target overrides dev_mode
-    explicit_target = target is not None
+    # Determine target
     if target is None:
+        # Use settings-based logic
         send_to_board = settings_service.should_send_to_board(_dev_mode)
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate (explicit target bypasses dev_mode guard)
+    # Send to board if appropriate (explicit target=board/both can bypass dev_mode)
     sent_to_board = False
+    explicit_target = target is not None and target in ["board", "both"]
     if send_to_board and (explicit_target or not _dev_mode):
         transition = settings_service.get_transition_settings()
-        board_array = text_to_board_array(result.formatted)
+        # Use first board's device type for dimensions (flagship vs note)
+        board_settings = settings_service.get_board_settings()
+        device_type = "flagship"
+        if board_settings.boards:
+            device_type = board_settings.boards[0].get("device_type", "flagship")
+        dims = get_dimensions(device_type)
+        board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
         success, was_sent = service.vb_client.send_characters(
             board_array,
             strategy=transition.strategy,
@@ -2352,7 +2359,7 @@ async def update_polling_settings(request: dict):
 
 @app.get("/settings/board")
 async def get_board_settings():
-    """Get current board display settings."""
+    """Get current board settings (display type, boards array, devices)."""
     settings_service = get_settings_service()
     board = settings_service.get_board_settings()
     return board.to_dict()
@@ -2361,66 +2368,60 @@ async def get_board_settings():
 @app.put("/settings/board")
 async def update_board_settings(request: dict):
     """
-    Update board display settings.
+    Update board settings.
     
     Body may include:
     - board_type: "black", "white", or null for default
-    - devices: list of device types (backward-compatible, e.g. ["flagship", "note"])
-    - boards: list of board instance objects (new format)
+    - devices: list of device types (e.g. ["flagship", "note"]) for backward compatibility
+    - boards: full list of board instance dicts
     """
-    if not any(k in request for k in ("board_type", "devices", "boards")):
-        raise HTTPException(status_code=400, detail="At least one of board_type, devices, or boards is required")
-    
     settings_service = get_settings_service()
     
     try:
+        if "devices" in request:
+            devices = request["devices"]
+            if not isinstance(devices, list):
+                raise HTTPException(status_code=400, detail="devices must be a list")
+            board = settings_service.set_devices(devices)
+            return {"status": "success", "settings": board.to_dict()}
+        if "boards" in request:
+            boards = request["boards"]
+            if not isinstance(boards, list):
+                raise HTTPException(status_code=400, detail="boards must be a list")
+            board = settings_service.set_boards(boards)
+            return {"status": "success", "settings": board.to_dict()}
         if "board_type" in request:
             board_type = request["board_type"]
-            settings_service.set_board_type(board_type)
-        if "boards" in request:
-            settings_service.set_boards(request["boards"])
-        elif "devices" in request:
-            devices = request["devices"]
-            settings_service.set_devices(devices)
-        board = settings_service.get_board_settings()
-        return {
-            "status": "success",
-            "settings": board.to_dict()
-        }
+            board = settings_service.set_board_type(board_type)
+            return {"status": "success", "settings": board.to_dict()}
+        raise HTTPException(
+            status_code=400,
+            detail="One of board_type, devices, or boards is required",
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/settings/board/add")
-async def add_board(request: dict):
-    """Add a new board instance.
-    
-    Body should include:
-    - device_type: "flagship" or "note"
-    - name: optional display name
-    - board_color: optional "black" or "white"
-    """
+async def add_board_instance(request: dict):
+    """Add a new board instance. Body: device_type, optional name and other board fields."""
+    if "device_type" not in request:
+        raise HTTPException(status_code=400, detail="device_type is required")
     settings_service = get_settings_service()
     try:
         board = settings_service.add_board(request)
-        return {
-            "status": "success",
-            "settings": board.to_dict()
-        }
+        return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.delete("/settings/board/{board_id}")
-async def remove_board(board_id: str):
+async def remove_board_instance(board_id: str):
     """Remove a board instance by ID."""
     settings_service = get_settings_service()
     try:
         board = settings_service.remove_board(board_id)
-        return {
-            "status": "success",
-            "settings": board.to_dict()
-        }
+        return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -3071,26 +3072,29 @@ async def send_page(page_id: str, target: Optional[str] = None):
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
     
-    # Determine target -- an explicit target overrides dev_mode
-    explicit_target = target is not None
+    # Determine target
     if target is None:
         send_to_board = settings_service.should_send_to_board(_dev_mode)
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate (explicit target bypasses dev_mode guard)
+    # Send to board if appropriate (explicit target=board/both can bypass dev_mode)
     sent_to_board = False
+    explicit_target = target is not None and target in ["board", "both"]
     if send_to_board and (explicit_target or not _dev_mode):
         # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
         if Config.is_silence_mode_active():
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
             sent_to_board = False
+            # Don't raise error, just skip sending
         else:
+            # Use page-level transitions if set, otherwise fall back to system defaults
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
+            # Convert to board array with dimensions for page's device type (flagship vs note)
             dims = get_dimensions(page.device_type)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
@@ -3118,24 +3122,29 @@ async def send_page(page_id: str, target: Optional[str] = None):
 # =============================================================================
 
 @app.get("/schedules")
-async def list_schedules():
-    """List all schedule entries.
+async def list_schedules(board_id: Optional[str] = None):
+    """List schedule entries, optionally for one board (query: board_id=).
     
-    Returns all schedules with their configurations, including:
-    - Schedule entries
-    - Default page ID
-    - Schedule mode enabled status
+    Use board_id=* to get ALL schedules across all boards (useful for cleanup/admin).
     """
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
+    schedules = schedule_service.list_schedules(board_id=board_id)
     
-    schedules = schedule_service.list_schedules()
+    # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
+    if board_id == "*":
+        return {
+            "schedules": [s.model_dump() for s in schedules],
+            "total": len(schedules),
+            "default_page_id": None,
+            "enabled": False,
+        }
     
     return {
         "schedules": [s.model_dump() for s in schedules],
         "total": len(schedules),
-        "default_page_id": schedule_service.get_default_page(),
-        "enabled": settings_service.is_schedule_enabled()
+        "default_page_id": schedule_service.get_default_page(board_id=board_id),
+        "enabled": settings_service.is_schedule_enabled(board_id=board_id),
     }
 
 
@@ -3162,146 +3171,86 @@ async def create_schedule(schedule_data: ScheduleCreate):
 # to avoid /schedules/{schedule_id} matching everything
 
 @app.get("/schedules/active/page")
-async def get_active_schedule():
-    """Get the currently active page based on schedule.
-    
-    Uses current time and day to determine which page should be displayed.
-    Falls back to default page if no schedule matches.
-    
-    Returns:
-        Active page ID and schedule information
-    """
+async def get_active_schedule(board_id: Optional[str] = None):
+    """Get the currently active page based on schedule (optional query: board_id=)."""
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
-    
-    # Check if schedule mode is enabled
-    if not settings_service.is_schedule_enabled():
-        # Return manual active page
+    if not settings_service.is_schedule_enabled(board_id=board_id):
         return {
             "page_id": settings_service.get_active_page_id(),
             "source": "manual",
-            "schedule_enabled": False
+            "schedule_enabled": False,
         }
-    
-    # Get current time and day in user's configured timezone
     from .time_service import get_time_service
     time_service = get_time_service()
-    now = time_service.get_current_time()  # Uses configured timezone
+    now = time_service.get_current_time()
     current_time = now.time()
-    current_day = now.strftime("%A").lower()  # monday, tuesday, etc.
-    
-    page_id = schedule_service.get_active_page_id(current_time, current_day)
-    
+    current_day = now.strftime("%A").lower()
+    page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
     return {
         "page_id": page_id,
         "source": "schedule" if page_id else "none",
         "schedule_enabled": True,
         "current_time": now.strftime("%H:%M"),
         "current_day": current_day,
-        "default_page_id": schedule_service.get_default_page()
+        "default_page_id": schedule_service.get_default_page(board_id=board_id),
     }
 
 
 @app.post("/schedules/validate")
-async def validate_schedules():
-    """Validate all schedules for overlaps and gaps.
-    
-    Returns:
-        Validation result with overlaps and gaps
-    """
+async def validate_schedules(request: Optional[dict] = Body(None)):
+    """Validate schedules for overlaps and gaps. Body optional: {"board_id": "..."}."""
     schedule_service = get_schedule_service()
-    
-    result = schedule_service.validate_schedules()
-    
+    board_id = request.get("board_id") if request else None
+    result = schedule_service.validate_schedules(board_id=board_id)
     return result.model_dump()
 
 
 @app.get("/schedules/default-page")
-async def get_default_page():
-    """Get the default page ID for schedule gaps.
-    
-    Returns:
-        Default page ID
-    """
+async def get_default_page(board_id: Optional[str] = None):
+    """Get the default page ID for schedule gaps (optional query: board_id=)."""
     schedule_service = get_schedule_service()
-    
-    return {
-        "default_page_id": schedule_service.get_default_page()
-    }
+    return {"default_page_id": schedule_service.get_default_page(board_id=board_id)}
 
 
 @app.put("/schedules/default-page")
 async def set_default_page(request: dict):
-    """Set the default page ID for schedule gaps.
-    
-    Args:
-        request: {"page_id": "page-id-here"} or {"page_id": null}
-        
-    Returns:
-        Success status
-    """
+    """Set the default page ID for schedule gaps. Body: page_id, optional board_id."""
     if "page_id" not in request:
         raise HTTPException(status_code=400, detail="page_id parameter required")
-    
     page_id = request["page_id"]
-    
-    # Validate that page exists if not None
+    board_id = request.get("board_id")
     if page_id is not None:
         page_service = get_page_service()
-        page = page_service.get_page(page_id)
-        if not page:
+        if not page_service.get_page(page_id):
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    
     schedule_service = get_schedule_service()
-    schedule_service.set_default_page(page_id)
-    
-    return {
-        "status": "success",
-        "default_page_id": page_id
-    }
+    schedule_service.set_default_page(page_id, board_id=board_id)
+    return {"status": "success", "default_page_id": page_id}
 
 
 @app.get("/schedules/enabled")
-async def get_schedule_enabled():
-    """Check if schedule mode is enabled.
-    
-    Returns:
-        Schedule enabled status
-    """
+async def get_schedule_enabled(board_id: Optional[str] = None):
+    """Check if schedule mode is enabled (optional query: board_id=)."""
     settings_service = get_settings_service()
-    
-    return {
-        "enabled": settings_service.is_schedule_enabled()
-    }
+    return {"enabled": settings_service.is_schedule_enabled(board_id=board_id)}
 
 
 @app.put("/schedules/enabled")
 async def set_schedule_enabled(request: dict):
-    """Enable or disable schedule mode.
-    
-    When enabled, time-based schedules control page display.
-    When disabled, manual active_page is used.
-    
-    Args:
-        request: {"enabled": true/false}
-        
-    Returns:
-        Success status
-    """
+    """Enable or disable schedule mode. Body: enabled, optional board_id."""
     if "enabled" not in request:
         raise HTTPException(status_code=400, detail="enabled parameter required")
-    
     enabled = request["enabled"]
     if not isinstance(enabled, bool):
         raise HTTPException(status_code=400, detail="enabled must be boolean")
-    
+    board_id = request.get("board_id")
     settings_service = get_settings_service()
-    settings_service.set_schedule_enabled(enabled)
-    
+    settings_service.set_schedule_enabled(enabled, board_id=board_id)
     return {
         "status": "success",
         "enabled": enabled,
-        "message": f"Schedule mode {'enabled' if enabled else 'disabled'}"
+        "message": f"Schedule mode {'enabled' if enabled else 'disabled'}",
     }
 
 
@@ -3552,15 +3501,17 @@ async def clear_cache():
     return {"status": "success", "message": "Cache cleared - next update will be sent to board"}
 
 
-@app.get("/runtime-config")
-async def get_runtime_config():
-    """Return runtime configuration for UI. Served at /api/runtime-config via nginx (path stripped)."""
-    # Allow override via environment variable, default to same origin
-    # Support both old and new variable names for backward compatibility
+def _get_runtime_config_response():
+    """Return runtime configuration for UI (shared by both routes)."""
     api_url = os.getenv("FIESTA_API_URL", "")
-    return {
-        "apiUrl": api_url
-    }
+    return {"apiUrl": api_url}
+
+
+@app.get("/runtime-config")
+@app.get("/api/runtime-config")
+async def get_runtime_config():
+    """Return runtime configuration for UI. Served at both paths for nginx (strips /api) and split-server."""
+    return _get_runtime_config_response()
 
 
 @app.post("/force-refresh")

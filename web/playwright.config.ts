@@ -10,6 +10,7 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests",
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "playwright-test-results",
   fullyParallel: false, // Run tests sequentially – they share backend state
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -35,10 +36,11 @@ export default defineConfig({
   /* Start all three servers before tests run */
   webServer: [
     {
-      /* 1. Mock Vestaboard board API (port 7000 — matches BoardClient.LOCAL_API_PORT) */
+      /* 1. Mock Vestaboard board API (ports 7000, 7001 for multi-board e2e) */
       command: "python ../integration-tests/mock-board/server.py",
       port: 7000,
       reuseExistingServer: true,
+      env: { PORTS: "7000,7001" },
     },
     {
       /* 2. FastAPI backend — cwd is ".." (repo root) so uvicorn can find src.api_server */

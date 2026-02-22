@@ -82,24 +82,27 @@ class BoardClient:
         api_key: str,
         host: Optional[str] = None,
         use_cloud: bool = False,
-        skip_unchanged: bool = True
+        skip_unchanged: bool = True,
+        port: Optional[int] = None,
     ):
         """
         Initialize board API client.
-        
+
         Args:
             api_key: Board API key (Local API key or Read/Write key)
             host: IP or hostname of board for Local API (e.g., "192.168.0.11")
             use_cloud: If True, use Cloud API instead of Local API
             skip_unchanged: If True (default), skip sending if message hasn't changed
+            port: Local API port (default 7000). Used for multi-board e2e (e.g. second board on 7001).
         """
         if not api_key:
             raise ValueError("api_key is required")
-        
+
         self.api_key = api_key
         self.use_cloud = use_cloud
         self.skip_unchanged = skip_unchanged
-        
+        self._port = port if port is not None else self.LOCAL_API_PORT
+
         if use_cloud:
             # Cloud API mode
             self.base_url = self.CLOUD_API_URL
@@ -113,12 +116,12 @@ class BoardClient:
             if not host:
                 raise ValueError("host is required for Local API")
             self.host = host
-            self.base_url = f"http://{host}:{self.LOCAL_API_PORT}/local-api/message"
+            self.base_url = f"http://{host}:{self._port}/local-api/message"
             self.headers = {
                 "X-Vestaboard-Local-Api-Key": api_key,
                 "Content-Type": "application/json"
             }
-            logger.info(f"Board client initialized with Local API at {host} (skip_unchanged={skip_unchanged})")
+            logger.info(f"Board client initialized with Local API at {host}:{self._port} (skip_unchanged={skip_unchanged})")
         
         # Client-side cache to avoid sending unchanged messages
         self._last_text: Optional[str] = None
@@ -368,6 +371,41 @@ class BoardClient:
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
             return False
+
+
+def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
+    """Build a BoardClient from a board instance dict (e.g. from settings.boards).
+
+    Args:
+        board: Dict with api_mode, host, port (optional), local_api_key, cloud_key.
+
+    Returns:
+        BoardClient if the board has connection configured, None otherwise.
+    """
+    api_mode = (board.get("api_mode") or "local").lower()
+    use_cloud = api_mode == "cloud"
+    if use_cloud:
+        key = board.get("cloud_key") or ""
+        if not key:
+            return None
+        return BoardClient(api_key=key, host=None, use_cloud=True, skip_unchanged=True)
+    key = board.get("local_api_key") or ""
+    host = board.get("host") or ""
+    if not key or not host:
+        return None
+    port = board.get("port")
+    if port is not None and not isinstance(port, int):
+        try:
+            port = int(port)
+        except (TypeError, ValueError):
+            port = None
+    return BoardClient(
+        api_key=key,
+        host=host,
+        use_cloud=False,
+        skip_unchanged=True,
+        port=port,
+    )
 
 
 # Backward compatibility aliases

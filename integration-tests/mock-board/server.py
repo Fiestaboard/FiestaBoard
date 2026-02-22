@@ -1,24 +1,30 @@
 """Mock Vestaboard API server for integration testing.
 
-Simulates the Vestaboard Local API (port 7000) so the FiestaBoard
-backend can be tested end-to-end without a real board.
+Simulates the Vestaboard Local API so the FiestaBoard backend can be tested
+end-to-end without a real board. Supports a single port (default 7000) or
+multiple ports for multi-board e2e (e.g. PORTS=7000,7001).
 
 Supports both Flagship (6x22) and Note (3x15) character arrays.
 
-Endpoints:
+Endpoints (on each port):
   POST /local-api/message  - Send a message (text or character array)
-  GET  /local-api/message   - Read the current display state
+  GET  /local-api/message  - Read the current display state
 
-The mock also exposes helper endpoints for test assertions:
-  GET  /mock/state          - Return full mock state (message history, etc.)
-  POST /mock/reset          - Reset the mock to its initial state
+Mock control endpoints (port can be specified for multi-board):
+  GET  /mock/state[?port=7000]   - Return state for port (default: current port). Omit ?port for current.
+  POST /mock/reset              - Body optional {"port": 7000}. Omit to reset all ports.
+  GET  /mock/boards             - Return list of ports (for e2e discovery).
 """
 
 import json
 import logging
+import os
+import threading
+import time
 from datetime import datetime, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Lock
+from urllib.parse import parse_qs, urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -90,9 +96,6 @@ class MockBoardState:
             }
 
 
-_state = MockBoardState()
-
-
 def _detect_dimensions(chars):
     """Return (rows, cols) for a character array, or None if invalid."""
     if not isinstance(chars, list) or len(chars) == 0:
@@ -109,8 +112,18 @@ def _detect_dimensions(chars):
     return (rows, cols)
 
 
+# Global registry: port -> MockBoardState (set by run() for multi-port)
+_states_by_port: dict = {}
+_default_port: int = 7000
+
+
+def _get_state_for_port(port: int):
+    """Get MockBoardState for the given port. Used by handler."""
+    return _states_by_port.get(port)
+
+
 class MockBoardHandler(BaseHTTPRequestHandler):
-    """HTTP handler that mimics the Vestaboard Local API."""
+    """HTTP handler that mimics the Vestaboard Local API. Uses port from server_address for state."""
 
     def _send_json(self, status, body):
         self.send_response(status)
@@ -124,18 +137,55 @@ class MockBoardHandler(BaseHTTPRequestHandler):
             return None
         return json.loads(self.rfile.read(length))
 
+    def _current_port(self):
+        return self.server.server_address[1]
+
+    def _state(self):
+        return _get_state_for_port(self._current_port())
+
     # --- Vestaboard Local API ---
 
     def do_GET(self):  # noqa: N802 (HTTP method naming convention)
-        if self.path == "/local-api/message":
-            self._send_json(200, _state.get_message())
-        elif self.path == "/mock/state":
-            self._send_json(200, _state.get_state())
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
+
+        if path == "/local-api/message":
+            state = self._state()
+            if state is None:
+                self._send_json(503, {"error": "No state for this port"})
+                return
+            self._send_json(200, state.get_message())
+
+        elif path == "/mock/state":
+            # Optional ?port=7000 to get state for a specific port
+            port = self._current_port()
+            if "port" in query and query["port"]:
+                try:
+                    port = int(query["port"][0])
+                except (ValueError, IndexError):
+                    pass
+            state = _get_state_for_port(port)
+            if state is None:
+                self._send_json(404, {"error": f"No mock state for port {port}"})
+                return
+            out = state.get_state()
+            out["port"] = port
+            self._send_json(200, out)
+
+        elif path == "/mock/boards":
+            self._send_json(200, {"ports": sorted(_states_by_port.keys())})
+
         else:
             self._send_json(404, {"error": "Not found"})
 
     def do_POST(self):  # noqa: N802
         if self.path == "/local-api/message":
+            state = self._state()
+            if state is None:
+                self._send_json(503, {"error": "No state for this port"})
+                return
+
             body = self._read_body()
             if body is None:
                 self._send_json(400, {"error": "Empty body"})
@@ -153,7 +203,6 @@ class MockBoardHandler(BaseHTTPRequestHandler):
                     })
                     return
 
-                # Validate character codes are in range 0-71
                 for r_idx, row in enumerate(chars):
                     for c_idx, code in enumerate(row):
                         if not isinstance(code, int) or code < 0 or code > MAX_CHAR_CODE:
@@ -165,7 +214,7 @@ class MockBoardHandler(BaseHTTPRequestHandler):
                             })
                             return
 
-                _state.set_message(chars, strategy=body.get("strategy"), dimensions=dims)
+                state.set_message(chars, strategy=body.get("strategy"), dimensions=dims)
                 self._send_json(200, {"ok": True})
 
             elif "text" in body:
@@ -200,14 +249,26 @@ class MockBoardHandler(BaseHTTPRequestHandler):
                         else:
                             chars[row_idx][col_idx] = 0
                         col_idx += 1
-                _state.set_message(chars, dimensions=(rows, cols))
+                state.set_message(chars, dimensions=(rows, cols))
                 self._send_json(200, {"ok": True})
             else:
                 self._send_json(400, {"error": "Request must include 'characters' or 'text'"})
 
         elif self.path == "/mock/reset":
-            _state.reset()
-            self._send_json(200, {"ok": True, "message": "Mock reset"})
+            body = self._read_body() or {}
+            port = body.get("port") if isinstance(body, dict) else None
+            if port is not None:
+                try:
+                    port = int(port)
+                except (TypeError, ValueError):
+                    port = None
+            if port is not None and port in _states_by_port:
+                _states_by_port[port].reset()
+                self._send_json(200, {"ok": True, "message": f"Mock reset for port {port}"})
+            else:
+                for s in _states_by_port.values():
+                    s.reset()
+                self._send_json(200, {"ok": True, "message": "Mock reset (all ports)"})
         else:
             self._send_json(404, {"error": "Not found"})
 
@@ -215,20 +276,65 @@ class MockBoardHandler(BaseHTTPRequestHandler):
         """Suppress default request logging."""
 
 
-def run(port=7000):
+def run(port=7000, ports=None):
     """Start the mock board server.
 
-    Default port is 7000 to match the Vestaboard Local API port
-    that the BoardClient hard-codes.
+    Args:
+        port: Single port (used if ports is None). Default 7000.
+        ports: List of ports for multi-board (e.g. [7000, 7001]). Overrides port if set.
     """
-    server = HTTPServer(("0.0.0.0", port), MockBoardHandler)
-    logger.info("Mock Vestaboard API listening on port %d", port)
-    print(f"Mock Vestaboard API listening on port {port}", flush=True)
-    server.serve_forever()
+    global _states_by_port, _default_port
+
+    if ports is None:
+        ports = [port]
+    else:
+        ports = list(ports)
+    _default_port = ports[0]
+    _states_by_port.clear()
+    _states_by_port.update({p: MockBoardState() for p in ports})
+
+    def serve_on(p):
+        server = HTTPServer(("0.0.0.0", p), MockBoardHandler)
+        logger.info("Mock Vestaboard API listening on port %d", p)
+        print(f"Mock Vestaboard API listening on port {p}", flush=True)
+        server.serve_forever()
+
+    if len(ports) == 1:
+        serve_on(ports[0])
+        return
+
+    threads = []
+    for p in ports:
+        t = threading.Thread(target=serve_on, args=(p,), daemon=True)
+        t.start()
+        threads.append(t)
+    try:
+        while True:
+            for t in threads:
+                t.join(timeout=1)
+                if not t.is_alive():
+                    logger.error(f"Server thread died unexpectedly")
+                    # Don't break - let remaining threads continue running
+            # Sleep after checking all threads to avoid busy-waiting
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        pass
+
+
+def _parse_ports():
+    """Parse PORTS env (e.g. 7000,7001) or argv --ports 7000 7001."""
+    env_ports = os.environ.get("PORTS")
+    if env_ports:
+        return [int(p.strip()) for p in env_ports.split(",") if p.strip()]
+    return None
 
 
 if __name__ == "__main__":
     import sys
     logging.basicConfig(level=logging.INFO)
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 7000
-    run(port)
+    ports = _parse_ports()
+    if ports:
+        run(ports=ports)
+    else:
+        port = int(sys.argv[1]) if len(sys.argv) > 1 else 7000
+        run(port=port)
