@@ -136,6 +136,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 - 🎵 **[Last.fm Now Playing](./plugins/last_fm/README.md)**: Display currently playing music via Last.fm scrobbling
 - 🚇 **[Muni Transit](./plugins/muni/README.md)**: Real-time SF Muni arrival predictions
 - 🛩️ **[Nearby Aircraft](./plugins/nearby_aircraft/README.md)**: Real-time nearby aircraft information from OpenSky Network API
+- 💬 **[Slack Messages](./plugins/slack/README.md)**: Display recent messages from Slack channels with OAuth authentication
 - 🏆 **[Sports Scores](./plugins/sports_scores/README.md)**: Display recent match scores from NFL, Soccer, NHL, and NBA
 - ☀️ **[Sun Art](./plugins/sun_art/README.md)**: Full-screen sun art pattern that changes based on sun position throughout the day
 - 🖖 **[Star Trek Quotes](./plugins/star_trek_quotes/README.md)**: Random quotes from TNG, Voyager, and DS9
@@ -209,6 +210,7 @@ Plugins are enabled and configured through the web UI's **Integrations** page. E
 | Home Assistant | HA long-lived access token | [plugins/home_assistant/README.md](./plugins/home_assistant/README.md) |
 | Muni Transit | 511.org (free) | [plugins/muni/README.md](./plugins/muni/README.md) |
 | Air/Fog | PurpleAir / OpenWeatherMap | [plugins/air_fog/README.md](./plugins/air_fog/README.md) |
+| Slack Messages | Slack OAuth app (required) | [plugins/slack/README.md](./plugins/slack/README.md) |
 | Stocks | Finnhub (optional) | [plugins/stocks/README.md](./plugins/stocks/README.md) |
 | Nearby Aircraft | OpenSky (optional) | [plugins/nearby_aircraft/README.md](./plugins/nearby_aircraft/README.md) |
 | Sports Scores | TheSportsDB (optional) | [plugins/sports_scores/README.md](./plugins/sports_scores/README.md) |
