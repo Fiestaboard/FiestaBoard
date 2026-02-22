@@ -75,12 +75,12 @@ The board uses special characters for weather conditions:
 
 | Symbol | Condition |
 |--------|-----------|
-| `*` | ☀️ Sunny |
-| `%` | ⛅ Partly Cloudy |
-| `O` | ☁️ Cloudy |
-| `/` | 🌧️ Rain |
-| `!` | ⛈️ Thunderstorm |
-| `~` | 🌫️ Fog |
+| `*` | Sunny |
+| `%` | Partly Cloudy |
+| `O` | Cloudy |
+| `/` | Rain |
+| `!` | Thunderstorm |
+| `~` | Fog |
 
 ## Example Page Layout
 

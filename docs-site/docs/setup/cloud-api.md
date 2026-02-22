@@ -48,9 +48,9 @@ docker-compose up -d
 | Feature | Local API | Cloud API |
 |---------|-----------|-----------|
 | Network requirement | Same network | Internet only |
-| Transition animations | ✅ Supported | ❌ Not available |
-| Custom animation speed | ✅ Supported | ❌ Not available |
-| Read current board state | ✅ Supported | ❌ Not available |
+| Transition animations | Supported | Not available |
+| Custom animation speed | Supported | Not available |
+| Read current board state | Supported | Not available |
 | Rate limiting | None | 1 message per 15 seconds |
 | Latency | Low (~ms) | Higher (~100ms+) |
 

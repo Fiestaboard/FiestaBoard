@@ -36,10 +36,10 @@ SPORTS_API_KEY=your_key_here
 
 | League | Sport |
 |--------|-------|
-| NFL | 🏈 American Football |
-| NBA | 🏀 Basketball |
-| NHL | 🏒 Hockey |
-| Soccer | ⚽ Various soccer leagues |
+| NFL | American Football |
+| NBA | Basketball |
+| NHL | Hockey |
+| Soccer | Various soccer leagues |
 
 ## Available Variables
 

@@ -12,10 +12,10 @@ Deploy FiestaBoard on a Raspberry Pi for a dedicated, always-on dashboard contro
 
 | Model | Architecture | Status |
 |-------|-------------|--------|
-| Raspberry Pi 3B+ | `linux/arm/v7` | ✅ Supported |
-| Raspberry Pi Zero 2 W | `linux/arm/v7` | ✅ Supported |
-| Raspberry Pi 4 | `linux/arm64` | ✅ Supported |
-| Raspberry Pi 5 | `linux/arm64` | ✅ Supported |
+| Raspberry Pi 3B+ | `linux/arm/v7` | Supported |
+| Raspberry Pi Zero 2 W | `linux/arm/v7` | Supported |
+| Raspberry Pi 4 | `linux/arm64` | Supported |
+| Raspberry Pi 5 | `linux/arm64` | Supported |
 
 ## Prerequisites
 
