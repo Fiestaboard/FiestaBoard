@@ -8,6 +8,8 @@ Display random dad jokes from the [icanhazdadjoke](https://icanhazdadjoke.com/) 
 
 The Dad Jokes plugin fetches random dad jokes from the icanhazdadjoke API and displays them on your board.
 
+![Dad Jokes Display](./docs/dad-jokes-display.png)
+
 ## Template Variables
 
 ```
