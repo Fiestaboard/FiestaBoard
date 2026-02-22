@@ -6,7 +6,7 @@ keywords: [FiestaBoard character codes, split-flap characters, Vestaboard encodi
 
 # Character Codes
 
-The split-flap display uses character codes to represent letters, numbers, symbols, and weather icons. This reference lists all available codes.
+The split-flap display uses character codes to represent letters, numbers, and symbols. This reference lists all available codes.
 
 ## Letters (Codes 1–26)
 
@@ -83,19 +83,6 @@ These codes display solid colored tiles:
 | 70 | ⬛ Black | Backgrounds |
 
 See the [Color Guide](/docs/reference/color-guide) for detailed usage.
-
-## Weather Symbols
-
-The board approximates weather icons using available characters:
-
-| Character | Weather Condition |
-|-----------|-------------------|
-| `*` | ☀️ Sunny / Clear |
-| `%` | ⛅ Partly Cloudy |
-| `O` | ☁️ Cloudy / Overcast |
-| `/` | 🌧️ Rain |
-| `!` | ⛈️ Thunderstorm |
-| `~` | 🌫️ Fog |
 
 ## Using Character Codes in Code
 
