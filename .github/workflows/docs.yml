@@ -65,3 +65,13 @@ jobs:
           fi
         env:
           DEPLOY_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+      - name: Enforce HTTPS on GitHub Pages
+        run: |
+          curl -sSf -X PUT \
+            -H "Authorization: token ${DEPLOY_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/Fiestaboard/fiestaboard.github.io/pages \
+            -d '{"cname":"fiestaboard.app","https_enforced":true}'
+        env:
+          DEPLOY_TOKEN: ${{ secrets.RELEASE_PAT }}
