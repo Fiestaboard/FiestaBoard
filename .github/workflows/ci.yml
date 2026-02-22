@@ -297,12 +297,10 @@ jobs:
 
       - name: Start FiestaBoard container (unified app, same as prod)
         run: |
+          # Start without board config so API reports first-run and setup wizard appears in E2E
           docker run -d --name fiestaboard-e2e \
             --add-host=host.docker.internal:host-gateway \
             -p 4420:3000 \
-            -e BOARD_API_MODE=local \
-            -e BOARD_HOST=host.docker.internal \
-            -e BOARD_LOCAL_API_KEY=test_key \
             -e PRODUCTION=false \
             fiestaboard:e2e
           echo "Waiting for app on port 4420..."
@@ -319,6 +317,7 @@ jobs:
         run: npx playwright test --reporter=github
         env:
           CI: true
+          MOCK_BOARD_HOST: host.docker.internal
 
       - name: Stop FiestaBoard container
         if: always()
@@ -329,7 +328,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: playwright-results
-          path: web/test-results/
+          path: web/playwright-test-results/
           retention-days: 7
 
   build-docker:
