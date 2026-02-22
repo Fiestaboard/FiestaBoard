@@ -33,10 +33,10 @@ class SlackPlugin(PluginBase):
         Returns:
             PluginResult with message data or error.
         """
-        access_token = self.get_config("access_token")
-        channel_id = self.get_config("channel_id")
-        max_messages = self.get_config("max_messages", 5)
-        show_timestamp = self.get_config("show_timestamp", True)
+        access_token = self.config.get("access_token")
+        channel_id = self.config.get("channel_id")
+        max_messages = self.config.get("max_messages", 5)
+        show_timestamp = self.config.get("show_timestamp", True)
         
         if not access_token:
             return PluginResult(
