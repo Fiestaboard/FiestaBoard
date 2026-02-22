@@ -15,7 +15,7 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://fiestaboard.github.io',
+  url: 'https://fiestaboard.app',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
@@ -52,7 +52,7 @@ const config: Config = {
       tagName: 'link',
       attributes: {
         rel: 'canonical',
-        href: 'https://fiestaboard.github.io',
+        href: 'https://fiestaboard.app',
       },
     },
     {
@@ -65,7 +65,7 @@ const config: Config = {
         '@type': 'SoftwareApplication',
         name: 'FiestaBoard',
         description: 'Open-source software that transforms split-flap displays into living dashboards. Display weather, stocks, sports scores, transit times, and more.',
-        url: 'https://fiestaboard.github.io',
+        url: 'https://fiestaboard.app',
         applicationCategory: 'UtilitiesApplication',
         operatingSystem: 'Linux, macOS, Windows',
         offers: {

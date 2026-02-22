@@ -4,7 +4,7 @@
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**📖 [Documentation](https://fiestaboard.github.io)**
+**📖 [Documentation](https://fiestaboard.app)**
 
 ## 🚀 Quick Start
 
@@ -267,7 +267,7 @@ docker-compose logs -f
 
 ## Documentation
 
-**📖 Full documentation is available at [fiestaboard.github.io](https://fiestaboard.github.io)**
+**📖 Full documentation is available at [fiestaboard.app](https://fiestaboard.app)**
 
 ### Setup
 - **[Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md)**: Step-by-step setup for non-technical users
