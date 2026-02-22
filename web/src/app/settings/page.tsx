@@ -1,7 +1,7 @@
 "use client";
 
-import { BoardSettings } from "@/components/feature-settings/board-settings";
-import { DebugSettings } from "@/components/feature-settings/debug-settings";
+import { BoardSettings } from "@/components/settings/board-settings";
+import { DebugSettings } from "@/components/settings/debug-settings";
 import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
 import Link from "next/link";
