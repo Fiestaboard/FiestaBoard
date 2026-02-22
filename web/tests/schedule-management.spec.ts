@@ -162,6 +162,46 @@ test.describe("Schedule Management", () => {
     }
   });
 
+  test("can delete a schedule from the edit modal", async ({ page }) => {
+    const pageId = await createPage("Edit-Delete Schedule Page");
+    await createSchedule(pageId, "10:00", "15:00");
+
+    await page.goto("/schedule");
+    await expect(
+      page.getByRole("heading", { name: "Schedule", exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByText("10:00").first()).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Open the edit modal
+    const editBtn = page.getByRole("button", { name: /edit/i }).first();
+    await expect(editBtn).toBeVisible({ timeout: 5_000 });
+    await editBtn.click();
+
+    // Wait for edit dialog
+    await expect(
+      page.getByText("Edit Schedule").first(),
+    ).toBeVisible({ timeout: 5_000 });
+
+    // Click the delete button inside the edit modal
+    const deleteBtn = page.getByRole("button", { name: /delete/i });
+    await expect(deleteBtn).toBeVisible({ timeout: 3_000 });
+    await deleteBtn.click();
+
+    // Confirm deletion in the alert dialog
+    const confirmBtn = page.getByRole("button", { name: "Delete" }).last();
+    await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
+    await confirmBtn.click();
+
+    // Verify schedule was deleted via API
+    await page.waitForTimeout(1_000);
+    const res = await fetch(`${API_URL}/schedules`);
+    const data = await res.json();
+    expect(data.total).toBe(0);
+  });
+
   test("can delete a schedule with confirmation", async ({ page }) => {
     const pageId = await createPage("Delete Schedule Page");
     await createSchedule(pageId, "14:00", "18:00");

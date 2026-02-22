@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DaySelector } from "@/components/day-selector";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Trash2 } from "lucide-react";
 import type { ScheduleEntry, ScheduleCreate, ScheduleUpdate, DayPattern } from "@/lib/api";
 
 interface ScheduleEntryFormProps {
@@ -16,6 +16,7 @@ interface ScheduleEntryFormProps {
   pages: Array<{ id: string; name: string }>;
   onSubmit: (data: ScheduleCreate | ScheduleUpdate) => Promise<void>;
   onCancel: () => void;
+  onDelete?: () => void;
   // Optional prefill values (used when creating from calendar slot selection)
   prefillStartTime?: string;
   prefillEndTime?: string;
@@ -43,6 +44,7 @@ export function ScheduleEntryForm({
   pages,
   onSubmit,
   onCancel,
+  onDelete,
   prefillStartTime,
   prefillEndTime,
   prefillDayPattern,
@@ -234,17 +236,32 @@ export function ScheduleEntryForm({
       )}
 
       {/* Actions */}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={validationErrors.length > 0 || isSubmitting}
-        >
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isEdit ? "Update" : "Create"} Schedule
-        </Button>
+      <div className="flex justify-between gap-2">
+        <div>
+          {isEdit && onDelete && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={onDelete}
+              disabled={isSubmitting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={validationErrors.length > 0 || isSubmitting}
+          >
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isEdit ? "Update" : "Create"} Schedule
+          </Button>
+        </div>
       </div>
     </form>
   );

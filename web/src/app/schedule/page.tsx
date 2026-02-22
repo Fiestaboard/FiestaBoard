@@ -520,6 +520,11 @@ export default function SchedulePage() {
                   pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
                   onSubmit={handleSubmit}
                   onCancel={handleCloseForm}
+                  onDelete={editingSchedule ? () => {
+                    const id = editingSchedule.id;
+                    handleCloseForm();
+                    setDeleteScheduleId(id);
+                  } : undefined}
                   prefillStartTime={prefillData?.startTime}
                   prefillEndTime={prefillData?.endTime}
                   prefillDayPattern={prefillData?.dayPattern}
