@@ -133,6 +133,11 @@ test.describe("Dashboard", () => {
       page.getByText("Active Display", { exact: true })
     ).toBeVisible({ timeout: 10_000 });
     
+    // Wait for the mode badge to update (React Query needs time to fetch)
+    // The badge should show "Schedule Mode" once the query completes
+    await page.waitForTimeout(2000);
+    
+    // Verify schedule mode is displayed
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
       timeout: 15_000,
     });
