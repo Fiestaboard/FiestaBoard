@@ -84,6 +84,26 @@ class TestDateTimePlugin:
         assert "timezone" in data
     
     @patch('plugins.date_time.datetime')
+    def test_fetch_data_stardate(self, mock_datetime, sample_manifest, sample_config):
+        """Test stardate variable is calculated correctly (TNG-style)."""
+        # Jan 15, 2025: day_of_year=15, year=2025
+        # stardate = 70000 + (2025-2020)*1000 + (15/365*1000) = 75000 + 41.096... ≈ 75041.1
+        mock_now = datetime(2025, 1, 15, 14, 30, 0)
+        tz = pytz.timezone("America/Los_Angeles")
+        mock_now = tz.localize(mock_now)
+        mock_datetime.now.return_value = mock_now
+
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+        result = plugin.fetch_data()
+
+        assert "stardate" in result.data
+        stardate_val = float(result.data["stardate"])
+        days_in_year = 366 if 2025 % 4 == 0 and (2025 % 100 != 0 or 2025 % 400 == 0) else 365
+        expected = 70000 + (2025 - 2020) * 1000 + (15 / days_in_year * 1000)
+        assert abs(stardate_val - expected) < 0.1
+    
+    @patch('plugins.date_time.datetime')
     def test_fetch_data_time_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test time format variables."""
         # Test at 2:30 PM (14:30)

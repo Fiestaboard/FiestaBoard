@@ -55,7 +55,8 @@
       "month_number",
       "month_number_padded",
       "month_abbr",
-      "timezone"
+      "timezone",
+      "stardate"
     ]
   },
 
@@ -77,7 +78,8 @@
     "month_number": 2,
     "month_number_padded": 2,
     "month_abbr": 3,
-    "timezone": 30
+    "timezone": 30,
+    "stardate": 7
   }
 }
 

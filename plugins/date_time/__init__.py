@@ -6,6 +6,7 @@ Displays current date and time in various formats.
 from typing import Any, Dict, List, Optional
 import logging
 from datetime import datetime
+import calendar
 import pytz
 
 from src.plugins.base import PluginBase, PluginResult
@@ -75,6 +76,9 @@ class DateTimePlugin(PluginBase):
                 
                 # Additional timezone info
                 "timezone": timezone_str,  # Full timezone name from config
+                
+                # Stardate (TNG-style)
+                "stardate": f"{70000 + (now.year - 2020) * 1000 + (now.timetuple().tm_yday / (366 if calendar.isleap(now.year) else 365) * 1000):.1f}",
             }
             
             return PluginResult(
