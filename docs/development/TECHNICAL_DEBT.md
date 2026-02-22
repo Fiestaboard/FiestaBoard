@@ -12,8 +12,8 @@ This document tracks known technical debt in FiestaBoard, including deprecated A
 |------|------|--------|
 | **Canonical** | `GET /config/board` | ✅ Active |
 | **Canonical** | `PUT /config/board` | ✅ Active |
-| **Deprecated** | `GET /config/vestaboard` | ⚠️ Deprecated — returns `Deprecation: true` header |
-| **Deprecated** | `PUT /config/vestaboard` | ⚠️ Deprecated — returns `Deprecation: true` header |
+| **Deprecated** | `GET /config/vestaboard` | ⚠️ Deprecated - returns `Deprecation: true` header |
+| **Deprecated** | `PUT /config/vestaboard` | ⚠️ Deprecated - returns `Deprecation: true` header |
 
 The `/config/vestaboard` paths are backward-compatibility aliases kept after the plugin architecture migration. They redirect to `/config/board` and will be removed in a future major release.
 
@@ -26,7 +26,7 @@ The `/config/vestaboard` paths are backward-compatibility aliases kept after the
 | Type | Path | Status |
 |------|------|--------|
 | **Canonical** | `GET /plugins/{plugin_id}/data` | ✅ Active |
-| **Deprecated** | `GET /displays/{display_type}/raw` | ⚠️ Deprecated — returns `Deprecation: true` header |
+| **Deprecated** | `GET /displays/{display_type}/raw` | ⚠️ Deprecated - returns `Deprecation: true` header |
 
 After the plugin architecture migration, plugin data should be retrieved via `/plugins/{plugin_id}/data`. The old `/displays/{display_type}/raw` endpoint remains for backward compatibility and will be removed in a future major release.
 

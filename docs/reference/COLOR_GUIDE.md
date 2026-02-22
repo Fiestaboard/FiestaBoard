@@ -319,5 +319,5 @@ Colors enhance the board display by:
 - ✅ Organizing information (Guest WiFi)
 - ✅ Adding visual interest
 
-Use colors purposefully and consistently for maximum impact! 🎨
+Use colors purposefully and consistently for maximum impact!
 

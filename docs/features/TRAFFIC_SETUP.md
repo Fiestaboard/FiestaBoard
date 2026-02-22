@@ -191,5 +191,5 @@ BIKE: {traffic.routes.1.duration_minutes}m
 MUNI: {traffic.routes.2.duration_minutes}m
 ```
 
-This lets you compare all three options at a glance! 🚗🚴🚇
+This lets you compare all three options at a glance!
 

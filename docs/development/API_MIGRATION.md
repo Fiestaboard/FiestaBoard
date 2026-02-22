@@ -8,7 +8,7 @@ This guide helps developers migrate from deprecated FiestaBoard API endpoints to
 
 The `/config/vestaboard` endpoints are deprecated. Use `/config/board` instead.
 
-### GET — Retrieve board configuration
+### GET - Retrieve board configuration
 
 **Deprecated (returns `Deprecation: true` header):**
 ```
@@ -32,7 +32,7 @@ GET /config/board
 }
 ```
 
-### PUT — Update board configuration
+### PUT - Update board configuration
 
 **Deprecated (returns `Deprecation: true` header):**
 ```
@@ -59,7 +59,7 @@ PUT /config/board
 
 The `/displays/{display_type}/raw` endpoint is deprecated. Use `/plugins/{plugin_id}/data` instead.
 
-### GET — Retrieve plugin/display data
+### GET - Retrieve plugin/display data
 
 **Deprecated (returns `Deprecation: true` header):**
 ```
@@ -73,7 +73,7 @@ GET /plugins/{plugin_id}/data
 
 The `display_type` and `plugin_id` values are the same identifiers (e.g., `weather`, `datetime`, `stocks`).
 
-**Example — old endpoint:**
+**Example - old endpoint:**
 ```
 GET /displays/weather/raw
 ```
@@ -86,7 +86,7 @@ GET /displays/weather/raw
 }
 ```
 
-**Example — new endpoint:**
+**Example - new endpoint:**
 ```
 GET /plugins/weather/data
 ```
@@ -119,5 +119,5 @@ You can use these headers to detect and log warnings in your integration code.
 
 ## See Also
 
-- [Technical Debt](./TECHNICAL_DEBT.md) — full list of deprecated endpoints and removal timeline
+- [Technical Debt](./TECHNICAL_DEBT.md) - full list of deprecated endpoints and removal timeline
 - [Plugin Development Guide](./PLUGIN_DEVELOPMENT.md)

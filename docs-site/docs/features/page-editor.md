@@ -10,7 +10,7 @@ FiestaBoard's WYSIWYG page editor lets you create and edit board display pages w
 
 ## Overview
 
-The page editor is the core of FiestaBoard's content creation experience. It provides a real-time preview of your board layout, template variable insertion, and color formatting—all in a visual interface.
+The page editor is the core of FiestaBoard's content creation experience. It provides a real-time preview of your board layout, template variable insertion, and color formatting, all in a visual interface.
 
 ![Page Editor](/img/page-editor-wysiwyg.png)
 
@@ -99,6 +99,6 @@ Pages that are referenced in schedules should be updated or removed from the sch
 
 ## Next Steps
 
-- [Schedule Mode](/docs/features/schedule) — Automate when pages are displayed
-- [Plugins Overview](/docs/plugins/overview) — See available data sources for your pages
-- [Color Guide](/docs/reference/color-guide) — Learn about color formatting options
+- [Schedule Mode](/docs/features/schedule) - Automate when pages are displayed
+- [Plugins Overview](/docs/plugins/overview) - See available data sources for your pages
+- [Color Guide](/docs/reference/color-guide) - Learn about color formatting options

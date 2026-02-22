@@ -10,7 +10,7 @@ Display smart home device states from your Home Assistant instance on your board
 
 ## Overview
 
-The Home Assistant plugin connects to your Home Assistant server and displays entity states — door sensors, temperature readings, light status, and any other entity your HA instance tracks.
+The Home Assistant plugin connects to your Home Assistant server and displays entity states: door sensors, temperature readings, light status, and any other entity your HA instance tracks.
 
 ## Setup
 
@@ -21,7 +21,7 @@ The Home Assistant plugin connects to your Home Assistant server and displays en
 3. Scroll to **Long-Lived Access Tokens**
 4. Click **Create Token**
 5. Give it a name (e.g., "FiestaBoard")
-6. Copy the token immediately — it won't be shown again
+6. Copy the token immediately. It won't be shown again
 
 ### 2. Configure FiestaBoard
 

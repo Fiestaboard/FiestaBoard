@@ -14,7 +14,7 @@ This project uses a **two-container architecture**:
    - Provides a web interface for monitoring and control
    - Proxies API requests to the API service
 
-## Quick Start (Pre-built Images — Recommended)
+## Quick Start (Pre-built Images - Recommended)
 
 The fastest way to get running is to use the pre-built images from the **GitHub Container Registry**. No cloning or building required.
 
@@ -219,6 +219,6 @@ Both services use the same `.env` file. Key variables:
 
 ## Production Deployment
 
-For production deployment, use `docker-compose.ghcr.yml` with pre-built images from the GitHub Container Registry. This is the recommended approach — no building required, and images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.
+For production deployment, use `docker-compose.ghcr.yml` with pre-built images from the GitHub Container Registry. This is the recommended approach - no building required, and images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.
 
 
