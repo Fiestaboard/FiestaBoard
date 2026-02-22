@@ -142,6 +142,12 @@ test.describe("Dashboard", () => {
     const recheckData = await recheckRes.json();
     expect(recheckData.enabled).toBe(true);
     
+    // Also check GET /schedules to see what the dashboard component will receive
+    const schedulesRes = await fetch(`${API_URL}/schedules`);
+    expect(schedulesRes.ok).toBe(true);
+    const schedulesData = await schedulesRes.json();
+    expect(schedulesData.enabled).toBe(true);
+    
     // Wait for the mode badge to update (React Query needs time to fetch)
     // The badge should show "Schedule Mode" once the query completes
     await page.waitForTimeout(3000);
