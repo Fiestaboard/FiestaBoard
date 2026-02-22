@@ -5,14 +5,14 @@ import time
 import json
 import threading
 from unittest.mock import Mock, patch, MagicMock
-from src.data_sources.transit_cache import TransitCache, get_transit_cache
+from src.utils.transit_cache import TransitCache, get_transit_cache
 
 
 @pytest.fixture(autouse=True)
 def reset_transit_cache():
     """Reset TransitCache singleton before each test to ensure test isolation."""
     # Import the module-level variable
-    import src.data_sources.transit_cache as transit_cache_module
+    import src.utils.transit_cache as transit_cache_module
     
     # Stop any running threads
     if TransitCache._instance is not None:
@@ -140,7 +140,7 @@ class TestTransitCache:
         assert "99999" in result
         assert len(result["99999"]) == 0  # No data for non-existent stop
     
-    @patch('src.data_sources.transit_cache.requests.get')
+    @patch('src.utils.transit_cache.requests.get')
     def test_refresh_data_success(self, mock_get, mock_regional_response):
         """Test successful data refresh."""
         # Mock HTTP response
@@ -164,7 +164,7 @@ class TestTransitCache:
         sf_stops = cache.get_all_stops_for_agency("SF")
         assert "15210" in sf_stops
     
-    @patch('src.data_sources.transit_cache.requests.get')
+    @patch('src.utils.transit_cache.requests.get')
     def test_refresh_data_rate_limit(self, mock_get):
         """Test handling of rate limit errors."""
         # Mock HTTP 429 response
@@ -251,7 +251,7 @@ class TestTransitCache:
 class TestTransitCacheIntegration:
     """Integration tests for transit cache with real-ish scenarios."""
     
-    @patch('src.data_sources.transit_cache.requests.get')
+    @patch('src.utils.transit_cache.requests.get')
     def test_multiple_agencies(self, mock_get):
         """Test caching data from multiple transit agencies."""
         response_data = {

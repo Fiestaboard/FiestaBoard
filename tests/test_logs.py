@@ -38,7 +38,7 @@ def sample_log_entries():
         {
             "timestamp": "2025-12-25T10:00:02",
             "level": "WARNING",
-            "logger": "src.data_sources.weather",
+            "logger": "src.utils.weather",
             "message": "Weather API rate limit approaching"
         },
         {

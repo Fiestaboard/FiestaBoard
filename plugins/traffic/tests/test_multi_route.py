@@ -1,7 +1,7 @@
 """Tests for Traffic multi-route support and backward compatibility."""
 
 import pytest
-from src.data_sources.traffic import TrafficSource
+from src.utils.traffic import TrafficSource
 
 
 class TestTrafficMultiRoute:

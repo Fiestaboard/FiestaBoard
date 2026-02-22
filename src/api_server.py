@@ -1353,7 +1353,7 @@ async def list_all_baywheels_stations():
     
     Returns all stations from the GBFS feed with their current bike availability.
     """
-    from src.data_sources.baywheels import BayWheelsSource, STATION_STATUS_URL
+    from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
     import requests
     
     try:
@@ -1426,7 +1426,7 @@ async def find_nearby_baywheels_stations(
     Returns:
         List of nearby stations sorted by distance
     """
-    from src.data_sources.baywheels import BayWheelsSource, STATION_STATUS_URL
+    from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
     import requests
     
     try:
@@ -1492,7 +1492,7 @@ async def search_baywheels_stations_by_address(
     Returns:
         List of nearby stations sorted by distance
     """
-    from src.data_sources.baywheels import BayWheelsSource, STATION_STATUS_URL
+    from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
     import requests
     
     try:
@@ -1803,7 +1803,7 @@ async def find_nearby_muni_stops(
         
         # Try to get routes serving each stop from regional transit cache
         try:
-            from src.data_sources.transit_cache import get_transit_cache
+            from src.utils.transit_cache import get_transit_cache
             cache = get_transit_cache()
             
             if cache.is_ready():
@@ -1927,7 +1927,7 @@ async def get_transit_cache_status():
     - Whether cache is stale
     """
     try:
-        from src.data_sources.transit_cache import get_transit_cache
+        from src.utils.transit_cache import get_transit_cache
         cache = get_transit_cache()
         status = cache.get_status()
         
@@ -1972,7 +1972,7 @@ async def search_stock_symbols(
         [{"symbol": "GOOG", "name": "Alphabet Inc."}, ...]
     """
     try:
-        from src.data_sources.stocks import StocksSource
+        from src.utils.stocks import StocksSource
         from src.config import Config
         
         # Get Finnhub API key if configured
@@ -2018,7 +2018,7 @@ async def validate_stock_symbol(request: dict):
         raise HTTPException(status_code=400, detail="symbol parameter required")
     
     try:
-        from src.data_sources.stocks import StocksSource
+        from src.utils.stocks import StocksSource
         
         result = StocksSource.validate_symbol(symbol)
         return result
@@ -2094,7 +2094,7 @@ async def validate_traffic_route(request: dict):
     Returns:
         Validation result with distance and duration estimates
     """
-    from src.data_sources.traffic import TrafficSource
+    from src.utils.traffic import TrafficSource
     from src.config import Config
     
     origin = request.get("origin")
@@ -3568,7 +3568,7 @@ async def get_home_assistant_entities():
     Returns list of entities with their current state and all attributes.
     Used by the UI to populate entity picker dropdowns.
     """
-    from .data_sources.home_assistant import get_home_assistant_source
+    from .utils.home_assistant import get_home_assistant_source
     
     ha_source = get_home_assistant_source()
     if not ha_source:

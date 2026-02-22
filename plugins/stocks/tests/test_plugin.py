@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from src.data_sources.stocks import StocksSource, TIME_WINDOW_MAP, POPULAR_STOCKS
+from src.utils.stocks import StocksSource, TIME_WINDOW_MAP, POPULAR_STOCKS
 
 
 class TestStocksSource:
@@ -65,7 +65,7 @@ class TestStocksSource:
         assert StocksSource._format_percentage(12.5) == "+12.50%"
         assert StocksSource._format_percentage(-0.01) == "-0.01%"
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_single_stock_success(self, mock_ticker_class):
         """Test successful single stock data fetch."""
         # Mock yfinance Ticker
@@ -100,7 +100,7 @@ class TestStocksSource:
         assert "GOOG" in result["formatted"]
         assert "150.25" in result["formatted"]
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_single_stock_negative_change(self, mock_ticker_class):
         """Test stock with negative change (red color)."""
         mock_ticker = MagicMock()
@@ -127,7 +127,7 @@ class TestStocksSource:
         assert result["change_direction"] == "down"
         assert "{red}" in result["formatted"]
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_single_stock_zero_change(self, mock_ticker_class):
         """Test stock with zero change (white color)."""
         mock_ticker = MagicMock()
@@ -153,7 +153,7 @@ class TestStocksSource:
         assert result["change_direction"] == "up"  # 0 is considered "up"
         assert "{white}" in result["formatted"]
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_single_stock_no_price(self, mock_ticker_class):
         """Test stock with no current price available."""
         mock_ticker = MagicMock()
@@ -165,7 +165,7 @@ class TestStocksSource:
         
         assert result is None
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_single_stock_no_history(self, mock_ticker_class):
         """Test stock with no historical data."""
         mock_ticker = MagicMock()
@@ -180,7 +180,7 @@ class TestStocksSource:
         
         assert result is None
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_stocks_data_alignment(self, mock_ticker_class):
         """Test that multiple stocks are aligned in columns."""
         # Mock different stocks with different price ranges
@@ -278,7 +278,7 @@ class TestStocksSource:
         assert any("AAPL" in f for f in formatted_strings)
         assert any("TSLA" in f for f in formatted_strings)
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_stocks_data_empty_symbols(self, mock_ticker_class):
         """Test fetch with empty symbols list."""
         source = StocksSource(symbols=[], time_window="1 Day")
@@ -287,7 +287,7 @@ class TestStocksSource:
         assert results == []
         mock_ticker_class.assert_not_called()
     
-    @patch('src.data_sources.stocks.yf.Ticker')
+    @patch('src.utils.stocks.yf.Ticker')
     def test_fetch_stocks_data_partial_failure(self, mock_ticker_class):
         """Test fetch when some symbols fail."""
         def create_mock_ticker(symbol, current_price, previous_price, has_price=True, has_history=True):
@@ -333,7 +333,7 @@ class TestStocksSource:
     
     def test_validate_symbol_success(self):
         """Test symbol validation with valid symbol."""
-        with patch('src.data_sources.stocks.yf.Ticker') as mock_ticker_class:
+        with patch('src.utils.stocks.yf.Ticker') as mock_ticker_class:
             mock_ticker = MagicMock()
             mock_ticker.info = {
                 "symbol": "GOOG",
@@ -350,7 +350,7 @@ class TestStocksSource:
     
     def test_validate_symbol_invalid(self):
         """Test symbol validation with invalid symbol."""
-        with patch('src.data_sources.stocks.yf.Ticker') as mock_ticker_class:
+        with patch('src.utils.stocks.yf.Ticker') as mock_ticker_class:
             mock_ticker = MagicMock()
             mock_ticker.info = {}  # Empty info = invalid
             mock_ticker_class.return_value = mock_ticker

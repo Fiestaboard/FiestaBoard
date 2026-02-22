@@ -48,7 +48,7 @@ class StarTrekQuotesPlugin(PluginBase):
             
             if not quotes_file.exists():
                 # Fall back to legacy location
-                legacy_file = Path(__file__).parent.parent.parent / "src" / "data_sources" / "star_trek_quotes.json"
+                legacy_file = Path(__file__).parent.parent.parent / "src" / "utils" / "star_trek_quotes.json"
                 if legacy_file.exists():
                     quotes_file = legacy_file
                 else:
