@@ -91,6 +91,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 - **[Muni Transit](./plugins/muni/README.md)**: Real-time SF Muni arrival predictions
 - **[Nearby Aircraft](./plugins/nearby_aircraft/README.md)**: Real-time nearby aircraft information from OpenSky Network API
 - **[Sports Scores](./plugins/sports_scores/README.md)**: Display recent match scores from NFL, Soccer, NHL, and NBA
+- **[Stardate](./plugins/stardate/README.md)**: Current TNG-era stardate (negative values as we're 297 years before stardate 0)
 - **[Sun Art](./plugins/sun_art/README.md)**: Full-screen sun art pattern that changes based on sun position throughout the day
 - **[Star Trek Quotes](./plugins/star_trek_quotes/README.md)**: Random quotes from TNG, Voyager, and DS9
 - **[Stocks](./plugins/stocks/README.md)**: Monitor stock prices with color-coded indicators
