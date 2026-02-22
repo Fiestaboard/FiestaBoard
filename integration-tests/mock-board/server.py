@@ -309,10 +309,17 @@ def run(port=7000, ports=None):
         threads.append(t)
     try:
         while True:
+            all_alive = True
             for t in threads:
                 t.join(timeout=1)
                 if not t.is_alive():
+                    logger.error(f"Server thread died unexpectedly")
+                    all_alive = False
                     break
+            if not all_alive:
+                break
+            # Sleep to avoid busy-waiting when all threads are alive
+            time.sleep(0.5)
     except KeyboardInterrupt:
         pass
 
