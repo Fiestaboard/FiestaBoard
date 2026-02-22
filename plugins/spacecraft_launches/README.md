@@ -4,6 +4,8 @@ Track upcoming spacecraft launch countdowns and statuses using the Launch Librar
 
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration and usage instructions
 
+![Spacecraft Launches - Earth Departures Display](./docs/spacecraft-launches-earth-departures.svg)
+
 ## Overview
 
 The Spacecraft Launches plugin fetches upcoming launch data from the [Launch Library 2 API](https://ll.thespacedevs.com/docs/) by The Space Devs and displays launch name, countdown, status, pad, and provider information. Inspired by airport departure boards, it presents space launches as "Earth Departures."

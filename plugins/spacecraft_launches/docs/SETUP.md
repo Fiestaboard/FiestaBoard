@@ -2,6 +2,20 @@
 
 The Spacecraft Launches plugin displays upcoming rocket launch countdowns and statuses, inspired by airport departure boards. Track launches from SpaceX, NASA, Roscosmos, and more — no API key required.
 
+## Plugin Display Examples
+
+### Earth Departures Board
+
+![Earth Departures Display](./spacecraft-launches-earth-departures.svg)
+
+### Next Launch Countdown
+
+![Next Launch Countdown Display](./spacecraft-launches-countdown.svg)
+
+### Configuration Interface
+
+![Plugin Configuration](./spacecraft-launches-config.svg)
+
 ## Overview
 
 **What it does:**
@@ -103,6 +117,7 @@ SPACECRAFT_LAUNCHES_REFRESH_SECONDS=300   # Default: 300 seconds (5 min)
 
 ### Earth Departures Board
 
+**Template:**
 ```
 {center}EARTH DEPARTURES
 {{spacecraft_launches.headers}}
@@ -111,6 +126,10 @@ SPACECRAFT_LAUNCHES_REFRESH_SECONDS=300   # Default: 300 seconds (5 min)
 {{spacecraft_launches.launches.2.formatted}}
 {{spacecraft_launches.launches.3.formatted}}
 ```
+
+**Display:**
+
+![Earth Departures Example](./spacecraft-launches-earth-departures.svg)
 
 Output example:
 ```
@@ -124,6 +143,7 @@ DATE TIME MISSION
 
 ### Next Launch Countdown
 
+**Template:**
 ```
 {center}NEXT LAUNCH
 {{spacecraft_launches.mission}}
@@ -132,6 +152,10 @@ T- {{spacecraft_launches.countdown}}
 PAD: {{spacecraft_launches.pad}}
 STATUS: {{spacecraft_launches.status}}
 ```
+
+**Display:**
+
+![Next Launch Countdown Example](./spacecraft-launches-countdown.svg)
 
 ### Compact View
 
