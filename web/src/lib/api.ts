@@ -1,47 +1,6 @@
 // API client for FiestaBoard service
-// Extensible pattern - easy to add updateConfig(), savePage() later
-
-// Runtime configuration - API URL is fetched at startup from /api/runtime-config.
-// Port fallback logic (localhost → 8000, production → 6969) is mirrored in
-// app/api/runtime-config/route.ts — keep both in sync when changing ports.
-let API_BASE = "";
-let configLoaded = false;
-let configPromise: Promise<void> | null = null;
-
-/**
- * Load runtime configuration from the API.
- * This should be called once at app startup.
- */
-export async function loadRuntimeConfig(): Promise<void> {
-  if (configLoaded) return;
-  
-  // If already loading, return the existing promise
-  if (configPromise) return configPromise;
-  
-  configPromise = (async () => {
-    try {
-      // Fetch runtime config from the API
-      const response = await fetch("/api/runtime-config");
-      const config = await response.json();
-      
-      // Set API_BASE from config
-      // In the unified container, apiUrl is empty: use /api so all API calls go to /api/* (no UI path conflicts)
-      if (config.apiUrl) {
-        API_BASE = config.apiUrl;
-      } else {
-        API_BASE = "/api";
-      }
-      
-      configLoaded = true;
-    } catch (error) {
-      console.error("Failed to load runtime config, using defaults:", error);
-      API_BASE = "/api";
-      configLoaded = true;
-    }
-  })();
-  
-  return configPromise;
-}
+// All API calls go through nginx at /api/* (same origin, unified container).
+const API_BASE = "/api";
 
 // Types for API responses
 export interface StatusResponse {
@@ -685,11 +644,6 @@ export interface VersionResponse {
 
 // API client with typed methods
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  // Ensure config is loaded before making API calls
-  if (!configLoaded) {
-    await loadRuntimeConfig();
-  }
-  
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {

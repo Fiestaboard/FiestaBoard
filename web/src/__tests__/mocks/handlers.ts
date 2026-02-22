@@ -25,7 +25,7 @@ import type {
   PluginDetailsResponse,
 } from "@/lib/api";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "/api";
 
 // Type-safe mock data
 export const mockStatus: StatusResponse = {
@@ -783,13 +783,6 @@ export const handlers = [
   // Silence status endpoint
   http.get(`${API_BASE}/silence-status`, () => {
     return HttpResponse.json(mockSilenceStatus);
-  }),
-
-  // Runtime config endpoint (Next.js API route, not API_BASE)
-  http.get("/api/runtime-config", () => {
-    return HttpResponse.json({
-      apiUrl: "http://localhost:8000"
-    });
   }),
 
   // Polling settings endpoints

@@ -55,7 +55,7 @@ docker-compose -f docker-compose.dev.yml up -d
 curl http://localhost:3000/health
 
 # Check the logs for any connection errors
-docker-compose -f docker-compose.dev.yml logs -f fiestaboard-api-dev
+docker-compose -f docker-compose.dev.yml logs -f fiestaboard
 ```
 
 If successful, the API should connect to your board without errors.

@@ -79,11 +79,8 @@ You can use this with monitoring tools like Uptime Kuma or Healthchecks.io.
 # View all logs
 docker-compose logs -f
 
-# View API logs only
-docker-compose logs -f api
-
-# View UI logs only
-docker-compose logs -f ui
+# View FiestaBoard container logs only
+docker-compose logs -f fiestaboard
 ```
 
 ## Security Considerations

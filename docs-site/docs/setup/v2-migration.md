@@ -217,6 +217,17 @@ Your `data/` directory (pages, schedules, settings) is fully preserved — it is
 | API (direct) | 8000 | ~~not exposed~~ (proxied at :3000) |
 | API Docs | 8000/docs | 3000/docs |
 
+### Docker image names
+
+V1 published two separate container images. V2 replaces them with a single unified image:
+
+| V1 (deprecated) | V2 |
+|---|---|
+| `ghcr.io/fiestaboard/fiestaboard-api:latest` | `ghcr.io/fiestaboard/fiestaboard:latest` |
+| `ghcr.io/fiestaboard/fiestaboard-ui:latest` | _(removed — included in the unified image)_ |
+
+If you were pulling the V1 images, switch to the new image name. The old image names will not receive updates.
+
 ### Using pre-built images (optional)
 
 V2 introduces a `docker-compose.ghcr.yml` for using pre-built images from GitHub Container Registry — no local build required:
@@ -229,9 +240,32 @@ docker-compose -f docker-compose.ghcr.yml up -d
 
 ## Upgrading
 
-### From a running V1 instance
+### Understanding your data
+
+Before upgrading, it helps to know where your data lives.
+
+:::important Your data is on the host, not inside the container
+FiestaBoard stores all configuration, pages, schedules, and settings in a `data/` directory on your **host machine**. This directory is bind-mounted into the container at `/app/data`. As long as you point the new V2 container at the same host path, all your data is preserved automatically.
+:::
+
+The `data/` directory contains:
+- `config.json` — board connection settings, plugin config, general settings
+- `pages.json` — all your saved pages
+- `schedules.json` — schedule entries
+- `settings.json` — board settings, transition settings, polling intervals
+
+V2 reads this data on first boot and auto-migrates it:
+- Existing pages get `device_type: "flagship"` added automatically
+- Board connection settings (from `.env` or `config.json`) are migrated to the new multi-board format
+- Silence schedule times are converted to UTC
+- Legacy feature configs are migrated to plugin format
+
+No manual data conversion is needed.
+
+### From a running V1 instance (docker-compose)
 
 1. **Pull the latest code:**
+
    ```bash
    git pull
    ```
@@ -239,6 +273,7 @@ docker-compose -f docker-compose.ghcr.yml up -d
 2. **Remove `NEXT_PUBLIC_API_URL` from `.env`** if it exists — it is no longer needed.
 
 3. **Rebuild and restart** (the old two containers are replaced by one):
+
    ```bash
    docker-compose down
    docker-compose up -d --build
@@ -250,9 +285,52 @@ docker-compose -f docker-compose.ghcr.yml up -d
 
 6. **Optional**: Visit **Settings → Boards** to set your board's device type and color, or to add a Note if you have one.
 
-:::tip
-The `data/` directory is mounted as a Docker volume, so your pages, schedules, and settings survive the upgrade.
-:::
+### From Portainer, Synology, Unraid, or standalone Docker
+
+If you deploy containers through a management UI (Portainer, Synology Container Manager, Unraid Docker) or raw `docker run` commands rather than `docker-compose`, follow these steps:
+
+1. **Find your data directory on the host.** In your V1 setup, the `fiestaboard-api` container has a bind mount at `/app/data`. Find the corresponding host path:
+
+   - **Portainer**: Go to Containers → `fiestaboard-api` → scroll to Volumes. Note the host path (e.g., `/home/you/fiestaboard/data` or `/volume1/docker/fiestaboard/data`).
+   - **CLI**: Run `docker inspect fiestaboard-api --format '{{range .Mounts}}{{if eq .Destination "/app/data"}}{{.Source}}{{end}}{{end}}'`
+
+2. **Back up the data directory** (recommended):
+
+   ```bash
+   cp -r /path/to/your/data /path/to/your/data-backup
+   ```
+
+3. **Stop and remove both V1 containers** (`fiestaboard-api` and `fiestaboard-ui`).
+
+4. **Deploy the new unified container** using image `ghcr.io/fiestaboard/fiestaboard:latest`:
+
+   - **Volume**: Mount the **same host data path** from step 1 to `/app/data`
+   - **Port**: Map host port `3000` to container port `3000`
+   - **Environment variables**: Copy the same env vars from your old `fiestaboard-api` container (or use the same `.env` file). Remove `NEXT_PUBLIC_API_URL` if present.
+   - **Restart policy**: `unless-stopped` (recommended)
+
+   Example with `docker run`:
+
+   ```bash
+   docker run -d \
+     --name fiestaboard \
+     --restart unless-stopped \
+     -p 3000:3000 \
+     -v /path/to/your/data:/app/data \
+     --env-file /path/to/your/.env \
+     ghcr.io/fiestaboard/fiestaboard:latest
+   ```
+
+5. **Verify**: Open `http://your-server:3000` — your pages and settings should be there.
+
+6. **Clean up**: Once confirmed, remove the old V1 images to free disk space:
+
+   ```bash
+   docker image rm ghcr.io/fiestaboard/fiestaboard-api:latest
+   docker image rm ghcr.io/fiestaboard/fiestaboard-ui:latest
+   ```
+
+7. **Update bookmarks and firewall rules** — web UI is now on port **3000** (was 8080), API is on port **3000** (was 8000).
 
 ### From the `.env` file (manual setup)
 

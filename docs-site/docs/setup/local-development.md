@@ -16,11 +16,11 @@ The recommended way to develop FiestaBoard:
 # Build and run development environment
 docker-compose -f docker-compose.dev.yml up --build
 
-# Access Web UI at http://localhost:3000
-# Access API at http://localhost:8000 (direct, separate container in dev mode)
+# Access Web UI and API at http://localhost:3000 (single container, same as production)
+# API base path: http://localhost:3000/api/
 ```
 
-The development environment uses **two separate containers** (`fiestaboard-api-dev` on port 8000 and `fiestaboard-ui-dev` on port 3000) with **hot reload** for both Python and Next.js code. This is different from the production single-container setup.
+The development environment uses the **same single-container layout** as production (API + UI + nginx on port 3000), with mounted source volumes for Python API hot-reload. Web UI changes require a container rebuild (`--build`).
 
 ## Project Structure
 
@@ -40,33 +40,30 @@ FiestaBoard/
 │   └── src/                    # React components and pages
 ├── docs-site/                  # Docusaurus documentation
 ├── tests/                      # Platform test suite
-├── Dockerfile                  # Unified Dockerfile (production: API + Web UI in one image)
-├── Dockerfile.api              # API-only Dockerfile (used by docker-compose.dev.yml)
-├── Dockerfile.ui-dev           # Web UI dev Dockerfile (hot reload, used by docker-compose.dev.yml)
+├── Dockerfile                  # Unified Dockerfile (API + Web UI + nginx in one image)
 ├── docker-compose.yml          # Production compose (single container, port 3000)
-└── docker-compose.dev.yml      # Development compose (two containers, hot reload)
+└── docker-compose.dev.yml      # Development compose (single container with hot-reload + optional test/Storybook services)
 ```
 
 ## Running Tests
 
-```bash
-# Run web UI tests
-npm run test:web
+Tests run inside the Docker container during local development:
 
-# Run Python tests
-pytest tests/
+```bash
+# Run Python API tests
+docker-compose -f docker-compose.dev.yml exec fiestaboard pytest
+
+# Run web UI tests (one-off container)
+docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
 ```
+
+In CI, tests run directly on the GitHub Actions host for speed (not in Docker).
 
 ## Code Style
 
 The project uses:
 - **ESLint** for JavaScript/TypeScript
 - **Pylint** for Python
-
-```bash
-# Lint web code
-npm run lint:web
-```
 
 ## Next Steps
 

@@ -118,8 +118,8 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 | **Goal** | Run the server to control your board | Contribute code or build plugins |
 | **Setup** | Run the install wizard — it handles everything | `docker-compose -f docker-compose.dev.yml up --build` |
 | **Configuration** | Wizard creates `.env` for you; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
-| **Web UI** | http://localhost:8080 | http://localhost:3000 |
-| **Hot reload** | No | Yes (Python + Next.js) |
+| **Web UI** | http://localhost:3000 | http://localhost:3000 |
+| **Hot reload** | No | Yes (Python API auto-reloads; UI requires rebuild) |
 | **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
 
 ### Basic Setup
@@ -225,8 +225,8 @@ If you want to contribute to FiestaBoard or build plugins, use the development e
 ```bash
 docker-compose -f docker-compose.dev.yml up --build
 
-# Access Web UI at http://localhost:3000
-# Access API at http://localhost:6969
+# Access Web UI + API at http://localhost:3000 (single container, same layout as production)
+# API base path: http://localhost:3000/api/
 ```
 
 For detailed development workflows, see [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md).
@@ -263,11 +263,9 @@ FiestaBoard/
 │   └── reference/                  # API research and reference
 ├── scripts/                        # Utility scripts
 ├── tests/                          # Platform test suite
-├── Dockerfile                  # Unified Dockerfile (API + Web UI)
-├── Dockerfile.api              # API-only Dockerfile (for development)
-├── Dockerfile.ui               # Web UI-only Dockerfile (for development)
-├── docker-compose.yml              # Production compose
-├── docker-compose.dev.yml          # Development compose
+├── Dockerfile                      # Unified Dockerfile (API + Web UI + nginx)
+├── docker-compose.yml              # Production compose (single container)
+├── docker-compose.dev.yml          # Development compose (single container + hot-reload)
 └── .env                            # Environment variables
 ```
 

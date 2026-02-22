@@ -98,7 +98,7 @@ If it works, you'll see: ✅ "Route is valid! Estimated travel time: ~X minutes"
 
 **Fix**:
 1. Double-check your API key in Settings
-2. Check Docker logs: `docker-compose -f docker-compose.dev.yml logs fiestaboard-api-dev | grep traffic`
+2. Check Docker logs: `docker-compose -f docker-compose.dev.yml logs fiestaboard | grep traffic`
 3. Try a different address format
 
 ### Using Coordinates Instead of Addresses

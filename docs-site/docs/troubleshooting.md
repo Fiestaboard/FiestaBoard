@@ -46,7 +46,7 @@ sudo apt-get install gcc g++ make
 1. ✅ Is the display service started? (Click ▶ in the Web UI)
 2. ✅ Is your `BOARD_READ_WRITE_KEY` correct in `.env`?
 3. ✅ Is the board on the same network? (for local API mode)
-4. ✅ Check the API logs: `docker-compose logs -f api`
+4. ✅ Check the logs: `docker-compose logs -f fiestaboard`
 
 ### 401 Unauthorized from board API
 
@@ -95,16 +95,16 @@ If using Docker, ensure both are on the same Docker network or use the host's IP
 ### Web UI won't load
 
 **Checklist**:
-1. ✅ Are both containers running? `docker-compose ps`
-2. ✅ Try accessing the API directly: `http://localhost:3000/health`
-3. ✅ Check UI container logs: `docker-compose logs ui`
+1. ✅ Is the container running? `docker-compose ps`
+2. ✅ Try accessing the health endpoint: `http://localhost:3000/health`
+3. ✅ Check container logs: `docker-compose logs -f fiestaboard`
 
 ### Changes not saving
 
 **Possible causes**:
 - The `data/` volume mount is not working — check `docker-compose.yml`
 - File permissions on the `data/` directory
-- API container is not running — check with `docker-compose ps`
+- Container is not running — check with `docker-compose ps`
 
 ## Getting More Help
 
@@ -114,11 +114,8 @@ If using Docker, ensure both are on the same Docker network or use the host's IP
 # All logs
 docker-compose logs -f
 
-# API logs only
-docker-compose logs -f api
-
-# UI logs only
-docker-compose logs -f ui
+# FiestaBoard container only
+docker-compose logs -f fiestaboard
 ```
 
 ### Interactive API Documentation

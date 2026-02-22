@@ -152,11 +152,9 @@ curl -X POST http://localhost:3000/send-message \
 
 ```
 .
-├── Dockerfile              # Unified Dockerfile (API + Web UI)
-├── Dockerfile.api          # API-only Dockerfile (for development)
-├── Dockerfile.ui           # UI-only Dockerfile (for development)
-├── docker-compose.yml      # Production compose file
-├── docker-compose.dev.yml  # Development compose file
+├── Dockerfile              # Unified Dockerfile (API + Web UI + nginx)
+├── docker-compose.yml      # Production compose file (single container)
+├── docker-compose.dev.yml  # Development compose file (single container with hot-reload)
 ├── .dockerignore           # Docker ignore patterns
 ├── nginx.conf              # Nginx reverse proxy config
 ├── src/

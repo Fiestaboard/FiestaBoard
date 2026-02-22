@@ -17,11 +17,28 @@ jobs:
   integration-setup:
     name: Integration Setup
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production image (same as prod for E2E)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: fiestaboard:integration
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save Docker image
+        run: docker save fiestaboard:integration | gzip > /tmp/fiestaboard-integration.tar.gz
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -42,7 +59,6 @@ jobs:
       - name: Install UI dependencies
         working-directory: web
         run: |
-          # Fix npm bug with optional dependencies (https://github.com/npm/cli/issues/4828)
           rm -rf node_modules package-lock.json
           npm install
 
@@ -50,7 +66,7 @@ jobs:
         working-directory: web
         run: npx playwright install chromium
 
-      - name: Archive dependencies
+      - name: Archive dependencies and image
         run: |
           tar -czf /tmp/integration-node-modules.tar.gz -C web node_modules
           tar -czf /tmp/integration-playwright.tar.gz -C ~/.cache ms-playwright
@@ -62,6 +78,7 @@ jobs:
           path: |
             /tmp/integration-node-modules.tar.gz
             /tmp/integration-playwright.tar.gz
+            /tmp/fiestaboard-integration.tar.gz
           retention-days: 1
 
   integration-tests:
@@ -104,23 +121,46 @@ jobs:
         run: |
           tar -xzf /tmp/integration-deps/integration-node-modules.tar.gz -C web
           tar -xzf /tmp/integration-deps/integration-playwright.tar.gz -C ~/.cache
+          docker load < /tmp/integration-deps/fiestaboard-integration.tar.gz
 
       - name: Install Playwright system dependencies
         working-directory: web
         run: npx playwright install-deps chromium
 
-      - name: Prepare integration data directory
+      - name: Start mock Vestaboard API
         run: |
-          rm -rf /tmp/fiestaboard-integration-data
-          mkdir -p /tmp/fiestaboard-integration-data
-          rm -f data/config.json data/settings.json data/pages.json data/schedules.json
+          python integration-tests/mock-board/server.py &
+          sleep 2
+          echo "Mock board started on port 7000"
+
+      - name: Start FiestaBoard container (unified app, same as prod)
+        run: |
+          docker run -d --name fiestaboard-integration \
+            --add-host=host.docker.internal:host-gateway \
+            -p 3000:3000 \
+            -e BOARD_API_MODE=local \
+            -e BOARD_HOST=host.docker.internal \
+            -e BOARD_LOCAL_API_KEY=test_key \
+            -e PRODUCTION=false \
+            fiestaboard:integration
+          echo "Waiting for app on port 3000..."
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health | grep -q 200; then
+              echo "App ready"
+              break
+            fi
+            sleep 1
+          done
 
       - name: Run integration tests (shard ${{ matrix.shard }}/3)
         working-directory: web
         run: npx playwright test --shard=${{ matrix.shard }}/3 --reporter=github
         env:
           CI: true
-          FIESTA_API_URL: http://localhost:8000
+
+      - name: Stop FiestaBoard container
+        if: always()
+        run: docker rm -f fiestaboard-integration 2>/dev/null || true
 
       - name: Upload test results
         uses: actions/upload-artifact@v6

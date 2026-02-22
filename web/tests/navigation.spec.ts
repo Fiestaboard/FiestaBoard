@@ -137,7 +137,7 @@ test.describe("Navigation", () => {
       // Version might be in a collapsed section or only on desktop
       // Just verify via API
       const res = await fetch(
-        `http://localhost:${process.env.API_PORT || "8000"}/version`,
+        `http://localhost:${process.env.API_PORT || "3000"}/api/version`,
       );
       expect(res.ok).toBe(true);
       const data = await res.json();

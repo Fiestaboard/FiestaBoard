@@ -114,7 +114,7 @@ TIMEZONE=America/Los_Angeles
 docker-compose up -d --build
 ```
 
-5. **Configure plugins in the web UI** — go to the Integrations page at http://localhost:8080 to enable plugins and enter API keys.
+5. **Configure plugins in the web UI** — go to the Integrations page at http://localhost:3000 to enable plugins and enter API keys.
 
 See `env.example` for all available environment variables (useful for development).
 

@@ -313,29 +313,28 @@ class DisplayService:
     
     def run(self):
         """Run the main service loop."""
+        self.running = True
+        
         if not self.initialize():
             logger.error("Initialization failed, exiting")
             sys.exit(1)
         
-        # Get polling interval from settings
+        schedule.clear()
+        
         settings_service = get_settings_service()
         polling_interval = settings_service.get_polling_interval()
         
-        # Schedule active page polling based on configured interval
-        # This is the ONLY way content gets sent to the board - via configured pages
         schedule.every(polling_interval).seconds.do(lambda: self.check_and_send_active_page(dev_mode=False))
         logger.info(f"Active page polling scheduled every {polling_interval} seconds")
         
-        # Send initial active page on startup
         logger.info("Sending initial active page...")
         self.check_and_send_active_page(dev_mode=False)
         
-        # Main loop
         logger.info("Service started, waiting for scheduled updates...")
         try:
             while self.running:
                 schedule.run_pending()
-                time.sleep(1)  # Check every second
+                time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
         finally:

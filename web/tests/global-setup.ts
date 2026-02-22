@@ -9,7 +9,7 @@
 import { rm } from "fs/promises";
 import path from "path";
 
-const API_URL = `http://localhost:${process.env.API_PORT || "8000"}`;
+const API_URL = `http://localhost:${process.env.API_PORT || "3000"}/api`;
 
 async function globalSetup() {
   // Remove backend config so the API reports is_first_run = true

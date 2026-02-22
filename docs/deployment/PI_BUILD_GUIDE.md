@@ -67,7 +67,7 @@ docker-compose up -f docker-compose.ghcr.yml up -d
 
 ### Build Tools Required
 
-The `Dockerfile.api` includes build tools for ARM:
+The `Dockerfile` includes build tools for ARM:
 - `gcc` - GNU C compiler
 - `g++` - GNU C++ compiler
 - `make` - Build automation
@@ -87,7 +87,7 @@ platforms: ${{ steps.bump_type.outputs.build_pi == 'true' && 'linux/amd64,linux/
 ## Troubleshooting
 
 ### Build Fails on ARM
-- Ensure `Dockerfile.api` has build tools installed
+- Ensure `Dockerfile` has build tools installed
 - Check that Python packages support ARM architecture
 - Review workflow logs for specific compilation errors
 

@@ -296,6 +296,7 @@ def run_service_background():
                 logger.error("Service initialization failed - cannot start. Fix configuration and use /start endpoint to retry.")
                 return
         
+        service.running = True
         _service_running = True
         _service_start_time = time.time()  # Track start time
         try:
@@ -3500,18 +3501,6 @@ async def clear_cache():
     service.vb_client.clear_cache()
     return {"status": "success", "message": "Cache cleared - next update will be sent to board"}
 
-
-def _get_runtime_config_response():
-    """Return runtime configuration for UI (shared by both routes)."""
-    api_url = os.getenv("FIESTA_API_URL", "")
-    return {"apiUrl": api_url}
-
-
-@app.get("/runtime-config")
-@app.get("/api/runtime-config")
-async def get_runtime_config():
-    """Return runtime configuration for UI. Served at both paths for nginx (strips /api) and split-server."""
-    return _get_runtime_config_response()
 
 
 @app.post("/force-refresh")
