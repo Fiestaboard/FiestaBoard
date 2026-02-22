@@ -1,6 +1,6 @@
 ---
 sidebar_position: 2
-description: "Contribute to FiestaBoard — learn about pull requests, coding standards, and how to help improve the project."
+description: "Contribute to FiestaBoard - learn about pull requests, coding standards, and how to help improve the project."
 keywords: [FiestaBoard contributing, open source, pull request, contribution guide, GitHub, community]
 ---
 
@@ -75,7 +75,7 @@ See the [Plugin Development Guide](/docs/development/plugin-guide) for details.
 2. **Push** to your fork
 3. **Open a Pull Request** against the `main` branch
 4. **Describe** your changes in the PR description
-5. **Squash commits** — PRs should be squashed into a single commit when merging
+5. **Squash commits** - PRs should be squashed into a single commit when merging
 
 ### PR Checklist
 
@@ -98,6 +98,6 @@ For security vulnerabilities, please report them responsibly. See the [SECURITY.
 
 ## Next Steps
 
-- [Local Development](/docs/setup/local-development) — Development setup details
-- [Plugin Development Guide](/docs/development/plugin-guide) — Creating plugins
-- [Testing Guide](/docs/development/testing) — Running and writing tests
+- [Local Development](/docs/setup/local-development) - Development setup details
+- [Plugin Development Guide](/docs/development/plugin-guide) - Creating plugins
+- [Testing Guide](/docs/development/testing) - Running and writing tests

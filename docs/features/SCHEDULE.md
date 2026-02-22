@@ -52,7 +52,7 @@ The system checks for schedule updates every 60 seconds, so page switches may be
 
 ## Known Limitations
 
-### 1. Midnight Boundary ⚠️
+### 1. Midnight Boundary
 
 **Limitation**: Schedules cannot span midnight (e.g., 23:00-01:00)
 
@@ -106,19 +106,19 @@ The system checks for schedule updates every 60 seconds, so page switches may be
 ## Testing Coverage
 
 ### Backend (92% coverage, 68 tests)
-- ✅ Time validation and parsing
-- ✅ Day pattern matching
-- ✅ Active page resolution at various times
-- ✅ Overlap detection across all scenarios
-- ✅ Gap detection
-- ✅ CRUD operations
-- ✅ Storage persistence
+- Time validation and parsing
+- Day pattern matching
+- Active page resolution at various times
+- Overlap detection across all scenarios
+- Gap detection
+- CRUD operations
+- Storage persistence
 
 ### Frontend (Manual testing only)
-- ⚠️ Form validation - manually tested
-- ⚠️ UI flows - manually tested
-- ⚠️ Real-time switching - needs integration test
-- ❌ E2E tests - not yet implemented
+- Form validation - manually tested
+- UI flows - manually tested
+- Real-time switching - needs integration test
+- E2E tests - not yet implemented
 
 ### Known Testing Gaps
 1. No E2E tests for full user flows

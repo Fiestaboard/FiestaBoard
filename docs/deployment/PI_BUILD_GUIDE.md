@@ -1,6 +1,6 @@
 # Raspberry Pi Build Guide
 
-## Quick Start — Running FiestaBoard on a Raspberry Pi
+## Quick Start - Running FiestaBoard on a Raspberry Pi
 
 The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Docker images from the GitHub Container Registry. No need to clone the repo or build anything.
 
@@ -126,9 +126,9 @@ When Pi builds are included, release notes will show:
 ```markdown
 ## Docker Images
 
-**Platforms:** `linux/amd64`, `linux/arm/v7`, `linux/arm64` 🍓
+**Platforms:** `linux/amd64`, `linux/arm/v7`, `linux/arm64`
 
-### 🍓 Raspberry Pi Support
+### Raspberry Pi Support
 
 This release includes multi-architecture images that work on Raspberry Pi (arm/v7 and arm64).
 Simply use the same `docker pull` commands above on your Pi!

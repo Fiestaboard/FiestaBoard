@@ -48,9 +48,9 @@ docker-compose up -d
 | Feature | Local API | Cloud API |
 |---------|-----------|-----------|
 | Network requirement | Same network | Internet only |
-| Transition animations | ✅ Supported | ❌ Not available |
-| Custom animation speed | ✅ Supported | ❌ Not available |
-| Read current board state | ✅ Supported | ❌ Not available |
+| Transition animations | Supported | Not available |
+| Custom animation speed | Supported | Not available |
+| Read current board state | Supported | Not available |
 | Rate limiting | None | 1 message per 15 seconds |
 | Latency | Low (~ms) | Higher (~100ms+) |
 
@@ -59,7 +59,7 @@ docker-compose up -d
 The Cloud API has a rate limit of **1 message per 15 seconds**. If you're seeing rate limit errors, increase your refresh interval:
 
 ```bash
-# In .env — set to at least 15 seconds for cloud mode
+# In .env, set to at least 15 seconds for cloud mode
 REFRESH_INTERVAL_SECONDS=30
 ```
 
@@ -83,5 +83,5 @@ REFRESH_INTERVAL_SECONDS=30
 
 ## Next Steps
 
-- [Docker Setup](/docs/setup/docker-setup) — Understanding the Docker architecture
-- [Environment Variables](/docs/reference/environment-variables) — All configuration options
+- [Docker Setup](/docs/setup/docker-setup) - Understanding the Docker architecture
+- [Environment Variables](/docs/reference/environment-variables) - All configuration options

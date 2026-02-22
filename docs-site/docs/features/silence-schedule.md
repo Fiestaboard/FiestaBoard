@@ -10,7 +10,7 @@ The silence schedule feature lets you set quiet hours for your board, preventing
 
 ## Overview
 
-Split-flap displays can be noisy when updating. The silence schedule ensures your board stays quiet during hours when you don't want it flipping characters—like when you're sleeping.
+Split-flap displays can be noisy when updating. The silence schedule ensures your board stays quiet during hours when you don't want it flipping characters, like when you're sleeping.
 
 ## Configuring Silence Hours
 
@@ -68,5 +68,5 @@ SILENCE_END_TIME=08:00      # Resume at 8 AM
 
 ## Next Steps
 
-- [Schedule Mode](/docs/features/schedule) — Set up time-based page rotation
-- [Environment Variables](/docs/reference/environment-variables) — All configuration options
+- [Schedule Mode](/docs/features/schedule) - Set up time-based page rotation
+- [Environment Variables](/docs/reference/environment-variables) - All configuration options

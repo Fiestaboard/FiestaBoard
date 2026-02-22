@@ -125,11 +125,11 @@ describe('MyComponent', () => {
 
 ## Test Best Practices
 
-1. **Mock external APIs** — Never make real API calls in tests
-2. **Test happy path and error cases** — Cover both success and failure scenarios
-3. **Test edge cases** — Empty data, missing config, rate limits
-4. **Keep tests focused** — One assertion per test when possible
-5. **Use descriptive names** — Test names should explain what's being tested
+1. **Mock external APIs** - Never make real API calls in tests
+2. **Test happy path and error cases** - Cover both success and failure scenarios
+3. **Test edge cases** - Empty data, missing config, rate limits
+4. **Keep tests focused** - One assertion per test when possible
+5. **Use descriptive names** - Test names should explain what's being tested
 
 ## CI/CD Integration
 
@@ -146,5 +146,5 @@ All tests must pass before a PR can be merged. Coverage must meet the minimum th
 
 ## Next Steps
 
-- [Contributing](/docs/development/contributing) — How to contribute
-- [Plugin Development Guide](/docs/development/plugin-guide) — Creating plugins with tests
+- [Contributing](/docs/development/contributing) - How to contribute
+- [Plugin Development Guide](/docs/development/plugin-guide) - Creating plugins with tests
