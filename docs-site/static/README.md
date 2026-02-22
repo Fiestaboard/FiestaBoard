@@ -1,4 +1,4 @@
-# fiestaboard.github.io
+# fiestaboard.app
 
 This is an **auto-generated** documentation site for [FiestaBoard](https://github.com/Fiestaboard/FiestaBoard).
 
