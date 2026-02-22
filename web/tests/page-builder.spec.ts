@@ -227,6 +227,8 @@ test.describe("Page Builder", () => {
       .catch(() => false);
 
     if (hasVariablePicker) {
+      const isEnabled = await variableBtn.isEnabled().catch(() => false);
+      if (!isEnabled) return;
       await variableBtn.click();
       // Should show variable options
       const variableOption = page

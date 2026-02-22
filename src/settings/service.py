@@ -7,8 +7,8 @@ animations and output targets, which can be controlled from the UI.
 import json
 import logging
 import os
-from dataclasses import dataclass, asdict
-from typing import Optional, Literal
+from dataclasses import dataclass, asdict, field
+from typing import Optional, Literal, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -92,21 +92,81 @@ class PollingSettings:
         return cls(interval_seconds=interval)
 
 
+BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key"}
+
+
 @dataclass
 class BoardSettings:
-    """Board display settings for UI rendering."""
-    board_type: Optional[Literal["black", "white"]] = "black"
+    """Board display settings for UI rendering.
     
-    def to_dict(self) -> dict:
-        return asdict(self)
+    Supports multiple board instances, each with its own device type,
+    board color, and connection settings. The `devices` property provides
+    backward-compatible access to the list of unique device types.
+    """
+    board_type: Optional[Literal["black", "white"]] = "black"
+    boards: List[dict] = field(default_factory=list)
+    
+    def __post_init__(self):
+        if not self.boards:
+            from ..devices import BoardInstance
+            self.boards = [BoardInstance(
+                name="My Board",
+                device_type="flagship",
+                board_color=self.board_type or "black",
+            ).to_dict()]
+    
+    @property
+    def devices(self) -> List[str]:
+        """Backward-compatible list of unique device types across all boards."""
+        from ..devices import DEVICE_TYPES
+        seen: set[str] = set()
+        result = []
+        for b in self.boards:
+            dt = b.get("device_type", "flagship")
+            if dt not in seen and dt in DEVICE_TYPES:
+                seen.add(dt)
+                result.append(dt)
+        return result if result else ["flagship"]
+    
+    @staticmethod
+    def _mask_board(board: dict) -> dict:
+        """Return a copy of a board dict with sensitive fields masked."""
+        masked = dict(board)
+        for key in BOARD_SENSITIVE_FIELDS:
+            if masked.get(key):
+                masked[key] = "***"
+        return masked
+    
+    def to_dict(self, mask_secrets: bool = True) -> dict:
+        boards = [self._mask_board(b) for b in self.boards] if mask_secrets else self.boards
+        return {
+            "board_type": self.board_type,
+            "boards": boards,
+            "devices": self.devices,
+        }
     
     @classmethod
     def from_dict(cls, data: dict) -> "BoardSettings":
         board_type = data.get("board_type", "black")
-        # Validate board type
         if board_type not in ["black", "white", None]:
             board_type = "black"
-        return cls(board_type=board_type)
+        
+        boards = data.get("boards", [])
+        
+        # Migrate from legacy devices-only format
+        if not boards and "devices" in data:
+            from ..devices import BoardInstance
+            devices = data["devices"]
+            if isinstance(devices, list):
+                for i, dt in enumerate(devices):
+                    name = "My Board" if i == 0 else f"My Board {i + 1}"
+                    boards.append(BoardInstance(
+                        name=name,
+                        device_type=dt,
+                        board_color=board_type or "black",
+                    ).to_dict())
+        
+        return cls(board_type=board_type, boards=boards)
 
 
 @dataclass
@@ -152,6 +212,10 @@ class SettingsService:
         self._board = self._load_board_settings()
         self._schedule = self._load_schedule_settings()
         
+        if getattr(self, "_needs_migration_save", False):
+            self._save_to_file()
+            self._needs_migration_save = False
+        
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
     
     def _load_from_file(self) -> dict:
@@ -172,7 +236,7 @@ class SettingsService:
                 "output": self._output.to_dict(),
                 "active_page": self._active_page.to_dict(),
                 "polling": self._polling.to_dict(),
-                "board": self._board.to_dict(),
+                "board": self._board.to_dict(mask_secrets=False),
                 "schedule": self._schedule.to_dict()
             }
             with open(self.settings_file, 'w') as f:
@@ -222,11 +286,49 @@ class SettingsService:
         return PollingSettings()  # Default to 60 seconds
     
     def _load_board_settings(self) -> BoardSettings:
-        """Load board settings from file."""
+        """Load board settings from file.
+        
+        If the first board has no connection settings, migrate them from
+        the global board config (config.json) so existing setups keep working.
+        Migration is deferred -- _migrate_global_connection sets a flag,
+        and the actual save happens after all settings are fully initialized.
+        """
         file_data = self._load_from_file()
         if "board" in file_data:
-            return BoardSettings.from_dict(file_data["board"])
-        return BoardSettings()  # Default to black board
+            settings = BoardSettings.from_dict(file_data["board"])
+        else:
+            settings = BoardSettings()
+        
+        self._needs_migration_save = self._apply_global_connection(settings)
+        return settings
+    
+    def _apply_global_connection(self, settings: BoardSettings) -> bool:
+        """Copy global board connection config into board instances that lack one.
+        
+        Returns True if settings were modified and need saving.
+        """
+        if not settings.boards:
+            return False
+        
+        first = settings.boards[0]
+        if first.get("local_api_key") or first.get("cloud_key"):
+            return False
+        
+        try:
+            from ..config_manager import get_config_manager
+            global_cfg = get_config_manager().get_board()
+        except Exception:
+            return False
+        
+        if not global_cfg.get("local_api_key") and not global_cfg.get("cloud_key"):
+            return False
+        
+        first["api_mode"] = global_cfg.get("api_mode", "local")
+        first["host"] = global_cfg.get("host", "")
+        first["local_api_key"] = global_cfg.get("local_api_key", "")
+        first["cloud_key"] = global_cfg.get("cloud_key", "")
+        logger.info("Migrated global board connection to first board instance")
+        return True
     
     def _load_schedule_settings(self) -> ScheduleSettings:
         """Load schedule settings from file."""
@@ -414,6 +516,142 @@ class SettingsService:
         logger.info(f"Board type set to: {board_type}")
         return self._board
     
+    def set_devices(self, devices: List[str]) -> BoardSettings:
+        """Set the configured device types (backward-compatible).
+        
+        Creates/updates board instances to match the desired device type list.
+        Preserves existing board instances where possible.
+        
+        Args:
+            devices: List of device type strings (e.g. ["flagship", "note"])
+            
+        Returns:
+            Updated BoardSettings
+        """
+        from ..devices import DEVICE_TYPES, BoardInstance
+        valid_devices = [d for d in devices if d in DEVICE_TYPES]
+        if not valid_devices:
+            raise ValueError(f"At least one valid device required. Valid types: {DEVICE_TYPES}")
+        
+        # Keep existing boards that match requested device types
+        existing_by_type = {}
+        for b in self._board.boards:
+            dt = b.get("device_type", "flagship")
+            if dt not in existing_by_type:
+                existing_by_type[dt] = b
+        
+        new_boards = []
+        for dt in valid_devices:
+            if dt in existing_by_type:
+                new_boards.append(existing_by_type[dt])
+            else:
+                existing_names = {b.get("name", "") for b in new_boards}
+                name = "My Board"
+                n = 2
+                while name in existing_names:
+                    name = f"My Board {n}"
+                    n += 1
+                new_boards.append(BoardInstance(
+                    name=name,
+                    device_type=dt,
+                    board_color=self._board.board_type or "black",
+                ).to_dict())
+        
+        self._board.boards = new_boards
+        self._save_to_file()
+        logger.info(f"Configured devices set to: {valid_devices}")
+        return self._board
+    
+    def set_boards(self, boards: List[dict]) -> BoardSettings:
+        """Set the configured board instances.
+        
+        Each board must have at least a device_type. 
+        ID and name are auto-generated if not provided.
+        Masked sensitive fields ("***") are preserved from existing data.
+        
+        Args:
+            boards: List of board instance dicts
+            
+        Returns:
+            Updated BoardSettings
+        """
+        from ..devices import BoardInstance
+        if not boards:
+            raise ValueError("At least one board instance is required")
+        
+        existing_by_id = {b.get("id"): b for b in self._board.boards}
+        
+        validated = []
+        for b in boards:
+            # Preserve sensitive fields if the incoming value is masked
+            existing = existing_by_id.get(b.get("id"), {})
+            for key in BOARD_SENSITIVE_FIELDS:
+                if b.get(key) == "***":
+                    b[key] = existing.get(key, "")
+            instance = BoardInstance.from_dict(b)
+            validated.append(instance.to_dict())
+        
+        self._board.boards = validated
+        # Keep board_type in sync with the first board's color
+        first_color = validated[0].get("board_color") if validated else None
+        if first_color in ("black", "white"):
+            self._board.board_type = first_color
+        self._save_to_file()
+        logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
+        return self._board
+    
+    def add_board(self, board: dict) -> BoardSettings:
+        """Add a new board instance.
+        
+        Args:
+            board: Board instance dict with at least device_type
+            
+        Returns:
+            Updated BoardSettings
+        """
+        from ..devices import BoardInstance
+        if not board.get("name"):
+            board["name"] = self._next_board_name()
+        instance = BoardInstance.from_dict(board)
+        self._board.boards.append(instance.to_dict())
+        self._save_to_file()
+        logger.info(f"Added board: {instance.name} ({instance.device_type})")
+        return self._board
+
+    def _next_board_name(self) -> str:
+        """Generate the next available 'My Board' name."""
+        existing = {b.get("name", "") for b in self._board.boards}
+        if "My Board" not in existing:
+            return "My Board"
+        n = 2
+        while f"My Board {n}" in existing:
+            n += 1
+        return f"My Board {n}"
+    
+    def remove_board(self, board_id: str) -> BoardSettings:
+        """Remove a board instance by ID.
+        
+        Args:
+            board_id: The ID of the board to remove
+            
+        Returns:
+            Updated BoardSettings
+            
+        Raises:
+            ValueError: If board not found or if it's the last board
+        """
+        if len(self._board.boards) <= 1:
+            raise ValueError("Cannot remove the last board. At least one board is required.")
+        
+        new_boards = [b for b in self._board.boards if b.get("id") != board_id]
+        if len(new_boards) == len(self._board.boards):
+            raise ValueError(f"Board with ID '{board_id}' not found")
+        
+        self._board.boards = new_boards
+        self._save_to_file()
+        logger.info(f"Removed board: {board_id}")
+        return self._board
+    
     # Schedule settings
     def get_schedule_settings(self) -> ScheduleSettings:
         """Get current schedule settings.
@@ -423,30 +661,36 @@ class SettingsService:
         """
         return self._schedule
     
-    def is_schedule_enabled(self) -> bool:
-        """Check if schedule mode is enabled.
-        
-        Returns:
-            True if schedule mode is active
+    def is_schedule_enabled(self, board_id: Optional[str] = None) -> bool:
+        """Check if schedule mode is enabled for a board.
+
+        When board_id is None, returns the first board's schedule_enabled, or global setting if no boards.
         """
+        if board_id:
+            for b in self._board.boards:
+                if b.get("id") == board_id:
+                    return b.get("schedule_enabled", False)
+            return False
+        if self._board.boards:
+            return self._board.boards[0].get("schedule_enabled", self._schedule.enabled)
         return self._schedule.enabled
-    
-    def set_schedule_enabled(self, enabled: bool) -> ScheduleSettings:
-        """Enable or disable schedule mode.
-        
-        When enabled, the system uses time-based schedules to determine
-        which page to display. When disabled, the manual active_page is used.
-        
-        Args:
-            enabled: True to enable schedule mode, False for manual mode
-            
-        Returns:
-            Updated ScheduleSettings
-        """
+
+    def set_schedule_enabled(self, enabled: bool, board_id: Optional[str] = None) -> ScheduleSettings:
+        """Enable or disable schedule mode for a board (or globally when board_id is None)."""
+        if board_id:
+            for b in self._board.boards:
+                if b.get("id") == board_id:
+                    b["schedule_enabled"] = enabled
+                    self._save_to_file()
+                    logger.info(f"Schedule mode for board {board_id}: {'enabled' if enabled else 'disabled'}")
+                    return self._schedule
+            logger.warning(f"Board {board_id} not found for set_schedule_enabled")
+            return self._schedule
         self._schedule.enabled = enabled
+        if self._board.boards:
+            self._board.boards[0]["schedule_enabled"] = enabled
         self._save_to_file()
-        mode = "enabled" if enabled else "disabled"
-        logger.info(f"Schedule mode {mode}")
+        logger.info(f"Schedule mode (default): {'enabled' if enabled else 'disabled'}")
         return self._schedule
 
 

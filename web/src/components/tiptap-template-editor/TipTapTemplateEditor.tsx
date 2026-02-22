@@ -1,9 +1,7 @@
 /**
- * Single 6-line TipTap Template Editor
- * Replaces 6 separate line editors with one unified editor
- * - 6 lines, 22 characters wide each
- * - Per-line alignment support
- * - Visual rendering of custom nodes (variables, colors, symbols, fill_space)
+ * TipTap Template Editor
+ * Unified rich-text editor for Vestaboard templates.
+ * Supports variable line counts (6 for Flagship, 3 for Note) via boardLines prop.
  */
 "use client";
 
@@ -85,21 +83,23 @@ function serializeSliceToTemplate(slice: Slice | null | undefined): string {
 }
 
 interface TipTapTemplateEditorProps {
-  value: string; // Template string with 6 lines separated by \n
+  value: string; // Template string with lines separated by \n
   onChange: (value: string) => void;
   onFocus?: () => void;
   placeholder?: string;
   className?: string;
   showAlignmentControls?: boolean;
   onLineAlignmentChange?: (lineIndex: number, alignment: LineAlignment) => void;
-  lineAlignments?: LineAlignment[]; // Array of 6 alignments
+  lineAlignments?: LineAlignment[]; // Array of alignments per line
   onLineWrapChange?: (lineIndex: number, wrapEnabled: boolean) => void;
-  lineWrapEnabled?: boolean[]; // Array of 6 wrap states
+  lineWrapEnabled?: boolean[]; // Array of wrap states per line
   showToolbar?: boolean; // Show toolbar at top (default: true)
+  boardWidth?: number; // Characters per line (default: 22 for flagship)
+  boardLines?: number; // Total lines (default: 6 for flagship)
 }
 
 /**
- * Single TipTap editor for all 6 template lines
+ * Single TipTap editor for template lines
  */
 export function TipTapTemplateEditor({
   value,
@@ -109,11 +109,16 @@ export function TipTapTemplateEditor({
   className,
   showAlignmentControls = true,
   onLineAlignmentChange,
-  lineAlignments = ['left', 'left', 'left', 'left', 'left', 'left'],
+  lineAlignments,
   onLineWrapChange,
-  lineWrapEnabled = [false, false, false, false, false, false],
+  lineWrapEnabled,
   showToolbar = true,
+  boardWidth = BOARD_WIDTH,
+  boardLines = BOARD_LINES,
 }: TipTapTemplateEditorProps) {
+  // Use device-aware defaults when props not provided
+  const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
+  const effectiveWrapEnabled = lineWrapEnabled || Array.from({ length: boardLines }, () => false);
   // Track if we're manually updating wrap to prevent onChange from overwriting state
   const isUpdatingWrap = useRef(false);
   
@@ -148,11 +153,11 @@ export function TipTapTemplateEditor({
       FillSpaceNode,
       SymbolNode,
       WrappedTextNode,
-      LineNavigation, // Enter = navigate to next line, Shift+Enter = blocked
+      LineNavigation.configure({ maxLines: boardLines }),
       // UppercaseText, // Disabled - using CSS + serialization instead
       // LineConstraints, // Disabled - handling in handleKeyDown and serialization instead
     ],
-    content: parseTemplateSimple(value || ''),
+    content: parseTemplateSimple(value || '', boardLines),
     editorProps: {
       attributes: {
         class: cn(
@@ -472,7 +477,7 @@ export function TipTapTemplateEditor({
         return;
       }
       const doc = editor.getJSON();
-      const templateString = serializeTemplateSimple(doc);
+      const templateString = serializeTemplateSimple(doc, boardLines);
       onChange(templateString);
     },
     onFocus: () => {
@@ -587,10 +592,9 @@ export function TipTapTemplateEditor({
   // Update editor content when value changes externally
   useEffect(() => {
     if (editor && editor.state) {
-      const currentSerialized = serializeTemplateSimple(editor.getJSON());
+      const currentSerialized = serializeTemplateSimple(editor.getJSON(), boardLines);
       if (value !== currentSerialized) {
-        // Preserve history to allow undo/redo after external updates
-        editor.commands.setContent(parseTemplateSimple(value || ''), false, {
+        editor.commands.setContent(parseTemplateSimple(value || '', boardLines), false, {
           preserveWhitespace: true,
         });
       }
@@ -634,7 +638,7 @@ export function TipTapTemplateEditor({
     if (!editor) return;
     
     const lineIndex = getCurrentLineIndex();
-    if (lineIndex === null || lineIndex < 0 || lineIndex >= BOARD_LINES) {
+    if (lineIndex === null || lineIndex < 0 || lineIndex >= boardLines) {
       return; // Can't apply alignment if no line is selected
     }
 
@@ -649,12 +653,12 @@ export function TipTapTemplateEditor({
     if (!editor) return;
     
     const lineIndex = getCurrentLineIndex();
-    if (lineIndex === null || lineIndex < 0 || lineIndex >= BOARD_LINES) {
+    if (lineIndex === null || lineIndex < 0 || lineIndex >= boardLines) {
       return; // Can't apply wrap if no line is selected
     }
 
     // Get current wrap state and toggle it
-    const currentWrap = lineWrapEnabled[lineIndex] || false;
+    const currentWrap = effectiveWrapEnabled[lineIndex] || false;
     const newWrap = !currentWrap;
     
     // Notify parent of wrap change (parent handles state)
@@ -701,23 +705,23 @@ export function TipTapTemplateEditor({
     }
   }, [editor, editor?.state?.selection?.$from?.pos]);
   
-  const currentAlignment = currentLineIndex !== null && currentLineIndex >= 0 && currentLineIndex < BOARD_LINES
-    ? lineAlignments[currentLineIndex] || 'left'
+  const currentAlignment = currentLineIndex !== null && currentLineIndex >= 0 && currentLineIndex < boardLines
+    ? effectiveAlignments[currentLineIndex] || 'left'
     : 'left';
 
   if (!editor) {
     return (
       <div className={cn('min-h-[9rem] border rounded-md p-2 bg-muted/30', className)}>
         <div className="space-y-1">
-          {Array.from({ length: BOARD_LINES }).map((_, i) => (
+          {Array.from({ length: boardLines }).map((_, i) => (
             <div key={i} className="h-6 bg-background/50 rounded" />
           ))}
         </div>
       </div>
     );
   }
-  const currentWrapEnabled = currentLineIndex !== null && currentLineIndex >= 0 && currentLineIndex < BOARD_LINES
-    ? lineWrapEnabled[currentLineIndex] || false
+  const currentWrapEnabled = currentLineIndex !== null && currentLineIndex >= 0 && currentLineIndex < boardLines
+    ? effectiveWrapEnabled[currentLineIndex] || false
     : false;
 
   return (
@@ -745,9 +749,9 @@ export function TipTapTemplateEditor({
         )} style={{ 
           padding: '0.75rem', 
           overflow: 'hidden',
-          minHeight: `${BOARD_LINES * 1.5 + 1.5}rem`, // 6 lines * 1.5rem + padding
+          minHeight: `${boardLines * 1.5 + 1.5}rem`,
         }}>
-          <div className="relative" style={{ height: `${BOARD_LINES * 1.5}rem` }}>
+          <div className="relative" style={{ height: `${boardLines * 1.5}rem` }}>
             <EditorContent editor={editor} />
           </div>
         </div>

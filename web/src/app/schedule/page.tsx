@@ -22,7 +22,7 @@ import {
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import { PagePickerDialog } from "@/components/page-picker-dialog";
 import { ScheduleListView } from "./components";
-import { queryKeys } from "@/hooks/use-board";
+import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 
 // Lazy load ScheduleCalendarView since it includes react-big-calendar (~150KB+)
 const ScheduleCalendarView = dynamic(
@@ -36,6 +36,13 @@ const ScheduleCalendarView = dynamic(
     ),
   }
 );
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays } from "lucide-react";
 import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern } from "@/lib/api";
 import { toast } from "sonner";
@@ -67,7 +74,17 @@ export default function SchedulePage() {
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
   const [showDefaultPageSelector, setShowDefaultPageSelector] = useState(false);
-  
+  const { data: boardSettings } = useBoardSettings();
+  const boards = boardSettings?.boards ?? [];
+  const [selectedBoardId, setSelectedBoardId] = useState<string | "">("");
+  const effectiveBoardId = boards.length > 1 ? selectedBoardId || boards[0]?.id || "" : undefined;
+
+  useEffect(() => {
+    if (boards.length > 1 && !selectedBoardId && boards[0]?.id) {
+      setSelectedBoardId(boards[0].id);
+    }
+  }, [boards, selectedBoardId]);
+
   // Pre-fill data when creating from calendar slot selection
   const [prefillData, setPrefillData] = useState<{
     startTime?: string;
@@ -76,10 +93,10 @@ export default function SchedulePage() {
     customDays?: string[];
   } | null>(null);
 
-  // Fetch schedules
+  // Fetch schedules (scoped by board when multi-board)
   const { data: schedulesData, isLoading } = useQuery({
-    queryKey: ["schedules"],
-    queryFn: api.getSchedules,
+    queryKey: ["schedules", effectiveBoardId ?? "default"],
+    queryFn: () => api.getSchedules(effectiveBoardId || undefined),
   });
 
   // Fetch pages for form
@@ -88,16 +105,16 @@ export default function SchedulePage() {
     queryFn: api.getPages,
   });
 
-  // Fetch validation
+  // Fetch validation (scoped by board)
   const { data: validation } = useQuery({
-    queryKey: ["schedules", "validation"],
-    queryFn: api.validateSchedules,
+    queryKey: ["schedules", "validation", effectiveBoardId ?? "default"],
+    queryFn: () => api.validateSchedules(effectiveBoardId || undefined),
     enabled: (schedulesData?.schedules.length || 0) > 0,
   });
 
-  // Toggle schedule mode
+  // Toggle schedule mode (per board when multi-board)
   const toggleSchedule = useMutation({
-    mutationFn: (enabled: boolean) => api.setScheduleEnabled(enabled),
+    mutationFn: (enabled: boolean) => api.setScheduleEnabled(enabled, effectiveBoardId || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
@@ -109,9 +126,10 @@ export default function SchedulePage() {
     },
   });
 
-  // Create schedule
+  // Create schedule (include board_id when multi-board)
   const createSchedule = useMutation({
-    mutationFn: (data: ScheduleCreate) => api.createSchedule(data),
+    mutationFn: (data: ScheduleCreate) =>
+      api.createSchedule({ ...data, ...(effectiveBoardId && { board_id: effectiveBoardId }) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
@@ -162,9 +180,9 @@ export default function SchedulePage() {
     },
   });
 
-  // Set default page
+  // Set default page (per board when multi-board)
   const setDefaultPage = useMutation({
-    mutationFn: (pageId: string | null) => api.setDefaultPage(pageId),
+    mutationFn: (pageId: string | null) => api.setDefaultPage(pageId, effectiveBoardId || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
@@ -294,6 +312,40 @@ export default function SchedulePage() {
             Times shown in: {Intl.DateTimeFormat().resolvedOptions().timeZone}
           </p>
         </div>
+
+        {/* Board selector when multiple boards */}
+        {boards.length > 1 && (
+          <div className="mb-6" data-testid="board-selector">
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">Board</label>
+            {boards.length <= 3 ? (
+              <div className="flex flex-wrap gap-2">
+                {boards.map((b: { id: string; name?: string }) => (
+                  <Button
+                    key={b.id}
+                    variant={selectedBoardId === b.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedBoardId(b.id)}
+                  >
+                    {b.name || `Board ${b.id.slice(0, 8)}`}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Select a board" />
+                </SelectTrigger>
+                <SelectContent>
+                  {boards.map((b: { id: string; name?: string }) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name || `Board ${b.id.slice(0, 8)}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
 
         {/* Schedule Mode Toggle */}
         <Card className="mb-6">
@@ -468,6 +520,11 @@ export default function SchedulePage() {
                   pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
                   onSubmit={handleSubmit}
                   onCancel={handleCloseForm}
+                  onDelete={editingSchedule ? () => {
+                    const id = editingSchedule.id;
+                    handleCloseForm();
+                    setDeleteScheduleId(id);
+                  } : undefined}
                   prefillStartTime={prefillData?.startTime}
                   prefillEndTime={prefillData?.endTime}
                   prefillDayPattern={prefillData?.dayPattern}

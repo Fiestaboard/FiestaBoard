@@ -6,12 +6,12 @@ keywords: [FiestaBoard API, REST API, API endpoints, API reference, display API,
 
 # API Endpoints
 
-FiestaBoard provides a REST API powered by FastAPI. Interactive API documentation is available at `http://localhost:8000/docs` when FiestaBoard is running.
+FiestaBoard provides a REST API powered by FastAPI. Interactive API documentation is available at `http://localhost:4420/docs` when FiestaBoard is running.
 
 ## Base URL
 
 ```
-http://localhost:8000
+http://localhost:4420
 ```
 
 ## System Endpoints
@@ -52,6 +52,18 @@ http://localhost:8000
 | `DELETE` | `/pages/{id}` | Delete a page |
 | `GET` | `/pages/{id}/preview` | Preview a page (with variables resolved) |
 
+### Page Fields
+
+When creating or updating a page, the following fields are available:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Page name (required) |
+| `type` | string | `"template"`, `"single"`, or `"composite"` |
+| `device_type` | string | `"flagship"` (22×6) or `"note"` (15×3). Default: `"flagship"` |
+| `template` | string[] | Template lines for template-type pages |
+| `duration_seconds` | number | How long to display (10–3600s, default 300) |
+
 ### Batch Operations
 
 | Method | Endpoint | Description |
@@ -90,18 +102,48 @@ http://localhost:8000
 | `PUT` | `/settings` | Update settings |
 | `GET` | `/settings/all` | Get all settings in a single call |
 
+### Board Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `PUT` | `/settings/board` | Update board configuration (devices, connection) |
+| `POST` | `/settings/board/add` | Add a new board instance |
+| `DELETE` | `/settings/board/{id}` | Remove a board instance |
+
+#### `PUT /settings/board` — request body fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `boards` | object[] | Array of [BoardInstance](#board-instance-fields) objects (V2 format) |
+| `devices` | string[] | Device type list e.g. `["flagship", "note"]` (backward-compatible) |
+| `board_type` | string | Legacy field — still accepted |
+
+#### Board Instance Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | UUID (auto-generated on create) |
+| `name` | string | Display name for this board |
+| `device_type` | string | `"flagship"` (22×6) or `"note"` (15×3) |
+| `board_color` | string | `"black"` or `"white"` |
+| `api_mode` | string | `"local"` or `"cloud"` |
+| `host` | string | Board IP address (local mode) |
+| `local_api_key` | string | Local API key |
+| `cloud_key` | string | Cloud Read/Write key |
+| `enabled` | boolean | Whether this board is active |
+
 ## Example Requests
 
 ### Get Service Status
 
 ```bash
-curl http://localhost:8000/status
+curl http://localhost:4420/status
 ```
 
 ### Send a Message
 
 ```bash
-curl -X POST http://localhost:8000/send-message \
+curl -X POST http://localhost:4420/send-message \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello World!"}'
 ```
@@ -109,13 +151,13 @@ curl -X POST http://localhost:8000/send-message \
 ### List Plugins
 
 ```bash
-curl http://localhost:8000/plugins
+curl http://localhost:4420/plugins
 ```
 
 ### Preview a Page
 
 ```bash
-curl http://localhost:8000/pages/1/preview
+curl http://localhost:4420/pages/1/preview
 ```
 
 ## Interactive Documentation
@@ -123,7 +165,7 @@ curl http://localhost:8000/pages/1/preview
 For a complete interactive API explorer with request/response schemas, visit:
 
 ```
-http://localhost:8000/docs
+http://localhost:4420/docs
 ```
 
 This provides a Swagger UI where you can try out any endpoint directly in your browser.

@@ -52,10 +52,10 @@ Test your key by starting the service and checking the health endpoint:
 docker-compose -f docker-compose.dev.yml up -d
 
 # Check the health endpoint
-curl http://localhost:8000/health
+curl http://localhost:4420/health
 
 # Check the logs for any connection errors
-docker-compose -f docker-compose.dev.yml logs -f fiestaboard-api
+docker-compose -f docker-compose.dev.yml logs -f fiestaboard
 ```
 
 If successful, the API should connect to your board without errors.

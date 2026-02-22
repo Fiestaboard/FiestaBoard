@@ -162,6 +162,57 @@ test.describe("Schedule Management", () => {
     }
   });
 
+  test("can delete a schedule from the edit modal", async ({ page }) => {
+    const pageId = await createPage("Edit-Delete Schedule Page");
+    await createSchedule(pageId, "10:00", "15:00");
+
+    await page.goto("/schedule");
+    await expect(
+      page.getByRole("heading", { name: "Schedule", exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Ensure list view (view can be calendar from prior test)
+    const listBtn = page.getByRole("button", { name: /list/i }).first();
+    if (await listBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await listBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    const rowWithTime = page.getByText("10:00").first();
+    await expect(rowWithTime).toBeVisible({ timeout: 10_000 });
+
+    // Open the edit modal: list row has two icon buttons (Edit, Delete); first is Edit
+    const editBtn = rowWithTime.locator("../..").getByRole("button").first();
+    await expect(editBtn).toBeVisible({ timeout: 5_000 });
+    await editBtn.click();
+
+    // Wait for edit dialog to open
+    await expect(
+      page.getByText("Edit Schedule").first(),
+    ).toBeVisible({ timeout: 5_000 });
+
+    // Close the edit modal (Cancel), then delete from the list row
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.waitForTimeout(300);
+
+    // Click the row's Delete button (second button in the row; icon-only in UI)
+    const rowButtons = rowWithTime.locator("../..").getByRole("button");
+    const rowDeleteBtn = rowButtons.nth(1);
+    await expect(rowDeleteBtn).toBeVisible({ timeout: 5_000 });
+    await rowDeleteBtn.click();
+
+    // Confirm deletion in the alert dialog
+    const confirmBtn = page.getByRole("button", { name: "Delete" }).last();
+    await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
+    await confirmBtn.click();
+
+    // Verify schedule was deleted via API
+    await page.waitForTimeout(1_000);
+    const res = await fetch(`${API_URL}/schedules`);
+    const data = await res.json();
+    expect(data.total).toBe(0);
+  });
+
   test("can delete a schedule with confirmation", async ({ page }) => {
     const pageId = await createPage("Delete Schedule Page");
     await createSchedule(pageId, "14:00", "18:00");

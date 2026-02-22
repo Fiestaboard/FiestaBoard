@@ -21,19 +21,24 @@ WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 WEEKENDS = ["saturday", "sunday"]
 
 
+# Sentinel for "default" board when board_id was not set (backward compat)
+DEFAULT_BOARD_ID = ""
+
 class ScheduleEntry(BaseModel):
     """A schedule entry defining when a page should be displayed.
-    
+
     Schedules use 15-minute time intervals and support various day patterns.
+    Each entry is scoped to a board via board_id (empty string = default/first board).
     """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    board_id: str = Field(default=DEFAULT_BOARD_ID, min_length=0)  # "" = default board
     page_id: str = Field(min_length=1)
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")  # HH:MM format
     end_time: str = Field(pattern=r"^\d{2}:\d{2}$")  # HH:MM format
     day_pattern: DayPattern
     custom_days: Optional[List[str]] = None
     enabled: bool = True
-    
+
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
@@ -142,6 +147,7 @@ class ScheduleEntry(BaseModel):
 
 class ScheduleCreate(BaseModel):
     """Request model for creating a new schedule entry."""
+    board_id: str = Field(default=DEFAULT_BOARD_ID, min_length=0)
     page_id: str = Field(min_length=1)
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
     end_time: str = Field(pattern=r"^\d{2}:\d{2}$")
@@ -152,6 +158,7 @@ class ScheduleCreate(BaseModel):
 
 class ScheduleUpdate(BaseModel):
     """Request model for updating an existing schedule entry."""
+    board_id: Optional[str] = Field(default=None, min_length=0)
     page_id: Optional[str] = Field(default=None, min_length=1)
     start_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
     end_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")

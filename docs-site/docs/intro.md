@@ -13,6 +13,8 @@ keywords: [FiestaBoard, split-flap display, Vestaboard, smart dashboard, live di
 If you already own a split-flap display, FiestaBoard gives you a self-hosted platform with a plugin system to get data onto your board:
 
 - **18 Built-in Plugins**: Weather, stocks, transit, sports, Disney park wait times, ferry schedules, and more
+- **Multi-Device Support**: Create pages for both Vestaboard Flagship (22×6) and Note (15×3) — the editor and preview adapt to each device's dimensions
+- **Multi-Board Management**: Configure and manage multiple physical boards from the Settings page
 - **WYSIWYG Page Editor**: Create pages with a visual editor that shows exactly how content will appear
 - **Schedule Mode**: Visual calendar to schedule which pages display when
 - **Modern Web UI**: Manage pages, configure plugins, and monitor your display
@@ -40,9 +42,9 @@ The install wizard handles everything. It collects your board API key, creates t
 ```
 
 **Access your FiestaBoard:**
-- **Web UI**: http://localhost:8080
-- **API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+- **Web UI**: http://localhost:4420
+- **API**: http://localhost:4420
+- **API Docs**: http://localhost:4420/docs
 
 ## Available Plugins
 
@@ -65,6 +67,7 @@ The install wizard handles everything. It collects your board API key, creates t
 
 - [Beginners Guide](/docs/setup/beginners-guide) - Step-by-step setup for new users
 - [Setup Guide](/docs/setup/quick-start) - Detailed installation instructions
+- [V2 Migration Guide](/docs/setup/v2-migration) - Upgrading from V1
 - [Features Overview](/docs/features/page-editor) - Page editor, scheduling, and more
 - [Plugin Configuration](/docs/plugins/overview) - Configure your data sources
 - [Reference](/docs/reference/api-endpoints) - API endpoints, character codes, and colors

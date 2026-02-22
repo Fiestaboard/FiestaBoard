@@ -384,7 +384,7 @@ Prices and percentages are automatically aligned.
 3. **Check logs**: Look for Yahoo Finance API errors
 4. **Test directly**: 
    ```bash
-   curl http://localhost:8000/displays/stocks
+   curl http://localhost:4420/displays/stocks
    ```
 5. **Restart service**: May need container restart
 

@@ -11,28 +11,32 @@ FiestaBoard is a server you run on your computer (or a Raspberry Pi) that connec
 1. **A split-flap display** that's already set up and working with the board's app
 2. **Your board's API key** (you'll get this in Step 2)
 3. **A computer** - Mac, Windows, or Linux
-4. **About 15 minutes** for the initial setup
+4. **About 10 minutes** for the initial setup
+
+> You only need your board API key to get started. No other API keys or configuration are required up front -- plugins like weather, stocks, and transit are all set up later through the web interface.
 
 ## Step 1: Install Docker Desktop
 
-Docker is free software that runs FiestaBoard. Think of it as a container that packages everything the app needs.
+Docker is free software that runs FiestaBoard. Think of it as a container that packages everything the app needs. Installation takes just a few minutes.
 
 ### For Mac:
-1. Go to [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-2. Click "Download for Mac" (choose the right version for your Mac, Intel or Apple Silicon)
+1. Go to the [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/) install page
+2. Click "Download for Mac" (choose the right version for your Mac -- Intel or Apple Silicon)
 3. Open the downloaded file and drag Docker to your Applications folder
 4. Open Docker from Applications. It will ask for permission to run
 5. Wait for Docker to start (you'll see a whale icon in your menu bar)
 
 ### For Windows:
-1. Go to [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
+1. Go to the [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/) install page
 2. Click "Download for Windows"
 3. Run the installer and follow the prompts
 4. Restart your computer when prompted
 5. Open Docker Desktop. It should start automatically
 
 ### For Linux:
-- Follow the instructions at [Docker Desktop for Linux](https://docs.docker.com/desktop/install/linux-install/)
+1. Go to the [Docker Desktop for Linux](https://docs.docker.com/desktop/setup/install/linux/) install page
+2. Follow the instructions for your distribution (Ubuntu, Debian, Fedora, Arch, etc.)
+3. Start Docker after installation
 
 ## Step 2: Get Your Board API Key
 
@@ -50,112 +54,65 @@ Your board API key is what lets FiestaBoard send content to your display.
 4. Find "Read/Write API" and click "Enable"
 5. Copy the key that appears, paste it somewhere safe
 
-## Step 3: Set Up FiestaBoard
+## Step 3: Download FiestaBoard
 
-You **don't** need to download the FiestaBoard source code. The pre-built Docker images are published to the GitHub Container Registry. Docker pulls them for you automatically:
+### Option A: If you have Git installed:
+1. Open Terminal (Mac/Linux) or Command Prompt (Windows)
+2. Navigate to where you want FiestaBoard (like your Documents folder)
+3. Type: `git clone https://github.com/Fiestaboard/FiestaBoard.git`
+4. Press Enter
 
-```
-ghcr.io/fiestaboard/fiestaboard-api:latest
-ghcr.io/fiestaboard/fiestaboard-ui:latest
-```
+### Option B: If you don't have Git:
+1. Go to the FiestaBoard repository on GitHub
+2. Click the green "Code" button
+3. Click "Download ZIP"
+4. Extract the ZIP file to a location you'll remember (like Documents)
 
-You just need to create two small files: a `docker-compose.yml` and a `.env` with your board API key.
+## Step 4: Run the Installation Script
 
-### Create a project folder
+We've made this easy! Just run one script and it handles everything.
 
-1. **Open Terminal** (Mac/Linux) or **PowerShell** (Windows)
-2. **Create a folder and go into it:**
+### For Mac/Linux:
 
-   **Mac/Linux:**
+1. **Open Terminal** (Press Cmd+Space, type "Terminal", press Enter)
+2. **Navigate to the FiestaBoard folder:**
    ```bash
-   mkdir ~/FiestaBoard && cd ~/FiestaBoard
+   cd Documents/FiestaBoard
+   ```
+3. **Run the installation script:**
+   ```bash
+   ./scripts/install.sh
    ```
 
-   **Windows (PowerShell):**
+### For Windows:
+
+1. **Open PowerShell** (Press Windows key, type "PowerShell", right-click and select "Run as Administrator")
+2. **Navigate to the FiestaBoard folder:**
    ```powershell
-   mkdir $HOME\FiestaBoard; cd $HOME\FiestaBoard
+   cd Documents\FiestaBoard
+   ```
+3. **Run the installation script:**
+   ```powershell
+   .\scripts\install.ps1
    ```
 
-### Create `docker-compose.yml`
+### What the script does:
 
-Create a new file called `docker-compose.yml` in your FiestaBoard folder. Open any text editor (Notepad, TextEdit, VS Code, etc.), paste the following, and save it:
-
-```yaml
-version: '3.8'
-services:
-  fiestaboard-api:
-    image: ghcr.io/fiestaboard/fiestaboard-api:latest
-    container_name: fiestaboard-api
-    env_file: .env
-    environment:
-      - PRODUCTION=true
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "6969:8000"
-    volumes:
-      - ./data:/app/data
-
-  fiestaboard-ui:
-    image: ghcr.io/fiestaboard/fiestaboard-ui:latest
-    container_name: fiestaboard-ui
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "4420:3000"
-    environment:
-      - FIESTA_API_URL=${FIESTA_API_URL:-}
-    depends_on:
-      - fiestaboard-api
-```
-
-> **Note:** Make sure the file is named exactly `docker-compose.yml` (not `docker-compose.yml.txt`).
-
-### Create your `.env` file
-
-Create another new file called `.env` (just a dot followed by "env") in the same FiestaBoard folder.
-
-For **Local API** mode (recommended), add these lines:
-```
-BOARD_API_MODE=local
-BOARD_LOCAL_API_KEY=paste_your_local_api_key_here
-BOARD_HOST=192.168.0.11
-```
-Replace the API key with your key from Step 2, and replace `192.168.0.11` with your board's IP address.
-
-For **Cloud API** mode, add these lines instead:
-```
-BOARD_API_MODE=cloud
-BOARD_READ_WRITE_KEY=paste_your_read_write_key_here
-```
-
-Save the file.
-
-> **Tip:** For a full list of configuration options, see the [`env.example`](https://github.com/Fiestaboard/FiestaBoard/blob/main/env.example) file on GitHub. But the lines above are all you need to get started.
-
-## Step 4: Start FiestaBoard
-
-1. Make sure Docker Desktop is running (look for the whale icon)
-2. In your Terminal or PowerShell, run:
-
-   ```bash
-   docker compose up -d
-   ```
-
-3. Docker will automatically pull the FiestaBoard images from GHCR and start the services
-4. Wait about 30 seconds for everything to start up
+- ✅ Checks that Docker is installed and running
+- ✅ Guides you through entering your board API key
+- ✅ Creates the configuration file
+- ✅ Builds and starts the server
+- ✅ Tells you when everything is ready
 
 ## Step 5: Use the Web Interface
 
-Once Docker finishes pulling and starting the containers:
+Once the installation script completes:
 
 1. **Open your web browser** (Chrome, Safari, Firefox, etc.)
 2. **Go to:** `http://localhost:4420`
 3. You'll see the FiestaBoard control panel!
 4. **Click the green "▶ Start Service" button**
 5. **Watch your board** - it should start updating!
-
-> **Note:** The API runs on port **6969** and the Web UI on port **4420**. You can change these in your `docker-compose.yml` file if needed.
 
 ## Step 6: Add Plugins
 
@@ -173,23 +130,15 @@ Now that your server is running, you can enable plugins to display different dat
 Your board should now be updating automatically!
 
 ### To stop FiestaBoard:
-- Go back to your Terminal/PowerShell window
-- Type: `docker compose down` and press Enter
+- Go back to your Terminal/Command Prompt window
+- Press `Ctrl+C`
+- Then type: `docker-compose down` and press Enter
 
 ### To start it again later:
-- Open Terminal/PowerShell
+- Open Terminal/Command Prompt/PowerShell
 - Navigate to the FiestaBoard folder
-- Type: `docker compose up -d` and press Enter
+- Type: `docker-compose up -d` and press Enter
 - Go to `http://localhost:4420` and click Start Service
-
-### To update to the latest version:
-- Open Terminal/PowerShell
-- Navigate to the FiestaBoard folder
-- Run:
-  ```bash
-  docker compose pull
-  docker compose up -d
-  ```
 
 ## Need Help?
 
@@ -200,7 +149,7 @@ Your board should now be updating automatically!
 
 **"Connection refused" when accessing http://localhost:4420**
 - Wait a minute after starting, then refresh your browser
-- Make sure Docker containers are running: `docker compose ps`
+- Make sure Docker containers are running: `docker-compose ps`
 
 **"Invalid API key"**
 - Double-check you copied the key correctly (no extra spaces!)

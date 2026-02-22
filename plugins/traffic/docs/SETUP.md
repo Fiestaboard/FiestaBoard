@@ -44,7 +44,7 @@ The Traffic feature uses Google's Routes API (v2) to get real-time travel times.
 Add the API key to your configuration:
 
 **Option A: Via Web UI (Recommended)**
-1. Open http://localhost:8080
+1. Open http://localhost:4420
 2. Go to Settings → Features
 3. Find "Traffic" and toggle it on
 4. Paste your API key in the "Google Routes API Key" field
@@ -98,7 +98,7 @@ If it works, you'll see: ✅ "Route is valid! Estimated travel time: ~X minutes"
 
 **Fix**:
 1. Double-check your API key in Settings
-2. Check Docker logs: `docker-compose -f docker-compose.dev.yml logs fiestaboard-api | grep traffic`
+2. Check Docker logs: `docker-compose -f docker-compose.dev.yml logs fiestaboard | grep traffic`
 3. Try a different address format
 
 ### Using Coordinates Instead of Addresses

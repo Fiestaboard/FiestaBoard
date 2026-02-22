@@ -17,6 +17,7 @@ from .models import (
     Overlap,
     Gap,
     VALID_DAYS,
+    DEFAULT_BOARD_ID,
 )
 from .storage import ScheduleStorage
 
@@ -43,9 +44,9 @@ class ScheduleService:
     
     # CRUD operations
     
-    def list_schedules(self) -> List[ScheduleEntry]:
-        """List all schedules."""
-        return self.storage.list_all()
+    def list_schedules(self, board_id: Optional[str] = None) -> List[ScheduleEntry]:
+        """List schedules, optionally filtered by board_id."""
+        return self.storage.list_all(board_id=board_id)
     
     def get_schedule(self, schedule_id: str) -> Optional[ScheduleEntry]:
         """Get a schedule by ID."""
@@ -64,14 +65,14 @@ class ScheduleService:
             ValueError: If schedule configuration is invalid
         """
         schedule = ScheduleEntry(
+            board_id=getattr(data, "board_id", None) or DEFAULT_BOARD_ID,
             page_id=data.page_id,
             start_time=data.start_time,
             end_time=data.end_time,
             day_pattern=data.day_pattern,
             custom_days=data.custom_days,
-            enabled=data.enabled
+            enabled=data.enabled,
         )
-        
         return self.storage.create(schedule)
     
     def update_schedule(self, schedule_id: str, data: ScheduleUpdate) -> Optional[ScheduleEntry]:
@@ -103,69 +104,43 @@ class ScheduleService:
     def get_active_page_id(
         self,
         current_time: time,
-        current_day: str
+        current_day: str,
+        board_id: Optional[str] = None,
     ) -> Optional[str]:
-        """Determine which page should be displayed based on schedules.
-        
-        Args:
-            current_time: Current time
-            current_day: Current day name (lowercase, e.g., "monday")
-            
-        Returns:
-            Page ID to display, or None if no match and no default
-        """
-        # Get all enabled schedules
-        schedules = [s for s in self.list_schedules() if s.enabled]
-        
-        # Convert time to HH:MM string for comparison
+        """Determine which page should be displayed based on schedules for the given board."""
+        bid = board_id or DEFAULT_BOARD_ID
+        schedules = [s for s in self.list_schedules(board_id=bid) if s.enabled]
         time_str = current_time.strftime("%H:%M")
-        
-        # Find matching schedules
         matches = []
         for schedule in schedules:
             if schedule.applies_to_day(current_day) and schedule.applies_to_time(time_str):
                 matches.append(schedule)
-        
         if matches:
-            # If multiple matches (shouldn't happen with validation),
-            # use most recently created
             matches.sort(key=lambda s: s.created_at, reverse=True)
-            logger.debug(
-                f"Active schedule: {matches[0].id} for {current_day} {time_str}"
-            )
+            logger.debug(f"Active schedule: {matches[0].id} for {current_day} {time_str} (board={bid})")
             return matches[0].page_id
-        
-        # No match - return default page
-        default_page_id = self.storage.get_default_page_id()
+        default_page_id = self.storage.get_default_page_id(board_id=bid)
         if default_page_id:
-            logger.debug(
-                f"No schedule match for {current_day} {time_str}, using default: {default_page_id}"
-            )
+            logger.debug(f"No schedule match for {current_day} {time_str}, using default: {default_page_id}")
         else:
-            logger.debug(
-                f"No schedule match for {current_day} {time_str}, no default set"
-            )
+            logger.debug(f"No schedule match for {current_day} {time_str}, no default set")
         return default_page_id
-    
+
     # Default page management
-    
-    def get_default_page(self) -> Optional[str]:
-        """Get the default page ID for schedule gaps."""
-        return self.storage.get_default_page_id()
-    
-    def set_default_page(self, page_id: Optional[str]) -> None:
-        """Set the default page ID for schedule gaps."""
-        self.storage.set_default_page_id(page_id)
-    
+
+    def get_default_page(self, board_id: Optional[str] = None) -> Optional[str]:
+        """Get the default page ID for schedule gaps for the given board."""
+        return self.storage.get_default_page_id(board_id=board_id)
+
+    def set_default_page(self, page_id: Optional[str], board_id: Optional[str] = None) -> None:
+        """Set the default page ID for schedule gaps for the given board."""
+        self.storage.set_default_page_id(page_id, board_id=board_id)
+
     # Validation
-    
-    def validate_schedules(self) -> ScheduleValidationResult:
-        """Validate all schedules for overlaps and gaps.
-        
-        Returns:
-            Validation result with overlaps and gaps
-        """
-        schedules = [s for s in self.list_schedules() if s.enabled]
+
+    def validate_schedules(self, board_id: Optional[str] = None) -> ScheduleValidationResult:
+        """Validate schedules for overlaps and gaps (optionally for one board)."""
+        schedules = [s for s in self.list_schedules(board_id=board_id) if s.enabled]
         
         overlaps = self._detect_overlaps(schedules)
         gaps = self._detect_gaps(schedules)

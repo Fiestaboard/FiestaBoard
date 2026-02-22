@@ -1,66 +1,6 @@
 // API client for FiestaBoard service
-// Extensible pattern - easy to add updateConfig(), savePage() later
-
-// Runtime configuration - API URL is fetched at startup from /api/runtime-config.
-// Port fallback logic (localhost → 8000, production → 6969) is mirrored in
-// app/api/runtime-config/route.ts — keep both in sync when changing ports.
-let API_BASE = "";
-let configLoaded = false;
-let configPromise: Promise<void> | null = null;
-
-/**
- * Load runtime configuration from the API.
- * This should be called once at app startup.
- */
-export async function loadRuntimeConfig(): Promise<void> {
-  if (configLoaded) return;
-  
-  // If already loading, return the existing promise
-  if (configPromise) return configPromise;
-  
-  configPromise = (async () => {
-    try {
-      // Fetch runtime config from the API
-      const response = await fetch("/api/runtime-config");
-      const config = await response.json();
-      
-      // Set API_BASE from config, or fall back to sensible defaults
-      if (config.apiUrl) {
-        API_BASE = config.apiUrl;
-      } else if (typeof window !== "undefined") {
-        // Dynamically construct API URL based on current hostname
-        const hostname = window.location.hostname;
-        if (hostname === "localhost") {
-          API_BASE = "http://localhost:8000";
-        } else {
-          // In production, API runs on port 6969
-          API_BASE = `http://${hostname}:6969`;
-        }
-      } else {
-        API_BASE = "";  // Same origin fallback
-      }
-      
-      configLoaded = true;
-    } catch (error) {
-      console.error("Failed to load runtime config, using defaults:", error);
-      // Fall back to dynamic hostname-based URL
-      if (typeof window !== "undefined") {
-        const hostname = window.location.hostname;
-        if (hostname === "localhost") {
-          API_BASE = "http://localhost:8000";
-        } else {
-          // In production, API runs on port 6969
-          API_BASE = `http://${hostname}:6969`;
-        }
-      } else {
-        API_BASE = "";
-      }
-      configLoaded = true;
-    }
-  })();
-  
-  return configPromise;
-}
+// All API calls go through nginx at /api/* (same origin, unified container).
+const API_BASE = "/api";
 
 // Types for API responses
 export interface StatusResponse {
@@ -210,6 +150,9 @@ export interface SetActivePageResponse {
 // Page types
 export type PageType = "single" | "composite" | "template";
 
+// Device types
+export type DeviceType = "flagship" | "note";
+
 export interface RowConfig {
   source: string;
   row_index: number;
@@ -220,6 +163,7 @@ export interface Page {
   id: string;
   name: string;
   type: PageType;
+  device_type: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -235,6 +179,7 @@ export interface Page {
 export interface PageCreate {
   name: string;
   type: PageType;
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -416,8 +361,22 @@ export interface PollingSettings {
   interval_seconds: number;
 }
 
+export interface BoardInstance {
+  id: string;
+  name: string;
+  device_type: DeviceType;
+  board_color: "black" | "white";
+  enabled: boolean;
+  api_mode: "local" | "cloud";
+  host: string;
+  local_api_key: string;
+  cloud_key: string;
+}
+
 export interface BoardSettings {
   board_type: "black" | "white" | null;
+  boards: BoardInstance[];
+  devices: DeviceType[]; // Computed from boards for backward compat
 }
 
 // Schedule types
@@ -425,6 +384,7 @@ export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
 
 export interface ScheduleEntry {
   id: string;
+  board_id?: string; // Optional; "" or omitted = default board
   page_id: string;
   start_time: string; // HH:MM format
   end_time: string;   // HH:MM format
@@ -436,6 +396,7 @@ export interface ScheduleEntry {
 }
 
 export interface ScheduleCreate {
+  board_id?: string;
   page_id: string;
   start_time: string;
   end_time: string;
@@ -445,6 +406,7 @@ export interface ScheduleCreate {
 }
 
 export interface ScheduleUpdate {
+  board_id?: string;
   page_id?: string;
   start_time?: string;
   end_time?: string;
@@ -682,11 +644,6 @@ export interface VersionResponse {
 
 // API client with typed methods
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  // Ensure config is loaded before making API calls
-  if (!configLoaded) {
-    await loadRuntimeConfig();
-  }
-  
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -795,58 +752,68 @@ export const api = {
       body: JSON.stringify({ template }),
     }),
 
-  // Schedule endpoints
-  getSchedules: () => fetchApi<SchedulesResponse>("/schedules"),
-  
+  // Schedule endpoints (optional boardId for per-board schedules)
+  getSchedules: (boardId?: string) =>
+    fetchApi<SchedulesResponse>(
+      boardId ? `/schedules?board_id=${encodeURIComponent(boardId)}` : "/schedules"
+    ),
+
   createSchedule: (data: ScheduleCreate) =>
     fetchApi<ScheduleEntry>("/schedules", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  
+
   getSchedule: (scheduleId: string) =>
     fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`),
-  
+
   updateSchedule: (scheduleId: string, data: ScheduleUpdate) =>
     fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  
+
   deleteSchedule: (scheduleId: string) =>
     fetchApi<{ status: string; message: string }>(`/schedules/${scheduleId}`, {
       method: "DELETE",
     }),
-  
-  getActiveSchedule: () =>
-    fetchApi<ActiveScheduleResponse>("/schedules/active/page"),
-  
-  validateSchedules: () =>
+
+  getActiveSchedule: (boardId?: string) =>
+    fetchApi<ActiveScheduleResponse>(
+      boardId ? `/schedules/active/page?board_id=${encodeURIComponent(boardId)}` : "/schedules/active/page"
+    ),
+
+  validateSchedules: (boardId?: string) =>
     fetchApi<ScheduleValidationResult>("/schedules/validate", {
       method: "POST",
+      body: JSON.stringify(boardId != null ? { board_id: boardId } : {}),
     }),
-  
-  getDefaultPage: () =>
-    fetchApi<DefaultPageResponse>("/schedules/default-page"),
-  
-  setDefaultPage: (pageId: string | null) =>
+
+  getDefaultPage: (boardId?: string) =>
+    fetchApi<DefaultPageResponse>(
+      boardId ? `/schedules/default-page?board_id=${encodeURIComponent(boardId)}` : "/schedules/default-page"
+    ),
+
+  setDefaultPage: (pageId: string | null, boardId?: string) =>
     fetchApi<{ status: string; default_page_id: string | null }>(
       "/schedules/default-page",
       {
         method: "PUT",
-        body: JSON.stringify({ page_id: pageId }),
+        body: JSON.stringify({ page_id: pageId, ...(boardId != null && { board_id: boardId }) }),
       }
     ),
-  
-  getScheduleEnabled: () =>
-    fetchApi<ScheduleEnabledResponse>("/schedules/enabled"),
-  
-  setScheduleEnabled: (enabled: boolean) =>
+
+  getScheduleEnabled: (boardId?: string) =>
+    fetchApi<ScheduleEnabledResponse>(
+      boardId ? `/schedules/enabled?board_id=${encodeURIComponent(boardId)}` : "/schedules/enabled"
+    ),
+
+  setScheduleEnabled: (enabled: boolean, boardId?: string) =>
     fetchApi<{ status: string; enabled: boolean; message: string }>(
       "/schedules/enabled",
       {
         method: "PUT",
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
       }
     ),
 
@@ -991,11 +958,21 @@ export const api = {
 
   // Board settings
   getBoardSettings: () => fetchApi<BoardSettings>("/settings/board"),
-  updateBoardSettings: (board_type: "black" | "white" | null) =>
+  updateBoardSettings: (updates: { board_type?: "black" | "white" | null; devices?: DeviceType[]; boards?: BoardInstance[] }) =>
     fetchApi<{ status: string; settings: BoardSettings }>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ board_type }),
+      body: JSON.stringify(updates),
+    }),
+  addBoard: (board: Partial<BoardInstance> & { device_type: DeviceType }) =>
+    fetchApi<{ status: string; settings: BoardSettings }>("/settings/board/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(board),
+    }),
+  removeBoard: (boardId: string) =>
+    fetchApi<{ status: string; settings: BoardSettings }>(`/settings/board/${boardId}`, {
+      method: "DELETE",
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 
@@ -1083,12 +1060,6 @@ export const api = {
   
   showDebugInfo: () =>
     fetchApi<ActionResponse>("/debug/info", { method: "POST" }),
-  
-  testBoardConnection: (request: BoardTestRequest) =>
-    fetchApi<BoardTestResponse>("/config/board/test", {
-      method: "POST",
-      body: JSON.stringify(request),
-    }),
   
   testDebugConnection: () =>
     fetchApi<DebugTestResponse>("/debug/test-connection", { method: "POST" }),

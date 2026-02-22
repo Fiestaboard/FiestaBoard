@@ -264,7 +264,7 @@ TRANSIT_CACHE_REFRESH_SECONDS=90  # Default: 90
 
 Check cache status via API:
 ```bash
-curl http://localhost:8000/transit/cache/status
+curl http://localhost:4420/transit/cache/status
 ```
 
 Returns:

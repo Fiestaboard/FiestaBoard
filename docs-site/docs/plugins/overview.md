@@ -35,7 +35,7 @@ FiestaBoard uses a **plugin architecture**. Each feature is a self-contained plu
 
 Plugins are enabled via the **Web UI**:
 
-1. Open http://localhost:8080
+1. Open http://localhost:4420
 2. Go to the **Integrations** page
 3. Toggle plugins on/off
 4. Configure API keys as needed

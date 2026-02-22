@@ -1,7 +1,6 @@
 """Main application entry point for FiestaBoard Display Service."""
 
 import logging
-import sys
 import time
 import signal
 from datetime import datetime
@@ -10,8 +9,9 @@ from typing import Optional
 import schedule
 
 from .config import Config
-from .board_client import BoardClient
+from .board_client import BoardClient, board_client_from_board_dict
 from .board_chars import BoardChars
+from .devices import get_dimensions
 from .text_to_board import text_to_board_array, format_board_array_preview
 from .settings.service import get_settings_service
 from .pages.service import get_page_service
@@ -40,39 +40,46 @@ class DisplayService:
         self._last_active_page_id: Optional[str] = None
         self._last_silence_mode_active: bool = False
         self._snoozing_message_sent: bool = False
-        
-        # Setup signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
     
-    def _signal_handler(self, signum, frame):
-        """Handle shutdown signals."""
-        logger.info(f"Received signal {signum}, shutting down gracefully...")
-        self.running = False
-    
+    def _build_board_clients(self):
+        """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
+        settings_service = get_settings_service()
+        boards = settings_service.get_board_settings().boards or []
+        if boards:
+            first = boards[0]
+            if first.get("local_api_key") or first.get("cloud_key"):
+                client = board_client_from_board_dict(first)
+                if client:
+                    self.vb_client = client
+                    try:
+                        self.vb_client.read_current_message(sync_cache=True)
+                    except Exception as e:
+                        logger.warning(f"Could not sync cache with board: {e}")
+                    return
+        use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
+        self.vb_client = BoardClient(
+            api_key=Config.get_board_api_key(),
+            host=Config.BOARD_HOST if not use_cloud else None,
+            use_cloud=use_cloud,
+            skip_unchanged=True,
+        )
+        try:
+            self.vb_client.read_current_message(sync_cache=True)
+        except Exception as e:
+            logger.warning(f"Could not sync cache with board: {e}")
+
     def reinitialize_board_client(self) -> bool:
         """Reinitialize the board client with current config.
-        
-        Called when board configuration changes to ensure the service
-        uses the updated credentials.
-        
-        Returns:
-            True if successful, False otherwise
+
+        Prefers first board from settings.boards when it has connection; else uses Config.
         """
         logger.info("Reinitializing board client with updated config...")
-        
         try:
-            use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-            self.vb_client = BoardClient(
-                api_key=Config.get_board_api_key(),
-                host=Config.BOARD_HOST if not use_cloud else None,
-                use_cloud=use_cloud,
-                skip_unchanged=True
-            )
-            # Sync cache with current board state
-            self.vb_client.read_current_message(sync_cache=True)
-            logger.info("Board client reinitialized successfully")
-            return True
+            self._build_board_clients()
+            if self.vb_client:
+                logger.info("Board client reinitialized successfully")
+                return True
+            return False
         except Exception as e:
             logger.error(f"Failed to reinitialize board client: {e}")
             return False
@@ -86,19 +93,13 @@ class DisplayService:
             logger.error("Configuration validation failed")
             return False
         
-        # Initialize board client (Local or Cloud API)
+        # Initialize board client from settings.boards (first board) or Config
         try:
-            use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-            self.vb_client = BoardClient(
-                api_key=Config.get_board_api_key(),
-                host=Config.BOARD_HOST if not use_cloud else None,
-                use_cloud=use_cloud,
-                skip_unchanged=True  # Default: skip sending unchanged messages
-            )
-            # Sync cache with current board state to avoid unnecessary initial update
+            self._build_board_clients()
+            if not self.vb_client:
+                logger.error("No board connection configured (settings.boards or config)")
+                return False
             logger.info("Syncing cache with current board state...")
-            self.vb_client.read_current_message(sync_cache=True)
-            
             # Log transition settings if configured
             transition = Config.get_transition_settings()
             if transition["strategy"]:
@@ -256,16 +257,20 @@ class DisplayService:
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
             # Send to board
-            board_array = text_to_board_array(content_to_send)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(content_to_send, rows=dims.rows, cols=dims.cols)
             
             # If in silence mode, add "SNOOZING" indicator to bottom right
             if silence_mode_active:
                 indicator = "SNOOZING"
+                last_row = dims.rows - 1
+                start_col = dims.cols - len(indicator)
                 for i, char in enumerate(indicator):
-                    col = 14 + i  # Start at position 14 (last 8 positions of row)
-                    char_code = BoardChars.get_char_code(char)
-                    if char_code is not None:
-                        board_array[5][col] = char_code
+                    col = start_col + i
+                    if col >= 0:
+                        char_code = BoardChars.get_char_code(char)
+                        if char_code is not None:
+                            board_array[last_row][col] = char_code
             
             success, was_sent = self.vb_client.send_characters(
                 board_array,
@@ -303,29 +308,28 @@ class DisplayService:
     
     def run(self):
         """Run the main service loop."""
-        if not self.initialize():
-            logger.error("Initialization failed, exiting")
-            sys.exit(1)
+        self.running = True
         
-        # Get polling interval from settings
+        if not self.vb_client and not self.initialize():
+            logger.error("Initialization failed")
+            return
+        
+        schedule.clear()
+        
         settings_service = get_settings_service()
         polling_interval = settings_service.get_polling_interval()
         
-        # Schedule active page polling based on configured interval
-        # This is the ONLY way content gets sent to the board - via configured pages
         schedule.every(polling_interval).seconds.do(lambda: self.check_and_send_active_page(dev_mode=False))
         logger.info(f"Active page polling scheduled every {polling_interval} seconds")
         
-        # Send initial active page on startup
         logger.info("Sending initial active page...")
         self.check_and_send_active_page(dev_mode=False)
         
-        # Main loop
         logger.info("Service started, waiting for scheduled updates...")
         try:
             while self.running:
                 schedule.run_pending()
-                time.sleep(1)  # Check every second
+                time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
         finally:
@@ -333,9 +337,16 @@ class DisplayService:
 
 
 def main():
-    """Main entry point."""
+    """Main entry point (standalone mode only, not used under uvicorn)."""
     service = DisplayService()
+    signal.signal(signal.SIGINT, lambda s, f: _stop_service(service))
+    signal.signal(signal.SIGTERM, lambda s, f: _stop_service(service))
     service.run()
+
+
+def _stop_service(service):
+    logger.info("Received shutdown signal, stopping gracefully...")
+    service.running = False
 
 
 # Aliases for the display service class

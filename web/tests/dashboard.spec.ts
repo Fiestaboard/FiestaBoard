@@ -14,12 +14,17 @@ import {
   deleteAllSchedules,
   setActivePage,
   createSchedule,
+  resetToSingleBoard,
   API_URL,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
+  await resetToSingleBoard();
   await suppressWizard(page);
+  // Ensure consistent test state with board cleanup
+  await deleteAllSchedules();
+  await deleteAllPages();
 });
 
 test.describe("Dashboard", () => {
@@ -98,17 +103,39 @@ test.describe("Dashboard", () => {
     await createSchedule(pageId, "06:00", "18:00", "weekdays");
 
     // Enable schedule mode
-    await fetch(`${API_URL}/schedules/enabled`, {
+    const putRes = await fetch(`${API_URL}/schedules/enabled`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: true }),
     });
+    expect(putRes.ok).toBe(true);
+
+    // Wait until the API reports schedule enabled (avoids race with dashboard fetch)
+    let enabled = false;
+    for (let i = 0; i < 10; i++) {
+      const r = await fetch(`${API_URL}/schedules/enabled`);
+      if (r.ok) {
+        const d = await r.json();
+        if (d.enabled) {
+          enabled = true;
+          break;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    expect(enabled).toBe(true);
 
     await page.goto("/");
     await expect(
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible({ timeout: 15_000 });
 
+    // Wait for Active Display card to be visible (ensures component is mounted)
+    await expect(
+      page.getByText("Active Display", { exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+    
+    // Verify schedule mode badge is displayed
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
       timeout: 10_000,
     });

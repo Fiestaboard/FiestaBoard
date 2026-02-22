@@ -17,9 +17,9 @@ This reference is useful for:
 **Plugin API keys should be entered through the web UI**, not `.env`. The Integrations page provides setup instructions and validates your keys. Environment variables listed below for plugins are supported for backward compatibility but the web UI is the recommended way to configure them.
 :::
 
-## Required Variables
+## Board Connection
 
-These must be set for FiestaBoard to connect to your board:
+These variables control how FiestaBoard connects to your board. The install wizard and web UI set these for you -- manual editing is not required.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
@@ -95,8 +95,9 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REFRESH_INTERVAL_SECONDS` | Display update interval | `60` |
+| `REFRESH_INTERVAL_SECONDS` | Display update interval (seconds) | `60` |
 | `LOG_LEVEL` | Logging level | `INFO` |
+| `VERSION` | Build version (set automatically during Docker builds -- do not change) | `dev` |
 
 ## Example `.env` File
 

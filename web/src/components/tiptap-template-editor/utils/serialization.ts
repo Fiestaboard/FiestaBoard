@@ -15,11 +15,11 @@ import { BOARD_COLORS, SYMBOL_CHARS, FILL_SPACE_VAR, FILL_SPACE_REPEAT_VAR } fro
 const CURSOR_ANCHOR_CHAR = '\u200B';
 
 /**
- * Simplified parser - treats template as single block with line breaks
+ * Simplified parser - treats template as single block with line breaks.
+ * @param maxLines  Number of lines for this device (6 for Flagship, 3 for Note).
  */
-export function parseTemplateSimple(template: string): JSONContent {
-  // Enforce 6 line limit during parsing (validation-based, "chill" UX)
-  const lines = template.split('\n').slice(0, 6); // Max 6 lines
+export function parseTemplateSimple(template: string, maxLines = 6): JSONContent {
+  const lines = template.split('\n').slice(0, maxLines);
   
   // Build a single paragraph with content and hardBreaks between lines
   const content: JSONContent[] = [];
@@ -43,9 +43,9 @@ export function parseTemplateSimple(template: string): JSONContent {
     }
   });
   
-  // Pad with empty breaks to ensure 6 lines total; each padded line gets ZWS so cursor shows
+  // Pad with empty breaks to ensure maxLines total; each padded line gets ZWS so cursor shows
   const currentLines = lines.length;
-  for (let i = currentLines; i < 6; i++) {
+  for (let i = currentLines; i < maxLines; i++) {
     if (content.length > 0 && content[content.length - 1].type !== 'hardBreak') {
       content.push({ type: 'hardBreak' });
     }
@@ -53,7 +53,7 @@ export function parseTemplateSimple(template: string): JSONContent {
     // the pair for consistency with content lines)
     content.push({ type: 'text', text: CURSOR_ANCHOR_CHAR });
     content.push({ type: 'text', text: CURSOR_ANCHOR_CHAR });
-    if (i < 5) {
+    if (i < maxLines - 1) {
       content.push({ type: 'hardBreak' });
     }
   }
@@ -70,11 +70,14 @@ export function parseTemplateSimple(template: string): JSONContent {
 }
 
 /**
- * Simplified serializer - converts back to plain text with \n
+ * Simplified serializer - converts back to plain text with \n.
+ * @param maxLines  Number of lines for this device (6 for Flagship, 3 for Note).
  */
-export function serializeTemplateSimple(doc: JSONContent): string {
+export function serializeTemplateSimple(doc: JSONContent, maxLines = 6): string {
+  const emptyResult = Array.from({ length: maxLines }, () => '').join('\n');
+
   if (!doc.content || doc.content.length === 0) {
-    return '\n\n\n\n\n'; // 6 empty lines
+    return emptyResult;
   }
   
   const lines: string[] = [];
@@ -83,33 +86,30 @@ export function serializeTemplateSimple(doc: JSONContent): string {
   // Get the first paragraph (should be the only one)
   const paragraph = doc.content[0];
   if (!paragraph || !paragraph.content) {
-    return '\n\n\n\n\n';
+    return emptyResult;
   }
   
   // Iterate through paragraph content
   for (const node of paragraph.content) {
     if (node.type === 'hardBreak') {
-      // Line break - push current line and start new one
       lines.push(currentLine);
       currentLine = '';
     } else {
-      // Add node content to current line
       currentLine += serializeNodeContent(node);
     }
   }
   
   // Push final line
-  if (currentLine || lines.length < 6) {
+  if (currentLine || lines.length < maxLines) {
     lines.push(currentLine);
   }
   
-  // Ensure exactly 6 lines (validation-based enforcement)
-  while (lines.length < 6) {
+  // Ensure exactly maxLines lines
+  while (lines.length < maxLines) {
     lines.push('');
   }
   
-  // Enforce 6 line limit during serialization (validation-based, "chill" UX)
-  return lines.slice(0, 6).join('\n');
+  return lines.slice(0, maxLines).join('\n');
 }
 
 /**

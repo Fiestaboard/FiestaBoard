@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useTransition, useRef, useDeferredValue, useCallback, useState } from "react";
-import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings } from "@/hooks/use-board";
+import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,35 +63,37 @@ function tokensToString(tokens: Token[]): string {
 }
 
 // Add snoozing indicator to bottom right of board content
-function addSnoozingIndicator(content: string): string {
+function addSnoozingIndicator(content: string, numRows: number = 6, numCols: number = 22): string {
   const lines = content.split('\n');
   
-  // Ensure we have exactly 6 lines (board rows)
-  while (lines.length < 6) {
+  // Ensure we have exactly numRows lines (board rows)
+  while (lines.length < numRows) {
     lines.push("");
   }
   
+  const lastIdx = numRows - 1;
   // Parse the last line into tokens (each token = 1 board position)
-  const lastLineTokens = parseLine(lines[5] || "");
+  const lastLineTokens = parseLine(lines[lastIdx] || "");
   
-  // Pad to 22 tokens total
-  while (lastLineTokens.length < 22) {
+  // Pad to numCols tokens total
+  while (lastLineTokens.length < numCols) {
     lastLineTokens.push({ type: "char", value: " " });
   }
   
   // Truncate if too long
-  const boardTokens = lastLineTokens.slice(0, 22);
+  const boardTokens = lastLineTokens.slice(0, numCols);
   
-  // Replace positions 14-21 with "SNOOZING" (8 characters)
-  const indicator = "SNOOZING";
+  // For note (15 cols), use shorter "ZZZ" indicator; for flagship use "SNOOZING"
+  const indicator = numCols >= 22 ? "SNOOZING" : "ZZZ";
+  const startPos = numCols - indicator.length;
   for (let i = 0; i < indicator.length; i++) {
-    boardTokens[14 + i] = { type: "char", value: indicator[i] };
+    boardTokens[startPos + i] = { type: "char", value: indicator[i] };
   }
   
   // Convert back to string
-  lines[5] = tokensToString(boardTokens);
+  lines[lastIdx] = tokensToString(boardTokens);
   
-  return lines.slice(0, 6).join('\n');
+  return lines.slice(0, numRows).join('\n');
 }
 
 export function ActivePageDisplay() {
@@ -130,10 +132,10 @@ export function ActivePageDisplay() {
     }
   }, [isSheetOpen]);
   
-  // Fetch schedule status
+  // Fetch schedule status (no board_id - gets default board's schedule)
   const { data: schedulesData } = useQuery({
-    queryKey: ["schedules"],
-    queryFn: api.getSchedules,
+    queryKey: ["schedules", "default"],
+    queryFn: () => api.getSchedules(undefined),
   });
   
   const scheduleEnabled = schedulesData?.enabled || false;
@@ -249,14 +251,28 @@ export function ActivePageDisplay() {
     });
   }, [activePageId, setActivePageMutation]);
   
+  // Get the active page for device type and name
+  const activePage = useMemo(() => {
+    return pages.find(p => p.id === activePageId) || null;
+  }, [pages, activePageId]);
+
   // Get the active page name for display
   const activePageName = useMemo(() => {
     if (!activePageId && scheduleEnabled) {
       return "Schedule gap (no default page set)";
     }
-    const page = pages.find(p => p.id === activePageId);
-    return page?.name || "No page selected";
-  }, [pages, activePageId, scheduleEnabled]);
+    return activePage?.name || "No page selected";
+  }, [activePage, activePageId, scheduleEnabled]);
+  
+  // Get active page device type
+  const activeDeviceType = (activePage?.device_type as "flagship" | "note") || "flagship";
+  
+  // Device dimensions lookup
+  const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
+    flagship: { rows: 6, cols: 22 },
+    note: { rows: 3, cols: 15 },
+  };
+  const dims = DEVICE_DIMS[activeDeviceType] || DEVICE_DIMS.flagship;
   
   // Compute the display message with snoozing indicator if needed
   const displayMessage = useMemo(() => {
@@ -265,11 +281,11 @@ export function ActivePageDisplay() {
     
     // If silence mode is active, add the snoozing indicator
     if (silenceStatus?.active) {
-      return addSnoozingIndicator(baseMessage);
+      return addSnoozingIndicator(baseMessage, dims.rows, dims.cols);
     }
     
     return baseMessage;
-  }, [previewData?.message, silenceStatus?.active]);
+  }, [previewData?.message, silenceStatus?.active, dims.rows, dims.cols]);
 
   return (
     <>
@@ -351,7 +367,8 @@ export function ActivePageDisplay() {
               message={displayMessage} 
               isLoading={isLoadingPreview || (!!activePageId && !previewData)}
               size="md"
-              boardType={boardSettings?.board_type ?? "black"}
+              boardType={getEffectiveBoardColor(boardSettings)}
+              deviceType={activeDeviceType}
             />
           </div>
         </CardContent>

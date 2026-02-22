@@ -20,6 +20,25 @@ from .time_service import get_time_service
 
 logger = logging.getLogger(__name__)
 
+# Mapping from legacy feature keys to plugin IDs.
+# silence_schedule is a system feature and is NOT migrated here.
+FEATURE_TO_PLUGIN_MAP = {
+    "weather": "weather",
+    "date_time": "date_time",
+    "home_assistant": "home_assistant",
+    "guest_wifi": "guest_wifi",
+    "star_trek_quotes": "star_trek_quotes",
+    "air_fog": "air_fog",
+    "muni": "muni",
+    "surf": "surf",
+    "baywheels": "baywheels",
+    "traffic": "traffic",
+    "stocks": "stocks",
+}
+
+# Fields excluded from feature-to-plugin migration (handled by manifest defaults)
+MIGRATION_EXCLUDED_FIELDS = {"color_rules"}
+
 # Default configuration schema
 DEFAULT_CONFIG: Dict[str, Any] = {
     "board": {
@@ -250,7 +269,9 @@ class ConfigManager:
             self._config_path = data_dir / "config.json"
         
         self._config: Dict[str, Any] = {}
+        self._raw_features: Dict[str, Any] = {}
         self._load_or_create()
+        self._auto_migrate_features_to_plugins()
         self._apply_env_overrides()
         self._initialized = True
 
@@ -262,6 +283,11 @@ class ConfigManager:
                     with open(self._config_path, "r") as f:
                         self._config = json.load(f)
                     logger.info(f"Loaded config from {self._config_path}")
+                    
+                    # Snapshot features actually present before merge fills in defaults
+                    self._raw_features = self._deep_copy(
+                        self._config.get("features", {})
+                    )
                     
                     # Merge with defaults to handle missing keys
                     self._config = self._merge_with_defaults(self._config)
@@ -308,6 +334,67 @@ class ConfigManager:
             return base
         
         return merge(result, config)
+
+    def _auto_migrate_features_to_plugins(self) -> None:
+        """Automatically migrate legacy features to plugins on startup.
+
+        For each known feature that was **actually present in the user's config
+        file** (not just filled in by defaults) and has no corresponding entry
+        in ``plugins.*``, copy the feature config into the plugins section so
+        the v2 plugin system picks it up.  A JSON backup of the original config
+        is created before any changes are written.
+
+        This is idempotent — once a plugin entry exists the feature is skipped.
+        """
+        plugins = self._config.get("plugins", {})
+
+        to_migrate: List[tuple] = []
+        for feature_key, plugin_id in FEATURE_TO_PLUGIN_MAP.items():
+            if feature_key not in self._raw_features:
+                continue
+            if plugin_id in plugins:
+                continue
+            raw_cfg = self._raw_features[feature_key]
+            if not raw_cfg or not isinstance(raw_cfg, dict):
+                continue
+            merged_cfg = self._config.get("features", {}).get(feature_key, raw_cfg)
+            to_migrate.append((feature_key, plugin_id, merged_cfg))
+
+        if not to_migrate:
+            return
+
+        # Back up config before making changes
+        backup_path = self._config_path.with_suffix(
+            f".json.v1_backup"
+        )
+        if not backup_path.exists():
+            try:
+                import shutil
+                shutil.copy2(self._config_path, backup_path)
+                logger.info(f"Created pre-migration backup at {backup_path}")
+            except Exception as e:
+                logger.warning(f"Could not create backup: {e}")
+
+        with self._file_lock:
+            if "plugins" not in self._config:
+                self._config["plugins"] = {}
+
+            for feature_key, plugin_id, feature_cfg in to_migrate:
+                plugin_cfg = {
+                    k: self._deep_copy(v)
+                    for k, v in feature_cfg.items()
+                    if k not in MIGRATION_EXCLUDED_FIELDS
+                }
+                self._config["plugins"][plugin_id] = plugin_cfg
+                logger.info(
+                    f"Auto-migrated feature '{feature_key}' -> plugin '{plugin_id}'"
+                )
+
+            self._save_internal()
+
+        logger.info(
+            f"Auto-migration complete: {len(to_migrate)} feature(s) migrated to plugins"
+        )
 
     def _save_internal(self) -> None:
         """Internal save without acquiring lock (called from locked context)."""

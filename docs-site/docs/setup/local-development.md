@@ -16,11 +16,11 @@ The recommended way to develop FiestaBoard:
 # Build and run development environment
 docker-compose -f docker-compose.dev.yml up --build
 
-# Access Web UI at http://localhost:3000
-# Access API at http://localhost:8000
+# Access Web UI and API at http://localhost:4420 (single container, same as production)
+# API base path: http://localhost:4420/api/
 ```
 
-The development environment includes **hot reload** for both Python and Next.js code.
+The development environment uses the **same single-container layout** as production (API + UI + nginx on port 4420), with mounted source volumes for Python API hot-reload. Web UI changes require a container rebuild (`--build`).
 
 ## Project Structure
 
@@ -40,32 +40,30 @@ FiestaBoard/
 │   └── src/                    # React components and pages
 ├── docs-site/                  # Docusaurus documentation
 ├── tests/                      # Platform test suite
-├── Dockerfile.api              # API service Dockerfile
-├── Dockerfile.ui               # Web UI Dockerfile
-├── docker-compose.yml          # Production compose
-└── docker-compose.dev.yml      # Development compose
+├── Dockerfile                  # Unified Dockerfile (API + Web UI + nginx in one image)
+├── docker-compose.yml          # Production compose (single container, port 4420)
+└── docker-compose.dev.yml      # Development compose (single container with hot-reload + optional test/Storybook services)
 ```
 
 ## Running Tests
 
-```bash
-# Run web UI tests
-npm run test:web
+Tests run inside the Docker container during local development:
 
-# Run Python tests
-pytest tests/
+```bash
+# Run Python API tests
+docker-compose -f docker-compose.dev.yml exec fiestaboard pytest
+
+# Run web UI tests (one-off container)
+docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
 ```
+
+In CI, tests run directly on the GitHub Actions host for speed (not in Docker).
 
 ## Code Style
 
 The project uses:
 - **ESLint** for JavaScript/TypeScript
 - **Pylint** for Python
-
-```bash
-# Lint web code
-npm run lint:web
-```
 
 ## Next Steps
 

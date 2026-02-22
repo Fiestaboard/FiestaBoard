@@ -119,3 +119,15 @@ export function useBoardSettings() {
   });
 }
 
+/**
+ * Derive the effective board color from board settings.
+ * Prefers the first board instance's board_color over the legacy board_type field.
+ */
+export function getEffectiveBoardColor(
+  boardSettings: { board_type?: "black" | "white" | null; boards?: Array<{ board_color?: "black" | "white" }> } | undefined
+): "black" | "white" {
+  const firstBoard = boardSettings?.boards?.[0];
+  if (firstBoard?.board_color) return firstBoard.board_color;
+  return boardSettings?.board_type ?? "black";
+}
+

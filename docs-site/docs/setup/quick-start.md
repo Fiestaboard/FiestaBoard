@@ -14,11 +14,18 @@ Get FiestaBoard running in minutes with Docker Compose.
 - **Your board's API key** (Local API or Cloud Read/Write key)
 - **Docker** and **Docker Compose** installed on your system
 
-That's it. The install wizard handles the rest. Plugins that need external API keys (weather, traffic, etc.) can be configured later through the web UI.
+:::tip Don't have Docker yet?
+Docker Desktop is free and takes just a few minutes to install:
+- [Mac](https://docs.docker.com/desktop/setup/install/mac-install/) (Intel or Apple Silicon)
+- [Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
+- [Linux](https://docs.docker.com/desktop/setup/install/linux/) (Ubuntu, Debian, Fedora, Arch, etc.)
+:::
+
+That's it -- just your board API key and Docker. The install wizard handles the rest. Plugins that need external API keys (weather, traffic, etc.) can be configured later through the web UI.
 
 ## Installation (Recommended)
 
-Run the setup wizard. It will collect your board API key, create the configuration, and start the server:
+Run the setup wizard - it will collect your board API key, device type, and configuration, then start the server:
 
 ```bash
 # Mac/Linux
@@ -28,7 +35,12 @@ Run the setup wizard. It will collect your board API key, create the configurati
 .\scripts\install.ps1
 ```
 
-The script guides you through everything. When it finishes, FiestaBoard is running.
+The wizard will ask for:
+1. **Board API key** (Local API key or Cloud Read/Write key)
+2. **Device type** — Flagship (22×6) or Note (15×3)
+3. **Board color** — Black or White
+
+When it finishes, FiestaBoard is running.
 
 ## Access Your Dashboard
 
@@ -36,13 +48,13 @@ Once running, access FiestaBoard at:
 
 | Service | URL |
 |---------|-----|
-| **Web UI** | http://localhost:8080 |
-| **API** | http://localhost:8000 |
-| **API Docs** | http://localhost:8000/docs |
+| **Web UI** | http://localhost:4420 |
+| **API** | http://localhost:4420 |
+| **API Docs** | http://localhost:4420/docs |
 
 ## Start the Display Service
 
-1. Open http://localhost:8080 in your browser
+1. Open http://localhost:4420 in your browser
 2. Click the **"▶ Start Service"** button
 3. Your board will start updating!
 
@@ -80,41 +92,25 @@ git clone https://github.com/Fiestaboard/FiestaBoard.git
 cd FiestaBoard
 ```
 
-2. **Create your environment file**
+2. **Create your environment file** (no editing needed -- defaults work out of the box)
 
 ```bash
 cp env.example .env
 ```
 
-3. **Edit `.env` with your board API key**
-
-For Local API (recommended):
-```bash
-BOARD_API_MODE=local
-BOARD_LOCAL_API_KEY=your_local_api_key_here
-BOARD_HOST=192.168.0.11
-TIMEZONE=America/Los_Angeles
-```
-
-For Cloud API:
-```bash
-BOARD_API_MODE=cloud
-BOARD_READ_WRITE_KEY=your_board_key_here
-TIMEZONE=America/Los_Angeles
-```
-
-4. **Start FiestaBoard**
+3. **Start FiestaBoard**
 
 ```bash
 docker-compose up -d --build
 ```
 
-5. **Configure plugins in the web UI** - go to the Integrations page at http://localhost:8080 to enable plugins and enter API keys.
+4. **Open the web UI** at http://localhost:4420 -- connect your board and configure plugins from the Integrations page. No `.env` editing required.
 
-See `env.example` for all available environment variables (useful for development).
+See the [Environment Variables Reference](/docs/reference/environment-variables) for all available options.
 
 ## Next Steps
 
 - [Configure Plugins](/docs/plugins/overview) - Enable and configure data sources via the Integrations page
 - [Local Development](/docs/setup/local-development) - Set up a development environment for contributing
 - [Create Custom Plugins](/docs/development/plugin-guide) - Build your own plugins
+- [V2 Migration Guide](/docs/setup/v2-migration) - Upgrading from a V1 installation

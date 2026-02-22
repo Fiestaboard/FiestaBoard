@@ -44,9 +44,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { api, PageCreate, PageUpdate, PageType } from "@/lib/api";
-import { useBoardSettings } from "@/hooks/use-board";
+import { api, PageCreate, PageUpdate, PageType, DeviceType } from "@/lib/api";
+import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
+import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
 
 // Alignment type for template lines
 type LineAlignment = "left" | "center" | "right";
@@ -117,6 +118,7 @@ function applyAlignment(alignment: LineAlignment, wrapEnabled: boolean, content:
 
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
+  deviceType?: DeviceType; // Device type for new pages
   onClose: () => void;
   onSave?: () => void;
 }
@@ -134,17 +136,32 @@ interface DraftData {
   timestamp: number;
 }
 
-export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
+export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", onClose, onSave }: PageBuilderProps) {
   const queryClient = useQueryClient();
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
+  // Device type: from prop (new pages) or from existing page (editing)
+  const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
+  const dims = DEVICE_DIMENSIONS[deviceType] || DEVICE_DIMENSIONS.flagship;
+  const numLines = dims.rows;
+
+  // Preview board color - defaults to the user's configured board color
+  const defaultBoardColor = getEffectiveBoardColor(boardSettings);
+  const [previewBoardColor, setPreviewBoardColor] = useState<"black" | "white" | null>(null);
+  const effectiveBoardColor = previewBoardColor ?? defaultBoardColor;
+
+  // Helper to create arrays of the correct length
+  const emptyLines = () => Array.from({ length: numLines }, () => "");
+  const defaultAlignments = () => Array.from({ length: numLines }, () => "left" as LineAlignment);
+  const defaultWraps = () => Array.from({ length: numLines }, () => false);
+
   // Form state (immediate - for UI responsiveness)
   const [name, setName] = useState("");
-  const [templateLines, setTemplateLines] = useState<string[]>(["", "", "", "", "", ""]);
-  const [lineAlignments, setLineAlignments] = useState<LineAlignment[]>(["left", "left", "left", "left", "left", "left"]);
-  const [lineWrapEnabled, setLineWrapEnabled] = useState<boolean[]>([false, false, false, false, false, false]);
+  const [templateLines, setTemplateLines] = useState<string[]>(emptyLines());
+  const [lineAlignments, setLineAlignments] = useState<LineAlignment[]>(defaultAlignments());
+  const [lineWrapEnabled, setLineWrapEnabled] = useState<boolean[]>(defaultWraps());
   const [preview, setPreview] = useState<string | null>(null);
   const [lastPreview, setLastPreview] = useState<string | null>(null); // Track last preview for smooth transitions
   const [isTransitioning, setIsTransitioning] = useState(false); // Track if we're transitioning between previews
@@ -153,9 +170,9 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
   const [editorMode, setEditorMode] = useState<"rich" | "plain">("rich");
 
   // Debounced state (for expensive operations)
-  const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(["", "", "", "", "", ""]);
-  const [debouncedLineAlignments, setDebouncedLineAlignments] = useState<LineAlignment[]>(["left", "left", "left", "left", "left", "left"]);
-  const [debouncedLineWrapEnabled, setDebouncedLineWrapEnabled] = useState<boolean[]>([false, false, false, false, false, false]);
+  const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
+  const [debouncedLineAlignments, setDebouncedLineAlignments] = useState<LineAlignment[]>(defaultAlignments());
+  const [debouncedLineWrapEnabled, setDebouncedLineWrapEnabled] = useState<boolean[]>(defaultWraps());
 
   // Track if we need to re-preview after current mutation completes
   const needsRePreview = useRef(false);
@@ -182,15 +199,22 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);
       
+      // Set device type from existing page
+      if (existingPage.device_type) {
+        setDeviceType(existingPage.device_type);
+      }
+      
       const pageName = existingPage.name;
       setName(pageName);
       
-      const rawLines = existingPage.template || ["", "", "", "", "", ""];
+      const existingDims = DEVICE_DIMENSIONS[existingPage.device_type || "flagship"] || DEVICE_DIMENSIONS.flagship;
+      const existingNumLines = existingDims.rows;
+      const rawLines = existingPage.template || emptyLines();
       // Extract alignments, wrap state, and clean content from stored lines
       const alignments: LineAlignment[] = [];
       const wrapStates: boolean[] = [];
       const contents: string[] = [];
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < existingNumLines; i++) {
         const { alignment, wrapEnabled, content } = extractAlignment(rawLines[i] || "");
         alignments.push(alignment);
         wrapStates.push(wrapEnabled);
@@ -324,6 +348,7 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
         const payload: PageCreate = {
           name,
           type: "template" as PageType,
+          device_type: deviceType,
           template: linesWithAlignments,
         };
         return api.createPage(payload);
@@ -719,7 +744,7 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
                 </TabsList>
                 
                 <TabsContent value="rich" className="mt-4">
-                  {/* Single 6-line template editor */}
+                  {/* Template editor with device-specific dimensions */}
                   <TipTapTemplateEditor
                     value={(() => {
                       // Always ensure clean content without alignment prefixes for rich editor
@@ -735,10 +760,10 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
                       }
                       
                       // Parse the plain text back into lines and strip any alignment prefixes
-                      const lines = newValue.split('\n').slice(0, 6);
+                      const lines = newValue.split('\n').slice(0, numLines);
                       const newLines: string[] = [];
                       
-                      for (let i = 0; i < 6; i++) {
+                      for (let i = 0; i < numLines; i++) {
                         // Strip any alignment prefixes that might have been typed
                         const { content } = extractAlignment(lines[i] || '');
                         newLines.push(content);
@@ -761,6 +786,8 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
                     placeholder="Type template syntax like {{weather.temp}} or {{red}} for color tiles"
                     showAlignmentControls={true}
                     showToolbar={true}
+                    boardWidth={dims.cols}
+                    boardLines={numLines}
                   />
                 </TabsContent>
                 
@@ -774,7 +801,7 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
                       const newAlignments: LineAlignment[] = [];
                       const newWrapStates: boolean[] = [];
                       
-                      for (let i = 0; i < 6; i++) {
+                      for (let i = 0; i < numLines; i++) {
                         const line = lines[i] || "";
                         const { alignment, wrapEnabled, content } = extractAlignment(line);
                         newAlignments.push(alignment);
@@ -793,7 +820,30 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
 
               {/* Live preview */}
               <div className="mt-4">
-                <label className="text-xs sm:text-sm font-medium mb-2 block">Preview</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs sm:text-sm font-medium">Preview</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground mr-0.5">Board color</span>
+                    <button
+                      onClick={() => setPreviewBoardColor("black")}
+                      aria-label="Preview as black board"
+                      className={`h-5 w-5 rounded-full border-2 bg-[#0d0d0d] transition-colors ${
+                        effectiveBoardColor === "black"
+                          ? "border-primary ring-1 ring-primary/30"
+                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                      }`}
+                    />
+                    <button
+                      onClick={() => setPreviewBoardColor("white")}
+                      aria-label="Preview as white board"
+                      className={`h-5 w-5 rounded-full border-2 bg-[#fafafa] transition-colors ${
+                        effectiveBoardColor === "white"
+                          ? "border-primary ring-1 ring-primary/30"
+                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                      }`}
+                    />
+                  </div>
+                </div>
                 <div className="flex justify-center">
                   <BoardDisplay 
                     message={(() => {
@@ -887,7 +937,8 @@ export function PageBuilder({ pageId, onClose, onSave }: PageBuilderProps) {
                       return result;
                     })()}
                     size="md"
-                    boardType={boardSettings?.board_type ?? "black"}
+                    boardType={effectiveBoardColor}
+                    deviceType={deviceType}
                   />
                 </div>
               </div>

@@ -2,7 +2,7 @@
 
 ## Quick Start - Running FiestaBoard on a Raspberry Pi
 
-The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Docker images from the GitHub Container Registry. No need to clone the repo or build anything.
+The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Docker image from the GitHub Container Registry. No need to clone the repo or build anything.
 
 ### Prerequisites
 
@@ -22,40 +22,26 @@ The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Do
 # Create a project folder
 mkdir ~/FiestaBoard && cd ~/FiestaBoard
 
-# Pull the pre-built images from GHCR (docker compose up also does this automatically)
-docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
-docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
+# Pull the pre-built image from GHCR (docker compose up also does this automatically)
+docker pull ghcr.io/fiestaboard/fiestaboard:latest
 ```
 
 Next, create a `docker-compose.yml` file in `~/FiestaBoard/`:
 
 ```yaml
-version: '3.8'
 services:
-  fiestaboard-api:
-    image: ghcr.io/fiestaboard/fiestaboard-api:latest
-    container_name: fiestaboard-api
+  fiestaboard:
+    image: ghcr.io/fiestaboard/fiestaboard:latest
+    container_name: fiestaboard
     env_file: .env
     environment:
       - PRODUCTION=true
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "6969:8000"
+      - "4420:3000"
     volumes:
       - ./data:/app/data
-
-  fiestaboard-ui:
-    image: ghcr.io/fiestaboard/fiestaboard-ui:latest
-    container_name: fiestaboard-ui
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "4420:3000"
-    environment:
-      - FIESTA_API_URL=${FIESTA_API_URL:-}
-    depends_on:
-      - fiestaboard-api
 ```
 
 Then create a `.env` file with your board API key:
@@ -144,16 +130,15 @@ After merging a PR with the `pi` label:
 
 ```bash
 # On your Raspberry Pi
-docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
-docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
-docker compose -f docker-compose.ghcr.yml up -d
+docker pull ghcr.io/fiestaboard/fiestaboard:latest
+docker-compose up -f docker-compose.ghcr.yml up -d
 ```
 
 ## Technical Details
 
 ### Build Tools Required
 
-The `Dockerfile.api` includes build tools for ARM:
+The `Dockerfile` includes build tools for ARM:
 - `gcc` - GNU C compiler
 - `g++` - GNU C++ compiler
 - `make` - Build automation
@@ -173,7 +158,7 @@ platforms: ${{ steps.bump_type.outputs.build_pi == 'true' && 'linux/amd64,linux/
 ## Troubleshooting
 
 ### Build Fails on ARM
-- Ensure `Dockerfile.api` has build tools installed
+- Ensure `Dockerfile` has build tools installed
 - Check that Python packages support ARM architecture
 - Review workflow logs for specific compilation errors
 

@@ -79,7 +79,7 @@ REFRESH_INTERVAL_SECONDS=30
 
 1. Verify `BOARD_API_MODE=cloud` is set in `.env`
 2. Check that your API key is valid
-3. Check the logs: `docker-compose logs -f api`
+3. Check the logs: `docker-compose logs -f fiestaboard`
 
 ## Next Steps
 

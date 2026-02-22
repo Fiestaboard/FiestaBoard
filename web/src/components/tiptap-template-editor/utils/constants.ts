@@ -3,6 +3,20 @@
  * Maps template syntax to FiestaBoard hardware constraints
  */
 
+// Device types
+export type DeviceType = "flagship" | "note";
+
+export interface DeviceDimensions {
+  rows: number;
+  cols: number;
+}
+
+// Board dimensions per device type
+export const DEVICE_DIMENSIONS: Record<DeviceType, DeviceDimensions> = {
+  flagship: { rows: 6, cols: 22 },
+  note: { rows: 3, cols: 15 },
+};
+
 // FiestaBoard color codes (63-70)
 export const BOARD_COLORS = {
   red: 63,
@@ -36,7 +50,7 @@ export const SYMBOL_CHARS: Record<string, string> = {
 
 export type SymbolName = keyof typeof SYMBOL_CHARS;
 
-// Board dimensions
+// Board dimensions (default flagship)
 export const BOARD_WIDTH = 22; // characters per line
 export const BOARD_LINES = 6; // total lines
 

@@ -1,58 +1,44 @@
 services:
-  # API Service (same as production)
-  fiestaboard-api:
+  # FiestaBoard - Single container (API + UI), same as production layout
+  fiestaboard:
     build:
       context: .
-      dockerfile: Dockerfile.api
-    container_name: fiestaboard-api-dev
+      dockerfile: Dockerfile
+    container_name: fiestaboard-dev
     env_file:
       - .env
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "4420:3000"
     environment:
       - PRODUCTION=false
-      # Don't set FIESTA_API_URL - let frontend determine dynamically based on request hostname
     volumes:
-      # Persist data (including config and logs) to local filesystem
       - ./data:/app/data
-      # Mount source code for development (hot reload)
       - ./src:/app/src
+      - ./plugins:/app/plugins
       - ./tests:/app/tests
       - ./scripts:/app/scripts
-      # Mount plugins directory
-      - ./plugins:/app/plugins
+      - ./start-dev.sh:/app/start-dev.sh:ro
+      - ./supervisord-dev.conf:/app/supervisord-dev.conf:ro
+    command: ["/bin/sh", "/app/start-dev.sh"]
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  # Web UI - Development mode with HMR and HTTP/2
-  fiestaboard-ui-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.ui-dev
-    image: fiestaboard-ui-dev:latest
-    container_name: fiestaboard-ui-dev
+  # Web - Used only for running npm test: docker-compose run --rm web npm test
+  web:
+    image: node:20-alpine
+    container_name: fiestaboard-web-test
     working_dir: /app
     volumes:
       - ./web:/app
-      - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro
-      - ./start-dev-ui.sh:/start-dev-ui.sh:ro
-      - fiestaboard-ui-node-modules:/app/node_modules  # Named volume to persist node_modules
-    ports:
-      - "3000:3000"
+      - fiestaboard-web-node-modules:/app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - WATCHPACK_POLLING=true  # Enable polling for file changes in Docker
-    command: sh /start-dev-ui.sh
-    depends_on:
-      - fiestaboard-api
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      - CI=true
+    profiles:
+      - test
 
   # Mock Vestaboard API - for integration/E2E testing only
   fiestaboard-mock-board:
@@ -80,7 +66,7 @@ services:
     ports:
       - "6006:6006"
     environment:
-      - WATCHPACK_POLLING=true  # Enable polling for file changes in Docker
+      - WATCHPACK_POLLING=true
     command: sh -c "rm -f package-lock.json && npm install --force && npm run storybook -- --host 0.0.0.0"
     logging:
       driver: "json-file"
@@ -89,5 +75,5 @@ services:
         max-file: "3"
 
 volumes:
-  fiestaboard-ui-node-modules:
+  fiestaboard-web-node-modules:
   fiestaboard-storybook-node-modules:

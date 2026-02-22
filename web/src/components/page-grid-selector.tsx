@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useMemo, useState, memo } from "react";
-import { usePages, useBoardSettings } from "@/hooks/use-board";
+import { usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LayoutTemplate, Loader2 } from "lucide-react";
 import { BoardDisplay } from "@/components/board-display";
@@ -77,11 +77,13 @@ function isCacheValid(cached: CachedPreviewData | undefined, pageUpdatedAt: stri
 const PageButtonPreview = memo(function PageButtonPreview({ 
   preview,
   isLoading,
-  boardType = "black" 
+  boardType = "black",
+  deviceType = "flagship"
 }: { 
   preview: PagePreviewResponse | null;
   isLoading: boolean;
   boardType?: "black" | "white" | null;
+  deviceType?: "flagship" | "note";
 }) {
   // Show simple spinner when loading instead of BoardDisplay loading animation
   // This prevents lag when all displays try to load at once
@@ -106,14 +108,16 @@ const PageButtonPreview = memo(function PageButtonPreview({
         isLoading={false}
         size="sm"
         boardType={boardType ?? "black"}
+        deviceType={deviceType}
       />
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if preview or loading state changes
+  // Custom comparison: only re-render if preview, loading state, or deviceType changes
   return prevProps.preview === nextProps.preview && 
          prevProps.isLoading === nextProps.isLoading &&
-         prevProps.boardType === nextProps.boardType;
+         prevProps.boardType === nextProps.boardType &&
+         prevProps.deviceType === nextProps.deviceType;
 });
 
 // Memoized page button component to prevent unnecessary re-renders
@@ -182,7 +186,8 @@ const PageButton = memo(function PageButton({
         <PageButtonPreview 
           preview={preview} 
           isLoading={isLoadingPreview}
-          boardType={boardType} 
+          boardType={boardType}
+          deviceType={(page.device_type as "flagship" | "note") || "flagship"}
         />
       </div>
       
@@ -215,6 +220,8 @@ export interface PageGridSelectorProps {
   showActiveIndicator?: boolean;
   /** Label text above the grid */
   label?: string;
+  /** Filter pages by device type */
+  deviceTypeFilter?: "flagship" | "note";
 }
 
 export function PageGridSelector({
@@ -223,6 +230,7 @@ export function PageGridSelector({
   isPending = false,
   showActiveIndicator = true,
   label = "SELECT PAGE",
+  deviceTypeFilter,
 }: PageGridSelectorProps) {
   // Fetch all pages
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
@@ -230,8 +238,12 @@ export function PageGridSelector({
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
   
-  // Memoize pages array to prevent unnecessary re-renders
-  const pages = useMemo(() => pagesData?.pages || [], [pagesData]);
+  // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
+  const pages = useMemo(() => {
+    const allPages = pagesData?.pages || [];
+    if (!deviceTypeFilter) return allPages;
+    return allPages.filter(p => (p.device_type || "flagship") === deviceTypeFilter);
+  }, [pagesData, deviceTypeFilter]);
   
   // State for batch preview data
   const [previews, setPreviews] = useState<Record<string, PagePreviewResponse>>({});
@@ -341,7 +353,7 @@ export function PageGridSelector({
       <div className="text-center text-sm text-muted-foreground py-4">
         <p>No pages created yet.</p>
         <p className="mt-1">
-          <a href="/pages/new" className="text-primary hover:underline">
+          <a href={`/pages/new${deviceTypeFilter ? `?device=${deviceTypeFilter}` : ''}`} className="text-primary hover:underline">
             Create your first page
           </a>
         </p>
@@ -367,7 +379,7 @@ export function PageGridSelector({
             isPending={isPending}
             onSelect={onSelectPage}
             showActiveIndicator={showActiveIndicator}
-            boardType={boardSettings?.board_type ?? "black"}
+            boardType={getEffectiveBoardColor(boardSettings)}
           />
         ))}
       </div>
