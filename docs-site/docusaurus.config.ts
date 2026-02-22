@@ -136,6 +136,11 @@ const config: Config = {
           label: 'Documentation',
         },
         {
+          href: 'https://discord.gg/wc9dDfte',
+          label: 'Discord',
+          position: 'right',
+        },
+        {
           href: 'https://github.com/Fiestaboard/FiestaBoard',
           label: 'GitHub',
           position: 'right',
@@ -186,6 +191,10 @@ const config: Config = {
         {
           title: 'Community',
           items: [
+            {
+              label: 'Discord',
+              href: 'https://discord.gg/wc9dDfte',
+            },
             {
               label: 'GitHub',
               href: 'https://github.com/Fiestaboard/FiestaBoard',
