@@ -10,7 +10,7 @@ FiestaBoard's WYSIWYG page editor lets you create and edit board display pages w
 
 ## Overview
 
-The page editor is the core of FiestaBoard's content creation experience. It provides a real-time preview of your board layout, template variable insertion, and color formatting—all in a visual interface.
+The page editor is the core of FiestaBoard's content creation experience. It provides a real-time preview of your board layout, template variable insertion, and color formatting, all in a visual interface.
 
 ![Page Editor](/img/page-editor-wysiwyg.png)
 
@@ -60,11 +60,11 @@ Template variables let you insert live data from your enabled plugins into any p
 
 Here are some commonly used template variables:
 
-- `{weather.temperature}` — Current temperature
-- `{weather.conditions}` — Weather conditions (Sunny, Cloudy, etc.)
-- `{stocks.prices}` — Stock price display
-- `{date_time.current}` — Current date and time
-- `{muni.arrivals}` — Transit arrival times
+- `{weather.temperature}` - Current temperature
+- `{weather.conditions}` - Weather conditions (Sunny, Cloudy, etc.)
+- `{stocks.prices}` - Stock price display
+- `{date_time.current}` - Current date and time
+- `{muni.arrivals}` - Transit arrival times
 
 ## Working with Colors
 
@@ -94,11 +94,11 @@ The editor reflects the target device's layout so you can see exactly how your c
 
 ### Tips for Good Layouts
 
-- **Keep text concise** — You have limited characters per row (22 for Flagship, 15 for Note)
-- **Use alignment** — Center important information for readability
-- **Mix data sources** — Combine multiple plugin variables on one page
-- **Test with preview** — Use the live preview to check formatting before saving
-- **Design per device** — Create separate pages optimized for each device's dimensions
+- **Keep text concise** - You have limited characters per row (22 for Flagship, 15 for Note)
+- **Use alignment** - Center important information for readability
+- **Mix data sources** - Combine multiple plugin variables on one page
+- **Test with preview** - Use the live preview to check formatting before saving
+- **Design per device** - Create separate pages optimized for each device's dimensions
 
 ## Managing Pages
 
@@ -121,6 +121,6 @@ Pages that are referenced in schedules should be updated or removed from the sch
 
 ## Next Steps
 
-- [Schedule Mode](/docs/features/schedule) — Automate when pages are displayed
-- [Plugins Overview](/docs/plugins/overview) — See available data sources for your pages
-- [Color Guide](/docs/reference/color-guide) — Learn about color formatting options
+- [Schedule Mode](/docs/features/schedule) - Automate when pages are displayed
+- [Plugins Overview](/docs/plugins/overview) - See available data sources for your pages
+- [Color Guide](/docs/reference/color-guide) - Learn about color formatting options

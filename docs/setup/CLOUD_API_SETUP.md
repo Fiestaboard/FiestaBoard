@@ -11,11 +11,11 @@ Use Cloud API when:
 - Local API transitions aren't needed
 
 **Trade-offs:**
-- ✅ Works from anywhere with internet
-- ✅ Simple setup (just one API key)
-- ❌ No transition animations
-- ❌ Slightly slower than Local API
-- ❌ Rate limited (1 message per 15 seconds)
+- Works from anywhere with internet
+- Simple setup (just one API key)
+- No transition animations
+- Slightly slower than Local API
+- Rate limited (1 message per 15 seconds)
 
 ## Setup Steps
 
@@ -111,9 +111,9 @@ The Cloud API limits you to 1 message per 15 seconds. If you see rate limit erro
 
 ## Features Not Available in Cloud Mode
 
-- ❌ **Transition animations** (column, reverse-column, edges-to-center, etc.)
-- ❌ **Custom animation speeds**
-- ❌ **Reading current board state** at initialization
+- **Transition animations** (column, reverse-column, edges-to-center, etc.)
+- **Custom animation speeds**
+- **Reading current board state** at initialization
 
 All other features work identically in both modes!
 

@@ -50,19 +50,19 @@ sudo apt-get install docker-compose-plugin
 
 Your board API key is what lets FiestaBoard send content to your display.
 
-### Local API (Recommended — faster, supports animations)
+### Local API (Recommended, faster, supports animations)
 
 1. Open the board's mobile app
 2. Go to **Settings** → **Local API**
 3. Copy the API key and note your board's IP address
 
-### Cloud API (Alternative — works from anywhere)
+### Cloud API (Alternative, works from anywhere)
 
 1. Go to [web.vestaboard.com](https://web.vestaboard.com)
 2. Log in with your board account
 3. Navigate to the API section
 4. Enable the **Read/Write API**
-5. Copy the API key — you'll need it in Step 4
+5. Copy the API key, you'll need it in Step 4
 
 ## Step 3: Download FiestaBoard
 
@@ -85,7 +85,7 @@ cd FiestaBoard
 
 ## Step 4: Run the Install Wizard
 
-The install wizard handles everything — it collects your board API key, creates the configuration file, and starts the server.
+The install wizard handles everything. It collects your board API key, creates the configuration file, and starts the server.
 
 ```bash
 # Mac/Linux
@@ -116,17 +116,17 @@ Now that your server is running, add the data sources you care about:
 
 1. Go to the **Integrations** page in the web UI
 2. Enable the plugins you want
-3. For plugins that need API keys (weather, traffic, etc.), enter them directly in the Integrations page — it links to setup instructions for each one
+3. For plugins that need API keys (weather, traffic, etc.), enter them directly in the Integrations page. It links to setup instructions for each one
 
-> **Tip:** Many plugins work without any API key — Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more. Start with those!
+> **Tip:** Many plugins work without any API key: Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more. Start with those!
 
 ## What's Next?
 
 Now that FiestaBoard is running:
 
-- **Configure plugins** — Go to the [Integrations](/docs/plugins/overview) page to enable data sources
-- **Create pages** — Use the [Page Editor](/docs/features/page-editor) to design what appears on your board
-- **Set up schedules** — Use [Schedule Mode](/docs/features/schedule) to automate when different pages display
+- **Configure plugins** - Go to the [Integrations](/docs/plugins/overview) page to enable data sources
+- **Create pages** - Use the [Page Editor](/docs/features/page-editor) to design what appears on your board
+- **Set up schedules** - Use [Schedule Mode](/docs/features/schedule) to automate when different pages display
 
 ## Stopping FiestaBoard
 
@@ -167,6 +167,6 @@ Another application is using port 8080 or 8000. Stop the other application or ch
 
 ## Next Steps
 
-- [Quick Start](/docs/setup/quick-start) — More detailed setup instructions
-- [Docker Setup](/docs/setup/docker-setup) — Understanding the Docker architecture
-- [Plugins Overview](/docs/plugins/overview) — Configure your data sources
+- [Quick Start](/docs/setup/quick-start) - More detailed setup instructions
+- [Docker Setup](/docs/setup/docker-setup) - Understanding the Docker architecture
+- [Plugins Overview](/docs/plugins/overview) - Configure your data sources

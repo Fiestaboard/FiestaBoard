@@ -108,5 +108,5 @@ Combine multiple transit plugins on a single page:
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — See all available plugins
-- [API Keys](/docs/setup/api-keys) — Getting transit API keys
+- [Plugins Overview](/docs/plugins/overview) - See all available plugins
+- [API Keys](/docs/setup/api-keys) - Getting transit API keys

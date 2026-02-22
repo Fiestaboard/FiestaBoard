@@ -18,7 +18,7 @@ That's it. The install wizard handles the rest. Plugins that need external API k
 
 ## Installation (Recommended)
 
-Run the setup wizard — it will collect your board API key, device type, and configuration, then start the server:
+Run the setup wizard - it will collect your board API key, device type, and configuration, then start the server:
 
 ```bash
 # Mac/Linux
@@ -114,7 +114,7 @@ TIMEZONE=America/Los_Angeles
 docker-compose up -d --build
 ```
 
-5. **Configure plugins in the web UI** — go to the Integrations page at http://localhost:3000 to enable plugins and enter API keys.
+5. **Configure plugins in the web UI** - go to the Integrations page at http://localhost:3000 to enable plugins and enter API keys.
 
 See `env.example` for all available environment variables (useful for development).
 

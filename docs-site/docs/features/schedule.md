@@ -25,10 +25,10 @@ The schedule feature provides a visual calendar where you can assign pages to sp
 2. Navigate to the **Schedule** page
 3. Click to create a new schedule entry
 4. Configure the entry:
-   - **Page** — Select which page to display
-   - **Start Time** — When the page should start showing
-   - **End Time** — When the page should stop showing
-   - **Days** — Which days this schedule applies to
+   - **Page** - Select which page to display
+   - **Start Time** - When the page should start showing
+   - **End Time** - When the page should stop showing
+   - **Days** - Which days this schedule applies to
 
 ### Day Patterns
 
@@ -59,9 +59,9 @@ The list view shows all schedule entries in a table format, which is useful for 
 
 FiestaBoard automatically validates your schedule and provides real-time feedback:
 
-- **Overlap Detection** — Warns if two schedules overlap on the same day/time
-- **Gap Detection** — Shows unscheduled time periods
-- **Active Page Resolution** — The system checks every 60 seconds which page should be displayed based on the current time
+- **Overlap Detection** - Warns if two schedules overlap on the same day/time
+- **Gap Detection** - Shows unscheduled time periods
+- **Active Page Resolution** - The system checks every 60 seconds which page should be displayed based on the current time
 
 :::info
 When no schedule is active, FiestaBoard displays the default page. You can set the default page in Settings.
@@ -78,12 +78,12 @@ Every 60 seconds, the display service:
 
 ## Known Limitations
 
-- **No midnight spanning** — Schedules cannot cross midnight (e.g., 11 PM to 1 AM). As a workaround, create two separate entries: one from 11 PM to 11:59 PM and another from 12 AM to 1 AM. The system handles the transition automatically with no gap.
-- **Switching delay** — There may be up to a 60-second delay when switching between scheduled pages.
-- **Recommended limit** — For optimal performance, keep the total number of schedule entries under 50.
+- **No midnight spanning** - Schedules cannot cross midnight (e.g., 11 PM to 1 AM). As a workaround, create two separate entries: one from 11 PM to 11:59 PM and another from 12 AM to 1 AM. The system handles the transition automatically with no gap.
+- **Switching delay** - There may be up to a 60-second delay when switching between scheduled pages.
+- **Recommended limit** - For optimal performance, keep the total number of schedule entries under 50.
 
 ## Next Steps
 
-- [Page Editor](/docs/features/page-editor) — Create pages to use in your schedule
-- [Silence Schedule](/docs/features/silence-schedule) — Set quiet hours for your board
-- [Plugins Overview](/docs/plugins/overview) — Add data sources to your pages
+- [Page Editor](/docs/features/page-editor) - Create pages to use in your schedule
+- [Silence Schedule](/docs/features/silence-schedule) - Set quiet hours for your board
+- [Plugins Overview](/docs/plugins/overview) - Add data sources to your pages

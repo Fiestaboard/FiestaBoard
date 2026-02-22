@@ -20,7 +20,7 @@ http://localhost:3000
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Health check — returns service health status |
+| `GET` | `/health` | Health check, returns service health status |
 | `GET` | `/status` | Service status, uptime, and current configuration |
 | `GET` | `/config` | Current configuration settings |
 
@@ -172,5 +172,5 @@ This provides a Swagger UI where you can try out any endpoint directly in your b
 
 ## Next Steps
 
-- [Docker Setup](/docs/setup/docker-setup) — Understanding the API architecture
-- [Plugin Configuration](/docs/plugins/configuration) — Configuring plugins via API
+- [Docker Setup](/docs/setup/docker-setup) - Understanding the API architecture
+- [Plugin Configuration](/docs/plugins/configuration) - Configuring plugins via API

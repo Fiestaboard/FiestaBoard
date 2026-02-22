@@ -14,7 +14,7 @@ The Traffic feature uses Google's Routes API (v2) to get real-time travel times.
 
 ### Step 2: Set Up Billing
 
-⚠️ **Important**: The Routes API requires a billing account, even though it has a free tier.
+**Important**: The Routes API requires a billing account, even though it has a free tier.
 
 1. Go to **Billing** in the Google Cloud Console
 2. Link a billing account to your project
@@ -67,7 +67,7 @@ GOOGLE_ROUTES_API_KEY=your_api_key_here
    - **Travel Mode**: Choose Drive, Bicycle, Transit, or Walk
 4. Click "Validate Route"
 
-If it works, you'll see: ✅ "Route is valid! Estimated travel time: ~X minutes"
+If it works, you'll see: "Route is valid! Estimated travel time: ~X minutes"
 
 ## Troubleshooting
 
@@ -116,14 +116,14 @@ If addresses aren't working, you can use latitude,longitude coordinates:
 
 ## Address Format Tips
 
-### ✅ Good Address Formats
+### Good Address Formats
 
 - `123 Main St, New York, NY 10001`
 - `456 Park Ave, New York, NY 10022`
 - `San Francisco International Airport, CA`
 - `40.7128,-74.0060` (coordinates)
 
-### ❌ Bad Address Formats
+### Bad Address Formats
 
 - `Main Street` (too vague)
 - `Downtown` (ambiguous)
@@ -134,10 +134,10 @@ If addresses aren't working, you can use latitude,longitude coordinates:
 
 The Routes API supports different travel modes:
 
-- **🚗 Drive**: Car/driving directions with live traffic
-- **🚴 Bicycle**: Bike routes (bike lanes, paths)
-- **🚇 Transit**: Public transportation (bus, train, subway)
-- **👣 Walk**: Walking directions
+- **Drive**: Car/driving directions with live traffic
+- **Bicycle**: Bike routes (bike lanes, paths)
+- **Transit**: Public transportation (bus, train, subway)
+- **Walk**: Walking directions
 
 Each mode returns different routes optimized for that transportation type.
 
@@ -191,5 +191,5 @@ BIKE: {traffic.routes.1.duration_minutes}m
 MUNI: {traffic.routes.2.duration_minutes}m
 ```
 
-This lets you compare all three options at a glance! 🚗🚴🚇
+This lets you compare all three options at a glance!
 

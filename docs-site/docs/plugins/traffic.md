@@ -28,7 +28,7 @@ The Routes API requires billing to be enabled:
 
 1. Go to **Billing** in Google Cloud Console
 2. Link a billing account to your project
-3. Google provides a **$200/month free credit** — typical FiestaBoard usage costs well under this
+3. Google provides a **$200/month free credit**. Typical FiestaBoard usage costs well under this
 
 ### 3. Create an API Key
 
@@ -54,10 +54,10 @@ Or configure via the Web UI:
 
 In the Web UI Integrations page, configure your routes:
 
-- **Route Name** — A label for the route (e.g., "To Work")
-- **Origin** — Starting address
-- **Destination** — Ending address
-- **Travel Mode** — Drive, Bicycle, Transit, or Walk
+- **Route Name** - A label for the route (e.g., "To Work")
+- **Origin** - Starting address
+- **Destination** - Ending address
+- **Travel Mode** - Drive, Bicycle, Transit, or Walk
 
 ## Travel Modes
 
@@ -95,14 +95,14 @@ Using coordinates is faster and avoids geocoding errors. You can find coordinate
 | Per route request | ~$0.005 |
 | Typical monthly cost | Well under free credit |
 
-With 4 routes updating every 5 minutes, you'd make about 35,000 requests/month — well within the free credit.
+With 4 routes updating every 5 minutes, you'd make about 35,000 requests/month, well within the free credit.
 
 ## Troubleshooting
 
 ### 403 Forbidden
 
-- The Routes API is not enabled — go to Google Cloud Console and enable it
-- Billing is not set up — link a billing account
+- The Routes API is not enabled - go to Google Cloud Console and enable it
+- Billing is not set up - link a billing account
 
 ### 400 Bad Request
 
@@ -117,5 +117,5 @@ If you see rate limit errors:
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — See all available plugins
-- [API Keys](/docs/setup/api-keys) — Getting all required API keys
+- [Plugins Overview](/docs/plugins/overview) - See all available plugins
+- [API Keys](/docs/setup/api-keys) - Getting all required API keys

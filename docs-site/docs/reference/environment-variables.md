@@ -6,12 +6,12 @@ keywords: [FiestaBoard environment variables, .env config, configuration referen
 
 # Environment Variables
 
-This is a **reference page** for developers and advanced users. Most users don't need to edit `.env` at all — the [install wizard](/docs/setup/quick-start) creates it during setup, and **all plugin configuration (API keys, settings, etc.) is done through the web UI's Integrations page**.
+This is a **reference page** for developers and advanced users. Most users don't need to edit `.env` at all. The [install wizard](/docs/setup/quick-start) creates it during setup, and **all plugin configuration (API keys, settings, etc.) is done through the web UI's Integrations page**.
 
 This reference is useful for:
-- **Development** — setting up a local dev environment
-- **Advanced configuration** — tuning settings the web UI doesn't expose
-- **Troubleshooting** — understanding what each variable controls
+- **Development** - setting up a local dev environment
+- **Advanced configuration** - tuning settings the web UI doesn't expose
+- **Troubleshooting** - understanding what each variable controls
 
 :::tip
 **Plugin API keys should be entered through the web UI**, not `.env`. The Integrations page provides setup instructions and validates your keys. Environment variables listed below for plugins are supported for backward compatibility but the web UI is the recommended way to configure them.
@@ -34,10 +34,10 @@ These must be set for FiestaBoard to connect to your board:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BOARD_API_MODE` | API mode (`local` or `cloud`) | `local` |
-| `BOARD_LOCAL_API_KEY` | Local API key | — |
-| `BOARD_HOST` | Board IP or hostname (local mode) | — |
-| `BOARD_READ_WRITE_KEY` | Cloud Read/Write API key | — |
-| `BOARD_TRANSITION_STRATEGY` | Transition animation style (local mode only) | — |
+| `BOARD_LOCAL_API_KEY` | Local API key | - |
+| `BOARD_HOST` | Board IP or hostname (local mode) | - |
+| `BOARD_READ_WRITE_KEY` | Cloud Read/Write API key | - |
+| `BOARD_TRANSITION_STRATEGY` | Transition animation style (local mode only) | - |
 | `BOARD_TRANSITION_INTERVAL_MS` | Delay between animation steps | `0` |
 | `BOARD_TRANSITION_STEP_SIZE` | Columns/rows per animation step | `0` |
 
@@ -49,17 +49,17 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `WEATHER_API_KEY` | API key | — |
+| `WEATHER_API_KEY` | API key | - |
 | `WEATHER_PROVIDER` | Provider (`weatherapi` / `openweathermap`) | `weatherapi` |
-| `WEATHER_LOCATION` | Location string | — |
+| `WEATHER_LOCATION` | Location string | - |
 
 ## Location & Timezone
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `TIMEZONE` | TZ database timezone name | `America/Los_Angeles` |
-| `LATITUDE` | Latitude for location-based plugins | — |
-| `LONGITUDE` | Longitude for location-based plugins | — |
+| `LATITUDE` | Latitude for location-based plugins | - |
+| `LONGITUDE` | Longitude for location-based plugins | - |
 
 ## Plugin API Keys
 
@@ -81,15 +81,15 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GUEST_WIFI_SSID` | WiFi network name | — |
-| `GUEST_WIFI_PASSWORD` | WiFi password | — |
+| `GUEST_WIFI_SSID` | WiFi network name | - |
+| `GUEST_WIFI_PASSWORD` | WiFi password | - |
 
 ## Silence Schedule
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SILENCE_START_TIME` | Quiet hours start (HH:MM) | — |
-| `SILENCE_END_TIME` | Quiet hours end (HH:MM) | — |
+| `SILENCE_START_TIME` | Quiet hours start (HH:MM) | - |
+| `SILENCE_END_TIME` | Quiet hours end (HH:MM) | - |
 
 ## System Configuration
 
@@ -128,6 +128,6 @@ SILENCE_END_TIME=07:00
 
 ## Next Steps
 
-- [Quick Start](/docs/setup/quick-start) — Getting started with FiestaBoard
-- [Docker Setup](/docs/setup/docker-setup) — Docker configuration
-- [API Keys](/docs/setup/api-keys) — Getting API keys for plugins
+- [Quick Start](/docs/setup/quick-start) - Getting started with FiestaBoard
+- [Docker Setup](/docs/setup/docker-setup) - Docker configuration
+- [API Keys](/docs/setup/api-keys) - Getting API keys for plugins

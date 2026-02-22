@@ -1,12 +1,18 @@
 # FiestaBoard <img src="fiesta-icon.png" alt="FiestaBoard" width="32" height="32" style="vertical-align: middle;">
 
-**FiestaBoard is an open-source server that lets you control what appears on your split-flap display.** If you already own a split-flap display (like a Vestaboard), FiestaBoard gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you — weather, stocks, transit, sports, surf conditions, and more — and display it on your board.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml)
+[![Docker](https://img.shields.io/badge/docker-fiestaboard-blue?logo=docker)](https://ghcr.io/fiestaboard/fiestaboard)
+[![Documentation](https://img.shields.io/badge/docs-fiestaboard.app-orange)](https://fiestaboard.app)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white)](https://discord.gg/wc9dDfte)
+
+**FiestaBoard is an open-source server that lets you control what appears on your split-flap display.** If you already own a split-flap display (like a Vestaboard), FiestaBoard gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board.
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**📖 [Documentation](https://fiestaboard.github.io)**
+**[Documentation](https://fiestaboard.app)**
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -18,7 +24,7 @@ That's it. The installation wizard walks you through the rest. Plugins that pull
 
 ### Installation
 
-Run the setup wizard — it will collect your board API key, create the config, and start the server:
+Run the setup wizard - it will collect your board API key, create the config, and start the server:
 
 ```bash
 # Mac/Linux
@@ -59,6 +65,11 @@ docker-compose up
 docker-compose down
 ```
 
+### Running on a Raspberry Pi?
+
+The same pre-built image works on Raspberry Pi (arm64 and arm/v7) when a release includes Pi support. Just follow the steps above on your Pi. See the [Raspberry Pi Guide](./docs/deployment/PI_BUILD_GUIDE.md) for more details.
+
+
 ---
 
 ## Features
@@ -66,42 +77,42 @@ docker-compose down
 FiestaBoard uses a **plugin architecture** - each feature is a self-contained plugin with its own documentation. Browse the `plugins/` directory or use the web UI's **Integrations** page to discover and enable plugins.
 
 ### Available Plugins
-- 💨 **[Air Quality & Fog](./plugins/air_fog/README.md)**: Monitor AQI and fog conditions
-- 🚴 **[Bay Wheels](./plugins/baywheels/README.md)**: Track bike availability at multiple stations
-- 📅 **[Date & Time](./plugins/date_time/README.md)**: Current date and time with multiple formats (12h/24h, US dates) and timezone autocomplete
-- 🏰 **[Disney Park Queue Times](./plugins/disney_parks_times/README.md)**: Wait times for Disney parks and rides from Queue-Times.com
-- 📶 **[Guest WiFi](./plugins/guest_wifi/README.md)**: Display WiFi credentials for guests
-- 🏠 **[Home Assistant](./plugins/home_assistant/README.md)**: House status display (doors, garage, locks, etc.)
-- 🎵 **[Last.fm Now Playing](./plugins/last_fm/README.md)**: Display currently playing music via Last.fm scrobbling
-- 🚇 **[Muni Transit](./plugins/muni/README.md)**: Real-time SF Muni arrival predictions
-- 🛩️ **[Nearby Aircraft](./plugins/nearby_aircraft/README.md)**: Real-time nearby aircraft information from OpenSky Network API
-- 🏆 **[Sports Scores](./plugins/sports_scores/README.md)**: Display recent match scores from NFL, Soccer, NHL, and NBA
-- ☀️ **[Sun Art](./plugins/sun_art/README.md)**: Full-screen sun art pattern that changes based on sun position throughout the day
-- 🖖 **[Star Trek Quotes](./plugins/star_trek_quotes/README.md)**: Random quotes from TNG, Voyager, and DS9
-- 📈 **[Stocks](./plugins/stocks/README.md)**: Monitor stock prices with color-coded indicators
-- 🌊 **[Surf Conditions](./plugins/surf/README.md)**: Live surf reports with wave height and quality ratings
-- 🚗 **[Traffic](./plugins/traffic/README.md)**: Travel time to destinations with live traffic
-- 🕐 **[Visual Clock](./plugins/visual_clock/README.md)**: Full-screen clock with large pixel-art style digits
-- 🌤️ **[Weather](./plugins/weather/README.md)**: Current conditions with temperature (F/C), UV index, precipitation chance, daily high/low, and sunset time
-- 🚢 **[WSDOT](./plugins/wsdot/README.md)**: Washington State Ferries schedules, vessel names, car spots remaining, and alerts
+- **[Air Quality & Fog](./plugins/air_fog/README.md)**: Monitor AQI and fog conditions
+- **[Bay Wheels](./plugins/baywheels/README.md)**: Track bike availability at multiple stations
+- **[Date & Time](./plugins/date_time/README.md)**: Current date and time with multiple formats (12h/24h, US dates) and timezone autocomplete
+- **[Disney Park Queue Times](./plugins/disney_parks_times/README.md)**: Wait times for Disney parks and rides from Queue-Times.com
+- **[Guest WiFi](./plugins/guest_wifi/README.md)**: Display WiFi credentials for guests
+- **[Home Assistant](./plugins/home_assistant/README.md)**: House status display (doors, garage, locks, etc.)
+- **[Last.fm Now Playing](./plugins/last_fm/README.md)**: Display currently playing music via Last.fm scrobbling
+- **[Muni Transit](./plugins/muni/README.md)**: Real-time SF Muni arrival predictions
+- **[Nearby Aircraft](./plugins/nearby_aircraft/README.md)**: Real-time nearby aircraft information from OpenSky Network API
+- **[Sports Scores](./plugins/sports_scores/README.md)**: Display recent match scores from NFL, Soccer, NHL, and NBA
+- **[Sun Art](./plugins/sun_art/README.md)**: Full-screen sun art pattern that changes based on sun position throughout the day
+- **[Star Trek Quotes](./plugins/star_trek_quotes/README.md)**: Random quotes from TNG, Voyager, and DS9
+- **[Stocks](./plugins/stocks/README.md)**: Monitor stock prices with color-coded indicators
+- **[Surf Conditions](./plugins/surf/README.md)**: Live surf reports with wave height and quality ratings
+- **[Traffic](./plugins/traffic/README.md)**: Travel time to destinations with live traffic
+- **[Visual Clock](./plugins/visual_clock/README.md)**: Full-screen clock with large pixel-art style digits
+- **[Weather](./plugins/weather/README.md)**: Current conditions with temperature (F/C), UV index, precipitation chance, daily high/low, and sunset time
+- **[WSDOT](./plugins/wsdot/README.md)**: Washington State Ferries schedules, vessel names, car spots remaining, and alerts
 
 **→ [Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md)** - Create your own plugins!
 
 ### System Features
-- 📱 **Multi-Device Support**: Create pages for both Vestaboard Flagship (22×6) and Note (15×3) — editor and preview adapt to each device's dimensions
-- ✏️ **Rich WYSIWYG Page Editor**: Create and edit pages with a what-you-see-is-what-you-get editor that shows exactly how content will appear on your board—template variables, colors, and alignment in real time
-- 📅 **Schedule Mode**: Visual calendar to schedule which pages display when—set different pages for different times and days. Choose a default page for gaps in the schedule, or turn scheduling off to manually select the active page
-- 📄 **Page-Based Display**: Create and select pages via the web UI
-- 🔄 **Configurable Update Interval**: Adjust how often the board checks for new content (10-3600 seconds)
-- ⚡ **Smart Preview Caching**: Page previews are cached (5 min TTL) for fast UI rendering, while active displays always get fresh data
-- 🌙 **Silence Schedule**: Configure quiet hours when the board won't update
-- 🐳 **Docker Ready**: Containerized for easy deployment on any system
-- ⚙️ **Highly Configurable**: Configure plugins, API keys, and settings from the web UI
-- 🔒 **Secure**: API token support for all integrations
+- **Multi-Device Support**: Create pages for both Vestaboard Flagship (22x6) and Note (15x3) - editor and preview adapt to each device's dimensions
+- **Rich WYSIWYG Page Editor**: Create and edit pages with a what-you-see-is-what-you-get editor that shows exactly how content will appear on your board, including template variables, colors, and alignment in real time
+- **Schedule Mode**: Visual calendar to schedule which pages display when. Set different pages for different times and days. Choose a default page for gaps in the schedule, or turn scheduling off to manually select the active page
+- **Page-Based Display**: Create and select pages via the web UI
+- **Configurable Update Interval**: Adjust how often the board checks for new content (10-3600 seconds)
+- **Smart Preview Caching**: Page previews are cached (5 min TTL) for fast UI rendering, while active displays always get fresh data
+- **Silence Schedule**: Configure quiet hours when the board won't update
+- **Docker Ready**: Containerized for easy deployment on any system
+- **Highly Configurable**: Configure plugins, API keys, and settings from the web UI
+- **Secure**: API token support for all integrations
 
 ---
 
-## 👋 New to Technical Setup?
+## New to Technical Setup?
 
 **Not comfortable with Docker or terminal commands?** Check out the step-by-step beginner's guide:
 
@@ -179,7 +190,7 @@ Browse `plugins/*/README.md` for all plugin documentation. Each plugin's README 
 
 ## Configuration
 
-The install wizard handles initial configuration for self-hosting. After setup, everything else — plugins, API keys, and settings — is configured through the **web UI**.
+The install wizard handles initial configuration for self-hosting. After setup, everything else - plugins, API keys, and settings - is configured through the **web UI**.
 
 Go to the **Integrations** page to enable plugins, enter API keys, and adjust settings. No need to edit config files.
 
@@ -187,13 +198,13 @@ Go to the **Integrations** page to enable plugins, enter API keys, and adjust se
 
 ### Board Connection (set by wizard)
 
-- `BOARD_API_MODE`: `local` (default) or `cloud` — how FiestaBoard connects to your board
+- `BOARD_API_MODE`: `local` (default) or `cloud` - how FiestaBoard connects to your board
 - `BOARD_LOCAL_API_KEY` / `BOARD_HOST`: For local mode
 - `BOARD_READ_WRITE_KEY`: For cloud mode
 
 ### Plugins
 
-Plugins are enabled and configured through the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key — the Integrations page links to setup instructions and has fields to enter your keys.
+Plugins are enabled and configured through the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key. The Integrations page links to setup instructions and has fields to enter your keys.
 
 | Plugin | API Key | Documentation |
 |--------|---------|-------------|
@@ -339,7 +350,7 @@ docker-compose logs -f
 
 ## Documentation
 
-**📖 Full documentation is available at [fiestaboard.github.io](https://fiestaboard.github.io)**
+**Full documentation is available at [fiestaboard.app](https://fiestaboard.app)**
 
 ### Setup
 - **[Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md)**: Step-by-step setup for non-technical users
@@ -364,9 +375,9 @@ Each plugin includes its own docs:
 
 ## Future Features
 
-- 🌐 Webhook support for manual messages
-- 📸 Custom image display
-- 📊 Analytics and usage stats
+- Webhook support for manual messages
+- Custom image display
+- Analytics and usage stats
 
 ## License
 
@@ -380,7 +391,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ### Rich Page Editor (WYSIWYG)
 
-Create and edit board pages with a rich editor that shows exactly what will appear on your split-flap display—template variables, colors, and formatting in real time.
+Create and edit board pages with a rich editor that shows exactly what will appear on your split-flap display, including template variables, colors, and formatting in real time.
 
 ![Rich Page Editor](./images/page-editor-wysiwyg.png)
 
@@ -434,15 +445,15 @@ The board can display various screens:
 
 ## Considering a Vestaboard?
 
-If you're thinking about buying a board, please consider using [my referral link](https://web.vestaboard.com/referral?vbref=ZDGYOT) for a $200 discount — it helps support this project at no extra cost to you.
+If you're thinking about buying a board, please consider using [my referral link](https://web.vestaboard.com/referral?vbref=ZDGYOT) for a $200 discount. It helps support this project at no extra cost to you.
 
 ## Support the Project
 
-FiestaBoard is free and open source. If you find it useful and want to support continued development, consider buying me a coffee! ☕
+FiestaBoard is free and open source. If you find it useful and want to support continued development, consider buying me a coffee!
 
 <a href="https://www.buymeacoffee.com/fiestaboard" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
-Your support helps maintain the project, add new features, and keep the documentation up to date. Every coffee is appreciated! 🙏
+Your support helps maintain the project, add new features, and keep the documentation up to date. Every coffee is appreciated!
 
 ---
 Made with ❤️ in San Francisco.

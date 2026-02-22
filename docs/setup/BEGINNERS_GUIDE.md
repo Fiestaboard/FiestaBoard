@@ -1,16 +1,16 @@
-# 🎯 Beginner's Guide to Setting Up FiestaBoard
+# Beginner's Guide to Setting Up FiestaBoard
 
 **New to coding or technical setups? No worries!** This guide will walk you through everything step-by-step.
 
 ## What is FiestaBoard?
 
-FiestaBoard is a server you run on your computer (or a Raspberry Pi) that connects to your split-flap display. It uses plugins to pull in data — weather, stocks, transit times, sports scores, and more — and displays it on your board. You choose which plugins to enable and bring the API keys for the services you care about.
+FiestaBoard is a server you run on your computer (or a Raspberry Pi) that connects to your split-flap display. It uses plugins to pull in data - weather, stocks, transit times, sports scores, and more - and displays it on your board. You choose which plugins to enable and bring the API keys for the services you care about.
 
 ## What You'll Need
 
 1. **A split-flap display** that's already set up and working with the board's app
 2. **Your board's API key** (you'll get this in Step 2)
-3. **A computer** — Mac, Windows, or Linux
+3. **A computer** - Mac, Windows, or Linux
 4. **About 15 minutes** for the initial setup
 
 ## Step 1: Install Docker Desktop
@@ -19,9 +19,9 @@ Docker is free software that runs FiestaBoard. Think of it as a container that p
 
 ### For Mac:
 1. Go to [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-2. Click "Download for Mac" (choose the right version for your Mac — Intel or Apple Silicon)
+2. Click "Download for Mac" (choose the right version for your Mac, Intel or Apple Silicon)
 3. Open the downloaded file and drag Docker to your Applications folder
-4. Open Docker from Applications — it will ask for permission to run
+4. Open Docker from Applications. It will ask for permission to run
 5. Wait for Docker to start (you'll see a whale icon in your menu bar)
 
 ### For Windows:
@@ -29,7 +29,7 @@ Docker is free software that runs FiestaBoard. Think of it as a container that p
 2. Click "Download for Windows"
 3. Run the installer and follow the prompts
 4. Restart your computer when prompted
-5. Open Docker Desktop — it should start automatically
+5. Open Docker Desktop. It should start automatically
 
 ### For Linux:
 - Follow the instructions at [Docker Desktop for Linux](https://docs.docker.com/desktop/install/linux-install/)
@@ -38,17 +38,17 @@ Docker is free software that runs FiestaBoard. Think of it as a container that p
 
 Your board API key is what lets FiestaBoard send content to your display.
 
-### Local API (Recommended — faster, supports animations)
+### Local API (Recommended, faster, supports animations)
 1. Open the board's mobile app
 2. Go to **Settings** → **Local API**
 3. Copy the API key and note your board's IP address
 
-### Cloud API (Alternative — works from anywhere)
+### Cloud API (Alternative, works from anywhere)
 1. Go to [web.vestaboard.com](https://web.vestaboard.com) and log in
 2. Click on your board name
 3. Look for "Settings" or "API" in the menu
 4. Find "Read/Write API" and click "Enable"
-5. Copy the key that appears — paste it somewhere safe
+5. Copy the key that appears, paste it somewhere safe
 
 ## Step 3: Download FiestaBoard
 
@@ -108,7 +108,7 @@ Once the installation script completes:
 2. **Go to:** `http://localhost:3000`
 3. You'll see the FiestaBoard control panel!
 4. **Click the green "▶ Start Service" button**
-5. **Watch your board** — it should start updating!
+5. **Watch your board** - it should start updating!
 
 ## Step 6: Add Plugins
 
@@ -116,12 +116,12 @@ Now that your server is running, you can enable plugins to display different dat
 
 1. In the web interface, go to the **Integrations** page
 2. Enable the plugins you want (Weather, Stocks, Transit, etc.)
-3. For plugins that need API keys, enter them directly in the Integrations page — it links to setup instructions for each one
+3. For plugins that need API keys, enter them directly in the Integrations page. It links to setup instructions for each one
 4. Create pages using the **Page Editor** to design what appears on your board
 
 > **Tip:** Many plugins work without any API key (Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, and more). Start with those while you gather API keys for others.
 
-## 🎉 You're Done!
+## You're Done!
 
 Your board should now be updating automatically!
 
@@ -163,8 +163,8 @@ Your board should now be updating automatically!
 
 ## What's Next?
 
-- **Enable plugins** — Go to the Integrations page in the web UI
-- **Create pages** — Use the Page Editor to design your board layouts
-- **[Set up a schedule](../../README.md#system-features)** — Configure which pages show at which times
-- **Browse plugin docs** — Each plugin has setup instructions in `plugins/<plugin_name>/docs/SETUP.md`
+- **Enable plugins** - Go to the Integrations page in the web UI
+- **Create pages** - Use the Page Editor to design your board layouts
+- **[Set up a schedule](../../README.md#system-features)** - Configure which pages show at which times
+- **Browse plugin docs** - Each plugin has setup instructions in `plugins/<plugin_name>/docs/SETUP.md`
 

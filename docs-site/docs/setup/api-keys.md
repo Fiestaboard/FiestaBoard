@@ -1,12 +1,12 @@
 ---
 sidebar_position: 6
-description: "API keys for FiestaBoard — only your board key is required to start. Plugin API keys are added as you enable them."
+description: "API keys for FiestaBoard - only your board key is required to start. Plugin API keys are added as you enable them."
 keywords: [FiestaBoard API keys, weather API, Google Routes API, plugin configuration, API setup]
 ---
 
 # API Keys
 
-FiestaBoard only requires your board's API key to start — and the install wizard collects it for you during setup. Plugin API keys are entered through the **web UI's Integrations page** as you enable plugins.
+FiestaBoard only requires your board's API key to start, and the install wizard collects it for you during setup. Plugin API keys are entered through the **web UI's Integrations page** as you enable plugins.
 
 ## Required: Board API Key
 
@@ -34,7 +34,7 @@ Works from anywhere with internet. No transition animation support.
 
 ## Plugin API Keys
 
-These are optional — enter them in the **Integrations page** of the web UI as you enable plugins. Many plugins work without any API key at all.
+These are optional. Enter them in the **Integrations page** of the web UI as you enable plugins. Many plugins work without any API key at all.
 
 ### Plugins That Need API Keys
 
@@ -71,5 +71,5 @@ These work out of the box:
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — Configure and enable plugins
-- [Quick Start](/docs/setup/quick-start) — Get FiestaBoard running
+- [Plugins Overview](/docs/plugins/overview) - Configure and enable plugins
+- [Quick Start](/docs/setup/quick-start) - Get FiestaBoard running

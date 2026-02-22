@@ -15,7 +15,7 @@ Thank you for your interest in contributing to FiestaBoard. This document explai
 
 ## Getting started
 
-- **Set up your environment**: See [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) for Docker-based development. We use Docker for all development and testing—please do not run the API or web UI directly on the host.
+- **Set up your environment**: See [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) for Docker-based development. We use Docker for all development and testing. Please do not run the API or web UI directly on the host.
 - **Explore the project**: The [README](./README.md) describes features, plugins, and quick start. Core code lives in `src/`; each integration is a plugin under `plugins/`.
 
 ---
@@ -80,7 +80,7 @@ CI runs on push/PR; make sure the same commands (or their CI equivalents) pass l
 
 - **Target branch**: Open your PR against `main` (or `develop` if the project is using that for integration).
 - **Description**: Explain what changed and why. Reference any related issues.
-- **Scope**: Keep the PR focused—one feature or fix per PR is easier to review.
+- **Scope**: Keep the PR focused. One feature or fix per PR is easier to review.
 
 ### 2. Squash your commits
 

@@ -121,5 +121,5 @@ When creating pages for the Note device, code 62 will display as a red heart ico
 
 ## Next Steps
 
-- [Color Guide](/docs/reference/color-guide) — Detailed color usage and examples
-- [Page Editor](/docs/features/page-editor) — Creating content for the board
+- [Color Guide](/docs/reference/color-guide) - Detailed color usage and examples
+- [Page Editor](/docs/features/page-editor) - Creating content for the board

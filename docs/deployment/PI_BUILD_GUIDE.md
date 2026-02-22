@@ -1,6 +1,77 @@
 # Raspberry Pi Build Guide
 
-## Overview
+## Quick Start - Running FiestaBoard on a Raspberry Pi
+
+The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Docker image from the GitHub Container Registry. No need to clone the repo or build anything.
+
+### Prerequisites
+
+- **Raspberry Pi 3B+, Zero 2W, 4, or 5** with a recent Raspberry Pi OS
+- **Docker** installed on your Pi ([install guide](https://docs.docker.com/engine/install/debian/))
+
+> **Tip:** On Raspberry Pi OS, you can install Docker with:
+> ```bash
+> curl -fsSL https://get.docker.com | sh
+> sudo usermod -aG docker $USER
+> # Log out and back in for the group change to take effect
+> ```
+
+### Setup
+
+```bash
+# Create a project folder
+mkdir ~/FiestaBoard && cd ~/FiestaBoard
+
+# Pull the pre-built image from GHCR (docker compose up also does this automatically)
+docker pull ghcr.io/fiestaboard/fiestaboard:latest
+```
+
+Next, create a `docker-compose.yml` file in `~/FiestaBoard/`:
+
+```yaml
+services:
+  fiestaboard:
+    image: ghcr.io/fiestaboard/fiestaboard:latest
+    container_name: fiestaboard
+    env_file: .env
+    environment:
+      - PRODUCTION=true
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+```
+
+Then create a `.env` file with your board API key:
+
+```bash
+nano .env
+# Add your BOARD_API_MODE, API key, and BOARD_HOST (see env.example for all options)
+```
+
+Start FiestaBoard:
+
+```bash
+docker compose up -d
+```
+
+Once running, open **http://\<your-pi-ip\>:3000** in a browser on any device on your network.
+
+### Updating
+
+```bash
+cd ~/FiestaBoard
+docker compose pull
+docker compose up -d
+```
+
+---
+
+## How Pi Builds Work (for Contributors)
+
+### Overview
 
 Raspberry Pi Docker images are built **on-demand** to save CI time. By default, releases only build for `linux/amd64` (x86-64 systems).
 
@@ -41,9 +112,9 @@ When Pi builds are included, release notes will show:
 ```markdown
 ## Docker Images
 
-**Platforms:** `linux/amd64`, `linux/arm/v7`, `linux/arm64` 🍓
+**Platforms:** `linux/amd64`, `linux/arm/v7`, `linux/arm64`
 
-### 🍓 Raspberry Pi Support
+### Raspberry Pi Support
 
 This release includes multi-architecture images that work on Raspberry Pi (arm/v7 and arm64).
 Simply use the same `docker pull` commands above on your Pi!

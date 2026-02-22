@@ -28,18 +28,18 @@ function HomepageHeader() {
           endlessly customizable, and running in Docker with zero hassle.
         </p>
         <p className={styles.heroDescriptionShort}>
-          Weather, stocks, sports & more — in Docker 🐳
+          Weather, stocks, sports & more — powered by Docker
         </p>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
             to="/docs/intro">
-            🚀 Get Started
+            Get Started
           </Link>
           <Link
             className={clsx('button button--outline button--lg', styles.githubButton)}
             href="https://github.com/Fiestaboard/FiestaBoard">
-            ⭐ View on GitHub
+            View on GitHub
           </Link>
         </div>
       </div>

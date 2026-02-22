@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
-description: "End-to-end guide to creating, testing, and submitting a FiestaBoard plugin — from initial idea to merged pull request."
+description: "End-to-end guide to creating, testing, and submitting a FiestaBoard plugin - from initial idea to merged pull request."
 keywords: [FiestaBoard plugin development, create plugin, plugin API, custom plugin, developer guide, Python plugin, PluginBase, manifest.json]
 ---
 
 # Plugin Development Guide
 
-This guide walks you through creating a FiestaBoard plugin from scratch — from initial idea through development, testing, and submitting a pull request to get it merged into the project.
+This guide walks you through creating a FiestaBoard plugin from scratch - from initial idea through development, testing, and submitting a pull request to get it merged into the project.
 
 ## What Is a Plugin?
 
@@ -21,7 +21,7 @@ Every plugin has four required components:
 | **Tests** | `tests/test_plugin.py` | Automated tests with ≥80% code coverage |
 | **Documentation** | `README.md` + `docs/SETUP.md` | Developer docs and user-facing setup guide |
 
-Plugins are **auto-discovered** — drop a valid plugin directory into `plugins/` and FiestaBoard finds it at startup. No registration step is needed.
+Plugins are **auto-discovered** - drop a valid plugin directory into `plugins/` and FiestaBoard finds it at startup. No registration step is needed.
 
 ---
 
@@ -123,7 +123,7 @@ The `manifest.json` file is the heart of your plugin. It tells FiestaBoard what 
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique identifier — lowercase letters, digits, and underscores only. Must start with a letter. Must match directory name. |
+| `id` | string | Unique identifier - lowercase letters, digits, and underscores only. Must start with a letter. Must match directory name. |
 | `name` | string | Human-readable name shown in the UI (max 50 characters). |
 | `version` | string | Semantic version in `X.Y.Z` format (e.g., `"1.0.0"`). |
 | `description` | string | Short description (max 200 characters). |
@@ -138,7 +138,7 @@ The `manifest.json` file is the heart of your plugin. It tells FiestaBoard what 
 |-------|------|---------|-------------|
 | `icon` | string | `"puzzle"` | [Lucide](https://lucide.dev/icons/) icon name for the UI. |
 | `category` | string | `"utility"` | Grouping category. Valid values: `"art"`, `"data"`, `"transit"`, `"weather"`, `"entertainment"`, `"utility"`, `"home"`. |
-| `repository` | string | — | GitHub repository URL. |
+| `repository` | string | - | GitHub repository URL. |
 | `documentation` | string | `"README.md"` | Path to documentation file relative to plugin directory. |
 | `env_vars` | array | `[]` | Environment variables the plugin can read (see below). |
 | `color_rules_schema` | object | `{}` | Schema for dynamic color rules. |
@@ -231,8 +231,8 @@ Indexed collections. Users reference items as `{{my_plugin.locations.0.temperatu
 }
 ```
 
-- `label_field` — the field used as a human-readable label in the UI.
-- `item_fields` — all fields available on each array item.
+- `label_field` - the field used as a human-readable label in the UI.
+- `item_fields` - all fields available on each array item.
 
 #### Nested Arrays (Arrays within Arrays)
 
@@ -314,7 +314,7 @@ class MyPlugin(PluginBase):
 
     @property
     def plugin_id(self) -> str:
-        """Return the plugin ID — must match manifest.json 'id' field."""
+        """Return the plugin ID - must match manifest.json 'id' field."""
         return "my_plugin"
 
     def fetch_data(self) -> PluginResult:
@@ -376,7 +376,7 @@ class PluginResult:
 
 - Set `available=True` and populate `data` on success.
 - Set `available=False` and populate `error` on failure.
-- `formatted_lines` is optional — provide 6 strings (one per board row) if your plugin supports a standalone display mode.
+- `formatted_lines` is optional - provide 6 strings (one per board row) if your plugin supports a standalone display mode.
 
 ### Accessing Configuration
 
@@ -408,7 +408,7 @@ def __init__(self, manifest: Dict[str, Any]):
 
 ### Real-World Example: Date & Time Plugin
 
-This plugin has no external API — it uses Python's `datetime` library:
+This plugin has no external API - it uses Python's `datetime` library:
 
 ```python
 """Date & Time plugin for FiestaBoard."""
@@ -644,7 +644,7 @@ docker-compose exec fiestaboard python scripts/run_plugin_tests.py --dry-run
 | Requirement | Value |
 |-------------|-------|
 | Minimum coverage | **80%** per plugin |
-| CI enforcement | Yes — builds fail below threshold |
+| CI enforcement | Yes - builds fail below threshold |
 | Exclusions | Use `# pragma: no cover` sparingly for legitimately untestable code |
 
 ---
@@ -655,7 +655,7 @@ Each plugin needs two documentation files:
 
 ### README.md (Developer-Focused)
 
-Explain how the plugin works internally — data sources, API details, architecture decisions. This is for someone reading the code or contributing improvements.
+Explain how the plugin works internally - data sources, API details, architecture decisions. This is for someone reading the code or contributing improvements.
 
 ### docs/SETUP.md (User-Focused)
 
@@ -703,7 +703,7 @@ The validator checks:
 
 With the dev stack running, open `http://localhost:3000` and:
 
-1. Go to **Integrations** — your plugin should appear in the list
+1. Go to **Integrations** - your plugin should appear in the list
 2. **Enable** the plugin and enter any required configuration
 3. **Create a page** using your plugin's template variables (e.g., `{{my_plugin.value}}`)
 4. Verify the page renders correctly with live data
@@ -720,7 +720,7 @@ Before opening a PR, verify every item:
 - [ ] `manifest.json` has all required fields and valid values
 - [ ] `__init__.py` implements `PluginBase` with `plugin_id` property and `fetch_data()` method
 - [ ] `validate_config()` checks all required settings
-- [ ] Error handling is comprehensive — `fetch_data()` never raises uncaught exceptions
+- [ ] Error handling is comprehensive - `fetch_data()` never raises uncaught exceptions
 - [ ] Tests exist in `tests/` with ≥80% coverage
 - [ ] All tests pass: `python scripts/run_plugin_tests.py --plugin=my_plugin`
 - [ ] Plugin validation passes: `python scripts/validate_plugins.py --verbose`
@@ -748,11 +748,11 @@ Before opening a PR, verify every item:
 
 When you open a PR, GitHub Actions automatically:
 
-1. **Validates manifests** — runs `scripts/validate_plugins.py` to check structure and schema
-2. **Runs plugin tests** — discovers your `tests/` directory and runs pytest with coverage
-3. **Checks coverage** — verifies your plugin meets the 80% coverage threshold
-4. **Verifies required files** — confirms `__init__.py` and `manifest.json` exist
-5. **Uploads coverage** — reports to Codecov for review
+1. **Validates manifests** - runs `scripts/validate_plugins.py` to check structure and schema
+2. **Runs plugin tests** - discovers your `tests/` directory and runs pytest with coverage
+3. **Checks coverage** - verifies your plugin meets the 80% coverage threshold
+4. **Verifies required files** - confirms `__init__.py` and `manifest.json` exist
+5. **Uploads coverage** - reports to Codecov for review
 
 All checks must pass before a maintainer can merge your PR.
 
@@ -822,7 +822,7 @@ logger.exception("Unexpected error with traceback")
 ### Security
 
 - **Never hardcode** API keys, tokens, or credentials.
-- **Never log** secrets — even at debug level.
+- **Never log** secrets - even at debug level.
 - Use `"ui:widget": "password"` in `settings_schema` for sensitive fields.
 - Use generic example data in tests and documentation (e.g., `example@example.com`, well-known public coordinates).
 
@@ -862,6 +862,6 @@ Study these existing plugins as reference implementations:
 
 ## Next Steps
 
-- [Contributing](/docs/development/contributing) — General contribution guidelines
-- [Testing Guide](/docs/development/testing) — Running and writing tests
-- [Local Development](/docs/setup/local-development) — Development environment setup
+- [Contributing](/docs/development/contributing) - General contribution guidelines
+- [Testing Guide](/docs/development/testing) - Running and writing tests
+- [Local Development](/docs/setup/local-development) - Development environment setup

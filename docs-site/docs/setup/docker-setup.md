@@ -125,6 +125,6 @@ All configuration is done through the `.env` file. See the [Environment Variable
 
 ## Next Steps
 
-- [Cloud API Setup](/docs/setup/cloud-api) — Use cloud API instead of local
-- [Raspberry Pi Deployment](/docs/deployment/raspberry-pi) — Deploy on a Pi
-- [Environment Variables](/docs/reference/environment-variables) — All configuration options
+- [Cloud API Setup](/docs/setup/cloud-api) - Use cloud API instead of local
+- [Raspberry Pi Deployment](/docs/deployment/raspberry-pi) - Deploy on a Pi
+- [Environment Variables](/docs/reference/environment-variables) - All configuration options

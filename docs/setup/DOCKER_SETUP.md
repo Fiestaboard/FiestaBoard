@@ -175,6 +175,6 @@ The service uses the `.env` file. Key variables:
 
 ## Production Deployment
 
-For production deployment, use the standard `docker-compose.yml` file with proper environment variables configured.
+For production deployment, use the pre-built image from the GitHub Container Registry (`ghcr.io/fiestaboard/fiestaboard:latest`) with proper environment variables configured. Images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.
 
 
