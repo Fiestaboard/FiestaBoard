@@ -135,9 +135,16 @@ test.describe("Dashboard", () => {
       page.getByText("Active Display", { exact: true })
     ).toBeVisible({ timeout: 10_000 });
     
+    // Double-check that the backend still reports schedule mode enabled
+    // (in case something reset it between the earlier check and page load)
+    const recheckRes = await fetch(`${API_URL}/schedules/enabled`);
+    expect(recheckRes.ok).toBe(true);
+    const recheckData = await recheckRes.json();
+    expect(recheckData.enabled).toBe(true);
+    
     // Wait for the mode badge to update (React Query needs time to fetch)
     // The badge should show "Schedule Mode" once the query completes
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
     
     // Verify schedule mode is displayed
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
