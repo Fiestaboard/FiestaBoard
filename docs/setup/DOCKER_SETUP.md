@@ -195,12 +195,16 @@ curl -X POST http://localhost:4420/send-message \
 
 ## Environment Variables
 
-The service uses the `.env` file. Key variables:
+The service uses the `.env` file created from `env.example`. No manual editing is required -- the install wizard and web UI handle all configuration, including board connection, plugins, and API keys.
 
-- `BOARD_READ_WRITE_KEY` - Board API key (required for cloud mode)
-- `WEATHER_API_KEY` - Weather API key (required)
-- `WEATHER_PROVIDER` - "weatherapi" or "openweathermap"
-- And more... (see `env.example`)
+For advanced users who want to override settings via `.env`, here are the key variables:
+
+- `BOARD_API_MODE` - `local` (default) or `cloud`
+- `BOARD_LOCAL_API_KEY` / `BOARD_HOST` - Board connection (local mode)
+- `BOARD_READ_WRITE_KEY` - Board API key (cloud mode)
+- `TIMEZONE` - Your local timezone (e.g., `America/Los_Angeles`)
+
+See the [Environment Variables Reference](https://fiestaboard.app/docs/reference/environment-variables) for the full list of options.
 
 ## Production Deployment
 

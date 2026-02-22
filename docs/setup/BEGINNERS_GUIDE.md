@@ -11,28 +11,32 @@ FiestaBoard is a server you run on your computer (or a Raspberry Pi) that connec
 1. **A split-flap display** that's already set up and working with the board's app
 2. **Your board's API key** (you'll get this in Step 2)
 3. **A computer** - Mac, Windows, or Linux
-4. **About 15 minutes** for the initial setup
+4. **About 10 minutes** for the initial setup
+
+> You only need your board API key to get started. No other API keys or configuration are required up front -- plugins like weather, stocks, and transit are all set up later through the web interface.
 
 ## Step 1: Install Docker Desktop
 
-Docker is free software that runs FiestaBoard. Think of it as a container that packages everything the app needs.
+Docker is free software that runs FiestaBoard. Think of it as a container that packages everything the app needs. Installation takes just a few minutes.
 
 ### For Mac:
-1. Go to [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-2. Click "Download for Mac" (choose the right version for your Mac, Intel or Apple Silicon)
+1. Go to the [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/) install page
+2. Click "Download for Mac" (choose the right version for your Mac -- Intel or Apple Silicon)
 3. Open the downloaded file and drag Docker to your Applications folder
 4. Open Docker from Applications. It will ask for permission to run
 5. Wait for Docker to start (you'll see a whale icon in your menu bar)
 
 ### For Windows:
-1. Go to [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
+1. Go to the [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/) install page
 2. Click "Download for Windows"
 3. Run the installer and follow the prompts
 4. Restart your computer when prompted
 5. Open Docker Desktop. It should start automatically
 
 ### For Linux:
-- Follow the instructions at [Docker Desktop for Linux](https://docs.docker.com/desktop/install/linux-install/)
+1. Go to the [Docker Desktop for Linux](https://docs.docker.com/desktop/setup/install/linux/) install page
+2. Follow the instructions for your distribution (Ubuntu, Debian, Fedora, Arch, etc.)
+3. Start Docker after installation
 
 ## Step 2: Get Your Board API Key
 

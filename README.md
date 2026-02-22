@@ -18,9 +18,10 @@ You bring the board. You bring the API keys for the services you care about. Fie
 
 - **A split-flap display** you already own and have set up
 - **Your board's API key** (Local API or Cloud Read/Write key)
-- **Docker and Docker Compose** installed ([Get Docker](https://www.docker.com/products/docker-desktop/))
+- **Docker and Docker Compose** installed:
+  - [Mac](https://docs.docker.com/desktop/setup/install/mac-install/) | [Windows](https://docs.docker.com/desktop/setup/install/windows-install/) | [Linux](https://docs.docker.com/desktop/setup/install/linux/)
 
-That's it. The installation wizard walks you through the rest. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
+That's it -- just your board API key and Docker. The installation wizard walks you through the rest. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
 
 ### Installation
 
@@ -38,10 +39,11 @@ Once it finishes:
 
 ### Manual Setup
 
+If you prefer not to use the wizard:
+
 ```bash
-# 1. Create .env file with your API keys
+# 1. Create .env from the template (all defaults work out of the box)
 cp env.example .env
-# Edit .env and add: BOARD_READ_WRITE_KEY and WEATHER_API_KEY
 
 # 2. Run it! (first time builds images)
 docker-compose up --build
@@ -49,6 +51,8 @@ docker-compose up --build
 # Or for subsequent runs (uses cached images)
 docker-compose up
 ```
+
+> No environment variables are required to start. The `.env` template has sensible defaults for everything. You'll connect your board and configure plugins through the web UI at http://localhost:4420.
 
 **Access:**
 - **Web UI**: http://localhost:4420 (start service, send messages, monitor)
@@ -142,19 +146,7 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
    cp env.example .env
    ```
 
-3. **Edit `.env` and add your API keys**:
-   ```bash
-   # Required
-   BOARD_READ_WRITE_KEY=your_board_key_here
-   WEATHER_API_KEY=your_weather_api_key_here
-   WEATHER_PROVIDER=weatherapi
-   WEATHER_LOCATION=San Francisco, CA
-   TIMEZONE=America/Los_Angeles
-   ```
-   
-   > **Note**: Plugins are enabled via the web UI's **Integrations** page, not environment variables. See each plugin's setup guide for API keys and configuration.
-
-4. **Build and run with Docker Compose**:
+3. **Build and run with Docker Compose**:
    ```bash
    # First time (builds images)
    docker-compose up --build
@@ -163,19 +155,9 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
    docker-compose up -d --build
    ```
 
-5. **Access the service**:
-   - **Web UI**: http://localhost:4420
-   - **API Docs**: http://localhost:4420/docs
+4. **Open the web UI** at http://localhost:4420, connect your board, and click **"▶ Start Service"**
 
-6. **Start the display service**:
-   - Open http://localhost:4420 in your browser
-   - Click "▶ Start Service" button
-   - Your board will begin updating!
-
-7. **View logs**:
-   ```bash
-   docker-compose logs -f
-   ```
+> No `.env` editing required. The template has sensible defaults for everything. Board connection, plugins, API keys, and all other settings are configured through the web UI.
 
 ### Advanced Setup
 
@@ -194,7 +176,7 @@ The install wizard handles initial configuration for self-hosting. After setup, 
 
 Go to the **Integrations** page to enable plugins, enter API keys, and adjust settings. No need to edit config files.
 
-> **For development:** If you're contributing code or building plugins, see `env.example` for the full list of environment variables. The [Environment Variables Reference](./docs-site/docs/reference/environment-variables.md) documents every option.
+> **For development:** If you're contributing code or building plugins, see the [Environment Variables Reference](https://fiestaboard.app/docs/reference/environment-variables) for the full list of options.
 
 ### Board Connection (set by wizard)
 
@@ -227,7 +209,7 @@ Plugins are enabled and configured through the web UI's **Integrations** page. E
 | WSDOT Ferries | WSDOT API key | [plugins/wsdot/README.md](./plugins/wsdot/README.md) |
 | Last.fm | Last.fm API key | [plugins/last_fm/README.md](./plugins/last_fm/README.md) |
 
-See `env.example` for all available environment variables.
+See the [Environment Variables Reference](https://fiestaboard.app/docs/reference/environment-variables) for all available options.
 
 ## Local Development
 

@@ -14,7 +14,14 @@ Get FiestaBoard running in minutes with Docker Compose.
 - **Your board's API key** (Local API or Cloud Read/Write key)
 - **Docker** and **Docker Compose** installed on your system
 
-That's it. The install wizard handles the rest. Plugins that need external API keys (weather, traffic, etc.) can be configured later through the web UI.
+:::tip Don't have Docker yet?
+Docker Desktop is free and takes just a few minutes to install:
+- [Mac](https://docs.docker.com/desktop/setup/install/mac-install/) (Intel or Apple Silicon)
+- [Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
+- [Linux](https://docs.docker.com/desktop/setup/install/linux/) (Ubuntu, Debian, Fedora, Arch, etc.)
+:::
+
+That's it -- just your board API key and Docker. The install wizard handles the rest. Plugins that need external API keys (weather, traffic, etc.) can be configured later through the web UI.
 
 ## Installation (Recommended)
 
@@ -85,38 +92,21 @@ git clone https://github.com/Fiestaboard/FiestaBoard.git
 cd FiestaBoard
 ```
 
-2. **Create your environment file**
+2. **Create your environment file** (no editing needed -- defaults work out of the box)
 
 ```bash
 cp env.example .env
 ```
 
-3. **Edit `.env` with your board API key**
-
-For Local API (recommended):
-```bash
-BOARD_API_MODE=local
-BOARD_LOCAL_API_KEY=your_local_api_key_here
-BOARD_HOST=192.168.0.11
-TIMEZONE=America/Los_Angeles
-```
-
-For Cloud API:
-```bash
-BOARD_API_MODE=cloud
-BOARD_READ_WRITE_KEY=your_board_key_here
-TIMEZONE=America/Los_Angeles
-```
-
-4. **Start FiestaBoard**
+3. **Start FiestaBoard**
 
 ```bash
 docker-compose up -d --build
 ```
 
-5. **Configure plugins in the web UI** - go to the Integrations page at http://localhost:4420 to enable plugins and enter API keys.
+4. **Open the web UI** at http://localhost:4420 -- connect your board and configure plugins from the Integrations page. No `.env` editing required.
 
-See `env.example` for all available environment variables (useful for development).
+See the [Environment Variables Reference](/docs/reference/environment-variables) for all available options.
 
 ## Next Steps
 
