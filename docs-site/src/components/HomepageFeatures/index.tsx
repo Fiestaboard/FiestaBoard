@@ -193,7 +193,7 @@ function FeatureShowcase({title, emoji, image, alt, description, link, reverse}:
   );
 }
 
-function PluginCard({title, emoji, image, alt, description, link}: ShowcaseItem) {
+function PluginCard({title, image, alt, description, link}: ShowcaseItem) {
   return (
     <Link to={link} className={styles.pluginCard}>
       <div className={styles.pluginCardImage}>
@@ -201,7 +201,7 @@ function PluginCard({title, emoji, image, alt, description, link}: ShowcaseItem)
       </div>
       <div className={styles.pluginCardBody}>
         <Heading as="h4">
-          <span>{emoji}</span> {title}
+          {title}
         </Heading>
         <p>{description}</p>
       </div>
