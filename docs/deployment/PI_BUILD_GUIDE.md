@@ -22,16 +22,53 @@ The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Do
 # Create a project folder
 mkdir ~/FiestaBoard && cd ~/FiestaBoard
 
-# Download the Docker Compose file and environment template
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example
+# Pull the pre-built images from GHCR
+docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
+docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
+```
 
-# Create your config file and edit it with your board API key
-cp env.example .env
-nano .env   # Set your BOARD_API_MODE, API key, and BOARD_HOST
+Next, create a `docker-compose.yml` file in `~/FiestaBoard/`:
 
-# Pull and start FiestaBoard
-docker compose -f docker-compose.ghcr.yml up -d
+```yaml
+version: '3.8'
+services:
+  fiestaboard-api:
+    image: ghcr.io/fiestaboard/fiestaboard-api:latest
+    container_name: fiestaboard-api
+    env_file: .env
+    environment:
+      - PRODUCTION=true
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "6969:8000"
+    volumes:
+      - ./data:/app/data
+
+  fiestaboard-ui:
+    image: ghcr.io/fiestaboard/fiestaboard-ui:latest
+    container_name: fiestaboard-ui
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "4420:3000"
+    environment:
+      - FIESTA_API_URL=${FIESTA_API_URL:-}
+    depends_on:
+      - fiestaboard-api
+```
+
+Then create a `.env` file with your board API key:
+
+```bash
+nano .env
+# Add your BOARD_API_MODE, API key, and BOARD_HOST (see env.example for all options)
+```
+
+Start FiestaBoard:
+
+```bash
+docker compose up -d
 ```
 
 Once running, open **http://\<your-pi-ip\>:4420** in a browser on any device on your network.
@@ -40,8 +77,8 @@ Once running, open **http://\<your-pi-ip\>:4420** in a browser on any device on 
 
 ```bash
 cd ~/FiestaBoard
-docker compose -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.ghcr.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 ---

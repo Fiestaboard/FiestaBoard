@@ -19,19 +19,15 @@ This project uses a **two-container architecture**:
 The fastest way to get running is to use the pre-built images from the **GitHub Container Registry**. No cloning or building required.
 
 ```bash
-# Create a project folder
-mkdir FiestaBoard && cd FiestaBoard
+# Pull the pre-built images
+docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
+docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
+```
 
-# Download the compose file and environment template
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example
+Create a `docker-compose.yml` and `.env` file as described in the main [Quick Start](../../README.md#-quick-start), then:
 
-# Create and edit your config
-cp env.example .env
-# Edit .env with your board API key
-
-# Start FiestaBoard
-docker compose -f docker-compose.ghcr.yml up -d
+```bash
+docker compose up -d
 ```
 
 ### Access Services (Pre-built Images)

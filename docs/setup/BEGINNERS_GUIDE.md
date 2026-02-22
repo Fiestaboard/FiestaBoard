@@ -52,7 +52,14 @@ Your board API key is what lets FiestaBoard send content to your display.
 
 ## Step 3: Set Up FiestaBoard
 
-You **don't** need to download the FiestaBoard source code. The pre-built Docker images are published to the GitHub Container Registry — Docker will pull them for you automatically.
+You **don't** need to download the FiestaBoard source code. The pre-built Docker images are published to the GitHub Container Registry — Docker pulls them for you automatically:
+
+```
+ghcr.io/fiestaboard/fiestaboard-api:latest
+ghcr.io/fiestaboard/fiestaboard-ui:latest
+```
+
+You just need to create two small files: a `docker-compose.yml` and a `.env` with your board API key.
 
 ### Create a project folder
 
@@ -69,52 +76,62 @@ You **don't** need to download the FiestaBoard source code. The pre-built Docker
    mkdir $HOME\FiestaBoard; cd $HOME\FiestaBoard
    ```
 
-### Download the two files you need
+### Create `docker-compose.yml`
 
-You only need two small files — the Docker Compose configuration and the environment template.
+Create a new file called `docker-compose.yml` in your FiestaBoard folder. Open any text editor (Notepad, TextEdit, VS Code, etc.), paste the following, and save it:
 
-**Mac/Linux:**
-```bash
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example
+```yaml
+version: '3.8'
+services:
+  fiestaboard-api:
+    image: ghcr.io/fiestaboard/fiestaboard-api:latest
+    container_name: fiestaboard-api
+    env_file: .env
+    environment:
+      - PRODUCTION=true
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "6969:8000"
+    volumes:
+      - ./data:/app/data
+
+  fiestaboard-ui:
+    image: ghcr.io/fiestaboard/fiestaboard-ui:latest
+    container_name: fiestaboard-ui
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "4420:3000"
+    environment:
+      - FIESTA_API_URL=${FIESTA_API_URL:-}
+    depends_on:
+      - fiestaboard-api
 ```
 
-**Windows (PowerShell):**
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml" -OutFile "docker-compose.ghcr.yml"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example" -OutFile "env.example"
-```
+> **Note:** Make sure the file is named exactly `docker-compose.yml` (not `docker-compose.yml.txt`).
 
-> **Don't have `curl`?** You can also open those URLs in your browser and save each file directly — make sure to choose **"Save as plain text"** (not HTML) and keep the original file names.
+### Create your `.env` file
 
-### Create your configuration file
+Create another new file called `.env` (just a dot followed by "env") in the same FiestaBoard folder.
 
-**Mac/Linux:**
-```bash
-cp env.example .env
-```
-
-**Windows (PowerShell):**
-```powershell
-Copy-Item env.example .env
-```
-
-Now open the `.env` file in any text editor (Notepad, TextEdit, VS Code, etc.) and set your board API key from Step 2.
-
-For **Local API** mode (recommended), find these lines and update them:
+For **Local API** mode (recommended), add these lines:
 ```
 BOARD_API_MODE=local
 BOARD_LOCAL_API_KEY=paste_your_local_api_key_here
-BOARD_HOST=192.168.0.11  # Replace with your board's IP address
+BOARD_HOST=192.168.0.11
 ```
+Replace the API key with your key from Step 2, and replace `192.168.0.11` with your board's IP address.
 
-For **Cloud API** mode, set:
+For **Cloud API** mode, add these lines instead:
 ```
 BOARD_API_MODE=cloud
 BOARD_READ_WRITE_KEY=paste_your_read_write_key_here
 ```
 
-Save the file when you're done.
+Save the file.
+
+> **Tip:** For a full list of configuration options, see the [`env.example`](https://github.com/Fiestaboard/FiestaBoard/blob/main/env.example) file on GitHub. But the lines above are all you need to get started.
 
 ## Step 4: Start FiestaBoard
 
@@ -122,10 +139,10 @@ Save the file when you're done.
 2. In your Terminal or PowerShell, run:
 
    ```bash
-   docker compose -f docker-compose.ghcr.yml up -d
+   docker compose up -d
    ```
 
-3. Docker will automatically download the FiestaBoard images and start the services
+3. Docker will automatically pull the FiestaBoard images from GHCR and start the services
 4. Wait about 30 seconds for everything to start up
 
 ## Step 5: Use the Web Interface
@@ -138,7 +155,7 @@ Once Docker finishes pulling and starting the containers:
 4. **Click the green "▶ Start Service" button**
 5. **Watch your board** — it should start updating!
 
-> **Note:** The API runs on port **6969** and the Web UI on port **4420**. You can change these in the `docker-compose.ghcr.yml` file if needed.
+> **Note:** The API runs on port **6969** and the Web UI on port **4420**. You can change these in your `docker-compose.yml` file if needed.
 
 ## Step 6: Add Plugins
 
@@ -157,12 +174,12 @@ Your board should now be updating automatically!
 
 ### To stop FiestaBoard:
 - Go back to your Terminal/PowerShell window
-- Type: `docker compose -f docker-compose.ghcr.yml down` and press Enter
+- Type: `docker compose down` and press Enter
 
 ### To start it again later:
 - Open Terminal/PowerShell
 - Navigate to the FiestaBoard folder
-- Type: `docker compose -f docker-compose.ghcr.yml up -d` and press Enter
+- Type: `docker compose up -d` and press Enter
 - Go to `http://localhost:4420` and click Start Service
 
 ### To update to the latest version:
@@ -170,8 +187,8 @@ Your board should now be updating automatically!
 - Navigate to the FiestaBoard folder
 - Run:
   ```bash
-  docker compose -f docker-compose.ghcr.yml pull
-  docker compose -f docker-compose.ghcr.yml up -d
+  docker compose pull
+  docker compose up -d
   ```
 
 ## Need Help?
@@ -183,7 +200,7 @@ Your board should now be updating automatically!
 
 **"Connection refused" when accessing http://localhost:4420**
 - Wait a minute after starting, then refresh your browser
-- Make sure Docker containers are running: `docker compose -f docker-compose.ghcr.yml ps`
+- Make sure Docker containers are running: `docker compose ps`
 
 **"Invalid API key"**
 - Double-check you copied the key correctly (no extra spaces!)

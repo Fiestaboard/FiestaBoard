@@ -18,7 +18,12 @@ That's it. No need to clone this repository — just pull the pre-built Docker i
 
 ### Installation
 
-FiestaBoard publishes pre-built Docker images to the **GitHub Container Registry**. You don't need to download the source code or build anything — just create a small config and start the containers.
+FiestaBoard publishes pre-built Docker images to the **GitHub Container Registry** — you don't need to download the source code or build anything. Docker pulls the images for you:
+
+```
+ghcr.io/fiestaboard/fiestaboard-api:latest
+ghcr.io/fiestaboard/fiestaboard-ui:latest
+```
 
 #### 1. Create a project folder
 
@@ -26,31 +31,67 @@ FiestaBoard publishes pre-built Docker images to the **GitHub Container Registry
 mkdir FiestaBoard && cd FiestaBoard
 ```
 
-#### 2. Download the Docker Compose file and environment template
+#### 2. Create a `docker-compose.yml`
 
-```bash
-# Download the Docker Compose file for pre-built images
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml
+Create a file called `docker-compose.yml` with the following contents:
 
-# Download the environment template
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example
+```yaml
+version: '3.8'
+services:
+  fiestaboard-api:
+    image: ghcr.io/fiestaboard/fiestaboard-api:latest
+    container_name: fiestaboard-api
+    env_file: .env
+    environment:
+      - PRODUCTION=true
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "6969:8000"
+    volumes:
+      - ./data:/app/data
+
+  fiestaboard-ui:
+    image: ghcr.io/fiestaboard/fiestaboard-ui:latest
+    container_name: fiestaboard-ui
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "4420:3000"
+    environment:
+      - FIESTA_API_URL=${FIESTA_API_URL:-}
+    depends_on:
+      - fiestaboard-api
 ```
 
-#### 3. Create your `.env` file
+#### 3. Create a `.env` file
 
-```bash
-cp env.example .env
+Create a file called `.env` in the same folder. At a minimum, you need your board API key:
+
+**Local API** (recommended — faster, supports animations):
+```env
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=your_local_api_key_here
+BOARD_HOST=192.168.0.11
 ```
 
-Edit `.env` and add your board API key (see [Getting Your Board API Key](#getting-your-board-api-key) below). All other settings — plugins, API keys, etc. — can be configured later through the web UI.
+**Cloud API** (works from anywhere):
+```env
+BOARD_API_MODE=cloud
+BOARD_READ_WRITE_KEY=your_read_write_key_here
+```
+
+See [Getting Your Board API Key](#getting-your-board-api-key) below for how to get your key. All other settings — plugins, API keys, etc. — can be configured later through the web UI.
+
+> For the full list of environment variables, see [`env.example`](./env.example).
 
 #### 4. Start FiestaBoard
 
 ```bash
-docker compose -f docker-compose.ghcr.yml up -d
+docker compose up -d
 ```
 
-Docker will automatically pull the latest images and start the services.
+Docker will automatically pull the latest images from GHCR and start the services.
 
 #### 5. Open the web UI
 
@@ -60,19 +101,19 @@ Docker will automatically pull the latest images and start the services.
 
 ![Web UI Home](./images/web-ui-home.png)
 
-> **Ports:** The API runs on port **6969** and the Web UI on port **4420**. You can change these in `docker-compose.ghcr.yml`.
+> **Ports:** The API runs on port **6969** and the Web UI on port **4420**. You can change these in your `docker-compose.yml`.
 
 **Useful commands:**
 ```bash
 # Stop FiestaBoard
-docker compose -f docker-compose.ghcr.yml down
+docker compose down
 
 # View logs
-docker compose -f docker-compose.ghcr.yml logs -f
+docker compose logs -f
 
 # Pull latest images and restart
-docker compose -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.ghcr.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 ### 🍓 Running on a Raspberry Pi?
@@ -269,18 +310,22 @@ See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details on cloud
 The easiest way to run FiestaBoard is to pull pre-built images from the GitHub Container Registry. See the [Quick Start](#-quick-start) above.
 
 ```bash
-# Start the server (pulls images automatically)
-docker compose -f docker-compose.ghcr.yml up -d
+# Pull the latest images
+docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
+docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
+
+# Start the server
+docker compose up -d
 
 # Stop the server
-docker compose -f docker-compose.ghcr.yml down
+docker compose down
 
 # View logs
-docker compose -f docker-compose.ghcr.yml logs -f
+docker compose logs -f
 
 # Update to the latest version
-docker compose -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.ghcr.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 ### Building from Source (Alternative)
@@ -298,7 +343,7 @@ docker compose up -d --build
 ### Production Deployment
 
 - **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: Pull pre-built ARM images from GHCR
-- **Docker Compose**: Use `docker-compose.ghcr.yml` for production deployments
+- **Docker Compose**: Pull pre-built images from GHCR (see [Quick Start](#-quick-start))
 
 
 ## Troubleshooting
