@@ -5,54 +5,53 @@ import { NextRequest, NextResponse } from 'next/server';
 const ENV_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.FIESTA_API_URL || '';
 
 /**
- * Runtime configuration endpoint
- * In the unified single-container setup, API and UI run together.
- * Nginx proxies /api/* to the backend, so the UI uses same-origin requests.
+ * Runtime configuration endpoint (Next.js API route).
+ *
+ * This route is only hit in the **split-server** setup (dev / E2E) where
+ * Next.js runs on port 3000 and the FastAPI backend runs on port 8000.
+ *
+ * In the **unified container**, nginx intercepts /api/* and proxies to the
+ * backend directly, so this Next.js route is never reached.
+ *
+ * When we successfully probe the backend, we return the backend origin so
+ * the client talks to it directly (no nginx to strip /api).
  */
 export async function GET(request: NextRequest) {
   try {
     const hostname = request.headers.get('host')?.split(':')[0] || 'localhost';
 
     console.log(`[Runtime Config] Request from hostname: ${hostname}`);
-    
-    // In the unified container, API is on localhost:8000 at /runtime-config (nginx serves it as /api/runtime-config)
+
+    if (ENV_API_URL) {
+      console.log(`[Runtime Config] Using env override: ${ENV_API_URL}`);
+      return NextResponse.json({ apiUrl: ENV_API_URL });
+    }
+
     const apiEndpoints = [
-      'http://localhost:8000/runtime-config',
-      `http://${hostname}:8000/runtime-config`,
+      { url: 'http://localhost:8000/runtime-config', origin: 'http://localhost:8000' },
+      { url: `http://${hostname}:8000/runtime-config`, origin: `http://${hostname}:8000` },
     ];
 
-    for (const endpoint of apiEndpoints) {
+    for (const { url, origin } of apiEndpoints) {
       try {
-        const response = await fetch(endpoint, {
+        const response = await fetch(url, {
           signal: AbortSignal.timeout(2000),
         });
 
         if (response.ok) {
-          const data = await response.json();
-          console.log(`[Runtime Config] Backend returned:`, data);
-          
-          // Same-origin: app will use API_BASE=/api so requests go to /api/* (nginx routes to backend)
-          console.log(`[Runtime Config] Using same-origin (unified container)`);
-          return NextResponse.json({
-            apiUrl: ''
-          });
+          console.log(`[Runtime Config] Backend reachable at ${origin} (split mode)`);
+          return NextResponse.json({ apiUrl: origin });
         }
       } catch {
         continue;
       }
     }
-    
-    // If API is reachable on same origin via nginx, use empty URL
-    return NextResponse.json({
-      apiUrl: ''
-    });
-    
+
+    // Backend not reachable — fall back to same-origin (unified container via nginx)
+    return NextResponse.json({ apiUrl: '' });
+
   } catch (error) {
     console.error('Failed to fetch runtime config:', error);
-    
-    // Return same-origin as default (nginx handles routing)
-    return NextResponse.json({
-      apiUrl: ''
-    });
+    return NextResponse.json({ apiUrl: '' });
   }
 }
