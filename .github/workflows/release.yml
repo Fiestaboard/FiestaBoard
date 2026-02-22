@@ -229,6 +229,38 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Make container packages public
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = '${{ needs.prep.outputs.owner_lower }}';
+            const packages = ['fiestaboard-api', 'fiestaboard-ui'];
+
+            for (const pkg of packages) {
+              try {
+                await github.request('PATCH /orgs/{org}/packages/{package_type}/{package_name}', {
+                  org: owner,
+                  package_type: 'container',
+                  package_name: pkg,
+                  visibility: 'public'
+                });
+                console.log(`✅ ${pkg} is now public`);
+              } catch (orgError) {
+                console.log(`Org API failed for ${pkg}, trying user API: ${orgError.message}`);
+                try {
+                  await github.request('PATCH /user/packages/{package_type}/{package_name}', {
+                    package_type: 'container',
+                    package_name: pkg,
+                    visibility: 'public'
+                  });
+                  console.log(`✅ ${pkg} is now public (user-level)`);
+                } catch (userError) {
+                  core.warning(`Could not make ${pkg} public: ${userError.message}`);
+                }
+              }
+            }
+
       - name: Create GitHub Release
         id: create-release
         uses: actions/github-script@v8
