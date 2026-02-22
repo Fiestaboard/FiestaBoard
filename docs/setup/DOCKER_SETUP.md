@@ -5,31 +5,59 @@
 This project uses a **two-container architecture**:
 
 1. **API Service** (`fiestaboard-api`) - FastAPI REST API server
-   - Port: `8000`
+   - Port: `8000` (internal)
    - Controls the FiestaBoard display service
    - Provides REST endpoints for monitoring and control
 
-2. **Web UI** (`fiestaboard-ui`) - Nginx web server with HTML/JS interface
-   - Port: `8080`
+2. **Web UI** (`fiestaboard-ui`) - Web server with Next.js interface
+   - Port: `3000` (internal)
    - Provides a web interface for monitoring and control
    - Proxies API requests to the API service
 
-## Quick Start
+## Quick Start (Pre-built Images — Recommended)
+
+The fastest way to get running is to use the pre-built images from the **GitHub Container Registry**. No cloning or building required.
+
+```bash
+# Create a project folder
+mkdir FiestaBoard && cd FiestaBoard
+
+# Download the compose file and environment template
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example
+
+# Create and edit your config
+cp env.example .env
+# Edit .env with your board API key
+
+# Start FiestaBoard
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+### Access Services (Pre-built Images)
+
+- **Web UI**: http://localhost:4420
+- **API**: http://localhost:6969
+- **API Docs**: http://localhost:6969/docs
+
+## Building from Source (Alternative)
+
+If you need to build from source (e.g., for development or customization):
 
 ### Build and Run
 
 ```bash
 # Build and start both services
-docker-compose up -d --build
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
-### Access Services
+### Access Services (Built from Source)
 
 - **Web UI**: http://localhost:8080
 - **API**: http://localhost:8000
@@ -195,6 +223,6 @@ Both services use the same `.env` file. Key variables:
 
 ## Production Deployment
 
-For production deployment, use the standard `docker-compose.yml` file with proper environment variables configured.
+For production deployment, use `docker-compose.ghcr.yml` with pre-built images from the GitHub Container Registry. This is the recommended approach — no building required, and images are updated with each release.
 
 

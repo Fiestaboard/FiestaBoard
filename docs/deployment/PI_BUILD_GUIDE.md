@@ -1,6 +1,54 @@
 # Raspberry Pi Build Guide
 
-## Overview
+## Quick Start — Running FiestaBoard on a Raspberry Pi
+
+The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Docker images from the GitHub Container Registry. No need to clone the repo or build anything.
+
+### Prerequisites
+
+- **Raspberry Pi 3B+, Zero 2W, 4, or 5** with a recent Raspberry Pi OS
+- **Docker** installed on your Pi ([install guide](https://docs.docker.com/engine/install/debian/))
+
+> **Tip:** On Raspberry Pi OS, you can install Docker with:
+> ```bash
+> curl -fsSL https://get.docker.com | sh
+> sudo usermod -aG docker $USER
+> # Log out and back in for the group change to take effect
+> ```
+
+### Setup
+
+```bash
+# Create a project folder
+mkdir ~/FiestaBoard && cd ~/FiestaBoard
+
+# Download the Docker Compose file and environment template
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example
+
+# Create your config file and edit it with your board API key
+cp env.example .env
+nano .env   # Set your BOARD_API_MODE, API key, and BOARD_HOST
+
+# Pull and start FiestaBoard
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+Once running, open **http://\<your-pi-ip\>:4420** in a browser on any device on your network.
+
+### Updating
+
+```bash
+cd ~/FiestaBoard
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+---
+
+## How Pi Builds Work (for Contributors)
+
+### Overview
 
 Raspberry Pi Docker images are built **on-demand** to save CI time. By default, releases only build for `linux/amd64` (x86-64 systems).
 
@@ -61,7 +109,7 @@ After merging a PR with the `pi` label:
 # On your Raspberry Pi
 docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
 docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
-docker-compose up -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.ghcr.yml up -d
 ```
 
 ## Technical Details

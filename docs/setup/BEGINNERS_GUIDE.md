@@ -50,65 +50,95 @@ Your board API key is what lets FiestaBoard send content to your display.
 4. Find "Read/Write API" and click "Enable"
 5. Copy the key that appears — paste it somewhere safe
 
-## Step 3: Download FiestaBoard
+## Step 3: Set Up FiestaBoard
 
-### Option A: If you have Git installed:
-1. Open Terminal (Mac/Linux) or Command Prompt (Windows)
-2. Navigate to where you want FiestaBoard (like your Documents folder)
-3. Type: `git clone https://github.com/Fiestaboard/FiestaBoard.git`
-4. Press Enter
+You **don't** need to download the FiestaBoard source code. The pre-built Docker images are published to the GitHub Container Registry — Docker will pull them for you automatically.
 
-### Option B: If you don't have Git:
-1. Go to the FiestaBoard repository on GitHub
-2. Click the green "Code" button
-3. Click "Download ZIP"
-4. Extract the ZIP file to a location you'll remember (like Documents)
+### Create a project folder
 
-## Step 4: Run the Installation Script
+1. **Open Terminal** (Mac/Linux) or **PowerShell** (Windows)
+2. **Create a folder and go into it:**
 
-We've made this easy! Just run one script and it handles everything.
-
-### For Mac/Linux:
-
-1. **Open Terminal** (Press Cmd+Space, type "Terminal", press Enter)
-2. **Navigate to the FiestaBoard folder:**
+   **Mac/Linux:**
    ```bash
-   cd Documents/FiestaBoard
+   mkdir ~/FiestaBoard && cd ~/FiestaBoard
    ```
-3. **Run the installation script:**
+
+   **Windows (PowerShell):**
+   ```powershell
+   mkdir $HOME\FiestaBoard; cd $HOME\FiestaBoard
+   ```
+
+### Download the two files you need
+
+You only need two small files — the Docker Compose configuration and the environment template.
+
+**Mac/Linux:**
+```bash
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.ghcr.yml" -OutFile "docker-compose.ghcr.yml"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example" -OutFile "env.example"
+```
+
+> **Don't have `curl`?** You can also open those URLs in your browser, then use **File → Save As** to save them into your FiestaBoard folder.
+
+### Create your configuration file
+
+**Mac/Linux:**
+```bash
+cp env.example .env
+```
+
+**Windows (PowerShell):**
+```powershell
+Copy-Item env.example .env
+```
+
+Now open the `.env` file in any text editor (Notepad, TextEdit, VS Code, etc.) and set your board API key from Step 2.
+
+For **Local API** mode (recommended), find these lines and update them:
+```
+BOARD_API_MODE=local
+BOARD_LOCAL_API_KEY=paste_your_local_api_key_here
+BOARD_HOST=192.168.0.11  # Replace with your board's IP address
+```
+
+For **Cloud API** mode, set:
+```
+BOARD_API_MODE=cloud
+BOARD_READ_WRITE_KEY=paste_your_read_write_key_here
+```
+
+Save the file when you're done.
+
+## Step 4: Start FiestaBoard
+
+1. Make sure Docker Desktop is running (look for the whale icon)
+2. In your Terminal or PowerShell, run:
+
    ```bash
-   ./scripts/install.sh
+   docker compose -f docker-compose.ghcr.yml up -d
    ```
 
-### For Windows:
-
-1. **Open PowerShell** (Press Windows key, type "PowerShell", right-click and select "Run as Administrator")
-2. **Navigate to the FiestaBoard folder:**
-   ```powershell
-   cd Documents\FiestaBoard
-   ```
-3. **Run the installation script:**
-   ```powershell
-   .\scripts\install.ps1
-   ```
-
-### What the script does:
-
-- ✅ Checks that Docker is installed and running
-- ✅ Guides you through entering your board API key
-- ✅ Creates the configuration file
-- ✅ Builds and starts the server
-- ✅ Tells you when everything is ready
+3. Docker will automatically download the FiestaBoard images and start the services
+4. Wait about 30 seconds for everything to start up
 
 ## Step 5: Use the Web Interface
 
-Once the installation script completes:
+Once Docker finishes pulling and starting the containers:
 
 1. **Open your web browser** (Chrome, Safari, Firefox, etc.)
-2. **Go to:** `http://localhost:8080`
+2. **Go to:** `http://localhost:4420`
 3. You'll see the FiestaBoard control panel!
 4. **Click the green "▶ Start Service" button**
 5. **Watch your board** — it should start updating!
+
+> **Note:** The API runs on port **6969** and the Web UI on port **4420**. You can change these in the `docker-compose.ghcr.yml` file if needed.
 
 ## Step 6: Add Plugins
 
@@ -126,15 +156,23 @@ Now that your server is running, you can enable plugins to display different dat
 Your board should now be updating automatically!
 
 ### To stop FiestaBoard:
-- Go back to your Terminal/Command Prompt window
-- Press `Ctrl+C`
-- Then type: `docker-compose down` and press Enter
+- Go back to your Terminal/PowerShell window
+- Type: `docker compose -f docker-compose.ghcr.yml down` and press Enter
 
 ### To start it again later:
-- Open Terminal/Command Prompt/PowerShell
+- Open Terminal/PowerShell
 - Navigate to the FiestaBoard folder
-- Type: `docker-compose up -d` and press Enter
-- Go to `http://localhost:8080` and click Start Service
+- Type: `docker compose -f docker-compose.ghcr.yml up -d` and press Enter
+- Go to `http://localhost:4420` and click Start Service
+
+### To update to the latest version:
+- Open Terminal/PowerShell
+- Navigate to the FiestaBoard folder
+- Run:
+  ```bash
+  docker compose -f docker-compose.ghcr.yml pull
+  docker compose -f docker-compose.ghcr.yml up -d
+  ```
 
 ## Need Help?
 
@@ -143,9 +181,9 @@ Your board should now be updating automatically!
 **"Docker is not running"**
 - Make sure Docker Desktop is open and the whale icon is in your menu bar (Mac) or system tray (Windows)
 
-**"Connection refused" when accessing http://localhost:8080**
+**"Connection refused" when accessing http://localhost:4420**
 - Wait a minute after starting, then refresh your browser
-- Make sure Docker containers are running: `docker-compose ps`
+- Make sure Docker containers are running: `docker compose -f docker-compose.ghcr.yml ps`
 
 **"Invalid API key"**
 - Double-check you copied the key correctly (no extra spaces!)
