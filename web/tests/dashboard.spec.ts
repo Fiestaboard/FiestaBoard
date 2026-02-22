@@ -125,6 +125,11 @@ test.describe("Dashboard", () => {
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible({ timeout: 15_000 });
 
+    // Wait for Active Display card to be visible (ensures component is mounted)
+    await expect(
+      page.getByRole("heading", { name: "Active Display" })
+    ).toBeVisible({ timeout: 10_000 });
+    
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
       timeout: 15_000,
     });

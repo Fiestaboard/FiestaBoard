@@ -297,7 +297,7 @@ export default function SchedulePage() {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-6xl">
         {/* Board selector when multiple boards */}
         {boards.length > 1 && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2" data-testid="board-selector">
             {boards.map((b: { id: string; name?: string }) => (
               <Button
                 key={b.id}

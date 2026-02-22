@@ -91,9 +91,9 @@ test.describe("Multi-Board and Schedule", () => {
   test("schedule CRUD with two boards: create and list", async ({
     page,
   }) => {
-    await ensureTwoBoards();
+    const { board1Id } = await ensureTwoBoards();
     const pageId = await createPage("Schedule Multi-Board Page");
-    await createSchedule(pageId, "09:00", "12:00", "weekdays");
+    await createSchedule(pageId, "09:00", "12:00", "weekdays", board1Id);
 
     await page.goto("/schedule");
     await expect(
@@ -165,7 +165,7 @@ test.describe("Multi-Board and Schedule", () => {
     await expect(page.getByText("09:00").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("12:00").first()).toBeVisible({ timeout: 5_000 });
     // Switch to second board (second button in the board selector)
-    const boardButtons = page.locator("div.mb-4.flex").getByRole("button");
+    const boardButtons = page.getByTestId("board-selector").getByRole("button");
     await expect(boardButtons).toHaveCount(2);
     await boardButtons.nth(1).click();
     // After switch: should show 14:00–18:00 for board 2
