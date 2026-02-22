@@ -176,12 +176,8 @@ jobs:
           tags: |
             ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:${{ needs.prep.outputs.version }}
             ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:latest
-          cache-from: |
-            type=gha
-            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:buildcache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-api:buildcache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   build-ui:
     name: Build UI Image
@@ -217,12 +213,8 @@ jobs:
           tags: |
             ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:${{ needs.prep.outputs.version }}
             ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:latest
-          cache-from: |
-            type=gha
-            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:buildcache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard-ui:buildcache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   release:
     name: Create Release
