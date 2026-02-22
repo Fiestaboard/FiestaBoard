@@ -25,19 +25,17 @@ export async function loadRuntimeConfig(): Promise<void> {
       const config = await response.json();
       
       // Set API_BASE from config
-      // In the unified container, apiUrl is empty (same-origin via nginx)
+      // In the unified container, apiUrl is empty: use /api so all API calls go to /api/* (no UI path conflicts)
       if (config.apiUrl) {
         API_BASE = config.apiUrl;
       } else {
-        // Same origin - nginx routes API requests to the backend
-        API_BASE = "";
+        API_BASE = "/api";
       }
       
       configLoaded = true;
     } catch (error) {
       console.error("Failed to load runtime config, using defaults:", error);
-      // Fall back to same-origin (works in unified container via nginx)
-      API_BASE = "";
+      API_BASE = "/api";
       configLoaded = true;
     }
   })();

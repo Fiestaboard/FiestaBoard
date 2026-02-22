@@ -15,11 +15,10 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Runtime Config] Request from hostname: ${hostname}`);
     
-    // In the unified container, API is on localhost:8000
-    // Nginx proxies API paths so the UI can use same-origin (empty apiUrl)
+    // In the unified container, API is on localhost:8000 at /runtime-config (nginx serves it as /api/runtime-config)
     const apiEndpoints = [
-      'http://localhost:8000/api/runtime-config',        // Same container
-      `http://${hostname}:8000/api/runtime-config`,      // Fallback
+      'http://localhost:8000/runtime-config',
+      `http://${hostname}:8000/runtime-config`,
     ];
 
     for (const endpoint of apiEndpoints) {
@@ -32,8 +31,7 @@ export async function GET(request: NextRequest) {
           const data = await response.json();
           console.log(`[Runtime Config] Backend returned:`, data);
           
-          // In unified container, use same-origin (empty apiUrl)
-          // so all requests go through nginx which routes them correctly
+          // Same-origin: app will use API_BASE=/api so requests go to /api/* (nginx routes to backend)
           console.log(`[Runtime Config] Using same-origin (unified container)`);
           return NextResponse.json({
             apiUrl: ''
