@@ -21,6 +21,11 @@ class SlackPlugin(PluginBase):
     Fetches recent messages from a configured Slack channel using OAuth.
     """
     
+    def __init__(self, manifest: Dict[str, Any]):
+        """Initialize plugin with user cache."""
+        super().__init__(manifest)
+        self._user_cache: Dict[str, str] = {}  # Cache user_id -> display_name
+    
     @property
     def plugin_id(self) -> str:
         """Return the plugin ID matching manifest.json."""
@@ -156,9 +161,13 @@ class SlackPlugin(PluginBase):
         return data.get("messages", [])
     
     def _get_user_name(self, access_token: str, user_id: str) -> str:
-        """Get user display name from Slack API."""
+        """Get user display name from Slack API with caching."""
         if not user_id:
             return "Unknown"
+        
+        # Check cache first
+        if user_id in self._user_cache:
+            return self._user_cache[user_id]
         
         try:
             url = "https://slack.com/api/users.info"
@@ -172,15 +181,20 @@ class SlackPlugin(PluginBase):
             if data.get("ok") and data.get("user"):
                 user = data["user"]
                 # Prefer display name, fall back to real name or username
-                return (
+                display_name = (
                     user.get("profile", {}).get("display_name") or
                     user.get("profile", {}).get("real_name") or
                     user.get("name") or
                     "Unknown"
                 )
+                # Cache the result
+                self._user_cache[user_id] = display_name
+                return display_name
         except Exception as e:
             logger.debug(f"Could not fetch user name for {user_id}: {e}")
         
+        # Cache unknown users too to avoid repeated failures
+        self._user_cache[user_id] = "Unknown"
         return "Unknown"
     
     def _truncate_text(self, text: str, max_length: int) -> str:
@@ -213,4 +227,6 @@ class SlackPlugin(PluginBase):
     
     def cleanup(self) -> None:
         """Cleanup when plugin is disabled."""
+        # Clear user cache on cleanup
+        self._user_cache.clear()
         logger.info(f"Plugin {self.plugin_id} cleanup")

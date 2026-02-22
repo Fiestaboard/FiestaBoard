@@ -4,6 +4,7 @@ pyyaml>=6.0.2
 python-dotenv>=1.0.1
 schedule>=1.2.2
 pytz>=2024.2
+cryptography>=42.0.0
 
 # API Server dependencies
 fastapi>=0.125.0

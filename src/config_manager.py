@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 # Import TimeService for migration
 from .time_service import get_time_service
+from .encryption import encrypt_value, decrypt_value, is_encryption_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +261,11 @@ class ConfigManager:
             if self._config_path.exists():
                 try:
                     with open(self._config_path, "r") as f:
-                        self._config = json.load(f)
+                        loaded_config = json.load(f)
+                    
+                    # Decrypt sensitive fields after loading
+                    loaded_config = self._decrypt_sensitive_fields(loaded_config)
+                    self._config = loaded_config
                     logger.info(f"Loaded config from {self._config_path}")
                     
                     # Merge with defaults to handle missing keys
@@ -309,11 +314,62 @@ class ConfigManager:
         
         return merge(result, config)
 
+    def _encrypt_sensitive_fields(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Recursively encrypt sensitive fields in config before saving.
+        
+        Args:
+            config: Configuration dict to encrypt
+            
+        Returns:
+            New dict with sensitive fields encrypted
+        """
+        if not is_encryption_enabled():
+            return config
+        
+        result = {}
+        for key, value in config.items():
+            if isinstance(value, dict):
+                # Recursively encrypt nested dicts
+                result[key] = self._encrypt_sensitive_fields(value)
+            elif key in SENSITIVE_FIELDS and isinstance(value, str) and value and not value.startswith("enc_v1:"):
+                # Encrypt sensitive string fields that aren't already encrypted
+                result[key] = encrypt_value(value)
+            else:
+                result[key] = value
+        return result
+    
+    def _decrypt_sensitive_fields(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Recursively decrypt sensitive fields after loading config.
+        
+        Args:
+            config: Configuration dict with encrypted fields
+            
+        Returns:
+            New dict with sensitive fields decrypted
+        """
+        if not is_encryption_enabled():
+            return config
+        
+        result = {}
+        for key, value in config.items():
+            if isinstance(value, dict):
+                # Recursively decrypt nested dicts
+                result[key] = self._decrypt_sensitive_fields(value)
+            elif key in SENSITIVE_FIELDS and isinstance(value, str) and value.startswith("enc_v1:"):
+                # Decrypt encrypted fields
+                result[key] = decrypt_value(value)
+            else:
+                result[key] = value
+        return result
+    
     def _save_internal(self) -> None:
         """Internal save without acquiring lock (called from locked context)."""
         try:
+            # Encrypt sensitive fields before saving
+            config_to_save = self._encrypt_sensitive_fields(self._deep_copy(self._config))
+            
             with open(self._config_path, "w") as f:
-                json.dump(self._config, f, indent=2)
+                json.dump(config_to_save, f, indent=2)
             logger.debug(f"Saved config to {self._config_path}")
         except IOError as e:
             logger.error(f"Failed to save config: {e}")

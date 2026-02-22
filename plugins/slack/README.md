@@ -121,10 +121,28 @@ This is well within Slack's rate limits for normal usage.
 
 ## Privacy & Security
 
-- **OAuth tokens** are stored securely in FiestaBoard's configuration
+### Encryption
+- **OAuth tokens are encrypted** at rest using industry-standard Fernet symmetric encryption
+- Encryption is enabled automatically when you set `FIESTA_ENCRYPTION_KEY` or `FIESTA_SECRET_KEY` environment variable
+- Without these keys, tokens are stored unencrypted (not recommended for production)
+
+### CSRF Protection
+- OAuth flow uses secure state tokens to prevent CSRF attacks
+- State tokens expire after 10 minutes and can only be used once
+- Invalid or expired tokens are rejected automatically
+
+### Data Handling
 - **Messages** are fetched directly from Slack's API and not stored permanently
+- **User information** is cached temporarily to reduce API calls
 - **Access** is limited to channels your Slack user can access
 - **Tokens** can be revoked at any time from your Slack workspace settings
+
+### Best Practices
+1. Always set `FIESTA_ENCRYPTION_KEY` in production environments
+2. Use HTTPS in production for OAuth redirects
+3. Rotate your encryption key periodically
+4. Keep your Slack Client Secret secure
+5. Monitor Slack workspace apps regularly
 
 ## Development
 

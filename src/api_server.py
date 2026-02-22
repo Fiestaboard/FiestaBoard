@@ -3998,6 +3998,53 @@ async def get_plugin_errors():
 # OAuth Endpoints
 # =============================================================================
 
+# OAuth state storage for CSRF protection
+# In production, use Redis or a database with proper expiration
+from collections import defaultdict
+from datetime import datetime, timedelta
+from urllib.parse import urlencode, quote
+
+_oauth_states: Dict[str, Dict[str, Any]] = {}
+_oauth_states_lock = threading.Lock()
+
+def store_oauth_state(state: str, plugin_id: str, redirect_uri: str) -> None:
+    """Store OAuth state token with expiration."""
+    with _oauth_states_lock:
+        _oauth_states[state] = {
+            "plugin_id": plugin_id,
+            "redirect_uri": redirect_uri,
+            "expires_at": datetime.utcnow() + timedelta(minutes=10)
+        }
+
+def validate_oauth_state(state: str, plugin_id: str) -> bool:
+    """Validate OAuth state token and remove if valid."""
+    with _oauth_states_lock:
+        if state not in _oauth_states:
+            return False
+        
+        state_data = _oauth_states[state]
+        
+        # Check expiration
+        if datetime.utcnow() > state_data["expires_at"]:
+            del _oauth_states[state]
+            return False
+        
+        # Check plugin ID matches
+        if state_data["plugin_id"] != plugin_id:
+            return False
+        
+        # Valid - remove to prevent reuse
+        del _oauth_states[state]
+        return True
+
+def cleanup_expired_oauth_states() -> None:
+    """Remove expired OAuth states."""
+    with _oauth_states_lock:
+        now = datetime.utcnow()
+        expired = [s for s, data in _oauth_states.items() if now > data["expires_at"]]
+        for state in expired:
+            del _oauth_states[state]
+
 class OAuthInitiateRequest(BaseModel):
     """Request body for initiating OAuth flow."""
     plugin_id: str
@@ -4064,20 +4111,24 @@ async def initiate_oauth(request: OAuthInitiateRequest):
         import secrets
         state = secrets.token_urlsafe(32)
         
-        # Store state in memory (in production, use Redis or database)
-        # For now, we'll rely on the client to send it back
+        # Store state for validation (expires in 10 minutes)
+        store_oauth_state(state, request.plugin_id, request.redirect_uri)
         
-        # Build authorization URL
+        # Clean up expired states periodically
+        cleanup_expired_oauth_states()
+        
+        # Build authorization URL with proper URL encoding
         authorize_url = oauth_config.get("authorize_url")
         scopes = ",".join(oauth_config.get("scopes", []))
         
-        auth_url = (
-            f"{authorize_url}?"
-            f"client_id={client_id}&"
-            f"scope={scopes}&"
-            f"redirect_uri={request.redirect_uri}&"
-            f"state={state}"
-        )
+        # Use urlencode for proper parameter encoding
+        params = urlencode({
+            "client_id": client_id,
+            "scope": scopes,
+            "redirect_uri": request.redirect_uri,
+            "state": state
+        })
+        auth_url = f"{authorize_url}?{params}"
         
         return {
             "authorization_url": auth_url,
@@ -4117,6 +4168,13 @@ async def oauth_callback(request: OAuthCallbackRequest):
     provider = oauth_config.get("provider")
     
     if provider == "slack":
+        # Validate CSRF state token
+        if not validate_oauth_state(request.state, request.plugin_id):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid or expired OAuth state token. Please try again."
+            )
+        
         # Get Slack OAuth credentials
         client_id = os.getenv("SLACK_CLIENT_ID")
         client_secret = os.getenv("SLACK_CLIENT_SECRET")
@@ -4155,32 +4213,38 @@ async def oauth_callback(request: OAuthCallbackRequest):
             access_token = token_data.get("access_token")
             team_name = token_data.get("team", {}).get("name", "Unknown")
             
-            # Fetch available channels
-            channels_response = requests.get(
-                "https://slack.com/api/conversations.list",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={"types": "public_channel,private_channel"},
-                timeout=10
-            )
-            channels_data = channels_response.json()
-            
-            channels = []
-            if channels_data.get("ok"):
-                channels = [
-                    {
-                        "id": ch["id"],
-                        "name": ch["name"],
-                        "is_private": ch.get("is_private", False)
-                    }
-                    for ch in channels_data.get("channels", [])
-                ]
-            
-            # Store access token in plugin config
+            # IMPORTANT: Store access token BEFORE fetching channels
+            # This ensures the token is saved even if channel fetch fails
             config_manager = get_config_manager()
             current_config = config_manager.get_plugin_config(request.plugin_id) or {}
             current_config["access_token"] = access_token
             current_config["workspace_name"] = team_name
             config_manager.set_plugin_config(request.plugin_id, current_config)
+            logger.info(f"Saved OAuth token for plugin {request.plugin_id}")
+            
+            # Now fetch available channels (non-critical - failure won't lose token)
+            channels = []
+            try:
+                channels_response = requests.get(
+                    "https://slack.com/api/conversations.list",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    params={"types": "public_channel,private_channel"},
+                    timeout=10
+                )
+                channels_data = channels_response.json()
+                
+                if channels_data.get("ok"):
+                    channels = [
+                        {
+                            "id": ch["id"],
+                            "name": ch["name"],
+                            "is_private": ch.get("is_private", False)
+                        }
+                        for ch in channels_data.get("channels", [])
+                    ]
+            except Exception as e:
+                # Log but don't fail - token is already saved
+                logger.warning(f"Failed to fetch channels (token saved successfully): {e}")
             
             return {
                 "success": True,
