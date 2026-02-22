@@ -1,0 +1,120 @@
+{
+  "id": "slack",
+  "name": "Slack Messages",
+  "version": "1.0.0",
+  "description": "Display recent messages from Slack channels on your board",
+  "author": "FiestaBoard",
+  "icon": "message_square",
+  "category": "entertainment",
+  "repository": "https://github.com/Fiestaboard/FiestaBoard",
+  "documentation": "README.md",
+  "requires_oauth": true,
+  "oauth_config": {
+    "provider": "slack",
+    "authorize_url": "https://slack.com/oauth/v2/authorize",
+    "token_url": "https://slack.com/api/oauth.v2.access",
+    "scopes": ["channels:history", "channels:read", "groups:history", "groups:read", "im:history", "im:read", "mpim:history", "mpim:read", "users:read"]
+  },
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "access_token": {
+        "type": "string",
+        "title": "Access Token",
+        "description": "OAuth access token (automatically set via OAuth flow)",
+        "ui:widget": "password",
+        "ui:readonly": true
+      },
+      "workspace_name": {
+        "type": "string",
+        "title": "Workspace Name",
+        "description": "Connected Slack workspace (read-only)",
+        "ui:readonly": true
+      },
+      "channel_id": {
+        "type": "string",
+        "title": "Channel ID",
+        "description": "Slack channel ID to monitor (e.g., C01234567). Use OAuth flow to select a channel.",
+        "default": ""
+      },
+      "max_messages": {
+        "type": "integer",
+        "title": "Max Messages",
+        "description": "Maximum number of messages to fetch",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 20
+      },
+      "show_timestamp": {
+        "type": "boolean",
+        "title": "Show Timestamp",
+        "description": "Display message timestamps",
+        "default": true
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "How often to fetch new messages from Slack",
+        "default": 60,
+        "minimum": 30
+      },
+      "enabled": {
+        "type": "boolean",
+        "title": "Enabled",
+        "default": false
+      }
+    },
+    "required": []
+  },
+  "env_vars": [
+    {
+      "name": "SLACK_CLIENT_ID",
+      "required": true,
+      "description": "Slack OAuth app Client ID (create at api.slack.com/apps)"
+    },
+    {
+      "name": "SLACK_CLIENT_SECRET",
+      "required": true,
+      "description": "Slack OAuth app Client Secret"
+    },
+    {
+      "name": "SLACK_REDIRECT_URI",
+      "required": false,
+      "description": "OAuth redirect URI (defaults to http://localhost:3000/oauth/callback/slack)"
+    }
+  ],
+  "variables": {
+    "simple": [
+      "channel_name",
+      "message_count",
+      "last_message_text",
+      "last_message_user",
+      "last_message_time",
+      "status"
+    ],
+    "arrays": {
+      "messages": {
+        "label_field": "user",
+        "item_fields": ["user", "text", "time", "formatted"]
+      }
+    }
+  },
+  "max_lengths": {
+    "channel_name": 22,
+    "message_count": 3,
+    "last_message_text": 66,
+    "last_message_user": 22,
+    "last_message_time": 22,
+    "status": 22,
+    "messages.*.user": 22,
+    "messages.*.text": 66,
+    "messages.*.time": 22,
+    "messages.*.formatted": 132
+  },
+  "color_rules_schema": {
+    "message_count": {
+      "type": "threshold",
+      "description": "Color based on number of messages"
+    }
+  }
+}

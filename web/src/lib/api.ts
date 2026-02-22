@@ -674,6 +674,34 @@ export interface PluginErrorsResponse {
   plugin_system_enabled: boolean;
 }
 
+export interface OAuthInitiateResponse {
+  authorization_url: string;
+  state: string;
+  provider: string;
+}
+
+export interface OAuthCallbackResponse {
+  success: boolean;
+  workspace_name: string;
+  channels: Array<{
+    id: string;
+    name: string;
+    is_private: boolean;
+  }>;
+}
+
+export interface OAuthChannelSelectResponse {
+  success: boolean;
+  channel_id: string;
+  channel_name: string;
+}
+
+export interface OAuthStatusResponse {
+  authenticated: boolean;
+  workspace_name: string;
+  channel_name: string;
+}
+
 export interface VersionResponse {
   package_version: string;
   build_version: string;
@@ -1050,6 +1078,28 @@ export const api = {
   
   getPluginErrors: () =>
     fetchApi<PluginErrorsResponse>("/plugins/errors"),
+
+  // OAuth endpoints
+  initiateOAuth: (pluginId: string, redirectUri: string) =>
+    fetchApi<OAuthInitiateResponse>("/oauth/initiate", {
+      method: "POST",
+      body: JSON.stringify({ plugin_id: pluginId, redirect_uri: redirectUri }),
+    }),
+  
+  handleOAuthCallback: (pluginId: string, code: string, state: string, redirectUri: string) =>
+    fetchApi<OAuthCallbackResponse>("/oauth/callback", {
+      method: "POST",
+      body: JSON.stringify({ plugin_id: pluginId, code, state, redirect_uri: redirectUri }),
+    }),
+  
+  selectOAuthChannel: (pluginId: string, channelId: string, channelName: string) =>
+    fetchApi<OAuthChannelSelectResponse>("/oauth/select-channel", {
+      method: "POST",
+      body: JSON.stringify({ plugin_id: pluginId, channel_id: channelId, channel_name: channelName }),
+    }),
+  
+  getOAuthStatus: (pluginId: string) =>
+    fetchApi<OAuthStatusResponse>(`/oauth/status/${pluginId}`),
 
   // Setup wizard endpoints
   validateSetup: () => fetchApi<ConfigValidationResponse>("/config/validate"),

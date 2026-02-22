@@ -3994,6 +3994,268 @@ async def get_plugin_errors():
     }
 
 
+# =============================================================================
+# OAuth Endpoints
+# =============================================================================
+
+class OAuthInitiateRequest(BaseModel):
+    """Request body for initiating OAuth flow."""
+    plugin_id: str
+    redirect_uri: str
+
+
+class OAuthCallbackRequest(BaseModel):
+    """Request body for OAuth callback."""
+    plugin_id: str
+    code: str
+    state: str
+    redirect_uri: str
+
+
+class OAuthChannelSelectRequest(BaseModel):
+    """Request body for selecting OAuth channel/resource."""
+    plugin_id: str
+    channel_id: str
+    channel_name: str
+
+
+@app.post("/oauth/initiate")
+async def initiate_oauth(request: OAuthInitiateRequest):
+    """
+    Initiate OAuth flow for a plugin.
+    
+    Returns the authorization URL to redirect the user to.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
+    
+    registry = get_plugin_registry()
+    manifest = registry.get_manifest(request.plugin_id)
+    
+    if not manifest:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {request.plugin_id}"
+        )
+    
+    # Check if plugin requires OAuth
+    if not manifest.raw.get("requires_oauth"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin {request.plugin_id} does not require OAuth"
+        )
+    
+    oauth_config = manifest.raw.get("oauth_config", {})
+    provider = oauth_config.get("provider")
+    
+    if provider == "slack":
+        # Get Slack OAuth credentials from environment
+        client_id = os.getenv("SLACK_CLIENT_ID")
+        if not client_id:
+            raise HTTPException(
+                status_code=500,
+                detail="SLACK_CLIENT_ID not configured"
+            )
+        
+        # Generate state token for CSRF protection
+        import secrets
+        state = secrets.token_urlsafe(32)
+        
+        # Store state in memory (in production, use Redis or database)
+        # For now, we'll rely on the client to send it back
+        
+        # Build authorization URL
+        authorize_url = oauth_config.get("authorize_url")
+        scopes = ",".join(oauth_config.get("scopes", []))
+        
+        auth_url = (
+            f"{authorize_url}?"
+            f"client_id={client_id}&"
+            f"scope={scopes}&"
+            f"redirect_uri={request.redirect_uri}&"
+            f"state={state}"
+        )
+        
+        return {
+            "authorization_url": auth_url,
+            "state": state,
+            "provider": provider
+        }
+    
+    raise HTTPException(
+        status_code=400,
+        detail=f"OAuth provider {provider} not supported"
+    )
+
+
+@app.post("/oauth/callback")
+async def oauth_callback(request: OAuthCallbackRequest):
+    """
+    Handle OAuth callback and exchange code for access token.
+    
+    Exchanges the authorization code for an access token and stores it.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
+    
+    registry = get_plugin_registry()
+    manifest = registry.get_manifest(request.plugin_id)
+    
+    if not manifest:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {request.plugin_id}"
+        )
+    
+    oauth_config = manifest.raw.get("oauth_config", {})
+    provider = oauth_config.get("provider")
+    
+    if provider == "slack":
+        # Get Slack OAuth credentials
+        client_id = os.getenv("SLACK_CLIENT_ID")
+        client_secret = os.getenv("SLACK_CLIENT_SECRET")
+        
+        if not client_id or not client_secret:
+            raise HTTPException(
+                status_code=500,
+                detail="Slack OAuth credentials not configured"
+            )
+        
+        # Exchange code for access token
+        token_url = oauth_config.get("token_url")
+        
+        try:
+            response = requests.post(
+                token_url,
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": request.code,
+                    "redirect_uri": request.redirect_uri
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            
+            token_data = response.json()
+            
+            if not token_data.get("ok"):
+                error = token_data.get("error", "Unknown error")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Slack OAuth error: {error}"
+                )
+            
+            access_token = token_data.get("access_token")
+            team_name = token_data.get("team", {}).get("name", "Unknown")
+            
+            # Fetch available channels
+            channels_response = requests.get(
+                "https://slack.com/api/conversations.list",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"types": "public_channel,private_channel"},
+                timeout=10
+            )
+            channels_data = channels_response.json()
+            
+            channels = []
+            if channels_data.get("ok"):
+                channels = [
+                    {
+                        "id": ch["id"],
+                        "name": ch["name"],
+                        "is_private": ch.get("is_private", False)
+                    }
+                    for ch in channels_data.get("channels", [])
+                ]
+            
+            # Store access token in plugin config
+            config_manager = get_config_manager()
+            current_config = config_manager.get_plugin_config(request.plugin_id) or {}
+            current_config["access_token"] = access_token
+            current_config["workspace_name"] = team_name
+            config_manager.set_plugin_config(request.plugin_id, current_config)
+            
+            return {
+                "success": True,
+                "workspace_name": team_name,
+                "channels": channels
+            }
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"OAuth token exchange failed: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to exchange OAuth token: {str(e)}"
+            )
+    
+    raise HTTPException(
+        status_code=400,
+        detail=f"OAuth provider {provider} not supported"
+    )
+
+
+@app.post("/oauth/select-channel")
+async def select_oauth_channel(request: OAuthChannelSelectRequest):
+    """
+    Select a channel/resource for an OAuth-enabled plugin.
+    
+    Updates the plugin configuration with the selected channel.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
+    
+    config_manager = get_config_manager()
+    current_config = config_manager.get_plugin_config(request.plugin_id) or {}
+    
+    current_config["channel_id"] = request.channel_id
+    current_config["channel_name"] = request.channel_name
+    
+    config_manager.set_plugin_config(request.plugin_id, current_config)
+    
+    return {
+        "success": True,
+        "channel_id": request.channel_id,
+        "channel_name": request.channel_name
+    }
+
+
+@app.get("/oauth/status/{plugin_id}")
+async def get_oauth_status(plugin_id: str):
+    """
+    Get OAuth authentication status for a plugin.
+    
+    Returns whether the plugin is authenticated and any associated metadata.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
+    
+    config_manager = get_config_manager()
+    config = config_manager.get_plugin_config(plugin_id) or {}
+    
+    has_token = bool(config.get("access_token"))
+    workspace_name = config.get("workspace_name", "")
+    channel_name = config.get("channel_name", "")
+    
+    return {
+        "authenticated": has_token,
+        "workspace_name": workspace_name,
+        "channel_name": channel_name
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
