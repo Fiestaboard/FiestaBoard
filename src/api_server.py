@@ -49,6 +49,7 @@ _service_thread: Optional[threading.Thread] = None
 _service_running = False
 _dev_mode = False  # When True, preview only - don't send to board
 _service_start_time: Optional[float] = None  # Track when service started
+_shutting_down = False  # Set during app shutdown to suppress auto-restart
 
 # In-memory log buffer (last 500 log entries for quick access)
 _log_buffer: deque = deque(maxlen=500)
@@ -285,20 +286,31 @@ def get_service() -> Optional[DisplayService]:
 
 
 def run_service_background():
-    """Run the service in a background thread."""
+    """Run the service in a background thread with auto-restart on failure."""
     global _service_running, _service, _service_start_time
-    service = get_service()
-    if service:
-        # Check if service needs initialization (might have failed during startup)
+    restart_delay = 2
+    max_restart_delay = 60
+
+    while not _shutting_down:
+        service = get_service()
+        if not service:
+            logger.warning("Service instance unavailable, retrying in %ds...", restart_delay)
+            time.sleep(restart_delay)
+            restart_delay = min(restart_delay * 2, max_restart_delay)
+            continue
+
         if not service.vb_client:
             logger.info("Service not fully initialized, attempting initialization...")
             if not service.initialize():
-                logger.error("Service initialization failed - cannot start. Fix configuration and use /start endpoint to retry.")
-                return
-        
+                logger.error("Service initialization failed - retrying in %ds...", restart_delay)
+                time.sleep(restart_delay)
+                restart_delay = min(restart_delay * 2, max_restart_delay)
+                continue
+
         service.running = True
         _service_running = True
-        _service_start_time = time.time()  # Track start time
+        _service_start_time = time.time()
+        restart_delay = 2  # Reset backoff on successful start
         try:
             logger.info("Starting background display service...")
             service.run()
@@ -306,13 +318,21 @@ def run_service_background():
             logger.error(f"Service error: {e}", exc_info=True)
         finally:
             _service_running = False
-            logger.info("Background display service stopped")
+
+        if _shutting_down:
+            logger.info("Background display service stopped (app shutting down)")
+            break
+
+        logger.warning("Background display service stopped unexpectedly, restarting in %ds...", restart_delay)
+        time.sleep(restart_delay)
+        restart_delay = min(restart_delay * 2, max_restart_delay)
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize service on startup."""
-    global _dev_mode, _service_thread
+    global _dev_mode, _service_thread, _shutting_down
+    _shutting_down = False
     logger.info("API server starting up...")
     
     # Set up file-based logging
@@ -351,8 +371,9 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
-    global _service, _service_running
+    global _service, _service_running, _shutting_down
     logger.info("API server shutting down...")
+    _shutting_down = True
     _service_running = False
     if _service:
         _service.running = False
@@ -465,10 +486,12 @@ async def get_status():
 @app.post("/start")
 async def start_service(background_tasks: BackgroundTasks):
     """Start the background service."""
-    global _service_thread, _service_running, _service
+    global _service_thread, _service_running, _service, _shutting_down
     
     if _service_running:
         return {"status": "already_running", "message": "Service is already running"}
+    
+    _shutting_down = False  # Re-enable auto-restart
     
     service = get_service()
     if not service:
@@ -501,11 +524,12 @@ async def start_service(background_tasks: BackgroundTasks):
 @app.post("/stop")
 async def stop_service():
     """Stop the background service."""
-    global _service_running, _service
+    global _service_running, _service, _shutting_down
     
     if not _service_running:
         return {"status": "not_running", "message": "Service is not running"}
     
+    _shutting_down = True  # Prevent auto-restart
     if _service:
         _service.running = False
         _service_running = False

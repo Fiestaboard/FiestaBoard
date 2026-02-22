@@ -41,15 +41,6 @@ class DisplayService:
         self._last_active_page_id: Optional[str] = None
         self._last_silence_mode_active: bool = False
         self._snoozing_message_sent: bool = False
-        
-        # Setup signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-    
-    def _signal_handler(self, signum, frame):
-        """Handle shutdown signals."""
-        logger.info(f"Received signal {signum}, shutting down gracefully...")
-        self.running = False
     
     def _build_board_clients(self):
         """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
@@ -347,9 +338,16 @@ class DisplayService:
 
 
 def main():
-    """Main entry point."""
+    """Main entry point (standalone mode only, not used under uvicorn)."""
     service = DisplayService()
+    signal.signal(signal.SIGINT, lambda s, f: _stop_service(service))
+    signal.signal(signal.SIGTERM, lambda s, f: _stop_service(service))
     service.run()
+
+
+def _stop_service(service):
+    logger.info("Received shutdown signal, stopping gracefully...")
+    service.running = False
 
 
 # Aliases for the display service class
