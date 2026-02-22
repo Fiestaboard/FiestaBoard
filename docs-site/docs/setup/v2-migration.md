@@ -153,9 +153,9 @@ This is the biggest infrastructure change in V2. FiestaBoard moved from two sepa
 | | V1 | V2 |
 |---|---|---|
 | **Architecture** | Two containers | One container |
-| **Web UI URL** | http://localhost:**8080** | http://localhost:**3000** |
-| **API URL** | http://localhost:**8000** (direct) | http://localhost:3000 (same port, proxied via nginx) |
-| **API Docs** | http://localhost:8000/docs | http://localhost:3000/docs |
+| **Web UI URL** | `http://localhost:8080` | `http://localhost:3000` |
+| **API URL** | `http://localhost:8000` (direct) | `http://localhost:3000` (same port, proxied via nginx) |
+| **API Docs** | `http://localhost:8000/docs` | `http://localhost:3000/docs` |
 | **docker-compose services** | `fiestaboard-api` + `fiestaboard-ui` | `fiestaboard` |
 | **Dockerfile** | `Dockerfile.api` + `Dockerfile.ui` | `Dockerfile` (unified) |
 | **Volumes** | Separate source mounts per service | `./data:/app/data` only |
@@ -244,9 +244,9 @@ docker-compose -f docker-compose.ghcr.yml up -d
    docker-compose up -d --build
    ```
 
-4. **Update your bookmarks** — the web UI is now at **http://localhost:3000** (was port 8080).
+4. **Update your bookmarks** — the web UI is now at `http://localhost:3000` (was port 8080).
 
-5. **Open the web UI** at http://localhost:3000 — your existing pages will appear under the **Flagship** tab, and your board configuration is preserved.
+5. **Open the web UI** at `http://localhost:3000` — your existing pages will appear under the **Flagship** tab, and your board configuration is preserved.
 
 6. **Optional**: Visit **Settings → Boards** to set your board's device type and color, or to add a Note if you have one.
 
