@@ -14,11 +14,13 @@ import {
   deleteAllSchedules,
   setActivePage,
   createSchedule,
+  resetToSingleBoard,
   API_URL,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
+  await resetToSingleBoard();
   await suppressWizard(page);
   // Ensure consistent test state with board cleanup
   await deleteAllSchedules();
