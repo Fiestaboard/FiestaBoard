@@ -102,6 +102,36 @@ When creating or updating a page, the following fields are available:
 | `PUT` | `/settings` | Update settings |
 | `GET` | `/settings/all` | Get all settings in a single call |
 
+### Board Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `PUT` | `/settings/board` | Update board configuration (devices, connection) |
+| `POST` | `/settings/board/add` | Add a new board instance |
+| `DELETE` | `/settings/board/{id}` | Remove a board instance |
+
+#### `PUT /settings/board` — request body fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `boards` | object[] | Array of [BoardInstance](#board-instance-fields) objects (V2 format) |
+| `devices` | string[] | Device type list e.g. `["flagship", "note"]` (backward-compatible) |
+| `board_type` | string | Legacy field — still accepted |
+
+#### Board Instance Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | UUID (auto-generated on create) |
+| `name` | string | Display name for this board |
+| `device_type` | string | `"flagship"` (22×6) or `"note"` (15×3) |
+| `board_color` | string | `"black"` or `"white"` |
+| `api_mode` | string | `"local"` or `"cloud"` |
+| `host` | string | Board IP address (local mode) |
+| `local_api_key` | string | Local API key |
+| `cloud_key` | string | Cloud Read/Write key |
+| `enabled` | boolean | Whether this board is active |
+
 ## Example Requests
 
 ### Get Service Status
