@@ -366,7 +366,7 @@ jobs:
                   const { data: pr } = await github.rest.pulls.get({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    pull_request_number: prNumber
+                    pull_number: prNumber
                   });
                   
                   // Re-open the PR if it was closed
@@ -374,7 +374,7 @@ jobs:
                     await github.rest.pulls.update({
                       owner: context.repo.owner,
                       repo: context.repo.repo,
-                      pull_request_number: prNumber,
+                      pull_number: prNumber,
                       state: 'open'
                     });
                     console.log(`✅ Re-opened PR #${prNumber}`);

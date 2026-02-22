@@ -112,7 +112,7 @@ jobs:
           node-version: "20"
 
       - name: Download dependencies
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: integration-deps
           path: /tmp/integration-deps
@@ -137,15 +137,15 @@ jobs:
         run: |
           docker run -d --name fiestaboard-integration \
             --add-host=host.docker.internal:host-gateway \
-            -p 3000:3000 \
+            -p 4420:3000 \
             -e BOARD_API_MODE=local \
             -e BOARD_HOST=host.docker.internal \
             -e BOARD_LOCAL_API_KEY=test_key \
             -e PRODUCTION=false \
             fiestaboard:integration
-          echo "Waiting for app on port 3000..."
+          echo "Waiting for app on port 4420..."
           for i in $(seq 1 30); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health | grep -q 200; then
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4420/api/health | grep -q 200; then
               echo "App ready"
               break
             fi

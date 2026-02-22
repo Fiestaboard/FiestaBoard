@@ -12,6 +12,7 @@ import schedule
 from .config import Config
 from .board_client import BoardClient, board_client_from_board_dict
 from .board_chars import BoardChars
+from .devices import get_dimensions
 from .text_to_board import text_to_board_array, format_board_array_preview
 from .settings.service import get_settings_service
 from .pages.service import get_page_service
@@ -266,16 +267,20 @@ class DisplayService:
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
             # Send to board
-            board_array = text_to_board_array(content_to_send)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(content_to_send, rows=dims.rows, cols=dims.cols)
             
             # If in silence mode, add "SNOOZING" indicator to bottom right
             if silence_mode_active:
                 indicator = "SNOOZING"
+                last_row = dims.rows - 1
+                start_col = dims.cols - len(indicator)
                 for i, char in enumerate(indicator):
-                    col = 14 + i  # Start at position 14 (last 8 positions of row)
-                    char_code = BoardChars.get_char_code(char)
-                    if char_code is not None:
-                        board_array[5][col] = char_code
+                    col = start_col + i
+                    if col >= 0:
+                        char_code = BoardChars.get_char_code(char)
+                        if char_code is not None:
+                            board_array[last_row][col] = char_code
             
             success, was_sent = self.vb_client.send_characters(
                 board_array,
