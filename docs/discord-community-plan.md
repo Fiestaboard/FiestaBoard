@@ -24,7 +24,7 @@
 | **Server Icon** | Use `fiesta-icon.png` from the repository |
 | **Server Description** | The official FiestaBoard community — open-source split-flap display control with 18+ plugin integrations. Get help, share setups, suggest ideas, and build plugins. |
 | **Default Notification Setting** | Only @mentions |
-| **Verification Level** | Medium (must be registered on Discord for longer than 5 minutes and a member of the server for longer than 10 minutes) |
+| **Verification Level** | Medium (must be registered on Discord for more than 5 minutes and a member of the server for more than 10 minutes) |
 | **Explicit Media Content Filter** | Scan media content from all members |
 | **Community Features** | Enable Community (required for onboarding screens, Server Discovery, and Welcome Screen) |
 
@@ -304,7 +304,7 @@ Enable Discord's built-in **AutoMod** with the following rules:
 | **Block Common Slurs** | Block message + alert in `#moderation-log` | Use Discord's default keyword list |
 | **Block Invite Links** | Block message + alert in `#moderation-log` | Block Discord invite links in all channels except `#off-topic` |
 | **Block Excessive Caps** | Flag for review | Messages with 70%+ caps and 10+ characters |
-| **New Account Gate** | Flag for review | Accounts less than 7 days old |
+| **New Account Gate** | Flag for review | Accounts less than 7 days old (supplements server-level verification; catches alt/ban-evasion accounts) |
 
 ### Moderation Escalation Ladder
 
@@ -375,7 +375,7 @@ Here are some places to get started:
 • 💡 #ideas — Share your ideas
 • 📸 #showcase — Show off your board!
 
-Check out our docs at https://fiestaboard.github.io/FiestaBoard/
+Check out our docs at https://fiestaboard.github.io
 ```
 
 ---
