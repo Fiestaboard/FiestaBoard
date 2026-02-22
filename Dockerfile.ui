@@ -42,7 +42,7 @@ LABEL org.opencontainers.image.title="FiestaBoard UI" \
       org.opencontainers.image.url="https://github.com/Fiestaboard/FiestaBoard" \
       org.opencontainers.image.source="https://github.com/Fiestaboard/FiestaBoard" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.vendor="Fiestaboard"
+      org.opencontainers.image.vendor="FiestaBoard"
 
 WORKDIR /app
 
