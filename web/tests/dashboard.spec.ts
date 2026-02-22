@@ -135,37 +135,10 @@ test.describe("Dashboard", () => {
       page.getByText("Active Display", { exact: true })
     ).toBeVisible({ timeout: 10_000 });
     
-    // Double-check that the backend still reports schedule mode enabled
-    // (in case something reset it between the earlier check and page load)
-    const recheckRes = await fetch(`${API_URL}/schedules/enabled`);
-    expect(recheckRes.ok).toBe(true);
-    const recheckData = await recheckRes.json();
-    expect(recheckData.enabled).toBe(true);
-    
-    // Also check GET /schedules to see what the dashboard component will receive
-    const schedulesRes = await fetch(`${API_URL}/schedules`);
-    expect(schedulesRes.ok).toBe(true);
-    const schedulesData = await schedulesRes.json();
-    expect(schedulesData.enabled).toBe(true);
-    
-    // Wait for a badge to appear (Manual Mode usually appears first during loading)
-    await expect(
-      page.locator('text=/Schedule Mode|Manual Mode/')
-    ).toBeVisible({ timeout: 10_000 });
-    
-    // If Manual Mode is showing, wait up to 10 seconds for it to update to Schedule Mode
-    // (React Query should refetch and update the badge)
-    const manualBadge = page.getByText("Manual Mode").first();
-    const isManualVisible = await manualBadge.isVisible().catch(() => false);
-    if (isManualVisible) {
-      // Wait for Schedule Mode to appear
-      await expect(page.getByText("Schedule Mode").first()).toBeVisible({
-        timeout: 10_000,
-      });
-    } else {
-      // Schedule Mode is already visible
-      await expect(page.getByText("Schedule Mode").first()).toBeVisible();
-    }
+    // Verify schedule mode badge is displayed
+    await expect(page.getByText("Schedule Mode").first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Disable schedule mode after test
     await fetch(`${API_URL}/schedules/enabled`, {
