@@ -24,6 +24,14 @@ FROM python:3.14-slim
 ARG VERSION=dev
 ENV VERSION=${VERSION}
 
+# OCI image metadata labels
+LABEL org.opencontainers.image.title="FiestaBoard API" \
+      org.opencontainers.image.description="Backend API server for FiestaBoard — an open-source platform for controlling split-flap displays with a plugin system for weather, stocks, transit, sports, and more." \
+      org.opencontainers.image.url="https://github.com/Fiestaboard/FiestaBoard" \
+      org.opencontainers.image.source="https://github.com/Fiestaboard/FiestaBoard" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="FiestaBoard"
+
 # Set working directory
 WORKDIR /app
 

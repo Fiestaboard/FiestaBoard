@@ -36,6 +36,14 @@ FROM node:25-alpine AS runner
 ARG VERSION=dev
 ENV VERSION=${VERSION}
 
+# OCI image metadata labels
+LABEL org.opencontainers.image.title="FiestaBoard UI" \
+      org.opencontainers.image.description="Web UI for FiestaBoard — an open-source platform for controlling split-flap displays with a plugin system for weather, stocks, transit, sports, and more." \
+      org.opencontainers.image.url="https://github.com/Fiestaboard/FiestaBoard" \
+      org.opencontainers.image.source="https://github.com/Fiestaboard/FiestaBoard" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="FiestaBoard"
+
 WORKDIR /app
 
 ENV NODE_ENV=production
