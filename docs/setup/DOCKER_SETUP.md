@@ -5,31 +5,55 @@
 This project uses a **two-container architecture**:
 
 1. **API Service** (`fiestaboard-api`) - FastAPI REST API server
-   - Port: `8000`
+   - Port: `8000` (internal)
    - Controls the FiestaBoard display service
    - Provides REST endpoints for monitoring and control
 
-2. **Web UI** (`fiestaboard-ui`) - Nginx web server with HTML/JS interface
-   - Port: `8080`
+2. **Web UI** (`fiestaboard-ui`) - Web server with Next.js interface
+   - Port: `3000` (internal)
    - Provides a web interface for monitoring and control
    - Proxies API requests to the API service
 
-## Quick Start
+## Quick Start (Pre-built Images — Recommended)
+
+The fastest way to get running is to use the pre-built images from the **GitHub Container Registry**. No cloning or building required.
+
+```bash
+# Pull the pre-built images
+docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
+docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
+```
+
+Create a `docker-compose.yml` and `.env` file as described in the main [Quick Start](../../README.md#-quick-start), then start the services (`docker compose up` will also pull images automatically if you skip the step above):
+
+```bash
+docker compose up -d
+```
+
+### Access Services (Pre-built Images)
+
+- **Web UI**: http://localhost:4420
+- **API**: http://localhost:6969
+- **API Docs**: http://localhost:6969/docs
+
+## Building from Source (Alternative)
+
+If you need to build from source (e.g., for development or customization):
 
 ### Build and Run
 
 ```bash
 # Build and start both services
-docker-compose up -d --build
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
-### Access Services
+### Access Services (Built from Source)
 
 - **Web UI**: http://localhost:8080
 - **API**: http://localhost:8000
@@ -195,6 +219,6 @@ Both services use the same `.env` file. Key variables:
 
 ## Production Deployment
 
-For production deployment, use the standard `docker-compose.yml` file with proper environment variables configured.
+For production deployment, use `docker-compose.ghcr.yml` with pre-built images from the GitHub Container Registry. This is the recommended approach — no building required, and images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.
 
 
