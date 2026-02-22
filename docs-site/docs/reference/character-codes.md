@@ -104,5 +104,5 @@ The display is a grid of **6 rows × 22 columns** = 132 characters total.
 
 ## Next Steps
 
-- [Color Guide](/docs/reference/color-guide) — Detailed color usage and examples
-- [Page Editor](/docs/features/page-editor) — Creating content for the board
+- [Color Guide](/docs/reference/color-guide) - Detailed color usage and examples
+- [Page Editor](/docs/features/page-editor) - Creating content for the board

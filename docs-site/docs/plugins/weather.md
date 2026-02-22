@@ -97,6 +97,6 @@ The board uses special characters for weather conditions:
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — See all available plugins
-- [Color Guide](/docs/reference/color-guide) — Learn about color formatting
-- [Character Codes](/docs/reference/character-codes) — Board character reference
+- [Plugins Overview](/docs/plugins/overview) - See all available plugins
+- [Color Guide](/docs/reference/color-guide) - Learn about color formatting
+- [Character Codes](/docs/reference/character-codes) - Board character reference

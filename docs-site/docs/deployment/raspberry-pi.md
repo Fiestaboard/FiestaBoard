@@ -54,7 +54,7 @@ docker-compose up -d --build
 ```
 
 :::info Build Times
-The first build on a Raspberry Pi will take longer than on a desktop computer — expect 10-20 minutes depending on your Pi model and SD card speed.
+The first build on a Raspberry Pi will take longer than on a desktop computer. Expect 10-20 minutes depending on your Pi model and SD card speed.
 :::
 
 ## Using Pre-Built ARM Images
@@ -78,13 +78,13 @@ To request ARM builds, add the `pi` or `raspberry-pi` label to your pull request
 
 ## Performance Tips
 
-- **Use a fast SD card** — Class 10 or higher, ideally A2-rated
-- **Consider USB boot** — Boot from USB SSD for better performance
-- **Monitor temperature** — Use a heatsink or fan case for sustained operation
-- **Set appropriate refresh intervals** — Don't refresh more frequently than needed
+- **Use a fast SD card** - Class 10 or higher, ideally A2-rated
+- **Consider USB boot** - Boot from USB SSD for better performance
+- **Monitor temperature** - Use a heatsink or fan case for sustained operation
+- **Set appropriate refresh intervals** - Don't refresh more frequently than needed
 
 ```bash
-# In .env — 60 seconds is usually sufficient
+# In .env, 60 seconds is usually sufficient
 REFRESH_INTERVAL_SECONDS=60
 ```
 
@@ -120,5 +120,5 @@ sudo systemctl enable fiestaboard
 
 ## Next Steps
 
-- [Production Deployment](/docs/deployment/production) — Production best practices
-- [Docker Setup](/docs/setup/docker-setup) — Docker architecture details
+- [Production Deployment](/docs/deployment/production) - Production best practices
+- [Docker Setup](/docs/setup/docker-setup) - Docker architecture details

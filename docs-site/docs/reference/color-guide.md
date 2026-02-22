@@ -29,12 +29,12 @@ Consistent color coding for temperature display:
 
 | Temperature | Color | Code |
 |-------------|-------|------|
-| ≥ 90°F (32°C) | 🟥 Red | `{63}` — Hot |
-| 80–89°F (27–31°C) | 🟧 Orange | `{64}` — Warm |
-| 70–79°F (21–26°C) | 🟨 Yellow | `{65}` — Comfortable |
-| 60–69°F (16–20°C) | 🟩 Green | `{66}` — Cool |
-| 45–59°F (7–15°C) | 🟦 Blue | `{67}` — Cold |
-| < 45°F (< 7°C) | 🟪 Violet | `{68}` — Very cold |
+| ≥ 90°F (32°C) | 🟥 Red | `{63}` - Hot |
+| 80–89°F (27–31°C) | 🟧 Orange | `{64}` - Warm |
+| 70–79°F (21–26°C) | 🟨 Yellow | `{65}` - Comfortable |
+| 60–69°F (16–20°C) | 🟩 Green | `{66}` - Cool |
+| 45–59°F (7–15°C) | 🟦 Blue | `{67}` - Cold |
+| < 45°F (< 7°C) | 🟪 Violet | `{68}` - Very cold |
 
 ### Home Automation Status
 
@@ -63,11 +63,11 @@ Consistent color coding for temperature display:
 
 When using colors on your board:
 
-1. **Be consistent** — Use the same color for the same meaning across pages
-2. **Be purposeful** — Each color should convey information, not just decoration
-3. **Use intuitive associations** — Red for alerts, green for good status
-4. **Consider accessibility** — Pair colors with text labels for clarity
-5. **Less is more** — A few well-placed colors are more effective than a rainbow
+1. **Be consistent** - Use the same color for the same meaning across pages
+2. **Be purposeful** - Each color should convey information, not just decoration
+3. **Use intuitive associations** - Red for alerts, green for good status
+4. **Consider accessibility** - Pair colors with text labels for clarity
+5. **Less is more** - A few well-placed colors are more effective than a rainbow
 
 ## Using Colors in the Page Editor
 
@@ -75,6 +75,6 @@ In the WYSIWYG editor, color tiles can be inserted using their character codes. 
 
 ## Next Steps
 
-- [Character Codes](/docs/reference/character-codes) — Full character reference
-- [Page Editor](/docs/features/page-editor) — Creating colored content
-- [Weather Plugin](/docs/plugins/weather) — Temperature-based color rules
+- [Character Codes](/docs/reference/character-codes) - Full character reference
+- [Page Editor](/docs/features/page-editor) - Creating colored content
+- [Weather Plugin](/docs/plugins/weather) - Temperature-based color rules

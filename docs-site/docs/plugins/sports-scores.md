@@ -62,5 +62,5 @@ SPORTS_API_KEY=your_key_here
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — See all available plugins
-- [Plugin Configuration](/docs/plugins/configuration) — General plugin management
+- [Plugins Overview](/docs/plugins/overview) - See all available plugins
+- [Plugin Configuration](/docs/plugins/configuration) - General plugin management

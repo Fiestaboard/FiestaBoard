@@ -44,11 +44,11 @@ Template variables let you insert live data from your enabled plugins into any p
 
 Here are some commonly used template variables:
 
-- `{weather.temperature}` — Current temperature
-- `{weather.conditions}` — Weather conditions (Sunny, Cloudy, etc.)
-- `{stocks.prices}` — Stock price display
-- `{date_time.current}` — Current date and time
-- `{muni.arrivals}` — Transit arrival times
+- `{weather.temperature}` - Current temperature
+- `{weather.conditions}` - Weather conditions (Sunny, Cloudy, etc.)
+- `{stocks.prices}` - Stock price display
+- `{date_time.current}` - Current date and time
+- `{muni.arrivals}` - Transit arrival times
 
 ## Working with Colors
 
@@ -73,10 +73,10 @@ The board display is a grid of **6 rows × 22 columns** (132 characters total). 
 
 ### Tips for Good Layouts
 
-- **Keep text concise** — You have limited characters per row
-- **Use alignment** — Center important information for readability
-- **Mix data sources** — Combine multiple plugin variables on one page
-- **Test with preview** — Use the live preview to check formatting before saving
+- **Keep text concise** - You have limited characters per row
+- **Use alignment** - Center important information for readability
+- **Mix data sources** - Combine multiple plugin variables on one page
+- **Test with preview** - Use the live preview to check formatting before saving
 
 ## Managing Pages
 

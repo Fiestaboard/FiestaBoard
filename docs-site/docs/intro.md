@@ -6,7 +6,7 @@ keywords: [FiestaBoard, split-flap display, Vestaboard, smart dashboard, live di
 
 # Introduction to FiestaBoard
 
-**FiestaBoard** is an open-source server that connects to your split-flap display and lets you control what it shows. You bring the board and the API keys for the services you care about — FiestaBoard handles pulling data from those services and formatting it for your display.
+**FiestaBoard** is an open-source server that connects to your split-flap display and lets you control what it shows. You bring the board and the API keys for the services you care about. FiestaBoard handles pulling data from those services and formatting it for your display.
 
 ## What Does FiestaBoard Do?
 
@@ -29,7 +29,7 @@ If you already own a split-flap display, FiestaBoard gives you a self-hosted pla
 
 ### Using the Installation Script
 
-The install wizard handles everything — it collects your board API key, creates the configuration, and starts the server:
+The install wizard handles everything. It collects your board API key, creates the configuration, and starts the server:
 
 ```bash
 # Mac/Linux
@@ -48,17 +48,17 @@ The install wizard handles everything — it collects your board API key, create
 
 | Plugin | Description |
 |--------|-------------|
-| 🌤️ Weather | Current conditions, UV index, high/low temps |
-| 📈 Stocks | Real-time stock prices with color indicators |
-| 🚇 Muni Transit | SF Muni arrival predictions |
-| 🏆 Sports Scores | NFL, Soccer, NHL, NBA scores |
-| 🌊 Surf Conditions | Wave height and quality ratings |
-| 🖖 Star Trek Quotes | Random quotes from TNG, Voyager, DS9 |
-| 🚗 Traffic | Travel time with live traffic |
-| 💨 Air Quality | AQI and fog conditions |
-| 🏠 Home Assistant | Smart home status display |
-| 🏰 Disney Parks | Wait times from Queue-Times.com |
-| 🚢 WSDOT Ferries | WA State ferry schedules and alerts |
+| Weather | Current conditions, UV index, high/low temps |
+| Stocks | Real-time stock prices with color indicators |
+| Muni Transit | SF Muni arrival predictions |
+| Sports Scores | NFL, Soccer, NHL, NBA scores |
+| Surf Conditions | Wave height and quality ratings |
+| Star Trek Quotes | Random quotes from TNG, Voyager, DS9 |
+| Traffic | Travel time with live traffic |
+| Air Quality | AQI and fog conditions |
+| Home Assistant | Smart home status display |
+| Disney Parks | Wait times from Queue-Times.com |
+| WSDOT Ferries | WA State ferry schedules and alerts |
 | And more... | 18 plugins total |
 
 ## Next Steps

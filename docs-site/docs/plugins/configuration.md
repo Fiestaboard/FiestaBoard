@@ -99,6 +99,6 @@ curl http://localhost:8000/plugins
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — See all available plugins
-- [Page Editor](/docs/features/page-editor) — Use plugin data in your pages
-- [Plugin Development Guide](/docs/development/plugin-guide) — Create custom plugins
+- [Plugins Overview](/docs/plugins/overview) - See all available plugins
+- [Page Editor](/docs/features/page-editor) - Use plugin data in your pages
+- [Plugin Development Guide](/docs/development/plugin-guide) - Create custom plugins

@@ -124,5 +124,5 @@ Display real-time aircraft data from the OpenSky Network. Works without an API k
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — See all available plugins
-- [Plugin Configuration](/docs/plugins/configuration) — General plugin management
+- [Plugins Overview](/docs/plugins/overview) - See all available plugins
+- [Plugin Configuration](/docs/plugins/configuration) - General plugin management

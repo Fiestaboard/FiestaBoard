@@ -58,7 +58,7 @@ docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
 :::tip Zero-Downtime Updates
-Pull the latest code and rebuild the images first, then bring down the old containers and start the new ones. The downtime is minimal — just a few seconds while containers swap.
+Pull the latest code and rebuild the images first, then bring down the old containers and start the new ones. The downtime is minimal, just a few seconds while containers swap.
 :::
 
 ## Monitoring
@@ -89,9 +89,9 @@ docker-compose logs -f ui
 ## Security Considerations
 
 - **Never commit `.env` files** to version control
-- **Restrict API access** — The API runs on port 8000 with no authentication by default
-- **Use a reverse proxy** — For external access, put FiestaBoard behind Nginx or Traefik with HTTPS
-- **Keep Docker updated** — Regularly update Docker and Docker Compose
+- **Restrict API access** - The API runs on port 8000 with no authentication by default
+- **Use a reverse proxy** - For external access, put FiestaBoard behind Nginx or Traefik with HTTPS
+- **Keep Docker updated** - Regularly update Docker and Docker Compose
 
 ## Running Behind a Reverse Proxy
 
@@ -115,6 +115,6 @@ server {
 
 ## Next Steps
 
-- [Raspberry Pi](/docs/deployment/raspberry-pi) — Deploy on a Raspberry Pi
-- [Docker Setup](/docs/setup/docker-setup) — Docker architecture details
-- [Cloud API](/docs/setup/cloud-api) — Remote board access via cloud API
+- [Raspberry Pi](/docs/deployment/raspberry-pi) - Deploy on a Raspberry Pi
+- [Docker Setup](/docs/setup/docker-setup) - Docker architecture details
+- [Cloud API](/docs/setup/cloud-api) - Remote board access via cloud API
