@@ -21,6 +21,8 @@ In the FiestaBoard web UI:
 1. Go to **Integrations**
 2. Find **Countdown** and toggle it **On**
 
+![Countdown plugin in Integrations list](./integrations-list.png)
+
 ### 2. Configure the Countdown
 
 1. Go to **Integrations** → **Countdown**
@@ -30,7 +32,37 @@ In the FiestaBoard web UI:
 5. Optionally set the **Timezone** (defaults to America/Los_Angeles)
 6. Click **Save**
 
-### 3. Use in Templates
+![Countdown plugin configuration dialog](./configuration-dialog.png)
+
+### 3. Create a Board Template
+
+Create or edit a page template to display the countdown:
+
+1. Go to **Pages** in the web UI
+2. Click **Create Page** or edit an existing page
+3. Use the template editor to add countdown variables (see below)
+4. Click **Save**
+
+![Page editor with countdown template](./page-editor.png)
+
+Example classic countdown template:
+
+```
+{center}COUNTDOWN UNTIL
+{{countdown.event_name}}
+
+{{countdown.days}} DAYS
+{{countdown.hours}} HOURS
+{{countdown.minutes}} MINUTES
+```
+
+### 4. View on Your Board
+
+Once configured, the countdown will display on your board when the page is active:
+
+![Countdown displayed on Vestaboard](./board-display.png)
+
+## Template Variables
 
 Available variables:
 

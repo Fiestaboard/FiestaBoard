@@ -2,6 +2,8 @@
 
 Display the remaining time to an event in real time on your board.
 
+![Countdown Plugin Display](./docs/board-display.png)
+
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
 
 ## Overview
