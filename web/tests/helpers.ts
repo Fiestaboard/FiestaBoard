@@ -152,22 +152,25 @@ export async function deleteAllPages(): Promise<void> {
   }
 }
 
-/** Create a schedule via the API and return its ID. */
+/** Create a schedule via the API and return its ID. Optional boardId for per-board schedules. */
 export async function createSchedule(
   pageId: string,
   startTime = "08:00",
   endTime = "12:00",
   dayPattern = "weekdays",
+  boardId?: string,
 ): Promise<string> {
+  const body: Record<string, unknown> = {
+    page_id: pageId,
+    start_time: startTime,
+    end_time: endTime,
+    day_pattern: dayPattern,
+  };
+  if (boardId != null && boardId !== "") body.board_id = boardId;
   const res = await fetch(`${API_URL}/schedules`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      page_id: pageId,
-      start_time: startTime,
-      end_time: endTime,
-      day_pattern: dayPattern,
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`createSchedule failed: ${res.status}`);
   const data = await res.json();

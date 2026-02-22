@@ -98,11 +98,27 @@ test.describe("Dashboard", () => {
     await createSchedule(pageId, "06:00", "18:00", "weekdays");
 
     // Enable schedule mode
-    await fetch(`${API_URL}/schedules/enabled`, {
+    const putRes = await fetch(`${API_URL}/schedules/enabled`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: true }),
     });
+    expect(putRes.ok).toBe(true);
+
+    // Wait until the API reports schedule enabled (avoids race with dashboard fetch)
+    let enabled = false;
+    for (let i = 0; i < 10; i++) {
+      const r = await fetch(`${API_URL}/schedules/enabled`);
+      if (r.ok) {
+        const d = await r.json();
+        if (d.enabled) {
+          enabled = true;
+          break;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    expect(enabled).toBe(true);
 
     await page.goto("/");
     await expect(
@@ -110,7 +126,7 @@ test.describe("Dashboard", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
 
     // Disable schedule mode after test

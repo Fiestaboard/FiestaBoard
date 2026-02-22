@@ -32,6 +32,7 @@ from .schedules.service import get_schedule_service
 from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .templates.engine import get_template_engine, reset_template_engine
 from .text_to_board import text_to_board_array
+from .devices import get_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -1309,12 +1310,18 @@ async def send_display(
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate
+    # Send to board if appropriate (explicit target=board/both can bypass dev_mode)
     sent_to_board = False
-    if send_to_board and not _dev_mode:
+    explicit_target = target is not None and target in ["board", "both"]
+    if send_to_board and (explicit_target or not _dev_mode):
         transition = settings_service.get_transition_settings()
-        # Convert to board array for proper character/color support
-        board_array = text_to_board_array(result.formatted)
+        # Use first board's device type for dimensions (flagship vs note)
+        board_settings = settings_service.get_board_settings()
+        device_type = "flagship"
+        if board_settings.boards:
+            device_type = board_settings.boards[0].get("device_type", "flagship")
+        dims = get_dimensions(device_type)
+        board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
         success, was_sent = service.vb_client.send_characters(
             board_array,
             strategy=transition.strategy,
@@ -2286,7 +2293,8 @@ async def set_active_page(request: dict):
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
-            board_array = text_to_board_array(result.formatted)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
                 strategy=strategy,
@@ -2344,34 +2352,69 @@ async def update_polling_settings(request: dict):
 
 @app.get("/settings/board")
 async def get_board_settings():
-    """Get current board display settings."""
+    """Get current board settings (display type, boards array, devices)."""
     settings_service = get_settings_service()
     board = settings_service.get_board_settings()
-    return {
-        "board_type": board.board_type
-    }
+    return board.to_dict()
 
 
 @app.put("/settings/board")
 async def update_board_settings(request: dict):
     """
-    Update board display settings.
+    Update board settings.
     
-    Body should include:
+    Body may include:
     - board_type: "black", "white", or null for default
+    - devices: list of device types (e.g. ["flagship", "note"]) for backward compatibility
+    - boards: full list of board instance dicts
     """
-    if "board_type" not in request:
-        raise HTTPException(status_code=400, detail="board_type parameter required")
-    
     settings_service = get_settings_service()
     
     try:
-        board_type = request["board_type"]
-        board = settings_service.set_board_type(board_type)
-        return {
-            "status": "success",
-            "settings": board.to_dict()
-        }
+        if "devices" in request:
+            devices = request["devices"]
+            if not isinstance(devices, list):
+                raise HTTPException(status_code=400, detail="devices must be a list")
+            board = settings_service.set_devices(devices)
+            return {"status": "success", "settings": board.to_dict()}
+        if "boards" in request:
+            boards = request["boards"]
+            if not isinstance(boards, list):
+                raise HTTPException(status_code=400, detail="boards must be a list")
+            board = settings_service.set_boards(boards)
+            return {"status": "success", "settings": board.to_dict()}
+        if "board_type" in request:
+            board_type = request["board_type"]
+            board = settings_service.set_board_type(board_type)
+            return {"status": "success", "settings": board.to_dict()}
+        raise HTTPException(
+            status_code=400,
+            detail="One of board_type, devices, or boards is required",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/settings/board/add")
+async def add_board_instance(request: dict):
+    """Add a new board instance. Body: device_type, optional name and other board fields."""
+    if "device_type" not in request:
+        raise HTTPException(status_code=400, detail="device_type is required")
+    settings_service = get_settings_service()
+    try:
+        board = settings_service.add_board(request)
+        return {"status": "success", "settings": board.to_dict()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/settings/board/{board_id}")
+async def remove_board_instance(board_id: str):
+    """Remove a board instance by ID."""
+    settings_service = get_settings_service()
+    try:
+        board = settings_service.remove_board(board_id)
+        return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -2413,9 +2456,7 @@ async def get_all_settings():
         },
         "transitions": transitions.to_dict(),
         "output": output.to_dict(),
-        "board": {
-            "board_type": board.board_type
-        },
+        "board": board.to_dict(),
         "status": {
             "running": _service_running,
             "dev_mode": _dev_mode
@@ -3030,9 +3071,10 @@ async def send_page(page_id: str, target: Optional[str] = None):
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate
+    # Send to board if appropriate (explicit target=board/both can bypass dev_mode)
     sent_to_board = False
-    if send_to_board and not _dev_mode:
+    explicit_target = target is not None and target in ["board", "both"]
+    if send_to_board and (explicit_target or not _dev_mode):
         # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
         if Config.is_silence_mode_active():
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
@@ -3045,8 +3087,9 @@ async def send_page(page_id: str, target: Optional[str] = None):
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
-            # Convert to board array for proper character/color support
-            board_array = text_to_board_array(result.formatted)
+            # Convert to board array with dimensions for page's device type (flagship vs note)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
                 strategy=strategy,
@@ -3438,15 +3481,17 @@ async def clear_cache():
     return {"status": "success", "message": "Cache cleared - next update will be sent to board"}
 
 
+def _get_runtime_config_response():
+    """Return runtime configuration for UI (shared by both routes)."""
+    api_url = os.getenv("FIESTA_API_URL", "")
+    return {"apiUrl": api_url}
+
+
+@app.get("/runtime-config")
 @app.get("/api/runtime-config")
 async def get_runtime_config():
-    """Return runtime configuration for UI."""
-    # Allow override via environment variable, default to same origin
-    # Support both old and new variable names for backward compatibility
-    api_url = os.getenv("FIESTA_API_URL", "")
-    return {
-        "apiUrl": api_url
-    }
+    """Return runtime configuration for UI. Served at both paths for nginx (strips /api) and split-server."""
+    return _get_runtime_config_response()
 
 
 @app.post("/force-refresh")

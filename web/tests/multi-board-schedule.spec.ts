@@ -29,6 +29,19 @@ test.afterEach(async () => {
 });
 
 test.describe("Multi-Board and Schedule", () => {
+  test("schedule page works with single board (no multi-board selector)", async ({
+    page,
+  }) => {
+    // beforeEach already did resetToSingleBoard() – one board only
+    await page.goto("/schedule");
+    await expect(
+      page.getByRole("heading", { name: "Schedule", exact: true })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Schedule Mode").first()).toBeVisible({
+      timeout: 5_000,
+    });
+  });
+
   test("schedule page loads with two boards and shows board selector", async ({
     page,
   }) => {
@@ -111,5 +124,52 @@ test.describe("Multi-Board and Schedule", () => {
     const activeData = await activeRes.json();
     expect(activeData).toHaveProperty("page_id");
     expect(activeData).toHaveProperty("schedule_enabled");
+  });
+
+  test("schedules API filtered by board_id returns only that board's schedules", async () => {
+    const { board1Id, board2Id } = await ensureTwoBoards();
+    const pageA = await createPage("Board A Page");
+    const pageB = await createPage("Board B Page");
+    await createSchedule(pageA, "09:00", "12:00", "weekdays", board1Id);
+    await createSchedule(pageB, "14:00", "18:00", "weekdays", board2Id);
+
+    const list1 = await fetch(`${API_URL}/schedules?board_id=${encodeURIComponent(board1Id)}`);
+    expect(list1.ok).toBe(true);
+    const data1 = await list1.json();
+    expect(data1.schedules).toHaveLength(1);
+    expect(data1.schedules[0].start_time).toBe("09:00");
+    expect(data1.schedules[0].end_time).toBe("12:00");
+
+    const list2 = await fetch(`${API_URL}/schedules?board_id=${encodeURIComponent(board2Id)}`);
+    expect(list2.ok).toBe(true);
+    const data2 = await list2.json();
+    expect(data2.schedules).toHaveLength(1);
+    expect(data2.schedules[0].start_time).toBe("14:00");
+    expect(data2.schedules[0].end_time).toBe("18:00");
+  });
+
+  test("switching boards in UI shows each board's schedules only", async ({
+    page,
+  }) => {
+    const { board1Id, board2Id } = await ensureTwoBoards();
+    const pageA = await createPage("Board One Page");
+    const pageB = await createPage("Board Two Page");
+    await createSchedule(pageA, "09:00", "12:00", "weekdays", board1Id);
+    await createSchedule(pageB, "14:00", "18:00", "weekdays", board2Id);
+
+    await page.goto("/schedule");
+    await expect(
+      page.getByRole("heading", { name: "Schedule", exact: true })
+    ).toBeVisible({ timeout: 15_000 });
+    // First board selected: should show 09:00–12:00
+    await expect(page.getByText("09:00").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("12:00").first()).toBeVisible({ timeout: 5_000 });
+    // Switch to second board (second button in the board selector)
+    const boardButtons = page.locator("div.mb-4.flex").getByRole("button");
+    await expect(boardButtons).toHaveCount(2);
+    await boardButtons.nth(1).click();
+    // After switch: should show 14:00–18:00 for board 2
+    await expect(page.getByText("14:00").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("18:00").first()).toBeVisible({ timeout: 5_000 });
   });
 });
