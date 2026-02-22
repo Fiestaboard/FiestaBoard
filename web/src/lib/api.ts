@@ -1,7 +1,9 @@
 // API client for FiestaBoard service
 // Extensible pattern - easy to add updateConfig(), savePage() later
 
-// Runtime configuration - API URL is fetched at startup from /api/runtime-config
+// Runtime configuration - API URL is fetched at startup from /api/runtime-config.
+// Port fallback logic (localhost → 8000, production → 6969) is mirrored in
+// app/api/runtime-config/route.ts — keep both in sync when changing ports.
 let API_BASE = "";
 let configLoaded = false;
 let configPromise: Promise<void> | null = null;

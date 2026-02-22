@@ -12,6 +12,9 @@ services:
       - .env
     environment:
       - PRODUCTION=true
+      # Optional: set FIESTA_API_URL to the browser-facing API URL so the UI
+      # can discover it via /api/runtime-config (e.g. http://your-server:6969)
+      - FIESTA_API_URL=${FIESTA_API_URL:-}
     restart: unless-stopped
     ports:
       - "6969:8000"
