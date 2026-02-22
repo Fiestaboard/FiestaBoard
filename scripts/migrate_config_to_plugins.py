@@ -31,7 +31,7 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "data" / "config.json"
 # Mapping from legacy feature names to plugin IDs
 FEATURE_TO_PLUGIN_MAP = {
     "weather": "weather",
-    "datetime": "datetime",
+    "date_time": "date_time",
     "home_assistant": "home_assistant",
     "guest_wifi": "guest_wifi",
     "star_trek_quotes": "star_trek_quotes",
