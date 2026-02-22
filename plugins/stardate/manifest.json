@@ -43,6 +43,6 @@
   },
 
   "max_lengths": {
-    "stardate": 7
+    "stardate": 9
   }
 }

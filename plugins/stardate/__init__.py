@@ -42,14 +42,25 @@ class StardatePlugin(PluginBase):
         return errors
 
     def fetch_data(self) -> PluginResult:
-        """Fetch current stardate."""
+        """Fetch current stardate using canonical TNG formula.
+        
+        TNG stardate system: Stardate 0 = 2323-01-01
+        Each year = 1000 stardate units
+        Formula: (Year - 2323) × 1000 + (day_of_year / days_in_year × 1000)
+        
+        Present day (2020s) will have negative stardates since we're
+        in the 24th century's past.
+        """
         try:
             timezone_str = self.config.get("timezone", "America/Los_Angeles")
             tz = pytz.timezone(timezone_str)
             now = datetime.now(tz)
 
             days_in_year = 366 if calendar.isleap(now.year) else 365
-            stardate = f"{70000 + (now.year - 2020) * 1000 + (now.timetuple().tm_yday / days_in_year * 1000):.1f}"
+            day_fraction = now.timetuple().tm_yday / days_in_year
+            stardate_value = (now.year - 2323) * 1000 + (day_fraction * 1000)
+            
+            stardate = f"{stardate_value:.1f}"
 
             return PluginResult(
                 available=True,
