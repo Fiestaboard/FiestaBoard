@@ -148,13 +148,14 @@ test.describe("Dashboard", () => {
     const schedulesData = await schedulesRes.json();
     expect(schedulesData.enabled).toBe(true);
     
-    // Wait for the mode badge to update (React Query needs time to fetch)
-    // The badge should show "Schedule Mode" once the query completes
-    await page.waitForTimeout(3000);
+    // Wait for either mode badge to appear (confirms query has completed)
+    await expect(
+      page.locator('text=/Schedule Mode|Manual Mode/')
+    ).toBeVisible({ timeout: 10_000 });
     
-    // Verify schedule mode is displayed
+    // Verify schedule mode is displayed (not manual mode)
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
-      timeout: 15_000,
+      timeout: 5_000,
     });
 
     // Disable schedule mode after test
