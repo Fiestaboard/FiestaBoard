@@ -20,6 +20,9 @@ import {
 test.beforeEach(async ({ page }) => {
   await configureBoard();
   await suppressWizard(page);
+  // Ensure consistent test state with board cleanup
+  await deleteAllSchedules();
+  await deleteAllPages();
 });
 
 test.describe("Dashboard", () => {
