@@ -28,8 +28,6 @@ export async function GET(request: NextRequest) {
 
     const apiEndpoints = [
       'http://fiestaboard-api:8000/api/runtime-config',
-      `http://${hostname}:6969/api/runtime-config`,
-      'http://localhost:6969/api/runtime-config',
       'http://localhost:8000/api/runtime-config',
     ];
 
