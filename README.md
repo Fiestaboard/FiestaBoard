@@ -1,5 +1,12 @@
 # FiestaBoard <img src="fiesta-icon.png" alt="FiestaBoard" width="32" height="32" style="vertical-align: middle;">
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml)
+[![Docker: API](https://img.shields.io/badge/docker-fiestaboard--api-blue?logo=docker)](https://ghcr.io/fiestaboard/fiestaboard-api)
+[![Docker: UI](https://img.shields.io/badge/docker-fiestaboard--ui-blue?logo=docker)](https://ghcr.io/fiestaboard/fiestaboard-ui)
+[![Documentation](https://img.shields.io/badge/docs-fiestaboard.app-orange)](https://fiestaboard.app)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white)](https://discord.gg/wc9dDfte)
+
 **FiestaBoard is an open-source server that lets you control what appears on your split-flap display.** If you already own a split-flap display (like a Vestaboard), FiestaBoard gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you — weather, stocks, transit, sports, surf conditions, and more — and display it on your board.
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.

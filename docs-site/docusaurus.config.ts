@@ -25,6 +25,7 @@ const config: Config = {
   projectName: 'fiestaboard.github.io',
 
   onBrokenLinks: 'throw',
+  onBrokenMarkdownLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang.
@@ -38,7 +39,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'keywords',
-        content: 'split-flap display, dashboard, Vestaboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display',
+        content: 'split-flap display, dashboard, Vestaboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display, open source, self-hosted, WYSIWYG editor, display scheduler, IoT display, transit times, surf report, Home Assistant display',
       },
     },
     {
@@ -68,11 +69,17 @@ const config: Config = {
         url: 'https://fiestaboard.app',
         applicationCategory: 'UtilitiesApplication',
         operatingSystem: 'Linux, macOS, Windows',
+        license: 'https://opensource.org/licenses/MIT',
+        isAccessibleForFree: true,
         offers: {
           '@type': 'Offer',
           price: '0',
           priceCurrency: 'USD',
         },
+        featureList: 'WYSIWYG page editor, Schedule mode, 18 plugins, Docker deployment, Raspberry Pi support, Weather display, Stock ticker, Sports scores, Transit times, Home Assistant integration',
+        screenshot: 'https://fiestaboard.app/img/web-ui-home.png',
+        softwareRequirements: 'Docker and Docker Compose',
+        codeRepository: 'https://github.com/Fiestaboard/FiestaBoard',
         sourceOrganization: {
           '@type': 'Organization',
           name: 'FiestaBoard',
@@ -115,9 +122,11 @@ const config: Config = {
       {name: 'description', content: 'FiestaBoard transforms your split-flap display into a living dashboard. Display weather, stocks, sports scores, transit times, and more with Docker deployment.'},
       {name: 'og:type', content: 'website'},
       {name: 'og:site_name', content: 'FiestaBoard'},
+      {name: 'og:image', content: 'https://fiestaboard.app/img/logo.png'},
       {name: 'twitter:card', content: 'summary_large_image'},
       {name: 'twitter:title', content: 'FiestaBoard - Split-Flap Display Dashboard'},
       {name: 'twitter:description', content: 'Transform your split-flap display into a living dashboard with weather, stocks, sports, and more.'},
+      {name: 'twitter:image', content: 'https://fiestaboard.app/img/logo.png'},
     ],
     colorMode: {
       respectPrefersColorScheme: true,
