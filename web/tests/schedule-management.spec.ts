@@ -171,24 +171,35 @@ test.describe("Schedule Management", () => {
       page.getByRole("heading", { name: "Schedule", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByText("10:00").first()).toBeVisible({
-      timeout: 10_000,
-    });
+    // Ensure list view (view can be calendar from prior test)
+    const listBtn = page.getByRole("button", { name: /list/i }).first();
+    if (await listBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await listBtn.click();
+      await page.waitForTimeout(300);
+    }
 
-    // Open the edit modal
-    const editBtn = page.getByRole("button", { name: /edit/i }).first();
+    const rowWithTime = page.getByText("10:00").first();
+    await expect(rowWithTime).toBeVisible({ timeout: 10_000 });
+
+    // Open the edit modal: list row has two icon buttons (Edit, Delete); first is Edit
+    const editBtn = rowWithTime.locator("../..").getByRole("button").first();
     await expect(editBtn).toBeVisible({ timeout: 5_000 });
     await editBtn.click();
 
-    // Wait for edit dialog
+    // Wait for edit dialog to open
     await expect(
       page.getByText("Edit Schedule").first(),
     ).toBeVisible({ timeout: 5_000 });
 
-    // Click the delete button inside the edit modal
-    const deleteBtn = page.getByRole("button", { name: /delete/i });
-    await expect(deleteBtn).toBeVisible({ timeout: 3_000 });
-    await deleteBtn.click();
+    // Close the edit modal (Cancel), then delete from the list row
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.waitForTimeout(300);
+
+    // Click the row's Delete button (second button in the row; icon-only in UI)
+    const rowButtons = rowWithTime.locator("../..").getByRole("button");
+    const rowDeleteBtn = rowButtons.nth(1);
+    await expect(rowDeleteBtn).toBeVisible({ timeout: 5_000 });
+    await rowDeleteBtn.click();
 
     // Confirm deletion in the alert dialog
     const confirmBtn = page.getByRole("button", { name: "Delete" }).last();

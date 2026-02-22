@@ -80,6 +80,7 @@ export function ScheduleListView({
                       size="sm"
                       variant="ghost"
                       onClick={() => onEdit(schedule)}
+                      aria-label="Edit"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -87,6 +88,7 @@ export function ScheduleListView({
                       size="sm"
                       variant="ghost"
                       onClick={() => onDelete(schedule.id)}
+                      aria-label="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
