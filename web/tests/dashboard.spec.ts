@@ -148,6 +148,13 @@ test.describe("Dashboard", () => {
     const schedulesData = await schedulesRes.json();
     expect(schedulesData.enabled).toBe(true);
     
+    // React Query may have cached the schedules query from before schedule mode was enabled
+    // Reload the page to force a fresh query
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 10_000 });
+    
     // Wait for either mode badge to appear (confirms query has completed)
     await expect(
       page.locator('text=/Schedule Mode|Manual Mode/')
