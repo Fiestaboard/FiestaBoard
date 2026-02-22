@@ -3,6 +3,8 @@
 Simulates the Vestaboard Local API (port 7000) so the FiestaBoard
 backend can be tested end-to-end without a real board.
 
+Supports both Flagship (6x22) and Note (3x15) character arrays.
+
 Endpoints:
   POST /local-api/message  - Send a message (text or character array)
   GET  /local-api/message   - Read the current display state
@@ -20,8 +22,30 @@ from threading import Lock
 
 logger = logging.getLogger(__name__)
 
-# Blank board: 6 rows x 22 columns, all zeros
+# Valid board dimensions: (rows, cols)
+VALID_DIMENSIONS = {
+    (6, 22),  # Flagship
+    (3, 15),  # Note
+}
+
 BLANK_BOARD = [[0] * 22 for _ in range(6)]
+BLANK_NOTE = [[0] * 15 for _ in range(3)]
+
+# Character encoding for text-mode requests (matches Vestaboard spec)
+CHAR_TO_CODE = {
+    " ": 0,
+    "!": 37, "@": 38, "#": 39, "$": 40,
+    "(": 41, ")": 42, "-": 44, "+": 46,
+    "&": 47, "=": 48, ";": 49, ":": 50,
+    "'": 52, '"': 53, "%": 54, ",": 55,
+    ".": 56, "/": 59, "?": 60,
+}
+
+MAX_CHAR_CODE = 71
+
+
+def _blank_for_dims(rows, cols):
+    return [[0] * cols for _ in range(rows)]
 
 
 class MockBoardState:
@@ -34,15 +58,19 @@ class MockBoardState:
     def reset(self):
         with self._lock:
             self.current_message = [row[:] for row in BLANK_BOARD]
+            self.current_dimensions = (6, 22)
             self.message_history = []
             self.request_count = 0
 
-    def set_message(self, characters, strategy=None):
+    def set_message(self, characters, strategy=None, dimensions=None):
         with self._lock:
             self.current_message = [row[:] for row in characters]
+            if dimensions:
+                self.current_dimensions = dimensions
             self.message_history.append({
                 "characters": [row[:] for row in characters],
                 "strategy": strategy,
+                "dimensions": list(dimensions) if dimensions else list(self.current_dimensions),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
             self.request_count += 1
@@ -55,14 +83,30 @@ class MockBoardState:
         with self._lock:
             return {
                 "current_message": self.current_message,
+                "device_dimensions": list(self.current_dimensions),
                 "message_count": len(self.message_history),
                 "request_count": self.request_count,
-                "history": self.message_history[-10:],  # last 10
+                "history": self.message_history[-10:],
             }
 
 
-# Module-level singleton so the handler can access it
 _state = MockBoardState()
+
+
+def _detect_dimensions(chars):
+    """Return (rows, cols) for a character array, or None if invalid."""
+    if not isinstance(chars, list) or len(chars) == 0:
+        return None
+    rows = len(chars)
+    cols = len(chars[0]) if isinstance(chars[0], list) else None
+    if cols is None:
+        return None
+    if (rows, cols) not in VALID_DIMENSIONS:
+        return None
+    for row in chars:
+        if not isinstance(row, list) or len(row) != cols:
+            return None
+    return (rows, cols)
 
 
 class MockBoardHandler(BaseHTTPRequestHandler):
@@ -97,45 +141,66 @@ class MockBoardHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "Empty body"})
                 return
 
-            # Handle character array format
             if "characters" in body:
                 chars = body["characters"]
-                if not isinstance(chars, list) or len(chars) != 6:
-                    self._send_json(400, {"error": "characters must be a 6-row array"})
+                dims = _detect_dimensions(chars)
+                if dims is None:
+                    self._send_json(400, {
+                        "error": (
+                            "characters must be a valid board array: "
+                            "6x22 (Flagship) or 3x15 (Note)"
+                        ),
+                    })
                     return
-                for row in chars:
-                    if not isinstance(row, list) or len(row) != 22:
-                        self._send_json(400, {"error": "Each row must have 22 columns"})
-                        return
-                _state.set_message(chars, strategy=body.get("strategy"))
+
+                # Validate character codes are in range 0-71
+                for r_idx, row in enumerate(chars):
+                    for c_idx, code in enumerate(row):
+                        if not isinstance(code, int) or code < 0 or code > MAX_CHAR_CODE:
+                            self._send_json(400, {
+                                "error": (
+                                    f"Invalid character code {code} at row {r_idx}, "
+                                    f"col {c_idx}. Must be 0-{MAX_CHAR_CODE}."
+                                ),
+                            })
+                            return
+
+                _state.set_message(chars, strategy=body.get("strategy"), dimensions=dims)
                 self._send_json(200, {"ok": True})
 
-            # Handle text format
             elif "text" in body:
-                # Simple text-to-board: store as character array with char codes
+                rows = int(body.get("rows", 6))
+                cols = int(body.get("cols", 22))
+                if (rows, cols) not in VALID_DIMENSIONS:
+                    self._send_json(400, {
+                        "error": f"Unsupported dimensions {rows}x{cols}",
+                    })
+                    return
+
                 text = body["text"].upper()
-                chars = [row[:] for row in BLANK_BOARD]
+                chars = _blank_for_dims(rows, cols)
                 row_idx = 0
                 col_idx = 0
                 for ch in text:
                     if ch == "\n":
                         row_idx += 1
                         col_idx = 0
-                        if row_idx >= 6:
+                        if row_idx >= rows:
                             break
                         continue
-                    if col_idx < 22 and row_idx < 6:
-                        # Map ASCII to Vestaboard character codes
-                        if ch == " ":
-                            chars[row_idx][col_idx] = 0
-                        elif "A" <= ch <= "Z":
+                    if col_idx < cols and row_idx < rows:
+                        if "A" <= ch <= "Z":
                             chars[row_idx][col_idx] = ord(ch) - ord("A") + 1
-                        elif "0" <= ch <= "9":
-                            chars[row_idx][col_idx] = ord(ch) - ord("0") + 27
+                        elif "1" <= ch <= "9":
+                            chars[row_idx][col_idx] = ord(ch) - ord("1") + 27
+                        elif ch == "0":
+                            chars[row_idx][col_idx] = 36
+                        elif ch in CHAR_TO_CODE:
+                            chars[row_idx][col_idx] = CHAR_TO_CODE[ch]
                         else:
                             chars[row_idx][col_idx] = 0
                         col_idx += 1
-                _state.set_message(chars)
+                _state.set_message(chars, dimensions=(rows, cols))
                 self._send_json(200, {"ok": True})
             else:
                 self._send_json(400, {"error": "Request must include 'characters' or 'text'"})

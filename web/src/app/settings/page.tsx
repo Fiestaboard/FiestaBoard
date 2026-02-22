@@ -1,6 +1,6 @@
 "use client";
 
-import { BoardSettings } from "@/components/settings/board-settings";
+import { DisplaySettings } from "@/components/settings/display-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
 import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
@@ -30,10 +30,10 @@ export default function SettingsPage() {
             <GeneralSettings />
           </section>
 
-          {/* Board Connection */}
+          {/* Boards */}
           <section>
-            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Board Connection</h2>
-            <BoardSettings />
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Boards</h2>
+            <DisplaySettings />
           </section>
 
           {/* Integrations Link */}

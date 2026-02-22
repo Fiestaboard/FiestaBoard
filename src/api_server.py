@@ -32,6 +32,7 @@ from .schedules.service import get_schedule_service
 from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .templates.engine import get_template_engine, reset_template_engine
 from .text_to_board import text_to_board_array
+from .devices import get_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -1309,18 +1310,17 @@ async def send_display(
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Display not available")
     
-    # Determine target
+    # Determine target -- an explicit target overrides dev_mode
+    explicit_target = target is not None
     if target is None:
-        # Use settings-based logic
         send_to_board = settings_service.should_send_to_board(_dev_mode)
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate
+    # Send to board if appropriate (explicit target bypasses dev_mode guard)
     sent_to_board = False
-    if send_to_board and not _dev_mode:
+    if send_to_board and (explicit_target or not _dev_mode):
         transition = settings_service.get_transition_settings()
-        # Convert to board array for proper character/color support
         board_array = text_to_board_array(result.formatted)
         success, was_sent = service.vb_client.send_characters(
             board_array,
@@ -2293,7 +2293,8 @@ async def set_active_page(request: dict):
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
-            board_array = text_to_board_array(result.formatted)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
                 strategy=strategy,
@@ -2354,9 +2355,7 @@ async def get_board_settings():
     """Get current board display settings."""
     settings_service = get_settings_service()
     board = settings_service.get_board_settings()
-    return {
-        "board_type": board.board_type
-    }
+    return board.to_dict()
 
 
 @app.put("/settings/board")
@@ -2364,17 +2363,60 @@ async def update_board_settings(request: dict):
     """
     Update board display settings.
     
-    Body should include:
+    Body may include:
     - board_type: "black", "white", or null for default
+    - devices: list of device types (backward-compatible, e.g. ["flagship", "note"])
+    - boards: list of board instance objects (new format)
     """
-    if "board_type" not in request:
-        raise HTTPException(status_code=400, detail="board_type parameter required")
+    if not any(k in request for k in ("board_type", "devices", "boards")):
+        raise HTTPException(status_code=400, detail="At least one of board_type, devices, or boards is required")
     
     settings_service = get_settings_service()
     
     try:
-        board_type = request["board_type"]
-        board = settings_service.set_board_type(board_type)
+        if "board_type" in request:
+            board_type = request["board_type"]
+            settings_service.set_board_type(board_type)
+        if "boards" in request:
+            settings_service.set_boards(request["boards"])
+        elif "devices" in request:
+            devices = request["devices"]
+            settings_service.set_devices(devices)
+        board = settings_service.get_board_settings()
+        return {
+            "status": "success",
+            "settings": board.to_dict()
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/settings/board/add")
+async def add_board(request: dict):
+    """Add a new board instance.
+    
+    Body should include:
+    - device_type: "flagship" or "note"
+    - name: optional display name
+    - board_color: optional "black" or "white"
+    """
+    settings_service = get_settings_service()
+    try:
+        board = settings_service.add_board(request)
+        return {
+            "status": "success",
+            "settings": board.to_dict()
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/settings/board/{board_id}")
+async def remove_board(board_id: str):
+    """Remove a board instance by ID."""
+    settings_service = get_settings_service()
+    try:
+        board = settings_service.remove_board(board_id)
         return {
             "status": "success",
             "settings": board.to_dict()
@@ -2420,9 +2462,7 @@ async def get_all_settings():
         },
         "transitions": transitions.to_dict(),
         "output": output.to_dict(),
-        "board": {
-            "board_type": board.board_type
-        },
+        "board": board.to_dict(),
         "status": {
             "running": _service_running,
             "dev_mode": _dev_mode
@@ -3031,29 +3071,28 @@ async def send_page(page_id: str, target: Optional[str] = None):
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
     
-    # Determine target
+    # Determine target -- an explicit target overrides dev_mode
+    explicit_target = target is not None
     if target is None:
         send_to_board = settings_service.should_send_to_board(_dev_mode)
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate
+    # Send to board if appropriate (explicit target bypasses dev_mode guard)
     sent_to_board = False
-    if send_to_board and not _dev_mode:
+    if send_to_board and (explicit_target or not _dev_mode):
         # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
         if Config.is_silence_mode_active():
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
             sent_to_board = False
-            # Don't raise error, just skip sending
         else:
-            # Use page-level transitions if set, otherwise fall back to system defaults
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             
-            # Convert to board array for proper character/color support
-            board_array = text_to_board_array(result.formatted)
+            dims = get_dimensions(page.device_type)
+            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
                 strategy=strategy,

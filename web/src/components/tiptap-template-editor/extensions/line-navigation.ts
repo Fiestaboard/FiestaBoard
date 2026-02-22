@@ -4,32 +4,39 @@
  * Handles Enter key in the single-paragraph / hardBreak document model.
  *
  * Behaviour:
- *  - If the document has fewer than 6 lines (< 5 hardBreaks), Enter inserts
- *    a hardBreak at the cursor position — content below shifts down and a new
- *    blank line appears.  This matches what users expect from a normal editor.
- *  - If the document already has 6 lines, Enter moves the cursor to the start
- *    of the next line (wrapping from line 6 back to line 1).
+ *  - If the document has fewer lines than `maxLines` (configurable, default 6),
+ *    Enter inserts a hardBreak — content below shifts down.
+ *  - If the document already has `maxLines` lines, Enter moves the cursor to
+ *    the start of the next line (wrapping from the last line back to line 1).
  *  - Shift+Enter is always blocked to prevent accidental hardBreak insertion.
+ *
+ * Configure per device type:
+ *   LineNavigation.configure({ maxLines: 3 })  // Vestaboard Note
+ *   LineNavigation.configure({ maxLines: 6 })  // Vestaboard Flagship (default)
  */
 import { Extension } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
 
-/** Maximum lines the template supports. */
-const MAX_LINES = 6;
+export interface LineNavigationOptions {
+  maxLines: number;
+}
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     lineNavigation: {
-      /**
-       * Move cursor to the start of the next line (wrapping at the end).
-       */
       goToNextLine: () => ReturnType;
     };
   }
 }
 
-export const LineNavigation = Extension.create({
+export const LineNavigation = Extension.create<LineNavigationOptions>({
   name: 'lineNavigation',
+
+  addOptions() {
+    return {
+      maxLines: 6,
+    };
+  },
 
   addCommands() {
     return {
@@ -38,7 +45,6 @@ export const LineNavigation = Extension.create({
         ({ tr, dispatch }) => {
           const cursorPos = tr.selection.$from.pos;
 
-          // Collect every hardBreak position in document order
           const hardBreakPositions: number[] = [];
           tr.doc.descendants((node, pos) => {
             if (node.type.name === 'hardBreak') {
@@ -46,18 +52,13 @@ export const LineNavigation = Extension.create({
             }
           });
 
-          // Find the first hardBreak that comes after the cursor
           const nextBreakPos = hardBreakPositions.find(pos => pos > cursorPos);
 
           let targetPos: number;
 
           if (nextBreakPos !== undefined) {
-            // Move cursor to just after the hardBreak (hardBreak nodeSize = 1)
             targetPos = nextBreakPos + 1;
           } else {
-            // Cursor is on or past the last line — wrap to line 1.
-            // In our doc model: doc opens at 0, paragraph opens at 1,
-            // so the first content position inside the paragraph is 2.
             targetPos = 2;
           }
 
@@ -75,8 +76,8 @@ export const LineNavigation = Extension.create({
     return {
       'Enter': () => {
         const { state } = this.editor;
+        const { maxLines } = this.options;
 
-        // Count current hardBreaks to know how many lines we have.
         let hardBreakCount = 0;
         state.doc.descendants((node) => {
           if (node.type.name === 'hardBreak') {
@@ -84,16 +85,13 @@ export const LineNavigation = Extension.create({
           }
         });
 
-        // Room to add a line? Insert a hardBreak (natural behaviour).
-        if (hardBreakCount < MAX_LINES - 1) {
+        if (hardBreakCount < maxLines - 1) {
           return this.editor.commands.setHardBreak();
         }
 
-        // Already at 6 lines — just navigate to the next line.
         return this.editor.commands.goToNextLine();
       },
 
-      // Block Shift+Enter so no extra hardBreaks are inserted
       'Shift-Enter': () => true,
     };
   },

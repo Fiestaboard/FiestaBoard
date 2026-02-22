@@ -113,6 +113,8 @@ describe("PageGridSelector", () => {
 
     vi.mocked(api.getBoardSettings).mockResolvedValue({
       board_type: "black",
+      boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      devices: ["flagship"],
     });
 
     vi.mocked(api.previewPagesBatch).mockResolvedValue(mockBatchPreviewResponse);

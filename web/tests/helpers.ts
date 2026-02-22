@@ -87,16 +87,30 @@ export async function waitForApi(timeoutMs = 15_000) {
 export async function createPage(
   name: string,
   template: string[] = ["TEST PAGE", "", "", "", "", ""],
+  deviceType: "flagship" | "note" = "flagship",
 ): Promise<string> {
+  const body: Record<string, unknown> = { name, type: "template", template };
+  if (deviceType !== "flagship") {
+    body.device_type = deviceType;
+  }
   const res = await fetch(`${API_URL}/pages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, type: "template", template }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`createPage failed: ${res.status}`);
   const data = await res.json();
   return data.page.id;
 }
+
+/** Create a Note page (3 lines, 15 cols) and return its ID. */
+export async function createNotePage(
+  name: string,
+  template: string[] = ["NOTE TEST", "", ""],
+): Promise<string> {
+  return createPage(name, template, "note");
+}
+
 
 /** Delete a page via the API. */
 export async function deletePage(id: string): Promise<void> {
@@ -185,6 +199,28 @@ export async function setActivePage(id: string | null): Promise<void> {
     body: JSON.stringify({ page_id: id }),
   });
   if (!res.ok) throw new Error(`setActivePage failed: ${res.status}`);
+}
+
+/**
+ * Reset to a single configured Flagship board.
+ * Useful in afterEach to ensure clean multi-board state.
+ */
+export async function resetToSingleBoard() {
+  await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      boards: [{
+        name: "My Board",
+        device_type: "flagship",
+        board_color: "black",
+        enabled: true,
+        api_mode: "local",
+        host: BOARD_HOST,
+        local_api_key: "test-key",
+      }],
+    }),
+  });
 }
 
 /** Suppress the setup wizard by injecting localStorage before navigation. */

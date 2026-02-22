@@ -100,7 +100,24 @@ text = BoardChars.codes_to_text([8, 5, 12, 12, 15])
 
 ## Board Dimensions
 
-The display is a grid of **6 rows × 22 columns** = 132 characters total.
+FiestaBoard supports multiple Vestaboard device types:
+
+| Device | Rows | Columns | Total Characters |
+|--------|------|---------|------------------|
+| **Flagship** | 6 | 22 | 132 |
+| **Note** | 3 | 15 | 45 |
+
+Pages are device-specific — each page targets either Flagship or Note, and the editor and preview adapt to the correct dimensions.
+
+## Device-Specific Characters
+
+Some character codes render differently depending on the target device:
+
+| Code | Flagship | Note |
+|------|----------|------|
+| 62 | `°` (Degree) | `❤` (Heart) |
+
+When creating pages for the Note device, code 62 will display as a red heart icon instead of the degree symbol.
 
 ## Next Steps
 

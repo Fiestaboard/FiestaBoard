@@ -3,7 +3,7 @@
 Official board character codes (0-71).
 Reference: https://docs.vestaboard.com/docs/characterCodes
 
-Note: Some codes (43, 45, 46, 51, 57, 58, 61) are not defined in the official table.
+Note: Some codes (43, 45, 51, 57, 58, 61) are not defined in the official table.
 """
 
 from typing import Dict, Optional, List
@@ -65,7 +65,7 @@ class BoardChars:
     # 43 is undefined
     DASH = 44            # - (hyphen)
     # 45 is undefined
-    # 46 is undefined
+    PLUS = 46            # +
     AMPERSAND = 47       # &
     EQUALS = 48          # =
     SEMICOLON = 49       # ;
@@ -96,6 +96,7 @@ class BoardChars:
     # Aliases for compatibility
     APOSTROPHE = SINGLE_QUOTE
     HYPHEN = DASH
+    HEART = DEGREE  # Code 62 renders as ❤ on Note, ° on Flagship
     
     @classmethod
     def get_char_code(cls, char: str) -> Optional[int]:
@@ -130,6 +131,7 @@ class BoardChars:
             '(': cls.LEFT_PAREN,
             ')': cls.RIGHT_PAREN,
             '-': cls.DASH,
+            '+': cls.PLUS,
             '&': cls.AMPERSAND,
             '=': cls.EQUALS,
             ';': cls.SEMICOLON,
@@ -142,6 +144,8 @@ class BoardChars:
             '/': cls.SLASH,
             '?': cls.QUESTION,
             '°': cls.DEGREE,
+            '❤': cls.DEGREE,  # Heart on Note devices shares code 62
+            '♥': cls.DEGREE,
         }
         
         return special_map.get(char)

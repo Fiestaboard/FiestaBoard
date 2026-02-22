@@ -191,6 +191,9 @@ export interface SetActivePageResponse {
 // Page types
 export type PageType = "single" | "composite" | "template";
 
+// Device types
+export type DeviceType = "flagship" | "note";
+
 export interface RowConfig {
   source: string;
   row_index: number;
@@ -201,6 +204,7 @@ export interface Page {
   id: string;
   name: string;
   type: PageType;
+  device_type: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -216,6 +220,7 @@ export interface Page {
 export interface PageCreate {
   name: string;
   type: PageType;
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -397,8 +402,22 @@ export interface PollingSettings {
   interval_seconds: number;
 }
 
+export interface BoardInstance {
+  id: string;
+  name: string;
+  device_type: DeviceType;
+  board_color: "black" | "white";
+  enabled: boolean;
+  api_mode: "local" | "cloud";
+  host: string;
+  local_api_key: string;
+  cloud_key: string;
+}
+
 export interface BoardSettings {
   board_type: "black" | "white" | null;
+  boards: BoardInstance[];
+  devices: DeviceType[]; // Computed from boards for backward compat
 }
 
 // Schedule types
@@ -972,11 +991,21 @@ export const api = {
 
   // Board settings
   getBoardSettings: () => fetchApi<BoardSettings>("/settings/board"),
-  updateBoardSettings: (board_type: "black" | "white" | null) =>
+  updateBoardSettings: (updates: { board_type?: "black" | "white" | null; devices?: DeviceType[]; boards?: BoardInstance[] }) =>
     fetchApi<{ status: string; settings: BoardSettings }>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ board_type }),
+      body: JSON.stringify(updates),
+    }),
+  addBoard: (board: Partial<BoardInstance> & { device_type: DeviceType }) =>
+    fetchApi<{ status: string; settings: BoardSettings }>("/settings/board/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(board),
+    }),
+  removeBoard: (boardId: string) =>
+    fetchApi<{ status: string; settings: BoardSettings }>(`/settings/board/${boardId}`, {
+      method: "DELETE",
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 
@@ -1064,12 +1093,6 @@ export const api = {
   
   showDebugInfo: () =>
     fetchApi<ActionResponse>("/debug/info", { method: "POST" }),
-  
-  testBoardConnection: (request: BoardTestRequest) =>
-    fetchApi<BoardTestResponse>("/config/board/test", {
-      method: "POST",
-      body: JSON.stringify(request),
-    }),
   
   testDebugConnection: () =>
     fetchApi<DebugTestResponse>("/debug/test-connection", { method: "POST" }),

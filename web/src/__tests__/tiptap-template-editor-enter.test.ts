@@ -214,3 +214,124 @@ describe('LineNavigation Extension (Enter key)', () => {
     expect(editor.state.schema.nodes.hardBreak).toBeDefined();
   });
 });
+
+// =====================================================================
+// 3-line mode (Vestaboard Note)
+// =====================================================================
+
+describe('3-line mode (Note device)', () => {
+  let editor: Editor;
+
+  function createNoteEditor(template: string): Editor {
+    return new Editor({
+      extensions: [
+        StarterKit.configure({
+          heading: false,
+          blockquote: false,
+          codeBlock: false,
+          horizontalRule: false,
+          bulletList: false,
+          orderedList: false,
+          listItem: false,
+          code: false,
+          bold: false,
+          italic: false,
+          strike: false,
+          history: true,
+          document: true,
+          text: true,
+          paragraph: true,
+          hardBreak: true,
+        }),
+        LineNavigation.configure({ maxLines: 3 }),
+      ],
+      content: parseTemplateSimple(template, 3),
+    });
+  }
+
+  afterEach(() => {
+    editor?.destroy();
+  });
+
+  // ── parseTemplateSimple with maxLines=3 ─────────────────────────
+
+  it('parseTemplateSimple(_, 3) creates exactly 2 hardBreaks', () => {
+    editor = createNoteEditor('A\nB\nC');
+    expect(countHardBreaks(editor)).toBe(2);
+  });
+
+  it('parseTemplateSimple(_, 3) pads short templates to 3 lines', () => {
+    editor = createNoteEditor('ONE');
+    expect(countHardBreaks(editor)).toBe(2);
+  });
+
+  it('parseTemplateSimple(_, 3) truncates beyond 3 lines', () => {
+    editor = createNoteEditor('A\nB\nC\nD\nE');
+    expect(countHardBreaks(editor)).toBe(2);
+  });
+
+  // ── serializeTemplateSimple with maxLines=3 ─────────────────────
+
+  it('serializeTemplateSimple(_, 3) produces exactly 3 lines', () => {
+    editor = createNoteEditor('HELLO\nWORLD\n');
+    const lines = serializeTemplateSimple(editor.getJSON(), 3).split('\n');
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toBe('HELLO');
+    expect(lines[1]).toBe('WORLD');
+    expect(lines[2]).toBe('');
+  });
+
+  it('serializeTemplateSimple round-trips 3-line content', () => {
+    const original = 'HELLO\nWORLD\nTHREE';
+    editor = createNoteEditor(original);
+    const serialized = serializeTemplateSimple(editor.getJSON(), 3);
+    const lines = serialized.split('\n');
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toBe('HELLO');
+    expect(lines[1]).toBe('WORLD');
+    expect(lines[2]).toBe('THREE');
+  });
+
+  // ── LineNavigation with maxLines=3 ──────────────────────────────
+
+  it('at 3 lines, goToNextLine navigates (no insertion)', () => {
+    editor = createNoteEditor('A\nB\nC');
+    expect(countHardBreaks(editor)).toBe(2);
+
+    editor.commands.setTextSelection(2);
+    editor.commands.goToNextLine();
+
+    expect(countHardBreaks(editor)).toBe(2);
+  });
+
+  it('at fewer than 3 lines, setHardBreak adds a line', () => {
+    editor = createNoteEditor('A\nB\nC');
+    expect(countHardBreaks(editor)).toBe(2);
+
+    // Delete last hardBreak + trailing content to drop to 2 lines
+    const breakPositions = getHardBreakPositions(editor);
+    const lastBreak = breakPositions[breakPositions.length - 1];
+    const docEnd = editor.state.doc.content.size;
+    editor.commands.setTextSelection({ from: lastBreak, to: docEnd - 1 });
+    editor.commands.deleteSelection();
+
+    expect(countHardBreaks(editor)).toBe(1);
+
+    editor.commands.setTextSelection(2);
+    editor.commands.setHardBreak();
+
+    expect(countHardBreaks(editor)).toBe(2);
+  });
+
+  it('goToNextLine wraps from line 3 back to line 1', () => {
+    editor = createNoteEditor('X\nY\nZ');
+    const breakPositions = getHardBreakPositions(editor);
+
+    const lastBreak = breakPositions[breakPositions.length - 1];
+    editor.commands.setTextSelection(lastBreak + 1);
+
+    editor.commands.goToNextLine();
+
+    expect(editor.state.selection.from).toBe(2);
+  });
+});
