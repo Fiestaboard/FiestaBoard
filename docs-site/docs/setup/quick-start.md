@@ -18,7 +18,7 @@ That's it. The install wizard handles the rest. Plugins that need external API k
 
 ## Installation (Recommended)
 
-Run the setup wizard — it will collect your board API key, create the configuration, and start the server:
+Run the setup wizard — it will collect your board API key, device type, and configuration, then start the server:
 
 ```bash
 # Mac/Linux
@@ -28,7 +28,12 @@ Run the setup wizard — it will collect your board API key, create the configur
 .\scripts\install.ps1
 ```
 
-The script guides you through everything. When it finishes, FiestaBoard is running.
+The wizard will ask for:
+1. **Board API key** (Local API key or Cloud Read/Write key)
+2. **Device type** — Flagship (22×6) or Note (15×3)
+3. **Board color** — Black or White
+
+When it finishes, FiestaBoard is running.
 
 ## Access Your Dashboard
 
@@ -118,3 +123,4 @@ See `env.example` for all available environment variables (useful for developmen
 - [Configure Plugins](/docs/plugins/overview) - Enable and configure data sources via the Integrations page
 - [Local Development](/docs/setup/local-development) - Set up a development environment for contributing
 - [Create Custom Plugins](/docs/development/plugin-guide) - Build your own plugins
+- [V2 Migration Guide](/docs/setup/v2-migration) - Upgrading from a V1 installation
