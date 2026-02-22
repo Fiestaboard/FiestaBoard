@@ -238,8 +238,8 @@ jobs:
       working-directory: web
       run: npm run test:run
 
-  e2e-setup:
-    name: E2E Setup
+  e2e-tests:
+    name: E2E Tests
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
@@ -262,9 +262,6 @@ jobs:
           tags: fiestaboard:e2e
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Save Docker image
-        run: docker save fiestaboard:e2e | gzip > /tmp/fiestaboard-e2e.tar.gz
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -290,68 +287,7 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: web
-        run: npx playwright install chromium
-
-      - name: Archive dependencies and image
-        run: |
-          tar -czf /tmp/e2e-node-modules.tar.gz -C web node_modules
-          tar -czf /tmp/e2e-playwright.tar.gz -C ~/.cache ms-playwright
-
-      - name: Upload dependencies
-        uses: actions/upload-artifact@v6
-        with:
-          name: e2e-deps
-          path: |
-            /tmp/e2e-node-modules.tar.gz
-            /tmp/e2e-playwright.tar.gz
-            /tmp/fiestaboard-e2e.tar.gz
-          retention-days: 1
-
-  e2e-tests:
-    name: E2E Tests (${{ matrix.shard }}/3)
-    runs-on: ubuntu-latest
-    needs: e2e-setup
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - name: Download dependencies
-        uses: actions/download-artifact@v6
-        with:
-          name: e2e-deps
-          path: /tmp/e2e-deps
-
-      - name: Extract dependencies
-        run: |
-          tar -xzf /tmp/e2e-deps/e2e-node-modules.tar.gz -C web
-          tar -xzf /tmp/e2e-deps/e2e-playwright.tar.gz -C ~/.cache
-          docker load < /tmp/e2e-deps/fiestaboard-e2e.tar.gz
-
-      - name: Install Playwright system dependencies
-        working-directory: web
-        run: npx playwright install-deps chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Start mock Vestaboard API
         run: |
@@ -378,9 +314,9 @@ jobs:
             sleep 1
           done
 
-      - name: Run E2E tests (shard ${{ matrix.shard }}/3)
+      - name: Run E2E tests
         working-directory: web
-        run: npx playwright test --shard=${{ matrix.shard }}/3 --reporter=github
+        run: npx playwright test --reporter=github
         env:
           CI: true
 
@@ -392,23 +328,9 @@ jobs:
         uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
-          name: playwright-results-shard-${{ matrix.shard }}
+          name: playwright-results
           path: web/test-results/
           retention-days: 7
-
-  e2e-report:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    needs: e2e-tests
-    if: always() && needs.e2e-tests.result != 'skipped'
-    steps:
-      - name: Check shard results
-        run: |
-          if [ "${{ needs.e2e-tests.result }}" != "success" ]; then
-            echo "E2E shards failed or were cancelled"
-            exit 1
-          fi
-          echo "All E2E shards passed"
 
   build-docker:
     name: Build Docker Image
