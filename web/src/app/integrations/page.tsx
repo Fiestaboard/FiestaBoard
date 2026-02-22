@@ -895,12 +895,20 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
     queryKey: ["plugin", plugin.id],
     queryFn: () => api.getPlugin(plugin.id),
     enabled: isConfigOpen,
+  });
+
+  // Fetch OAuth status if plugin requires OAuth
+  const { data: oauthStatus } = useQuery({
+    queryKey: ["oauth-status", plugin.id],
+    queryFn: () => api.getOAuthStatus(plugin.id),
+    enabled: plugin.requires_oauth === true && plugin.enabled,
   });
 
   // Initialize config values when plugin details load
@@ -931,6 +939,21 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
     setCopiedVar(varName);
     setTimeout(() => setCopiedVar(null), 2000);
     toast.success(`Copied ${templateVar}`);
+  };
+
+  // Handle OAuth flow
+  const handleOAuthConnect = async () => {
+    setIsAuthenticating(true);
+    try {
+      const redirectUri = `${window.location.origin}/oauth/callback/${plugin.id}`;
+      const response = await api.initiateOAuth(plugin.id, redirectUri);
+      
+      // Redirect to OAuth provider
+      window.location.href = response.authorization_url;
+    } catch (error) {
+      toast.error(`Failed to initiate OAuth: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setIsAuthenticating(false);
+    }
   };
 
   // Parse variables from plugin details
@@ -1023,17 +1046,32 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {plugin.enabled ? (
-              plugin.configured ? (
-                <Badge variant="default" className="text-xs gap-1">
-                  <CheckCircle className="h-3 w-3" />
-                  Configured
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-xs gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Setup Required
-                </Badge>
-              )
+              <>
+                {plugin.requires_oauth && oauthStatus ? (
+                  oauthStatus.authenticated ? (
+                    <Badge variant="default" className="text-xs gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Connected
+                      {oauthStatus.workspace_name && `: ${oauthStatus.workspace_name}`}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Authentication Required
+                    </Badge>
+                  )
+                ) : plugin.configured ? (
+                  <Badge variant="default" className="text-xs gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    Configured
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Setup Required
+                  </Badge>
+                )}
+              </>
             ) : (
               <Badge variant="outline" className="text-xs gap-1">
                 <XCircle className="h-3 w-3" />
@@ -1042,6 +1080,28 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
             )}
           </div>
           {plugin.enabled && (
+            <div className="flex items-center gap-2">
+              {plugin.requires_oauth && !oauthStatus?.authenticated && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-xs"
+                  onClick={handleOAuthConnect}
+                  disabled={isAuthenticating}
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Key className="h-3 w-3 mr-1" />
+                      Connect
+                    </>
+                  )}
+                </Button>
+              )}
             <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen} modal={false}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 text-xs">
@@ -1209,6 +1269,7 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
                 </SheetFooter>
               </SheetContent>
             </Sheet>
+            </div>
           )}
         </div>
       </CardContent>

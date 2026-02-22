@@ -571,6 +571,7 @@ export interface PluginInfo {
   icon: string;
   category: string;
   config: Record<string, unknown>;
+  requires_oauth?: boolean;
 }
 
 export interface PluginsListResponse {
@@ -590,6 +591,13 @@ export interface PluginManifest {
   icon?: string;
   category?: string;
   repository?: string;
+  requires_oauth?: boolean;
+  oauth_config?: {
+    provider: string;
+    authorize_url: string;
+    token_url: string;
+    scopes: string[];
+  };
   documentation?: string;
   settings_schema: Record<string, unknown>;
   variables: {

@@ -330,6 +330,7 @@ class PluginRegistry:
                 "enabled": self._enabled.get(plugin_id, False),
                 "icon": manifest.icon if manifest else "puzzle",
                 "category": manifest.category if manifest else "utility",
+                "requires_oauth": manifest.raw.get("requires_oauth", False) if manifest else False,
             }
             plugins.append(info)
         
