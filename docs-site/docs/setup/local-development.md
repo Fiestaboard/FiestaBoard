@@ -17,10 +17,10 @@ The recommended way to develop FiestaBoard:
 docker-compose -f docker-compose.dev.yml up --build
 
 # Access Web UI at http://localhost:3000
-# Access API at http://localhost:3000
+# Access API at http://localhost:8000 (direct, separate container in dev mode)
 ```
 
-The development environment includes **hot reload** for both Python and Next.js code.
+The development environment uses **two separate containers** (`fiestaboard-api` on port 8000 and `fiestaboard-ui-dev` on port 3000) with **hot reload** for both Python and Next.js code. This is different from the production single-container setup.
 
 ## Project Structure
 
@@ -40,10 +40,11 @@ FiestaBoard/
 │   └── src/                    # React components and pages
 ├── docs-site/                  # Docusaurus documentation
 ├── tests/                      # Platform test suite
-├── Dockerfile.api              # API service Dockerfile
-├── Dockerfile.ui               # Web UI Dockerfile
-├── docker-compose.yml          # Production compose
-└── docker-compose.dev.yml      # Development compose
+├── Dockerfile                  # Unified Dockerfile (production: API + Web UI in one image)
+├── Dockerfile.api              # API-only Dockerfile (used by docker-compose.dev.yml)
+├── Dockerfile.ui-dev           # Web UI dev Dockerfile (hot reload, used by docker-compose.dev.yml)
+├── docker-compose.yml          # Production compose (single container, port 3000)
+└── docker-compose.dev.yml      # Development compose (two containers, hot reload)
 ```
 
 ## Running Tests

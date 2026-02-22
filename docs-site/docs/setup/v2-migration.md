@@ -12,6 +12,10 @@ FiestaBoard V2 introduces **multi-device support** and **multi-board management*
 V2 is fully backward compatible for existing single-board Flagship setups. Existing pages default to `device_type: "flagship"` automatically.
 :::
 
+:::caution Breaking: Single-container architecture
+V2 replaces the previous two-container setup with a single unified container. The web UI port changed from **8080 → 3000** and the API is no longer exposed on its own dedicated port. See the [Docker Architecture Migration](#docker-architecture-migration) section below.
+:::
+
 ## What's New in V2
 
 | Feature | Description |
@@ -140,6 +144,89 @@ If you're already set up, these settings can be changed any time from **Settings
 
 ---
 
+## Docker Architecture Migration
+
+This is the biggest infrastructure change in V2. FiestaBoard moved from two separate containers to a single unified container.
+
+### What changed
+
+| | V1 | V2 |
+|---|---|---|
+| **Architecture** | Two containers | One container |
+| **Web UI URL** | http://localhost:**8080** | http://localhost:**3000** |
+| **API URL** | http://localhost:**8000** (direct) | http://localhost:3000 (same port, proxied via nginx) |
+| **API Docs** | http://localhost:8000/docs | http://localhost:3000/docs |
+| **docker-compose services** | `fiestaboard-api` + `fiestaboard-ui` | `fiestaboard` |
+| **Dockerfile** | `Dockerfile.api` + `Dockerfile.ui` | `Dockerfile` (unified) |
+| **Volumes** | Separate source mounts per service | `./data:/app/data` only |
+| **NEXT_PUBLIC_API_URL env var** | Required (pointed UI at API port) | Not needed (handled by nginx) |
+
+### V1 → V2 service diagram
+
+**V1 (two containers)**
+
+```
+Browser → http://localhost:8080 → fiestaboard-ui (Next.js)
+                                         ↓ NEXT_PUBLIC_API_URL
+Browser → http://localhost:8000 → fiestaboard-api (FastAPI)
+```
+
+**V2 (single container)**
+
+```
+Browser → http://localhost:3000 → nginx
+                                    ├── /api/* → FastAPI (internal :8000)
+                                    └── /*     → Next.js (internal :3001)
+```
+
+### Migration steps
+
+1. **Stop V1 containers and remove old volumes:**
+
+   ```bash
+   docker-compose down
+   ```
+
+2. **Pull V2 code:**
+
+   ```bash
+   git pull
+   ```
+
+3. **Remove `NEXT_PUBLIC_API_URL` from your `.env`** if present — it is no longer used.
+
+4. **Start V2:**
+
+   ```bash
+   docker-compose up -d --build
+   ```
+
+5. **Update any bookmarks or firewall rules** — the web UI is now on port **3000** (not 8080).
+
+6. **Update any direct API clients** that called `http://your-server:8000` to use `http://your-server:3000` instead. All API paths remain the same.
+
+:::tip
+Your `data/` directory (pages, schedules, settings) is fully preserved — it is still mounted at `./data:/app/data`.
+:::
+
+### Port mapping summary
+
+| Service | V1 Port | V2 Port |
+|---------|---------|---------|
+| Web UI | 8080 | 3000 |
+| API (direct) | 8000 | ~~not exposed~~ (proxied at :3000) |
+| API Docs | 8000/docs | 3000/docs |
+
+### Using pre-built images (optional)
+
+V2 introduces a `docker-compose.ghcr.yml` for using pre-built images from GitHub Container Registry — no local build required:
+
+```bash
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+---
+
 ## Upgrading
 
 ### From a running V1 instance
@@ -149,15 +236,19 @@ If you're already set up, these settings can be changed any time from **Settings
    git pull
    ```
 
-2. **Rebuild and restart:**
+2. **Remove `NEXT_PUBLIC_API_URL` from `.env`** if it exists — it is no longer needed.
+
+3. **Rebuild and restart** (the old two containers are replaced by one):
    ```bash
    docker-compose down
    docker-compose up -d --build
    ```
 
-3. **Open the web UI** at http://localhost:3000 — your existing pages will appear under the **Flagship** tab, and your board configuration is preserved.
+4. **Update your bookmarks** — the web UI is now at **http://localhost:3000** (was port 8080).
 
-4. **Optional**: Visit **Settings → Boards** to set your board's device type and color, or to add a Note if you have one.
+5. **Open the web UI** at http://localhost:3000 — your existing pages will appear under the **Flagship** tab, and your board configuration is preserved.
+
+6. **Optional**: Visit **Settings → Boards** to set your board's device type and color, or to add a Note if you have one.
 
 :::tip
 The `data/` directory is mounted as a Docker volume, so your pages, schedules, and settings survive the upgrade.

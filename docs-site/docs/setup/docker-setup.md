@@ -8,6 +8,10 @@ keywords: [FiestaBoard Docker, docker-compose, container setup, architecture, ng
 
 FiestaBoard runs as a single Docker container. This page explains the architecture and how to configure it.
 
+:::info Upgrading from V1?
+V1 used two containers (`fiestaboard-api` on port 8000 and `fiestaboard-ui` on port 8080). V2 consolidates everything into one container on port 3000. See the [V2 Migration Guide](/docs/setup/v2-migration#docker-architecture-migration) for full upgrade instructions.
+:::
+
 ## Architecture
 
 FiestaBoard runs in a single unified container:
