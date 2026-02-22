@@ -36,13 +36,13 @@ Once running, access FiestaBoard at:
 
 | Service | URL |
 |---------|-----|
-| **Web UI** | http://localhost:8080 |
-| **API** | http://localhost:8000 |
-| **API Docs** | http://localhost:8000/docs |
+| **Web UI** | http://localhost:3000 |
+| **API** | http://localhost:3000 |
+| **API Docs** | http://localhost:3000/docs |
 
 ## Start the Display Service
 
-1. Open http://localhost:8080 in your browser
+1. Open http://localhost:3000 in your browser
 2. Click the **"▶ Start Service"** button
 3. Your board will start updating!
 

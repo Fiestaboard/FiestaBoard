@@ -2,67 +2,53 @@
 
 ## Overview
 
-This project uses a **two-container architecture**:
+This project uses a **single-container architecture** for simplicity and portability:
 
-1. **API Service** (`fiestaboard-api`) - FastAPI REST API server
-   - Port: `8000`
-   - Controls the FiestaBoard display service
-   - Provides REST endpoints for monitoring and control
-
-2. **Web UI** (`fiestaboard-ui`) - Nginx web server with HTML/JS interface
-   - Port: `8080`
-   - Provides a web interface for monitoring and control
-   - Proxies API requests to the API service
+- **FiestaBoard** (`fiestaboard`) - Unified container running API + Web UI
+  - Port: `3000` (single port for everything)
+  - Nginx reverse proxy routes requests to the appropriate backend
+  - API (FastAPI) runs internally on port 8000
+  - Web UI (Next.js) runs internally on port 3001
 
 ## Quick Start
 
 ### Build and Run
 
 ```bash
-# Build and start both services
+# Build and start the service
 docker-compose up -d --build
 
 # View logs
 docker-compose logs -f
 
-# Stop services
+# Stop the service
 docker-compose down
 ```
 
-### Access Services
+### Access
 
-- **Web UI**: http://localhost:8080
-- **API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs (FastAPI auto-generated docs)
+- **Web UI**: http://localhost:3000
+- **API Docs**: http://localhost:3000/docs (FastAPI auto-generated docs)
 
 ## Development
 
-### Build Individual Services
+### Build the Image
 
 ```bash
-# Build API service only
-docker build -f Dockerfile.api -t fiestaboard-api .
-
-# Build UI service only
-docker build -f Dockerfile.ui -t fiestaboard-ui .
+# Build the unified image
+docker build -t fiestaboard .
 ```
 
-### Run Individual Services
+### Run the Container
 
 ```bash
-# Run API service
+# Run FiestaBoard
 docker run -d \
-  --name fiestaboard-api \
+  --name fiestaboard \
   --env-file .env \
-  -p 8000:8000 \
-  fiestaboard-api
-
-# Run UI service
-docker run -d \
-  --name fiestaboard-ui \
-  -p 8080:80 \
-  --link fiestaboard-api:fiestaboard-api \
-  fiestaboard-ui
+  -p 3000:3000 \
+  -v ./data:/app/data \
+  fiestaboard
 ```
 
 ## API Endpoints
@@ -89,33 +75,33 @@ docker run -d \
 
 ## Testing
 
-### Test API Health
+### Test Health
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 ```
 
 ### Test Service Status
 ```bash
-curl http://localhost:8000/status
+curl http://localhost:3000/status
 ```
 
 ### Toggle Dev Mode
 ```bash
-curl -X POST http://localhost:8000/dev-mode \
+curl -X POST http://localhost:3000/dev-mode \
   -H "Content-Type: application/json" \
   -d '{"dev_mode": true}'
 ```
 
 ### Send Custom Message
 ```bash
-curl -X POST http://localhost:8000/send-message \
+curl -X POST http://localhost:3000/send-message \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello from API!"}'
 ```
 
 ## Troubleshooting
 
-### Services Won't Start
+### Service Won't Start
 
 1. **Check logs:**
    ```bash
@@ -129,64 +115,60 @@ curl -X POST http://localhost:8000/send-message \
 
 3. **Check port conflicts:**
    ```bash
-   # Check if ports are in use
-   lsof -i :8000
-   lsof -i :8080
+   # Check if port is in use
+   lsof -i :3000
    ```
 
 ### API Not Responding
 
-1. **Check API container is running:**
+1. **Check container is running:**
    ```bash
-   docker ps | grep fiestaboard-api
+   docker ps | grep fiestaboard
    ```
 
-2. **Check API logs:**
+2. **Check logs:**
    ```bash
-   docker logs fiestaboard-api
+   docker logs fiestaboard
    ```
 
 3. **Test API directly:**
    ```bash
-   curl http://localhost:8000/health
+   curl http://localhost:3000/health
    ```
 
 ### Web UI Can't Connect to API
 
-1. **Check API is accessible:**
+1. **Check the service is running:**
    ```bash
-   curl http://localhost:8000/health
+   curl http://localhost:3000/health
    ```
 
-2. **Check nginx proxy config:**
+2. **Check container logs:**
    ```bash
-   docker exec fiestaboard-ui cat /etc/nginx/conf.d/default.conf
-   ```
-
-3. **Check UI logs:**
-   ```bash
-   docker logs fiestaboard-ui
+   docker logs fiestaboard
    ```
 
 ## File Structure
 
 ```
 .
-├── Dockerfile.api          # API service Dockerfile
-├── Dockerfile.ui          # UI service Dockerfile
-├── docker-compose.yml     # Multi-service compose file
-├── docker-compose.dev.yml # Development compose file
-├── .dockerignore          # Docker ignore patterns
+├── Dockerfile              # Unified Dockerfile (API + Web UI)
+├── Dockerfile.api          # API-only Dockerfile (for development)
+├── Dockerfile.ui           # UI-only Dockerfile (for development)
+├── docker-compose.yml      # Production compose file
+├── docker-compose.dev.yml  # Development compose file
+├── .dockerignore           # Docker ignore patterns
+├── nginx.conf              # Nginx reverse proxy config
 ├── src/
-│   ├── api_server.py     # FastAPI server
-│   └── main.py           # Display service (used by API)
+│   ├── api_server.py       # FastAPI server
+│   └── main.py             # Display service (used by API)
 └── web/
-    └── src/              # Next.js web application
+    └── src/                # Next.js web application
 ```
 
 ## Environment Variables
 
-Both services use the same `.env` file. Key variables:
+The service uses the `.env` file. Key variables:
 
 - `BOARD_READ_WRITE_KEY` - Board API key (required for cloud mode)
 - `WEATHER_API_KEY` - Weather API key (required)

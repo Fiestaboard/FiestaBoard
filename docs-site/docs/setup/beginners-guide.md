@@ -100,7 +100,7 @@ The script will guide you through entering your board API key and settings. When
 ## Step 5: Open the Web UI
 
 1. Open your web browser
-2. Go to **http://localhost:8080**
+2. Go to **http://localhost:3000**
 3. You should see the FiestaBoard dashboard!
 
 ![FiestaBoard Dashboard](/img/web-ui-home.png)
@@ -156,8 +156,9 @@ Another application is using port 8080 or 8000. Stop the other application or ch
 
 1. Check that your board API key is correct in `.env`
 2. Make sure the display service is started (click the ▶ button in the web UI)
-3. For local mode: verify your board is on the same network
-4. Check the logs: `docker-compose logs -f`
+3. Check the API docs at `http://localhost:3000/docs` for error messages
+4. For local mode: verify your board is on the same network
+5. Check the logs: `docker-compose logs -f`
 
 ### Need more help?
 

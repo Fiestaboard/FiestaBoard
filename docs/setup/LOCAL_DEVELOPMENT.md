@@ -24,8 +24,8 @@ docker-compose -f docker-compose.dev.yml logs -f
 
 **Access:**
 - Web UI: http://localhost:3000
-- API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- API: http://localhost:6969
+- API Docs: http://localhost:6969/docs
 
 ### Hot Reload
 
@@ -61,16 +61,16 @@ docker-compose exec fiestaboard-ui-dev npm test
 
 ```bash
 # Health check
-curl http://localhost:8000/health
+curl http://localhost:6969/health
 
 # Status
-curl http://localhost:8000/status
+curl http://localhost:6969/status
 
 # Start service
-curl -X POST http://localhost:8000/start
+curl -X POST http://localhost:6969/start
 
 # Send message
-curl -X POST http://localhost:8000/send-message \
+curl -X POST http://localhost:6969/send-message \
   -H "Content-Type: application/json" \
   -d '{"text": "Test message"}'
 ```
@@ -133,7 +133,7 @@ If using VS Code with Dev Containers:
 | Rebuild containers | `docker-compose -f docker-compose.dev.yml up --build` |
 | Run API tests | `docker-compose exec fiestaboard-api pytest` |
 | View logs | `docker-compose -f docker-compose.dev.yml logs -f` |
-| View API docs | http://localhost:8000/docs |
+| View API docs | http://localhost:6969/docs |
 | View Web UI | http://localhost:3000 |
 
 ## Troubleshooting
@@ -142,7 +142,7 @@ If using VS Code with Dev Containers:
 
 ```bash
 # Find what's using the port
-lsof -i :8000
+lsof -i :6969
 lsof -i :3000
 
 # Kill the process or stop other Docker containers
@@ -168,6 +168,6 @@ docker-compose -f docker-compose.dev.yml up --build
 
 ### UI Can't Connect to API
 
-- Check API is running: `curl http://localhost:8000/health`
+- Check API is running: `curl http://localhost:6969/health`
 - Check browser console for errors
 - Verify both containers are on same Docker network

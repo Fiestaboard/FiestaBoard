@@ -30,12 +30,30 @@ Run the setup wizard — it will collect your board API key, create the config, 
 
 Once it finishes:
 
-1. Open http://localhost:8080 in your browser
-2. Click "▶ Start Service"
-3. Your board will start displaying content!
+### Manual Setup
+
+```bash
+# 1. Create .env file with your API keys
+cp env.example .env
+# Edit .env and add: BOARD_READ_WRITE_KEY and WEATHER_API_KEY
+
+# 2. Run it! (first time builds images)
+docker-compose up --build
+
+# Or for subsequent runs (uses cached images)
+docker-compose up
+```
+
+**Access:**
+- **Web UI**: http://localhost:3000 (start service, send messages, monitor)
+- **API Docs**: http://localhost:3000/docs (interactive API documentation)
 
 ![Web UI Home](./images/web-ui-home.png)
 
+**To start the display service:**
+1. Open http://localhost:3000 in your browser
+2. Click "▶ Start Service" button
+3. Your board will start updating!
 **To stop:**
 ```bash
 docker-compose down
@@ -103,6 +121,59 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 | **Hot reload** | No | Yes (Python + Next.js) |
 | **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
 
+### Basic Setup
+
+1. **Clone or navigate to the project directory**
+
+2. **Create `.env` file**:
+   ```bash
+   cp env.example .env
+   ```
+
+3. **Edit `.env` and add your API keys**:
+   ```bash
+   # Required
+   BOARD_READ_WRITE_KEY=your_board_key_here
+   WEATHER_API_KEY=your_weather_api_key_here
+   WEATHER_PROVIDER=weatherapi
+   WEATHER_LOCATION=San Francisco, CA
+   TIMEZONE=America/Los_Angeles
+   ```
+   
+   > **Note**: Plugins are enabled via the web UI's **Integrations** page, not environment variables. See each plugin's setup guide for API keys and configuration.
+
+4. **Build and run with Docker Compose**:
+   ```bash
+   # First time (builds images)
+   docker-compose up --build
+   
+   # Or run in background
+   docker-compose up -d --build
+   ```
+
+5. **Access the service**:
+   - **Web UI**: http://localhost:3000
+   - **API Docs**: http://localhost:3000/docs
+
+6. **Start the display service**:
+   - Open http://localhost:3000 in your browser
+   - Click "▶ Start Service" button
+   - Your board will begin updating!
+
+7. **View logs**:
+   ```bash
+   docker-compose logs -f
+   ```
+
+### Advanced Setup
+
+For detailed setup instructions for specific plugins, see each plugin's README:
+- **Home Assistant**: [plugins/home_assistant/README.md](./plugins/home_assistant/README.md)
+- **Weather**: [plugins/weather/README.md](./plugins/weather/README.md)
+- **Stocks**: [plugins/stocks/README.md](./plugins/stocks/README.md)
+
+Browse `plugins/*/README.md` for all plugin documentation. Each plugin's README includes a link to its setup guide.
+
 ---
 
 ## Configuration
@@ -152,8 +223,9 @@ If you want to contribute to FiestaBoard or build plugins, use the development e
 
 ```bash
 docker-compose -f docker-compose.dev.yml up --build
-# Web UI at http://localhost:3000 (hot reload)
-# API at http://localhost:8000 (auto-reload)
+
+# Access Web UI at http://localhost:3000
+# Access API at http://localhost:6969
 ```
 
 For detailed development workflows, see [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md).
@@ -190,8 +262,9 @@ FiestaBoard/
 │   └── reference/                  # API research and reference
 ├── scripts/                        # Utility scripts
 ├── tests/                          # Platform test suite
-├── Dockerfile.api                  # API service Dockerfile
-├── Dockerfile.ui                   # Web UI Dockerfile
+├── Dockerfile                  # Unified Dockerfile (API + Web UI)
+├── Dockerfile.api              # API-only Dockerfile (for development)
+├── Dockerfile.ui               # Web UI-only Dockerfile (for development)
 ├── docker-compose.yml              # Production compose
 ├── docker-compose.dev.yml          # Development compose
 └── .env                            # Environment variables

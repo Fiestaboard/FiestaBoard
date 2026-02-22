@@ -16,7 +16,7 @@ Split-flap displays can be noisy when updating. The silence schedule ensures you
 
 ### Via the Web UI
 
-1. Open the FiestaBoard Web UI at `http://localhost:8080`
+1. Open the FiestaBoard Web UI at `http://localhost:3000`
 2. Go to **Settings**
 3. Find the **Silence Schedule** section
 4. Set your **Start Time** and **End Time**
