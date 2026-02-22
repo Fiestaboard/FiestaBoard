@@ -188,10 +188,12 @@ class BoardClient:
         force: bool = False
     ) -> Tuple[bool, bool]:
         """
-        Send message using character array format (6x22 grid) with optional transitions.
+        Send message using character array format with optional transitions.
+        
+        Accepts both Flagship (6x22) and Note (3x15) character arrays.
         
         Args:
-            characters: 6x22 array of character codes
+            characters: Board character array (6x22 for Flagship, 3x15 for Note)
             strategy: Transition animation type:
                 - "column": Wave (left-to-right)
                 - "reverse-column": Drift (right-to-left)
@@ -208,14 +210,22 @@ class BoardClient:
             - success: True if message was sent successfully OR skipped because unchanged
             - was_sent: True if message was actually sent to the board
         """
-        # Validate grid size
-        if len(characters) != 6:
-            logger.error(f"Invalid grid: expected 6 rows, got {len(characters)}")
+        from .devices import DEVICE_DIMENSIONS
+
+        # Validate grid dimensions against known device types
+        valid_dims = {(d.rows, d.cols) for d in DEVICE_DIMENSIONS.values()}
+        num_rows = len(characters)
+        num_cols = len(characters[0]) if num_rows > 0 and isinstance(characters[0], list) else 0
+        if (num_rows, num_cols) not in valid_dims:
+            logger.error(
+                f"Invalid grid: {num_rows}x{num_cols} is not a supported device size. "
+                f"Valid sizes: {sorted(valid_dims)}"
+            )
             return (False, False)
-        
+
         for i, row in enumerate(characters):
-            if len(row) != 22:
-                logger.error(f"Invalid row {i}: expected 22 columns, got {len(row)}")
+            if len(row) != num_cols:
+                logger.error(f"Ragged row {i}: expected {num_cols} columns, got {len(row)}")
                 return (False, False)
         
         # Validate strategy if provided

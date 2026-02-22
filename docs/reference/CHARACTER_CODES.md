@@ -119,6 +119,60 @@ codes = BoardChars.text_to_codes("HELLO")
 # Returns: [8, 5, 12, 12, 15]
 ```
 
+## Board Dimensions
+
+FiestaBoard supports multiple Vestaboard device types:
+
+| Device | Rows | Columns | Total Characters |
+|--------|------|---------|------------------|
+| **Flagship** | 6 | 22 | 132 |
+| **Note** | 3 | 15 | 45 |
+
+Pages are device-specific — each page targets a specific device type, and the editor and preview adapt to the correct dimensions.
+
+## Full Character Code Table
+
+| Code | Character | Notes |
+|------|-----------|-------|
+| 0 | (blank) | Space |
+| 1-26 | A-Z | Letters |
+| 27-35 | 1-9 | Digits |
+| 36 | 0 | Zero |
+| 37 | `!` | Exclamation |
+| 38 | `@` | At |
+| 39 | `#` | Pound |
+| 40 | `$` | Dollar |
+| 41 | `(` | Left Paren |
+| 42 | `)` | Right Paren |
+| 44 | `-` | Hyphen |
+| 46 | `+` | Plus |
+| 47 | `&` | Ampersand |
+| 48 | `=` | Equal |
+| 49 | `;` | Semicolon |
+| 50 | `:` | Colon |
+| 52 | `'` | Single Quote |
+| 53 | `"` | Double Quote |
+| 54 | `%` | Percent |
+| 55 | `,` | Comma |
+| 56 | `.` | Period |
+| 59 | `/` | Slash |
+| 60 | `?` | Question |
+| 62 | `°` / `❤` | Degree on Flagship, Heart on Note |
+| 63-70 | Colors | Red, Orange, Yellow, Green, Blue, Violet, White, Black |
+| 71 | Filled | Not available for local API |
+
+Codes 43, 45, 51, 57, 58, 61 are undefined in the official Vestaboard spec.
+
+## Device-Specific Characters
+
+Some character codes render differently depending on the target device:
+
+| Code | Flagship | Note |
+|------|----------|------|
+| 62 | `°` (Degree) | `❤` (Heart) |
+
+When creating pages for the Note device, code 62 will display as a red heart icon instead of the degree symbol.
+
 ## Notes
 
 1. **Character codes are approximate**: The exact mapping may vary. These are based on common patterns and may need verification against official board documentation.
@@ -127,7 +181,9 @@ codes = BoardChars.text_to_codes("HELLO")
 
 3. **Color support**: The board supports colors via FBML (Board Markup Language), which could be used to enhance weather displays (e.g., yellow for sunny, blue for rain).
 
-4. **Extensibility**: The `get_weather_symbol()` function can be extended to support more conditions or use different character combinations.
+4. **Device-specific characters**: Some codes (like 62) render differently on Flagship vs Note devices.
+
+5. **Extensibility**: The `get_weather_symbol()` function can be extended to support more conditions or use different character combinations.
 
 ## Future Enhancements
 

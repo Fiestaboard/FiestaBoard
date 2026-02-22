@@ -395,6 +395,66 @@ test.describe("API – Settings (extended)", () => {
     const data = await res.json();
     expect(data.status).toBe("success");
   });
+
+  test("board settings include boards and devices arrays", async () => {
+    const res = await fetch(`${API}/settings/board`);
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    expect(data).toHaveProperty("boards");
+    expect(data).toHaveProperty("devices");
+    expect(Array.isArray(data.boards)).toBe(true);
+    expect(Array.isArray(data.devices)).toBe(true);
+    expect(data.boards.length).toBeGreaterThan(0);
+    expect(data.devices.length).toBeGreaterThan(0);
+  });
+
+  test("can add and remove a board instance", async () => {
+    const addRes = await fetch(`${API}/settings/board/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_type: "note", name: "My Note" }),
+    });
+    expect(addRes.ok).toBe(true);
+    const addData = await addRes.json();
+    expect(addData.status).toBe("success");
+    const noteBoard = addData.settings.boards.find(
+      (b: { device_type: string }) => b.device_type === "note",
+    );
+    expect(noteBoard).toBeDefined();
+    expect(noteBoard.name).toBe("My Note");
+    const boardId = noteBoard.id;
+
+    const delRes = await fetch(`${API}/settings/board/${boardId}`, {
+      method: "DELETE",
+    });
+    expect(delRes.ok).toBe(true);
+    const delData = await delRes.json();
+    expect(delData.status).toBe("success");
+    const stillThere = delData.settings.boards.find(
+      (b: { id: string }) => b.id === boardId,
+    );
+    expect(stillThere).toBeUndefined();
+  });
+
+  test("can update devices via backward-compatible devices field", async () => {
+    const res = await fetch(`${API}/settings/board`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ devices: ["flagship", "note"] }),
+    });
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    expect(data.status).toBe("success");
+    expect(data.settings.devices).toContain("flagship");
+    expect(data.settings.devices).toContain("note");
+
+    // Reset to flagship only
+    await fetch(`${API}/settings/board`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ devices: ["flagship"] }),
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
