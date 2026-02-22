@@ -46,8 +46,8 @@ docker-compose -f docker-compose.dev.yml up --build
 ```
 
 The dev environment gives you:
-- **API** at `http://localhost:8000` (auto-reloads on Python changes)
 - **Web UI** at `http://localhost:3000` (hot reloads on frontend changes)
+- **API** at `http://localhost:3000` (auto-reloads on Python changes, proxied via nginx)
 
 See [Local Development](/docs/setup/local-development) for full setup details.
 
@@ -623,20 +623,20 @@ class TestMyPluginEdgeCases:
 
 ```bash
 # Test a single plugin (with coverage)
-docker-compose exec fiestaboard-api python scripts/run_plugin_tests.py --plugin=my_plugin
+docker-compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 
 # Or using pytest directly
-docker-compose exec fiestaboard-api pytest plugins/my_plugin/tests/ -v
+docker-compose exec fiestaboard pytest plugins/my_plugin/tests/ -v
 
 # Run with coverage report
-docker-compose exec fiestaboard-api pytest plugins/my_plugin/tests/ \
+docker-compose exec fiestaboard pytest plugins/my_plugin/tests/ \
   --cov=plugins/my_plugin --cov-report=term-missing
 
 # Run all plugin tests
-docker-compose exec fiestaboard-api python scripts/run_plugin_tests.py --verbose
+docker-compose exec fiestaboard python scripts/run_plugin_tests.py --verbose
 
 # Dry run (see what would be tested)
-docker-compose exec fiestaboard-api python scripts/run_plugin_tests.py --dry-run
+docker-compose exec fiestaboard python scripts/run_plugin_tests.py --dry-run
 ```
 
 ### Coverage Requirements
@@ -678,15 +678,15 @@ Before submitting, run the validation scripts to catch common issues:
 
 ```bash
 # Validate all plugin manifests (structure, schema, naming)
-docker-compose exec fiestaboard-api python scripts/validate_plugins.py --verbose
+docker-compose exec fiestaboard python scripts/validate_plugins.py --verbose
 
 # Run your plugin's tests with coverage
-docker-compose exec fiestaboard-api python scripts/run_plugin_tests.py --plugin=my_plugin
+docker-compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 
 # Verify the plugin loads and appears in the API
-curl http://localhost:8000/plugins
-curl http://localhost:8000/plugins/my_plugin
-curl http://localhost:8000/plugins/my_plugin/data
+curl http://localhost:3000/plugins
+curl http://localhost:3000/plugins/my_plugin
+curl http://localhost:3000/plugins/my_plugin/data
 ```
 
 The validator checks:

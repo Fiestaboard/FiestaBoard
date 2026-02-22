@@ -20,7 +20,7 @@ docker-compose -f docker-compose.dev.yml up --build
 # Access API at http://localhost:8000 (direct, separate container in dev mode)
 ```
 
-The development environment uses **two separate containers** (`fiestaboard-api` on port 8000 and `fiestaboard-ui-dev` on port 3000) with **hot reload** for both Python and Next.js code. This is different from the production single-container setup.
+The development environment uses **two separate containers** (`fiestaboard-api-dev` on port 8000 and `fiestaboard-ui-dev` on port 3000) with **hot reload** for both Python and Next.js code. This is different from the production single-container setup.
 
 ## Project Structure
 

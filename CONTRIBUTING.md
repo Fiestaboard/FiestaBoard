@@ -54,18 +54,20 @@ git checkout -b docs-update-readme  # for documentation
 All tests run inside Docker:
 
 ```bash
-# Platform/API tests
+# Start the dev environment
 docker-compose -f docker-compose.dev.yml up -d
-docker-compose exec fiestaboard-api pytest
+
+# Platform/API tests
+docker-compose exec fiestaboard pytest
 
 # Web UI tests
-docker-compose exec fiestaboard-ui-dev npm run test:run
+docker-compose exec fiestaboard npm run test:run
 
 # Plugin validation (if you changed plugins)
-docker-compose exec fiestaboard-api python scripts/validate_plugins.py --verbose
+docker-compose exec fiestaboard python scripts/validate_plugins.py --verbose
 
 # Plugin tests (if you changed a specific plugin)
-docker-compose exec fiestaboard-api python scripts/run_plugin_tests.py --plugin=my_plugin
+docker-compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 ```
 
 CI runs on push/PR; make sure the same commands (or their CI equivalents) pass locally.
