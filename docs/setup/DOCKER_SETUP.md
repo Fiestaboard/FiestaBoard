@@ -223,6 +223,6 @@ Both services use the same `.env` file. Key variables:
 
 ## Production Deployment
 
-For production deployment, use `docker-compose.ghcr.yml` with pre-built images from the GitHub Container Registry. This is the recommended approach — no building required, and images are updated with each release.
+For production deployment, use `docker-compose.ghcr.yml` with pre-built images from the GitHub Container Registry. This is the recommended approach — no building required, and images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.
 
 

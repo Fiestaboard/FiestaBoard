@@ -85,7 +85,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Fiestaboard/FiestaBoar
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/env.example" -OutFile "env.example"
 ```
 
-> **Don't have `curl`?** You can also open those URLs in your browser, then use **File → Save As** to save them into your FiestaBoard folder.
+> **Don't have `curl`?** You can also open those URLs in your browser and save each file directly — make sure to choose **"Save as plain text"** (not HTML) and keep the original file names.
 
 ### Create your configuration file
 
