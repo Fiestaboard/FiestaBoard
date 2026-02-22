@@ -2,6 +2,8 @@
 
 This guide will help you set up the Spotify Now Playing plugin for FiestaBoard.
 
+![Spotify Display](./spotify-display.png)
+
 ## Prerequisites
 
 - A Spotify account (free or Premium)

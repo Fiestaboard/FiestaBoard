@@ -2,6 +2,8 @@
 
 Display what's currently playing on Spotify on your Vestaboard via the Spotify Web API.
 
+![Spotify Display](./docs/spotify-display.png)
+
 **→ [Setup Guide](./docs/SETUP.md)** - Spotify app registration and configuration
 
 ## Overview
