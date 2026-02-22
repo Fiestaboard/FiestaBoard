@@ -148,22 +148,24 @@ test.describe("Dashboard", () => {
     const schedulesData = await schedulesRes.json();
     expect(schedulesData.enabled).toBe(true);
     
-    // React Query may have cached the schedules query from before schedule mode was enabled
-    // Reload the page to force a fresh query
-    await page.reload();
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 10_000 });
-    
-    // Wait for either mode badge to appear (confirms query has completed)
+    // Wait for a badge to appear (Manual Mode usually appears first during loading)
     await expect(
       page.locator('text=/Schedule Mode|Manual Mode/')
     ).toBeVisible({ timeout: 10_000 });
     
-    // Verify schedule mode is displayed (not manual mode)
-    await expect(page.getByText("Schedule Mode").first()).toBeVisible({
-      timeout: 5_000,
-    });
+    // If Manual Mode is showing, wait up to 10 seconds for it to update to Schedule Mode
+    // (React Query should refetch and update the badge)
+    const manualBadge = page.getByText("Manual Mode").first();
+    const isManualVisible = await manualBadge.isVisible().catch(() => false);
+    if (isManualVisible) {
+      // Wait for Schedule Mode to appear
+      await expect(page.getByText("Schedule Mode").first()).toBeVisible({
+        timeout: 10_000,
+      });
+    } else {
+      // Schedule Mode is already visible
+      await expect(page.getByText("Schedule Mode").first()).toBeVisible();
+    }
 
     // Disable schedule mode after test
     await fetch(`${API_URL}/schedules/enabled`, {
