@@ -21,7 +21,7 @@ The schedule feature provides a visual calendar where you can assign pages to sp
 
 ## Creating a Schedule Entry
 
-1. Open the FiestaBoard Web UI at `http://localhost:8080`
+1. Open the FiestaBoard Web UI at `http://localhost:3000`
 2. Navigate to the **Schedule** page
 3. Click to create a new schedule entry
 4. Configure the entry:

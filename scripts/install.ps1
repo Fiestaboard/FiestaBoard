@@ -201,15 +201,14 @@ if ($services -match "Up") {
     Write-Host ""
     Write-Host "🌐 Access FiestaBoard at:"
     Write-Host ""
-    Write-Host "   Web UI:   http://localhost:8080"
-    Write-Host "   API:      http://localhost:8000"
-    Write-Host "   API Docs: http://localhost:8000/docs"
+    Write-Host "   Web UI:   http://localhost:3000"
+    Write-Host "   API Docs: http://localhost:3000/docs"
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host "Next Steps:" -ForegroundColor Cyan
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "1. Open http://localhost:8080 in your browser"
+    Write-Host "1. Open http://localhost:3000 in your browser"
     Write-Host "2. Click the '▶ Start Service' button"
     Write-Host "3. Watch your board update! 🎉"
     Write-Host ""

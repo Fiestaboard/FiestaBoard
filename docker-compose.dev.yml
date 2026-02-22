@@ -1,5 +1,5 @@
 services:
-  # API Service (same as production)
+  # API Service (development - uses separate container for hot reload)
   fiestaboard-api:
     build:
       context: .
@@ -11,7 +11,6 @@ services:
       - "8000:8000"
     environment:
       - PRODUCTION=false
-      # Don't set FIESTA_API_URL - let frontend determine dynamically based on request hostname
     volumes:
       # Persist data (including config and logs) to local filesystem
       - ./data:/app/data

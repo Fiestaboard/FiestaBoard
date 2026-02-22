@@ -4,7 +4,8 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
+    # Run on all PRs regardless of target branch (validate before merge)
+    branches: [ '**' ]
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -40,11 +41,13 @@ jobs:
               - 'src/**'
               - 'requirements.txt'
               - 'requirements-dev.txt'
+              - 'Dockerfile'
               - 'Dockerfile.api'
               - 'tests/**'
               - '.pylintrc'
             ui:
               - 'web/**'
+              - 'Dockerfile'
               - 'Dockerfile.ui'
               - 'Dockerfile.ui-dev'
               - 'nginx.conf'

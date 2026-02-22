@@ -68,7 +68,7 @@ Pull the latest code and rebuild the images first, then bring down the old conta
 FiestaBoard provides a health endpoint:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 ```
 
 You can use this with monitoring tools like Uptime Kuma or Healthchecks.io.
@@ -89,7 +89,7 @@ docker-compose logs -f ui
 ## Security Considerations
 
 - **Never commit `.env` files** to version control
-- **Restrict API access** — The API runs on port 8000 with no authentication by default
+- **Restrict API access** — The API has no authentication by default
 - **Use a reverse proxy** — For external access, put FiestaBoard behind Nginx or Traefik with HTTPS
 - **Keep Docker updated** — Regularly update Docker and Docker Compose
 
@@ -106,7 +106,7 @@ server {
     ssl_certificate_key /path/to/key.pem;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }

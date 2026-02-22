@@ -1,7 +1,9 @@
 // API client for FiestaBoard service
 // Extensible pattern - easy to add updateConfig(), savePage() later
 
-// Runtime configuration - API URL is fetched at startup from /api/runtime-config
+// Runtime configuration - API URL is fetched at startup from /api/runtime-config.
+// Port fallback logic (localhost → 8000, production → 6969) is mirrored in
+// app/api/runtime-config/route.ts — keep both in sync when changing ports.
 let API_BASE = "";
 let configLoaded = false;
 let configPromise: Promise<void> | null = null;
@@ -22,37 +24,18 @@ export async function loadRuntimeConfig(): Promise<void> {
       const response = await fetch("/api/runtime-config");
       const config = await response.json();
       
-      // Set API_BASE from config, or fall back to sensible defaults
+      // Set API_BASE from config
+      // In the unified container, apiUrl is empty: use /api so all API calls go to /api/* (no UI path conflicts)
       if (config.apiUrl) {
         API_BASE = config.apiUrl;
-      } else if (typeof window !== "undefined") {
-        // Dynamically construct API URL based on current hostname
-        const hostname = window.location.hostname;
-        if (hostname === "localhost") {
-          API_BASE = "http://localhost:8000";
-        } else {
-          // In production, API runs on port 6969
-          API_BASE = `http://${hostname}:6969`;
-        }
       } else {
-        API_BASE = "";  // Same origin fallback
+        API_BASE = "/api";
       }
       
       configLoaded = true;
     } catch (error) {
       console.error("Failed to load runtime config, using defaults:", error);
-      // Fall back to dynamic hostname-based URL
-      if (typeof window !== "undefined") {
-        const hostname = window.location.hostname;
-        if (hostname === "localhost") {
-          API_BASE = "http://localhost:8000";
-        } else {
-          // In production, API runs on port 6969
-          API_BASE = `http://${hostname}:6969`;
-        }
-      } else {
-        API_BASE = "";
-      }
+      API_BASE = "/api";
       configLoaded = true;
     }
   })();

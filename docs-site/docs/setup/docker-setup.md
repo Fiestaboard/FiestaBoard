@@ -6,38 +6,36 @@ keywords: [FiestaBoard Docker, docker-compose, container setup, architecture, ng
 
 # Docker Setup
 
-FiestaBoard runs as a multi-container Docker application. This page explains the architecture and how to configure it.
+FiestaBoard runs as a single Docker container. This page explains the architecture and how to configure it.
 
 ## Architecture
 
-FiestaBoard consists of two Docker containers:
+FiestaBoard runs in a single unified container:
 
 | Container | Service | Port | Description |
 |-----------|---------|------|-------------|
-| `fiestaboard-api` | FastAPI Backend | 8000 | REST API, display service, plugin system |
-| `fiestaboard-ui` | Nginx + Next.js | 8080 | Web UI, serves static assets, proxies API |
+| `fiestaboard` | Nginx + FastAPI + Next.js | 3000 | Web UI, REST API, display service, plugin system |
 
 ```
 ┌──────────────────────────────────────────────┐
 │                   Browser                     │
-│              http://localhost:8080             │
+│              http://localhost:3000             │
 └──────────────────┬───────────────────────────┘
                    │
 ┌──────────────────▼───────────────────────────┐
-│           fiestaboard-ui (Nginx)              │
-│              Port 8080                        │
+│            fiestaboard (Nginx)                │
+│              Port 3000                        │
 │   ┌────────────┐  ┌───────────────────────┐  │
-│   │ Static UI  │  │  Proxy /api → :8000   │  │
+│   │ Static UI  │  │  Proxy /api → FastAPI │  │
 │   └────────────┘  └───────────────────────┘  │
-└──────────────────┬───────────────────────────┘
-                   │
-┌──────────────────▼───────────────────────────┐
-│          fiestaboard-api (FastAPI)             │
-│              Port 8000                        │
-│   ┌────────────┐  ┌───────────────────────┐  │
-│   │ REST API   │  │  Display Service      │  │
-│   │            │  │  Plugin System         │  │
-│   └────────────┘  └───────────────────────┘  │
+│                                              │
+│   ┌──────────────────────────────────────┐   │
+│   │         FastAPI Backend              │   │
+│   │   ┌────────────┐ ┌──────────────┐   │   │
+│   │   │ REST API   │ │Display Service│   │   │
+│   │   │            │ │Plugin System  │   │   │
+│   │   └────────────┘ └──────────────┘   │   │
+│   └──────────────────────────────────────┘   │
 └──────────────────────────────────────────────┘
 ```
 
@@ -67,9 +65,9 @@ docker-compose -f docker-compose.ghcr.yml up -d
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| Web UI | http://localhost:8080 | Main application interface |
-| API | http://localhost:8000 | Direct API access |
-| API Docs | http://localhost:8000/docs | Interactive FastAPI documentation |
+| Web UI | http://localhost:3000 | Main application interface |
+| API | http://localhost:3000 | API access (via nginx proxy) |
+| API Docs | http://localhost:3000/docs | Interactive FastAPI documentation |
 
 ## Key API Endpoints
 

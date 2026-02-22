@@ -31,7 +31,7 @@ The Vestaboard Note supports a heart character (❤) at code 62, which displays 
 
 ## Creating a New Page
 
-1. Open the FiestaBoard Web UI at `http://localhost:8080`
+1. Open the FiestaBoard Web UI at `http://localhost:3000`
 2. Navigate to the **Pages** section
 3. Select the **Flagship** or **Note** tab for your target device
 4. Click **New Page**

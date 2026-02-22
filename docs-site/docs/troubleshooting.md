@@ -96,7 +96,7 @@ If using Docker, ensure both are on the same Docker network or use the host's IP
 
 **Checklist**:
 1. ✅ Are both containers running? `docker-compose ps`
-2. ✅ Try accessing the API directly: `http://localhost:8000/health`
+2. ✅ Try accessing the API directly: `http://localhost:3000/health`
 3. ✅ Check UI container logs: `docker-compose logs ui`
 
 ### Changes not saving
@@ -123,7 +123,7 @@ docker-compose logs -f ui
 
 ### Interactive API Documentation
 
-Visit `http://localhost:8000/docs` for the Swagger UI where you can test API endpoints directly.
+Visit `http://localhost:3000/docs` for the Swagger UI where you can test API endpoints directly.
 
 ### Open an Issue
 
