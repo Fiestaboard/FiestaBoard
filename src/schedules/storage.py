@@ -113,12 +113,20 @@ class ScheduleStorage:
     
     def list_all(self, board_id: Optional[str] = None) -> List[ScheduleEntry]:
         """Get stored schedules, optionally filtered by board_id.
+        
+        Args:
+            board_id: Filter by board_id. None returns default board schedules.
+                     Use explicit "*" to get ALL schedules across all boards (for cleanup/admin).
 
         Returns:
             List of schedules (for board_id if given), ordered by created_at
         """
-        bid = board_id if board_id is not None else DEFAULT_BOARD_ID
-        schedules = [s for s in self._schedules.values() if (s.board_id or DEFAULT_BOARD_ID) == (bid or DEFAULT_BOARD_ID)]
+        if board_id == "*":
+            # Return all schedules across all boards
+            schedules = list(self._schedules.values())
+        else:
+            bid = board_id if board_id is not None else DEFAULT_BOARD_ID
+            schedules = [s for s in self._schedules.values() if (s.board_id or DEFAULT_BOARD_ID) == (bid or DEFAULT_BOARD_ID)]
         schedules.sort(key=lambda s: s.created_at)
         return schedules
     

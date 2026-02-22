@@ -3116,10 +3116,23 @@ async def send_page(page_id: str, target: Optional[str] = None):
 
 @app.get("/schedules")
 async def list_schedules(board_id: Optional[str] = None):
-    """List schedule entries, optionally for one board (query: board_id=)."""
+    """List schedule entries, optionally for one board (query: board_id=).
+    
+    Use board_id=* to get ALL schedules across all boards (useful for cleanup/admin).
+    """
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
     schedules = schedule_service.list_schedules(board_id=board_id)
+    
+    # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
+    if board_id == "*":
+        return {
+            "schedules": [s.model_dump() for s in schedules],
+            "total": len(schedules),
+            "default_page_id": None,
+            "enabled": False,
+        }
+    
     return {
         "schedules": [s.model_dump() for s in schedules],
         "total": len(schedules),

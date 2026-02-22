@@ -183,9 +183,9 @@ export async function deleteSchedule(id: string): Promise<void> {
   if (!res.ok) throw new Error(`deleteSchedule failed: ${res.status}`);
 }
 
-/** Delete every schedule via the API. */
+/** Delete every schedule via the API (across all boards). */
 export async function deleteAllSchedules(): Promise<void> {
-  const res = await fetch(`${API_URL}/schedules`);
+  const res = await fetch(`${API_URL}/schedules?board_id=*`);
   if (!res.ok) return;
   const data = await res.json();
   for (const s of data.schedules) {
