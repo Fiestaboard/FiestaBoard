@@ -400,19 +400,6 @@ class ConfigManager:
                     logger.warning(f"Invalid {env_var} value: {value}")
             return False
         
-        # Helper to apply bool env var
-        # Note: For booleans, we apply env var if set, since defaults are False
-        # This allows env vars to enable features on first run
-        def apply_bool(config: dict, key: str, env_var: str) -> bool:
-            value = os.getenv(env_var, "").strip().lower()
-            if value:
-                new_value = value in ("true", "1", "yes")
-                if config.get(key) != new_value:
-                    config[key] = new_value
-                    logger.info(f"Applied {env_var} from environment variable")
-                    return True
-            return False
-        
         board_config = self._config["board"]
         general_config = self._config["general"]
         
@@ -430,8 +417,8 @@ class ConfigManager:
         changed |= apply_int(general_config, "refresh_interval_seconds", "REFRESH_INTERVAL_SECONDS")
         changed |= apply_str(general_config, "output_target", "OUTPUT_TARGET")
         
-        # Silence schedule
-        changed |= apply_bool(general_config, "silence_schedule_enabled", "SILENCE_SCHEDULE_ENABLED")
+        # Silence schedule start/end times (enabling via env var is no longer supported;
+        # use the UI or config.json to set silence_schedule.enabled)
         changed |= apply_str(general_config, "silence_schedule_start_time", "SILENCE_SCHEDULE_START_TIME")
         changed |= apply_str(general_config, "silence_schedule_end_time", "SILENCE_SCHEDULE_END_TIME")
         
@@ -443,14 +430,12 @@ class ConfigManager:
         
         # ==================== Guest WiFi Feature ====================
         guest_wifi = get_feature("guest_wifi")
-        changed |= apply_bool(guest_wifi, "enabled", "GUEST_WIFI_ENABLED")
         changed |= apply_str(guest_wifi, "ssid", "GUEST_WIFI_SSID")
         changed |= apply_str(guest_wifi, "password", "GUEST_WIFI_PASSWORD")
         changed |= apply_int(guest_wifi, "refresh_seconds", "GUEST_WIFI_REFRESH_SECONDS")
         
         # ==================== Home Assistant Feature ====================
         home_assistant = get_feature("home_assistant")
-        changed |= apply_bool(home_assistant, "enabled", "HOME_ASSISTANT_ENABLED")
         changed |= apply_str(home_assistant, "base_url", "HOME_ASSISTANT_BASE_URL")
         changed |= apply_str(home_assistant, "access_token", "HOME_ASSISTANT_ACCESS_TOKEN")
         changed |= apply_int(home_assistant, "timeout", "HOME_ASSISTANT_TIMEOUT")
@@ -468,36 +453,30 @@ class ConfigManager:
         
         # ==================== Star Trek Quotes Feature ====================
         star_trek = get_feature("star_trek_quotes")
-        changed |= apply_bool(star_trek, "enabled", "STAR_TREK_QUOTES_ENABLED")
         changed |= apply_str(star_trek, "ratio", "STAR_TREK_QUOTES_RATIO")
         
         # ==================== Muni Feature ====================
         muni = get_feature("muni")
-        changed |= apply_bool(muni, "enabled", "MUNI_ENABLED")
         changed |= apply_str(muni, "api_key", "MUNI_API_KEY")
         changed |= apply_int(muni, "refresh_seconds", "MUNI_REFRESH_SECONDS")
         
         # ==================== Traffic Feature ====================
         traffic = get_feature("traffic")
-        changed |= apply_bool(traffic, "enabled", "TRAFFIC_ENABLED")
         changed |= apply_str(traffic, "api_key", "GOOGLE_ROUTES_API_KEY")
         changed |= apply_int(traffic, "refresh_seconds", "TRAFFIC_REFRESH_SECONDS")
         
         # ==================== Bay Wheels Feature ====================
         baywheels = get_feature("baywheels")
-        changed |= apply_bool(baywheels, "enabled", "BAYWHEELS_ENABLED")
         changed |= apply_int(baywheels, "refresh_seconds", "BAYWHEELS_REFRESH_SECONDS")
         
         # ==================== Surf Feature ====================
         surf = get_feature("surf")
-        changed |= apply_bool(surf, "enabled", "SURF_ENABLED")
         changed |= apply_float(surf, "latitude", "SURF_LATITUDE")
         changed |= apply_float(surf, "longitude", "SURF_LONGITUDE")
         changed |= apply_int(surf, "refresh_seconds", "SURF_REFRESH_SECONDS")
         
         # ==================== Air/Fog Feature ====================
         air_fog = get_feature("air_fog")
-        changed |= apply_bool(air_fog, "enabled", "AIR_FOG_ENABLED")
         changed |= apply_str(air_fog, "purpleair_api_key", "PURPLEAIR_API_KEY")
         changed |= apply_str(air_fog, "purpleair_sensor_id", "PURPLEAIR_SENSOR_ID")
         changed |= apply_str(air_fog, "openweathermap_api_key", "OPENWEATHERMAP_API_KEY")
@@ -507,7 +486,6 @@ class ConfigManager:
         
         # ==================== Stocks Feature ====================
         stocks = get_feature("stocks")
-        changed |= apply_bool(stocks, "enabled", "STOCKS_ENABLED")
         changed |= apply_str(stocks, "finnhub_api_key", "FINNHUB_API_KEY")
         changed |= apply_str(stocks, "time_window", "STOCKS_TIME_WINDOW")
         changed |= apply_int(stocks, "refresh_seconds", "STOCKS_REFRESH_SECONDS")
