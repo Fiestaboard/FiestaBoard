@@ -85,7 +85,7 @@ type ShowcaseItem = {
 const FeatureShowcaseList: ShowcaseItem[] = [
   {
     title: 'Dashboard & Web UI',
-    emoji: '🖥️',
+    emoji: '',
     image: '/img/web-ui-home.png',
     alt: 'FiestaBoard web dashboard showing active display with stock ticker data',
     description: 'Monitor your display, manage pages, and configure plugins from a modern web interface.',
@@ -93,7 +93,7 @@ const FeatureShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'WYSIWYG Page Editor',
-    emoji: '✏️',
+    emoji: '',
     image: '/img/page-editor-wysiwyg.png',
     alt: 'FiestaBoard WYSIWYG page editor with visual board preview',
     description: 'Design your board layouts visually—see exactly how content will appear before sending it to your display.',
@@ -101,7 +101,7 @@ const FeatureShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'Visual Scheduling',
-    emoji: '📅',
+    emoji: '',
     image: '/img/schedule-calendar.png',
     alt: 'FiestaBoard schedule calendar view with time-based page scheduling',
     description: 'Schedule different pages for different times and days with an intuitive calendar interface.',
@@ -182,7 +182,7 @@ function FeatureShowcase({title, emoji, image, alt, description, link, reverse}:
       </div>
       <div className={styles.showcaseContent}>
         <Heading as="h3">
-          <span className={styles.showcaseEmoji}>{emoji}</span> {title}
+          {emoji && <span className={styles.showcaseEmoji}>{emoji}</span>}{emoji && ' '}{title}
         </Heading>
         <p>{description}</p>
         <Link className="button button--primary button--sm" to={link}>
@@ -212,7 +212,7 @@ function PluginCard({title, emoji, image, alt, description, link}: ShowcaseItem)
 export default function HomepageFeatures(): ReactNode {
   return (
     <>
-      {/* Feature cards with emojis */}
+      {/* Feature cards */}
       <section className={styles.features}>
         <div className="container">
           <div className="row">
@@ -245,7 +245,7 @@ export default function HomepageFeatures(): ReactNode {
         <div className="container">
           <div className="text--center margin-bottom--lg">
             <Heading as="h2" className={styles.sectionTitle}>
-              🎉 18 Plugins and Counting
+              18 Plugins and Counting
             </Heading>
             <p className={styles.sectionSubtitle}>
               From weather and stocks to Disney park wait times—there's a plugin for everything
@@ -260,7 +260,7 @@ export default function HomepageFeatures(): ReactNode {
             <Link
               className="button button--primary button--lg"
               to="/docs/plugins/overview">
-              🔌 Explore All Plugins
+              Explore All Plugins
             </Link>
           </div>
         </div>
@@ -270,7 +270,7 @@ export default function HomepageFeatures(): ReactNode {
       <section className={styles.ctaSection}>
         <div className="container text--center">
           <Heading as="h2" className={styles.ctaTitle}>
-            Ready to Get Started? 🚀
+            Ready to Get Started?
           </Heading>
           <p className={styles.ctaSubtitle}>
             FiestaBoard is free, open source, and runs anywhere Docker does.
@@ -280,12 +280,12 @@ export default function HomepageFeatures(): ReactNode {
             <Link
               className="button button--primary button--lg"
               to="/docs/setup/beginners-guide">
-              📖 Beginner's Guide
+              Beginner's Guide
             </Link>
             <Link
               className="button button--outline button--primary button--lg"
               to="/docs/development/plugin-guide">
-              🛠️ Build a Plugin
+              Build a Plugin
             </Link>
           </div>
         </div>
