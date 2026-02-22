@@ -24,7 +24,7 @@ docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
 docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
 ```
 
-Create a `docker-compose.yml` and `.env` file as described in the main [Quick Start](../../README.md#-quick-start), then:
+Create a `docker-compose.yml` and `.env` file as described in the main [Quick Start](../../README.md#-quick-start), then start the services (`docker compose up` will also pull images automatically if you skip the step above):
 
 ```bash
 docker compose up -d

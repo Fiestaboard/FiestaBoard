@@ -22,7 +22,7 @@ The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Do
 # Create a project folder
 mkdir ~/FiestaBoard && cd ~/FiestaBoard
 
-# Pull the pre-built images from GHCR
+# Pull the pre-built images from GHCR (docker compose up also does this automatically)
 docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
 docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
 ```

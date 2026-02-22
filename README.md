@@ -310,7 +310,7 @@ See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details on cloud
 The easiest way to run FiestaBoard is to pull pre-built images from the GitHub Container Registry. See the [Quick Start](#-quick-start) above.
 
 ```bash
-# Pull the latest images
+# Pull the pre-built images (docker compose up also does this automatically)
 docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
 docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
 
