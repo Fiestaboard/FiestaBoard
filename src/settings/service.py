@@ -657,30 +657,36 @@ class SettingsService:
         """
         return self._schedule
     
-    def is_schedule_enabled(self) -> bool:
-        """Check if schedule mode is enabled.
-        
-        Returns:
-            True if schedule mode is active
+    def is_schedule_enabled(self, board_id: Optional[str] = None) -> bool:
+        """Check if schedule mode is enabled for a board.
+
+        When board_id is None, returns the first board's schedule_enabled, or global setting if no boards.
         """
+        if board_id:
+            for b in self._board.boards:
+                if b.get("id") == board_id:
+                    return b.get("schedule_enabled", False)
+            return False
+        if self._board.boards:
+            return self._board.boards[0].get("schedule_enabled", self._schedule.enabled)
         return self._schedule.enabled
-    
-    def set_schedule_enabled(self, enabled: bool) -> ScheduleSettings:
-        """Enable or disable schedule mode.
-        
-        When enabled, the system uses time-based schedules to determine
-        which page to display. When disabled, the manual active_page is used.
-        
-        Args:
-            enabled: True to enable schedule mode, False for manual mode
-            
-        Returns:
-            Updated ScheduleSettings
-        """
+
+    def set_schedule_enabled(self, enabled: bool, board_id: Optional[str] = None) -> ScheduleSettings:
+        """Enable or disable schedule mode for a board (or globally when board_id is None)."""
+        if board_id:
+            for b in self._board.boards:
+                if b.get("id") == board_id:
+                    b["schedule_enabled"] = enabled
+                    self._save_to_file()
+                    logger.info(f"Schedule mode for board {board_id}: {'enabled' if enabled else 'disabled'}")
+                    return self._schedule
+            logger.warning(f"Board {board_id} not found for set_schedule_enabled")
+            return self._schedule
         self._schedule.enabled = enabled
+        if self._board.boards:
+            self._board.boards[0]["schedule_enabled"] = enabled
         self._save_to_file()
-        mode = "enabled" if enabled else "disabled"
-        logger.info(f"Schedule mode {mode}")
+        logger.info(f"Schedule mode (default): {'enabled' if enabled else 'disabled'}")
         return self._schedule
 
 

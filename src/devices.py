@@ -42,8 +42,10 @@ class BoardInstance:
     device_type: str = "flagship"
     board_color: str = "black"
     enabled: bool = True
+    schedule_enabled: bool = False  # Per-board: use schedule mode for this board
     api_mode: str = "local"
     host: str = ""
+    port: int = 7000  # Local API port (default Vestaboard); used for multi-board mock e2e
     local_api_key: str = ""
     cloud_key: str = ""
     
@@ -70,14 +72,22 @@ class BoardInstance:
     
     @classmethod
     def from_dict(cls, data: dict) -> "BoardInstance":
+        port = data.get("port")
+        if port is not None and not isinstance(port, int):
+            try:
+                port = int(port)
+            except (TypeError, ValueError):
+                port = 7000
         return cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", ""),
             device_type=data.get("device_type", "flagship"),
             board_color=data.get("board_color", "black"),
             enabled=data.get("enabled", True),
+            schedule_enabled=data.get("schedule_enabled", False),
             api_mode=data.get("api_mode", "local"),
             host=data.get("host", ""),
+            port=port if port is not None else 7000,
             local_api_key=data.get("local_api_key", ""),
             cloud_key=data.get("cloud_key", ""),
         )

@@ -10,7 +10,7 @@ from typing import Optional
 import schedule
 
 from .config import Config
-from .board_client import BoardClient
+from .board_client import BoardClient, board_client_from_board_dict
 from .board_chars import BoardChars
 from .text_to_board import text_to_board_array, format_board_array_preview
 from .settings.service import get_settings_service
@@ -50,29 +50,45 @@ class DisplayService:
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.running = False
     
+    def _build_board_clients(self):
+        """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
+        settings_service = get_settings_service()
+        boards = settings_service.get_board_settings().boards or []
+        if boards:
+            first = boards[0]
+            if first.get("local_api_key") or first.get("cloud_key"):
+                client = board_client_from_board_dict(first)
+                if client:
+                    self.vb_client = client
+                    try:
+                        self.vb_client.read_current_message(sync_cache=True)
+                    except Exception as e:
+                        logger.warning(f"Could not sync cache with board: {e}")
+                    return
+        use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
+        self.vb_client = BoardClient(
+            api_key=Config.get_board_api_key(),
+            host=Config.BOARD_HOST if not use_cloud else None,
+            use_cloud=use_cloud,
+            skip_unchanged=True,
+        )
+        try:
+            self.vb_client.read_current_message(sync_cache=True)
+        except Exception as e:
+            logger.warning(f"Could not sync cache with board: {e}")
+
     def reinitialize_board_client(self) -> bool:
         """Reinitialize the board client with current config.
-        
-        Called when board configuration changes to ensure the service
-        uses the updated credentials.
-        
-        Returns:
-            True if successful, False otherwise
+
+        Prefers first board from settings.boards when it has connection; else uses Config.
         """
         logger.info("Reinitializing board client with updated config...")
-        
         try:
-            use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-            self.vb_client = BoardClient(
-                api_key=Config.get_board_api_key(),
-                host=Config.BOARD_HOST if not use_cloud else None,
-                use_cloud=use_cloud,
-                skip_unchanged=True
-            )
-            # Sync cache with current board state
-            self.vb_client.read_current_message(sync_cache=True)
-            logger.info("Board client reinitialized successfully")
-            return True
+            self._build_board_clients()
+            if self.vb_client:
+                logger.info("Board client reinitialized successfully")
+                return True
+            return False
         except Exception as e:
             logger.error(f"Failed to reinitialize board client: {e}")
             return False
@@ -86,19 +102,13 @@ class DisplayService:
             logger.error("Configuration validation failed")
             return False
         
-        # Initialize board client (Local or Cloud API)
+        # Initialize board client from settings.boards (first board) or Config
         try:
-            use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-            self.vb_client = BoardClient(
-                api_key=Config.get_board_api_key(),
-                host=Config.BOARD_HOST if not use_cloud else None,
-                use_cloud=use_cloud,
-                skip_unchanged=True  # Default: skip sending unchanged messages
-            )
-            # Sync cache with current board state to avoid unnecessary initial update
+            self._build_board_clients()
+            if not self.vb_client:
+                logger.error("No board connection configured (settings.boards or config)")
+                return False
             logger.info("Syncing cache with current board state...")
-            self.vb_client.read_current_message(sync_cache=True)
-            
             # Log transition settings if configured
             transition = Config.get_transition_settings()
             if transition["strategy"]:

@@ -12,24 +12,48 @@
 import { test as base, expect } from "@playwright/test";
 
 export const API_URL = `http://localhost:${process.env.API_PORT || "8000"}`;
-export const MOCK_BOARD_URL = `http://localhost:${process.env.MOCK_BOARD_PORT || "7000"}`;
+export const MOCK_BOARD_PORT = parseInt(process.env.MOCK_BOARD_PORT || "7000", 10);
+export const MOCK_BOARD_URL = `http://localhost:${MOCK_BOARD_PORT}`;
+/** Second mock board port for multi-board e2e (when mock started with PORTS=7000,7001). */
+export const MOCK_BOARD_PORT_2 = 7001;
+export const MOCK_BOARD_URL_2 = `http://localhost:${MOCK_BOARD_PORT_2}`;
 export const BOARD_HOST = process.env.MOCK_BOARD_HOST || "localhost";
 
 /** Extend Playwright's base test with per-test backend state cleanup. */
 export const test = base.extend<{ resetBackend: void }>({
   // eslint-disable-next-line no-empty-pattern
   resetBackend: [async ({}, use) => {
-    await fetch(`${MOCK_BOARD_URL}/mock/reset`, { method: "POST" });
+    await resetMockBoard(); // resets all ports when mock is multi-port
     await use();
   }, { auto: true }],
 });
 
 export { expect };
 
-/** Read the mock board's internal state (message history, etc.). */
-export async function getMockBoardState() {
-  const res = await fetch(`${MOCK_BOARD_URL}/mock/state`);
+/** Read the mock board's internal state (message history, etc.). Optional port for multi-board. */
+export async function getMockBoardState(port?: number): Promise<{
+  current_message?: number[][];
+  device_dimensions?: number[];
+  message_count?: number;
+  request_count?: number;
+  history?: unknown[];
+  port?: number;
+}> {
+  const base = port != null ? `http://localhost:${port}` : MOCK_BOARD_URL;
+  const url = port != null ? `${base}/mock/state?port=${port}` : `${base}/mock/state`;
+  const res = await fetch(url);
   return res.json();
+}
+
+/** Reset the mock board. Optional port to reset one board; omit to reset all (multi-board). */
+export async function resetMockBoard(port?: number): Promise<void> {
+  const base = port != null ? `http://localhost:${port}` : MOCK_BOARD_URL;
+  const res = await fetch(`${base}/mock/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: port != null ? JSON.stringify({ port }) : "{}",
+  });
+  if (!res.ok) throw new Error(`resetMockBoard failed: ${res.status}`);
 }
 
 /**
@@ -199,6 +223,45 @@ export async function setActivePage(id: string | null): Promise<void> {
     body: JSON.stringify({ page_id: id }),
   });
   if (!res.ok) throw new Error(`setActivePage failed: ${res.status}`);
+}
+
+/**
+ * Ensure at least two boards exist (add a Note board if only one).
+ * Returns the two board ids for use in tests.
+ */
+export async function ensureTwoBoards(): Promise<{ board1Id: string; board2Id: string }> {
+  const res = await fetch(`${API_URL}/settings/board`);
+  if (!res.ok) throw new Error(`ensureTwoBoards: failed to get board settings: ${res.status}`);
+  const data = await res.json();
+  const boards = data.boards ?? [];
+  if (boards.length >= 2) {
+    return { board1Id: boards[0].id, board2Id: boards[1].id };
+  }
+  if (boards.length === 0) {
+    await resetToSingleBoard();
+    const r2 = await fetch(`${API_URL}/settings/board`);
+    const d2 = await r2.json();
+    const b = d2.boards?.[0];
+    if (!b) throw new Error("ensureTwoBoards: no board after reset");
+    await fetch(`${API_URL}/settings/board/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_type: "note" }),
+    });
+    const r3 = await fetch(`${API_URL}/settings/board`);
+    const d3 = await r3.json();
+    const bs = d3.boards ?? [];
+    return { board1Id: bs[0].id, board2Id: bs[1].id };
+  }
+  await fetch(`${API_URL}/settings/board/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_type: "note" }),
+  });
+  const r2 = await fetch(`${API_URL}/settings/board`);
+  const d2 = await r2.json();
+  const bs = d2.boards ?? [];
+  return { board1Id: bs[0].id, board2Id: bs[1].id };
 }
 
 /**

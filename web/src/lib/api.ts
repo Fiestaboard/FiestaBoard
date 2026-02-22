@@ -425,6 +425,7 @@ export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
 
 export interface ScheduleEntry {
   id: string;
+  board_id?: string; // Optional; "" or omitted = default board
   page_id: string;
   start_time: string; // HH:MM format
   end_time: string;   // HH:MM format
@@ -436,6 +437,7 @@ export interface ScheduleEntry {
 }
 
 export interface ScheduleCreate {
+  board_id?: string;
   page_id: string;
   start_time: string;
   end_time: string;
@@ -445,6 +447,7 @@ export interface ScheduleCreate {
 }
 
 export interface ScheduleUpdate {
+  board_id?: string;
   page_id?: string;
   start_time?: string;
   end_time?: string;
@@ -795,58 +798,68 @@ export const api = {
       body: JSON.stringify({ template }),
     }),
 
-  // Schedule endpoints
-  getSchedules: () => fetchApi<SchedulesResponse>("/schedules"),
-  
+  // Schedule endpoints (optional boardId for per-board schedules)
+  getSchedules: (boardId?: string) =>
+    fetchApi<SchedulesResponse>(
+      boardId ? `/schedules?board_id=${encodeURIComponent(boardId)}` : "/schedules"
+    ),
+
   createSchedule: (data: ScheduleCreate) =>
     fetchApi<ScheduleEntry>("/schedules", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  
+
   getSchedule: (scheduleId: string) =>
     fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`),
-  
+
   updateSchedule: (scheduleId: string, data: ScheduleUpdate) =>
     fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  
+
   deleteSchedule: (scheduleId: string) =>
     fetchApi<{ status: string; message: string }>(`/schedules/${scheduleId}`, {
       method: "DELETE",
     }),
-  
-  getActiveSchedule: () =>
-    fetchApi<ActiveScheduleResponse>("/schedules/active/page"),
-  
-  validateSchedules: () =>
+
+  getActiveSchedule: (boardId?: string) =>
+    fetchApi<ActiveScheduleResponse>(
+      boardId ? `/schedules/active/page?board_id=${encodeURIComponent(boardId)}` : "/schedules/active/page"
+    ),
+
+  validateSchedules: (boardId?: string) =>
     fetchApi<ScheduleValidationResult>("/schedules/validate", {
       method: "POST",
+      body: JSON.stringify(boardId != null ? { board_id: boardId } : {}),
     }),
-  
-  getDefaultPage: () =>
-    fetchApi<DefaultPageResponse>("/schedules/default-page"),
-  
-  setDefaultPage: (pageId: string | null) =>
+
+  getDefaultPage: (boardId?: string) =>
+    fetchApi<DefaultPageResponse>(
+      boardId ? `/schedules/default-page?board_id=${encodeURIComponent(boardId)}` : "/schedules/default-page"
+    ),
+
+  setDefaultPage: (pageId: string | null, boardId?: string) =>
     fetchApi<{ status: string; default_page_id: string | null }>(
       "/schedules/default-page",
       {
         method: "PUT",
-        body: JSON.stringify({ page_id: pageId }),
+        body: JSON.stringify({ page_id: pageId, ...(boardId != null && { board_id: boardId }) }),
       }
     ),
-  
-  getScheduleEnabled: () =>
-    fetchApi<ScheduleEnabledResponse>("/schedules/enabled"),
-  
-  setScheduleEnabled: (enabled: boolean) =>
+
+  getScheduleEnabled: (boardId?: string) =>
+    fetchApi<ScheduleEnabledResponse>(
+      boardId ? `/schedules/enabled?board_id=${encodeURIComponent(boardId)}` : "/schedules/enabled"
+    ),
+
+  setScheduleEnabled: (enabled: boolean, boardId?: string) =>
     fetchApi<{ status: string; enabled: boolean; message: string }>(
       "/schedules/enabled",
       {
         method: "PUT",
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
       }
     ),
 
