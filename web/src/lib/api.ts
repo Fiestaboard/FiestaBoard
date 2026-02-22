@@ -24,37 +24,18 @@ export async function loadRuntimeConfig(): Promise<void> {
       const response = await fetch("/api/runtime-config");
       const config = await response.json();
       
-      // Set API_BASE from config, or fall back to sensible defaults
+      // Set API_BASE from config
+      // In the unified container, apiUrl is empty: use /api so all API calls go to /api/* (no UI path conflicts)
       if (config.apiUrl) {
         API_BASE = config.apiUrl;
-      } else if (typeof window !== "undefined") {
-        // Dynamically construct API URL based on current hostname
-        const hostname = window.location.hostname;
-        if (hostname === "localhost") {
-          API_BASE = "http://localhost:8000";
-        } else {
-          // In production, API runs on port 6969
-          API_BASE = `http://${hostname}:6969`;
-        }
       } else {
-        API_BASE = "";  // Same origin fallback
+        API_BASE = "/api";
       }
       
       configLoaded = true;
     } catch (error) {
       console.error("Failed to load runtime config, using defaults:", error);
-      // Fall back to dynamic hostname-based URL
-      if (typeof window !== "undefined") {
-        const hostname = window.location.hostname;
-        if (hostname === "localhost") {
-          API_BASE = "http://localhost:8000";
-        } else {
-          // In production, API runs on port 6969
-          API_BASE = `http://${hostname}:6969`;
-        }
-      } else {
-        API_BASE = "";
-      }
+      API_BASE = "/api";
       configLoaded = true;
     }
   })();

@@ -1,17 +1,10 @@
 # FiestaBoard <img src="fiesta-icon.png" alt="FiestaBoard" width="32" height="32" style="vertical-align: middle;">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml)
-[![Docker: API](https://img.shields.io/badge/docker-fiestaboard--api-blue?logo=docker)](https://ghcr.io/fiestaboard/fiestaboard-api)
-[![Docker: UI](https://img.shields.io/badge/docker-fiestaboard--ui-blue?logo=docker)](https://ghcr.io/fiestaboard/fiestaboard-ui)
-[![Documentation](https://img.shields.io/badge/docs-fiestaboard.app-orange)](https://fiestaboard.app)
-[![Discord](https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white)](https://discord.gg/wc9dDfte)
-
 **FiestaBoard is an open-source server that lets you control what appears on your split-flap display.** If you already own a split-flap display (like a Vestaboard), FiestaBoard gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you — weather, stocks, transit, sports, surf conditions, and more — and display it on your board.
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**📖 [Documentation](https://fiestaboard.app)**
+**📖 [Documentation](https://fiestaboard.github.io)**
 
 ## 🚀 Quick Start
 
@@ -21,111 +14,50 @@ You bring the board. You bring the API keys for the services you care about. Fie
 - **Your board's API key** (Local API or Cloud Read/Write key)
 - **Docker and Docker Compose** installed ([Get Docker](https://www.docker.com/products/docker-desktop/))
 
-That's it. No need to clone this repository — just pull the pre-built Docker images and go. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
+That's it. The installation wizard walks you through the rest. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
 
 ### Installation
 
-FiestaBoard publishes pre-built Docker images to the **GitHub Container Registry** — you don't need to download the source code or build anything. Docker pulls the images for you:
-
-```
-ghcr.io/fiestaboard/fiestaboard-api:latest
-ghcr.io/fiestaboard/fiestaboard-ui:latest
-```
-
-#### 1. Create a project folder
+Run the setup wizard — it will collect your board API key, create the config, and start the server:
 
 ```bash
-mkdir FiestaBoard && cd FiestaBoard
+# Mac/Linux
+./scripts/install.sh
+
+# Windows (PowerShell)
+.\scripts\install.ps1
 ```
 
-#### 2. Create a `docker-compose.yml`
+Once it finishes:
 
-Create a file called `docker-compose.yml` with the following contents:
-
-```yaml
-version: '3.8'
-services:
-  fiestaboard-api:
-    image: ghcr.io/fiestaboard/fiestaboard-api:latest
-    container_name: fiestaboard-api
-    env_file: .env
-    environment:
-      - PRODUCTION=true
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "6969:8000"
-    volumes:
-      - ./data:/app/data
-
-  fiestaboard-ui:
-    image: ghcr.io/fiestaboard/fiestaboard-ui:latest
-    container_name: fiestaboard-ui
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "4420:3000"
-    environment:
-      - FIESTA_API_URL=${FIESTA_API_URL:-}
-    depends_on:
-      - fiestaboard-api
-```
-
-#### 3. Create a `.env` file
-
-Create a file called `.env` in the same folder. At a minimum, you need your board API key:
-
-**Local API** (recommended — faster, supports animations):
-```env
-BOARD_API_MODE=local
-BOARD_LOCAL_API_KEY=your_local_api_key_here
-BOARD_HOST=192.168.0.11
-```
-
-**Cloud API** (works from anywhere):
-```env
-BOARD_API_MODE=cloud
-BOARD_READ_WRITE_KEY=your_read_write_key_here
-```
-
-See [Getting Your Board API Key](#getting-your-board-api-key) below for how to get your key. All other settings — plugins, API keys, etc. — can be configured later through the web UI.
-
-> For the full list of environment variables, see [`env.example`](./env.example).
-
-#### 4. Start FiestaBoard
+### Manual Setup
 
 ```bash
-docker compose up -d
+# 1. Create .env file with your API keys
+cp env.example .env
+# Edit .env and add: BOARD_READ_WRITE_KEY and WEATHER_API_KEY
+
+# 2. Run it! (first time builds images)
+docker-compose up --build
+
+# Or for subsequent runs (uses cached images)
+docker-compose up
 ```
 
-Docker will automatically pull the latest images from GHCR and start the services.
-
-#### 5. Open the web UI
-
-1. Open **http://localhost:4420** in your browser
-2. Click "▶ Start Service"
-3. Your board will start displaying content!
+**Access:**
+- **Web UI**: http://localhost:3000 (start service, send messages, monitor)
+- **API Docs**: http://localhost:3000/docs (interactive API documentation)
 
 ![Web UI Home](./images/web-ui-home.png)
 
-> **Ports:** The API runs on port **6969** and the Web UI on port **4420**. You can change these in your `docker-compose.yml`.
-
-**Useful commands:**
+**To start the display service:**
+1. Open http://localhost:3000 in your browser
+2. Click "▶ Start Service" button
+3. Your board will start updating!
+**To stop:**
 ```bash
-# Stop FiestaBoard
-docker compose down
-
-# View logs
-docker compose logs -f
-
-# Pull latest images and restart
-docker compose pull
-docker compose up -d
+docker-compose down
 ```
-
-### 🍓 Running on a Raspberry Pi?
-
-The same pre-built images work on Raspberry Pi (arm64 and arm/v7) when a release includes Pi support. Just follow the steps above on your Pi. See the [Raspberry Pi Guide](./docs/deployment/PI_BUILD_GUIDE.md) for more details.
 
 ---
 
@@ -183,17 +115,70 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 | | Hosting (Self-Hosting) | Development |
 |---|---|---|
 | **Goal** | Run the server to control your board | Contribute code or build plugins |
-| **Setup** | Pull pre-built images from GHCR (see [Quick Start](#-quick-start)) | Clone repo, then `docker-compose -f docker-compose.dev.yml up --build` |
-| **Configuration** | Edit `.env` with your board API key; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
-| **Web UI** | http://localhost:4420 | http://localhost:3000 |
+| **Setup** | Run the install wizard — it handles everything | `docker-compose -f docker-compose.dev.yml up --build` |
+| **Configuration** | Wizard creates `.env` for you; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
+| **Web UI** | http://localhost:8080 | http://localhost:3000 |
 | **Hot reload** | No | Yes (Python + Next.js) |
 | **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
+
+### Basic Setup
+
+1. **Clone or navigate to the project directory**
+
+2. **Create `.env` file**:
+   ```bash
+   cp env.example .env
+   ```
+
+3. **Edit `.env` and add your API keys**:
+   ```bash
+   # Required
+   BOARD_READ_WRITE_KEY=your_board_key_here
+   WEATHER_API_KEY=your_weather_api_key_here
+   WEATHER_PROVIDER=weatherapi
+   WEATHER_LOCATION=San Francisco, CA
+   TIMEZONE=America/Los_Angeles
+   ```
+   
+   > **Note**: Plugins are enabled via the web UI's **Integrations** page, not environment variables. See each plugin's setup guide for API keys and configuration.
+
+4. **Build and run with Docker Compose**:
+   ```bash
+   # First time (builds images)
+   docker-compose up --build
+   
+   # Or run in background
+   docker-compose up -d --build
+   ```
+
+5. **Access the service**:
+   - **Web UI**: http://localhost:3000
+   - **API Docs**: http://localhost:3000/docs
+
+6. **Start the display service**:
+   - Open http://localhost:3000 in your browser
+   - Click "▶ Start Service" button
+   - Your board will begin updating!
+
+7. **View logs**:
+   ```bash
+   docker-compose logs -f
+   ```
+
+### Advanced Setup
+
+For detailed setup instructions for specific plugins, see each plugin's README:
+- **Home Assistant**: [plugins/home_assistant/README.md](./plugins/home_assistant/README.md)
+- **Weather**: [plugins/weather/README.md](./plugins/weather/README.md)
+- **Stocks**: [plugins/stocks/README.md](./plugins/stocks/README.md)
+
+Browse `plugins/*/README.md` for all plugin documentation. Each plugin's README includes a link to its setup guide.
 
 ---
 
 ## Configuration
 
-The [Quick Start](#-quick-start) guide walks you through creating a `.env` file from the template. After setup, everything else — plugins, API keys, and settings — is configured through the **web UI**.
+The install wizard handles initial configuration for self-hosting. After setup, everything else — plugins, API keys, and settings — is configured through the **web UI**.
 
 Go to the **Integrations** page to enable plugins, enter API keys, and adjust settings. No need to edit config files.
 
@@ -238,8 +223,9 @@ If you want to contribute to FiestaBoard or build plugins, use the development e
 
 ```bash
 docker-compose -f docker-compose.dev.yml up --build
-# Web UI at http://localhost:3000 (hot reload)
-# API at http://localhost:8000 (auto-reload)
+
+# Access Web UI at http://localhost:3000
+# Access API at http://localhost:6969
 ```
 
 For detailed development workflows, see [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md).
@@ -276,17 +262,17 @@ FiestaBoard/
 │   └── reference/                  # API research and reference
 ├── scripts/                        # Utility scripts
 ├── tests/                          # Platform test suite
-├── Dockerfile.api                  # API service Dockerfile
-├── Dockerfile.ui                   # Web UI Dockerfile
-├── docker-compose.yml              # Production compose (builds from source)
-├── docker-compose.ghcr.yml         # Production compose (pre-built GHCR images)
+├── Dockerfile                  # Unified Dockerfile (API + Web UI)
+├── Dockerfile.api              # API-only Dockerfile (for development)
+├── Dockerfile.ui               # Web UI-only Dockerfile (for development)
+├── docker-compose.yml              # Production compose
 ├── docker-compose.dev.yml          # Development compose
 └── .env                            # Environment variables
 ```
 
 ## Getting Your Board API Key
 
-You need your board's API key before setting up FiestaBoard. There are two connection modes:
+You need your board's API key before running the install wizard. There are two connection modes:
 
 ### Local API (Recommended)
 
@@ -306,51 +292,29 @@ Works from anywhere with internet. No transition animation support.
 3. Enable **Read/Write API**
 4. Copy your Read/Write API key
 
-> The [Quick Start](#-quick-start) above walks you through creating `.env` with your board API key. If you're setting up manually (e.g., for development), see `env.example` for the variable names.
+> The install wizard will ask for your board API key and write it to `.env` for you. If you're setting up manually (e.g., for development), see `env.example` for the variable names.
 
 See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details on cloud vs local mode.
 
 ## Deployment
 
-### Hosting the Server (Pre-built Images — Recommended)
-
-The easiest way to run FiestaBoard is to pull pre-built images from the GitHub Container Registry. See the [Quick Start](#-quick-start) above.
+### Hosting the Server
 
 ```bash
-# Pull the pre-built images (docker compose up also does this automatically)
-docker pull ghcr.io/fiestaboard/fiestaboard-api:latest
-docker pull ghcr.io/fiestaboard/fiestaboard-ui:latest
-
 # Start the server
-docker compose up -d
+docker-compose up -d --build
 
 # Stop the server
-docker compose down
+docker-compose down
 
 # View logs
-docker compose logs -f
-
-# Update to the latest version
-docker compose pull
-docker compose up -d
-```
-
-### Building from Source (Alternative)
-
-If you prefer to build from source (e.g., for customization), clone the repository and use the production compose file:
-
-```bash
-git clone https://github.com/Fiestaboard/FiestaBoard.git
-cd FiestaBoard
-cp env.example .env
-# Edit .env with your board API key
-docker compose up -d --build
+docker-compose logs -f
 ```
 
 ### Production Deployment
 
-- **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: Pull pre-built ARM images from GHCR
-- **Docker Compose**: Pull pre-built images from GHCR (see [Quick Start](#-quick-start))
+- **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: ARM-compatible builds
+- **Docker Compose**: Use `docker-compose.yml` for production deployments
 
 
 ## Troubleshooting
@@ -376,7 +340,7 @@ docker compose up -d --build
 
 ## Documentation
 
-**📖 Full documentation is available at [fiestaboard.app](https://fiestaboard.app)**
+**📖 Full documentation is available at [fiestaboard.github.io](https://fiestaboard.github.io)**
 
 ### Setup
 - **[Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md)**: Step-by-step setup for non-technical users
@@ -396,7 +360,7 @@ Each plugin includes its own docs:
 - **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: Build on Raspberry Pi
 
 ### Reference
-- **[Character Codes](./docs-site/docs/reference/character-codes.md)**: Board character reference
+- **[Character Codes](./docs/reference/CHARACTER_CODES.md)**: Board character reference
 - **[Color Guide](./docs/reference/COLOR_GUIDE.md)**: Color coding reference
 
 ## Future Features

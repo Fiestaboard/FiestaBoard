@@ -6,12 +6,12 @@ keywords: [FiestaBoard API, REST API, API endpoints, API reference, display API,
 
 # API Endpoints
 
-FiestaBoard provides a REST API powered by FastAPI. Interactive API documentation is available at `http://localhost:8000/docs` when FiestaBoard is running.
+FiestaBoard provides a REST API powered by FastAPI. Interactive API documentation is available at `http://localhost:3000/docs` when FiestaBoard is running.
 
 ## Base URL
 
 ```
-http://localhost:8000
+http://localhost:3000
 ```
 
 ## System Endpoints
@@ -95,13 +95,13 @@ http://localhost:8000
 ### Get Service Status
 
 ```bash
-curl http://localhost:8000/status
+curl http://localhost:3000/status
 ```
 
 ### Send a Message
 
 ```bash
-curl -X POST http://localhost:8000/send-message \
+curl -X POST http://localhost:3000/send-message \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello World!"}'
 ```
@@ -109,13 +109,13 @@ curl -X POST http://localhost:8000/send-message \
 ### List Plugins
 
 ```bash
-curl http://localhost:8000/plugins
+curl http://localhost:3000/plugins
 ```
 
 ### Preview a Page
 
 ```bash
-curl http://localhost:8000/pages/1/preview
+curl http://localhost:3000/pages/1/preview
 ```
 
 ## Interactive Documentation
@@ -123,7 +123,7 @@ curl http://localhost:8000/pages/1/preview
 For a complete interactive API explorer with request/response schemas, visit:
 
 ```
-http://localhost:8000/docs
+http://localhost:3000/docs
 ```
 
 This provides a Swagger UI where you can try out any endpoint directly in your browser.

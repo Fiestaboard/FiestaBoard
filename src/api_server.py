@@ -3513,9 +3513,9 @@ async def clear_cache():
     return {"status": "success", "message": "Cache cleared - next update will be sent to board"}
 
 
-@app.get("/api/runtime-config")
+@app.get("/runtime-config")
 async def get_runtime_config():
-    """Return runtime configuration for UI."""
+    """Return runtime configuration for UI. Served at /api/runtime-config via nginx (path stripped)."""
     # Allow override via environment variable, default to same origin
     # Support both old and new variable names for backward compatibility
     api_url = os.getenv("FIESTA_API_URL", "")

@@ -16,7 +16,7 @@ The page editor is the core of FiestaBoard's content creation experience. It pro
 
 ## Creating a New Page
 
-1. Open the FiestaBoard Web UI at `http://localhost:8080`
+1. Open the FiestaBoard Web UI at `http://localhost:3000`
 2. Navigate to the **Pages** section
 3. Click **New Page**
 4. Give your page a name
