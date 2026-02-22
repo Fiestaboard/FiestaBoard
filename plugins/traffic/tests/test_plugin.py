@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from src.data_sources.traffic import TrafficSource, get_traffic_source
+from src.utils.traffic import TrafficSource, get_traffic_source
 
 
 class TestTrafficIndex:
@@ -279,7 +279,7 @@ class TestTrafficSource:
         assert "location" in waypoint
         assert waypoint["location"]["latLng"]["latitude"] == 37.7749
     
-    @patch('src.data_sources.traffic.requests.post')
+    @patch('src.utils.traffic.requests.post')
     def test_fetch_traffic_data_success(self, mock_post):
         """Test successful traffic data fetch."""
         mock_response = Mock()
@@ -315,7 +315,7 @@ class TestTrafficSource:
         assert result["delay_minutes"] == 15
         assert result["formatted_message"] == "WORK: 45m (+15m delay)"
     
-    @patch('src.data_sources.traffic.requests.post')
+    @patch('src.utils.traffic.requests.post')
     def test_fetch_traffic_data_no_delay(self, mock_post):
         """Test traffic data with no delay."""
         mock_response = Mock()
@@ -337,7 +337,7 @@ class TestTrafficSource:
         assert result["delay_minutes"] == 0
         assert result["formatted_message"] == "DOWNTOWN: 30m"
     
-    @patch('src.data_sources.traffic.requests.post')
+    @patch('src.utils.traffic.requests.post')
     def test_fetch_traffic_data_heavy_traffic(self, mock_post):
         """Test traffic data with heavy traffic."""
         mock_response = Mock()
@@ -359,7 +359,7 @@ class TestTrafficSource:
         assert result["traffic_color"] == "RED"
         assert result["delay_minutes"] == 30
     
-    @patch('src.data_sources.traffic.requests.post')
+    @patch('src.utils.traffic.requests.post')
     def test_fetch_traffic_data_api_error(self, mock_post):
         """Test handling of API errors."""
         mock_post.side_effect = Exception("Network error")
@@ -369,7 +369,7 @@ class TestTrafficSource:
         
         assert result is None
     
-    @patch('src.data_sources.traffic.requests.post')
+    @patch('src.utils.traffic.requests.post')
     def test_fetch_traffic_data_no_routes(self, mock_post):
         """Test handling of empty routes response."""
         mock_response = Mock()
@@ -382,7 +382,7 @@ class TestTrafficSource:
         
         assert result is None
     
-    @patch('src.data_sources.traffic.requests.post')
+    @patch('src.utils.traffic.requests.post')
     def test_fetch_traffic_data_missing_static_duration(self, mock_post):
         """Test handling when staticDuration is missing (uses duration as fallback)."""
         mock_response = Mock()
@@ -407,7 +407,7 @@ class TestTrafficSource:
 class TestGetTrafficSource:
     """Tests for get_traffic_source factory function."""
     
-    @patch('src.data_sources.traffic.Config')
+    @patch('src.utils.traffic.Config')
     def test_get_traffic_source_with_config(self, mock_config):
         """Test factory returns source when properly configured."""
         mock_config.GOOGLE_ROUTES_API_KEY = "test_key"
@@ -424,7 +424,7 @@ class TestGetTrafficSource:
         assert source is not None
         assert isinstance(source, TrafficSource)
     
-    @patch('src.data_sources.traffic.Config')
+    @patch('src.utils.traffic.Config')
     def test_get_traffic_source_no_api_key(self, mock_config):
         """Test factory returns None when API key missing."""
         def mock_hasattr(obj, name):

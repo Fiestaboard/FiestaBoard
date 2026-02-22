@@ -77,7 +77,7 @@ omit = [
     "*/_template/*",
     "*/conftest.py",
     # Legacy code (documented in GitHub issues #58-61)
-    "src/data_sources/*",
+    "src/utils/*",
     "src/formatters/*",
     "src/system/*",
     "src/main.py",

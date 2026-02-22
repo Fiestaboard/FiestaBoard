@@ -1,7 +1,7 @@
 """Tests for MUNI multi-stop support and backward compatibility."""
 
 import pytest
-from src.data_sources.muni import MuniSource
+from src.utils.muni import MuniSource
 
 
 class TestMuniMultiStop:

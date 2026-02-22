@@ -5,7 +5,7 @@ from unittest.mock import patch, Mock, MagicMock
 import json
 from pathlib import Path
 
-from src.data_sources.star_trek_quotes import (
+from src.utils.star_trek_quotes import (
     StarTrekQuotesSource,
     get_star_trek_quotes_source
 )
@@ -45,7 +45,7 @@ class TestStarTrekQuotesSource:
     
     def test_quotes_file_exists(self):
         """Test that quotes data file exists."""
-        quotes_file = Path(__file__).parent.parent.parent.parent.parent / "src" / "data_sources" / "star_trek_quotes.json"
+        quotes_file = Path(__file__).parent.parent.parent.parent.parent / "src" / "utils" / "star_trek_quotes.json"
         # Check if file exists or quotes are embedded
         # This might vary based on implementation
         pass

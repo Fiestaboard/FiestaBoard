@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from src.data_sources.air_fog import (
+from src.utils.air_fog import (
     AirFogSource,
     get_air_fog_source,
     DEFAULT_LAT,
@@ -348,7 +348,7 @@ class TestAirFogSource:
         source = AirFogSource(purpleair_sensor_id="12345")
         assert source.purpleair_sensor_id == "12345"
     
-    @patch('src.data_sources.air_fog.requests.get')
+    @patch('src.utils.air_fog.requests.get')
     def test_fetch_openweathermap_success(self, mock_get):
         """Test successful OpenWeatherMap data fetch."""
         mock_response = Mock()
@@ -372,7 +372,7 @@ class TestAirFogSource:
         assert result["temperature_f"] == 62.5
         assert "dew_point_f" in result
     
-    @patch('src.data_sources.air_fog.requests.get')
+    @patch('src.utils.air_fog.requests.get')
     def test_fetch_openweathermap_api_error(self, mock_get):
         """Test handling of OpenWeatherMap API errors."""
         mock_get.side_effect = Exception("Network error")
@@ -382,7 +382,7 @@ class TestAirFogSource:
         
         assert result is None
     
-    @patch('src.data_sources.air_fog.requests.get')
+    @patch('src.utils.air_fog.requests.get')
     def test_fetch_purpleair_success(self, mock_get):
         """Test successful PurpleAir data fetch with sensor ID."""
         mock_response = Mock()
@@ -407,7 +407,7 @@ class TestAirFogSource:
         assert "aqi" in result
         assert result["aqi_category"] == "MODERATE"
     
-    @patch('src.data_sources.air_fog.requests.get')
+    @patch('src.utils.air_fog.requests.get')
     def test_fetch_air_fog_combined(self, mock_get):
         """Test combined air/fog data fetch."""
         # Mock both API responses
@@ -539,7 +539,7 @@ class TestFogPrediction:
 class TestGetAirFogSource:
     """Tests for get_air_fog_source factory function."""
     
-    @patch('src.data_sources.air_fog.Config')
+    @patch('src.utils.air_fog.Config')
     def test_get_air_fog_source_with_keys(self, mock_config):
         """Test factory returns source when API keys configured."""
         mock_config.PURPLEAIR_API_KEY = "test_purple_key"
@@ -558,7 +558,7 @@ class TestGetAirFogSource:
         assert source is not None
         assert isinstance(source, AirFogSource)
     
-    @patch('src.data_sources.air_fog.Config')
+    @patch('src.utils.air_fog.Config')
     def test_get_air_fog_source_no_keys(self, mock_config):
         """Test factory returns None when no API keys configured."""
         # Mock hasattr to return False (no config attributes)

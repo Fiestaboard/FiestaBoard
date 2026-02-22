@@ -1,7 +1,7 @@
 """Tests for MUNI nested line structure."""
 
 import pytest
-from src.data_sources.muni import MuniSource
+from src.utils.muni import MuniSource
 from src.templates.engine import TemplateEngine
 
 

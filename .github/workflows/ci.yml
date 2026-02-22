@@ -88,7 +88,7 @@ jobs:
     - name: Verify imports
       run: |
         python -c "import sys; sys.path.insert(0, '.'); from src import config, board_client, board_chars; print('✅ Core imports successful')"
-        python -c "import sys; sys.path.insert(0, '.'); from src.data_sources import weather, datetime, home_assistant, star_trek_quotes; print('✅ Data source imports successful')"
+        python -c "import sys; sys.path.insert(0, '.'); from src.utils import weather, datetime, home_assistant, star_trek_quotes; print('✅ Utils imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.formatters import message_formatter; print('✅ Formatter imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.main import FiestaBoardDisplayService; print('✅ Main module imports successful')"
     
@@ -106,7 +106,7 @@ jobs:
     - name: Run platform tests with coverage
       run: |
         # Run tests with coverage, explicitly omitting legacy code
-        coverage run --source=src --omit='src/data_sources/*,src/formatters/*,src/main.py,src/system/*,src/text_to_board.py,src/plugins/testing.py' -m pytest tests/ -v
+        coverage run --source=src --omit='src/utils/*,src/formatters/*,src/main.py,src/system/*,src/text_to_board.py,src/plugins/testing.py' -m pytest tests/ -v
         coverage xml
         coverage report -m
       env:

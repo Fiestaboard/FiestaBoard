@@ -66,7 +66,7 @@ class MuniPlugin(PluginBase):
             return self._transit_cache
         
         try:
-            from src.data_sources.transit_cache import get_transit_cache
+            from src.utils.transit_cache import get_transit_cache
             cache = get_transit_cache()
             
             api_key = self.config.get("api_key")

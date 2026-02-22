@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone, timedelta
 import json
 
-from src.data_sources.muni import MuniSource, get_muni_source, COLOR_RED, COLOR_ORANGE
+from src.utils.muni import MuniSource, get_muni_source, COLOR_RED, COLOR_ORANGE
 
 
 class TestMuniSourceParsing:
@@ -385,7 +385,7 @@ class TestMuniSourceAPI:
             }
         ]
     
-    @patch('src.data_sources.muni.get_transit_cache')
+    @patch('src.utils.muni.get_transit_cache')
     def test_fetch_arrivals_success(self, mock_get_cache, muni_source, mock_cache_visits):
         """Test successful fetch from transit cache."""
         # Mock cache
@@ -400,7 +400,7 @@ class TestMuniSourceAPI:
         assert result["line"] == "N-JUDAH"
         mock_cache.get_stops_data.assert_called_once_with("SF", ["15726"])
     
-    @patch('src.data_sources.muni.get_transit_cache')
+    @patch('src.utils.muni.get_transit_cache')
     def test_fetch_arrivals_cache_not_ready(self, mock_get_cache, muni_source):
         """Test handling when cache is not ready."""
         # Mock cache not ready
@@ -412,7 +412,7 @@ class TestMuniSourceAPI:
         
         assert result is None
     
-    @patch('src.data_sources.muni.get_transit_cache')
+    @patch('src.utils.muni.get_transit_cache')
     def test_fetch_arrivals_no_data_in_cache(self, mock_get_cache, muni_source):
         """Test handling when stop has no data in cache."""
         # Mock cache with no data for stop
@@ -425,7 +425,7 @@ class TestMuniSourceAPI:
         
         assert result is None
     
-    @patch('src.data_sources.muni.get_transit_cache')
+    @patch('src.utils.muni.get_transit_cache')
     def test_fetch_multiple_stops(self, mock_get_cache, mock_cache_visits):
         """Test fetching multiple stops from cache."""
         now = datetime.now(timezone.utc)
@@ -464,7 +464,7 @@ class TestMuniSourceAPI:
 class TestGetMuniSource:
     """Tests for get_muni_source factory function."""
     
-    @patch('src.data_sources.muni.Config')
+    @patch('src.utils.muni.Config')
     def test_get_muni_source_configured(self, mock_config):
         """Test getting source when properly configured."""
         mock_config.MUNI_API_KEY = "test_key"
@@ -481,7 +481,7 @@ class TestGetMuniSource:
         assert source.stop_codes == ["15726"]
         assert source.line_name == "N"
     
-    @patch('src.data_sources.muni.Config')
+    @patch('src.utils.muni.Config')
     def test_get_muni_source_no_api_key(self, mock_config):
         """Test getting source without API key."""
         mock_config.MUNI_API_KEY = ""
@@ -492,7 +492,7 @@ class TestGetMuniSource:
         
         assert source is None
     
-    @patch('src.data_sources.muni.Config')
+    @patch('src.utils.muni.Config')
     def test_get_muni_source_no_stop_code(self, mock_config):
         """Test getting source without stop code returns source with empty stops.
         
@@ -512,7 +512,7 @@ class TestGetMuniSource:
         assert source is not None
         assert source.stop_codes == []
     
-    @patch('src.data_sources.muni.Config')
+    @patch('src.utils.muni.Config')
     def test_get_muni_source_no_line_filter(self, mock_config):
         """Test getting source without line filter."""
         mock_config.MUNI_API_KEY = "test_key"

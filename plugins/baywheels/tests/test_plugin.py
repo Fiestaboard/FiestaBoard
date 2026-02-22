@@ -3,7 +3,7 @@
 import pytest
 import json
 from unittest.mock import Mock, patch
-from src.data_sources.baywheels import BayWheelsSource, STATION_STATUS_URL
+from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
 
 
 class TestBayWheelsSource:
@@ -705,27 +705,27 @@ class TestBayWheelsConfig:
     
     def test_get_baywheels_source_disabled(self):
         """Test that source is None when disabled."""
-        from src.data_sources.baywheels import get_baywheels_source
+        from src.utils.baywheels import get_baywheels_source
         
-        with patch('src.data_sources.baywheels.Config.BAYWHEELS_ENABLED', False):
+        with patch('src.utils.baywheels.Config.BAYWHEELS_ENABLED', False):
             source = get_baywheels_source()
             assert source is None
     
     def test_get_baywheels_source_no_station_id(self):
         """Test that source is None when station ID not configured."""
-        from src.data_sources.baywheels import get_baywheels_source
+        from src.utils.baywheels import get_baywheels_source
         
-        with patch('src.data_sources.baywheels.Config.BAYWHEELS_ENABLED', True), \
-             patch('src.data_sources.baywheels.Config.BAYWHEELS_STATION_IDS', []):
+        with patch('src.utils.baywheels.Config.BAYWHEELS_ENABLED', True), \
+             patch('src.utils.baywheels.Config.BAYWHEELS_STATION_IDS', []):
             source = get_baywheels_source()
             assert source is None
     
     def test_get_baywheels_source_configured(self):
         """Test that source is created when properly configured."""
-        from src.data_sources.baywheels import get_baywheels_source
+        from src.utils.baywheels import get_baywheels_source
         
-        with patch('src.data_sources.baywheels.Config.BAYWHEELS_ENABLED', True), \
-             patch('src.data_sources.baywheels.Config.BAYWHEELS_STATION_IDS', ["test-station"]):
+        with patch('src.utils.baywheels.Config.BAYWHEELS_ENABLED', True), \
+             patch('src.utils.baywheels.Config.BAYWHEELS_STATION_IDS', ["test-station"]):
             source = get_baywheels_source()
             assert source is not None
             assert source.station_ids == ["test-station"]

@@ -229,7 +229,7 @@ Quotes are automatically truncated to fit the 6x22 board display. Long quotes ar
 
 ## Adding Custom Quotes
 
-To add your own quotes, edit `src/data_sources/star_trek_quotes.json`:
+To add your own quotes, edit `src/utils/star_trek_quotes.json`:
 
 ```json
 {

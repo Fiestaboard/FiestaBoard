@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from src.data_sources.surf import SurfSource, get_surf_source, OCEAN_BEACH_LAT, OCEAN_BEACH_LON
+from src.utils.surf import SurfSource, get_surf_source, OCEAN_BEACH_LAT, OCEAN_BEACH_LON
 
 
 class TestSurfQuality:
@@ -175,7 +175,7 @@ class TestSurfSource:
         assert source.latitude == 34.0
         assert source.longitude == -118.0
     
-    @patch('src.data_sources.surf.requests.get')
+    @patch('src.utils.surf.requests.get')
     def test_fetch_surf_data_success(self, mock_get):
         """Test successful surf data fetch."""
         # Mock marine API response
@@ -226,7 +226,7 @@ class TestSurfSource:
         assert "OB SURF:" in result["formatted_message"]
         assert "@ 15s" in result["formatted_message"]
     
-    @patch('src.data_sources.surf.requests.get')
+    @patch('src.utils.surf.requests.get')
     def test_fetch_surf_data_bad_conditions(self, mock_get):
         """Test surf data fetch with poor conditions."""
         # Mock marine API response with short period
@@ -268,7 +268,7 @@ class TestSurfSource:
         assert result["quality"] == "POOR"  # 6s period, 25mph wind
         assert result["quality_color"] == "RED"
     
-    @patch('src.data_sources.surf.requests.get')
+    @patch('src.utils.surf.requests.get')
     def test_fetch_surf_data_api_error(self, mock_get):
         """Test handling of API errors."""
         mock_get.side_effect = Exception("Network error")
@@ -278,7 +278,7 @@ class TestSurfSource:
         
         assert result is None
     
-    @patch('src.data_sources.surf.requests.get')
+    @patch('src.utils.surf.requests.get')
     def test_fetch_surf_data_invalid_response(self, mock_get):
         """Test handling of invalid response format."""
         mock_response = Mock()
