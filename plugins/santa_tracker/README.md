@@ -2,6 +2,8 @@
 
 A FiestaBoard plugin that tracks Santa's journey around the world on Christmas Eve and Christmas Day.
 
+![Santa Tracker Display](./docs/santa-tracker-display.png)
+
 ## How It Works
 
 The plugin monitors when midnight of December 25th arrives at famous/remarkable world locations across every timezone. As each timezone crosses into Christmas Day, the plugin updates to show Santa's progress.

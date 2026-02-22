@@ -7,6 +7,8 @@
 - Shows which famous city Santa is currently visiting
 - Displays progress as midnight of December 25th sweeps across timezones
 
+![Santa Tracker in Action](./santa-tracker-in-action.png)
+
 **Prerequisites:**
 - ✅ No API key required
 - ✅ No external accounts needed
@@ -35,6 +37,20 @@ Example template:
 {santa_tracker.status}
 At: {santa_tracker.santa_location}
 ```
+
+### 3. Example Display States
+
+**Before Christmas:**
+
+![Before Christmas State](./santa-before-christmas.png)
+
+**During Delivery:**
+
+![During Delivery State](./santa-during-delivery.png)
+
+**After Christmas:**
+
+![After Christmas State](./santa-after-christmas.png)
 
 ## Configuration Reference
 
