@@ -43,6 +43,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/Fiestaboard/FiestaBoard"
+Documentation = "https://fiestaboard.app"
 Repository = "https://github.com/Fiestaboard/FiestaBoard"
 Issues = "https://github.com/Fiestaboard/FiestaBoard/issues"
 
