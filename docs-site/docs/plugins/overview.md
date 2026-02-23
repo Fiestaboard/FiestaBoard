@@ -6,48 +6,77 @@ keywords: [FiestaBoard plugins, plugin overview, available plugins, split-flap i
 
 # Plugins Overview
 
-FiestaBoard uses a **plugin architecture**. Each feature is a self-contained plugin with its own configuration and documentation.
-
-## Available Plugins
-
-| Plugin | Description | API Key Required |
-|--------|-------------|------------------|
-| **Air Quality & Fog** | Monitor AQI and fog conditions | Yes (PurpleAir/OWM) |
-| **Bay Wheels** | Track bike availability at stations | No |
-| **Date & Time** | Current date/time with multiple formats | No |
-| **Disney Parks Queue Times** | Wait times for Disney parks and rides | No |
-| **Guest WiFi** | Display WiFi credentials | No |
-| **Home Assistant** | Smart home status display | Yes (HA token) |
-| **Last.fm Now Playing** | Currently playing music | Yes (Last.fm) |
-| **Muni Transit** | SF Muni arrival predictions | Yes (free 511.org) |
-| **Nearby Aircraft** | Real-time aircraft info | No (optional OpenSky) |
-| **Sports Scores** | NFL, Soccer, NHL, NBA scores | No (optional TheSportsDB) |
-| **Sun Art** | Sun art pattern by time of day | No |
-| **Star Trek Quotes** | Quotes from TNG, Voyager, DS9 | No |
-| **Stocks** | Stock prices with color indicators | No (optional Finnhub) |
-| **Surf Conditions** | Wave height and quality | No |
-| **Traffic** | Travel time with live traffic | Yes (Google Routes) |
-| **Visual Clock** | Full-screen pixel-art clock | No |
-| **Weather** | Temperature, UV, precipitation | Yes (WeatherAPI or OWM) |
-| **WSDOT Ferries** | WA State ferry schedules and alerts | Yes (free WSDOT API) |
+FiestaBoard uses a **plugin architecture** - each data source is a self-contained plugin you can enable or disable independently. There are currently 18 built-in plugins, and many work without any API key.
 
 ## Enabling Plugins
 
-Plugins are enabled via the **Web UI**:
+All plugin management is done through the **Web UI**:
 
-1. Open http://localhost:4420
+1. Open **http://localhost:4420**
 2. Go to the **Integrations** page
-3. Toggle plugins on/off
-4. Configure API keys as needed
+3. Toggle plugins on or off
+4. For plugins that need API keys, the Integrations page shows you where to get them and has fields to enter them
 
-## Plugin Configuration
+## No API Key Required
 
-Each plugin can be configured through:
-- **Web UI** - The Integrations page
-- **Environment variables** - In your `.env` file
+These plugins work immediately after enabling - no registration or API keys needed:
 
-See individual plugin documentation for specific configuration options.
+| Plugin | What It Shows |
+|--------|--------------|
+| **Bay Wheels** | Bike availability at Bay Area stations |
+| **Date & Time** | Current date and time in multiple formats (12h/24h, US/international) with timezone support |
+| **Disney Parks Queue Times** | Live wait times for rides at Disney parks worldwide |
+| **Guest WiFi** | Your WiFi network name and password for guests |
+| **Star Trek Quotes** | Random quotes from TNG, Voyager, and DS9 |
+| **Stardate** | Current TNG-era stardate |
+| **Sun Art** | Full-screen art pattern that changes with the sun's position throughout the day |
+| **Surf Conditions** | Wave height, swell period, and quality ratings |
+| **Visual Clock** | Large pixel-art style clock that fills the whole board |
 
-## Creating Custom Plugins
+## Free API Key Required
 
-Want to add your own data source? Check out the [Plugin Development Guide](/docs/development/plugin-guide).
+These plugins need a free API key from an external service:
+
+| Plugin | What It Shows | Where to Get the Key |
+|--------|--------------|---------------------|
+| **Weather** | Temperature, UV index, precipitation, high/low, sunset | [weatherapi.com](https://www.weatherapi.com/) (1M calls/month free) or [openweathermap.org](https://openweathermap.org/api) |
+| **Muni Transit** | Real-time SF Muni arrival predictions | [511.org](https://511.org/open-data/token) (free) |
+| **WSDOT Ferries** | WA State ferry schedules, vessel names, car spots, and alerts | [wsdot.wa.gov/traffic/api](https://wsdot.wa.gov/traffic/api/) (free) |
+| **Last.fm Now Playing** | Currently playing music via Last.fm scrobbling | [last.fm/api](https://www.last.fm/api/account/create) (free) |
+
+## Free Tier API Key Required
+
+These plugins need an API key from a service with a generous free tier:
+
+| Plugin | What It Shows | Where to Get the Key | Free Tier |
+|--------|--------------|---------------------|-----------|
+| **Traffic** | Travel time to destinations with live traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | $200/month credit |
+| **Home Assistant** | Smart home status (doors, garage, locks, etc.) | Your Home Assistant instance | Self-hosted |
+| **Air Quality & Fog** | AQI and fog conditions | PurpleAir or OpenWeatherMap | Varies |
+
+## Optional API Key
+
+These plugins work without an API key but offer additional features with one:
+
+| Plugin | Without API Key | With API Key |
+|--------|----------------|-------------|
+| **Stocks** | Monitor stock prices with color-coded indicators | Better symbol search/autocomplete ([finnhub.io](https://finnhub.io/)) |
+| **Sports Scores** | NFL, Soccer, NHL, NBA match scores | Extended data ([thesportsdb.com](https://www.thesportsdb.com/)) |
+| **Nearby Aircraft** | Real-time aircraft info from OpenSky Network | Higher rate limits ([opensky-network.org](https://opensky-network.org/)) |
+
+## Using Plugin Data in Pages
+
+Once a plugin is enabled, its data becomes available as **template variables** in the page editor:
+
+1. Create or edit a page in the **Pages** section
+2. Click the **Variable Picker** button in the editor toolbar
+3. Browse variables grouped by plugin
+4. Click a variable to insert it at the cursor position
+
+Variables look like `{weather.temperature}` or `{date_time.current}` and are automatically replaced with live data when the page is displayed.
+
+For more details, see [Plugin Configuration](/docs/plugins/configuration).
+
+## Creating Your Own Plugins
+
+Want to add a data source that isn't built in? Check out the [Plugin Development Guide](/docs/development/plugin-guide) to learn how to create custom plugins.
