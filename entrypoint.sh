@@ -2,6 +2,15 @@
 set -e
 
 # ---------------------------------------------------------------------------
+# If the container is already running as a non-root user (e.g. Docker
+# rootless mode, --user flag, or Kubernetes security contexts), skip all
+# privilege operations and just exec the CMD directly.
+# ---------------------------------------------------------------------------
+if [ "$(id -u)" != "0" ]; then
+    exec "$@"
+fi
+
+# ---------------------------------------------------------------------------
 # Docker-socket permission fixup
 # ---------------------------------------------------------------------------
 # When /var/run/docker.sock is bind-mounted from the host the owning GID
