@@ -269,6 +269,25 @@ jobs:
             
             console.log(`Created release: ${release.html_url}`)
 
+  dockerhub-description:
+    name: Update Docker Hub Description
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: needs.build.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Update Docker Hub Description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: fiestaboard/fiestaboard
+          readme-filepath: ./DOCKERHUB_README.md
+          short-description: "Open-source self-hosted platform for controlling split-flap displays 🌮"
+          enable-url-completion: true
+
   revert-on-failure:
     name: Revert on Build Failure
     runs-on: ubuntu-latest

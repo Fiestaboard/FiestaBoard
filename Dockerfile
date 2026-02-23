@@ -51,6 +51,14 @@ FROM python:3.14-slim
 ARG VERSION=dev
 ENV VERSION=${VERSION}
 
+LABEL org.opencontainers.image.title="FiestaBoard" \
+      org.opencontainers.image.description="Open-source self-hosted platform for controlling split-flap displays" \
+      org.opencontainers.image.url="https://hub.docker.com/r/fiestaboard/fiestaboard" \
+      org.opencontainers.image.documentation="https://fiestaboard.app" \
+      org.opencontainers.image.source="https://github.com/Fiestaboard/FiestaBoard" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="FiestaBoard"
+
 WORKDIR /app
 
 # Install Node.js, nginx, and wget
