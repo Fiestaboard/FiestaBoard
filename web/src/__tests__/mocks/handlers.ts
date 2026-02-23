@@ -824,20 +824,6 @@ export const handlers = [
     });
   }),
 
-  http.post(`${API_BASE}/system/restart`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Container restart initiated. FiestaBoard will be back shortly.",
-    });
-  }),
-
-  http.post(`${API_BASE}/system/upgrade`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Upgrade initiated. Pulling latest image and restarting — FiestaBoard will be back shortly.",
-    });
-  }),
-
   // Polling settings endpoints
   http.get(`${API_BASE}/settings/polling`, () => {
     return HttpResponse.json({

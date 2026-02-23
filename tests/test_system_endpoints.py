@@ -1,8 +1,8 @@
-"""Tests for system management endpoints (update check, restart, and upgrade)."""
+"""Tests for system management endpoints (update check)."""
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 
 
 @pytest.fixture
@@ -217,58 +217,6 @@ class TestDockerHubCheck:
         assert data["update_available"] is True
         assert call_count["dockerhub"] > 0  # Docker Hub was attempted
         assert call_count["github"] > 0  # GitHub was used as fallback
-
-
-class TestSystemRestart:
-    """Tests for /system/restart endpoint."""
-
-    def test_restart_blocked_in_dev_mode(self, client):
-        """Test restart is rejected in non-production mode."""
-        with patch.dict("os.environ", {"PRODUCTION": "false"}):
-            response = client.post("/system/restart")
-        
-        assert response.status_code == 400
-        assert "production" in response.json()["detail"].lower()
-
-    def test_restart_in_production(self, client):
-        """Test restart succeeds in production mode."""
-        mock_docker = Mock()
-        mock_docker.restart_container = Mock()
-
-        with patch.dict("os.environ", {"PRODUCTION": "true"}), \
-             patch("src.system.docker_manager.get_docker_manager", return_value=mock_docker):
-            response = client.post("/system/restart")
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert "restart" in data["message"].lower()
-
-
-class TestSystemUpgrade:
-    """Tests for /system/upgrade endpoint."""
-
-    def test_upgrade_blocked_in_dev_mode(self, client):
-        """Test upgrade is rejected in non-production mode."""
-        with patch.dict("os.environ", {"PRODUCTION": "false"}):
-            response = client.post("/system/upgrade")
-
-        assert response.status_code == 400
-        assert "production" in response.json()["detail"].lower()
-
-    def test_upgrade_in_production(self, client):
-        """Test upgrade succeeds in production mode."""
-        mock_docker = Mock()
-        mock_docker.upgrade_containers = Mock()
-
-        with patch.dict("os.environ", {"PRODUCTION": "true"}), \
-             patch("src.system.docker_manager.get_docker_manager", return_value=mock_docker):
-            response = client.post("/system/upgrade")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert "upgrade" in data["message"].lower() or "pulling" in data["message"].lower()
 
 
 class TestIsNewerVersion:

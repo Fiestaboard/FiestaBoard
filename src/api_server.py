@@ -255,12 +255,6 @@ class UpdateCheckResponse(BaseModel):
     is_production: bool
 
 
-class SystemRestartResponse(BaseModel):
-    """Response model for system restart."""
-    status: str
-    message: str
-
-
 # Create FastAPI app
 app = FastAPI(
     title="FiestaBoard Display API",
@@ -440,7 +434,6 @@ async def version():
 GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
 GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
 DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
-RESTART_DELAY_SECONDS = 2
 
 
 def _check_dockerhub_for_latest() -> Optional[str]:
@@ -537,64 +530,6 @@ async def system_update_check():
             error=f"Could not check for updates: {e}",
             is_production=is_production,
         )
-
-
-@app.post("/system/restart", response_model=SystemRestartResponse)
-async def system_restart(background_tasks: BackgroundTasks):
-    """Restart the FiestaBoard container.
-    
-    In production mode, restarts the container via Docker API.
-    In development mode, returns a message indicating restart is not available.
-    """
-    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-    
-    if not is_production:
-        raise HTTPException(
-            status_code=400,
-            detail="Container restart is only available in production mode"
-        )
-    
-    try:
-        from .system.docker_manager import get_docker_manager
-        docker_mgr = get_docker_manager()
-        # Schedule restart in background so the response can be sent first
-        background_tasks.add_task(docker_mgr.restart_container, "all", delay=RESTART_DELAY_SECONDS)
-        return SystemRestartResponse(
-            status="success",
-            message="Container restart initiated. FiestaBoard will be back shortly."
-        )
-    except Exception as e:
-        logger.error(f"Failed to restart container: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to restart: {e}")
-
-
-@app.post("/system/upgrade", response_model=SystemRestartResponse)
-async def system_upgrade(background_tasks: BackgroundTasks):
-    """Pull latest container images from Docker Hub and restart.
-    
-    This is the recommended way to update when using the :latest tag.
-    In production mode, pulls the newest image and restarts the container.
-    In development mode, returns a message indicating upgrade is not available.
-    """
-    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-    
-    if not is_production:
-        raise HTTPException(
-            status_code=400,
-            detail="Container upgrade is only available in production mode"
-        )
-    
-    try:
-        from .system.docker_manager import get_docker_manager
-        docker_mgr = get_docker_manager()
-        background_tasks.add_task(docker_mgr.upgrade_containers)
-        return SystemRestartResponse(
-            status="success",
-            message="Upgrade initiated. Pulling latest image and restarting — FiestaBoard will be back shortly."
-        )
-    except Exception as e:
-        logger.error(f"Failed to upgrade containers: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to upgrade: {e}")
 
 
 def _is_newer_version(latest: str, current: str) -> bool:
