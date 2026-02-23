@@ -12,8 +12,8 @@ Deploy FiestaBoard on a Raspberry Pi for a dedicated, always-on dashboard contro
 
 | Model | Architecture | Status |
 |-------|-------------|--------|
-| Raspberry Pi 3B+ | `linux/arm/v7` | Supported |
-| Raspberry Pi Zero 2 W | `linux/arm/v7` | Supported |
+| Raspberry Pi 3B+ | `linux/arm64` | Supported (requires 64-bit OS) |
+| Raspberry Pi Zero 2 W | `linux/arm64` | Supported (requires 64-bit OS) |
 | Raspberry Pi 4 | `linux/arm64` | Supported |
 | Raspberry Pi 5 | `linux/arm64` | Supported |
 
@@ -67,14 +67,11 @@ docker-compose -f docker-compose.hub.yml up -d
 
 This skips the build step entirely and pulls ready-to-run ARM images.
 
-## Pi Build Labels
+## Multi-Architecture Builds
 
-FiestaBoard's CI pipeline supports building ARM images on demand. When contributing:
+Every release automatically builds images for both `linux/amd64` and `linux/arm64`, so Raspberry Pi is always supported out of the box.
 
-- **Default builds**: `linux/amd64` only (~5 min)
-- **With `pi` label on PR**: Adds `linux/arm/v7` and `linux/arm64` (~15 min)
-
-To request ARM builds, add the `pi` or `raspberry-pi` label to your pull request before merging.
+> **Note:** 32-bit ARM (`linux/arm/v7`) is no longer supported because Node.js dropped ARM32v7 support in v20+. Please use a 64-bit Raspberry Pi OS.
 
 ## Performance Tips
 

@@ -102,10 +102,9 @@ Full documentation is available at **[fiestaboard.app](https://fiestaboard.app)*
 
 Images are available for:
 - `linux/amd64` (standard x86_64)
-- `linux/arm64` (Raspberry Pi 4+, Apple Silicon)
-- `linux/arm/v7` (Raspberry Pi 3)
+- `linux/arm64` (Raspberry Pi 3B+/4/5 with 64-bit OS, Apple Silicon)
 
-*ARM builds are included when releases are tagged with Pi support.*
+*ARM64 builds are included in every release.*
 
 ## Source Code
 
