@@ -143,7 +143,7 @@ export function ActivePageDisplay() {
   // Fetch active page from schedule if enabled, otherwise manual
   const { data: activeScheduleData } = useQuery({
     queryKey: ["schedules", "active"],
-    queryFn: api.getActiveSchedule,
+    queryFn: () => api.getActiveSchedule(),
     enabled: scheduleEnabled,
     refetchInterval: scheduleEnabled ? 60000 : false, // Refresh every minute if schedule enabled
   });

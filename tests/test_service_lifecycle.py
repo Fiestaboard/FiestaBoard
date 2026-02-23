@@ -214,6 +214,13 @@ class TestHealthEndpoint:
         assert "service_running" in data
         assert "version" in data
 
+    def test_health_head_returns_ok(self, client):
+        mock_service = Mock()
+        with patch('src.api_server.get_service', return_value=mock_service):
+            response = client.head("/health")
+
+        assert response.status_code == 200
+
     def test_health_reflects_service_running_state(self, client):
         import src.api_server as api
         mock_service = Mock()
