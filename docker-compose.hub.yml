@@ -1,7 +1,7 @@
 services:
   # FiestaBoard - Unified container with API + Web UI
   fiestaboard:
-    image: ghcr.io/fiestaboard/fiestaboard:latest
+    image: fiestaboard/fiestaboard:latest
     container_name: fiestaboard
     env_file:
       - .env

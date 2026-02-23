@@ -223,17 +223,17 @@ V1 published two separate container images. V2 replaces them with a single unifi
 
 | V1 (deprecated) | V2 |
 |---|---|
-| `ghcr.io/fiestaboard/fiestaboard-api:latest` | `ghcr.io/fiestaboard/fiestaboard:latest` |
+| `ghcr.io/fiestaboard/fiestaboard-api:latest` | `fiestaboard/fiestaboard:latest` |
 | `ghcr.io/fiestaboard/fiestaboard-ui:latest` | _(removed — included in the unified image)_ |
 
 If you were pulling the V1 images, switch to the new image name. The old image names will not receive updates.
 
 ### Using pre-built images (optional)
 
-V2 introduces a `docker-compose.ghcr.yml` for using pre-built images from GitHub Container Registry — no local build required:
+V2 introduces a `docker-compose.hub.yml` for using pre-built images from Docker Hub — no local build required:
 
 ```bash
-docker-compose -f docker-compose.ghcr.yml up -d
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
 ---
@@ -302,7 +302,7 @@ If you deploy containers through a management UI (Portainer, Synology Container 
 
 3. **Stop and remove both V1 containers** (`fiestaboard-api` and `fiestaboard-ui`).
 
-4. **Deploy the new unified container** using image `ghcr.io/fiestaboard/fiestaboard:latest`:
+4. **Deploy the new unified container** using image `fiestaboard/fiestaboard:latest`:
 
    - **Volume**: Mount the **same host data path** from step 1 to `/app/data`
    - **Port**: Map host port `4420` to container port `3000`
@@ -318,7 +318,7 @@ If you deploy containers through a management UI (Portainer, Synology Container 
      -p 4420:3000 \
      -v /path/to/your/data:/app/data \
      --env-file /path/to/your/.env \
-     ghcr.io/fiestaboard/fiestaboard:latest
+     fiestaboard/fiestaboard:latest
    ```
 
 5. **Verify**: Open `http://your-server:4420` — your pages and settings should be there.

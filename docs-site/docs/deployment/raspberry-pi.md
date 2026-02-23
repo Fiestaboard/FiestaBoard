@@ -59,10 +59,10 @@ The first build on a Raspberry Pi will take longer than on a desktop computer. E
 
 ## Using Pre-Built ARM Images
 
-For faster setup, use the pre-built images from GitHub Container Registry:
+For faster setup, use the pre-built images from Docker Hub:
 
 ```bash
-docker-compose -f docker-compose.ghcr.yml up -d
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
 This skips the build step entirely and pulls ready-to-run ARM images.
