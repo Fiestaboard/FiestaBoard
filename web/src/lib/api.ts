@@ -284,6 +284,14 @@ export interface TemplateRenderResponse {
   line_count: number;
 }
 
+export interface TemplateRenderLiveResponse {
+  rendered: string;
+  lines: string[];
+  line_count: number;
+  sent_to_board: boolean;
+  board_id: string | null;
+}
+
 // Configuration types
 export interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -764,6 +772,11 @@ export const api = {
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
       body: JSON.stringify({ template }),
+    }),
+  renderTemplateLive: (template: string | string[], boardId?: string) =>
+    fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
+      method: "POST",
+      body: JSON.stringify({ template, ...(boardId && { board_id: boardId }) }),
     }),
 
   // Schedule endpoints (optional boardId for per-board schedules)

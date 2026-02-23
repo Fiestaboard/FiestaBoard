@@ -25,6 +25,14 @@ const TipTapTemplateEditor = dynamic(
   }
 );
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { queryKeys } from "@/hooks/use-board";
 import {
@@ -32,6 +40,7 @@ import {
   X,
   Save,
   Trash2,
+  Radio,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -44,7 +53,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { api, PageCreate, PageUpdate, PageType, DeviceType } from "@/lib/api";
+import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance } from "@/lib/api";
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
@@ -168,6 +177,11 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">("rich");
+
+  // Live output mode state
+  const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
+  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  const lastLiveSentPreview = useRef<string | null>(null);
 
   // Debounced state (for expensive operations)
   const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
@@ -633,6 +647,44 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     };
   }, [debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled]);
 
+  // Live output mutation - sends rendered preview to the board
+  const liveSendMutation = useMutation({
+    mutationFn: async (rendered: string) => {
+      const template = getDebouncedTemplateWithAlignments();
+      return api.renderTemplateLive(template, selectedBoardId || undefined);
+    },
+    onSuccess: (data) => {
+      if (data.sent_to_board) {
+        lastLiveSentPreview.current = preview;
+      }
+    },
+    onError: (error: Error) => {
+      console.error('[LiveOutput] Send failed:', error.message);
+      toast.error("Failed to send to board");
+    },
+  });
+
+  // Send to board when preview changes and live mode is on
+  useEffect(() => {
+    if (!liveOutputEnabled || !preview || preview === lastLiveSentPreview.current) {
+      return;
+    }
+
+    const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
+    if (!hasContent) return;
+
+    if (!liveSendMutation.isPending) {
+      liveSendMutation.mutate(preview);
+    }
+  }, [preview, liveOutputEnabled]);
+
+  // Initialize selected board to first board when settings load
+  useEffect(() => {
+    if (boardSettings?.boards?.length && !selectedBoardId) {
+      setSelectedBoardId(boardSettings.boards[0].id);
+    }
+  }, [boardSettings?.boards, selectedBoardId]);
+
 
   if (pageId && loadingPage) {
     return (
@@ -940,6 +992,46 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     boardType={effectiveBoardColor}
                     deviceType={deviceType}
                   />
+                </div>
+
+                {/* Live output controls */}
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="live-output-toggle"
+                      checked={liveOutputEnabled}
+                      onCheckedChange={setLiveOutputEnabled}
+                      aria-label="Toggle live output to board"
+                    />
+                    <label
+                      htmlFor="live-output-toggle"
+                      className="flex items-center gap-1.5 text-xs sm:text-sm font-medium cursor-pointer select-none"
+                    >
+                      <Radio className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-red-500 animate-pulse" : "text-muted-foreground"}`} />
+                      Live Output
+                    </label>
+                    {liveSendMutation.isPending && (
+                      <span className="text-[10px] text-muted-foreground">Sending...</span>
+                    )}
+                  </div>
+
+                  {boardSettings?.boards && boardSettings.boards.length > 1 && (
+                    <Select
+                      value={selectedBoardId}
+                      onValueChange={setSelectedBoardId}
+                    >
+                      <SelectTrigger className="h-7 w-[140px] text-xs" aria-label="Select board for live output">
+                        <SelectValue placeholder="Select board" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {boardSettings.boards.map((board: BoardInstance) => (
+                          <SelectItem key={board.id} value={board.id} className="text-xs">
+                            {board.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </div>
 
