@@ -33,6 +33,7 @@ from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .templates.engine import get_template_engine, reset_template_engine
 from .text_to_board import text_to_board_array
 from .devices import get_dimensions
+from .board_client import board_client_from_board_dict
 
 logger = logging.getLogger(__name__)
 
@@ -3674,6 +3675,97 @@ async def render_template(request: dict):
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}")
+
+
+@app.post("/templates/render/live")
+async def render_template_live(request: dict):
+    """
+    Render a template and send it to a board (live edit mode).
+
+    Body should include:
+    - template: Template string or list of lines to render
+    - board_id: Optional board ID to target (defaults to first configured board)
+
+    Returns the rendered result plus whether it was sent to the board.
+    """
+    if "template" not in request:
+        raise HTTPException(status_code=400, detail="template parameter required")
+
+    template = request["template"]
+    board_id = request.get("board_id")
+
+    template_engine = get_template_engine()
+    settings_service = get_settings_service()
+
+    # Render the template
+    try:
+        if isinstance(template, list):
+            if not template or all(not line.strip() for line in template):
+                return {
+                    "rendered": "\n".join([""] * 6),
+                    "lines": [""] * 6,
+                    "line_count": 6,
+                    "sent_to_board": False,
+                    "board_id": board_id,
+                }
+            rendered = template_engine.render_lines(template)
+        else:
+            if not template.strip():
+                return {
+                    "rendered": "\n".join([""] * 6),
+                    "lines": [""] * 6,
+                    "line_count": 6,
+                    "sent_to_board": False,
+                    "board_id": board_id,
+                }
+            rendered = template_engine.render(template)
+    except Exception as e:
+        logger.error(f"Template rendering error: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}")
+
+    # Find the target board
+    board_settings = settings_service.get_board_settings()
+    boards = board_settings.boards if board_settings else []
+
+    target_board = None
+    if board_id:
+        for b in boards:
+            if b.get("id") == board_id:
+                target_board = b
+                break
+        if not target_board:
+            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+    elif boards:
+        target_board = boards[0]
+
+    sent_to_board = False
+    if target_board:
+        client = board_client_from_board_dict(target_board)
+        if client:
+            device_type = target_board.get("device_type", "flagship")
+            dims = get_dimensions(device_type)
+            board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
+
+            transition_settings = settings_service.get_transition_settings()
+            try:
+                success, was_sent = client.send_characters(
+                    board_array,
+                    strategy=transition_settings.strategy,
+                    step_interval_ms=transition_settings.step_interval_ms,
+                    step_size=transition_settings.step_size,
+                    force=True,
+                )
+                sent_to_board = was_sent
+            except Exception as e:
+                logger.error(f"Live send to board failed: {e}", exc_info=True)
+
+    return {
+        "rendered": rendered,
+        "lines": rendered.split('\n'),
+        "line_count": len(rendered.split('\n')),
+        "sent_to_board": sent_to_board,
+        "board_id": target_board.get("id") if target_board else None,
+    }
 
 
 @app.get("/dev-mode")
