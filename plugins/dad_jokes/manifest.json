@@ -1,0 +1,41 @@
+{
+  "id": "dad_jokes",
+  "name": "Dad Jokes",
+  "version": "1.0.0",
+  "description": "Display random dad jokes from the icanhazdadjoke API",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "laugh",
+  "category": "entertainment",
+
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable Dad Jokes",
+        "default": false
+      }
+    }
+  },
+
+  "env_vars": [
+    {
+      "name": "DAD_JOKES_ENABLED",
+      "required": false,
+      "description": "Enable dad jokes feature",
+      "default": "false"
+    }
+  ],
+
+  "variables": {
+    "simple": [
+      "joke"
+    ]
+  },
+
+  "max_lengths": {
+    "joke": 120
+  }
+}

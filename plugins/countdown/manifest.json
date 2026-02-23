@@ -1,0 +1,87 @@
+{
+  "id": "countdown",
+  "name": "Countdown",
+  "version": "1.0.0",
+  "description": "Display the remaining time to an event in real time",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "timer",
+  "category": "utility",
+
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable Countdown",
+        "default": false
+      },
+      "event_name": {
+        "type": "string",
+        "title": "Event Name",
+        "description": "Name of the event to count down to (e.g., 'Last Day of School')",
+        "default": "Event"
+      },
+      "target_datetime": {
+        "type": "string",
+        "title": "Target Date & Time",
+        "description": "Target date and time in ISO format (e.g., 2025-06-15T00:00:00)",
+        "ui:widget": "datetime"
+      },
+      "timezone": {
+        "type": "string",
+        "title": "Timezone",
+        "description": "IANA timezone name (e.g., America/Los_Angeles)",
+        "default": "America/Los_Angeles",
+        "ui:widget": "timezone"
+      }
+    },
+    "required": ["target_datetime"]
+  },
+
+  "env_vars": [
+    {
+      "name": "COUNTDOWN_TARGET",
+      "required": false,
+      "description": "Target datetime in ISO format (can also be set in UI)"
+    },
+    {
+      "name": "COUNTDOWN_EVENT_NAME",
+      "required": false,
+      "description": "Name of the event (can also be set in UI)"
+    },
+    {
+      "name": "TIMEZONE",
+      "required": false,
+      "description": "IANA timezone (e.g., America/Los_Angeles)",
+      "default": "America/Los_Angeles"
+    }
+  ],
+
+  "variables": {
+    "simple": [
+      "event_name",
+      "target_datetime",
+      "days",
+      "hours",
+      "minutes",
+      "seconds",
+      "total_seconds",
+      "is_expired",
+      "formatted"
+    ]
+  },
+
+  "max_lengths": {
+    "event_name": 22,
+    "target_datetime": 19,
+    "days": 5,
+    "hours": 2,
+    "minutes": 2,
+    "seconds": 2,
+    "total_seconds": 10,
+    "is_expired": 5,
+    "formatted": 22
+  }
+}
