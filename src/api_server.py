@@ -244,6 +244,22 @@ class VersionResponse(BaseModel):
     is_dev: bool
 
 
+class UpdateCheckResponse(BaseModel):
+    """Response model for update check."""
+    current_version: str
+    latest_version: str | None
+    update_available: bool
+    package_url: str
+    error: str | None = None
+    is_production: bool
+
+
+class SystemRestartResponse(BaseModel):
+    """Response model for system restart."""
+    status: str
+    message: str
+
+
 # Create FastAPI app
 app = FastAPI(
     title="FiestaBoard Display API",
@@ -413,6 +429,97 @@ async def version():
         build_version=build_version,
         is_dev=build_version == "dev"
     )
+
+
+# =============================================================================
+# System Management Endpoints
+# =============================================================================
+
+GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
+GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
+
+
+@app.get("/system/update-check", response_model=UpdateCheckResponse)
+async def system_update_check():
+    """Check if a newer version of FiestaBoard is available.
+    
+    Compares the current package version against the latest GitHub release.
+    Returns the current version, latest version, and whether an update is available.
+    """
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    
+    try:
+        resp = requests.get(
+            GITHUB_RELEASES_API,
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=10
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        tag_name = data.get("tag_name", "")
+        # Strip leading 'v' if present (e.g. "v2.0.2" -> "2.0.2")
+        latest_version = tag_name.lstrip("v")
+        update_available = _is_newer_version(latest_version, __version__)
+        
+        return UpdateCheckResponse(
+            current_version=__version__,
+            latest_version=latest_version,
+            update_available=update_available,
+            package_url=GITHUB_PACKAGE_URL,
+            is_production=is_production,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to check for updates: {e}")
+        return UpdateCheckResponse(
+            current_version=__version__,
+            latest_version=None,
+            update_available=False,
+            package_url=GITHUB_PACKAGE_URL,
+            error=f"Could not check for updates: {e}",
+            is_production=is_production,
+        )
+
+
+@app.post("/system/restart", response_model=SystemRestartResponse)
+async def system_restart(background_tasks: BackgroundTasks):
+    """Restart the FiestaBoard container.
+    
+    In production mode, restarts the container via Docker API.
+    In development mode, returns a message indicating restart is not available.
+    """
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    
+    if not is_production:
+        raise HTTPException(
+            status_code=400,
+            detail="Container restart is only available in production mode"
+        )
+    
+    try:
+        from .system.docker_manager import get_docker_manager
+        docker_mgr = get_docker_manager()
+        # Schedule restart in background so the response can be sent first
+        background_tasks.add_task(docker_mgr.restart_container, "all", delay=2)
+        return SystemRestartResponse(
+            status="success",
+            message="Container restart initiated. FiestaBoard will be back shortly."
+        )
+    except Exception as e:
+        logger.error(f"Failed to restart container: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restart: {e}")
+
+
+def _is_newer_version(latest: str, current: str) -> bool:
+    """Compare two semver-style version strings.
+    
+    Returns True if latest is strictly newer than current.
+    """
+    try:
+        def parse_version(v: str):
+            return tuple(int(x) for x in v.split("."))
+        return parse_version(latest) > parse_version(current)
+    except (ValueError, AttributeError):
+        return False
 
 
 @app.get("/logs")
