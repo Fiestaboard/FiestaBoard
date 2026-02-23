@@ -21,11 +21,11 @@ You bring the board. You bring the API keys for the services you care about. Fie
 - **Docker and Docker Compose** installed:
   - [Mac](https://docs.docker.com/desktop/setup/install/mac-install/) | [Windows](https://docs.docker.com/desktop/setup/install/windows-install/) | [Linux](https://docs.docker.com/desktop/setup/install/linux/)
 
-That's it -- just your board API key and Docker. The installation wizard walks you through the rest. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
+That's it -- just your board API key and Docker. The install script gets the server running and opens the setup wizard in your browser, which walks you through the rest. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
 
 ### Installation
 
-Run the setup wizard - it will collect your board API key, create the config, and start the server:
+Run the install script — it checks prerequisites, starts the server, and opens the setup wizard in your browser:
 
 ```bash
 # Mac/Linux
@@ -35,7 +35,7 @@ Run the setup wizard - it will collect your board API key, create the config, an
 .\scripts\install.ps1
 ```
 
-Once it finishes:
+The setup wizard walks you through connecting your board and choosing data sources.
 
 ### Manual Setup
 
@@ -131,8 +131,8 @@ FiestaBoard uses a **plugin architecture** - each feature is a self-contained pl
 | | Hosting (Self-Hosting) | Development |
 |---|---|---|
 | **Goal** | Run the server to control your board | Contribute code or build plugins |
-| **Setup** | Run the install wizard — it handles everything | `docker-compose -f docker-compose.dev.yml up --build` |
-| **Configuration** | Wizard creates `.env` for you; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
+| **Setup** | Run the install script — it starts the server and opens the setup wizard | `docker-compose -f docker-compose.dev.yml up --build` |
+| **Configuration** | Setup wizard in the browser; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
 | **Web UI** | http://localhost:4420 | http://localhost:4420 |
 | **Hot reload** | No | Yes (Python API auto-reloads; UI requires rebuild) |
 | **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
@@ -172,13 +172,13 @@ Browse `plugins/*/README.md` for all plugin documentation. Each plugin's README 
 
 ## Configuration
 
-The install wizard handles initial configuration for self-hosting. After setup, everything else - plugins, API keys, and settings - is configured through the **web UI**.
+The install script handles getting the server running. After that, everything - board connection, plugins, API keys, and settings - is configured through the **web UI**.
 
 Go to the **Integrations** page to enable plugins, enter API keys, and adjust settings. No need to edit config files.
 
 > **For development:** If you're contributing code or building plugins, see the [Environment Variables Reference](https://fiestaboard.app/docs/reference/environment-variables) for the full list of options.
 
-### Board Connection (set by wizard)
+### Board Connection (set via web UI)
 
 - `BOARD_API_MODE`: `local` (default) or `cloud` - how FiestaBoard connects to your board
 - `BOARD_LOCAL_API_KEY` / `BOARD_HOST`: For local mode
@@ -264,7 +264,7 @@ FiestaBoard/
 
 ## Getting Your Board API Key
 
-You need your board's API key before running the install wizard. There are two connection modes:
+You need your board's API key to complete the setup wizard. There are two connection modes:
 
 ### Local API (Recommended)
 
@@ -284,7 +284,7 @@ Works from anywhere with internet. No transition animation support.
 3. Enable **Read/Write API**
 4. Copy your Read/Write API key
 
-> The install wizard will ask for your board API key and write it to `.env` for you. If you're setting up manually (e.g., for development), see `env.example` for the variable names.
+> The setup wizard in the web UI will ask for your board API key and save it for you. If you're setting up manually (e.g., for development), see `env.example` for the variable names.
 
 See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details on cloud vs local mode.
 

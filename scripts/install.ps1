@@ -1,5 +1,5 @@
 # FiestaBoard Installation Script for Windows
-# Run this script in PowerShell to set up FiestaBoard
+# Gets FiestaBoard running and opens the setup wizard in your browser
 
 Write-Host "╔═══════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║                                           ║" -ForegroundColor Cyan
@@ -32,7 +32,7 @@ try {
     Write-Host "✗ Docker is not installed!" -ForegroundColor Red
     Write-Host ""
     Write-Host "Please install Docker Desktop first:"
-    Write-Host "  https://www.docker.com/products/docker-desktop/"
+    Write-Host "  https://docs.docker.com/desktop/setup/install/windows-install/"
     Write-Host ""
     exit 1
 }
@@ -52,124 +52,58 @@ try {
     exit 1
 }
 
-# Check for Docker Compose
+# Check for Docker Compose (supports both 'docker compose' plugin and standalone 'docker-compose')
+$DockerCompose = ""
 try {
-    $null = docker-compose --version
-    Write-Host "✓ Docker Compose is installed" -ForegroundColor Green
+    $null = docker compose version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        $DockerCompose = "docker compose"
+    } else {
+        throw "not available"
+    }
 } catch {
-    Write-Host "✗ Docker Compose is not installed!" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Docker Compose usually comes with Docker Desktop."
-    Write-Host "Please reinstall Docker Desktop."
-    Write-Host ""
-    exit 1
+    try {
+        $null = docker-compose --version
+        $DockerCompose = "docker-compose"
+    } catch {
+        Write-Host "✗ Docker Compose is not installed!" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Docker Compose usually comes with Docker Desktop."
+        Write-Host "Please reinstall Docker Desktop."
+        Write-Host ""
+        exit 1
+    }
 }
 
+Write-Host "✓ Docker Compose is available" -ForegroundColor Green
 Write-Host ""
 
-# Step 2: Configure API Keys
+# Helper function to run docker compose commands
+function Invoke-DockerCompose {
+    param([string[]]$Args)
+    if ($DockerCompose -eq "docker compose") {
+        & docker compose @Args
+    } else {
+        & docker-compose @Args
+    }
+}
+
+# Step 2: Prepare configuration
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
-Write-Host "Step 2: Configure API Keys" -ForegroundColor Yellow
+Write-Host "Step 2: Preparing configuration..." -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
 Write-Host ""
 
 $envPath = Join-Path $ProjectDir ".env"
-$skipConfig = $false
 
-# Check if .env already exists
 if (Test-Path $envPath) {
-    Write-Host "⚠ A .env file already exists" -ForegroundColor Yellow
-    Write-Host ""
-    $keepConfig = Read-Host "Do you want to keep your existing configuration? (y/n)"
-    if ($keepConfig -eq "y" -or $keepConfig -eq "Y") {
-        Write-Host "✓ Keeping existing configuration" -ForegroundColor Green
-        $skipConfig = $true
-    } else {
-        Write-Host ""
-        Write-Host "Creating a backup of your existing .env file..."
-        $backupName = ".env.backup.$(Get-Date -Format 'yyyyMMddHHmmss')"
-        Copy-Item $envPath (Join-Path $ProjectDir $backupName)
-        Write-Host "✓ Backup created" -ForegroundColor Green
-        $skipConfig = $false
-    }
-}
-
-if (-not $skipConfig) {
-    # Copy env.example to .env
+    Write-Host "✓ Using existing .env configuration" -ForegroundColor Green
+} else {
     $envExample = Join-Path $ProjectDir "env.example"
     Copy-Item $envExample $envPath
     Write-Host "✓ Created .env file from template" -ForegroundColor Green
-    Write-Host ""
-    
-    # Get Board API Key
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "Board API Key Setup" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "To get your Board API Key:"
-    Write-Host "  1. Go to: https://web.vestaboard.com"
-    Write-Host "  2. Log in and click on your board"
-    Write-Host "  3. Go to Settings > API"
-    Write-Host "  4. Enable 'Read/Write API'"
-    Write-Host "  5. Copy the API key"
-    Write-Host ""
-    $boardKey = Read-Host "Enter your Board API Key"
-    
-    if ([string]::IsNullOrWhiteSpace($boardKey)) {
-        Write-Host "✗ Board API Key is required!" -ForegroundColor Red
-        exit 1
-    }
-    
-    # Update .env with Board API Key
-    $envContent = Get-Content $envPath
-    $envContent = $envContent -replace "^BOARD_READ_WRITE_KEY=.*", "BOARD_READ_WRITE_KEY=$boardKey"
-    Set-Content $envPath $envContent
-    
-    Write-Host "✓ Board API Key configured" -ForegroundColor Green
-    Write-Host ""
-    
-    # Get Weather API Key
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "Weather API Key Setup" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "To get a Weather API Key (free):"
-    Write-Host "  1. Go to: https://www.weatherapi.com/"
-    Write-Host "  2. Click 'Sign Up' (no credit card required)"
-    Write-Host "  3. After signing in, copy your API key from the dashboard"
-    Write-Host ""
-    $weatherKey = Read-Host "Enter your Weather API Key"
-    
-    if ([string]::IsNullOrWhiteSpace($weatherKey)) {
-        Write-Host "✗ Weather API Key is required!" -ForegroundColor Red
-        exit 1
-    }
-    
-    # Update .env with Weather API Key
-    $envContent = Get-Content $envPath
-    $envContent = $envContent -replace "^WEATHER_API_KEY=.*", "WEATHER_API_KEY=$weatherKey"
-    Set-Content $envPath $envContent
-    
-    Write-Host "✓ Weather API Key configured" -ForegroundColor Green
-    Write-Host ""
-    
-    # Optional: Configure Location
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "Location Setup (Optional)" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host ""
-    $location = Read-Host "Enter your location (or press Enter for 'San Francisco, CA')"
-    
-    if (-not [string]::IsNullOrWhiteSpace($location)) {
-        $envContent = Get-Content $envPath
-        $envContent = $envContent -replace "^WEATHER_LOCATION=.*", "WEATHER_LOCATION=$location"
-        Set-Content $envPath $envContent
-        Write-Host "✓ Location set to: $location" -ForegroundColor Green
-    } else {
-        Write-Host "✓ Using default location: San Francisco, CA" -ForegroundColor Green
-    }
-    Write-Host ""
 }
+Write-Host ""
 
 # Step 3: Start FiestaBoard
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
@@ -179,12 +113,21 @@ Write-Host ""
 
 Set-Location $ProjectDir
 
-Write-Host "Building and starting Docker containers..."
+# Use pre-built image from Docker Hub if available (faster), otherwise build from source
+$composeFile = "docker-compose.yml"
+$composeArgs = @("-f", $composeFile, "up", "-d", "--build")
+$hubComposePath = Join-Path $ProjectDir "docker-compose.hub.yml"
+if (Test-Path $hubComposePath) {
+    $composeFile = "docker-compose.hub.yml"
+    $composeArgs = @("-f", $composeFile, "up", "-d")
+    Write-Host "Pulling and starting FiestaBoard..."
+} else {
+    Write-Host "Building and starting FiestaBoard..."
+}
 Write-Host "(This may take a few minutes the first time)"
 Write-Host ""
 
-# Start in background
-docker-compose up -d --build
+Invoke-DockerCompose $composeArgs
 
 # Wait for services to be ready
 Write-Host ""
@@ -192,40 +135,37 @@ Write-Host "Waiting for services to start..."
 Start-Sleep -Seconds 10
 
 # Check if services are running
-$services = docker-compose ps
-if ($services -match "Up") {
+$services = Invoke-DockerCompose @("-f", $composeFile, "ps") 2>&1 | Out-String
+if ($services -match "Up|running") {
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
     Write-Host "✓ FiestaBoard is running!" -ForegroundColor Green
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
     Write-Host ""
-    Write-Host "🌐 Access FiestaBoard at:"
+    Write-Host "Opening the setup wizard in your browser..."
     Write-Host ""
-    Write-Host "   Web UI:   http://localhost:4420"
-    Write-Host "   API Docs: http://localhost:4420/docs"
+
+    # Open browser
+    Start-Process "http://localhost:4420"
+
+    Write-Host "🌐 FiestaBoard is ready at: http://localhost:4420"
+    Write-Host ""
+    Write-Host "   The setup wizard will walk you through connecting"
+    Write-Host "   your board and choosing your data sources."
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "Next Steps:" -ForegroundColor Cyan
+    Write-Host "Useful commands:" -ForegroundColor Cyan
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "1. Open http://localhost:4420 in your browser"
-    Write-Host "2. Click the '▶ Start Service' button"
-    Write-Host "3. Watch your board update! 🎉"
-    Write-Host ""
-    Write-Host "To stop FiestaBoard later, run:"
-    Write-Host "  docker-compose down"
-    Write-Host ""
-    Write-Host "To start it again, run:"
-    Write-Host "  docker-compose up -d"
-    Write-Host ""
-    Write-Host "View logs with:"
-    Write-Host "  docker-compose logs -f"
+    Write-Host "  Stop:    $DockerCompose -f $composeFile down"
+    Write-Host "  Start:   $DockerCompose -f $composeFile up -d"
+    Write-Host "  Logs:    $DockerCompose -f $composeFile logs -f"
     Write-Host ""
 } else {
     Write-Host "✗ Something went wrong starting the services" -ForegroundColor Red
     Write-Host ""
     Write-Host "Check the logs with:"
-    Write-Host "  docker-compose logs"
+    Write-Host "  $DockerCompose -f $composeFile logs"
     Write-Host ""
     exit 1
 }
