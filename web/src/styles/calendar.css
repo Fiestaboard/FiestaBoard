@@ -17,9 +17,39 @@
   --rbc-text-color: hsl(var(--foreground));
   --rbc-muted-color: hsl(var(--muted-foreground));
   --rbc-primary-color: hsl(var(--primary));
+
+  /* Brand-based schedule event colors - Light mode */
+  --schedule-color-0: #2e6eaa; /* Blue  (from brand #4a90d9) */
+  --schedule-bg-0: rgba(74, 144, 217, 0.12);
+  --schedule-color-1: #4e8c14; /* Green (from brand #7ed321) */
+  --schedule-bg-1: rgba(126, 211, 33, 0.12);
+  --schedule-color-2: #b07d10; /* Orange (from brand #f5a623) */
+  --schedule-bg-2: rgba(245, 166, 35, 0.12);
+  --schedule-color-3: #c93028; /* Red   (from brand #eb4034) */
+  --schedule-bg-3: rgba(235, 64, 52, 0.10);
+  --schedule-color-4: #7c3fa0; /* Violet (from brand #9b59b6) */
+  --schedule-bg-4: rgba(155, 89, 182, 0.12);
+  --schedule-color-5: #8a7a00; /* Yellow (from brand #f8e71c) */
+  --schedule-bg-5: rgba(248, 231, 28, 0.14);
   
   /* Full height - no scrolling */
   width: 100%;
+}
+
+/* Brand-based schedule event colors - Dark mode */
+.dark .schedule-calendar-container {
+  --schedule-color-0: #7ab3ea; /* Blue  */
+  --schedule-bg-0: rgba(74, 144, 217, 0.18);
+  --schedule-color-1: #9ee554; /* Green */
+  --schedule-bg-1: rgba(126, 211, 33, 0.16);
+  --schedule-color-2: #f8c35a; /* Orange */
+  --schedule-bg-2: rgba(245, 166, 35, 0.16);
+  --schedule-color-3: #f07068; /* Red   */
+  --schedule-bg-3: rgba(235, 64, 52, 0.16);
+  --schedule-color-4: #bb84d4; /* Violet */
+  --schedule-bg-4: rgba(155, 89, 182, 0.18);
+  --schedule-color-5: #f2e64e; /* Yellow */
+  --schedule-bg-5: rgba(248, 231, 28, 0.14);
 }
 
 .schedule-calendar-container .rbc-calendar {

@@ -208,40 +208,42 @@ export function formatDayPattern(schedule: ScheduleEntry): string {
 }
 
 /**
- * Generate a consistent color for a page based on its ID
- * Uses HSL color space for pleasant, distinct colors
- * Text color - darker for better contrast against light backgrounds
+ * Number of brand colors available for schedule events.
+ * Maps to CSS variables --schedule-color-0 through --schedule-color-5
+ * defined in calendar.css with light/dark mode variants.
  */
-export function getPageColor(pageId: string): string {
-  // Simple hash function for the page ID
+const SCHEDULE_COLOR_COUNT = 6;
+
+/**
+ * Hash a string to a consistent integer
+ */
+function hashString(str: string): number {
   let hash = 0;
-  for (let i = 0; i < pageId.length; i++) {
-    const char = pageId.charCodeAt(i);
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
-
-  // Generate a hue from 0-360 based on the hash
-  const hue = Math.abs(hash) % 360;
-  
-  // Darker, more saturated for good contrast against light backgrounds
-  return `hsl(${hue}, 70%, 35%)`;
+  return Math.abs(hash);
 }
 
 /**
- * Get a lighter version of the page color for backgrounds
+ * Generate a consistent brand color for a schedule based on its ID.
+ * Returns a CSS variable reference that adapts to light/dark mode.
+ * Text/border color - optimized for contrast in each mode.
+ */
+export function getPageColor(pageId: string): string {
+  const index = hashString(pageId) % SCHEDULE_COLOR_COUNT;
+  return `var(--schedule-color-${index})`;
+}
+
+/**
+ * Get a lighter version of the brand color for event backgrounds.
+ * Returns a CSS variable reference that adapts to light/dark mode.
  */
 export function getPageColorLight(pageId: string): string {
-  let hash = 0;
-  for (let i = 0; i < pageId.length; i++) {
-    const char = pageId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-
-  const hue = Math.abs(hash) % 360;
-  // Light, moderate saturation background
-  return `hsl(${hue}, 50%, 90%)`;
+  const index = hashString(pageId) % SCHEDULE_COLOR_COUNT;
+  return `var(--schedule-bg-${index})`;
 }
 
 /**
