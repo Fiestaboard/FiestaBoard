@@ -91,18 +91,18 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Create nginx directories and set permissions
 RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx /var/lib/nginx/body
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
+# Create data directory for logs and app state
+RUN mkdir -p /app/data/logs
 
-# Copy supervisord configs for process supervision
+# Copy supervisord configs and entrypoint before creating user
 COPY supervisord.conf /app/supervisord.conf
 COPY supervisord-dev.conf /app/supervisord-dev.conf
-RUN chown appuser:appuser /app/supervisord.conf /app/supervisord-dev.conf
-
-# Copy entrypoint script (handles Docker socket permissions at runtime)
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+
+# Create non-root user for security and transfer ownership
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
 
 # Expose single port
 EXPOSE 3000
