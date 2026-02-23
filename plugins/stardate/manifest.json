@@ -1,0 +1,48 @@
+{
+  "id": "stardate",
+  "name": "Stardate",
+  "version": "1.0.0",
+  "description": "Display the current TNG-style stardate",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "star",
+  "category": "entertainment",
+
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable Stardate",
+        "default": true
+      },
+      "timezone": {
+        "type": "string",
+        "title": "Timezone",
+        "description": "IANA timezone name (e.g., America/Los_Angeles)",
+        "default": "America/Los_Angeles",
+        "ui:widget": "timezone"
+      }
+    }
+  },
+
+  "env_vars": [
+    {
+      "name": "TIMEZONE",
+      "required": false,
+      "description": "IANA timezone (e.g., America/Los_Angeles)",
+      "default": "America/Los_Angeles"
+    }
+  ],
+
+  "variables": {
+    "simple": [
+      "stardate"
+    ]
+  },
+
+  "max_lengths": {
+    "stardate": 9
+  }
+}
