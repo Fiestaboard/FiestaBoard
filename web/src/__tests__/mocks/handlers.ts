@@ -785,6 +785,41 @@ export const handlers = [
     return HttpResponse.json(mockSilenceStatus);
   }),
 
+  // Version endpoint
+  http.get(`${API_BASE}/version`, () => {
+    return HttpResponse.json({
+      package_version: "2.0.1",
+      build_version: "dev",
+      is_dev: true,
+    });
+  }),
+
+  // System management endpoints
+  http.get(`${API_BASE}/system/update-check`, () => {
+    return HttpResponse.json({
+      current_version: "2.0.1",
+      latest_version: "2.0.1",
+      update_available: false,
+      package_url: "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard",
+      error: null,
+      is_production: false,
+    });
+  }),
+
+  http.post(`${API_BASE}/system/restart`, () => {
+    return HttpResponse.json({
+      status: "success",
+      message: "Container restart initiated. FiestaBoard will be back shortly.",
+    });
+  }),
+
+  http.post(`${API_BASE}/system/upgrade`, () => {
+    return HttpResponse.json({
+      status: "success",
+      message: "Upgrade initiated. Pulling latest image and restarting — FiestaBoard will be back shortly.",
+    });
+  }),
+
   // Polling settings endpoints
   http.get(`${API_BASE}/settings/polling`, () => {
     return HttpResponse.json({

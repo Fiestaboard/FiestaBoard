@@ -2,6 +2,7 @@
 
 import { DisplaySettings } from "@/components/settings/display-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
+import { SystemUpdate } from "@/components/settings/system-update";
 import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
 import Link from "next/link";
@@ -48,6 +49,15 @@ export default function SettingsPage() {
                 Manage Integrations
               </Button>
             </Link>
+          </section>
+
+          {/* System Update */}
+          <section>
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">System Update</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Check for new versions and update your FiestaBoard installation.
+            </p>
+            <SystemUpdate />
           </section>
 
           {/* Debug Tools */}

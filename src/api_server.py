@@ -244,6 +244,22 @@ class VersionResponse(BaseModel):
     is_dev: bool
 
 
+class UpdateCheckResponse(BaseModel):
+    """Response model for update check."""
+    current_version: str
+    latest_version: str | None
+    update_available: bool
+    package_url: str
+    error: str | None = None
+    is_production: bool
+
+
+class SystemRestartResponse(BaseModel):
+    """Response model for system restart."""
+    status: str
+    message: str
+
+
 # Create FastAPI app
 app = FastAPI(
     title="FiestaBoard Display API",
@@ -414,6 +430,187 @@ async def version():
         build_version=build_version,
         is_dev=build_version == "dev" and not production
     )
+
+
+# =============================================================================
+# System Management Endpoints
+# =============================================================================
+
+GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
+GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
+DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
+RESTART_DELAY_SECONDS = 2
+
+
+def _check_dockerhub_for_latest() -> Optional[str]:
+    """Check Docker Hub for the latest version tag.
+    
+    Queries the Docker Hub API for available tags. No authentication required
+    for public repositories. Filters tags to find the highest semver version.
+    
+    Returns the latest version string, or None if the check fails.
+    """
+    try:
+        # Query Docker Hub tags endpoint
+        resp = requests.get(DOCKERHUB_TAGS_URL, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        # Extract tag names from results
+        results = data.get("results", [])
+        tags = [result.get("name") for result in results if result.get("name")]
+        
+        # Filter to semver-style tags and find the highest version
+        version_tags = []
+        for tag in tags:
+            parts = tag.split(".")
+            if len(parts) >= 2 and all(p.isdigit() for p in parts):
+                version_tags.append(tuple(int(p) for p in parts))
+        
+        if not version_tags:
+            return None
+        
+        best = max(version_tags)
+        return ".".join(str(p) for p in best)
+    except Exception as e:
+        logger.debug(f"Docker Hub version check failed: {e}")
+        return None
+
+
+def _check_github_releases_for_latest() -> Optional[str]:
+    """Check GitHub Releases API for the latest version.
+    
+    Returns the latest version string, or None if the check fails.
+    """
+    try:
+        resp = requests.get(
+            GITHUB_RELEASES_API,
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        tag_name = resp.json().get("tag_name", "")
+        return tag_name.lstrip("v") if tag_name else None
+    except Exception as e:
+        logger.debug(f"GitHub releases check failed: {e}")
+        return None
+
+
+@app.get("/system/update-check", response_model=UpdateCheckResponse)
+async def system_update_check():
+    """Check if a newer version of FiestaBoard is available.
+    
+    Checks Docker Hub for the latest container image tag, with a fallback to
+    the GitHub Releases API. No authentication is required because the package
+    and repository are public.
+    
+    Returns the current version, latest version, and whether an update is available.
+    """
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    
+    try:
+        # Try Docker Hub first (checks actual container registry), fall back to GitHub Releases
+        latest_version = _check_dockerhub_for_latest()
+        
+        if not latest_version:
+            latest_version = _check_github_releases_for_latest()
+        
+        if latest_version:
+            update_available = _is_newer_version(latest_version, __version__)
+            return UpdateCheckResponse(
+                current_version=__version__,
+                latest_version=latest_version,
+                update_available=update_available,
+                package_url=GITHUB_PACKAGE_URL,
+                is_production=is_production,
+            )
+        
+        raise RuntimeError("Both Docker Hub and GitHub Releases checks failed")
+    except Exception as e:
+        logger.warning(f"Failed to check for updates: {e}")
+        return UpdateCheckResponse(
+            current_version=__version__,
+            latest_version=None,
+            update_available=False,
+            package_url=GITHUB_PACKAGE_URL,
+            error=f"Could not check for updates: {e}",
+            is_production=is_production,
+        )
+
+
+@app.post("/system/restart", response_model=SystemRestartResponse)
+async def system_restart(background_tasks: BackgroundTasks):
+    """Restart the FiestaBoard container.
+    
+    In production mode, restarts the container via Docker API.
+    In development mode, returns a message indicating restart is not available.
+    """
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    
+    if not is_production:
+        raise HTTPException(
+            status_code=400,
+            detail="Container restart is only available in production mode"
+        )
+    
+    try:
+        from .system.docker_manager import get_docker_manager
+        docker_mgr = get_docker_manager()
+        # Schedule restart in background so the response can be sent first
+        background_tasks.add_task(docker_mgr.restart_container, "all", delay=RESTART_DELAY_SECONDS)
+        return SystemRestartResponse(
+            status="success",
+            message="Container restart initiated. FiestaBoard will be back shortly."
+        )
+    except Exception as e:
+        logger.error(f"Failed to restart container: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restart: {e}")
+
+
+@app.post("/system/upgrade", response_model=SystemRestartResponse)
+async def system_upgrade(background_tasks: BackgroundTasks):
+    """Pull latest container images from Docker Hub and restart.
+    
+    This is the recommended way to update when using the :latest tag.
+    In production mode, pulls the newest image and restarts the container.
+    In development mode, returns a message indicating upgrade is not available.
+    """
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    
+    if not is_production:
+        raise HTTPException(
+            status_code=400,
+            detail="Container upgrade is only available in production mode"
+        )
+    
+    try:
+        from .system.docker_manager import get_docker_manager
+        docker_mgr = get_docker_manager()
+        background_tasks.add_task(docker_mgr.upgrade_containers)
+        return SystemRestartResponse(
+            status="success",
+            message="Upgrade initiated. Pulling latest image and restarting — FiestaBoard will be back shortly."
+        )
+    except Exception as e:
+        logger.error(f"Failed to upgrade containers: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upgrade: {e}")
+
+
+def _is_newer_version(latest: str, current: str) -> bool:
+    """Compare two semver-style version strings.
+    
+    Returns True if latest is strictly newer than current.
+    Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
+    """
+    try:
+        def parse_version(v: str):
+            parts = v.split(".")
+            if not parts or not all(p.isdigit() for p in parts):
+                raise ValueError(f"Invalid version: {v}")
+            return tuple(int(x) for x in parts)
+        return parse_version(latest) > parse_version(current)
+    except (ValueError, AttributeError):
+        return False
 
 
 @app.get("/logs")

@@ -642,6 +642,20 @@ export interface VersionResponse {
   is_dev: boolean;
 }
 
+export interface UpdateCheckResponse {
+  current_version: string;
+  latest_version: string | null;
+  update_available: boolean;
+  package_url: string;
+  error: string | null;
+  is_production: boolean;
+}
+
+export interface SystemRestartResponse {
+  status: string;
+  message: string;
+}
+
 // API client with typed methods
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -989,6 +1003,14 @@ export const api = {
   // Version endpoint
   getVersion: () =>
     fetchApi<VersionResponse>("/version"),
+
+  // System management endpoints
+  checkForUpdate: () =>
+    fetchApi<UpdateCheckResponse>("/system/update-check"),
+  restartSystem: () =>
+    fetchApi<SystemRestartResponse>("/system/restart", { method: "POST" }),
+  upgradeSystem: () =>
+    fetchApi<SystemRestartResponse>("/system/upgrade", { method: "POST" }),
 
   // Plugin system endpoints
   listPlugins: () =>
