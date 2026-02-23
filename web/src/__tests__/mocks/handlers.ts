@@ -315,7 +315,11 @@ export const requestStore: {
   lastPageCreate?: PageCreate;
   lastTransitionUpdate?: Partial<TransitionSettings>;
   lastOutputUpdate?: { target: string };
-} = {};
+  lastLiveRender?: { template: string | string[]; board_id?: string };
+  liveRenderCallCount: number;
+} = {
+  liveRenderCallCount: 0,
+};
 
 // Handlers with request validation
 export const handlers = [
@@ -569,6 +573,20 @@ export const handlers = [
       line_count: template ? template.split("\n").length : 1,
     };
     return HttpResponse.json(response);
+  }),
+
+  http.post(`${API_BASE}/templates/render/live`, async ({ request }) => {
+    const body = await request.json() as { template: string | string[]; board_id?: string };
+    requestStore.lastLiveRender = body;
+    requestStore.liveRenderCallCount++;
+    const template = Array.isArray(body.template) ? body.template.join("\n") : body.template;
+    return HttpResponse.json({
+      rendered: template || "",
+      lines: template ? template.split("\n") : [""],
+      line_count: template ? template.split("\n").length : 1,
+      sent_to_board: true,
+      board_id: body.board_id || "default",
+    });
   }),
 
   // Rotation endpoints
