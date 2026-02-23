@@ -13,6 +13,7 @@ import {
   RefreshCw,
   RotateCcw,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,6 +39,16 @@ export function SystemUpdate() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to restart container");
+    },
+  });
+
+  const upgradeMutation = useMutation({
+    mutationFn: () => api.upgradeSystem(),
+    onSuccess: (data) => {
+      toast.success(data.message);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to upgrade container");
     },
   });
 
@@ -129,21 +140,34 @@ export function SystemUpdate() {
               <>
                 <p className="text-sm text-muted-foreground">
                   If your container is configured with the <code className="text-xs bg-muted px-1 py-0.5 rounded">latest</code> tag, 
-                  restarting will pull the newest version automatically.
+                  you can pull the newest image and restart automatically.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="default"
                     size="sm"
+                    onClick={() => upgradeMutation.mutate()}
+                    disabled={upgradeMutation.isPending || restartMutation.isPending}
+                  >
+                    {upgradeMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Pull &amp; Restart
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => restartMutation.mutate()}
-                    disabled={restartMutation.isPending}
+                    disabled={restartMutation.isPending || upgradeMutation.isPending}
                   >
                     {restartMutation.isPending ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <RotateCcw className="h-4 w-4 mr-2" />
                     )}
-                    Restart & Update
+                    Restart Only
                   </Button>
                   <Button variant="outline" size="sm" asChild>
                     <a
@@ -160,7 +184,7 @@ export function SystemUpdate() {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Container restart is only available in production mode. 
+                  Container management is only available in production mode. 
                   Visit the package page for manual update instructions.
                 </p>
                 <Button variant="outline" size="sm" asChild>

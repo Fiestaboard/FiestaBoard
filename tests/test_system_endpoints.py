@@ -1,4 +1,4 @@
-"""Tests for system management endpoints (update check and restart)."""
+"""Tests for system management endpoints (update check, restart, and upgrade)."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -91,6 +91,142 @@ class TestUpdateCheck:
         assert data["update_available"] is True
 
 
+class TestGHCRCheck:
+    """Tests for GHCR (GitHub Container Registry) version checking."""
+
+    def test_ghcr_check_returns_latest_version(self):
+        """Test GHCR check correctly finds the highest semver tag."""
+        from src.api_server import _check_ghcr_for_latest
+
+        token_resp = Mock()
+        token_resp.status_code = 200
+        token_resp.json.return_value = {"token": "test-token"}
+        token_resp.raise_for_status = Mock()
+
+        tags_resp = Mock()
+        tags_resp.status_code = 200
+        tags_resp.json.return_value = {"tags": ["latest", "2.0.0", "2.0.1", "2.1.0", "main"]}
+        tags_resp.raise_for_status = Mock()
+
+        def mock_get(url, **kwargs):
+            if "token" in url:
+                return token_resp
+            return tags_resp
+
+        with patch("src.api_server.requests.get", side_effect=mock_get):
+            result = _check_ghcr_for_latest()
+
+        assert result == "2.1.0"
+
+    def test_ghcr_check_no_version_tags(self):
+        """Test GHCR check returns None when no semver tags exist."""
+        from src.api_server import _check_ghcr_for_latest
+
+        token_resp = Mock()
+        token_resp.status_code = 200
+        token_resp.json.return_value = {"token": "test-token"}
+        token_resp.raise_for_status = Mock()
+
+        tags_resp = Mock()
+        tags_resp.status_code = 200
+        tags_resp.json.return_value = {"tags": ["latest", "main", "dev"]}
+        tags_resp.raise_for_status = Mock()
+
+        def mock_get(url, **kwargs):
+            if "token" in url:
+                return token_resp
+            return tags_resp
+
+        with patch("src.api_server.requests.get", side_effect=mock_get):
+            result = _check_ghcr_for_latest()
+
+        assert result is None
+
+    def test_ghcr_check_network_failure(self):
+        """Test GHCR check returns None on network error."""
+        from src.api_server import _check_ghcr_for_latest
+
+        with patch("src.api_server.requests.get", side_effect=Exception("Connection refused")):
+            result = _check_ghcr_for_latest()
+
+        assert result is None
+
+    def test_ghcr_check_missing_token(self):
+        """Test GHCR check returns None when token is missing from response."""
+        from src.api_server import _check_ghcr_for_latest
+
+        token_resp = Mock()
+        token_resp.status_code = 200
+        token_resp.json.return_value = {}
+        token_resp.raise_for_status = Mock()
+
+        with patch("src.api_server.requests.get", return_value=token_resp):
+            result = _check_ghcr_for_latest()
+
+        assert result is None
+
+    def test_update_check_uses_ghcr_first(self, client):
+        """Test that update-check tries GHCR before falling back to GitHub Releases."""
+        from src import __version__
+
+        call_order = []
+
+        token_resp = Mock()
+        token_resp.status_code = 200
+        token_resp.json.return_value = {"token": "test-token"}
+        token_resp.raise_for_status = Mock()
+
+        tags_resp = Mock()
+        tags_resp.status_code = 200
+        tags_resp.json.return_value = {"tags": ["99.0.0", "2.0.0"]}
+        tags_resp.raise_for_status = Mock()
+
+        def mock_get(url, **kwargs):
+            call_order.append(url)
+            if "token" in url:
+                return token_resp
+            if "ghcr.io" in url:
+                return tags_resp
+            # GitHub Releases should NOT be called
+            raise AssertionError("Should not reach GitHub Releases API")
+
+        with patch("src.api_server.requests.get", side_effect=mock_get):
+            response = client.get("/system/update-check")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["latest_version"] == "99.0.0"
+        assert data["update_available"] is True
+        # Verify GHCR was called (token + tags)
+        assert any("ghcr.io" in url for url in call_order)
+
+    def test_update_check_falls_back_to_github_releases(self, client):
+        """Test fallback to GitHub Releases when GHCR fails."""
+        releases_resp = Mock()
+        releases_resp.status_code = 200
+        releases_resp.json.return_value = {"tag_name": "v99.0.0"}
+        releases_resp.raise_for_status = Mock()
+
+        call_count = {"ghcr": 0, "github": 0}
+
+        def mock_get(url, **kwargs):
+            if "ghcr.io" in url:
+                call_count["ghcr"] += 1
+                raise Exception("GHCR unavailable")
+            call_count["github"] += 1
+            return releases_resp
+
+        with patch("src.api_server.requests.get", side_effect=mock_get):
+            response = client.get("/system/update-check")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["latest_version"] == "99.0.0"
+        assert data["update_available"] is True
+        assert call_count["ghcr"] > 0  # GHCR was attempted
+        assert call_count["github"] > 0  # GitHub was used as fallback
+
+
 class TestSystemRestart:
     """Tests for /system/restart endpoint."""
 
@@ -115,6 +251,32 @@ class TestSystemRestart:
         data = response.json()
         assert data["status"] == "success"
         assert "restart" in data["message"].lower()
+
+
+class TestSystemUpgrade:
+    """Tests for /system/upgrade endpoint."""
+
+    def test_upgrade_blocked_in_dev_mode(self, client):
+        """Test upgrade is rejected in non-production mode."""
+        with patch.dict("os.environ", {"PRODUCTION": "false"}):
+            response = client.post("/system/upgrade")
+
+        assert response.status_code == 400
+        assert "production" in response.json()["detail"].lower()
+
+    def test_upgrade_in_production(self, client):
+        """Test upgrade succeeds in production mode."""
+        mock_docker = Mock()
+        mock_docker.upgrade_containers = Mock()
+
+        with patch.dict("os.environ", {"PRODUCTION": "true"}), \
+             patch("src.system.docker_manager.get_docker_manager", return_value=mock_docker):
+            response = client.post("/system/upgrade")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert "upgrade" in data["message"].lower() or "pulling" in data["message"].lower()
 
 
 class TestIsNewerVersion:

@@ -437,38 +437,105 @@ async def version():
 
 GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
 GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
+GHCR_TOKEN_URL = "https://ghcr.io/token?scope=repository:fiestaboard/fiestaboard:pull"
+GHCR_TAGS_URL = "https://ghcr.io/v2/fiestaboard/fiestaboard/tags/list"
 RESTART_DELAY_SECONDS = 2
+
+
+def _check_ghcr_for_latest() -> Optional[str]:
+    """Check GHCR (GitHub Container Registry) for the latest version tag.
+    
+    Queries the OCI distribution API using an anonymous token (no authentication
+    required for public packages). Filters tags to find the highest semver version.
+    
+    Returns the latest version string, or None if the check fails.
+    """
+    try:
+        # Step 1: Get anonymous token for public package access
+        token_resp = requests.get(GHCR_TOKEN_URL, timeout=10)
+        token_resp.raise_for_status()
+        token = token_resp.json().get("token")
+        if not token:
+            logger.warning("GHCR token response missing token field")
+            return None
+        
+        # Step 2: List tags from the registry
+        tags_resp = requests.get(
+            GHCR_TAGS_URL,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+        tags_resp.raise_for_status()
+        tags = tags_resp.json().get("tags", [])
+        
+        # Step 3: Filter to semver-style tags and find the highest version
+        version_tags = []
+        for tag in tags:
+            parts = tag.split(".")
+            if len(parts) >= 2 and all(p.isdigit() for p in parts):
+                version_tags.append(tuple(int(p) for p in parts))
+        
+        if not version_tags:
+            return None
+        
+        best = max(version_tags)
+        return ".".join(str(p) for p in best)
+    except Exception as e:
+        logger.debug(f"GHCR version check failed: {e}")
+        return None
+
+
+def _check_github_releases_for_latest() -> Optional[str]:
+    """Check GitHub Releases API for the latest version.
+    
+    Returns the latest version string, or None if the check fails.
+    """
+    try:
+        resp = requests.get(
+            GITHUB_RELEASES_API,
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        tag_name = resp.json().get("tag_name", "")
+        return tag_name.lstrip("v") if tag_name else None
+    except Exception as e:
+        logger.debug(f"GitHub releases check failed: {e}")
+        return None
 
 
 @app.get("/system/update-check", response_model=UpdateCheckResponse)
 async def system_update_check():
     """Check if a newer version of FiestaBoard is available.
     
-    Compares the current package version against the latest GitHub release.
+    Checks GHCR (GitHub Container Registry) for the latest container image tag,
+    with a fallback to the GitHub Releases API. No authentication is required
+    because the package and repository are public.
+    
     Returns the current version, latest version, and whether an update is available.
     """
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
     
     try:
-        resp = requests.get(
-            GITHUB_RELEASES_API,
-            headers={"Accept": "application/vnd.github.v3+json"},
-            timeout=10
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        tag_name = data.get("tag_name", "")
-        # Strip leading 'v' if present (e.g. "v2.0.2" -> "2.0.2")
-        latest_version = tag_name.lstrip("v")
-        update_available = _is_newer_version(latest_version, __version__)
+        # Try GHCR first (checks actual container registry), fall back to GitHub Releases
+        latest_version = _check_ghcr_for_latest()
+        registry_source = "ghcr" if latest_version else None
         
-        return UpdateCheckResponse(
-            current_version=__version__,
-            latest_version=latest_version,
-            update_available=update_available,
-            package_url=GITHUB_PACKAGE_URL,
-            is_production=is_production,
-        )
+        if not latest_version:
+            latest_version = _check_github_releases_for_latest()
+            registry_source = "github-releases" if latest_version else None
+        
+        if latest_version:
+            update_available = _is_newer_version(latest_version, __version__)
+            return UpdateCheckResponse(
+                current_version=__version__,
+                latest_version=latest_version,
+                update_available=update_available,
+                package_url=GITHUB_PACKAGE_URL,
+                is_production=is_production,
+            )
+        
+        raise RuntimeError("Both GHCR and GitHub Releases checks failed")
     except Exception as e:
         logger.warning(f"Failed to check for updates: {e}")
         return UpdateCheckResponse(
@@ -508,6 +575,35 @@ async def system_restart(background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Failed to restart container: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to restart: {e}")
+
+
+@app.post("/system/upgrade", response_model=SystemRestartResponse)
+async def system_upgrade(background_tasks: BackgroundTasks):
+    """Pull latest container images from GHCR and restart.
+    
+    This is the recommended way to update when using the :latest tag.
+    In production mode, pulls the newest image and restarts the container.
+    In development mode, returns a message indicating upgrade is not available.
+    """
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    
+    if not is_production:
+        raise HTTPException(
+            status_code=400,
+            detail="Container upgrade is only available in production mode"
+        )
+    
+    try:
+        from .system.docker_manager import get_docker_manager
+        docker_mgr = get_docker_manager()
+        background_tasks.add_task(docker_mgr.upgrade_containers)
+        return SystemRestartResponse(
+            status="success",
+            message="Upgrade initiated. Pulling latest image and restarting — FiestaBoard will be back shortly."
+        )
+    except Exception as e:
+        logger.error(f"Failed to upgrade containers: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upgrade: {e}")
 
 
 def _is_newer_version(latest: str, current: str) -> bool:

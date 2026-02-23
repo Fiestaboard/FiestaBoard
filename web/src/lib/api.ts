@@ -1009,6 +1009,8 @@ export const api = {
     fetchApi<UpdateCheckResponse>("/system/update-check"),
   restartSystem: () =>
     fetchApi<SystemRestartResponse>("/system/restart", { method: "POST" }),
+  upgradeSystem: () =>
+    fetchApi<SystemRestartResponse>("/system/upgrade", { method: "POST" }),
 
   // Plugin system endpoints
   listPlugins: () =>
