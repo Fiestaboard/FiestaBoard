@@ -25,9 +25,12 @@ INTENSITY_PRESETS = {
     "light": {"drops": 3, "description": "Light drizzle — very few tiles"},
     "medium": {"drops": 6, "description": "Gentle rain — a handful of tiles"},
     "heavy": {"drops": 10, "description": "Steady rain — more tiles"},
+    "custom": {"drops": 0, "description": "Custom drop count (use drops_per_frame)"},
 }
 
 DEFAULT_INTENSITY = "light"
+DEFAULT_DROPS_PER_FRAME = 3
+DEFAULT_MAX_DROPS = 30
 
 # Color palette for rain drops
 RAINDROP_COLORS = {
@@ -78,6 +81,21 @@ class WhiteNoisePlugin(PluginBase):
                 f"Must be one of: {', '.join(RAINDROP_COLORS.keys())}"
             )
 
+        # Validate custom drop count
+        if intensity == "custom":
+            drops_per_frame = config.get("drops_per_frame", DEFAULT_DROPS_PER_FRAME)
+            if not isinstance(drops_per_frame, int) or drops_per_frame < 1:
+                errors.append("drops_per_frame must be a positive integer")
+            elif drops_per_frame > 22:
+                errors.append("drops_per_frame cannot exceed 22 (board width)")
+
+        # Validate max drops
+        max_drops = config.get("max_drops", DEFAULT_MAX_DROPS)
+        if not isinstance(max_drops, int) or max_drops < 1:
+            errors.append("max_drops must be a positive integer")
+        elif max_drops > ROWS * COLS:
+            errors.append(f"max_drops cannot exceed {ROWS * COLS} (total board tiles)")
+
         return errors
 
     # --------------------------------------------------------------------- #
@@ -90,12 +108,20 @@ class WhiteNoisePlugin(PluginBase):
             intensity = self.config.get("intensity", DEFAULT_INTENSITY)
             drop_color_name = self.config.get("drop_color", DEFAULT_DROP_COLOR)
             drop_color = RAINDROP_COLORS.get(drop_color_name, BoardChars.WHITE)
-            num_drops = INTENSITY_PRESETS.get(
-                intensity, INTENSITY_PRESETS[DEFAULT_INTENSITY]
-            )["drops"]
+            
+            # Determine number of drops to spawn
+            if intensity == "custom":
+                num_drops = self.config.get("drops_per_frame", DEFAULT_DROPS_PER_FRAME)
+            else:
+                num_drops = INTENSITY_PRESETS.get(
+                    intensity, INTENSITY_PRESETS[DEFAULT_INTENSITY]
+                )["drops"]
+            
+            # Get max drops limit
+            max_drops = self.config.get("max_drops", DEFAULT_MAX_DROPS)
 
             # Advance the simulation one step
-            board = self._step(num_drops, drop_color)
+            board = self._step(num_drops, drop_color, max_drops)
 
             # Convert to the string representation used by the display engine
             board_string = self._board_to_string(board)
@@ -106,6 +132,8 @@ class WhiteNoisePlugin(PluginBase):
                 "intensity": intensity,
                 "drop_color": drop_color_name,
                 "active_drops": len(self._drops),
+                "drops_per_frame": num_drops,
+                "max_drops": max_drops,
             }
 
             return PluginResult(available=True, data=data)
@@ -118,7 +146,7 @@ class WhiteNoisePlugin(PluginBase):
     # Simulation helpers
     # --------------------------------------------------------------------- #
 
-    def _step(self, num_new_drops: int, color: int) -> List[List[int]]:
+    def _step(self, num_new_drops: int, color: int, max_drops: int) -> List[List[int]]:
         """Advance the rain simulation by one tick.
 
         1. Move every existing drop down by one row.
@@ -129,6 +157,7 @@ class WhiteNoisePlugin(PluginBase):
         Args:
             num_new_drops: How many new drops to create at the top.
             color: Board character code for the raindrop tile.
+            max_drops: Maximum number of drops allowed on board simultaneously.
 
         Returns:
             6×22 board array of character codes.
@@ -136,16 +165,21 @@ class WhiteNoisePlugin(PluginBase):
         # 1. Advance existing drops downward
         self._drops = [[r + 1, c] for r, c in self._drops if r + 1 < ROWS]
 
-        # 2. Spawn new drops along the top row at random columns
+        # 2. Enforce max drops limit
+        if len(self._drops) > max_drops:
+            self._drops = self._drops[:max_drops]
+
+        # 3. Spawn new drops along the top row at random columns
         occupied_cols = {c for _, c in self._drops if _ == 0}
         available_cols = [c for c in range(COLS) if c not in occupied_cols]
-        if available_cols:
-            spawn_count = min(num_new_drops, len(available_cols))
+        if available_cols and len(self._drops) < max_drops:
+            # Don't spawn more than would exceed max_drops
+            spawn_count = min(num_new_drops, len(available_cols), max_drops - len(self._drops))
             new_cols = random.sample(available_cols, spawn_count)
             for c in new_cols:
                 self._drops.append([0, c])
 
-        # 3. Render board
+        # 4. Render board
         board = self._render(color)
         return board
 

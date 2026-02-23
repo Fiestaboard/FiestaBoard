@@ -18,10 +18,25 @@ The White Noise plugin comes bundled with FiestaBoard and requires no additional
      - `light` (3 drops) - Gentle drizzle, minimal sound
      - `medium` (6 drops) - Moderate rain
      - `heavy` (10 drops) - Steady rain
+     - `custom` - Use manual controls (see Advanced Settings below)
    - **Drop Color**: Select the tile color for raindrops
      - `white` - Classic rain effect
      - `blue` - Cool, water-like appearance
      - `violet` - Purple rain aesthetic
+
+### Advanced Settings (for fine-tuning)
+
+- **Drops Per Frame** (1-22, default: 3)
+  - Only used when intensity is set to `custom`
+  - Controls exactly how many new drops spawn each frame
+  - Lower values (1-2) = very sparse, higher values (10-15) = dense rain
+  - Useful for finding the perfect sound level for your environment
+
+- **Max Simultaneous Drops** (1-132, default: 30)
+  - Caps the total number of raindrops on the board at once
+  - Lower values (10-20) keep the board mostly empty with scattered drops
+  - Higher values (50-80) create a denser, more active rain effect
+  - Prevents the board from getting too cluttered on faster refresh intervals
 
 ### Using Environment Variables
 
@@ -31,6 +46,8 @@ Alternatively, configure via environment variables:
 WHITE_NOISE_ENABLED=true
 WHITE_NOISE_INTENSITY=light
 WHITE_NOISE_DROP_COLOR=white
+WHITE_NOISE_DROPS_PER_FRAME=3
+WHITE_NOISE_MAX_DROPS=30
 ```
 
 ## Using on a Board
@@ -52,6 +69,22 @@ For the best ambient white noise experience:
 - **Intensity**: Start with `light` (default) - it only changes 3 tiles per frame, creating a gentle sound
 - **Refresh Interval**: Use a slow refresh rate (e.g., 5-10 seconds) so each frame lingers before the next gentle shift
 - **Standalone Display**: The white noise effect works best as a dedicated board rather than mixed with other content
+
+### Tuning for Your Environment
+
+To find your ideal "sane defaults":
+
+1. Start with the `light` preset and a 5-second refresh interval
+2. If the sound is too quiet, try `medium` preset
+3. For precise control, switch to `custom` intensity:
+   - Set `drops_per_frame` to 1-2 for minimal sound
+   - Set `drops_per_frame` to 5-7 for moderate activity
+   - Set `drops_per_frame` to 10-15 for active rain
+4. Adjust `max_drops` to control board density:
+   - 15-25 for sparse, minimalist aesthetic
+   - 30-40 for balanced coverage (default range)
+   - 50-80 for dense, busy rain effect
+5. Test different refresh intervals to find the right pace
 
 ## Visual Examples
 

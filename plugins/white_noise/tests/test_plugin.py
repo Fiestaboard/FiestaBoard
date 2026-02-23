@@ -17,6 +17,8 @@ from plugins.white_noise import (
     RAINDROP_COLORS,
     DEFAULT_INTENSITY,
     DEFAULT_DROP_COLOR,
+    DEFAULT_DROPS_PER_FRAME,
+    DEFAULT_MAX_DROPS,
 )
 
 
@@ -58,6 +60,51 @@ class TestWhiteNoisePlugin:
         assert len(errors) == 1
         assert "drop_color" in errors[0].lower()
 
+    def test_validate_config_custom_intensity_valid(self, sample_manifest):
+        """Custom intensity with valid drops_per_frame should be accepted."""
+        plugin = WhiteNoisePlugin(sample_manifest)
+        errors = plugin.validate_config({
+            "intensity": "custom",
+            "drop_color": "white",
+            "drops_per_frame": 5,
+            "max_drops": 40
+        })
+        assert errors == []
+
+    def test_validate_config_custom_intensity_invalid_drops(self, sample_manifest):
+        """Custom intensity with invalid drops_per_frame should error."""
+        plugin = WhiteNoisePlugin(sample_manifest)
+        errors = plugin.validate_config({
+            "intensity": "custom",
+            "drops_per_frame": 0
+        })
+        assert len(errors) == 1
+        assert "drops_per_frame" in errors[0].lower()
+
+    def test_validate_config_drops_per_frame_too_high(self, sample_manifest):
+        """drops_per_frame exceeding board width should error."""
+        plugin = WhiteNoisePlugin(sample_manifest)
+        errors = plugin.validate_config({
+            "intensity": "custom",
+            "drops_per_frame": 25
+        })
+        assert len(errors) == 1
+        assert "drops_per_frame" in errors[0].lower()
+
+    def test_validate_config_invalid_max_drops(self, sample_manifest):
+        """Invalid max_drops should trigger an error."""
+        plugin = WhiteNoisePlugin(sample_manifest)
+        errors = plugin.validate_config({"max_drops": 0})
+        assert len(errors) == 1
+        assert "max_drops" in errors[0].lower()
+
+    def test_validate_config_max_drops_too_high(self, sample_manifest):
+        """max_drops exceeding board capacity should error."""
+        plugin = WhiteNoisePlugin(sample_manifest)
+        errors = plugin.validate_config({"max_drops": 200})
+        assert len(errors) == 1
+        assert "max_drops" in errors[0].lower()
+
     # ------------------------------------------------------------------ #
     # fetch_data basics
     # ------------------------------------------------------------------ #
@@ -75,7 +122,7 @@ class TestWhiteNoisePlugin:
         plugin = WhiteNoisePlugin(sample_manifest)
         plugin.config = sample_config
         result = plugin.fetch_data()
-        for var in ["white_noise", "intensity", "drop_color", "active_drops"]:
+        for var in ["white_noise", "intensity", "drop_color", "active_drops", "drops_per_frame", "max_drops"]:
             assert var in result.data, f"Missing variable: {var}"
 
     def test_fetch_data_board_dimensions(self, sample_manifest, sample_config):
@@ -158,6 +205,48 @@ class TestWhiteNoisePlugin:
         heavy_plugin.fetch_data()
 
         assert len(heavy_plugin._drops) >= len(light_plugin._drops)
+
+    def test_custom_intensity_respects_drops_per_frame(self, sample_manifest):
+        """Custom intensity should use drops_per_frame setting."""
+        random.seed(0)
+        plugin = WhiteNoisePlugin(sample_manifest)
+        plugin.config = {
+            "intensity": "custom",
+            "drop_color": "white",
+            "drops_per_frame": 7
+        }
+        result = plugin.fetch_data()
+        # On first frame all drops are new spawns at row 0
+        top_drops = [d for d in plugin._drops if d[0] == 0]
+        assert len(top_drops) <= 7
+        assert result.data["drops_per_frame"] == 7
+
+    def test_max_drops_enforced(self, sample_manifest):
+        """Plugin should not exceed max_drops limit."""
+        random.seed(0)
+        plugin = WhiteNoisePlugin(sample_manifest)
+        plugin.config = {
+            "intensity": "heavy",
+            "drop_color": "white",
+            "max_drops": 15
+        }
+        # Run multiple frames to build up drops
+        for _ in range(10):
+            plugin.fetch_data()
+        assert len(plugin._drops) <= 15
+
+    def test_max_drops_prevents_overflow(self, sample_manifest):
+        """Very low max_drops should still work without errors."""
+        random.seed(0)
+        plugin = WhiteNoisePlugin(sample_manifest)
+        plugin.config = {
+            "intensity": "heavy",
+            "drop_color": "white",
+            "max_drops": 5
+        }
+        result = plugin.fetch_data()
+        assert result.available is True
+        assert len(plugin._drops) <= 5
 
     # ------------------------------------------------------------------ #
     # Drop colours
@@ -292,3 +381,30 @@ class TestWhiteNoiseEdgeCases:
         plugin.config = {}
         result = plugin.fetch_data()
         assert result.available is True
+
+    def test_custom_with_extreme_drops_per_frame(self, sample_manifest):
+        """Custom mode with maximum drops_per_frame should work."""
+        random.seed(42)
+        plugin = WhiteNoisePlugin(sample_manifest)
+        plugin.config = {
+            "intensity": "custom",
+            "drops_per_frame": 22,
+            "max_drops": 100
+        }
+        result = plugin.fetch_data()
+        assert result.available is True
+        # Should spawn up to 22 drops on first frame
+        assert len(plugin._drops) <= 22
+
+    def test_max_drops_with_fast_cascade(self, sample_manifest):
+        """Max drops should limit total drops even with many frames."""
+        random.seed(0)
+        plugin = WhiteNoisePlugin(sample_manifest)
+        plugin.config = {
+            "intensity": "heavy",
+            "max_drops": 20
+        }
+        # Run enough frames to exceed max_drops if not limited
+        for _ in range(20):
+            plugin.fetch_data()
+        assert len(plugin._drops) <= 20

@@ -20,8 +20,8 @@
       "intensity": {
         "type": "string",
         "title": "Rain Intensity",
-        "description": "How many drops appear per frame. 'light' is a gentle drizzle, 'heavy' is a steady rain.",
-        "enum": ["light", "medium", "heavy"],
+        "description": "How many drops appear per frame. 'light' is a gentle drizzle, 'heavy' is a steady rain. Use 'custom' for manual control.",
+        "enum": ["light", "medium", "heavy", "custom"],
         "default": "light"
       },
       "drop_color": {
@@ -30,6 +30,22 @@
         "description": "Tile color for the raindrops.",
         "enum": ["white", "blue", "violet"],
         "default": "white"
+      },
+      "drops_per_frame": {
+        "type": "integer",
+        "title": "Drops Per Frame",
+        "description": "Number of new drops to spawn each frame (only used when intensity is 'custom'). Range: 1-22.",
+        "minimum": 1,
+        "maximum": 22,
+        "default": 3
+      },
+      "max_drops": {
+        "type": "integer",
+        "title": "Max Simultaneous Drops",
+        "description": "Maximum number of raindrops allowed on the board at once. Higher = denser rain. Range: 1-132.",
+        "minimum": 1,
+        "maximum": 132,
+        "default": 30
       }
     }
   },
@@ -44,7 +60,7 @@
     {
       "name": "WHITE_NOISE_INTENSITY",
       "required": false,
-      "description": "Rain intensity: light, medium, or heavy",
+      "description": "Rain intensity: light, medium, heavy, or custom",
       "default": "light"
     },
     {
@@ -52,6 +68,18 @@
       "required": false,
       "description": "Raindrop tile color: white, blue, or violet",
       "default": "white"
+    },
+    {
+      "name": "WHITE_NOISE_DROPS_PER_FRAME",
+      "required": false,
+      "description": "Number of drops per frame when using custom intensity (1-22)",
+      "default": "3"
+    },
+    {
+      "name": "WHITE_NOISE_MAX_DROPS",
+      "required": false,
+      "description": "Maximum simultaneous drops on board (1-132)",
+      "default": "30"
     }
   ],
 
@@ -60,7 +88,9 @@
       "white_noise",
       "intensity",
       "drop_color",
-      "active_drops"
+      "active_drops",
+      "drops_per_frame",
+      "max_drops"
     ]
   },
 
@@ -68,6 +98,8 @@
     "white_noise": 200,
     "intensity": 6,
     "drop_color": 6,
-    "active_drops": 3
+    "active_drops": 3,
+    "drops_per_frame": 2,
+    "max_drops": 3
   }
 }

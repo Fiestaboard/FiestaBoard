@@ -40,19 +40,23 @@ gentle "light rain" sound instead of an overwhelming clatter.
 
 ## Settings
 
-| Setting     | Default  | Description                                       |
-| ----------- | -------- | ------------------------------------------------- |
-| `intensity` | `light`  | `light` (3 drops), `medium` (6), or `heavy` (10)  |
-| `drop_color`| `white`  | Tile colour for drops: `white`, `blue`, `violet`  |
+| Setting           | Default  | Description                                                    |
+| ----------------- | -------- | -------------------------------------------------------------- |
+| `intensity`       | `light`  | `light` (3 drops), `medium` (6), `heavy` (10), or `custom`     |
+| `drop_color`      | `white`  | Tile colour for drops: `white`, `blue`, `violet`               |
+| `drops_per_frame` | `3`      | New drops per frame (1-22, only used with `custom` intensity)  |
+| `max_drops`       | `30`     | Max simultaneous drops on board (1-132)                        |
 
 ## Variables
 
-| Variable        | Description                                    |
-| --------------- | ---------------------------------------------- |
-| `white_noise`   | The full 6×22 board string with colour markers |
-| `intensity`     | Current intensity setting                      |
-| `drop_color`    | Current drop colour setting                    |
-| `active_drops`  | Number of raindrops currently on the board     |
+| Variable          | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| `white_noise`     | The full 6×22 board string with colour markers |
+| `intensity`       | Current intensity setting                      |
+| `drop_color`      | Current drop colour setting                    |
+| `active_drops`    | Number of raindrops currently on the board     |
+| `drops_per_frame` | Drops spawned per frame                        |
+| `max_drops`       | Maximum simultaneous drops allowed             |
 
 ## Tips
 
@@ -60,6 +64,10 @@ gentle "light rain" sound instead of an overwhelming clatter.
   only 3 tiles per cycle, keeping the sound minimal.
 - Pair with a slow refresh interval (the default page rotation) so each
   frame lingers before the next gentle shift.
+- For experimentation, use **custom** intensity with `drops_per_frame` to
+  find your ideal rain density.
+- Adjust `max_drops` to control overall board density. Lower values (10-20)
+  keep it sparse, higher values (40-60) create a denser rain effect.
 
 ## Setup
 
