@@ -305,7 +305,7 @@ jobs:
             fiestaboard:e2e
           echo "Waiting for app on port 4420..."
           READY=false
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if curl -s -o /dev/null -w "%{http_code}" http://localhost:4420/api/health | grep -q 200; then
               echo "App ready"
               READY=true
@@ -313,9 +313,8 @@ jobs:
             fi
             sleep 1
           done
-          
-          if [ "$READY" = "false" ]; then
-            echo "❌ App failed to become ready after 30 seconds"
+          if [ "$READY" != "true" ]; then
+            echo "❌ App failed to become ready after 60 seconds"
             echo "Container logs:"
             docker logs fiestaboard-e2e
             exit 1
