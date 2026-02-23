@@ -19,6 +19,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import { PagePickerDialog } from "@/components/page-picker-dialog";
 import { ScheduleListView } from "./components";
@@ -507,33 +514,34 @@ export default function SchedulePage() {
           </Card>
         )}
 
-        {/* Form Dialog */}
-        {showForm && pagesData && (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>{editingSchedule ? "Edit" : "Add"} Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScheduleEntryForm
-                  schedule={editingSchedule || undefined}
-                  pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
-                  onSubmit={handleSubmit}
-                  onCancel={handleCloseForm}
-                  onDelete={editingSchedule ? () => {
-                    const id = editingSchedule.id;
-                    handleCloseForm();
-                    setDeleteScheduleId(id);
-                  } : undefined}
-                  prefillStartTime={prefillData?.startTime}
-                  prefillEndTime={prefillData?.endTime}
-                  prefillDayPattern={prefillData?.dayPattern}
-                  prefillCustomDays={prefillData?.customDays}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Form Tray */}
+        <Sheet open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
+          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>{editingSchedule ? "Edit" : "Add"} Schedule</SheetTitle>
+              <SheetDescription>
+                {editingSchedule ? "Update the schedule entry details" : "Create a new schedule entry"}
+              </SheetDescription>
+            </SheetHeader>
+            {pagesData && (
+              <ScheduleEntryForm
+                schedule={editingSchedule || undefined}
+                pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
+                onSubmit={handleSubmit}
+                onCancel={handleCloseForm}
+                onDelete={editingSchedule ? () => {
+                  const id = editingSchedule.id;
+                  handleCloseForm();
+                  setDeleteScheduleId(id);
+                } : undefined}
+                prefillStartTime={prefillData?.startTime}
+                prefillEndTime={prefillData?.endTime}
+                prefillDayPattern={prefillData?.dayPattern}
+                prefillCustomDays={prefillData?.customDays}
+              />
+            )}
+          </SheetContent>
+        </Sheet>
 
         {/* Default Page Selector Dialog */}
         {showDefaultPageSelector && pagesData && (
