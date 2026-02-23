@@ -16,6 +16,9 @@ services:
       # Persist data (including config) to local filesystem
       - ./data:/app/data
       # Docker socket for container management (restart/upgrade from UI)
+      # Note: Required for self-update and restart features. Grants container
+      # access to the host Docker daemon. Remove this line if you do not need
+      # in-app restart/upgrade functionality.
       - /var/run/docker.sock:/var/run/docker.sock
     logging:
       driver: "json-file"
