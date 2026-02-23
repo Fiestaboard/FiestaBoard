@@ -70,14 +70,16 @@ Choose the option that works best for you:
 
 ### Option A: Pull from Docker Hub (simplest — no download needed)
 
-If you just want to run FiestaBoard without cloning the repository, you can pull the pre-built image directly from Docker Hub:
+If you just want to run FiestaBoard without cloning the repository, pull the pre-built image and run it directly:
 
 ```bash
-# Download the Docker Hub compose file
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
+# Mac/Linux
+docker pull fiestaboard/fiestaboard:latest
+docker run -d -p 4420:3000 -v $(pwd)/data:/app/data --restart unless-stopped fiestaboard/fiestaboard:latest
 
-# Start FiestaBoard (pulls the image automatically)
-docker-compose -f docker-compose.hub.yml up -d
+# Windows (PowerShell)
+docker pull fiestaboard/fiestaboard:latest
+docker run -d -p 4420:3000 -v ${PWD}/data:/app/data --restart unless-stopped fiestaboard/fiestaboard:latest
 ```
 
 When it finishes, **skip to Step 5** — FiestaBoard is already running!
