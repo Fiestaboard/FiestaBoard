@@ -27,53 +27,33 @@ Use Cloud API when:
 4. Enable the **Read/Write API**
 5. Copy your Read/Write API key
 
-### 2. Configure Your .env File
+### 2. Configure via the Web UI (Recommended)
 
-Add these lines to your `.env` file:
+1. Open http://localhost:4420
+2. Go to **Settings**
+3. Set the API mode to **Cloud**
+4. Paste your Read/Write API key
+5. Click **Save**
 
-```bash
-# Switch to Cloud API mode
-BOARD_API_MODE=cloud
+### 3. Test the Connection
 
-# Add your Read/Write API key
-BOARD_READ_WRITE_KEY=your_read_write_key_here
-
-# You can leave these empty when using Cloud mode:
-# BOARD_LOCAL_API_KEY=
-# BOARD_HOST=
-```
-
-### 3. Test the Cloud API
-
-Test your key by starting the service and checking the health endpoint:
+After saving, check the service status on the main dashboard. If the connection is successful, you should see a healthy status. If not, check the logs:
 
 ```bash
-# Start the service
-docker-compose -f docker-compose.dev.yml up -d
-
-# Check the health endpoint
-curl http://localhost:4420/health
-
-# Check the logs for any connection errors
-docker-compose -f docker-compose.dev.yml logs -f fiestaboard
+docker-compose logs -f fiestaboard
 ```
 
-If successful, the API should connect to your board without errors.
+### 4. Restart the Service
 
-### 4. Restart Your Docker Containers
+If needed, restart the Docker container to apply changes:
 
 ```bash
-docker-compose -f docker-compose.dev.yml restart
-```
-
-Or use the Cursor command:
-```
-/restart
+docker-compose restart
 ```
 
 ## Switching Between Local and Cloud
 
-You can easily switch between Local and Cloud API by changing `BOARD_API_MODE`:
+You can switch API modes at any time through the web UI's Settings page, or by updating your `.env` file:
 
 **Local API** (faster, with transitions):
 ```bash
@@ -88,6 +68,11 @@ BOARD_API_MODE=cloud
 BOARD_READ_WRITE_KEY=your_read_write_key
 ```
 
+After changing `.env` values, restart the container:
+```bash
+docker-compose restart
+```
+
 ## Troubleshooting
 
 ### "401 Unauthorized" Error
@@ -99,7 +84,7 @@ BOARD_READ_WRITE_KEY=your_read_write_key
 ### "Rate Limited" Errors
 
 The Cloud API limits you to 1 message per 15 seconds. If you see rate limit errors:
-- Increase `REFRESH_INTERVAL_SECONDS` in your `.env` (recommended: 300 or higher)
+- Increase the refresh interval to 30 seconds or higher (Settings page or `REFRESH_INTERVAL_SECONDS` in `.env`)
 - Disable dev mode when not testing
 - Use Force Refresh sparingly
 
@@ -107,7 +92,7 @@ The Cloud API limits you to 1 message per 15 seconds. If you see rate limit erro
 
 - Cloud API doesn't support blank messages
 - Rate limiting may drop messages if sent too frequently
-- Check the logs viewer in the UI for errors
+- Check the logs for errors
 
 ## Features Not Available in Cloud Mode
 
@@ -116,4 +101,3 @@ The Cloud API limits you to 1 message per 15 seconds. If you see rate limit erro
 - **Reading current board state** at initialization
 
 All other features work identically in both modes!
-

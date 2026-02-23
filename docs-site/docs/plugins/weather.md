@@ -32,17 +32,17 @@ The Weather plugin provides real-time weather data for your location, including:
 1. Sign up at [openweathermap.org](https://openweathermap.org/api)
 2. Free tier: 1,000 calls/day
 
-### 2. Configure in `.env`
+### 2. Enable and Configure in the Web UI
 
-```bash
-WEATHER_API_KEY=your_api_key_here
-WEATHER_PROVIDER=weatherapi          # or "openweathermap"
-WEATHER_LOCATION=San Francisco, CA   # City, State or City, Country
-```
+1. Open **http://localhost:4420**
+2. Go to the **Integrations** page
+3. Toggle the **Weather** plugin on
+4. Enter your API key, choose your provider, and set your location
+5. Click **Save**
 
-### 3. Enable the Plugin
-
-Go to **Integrations** in the Web UI and toggle the Weather plugin on.
+:::tip
+All plugin configuration is done through the web UI. You don't need to edit any `.env` files. The Integrations page saves your settings automatically.
+:::
 
 ## Available Variables
 

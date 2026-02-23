@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 4
 description: "API keys for FiestaBoard - only your board key is required to start. Plugin API keys are added as you enable them."
 keywords: [FiestaBoard API keys, weather API, Google Routes API, plugin configuration, API setup]
 ---

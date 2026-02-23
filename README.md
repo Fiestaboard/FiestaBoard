@@ -10,26 +10,32 @@
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**[Documentation](https://fiestaboard.app)**
+**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/wc9dDfte)**
 
-## Quick Start
+---
 
-### Prerequisites
+## Get Started in 5 Minutes
 
-- **A split-flap display** you already own and have set up
-- **Your board's API key** (Local API or Cloud Read/Write key)
-- **Docker and Docker Compose** installed:
-  - [Mac](https://docs.docker.com/desktop/setup/install/mac-install/) | [Windows](https://docs.docker.com/desktop/setup/install/windows-install/) | [Linux](https://docs.docker.com/desktop/setup/install/linux/)
+**All you need:** Your board's API key + [Docker](https://docs.docker.com/get-started/get-docker/) installed.
 
-That's it -- just your board API key and Docker. The install script gets the server running and opens the setup wizard in your browser, which walks you through the rest. Plugins that pull data from external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
-
-### Installation
-
-#### Option A: Using the Install Script (Recommended)
-
-Run the install script — it checks prerequisites, starts the server, and opens the setup wizard in your browser:
+### Easiest: Pull from Docker Hub (no clone needed)
 
 ```bash
+# 1. Download the compose file
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
+
+# 2. Start FiestaBoard
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+Open **http://localhost:4420** in your browser, connect your board, and you're running.
+
+### Alternative: Clone and use the install wizard
+
+```bash
+git clone https://github.com/Fiestaboard/FiestaBoard.git
+cd FiestaBoard
+
 # Mac/Linux
 ./scripts/install.sh
 
@@ -37,410 +43,212 @@ Run the install script — it checks prerequisites, starts the server, and opens
 .\scripts\install.ps1
 ```
 
-The setup wizard walks you through connecting your board and choosing data sources.
+The wizard collects your board API key, starts the server, and opens the setup page in your browser.
 
-#### Option B: Pull from Docker Hub (no clone needed)
+> **New to Docker or the terminal?** Follow the detailed [Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide) for step-by-step instructions with screenshots.
 
-If you don't want to clone the repository, grab the compose file and start FiestaBoard directly from the pre-built Docker Hub image:
+### After Setup
 
-```bash
-# Download the compose file
-curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
+1. Open **http://localhost:4420**
+2. Click **"Start Service"** to begin updating your board
+3. Go to **Integrations** to enable plugins (weather, stocks, etc.)
+4. Go to **Pages** to create and design what your board displays
+5. Go to **Schedule** to automate when different pages show up
 
-# Start FiestaBoard (pulls the image automatically)
-docker-compose -f docker-compose.hub.yml up -d
-```
+> **Tip:** Many plugins need no API key at all - Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more work right out of the box. Start with those while you gather API keys for others.
 
-Then open **http://localhost:4420**, connect your board via the web UI, and click **"▶ Start Service"**.
+---
 
-### Manual Setup
+## What Can You Display?
 
-If you prefer not to use the wizard:
+FiestaBoard has **18 built-in plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
 
-```bash
-# 1. Create .env from the template (all defaults work out of the box)
-cp env.example .env
+**Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
-# 2. Run it! (first time builds images)
-docker-compose up --build
+![Weather Display](./plugins/weather/docs/weather-display.png)
 
-# Or for subsequent runs (uses cached images)
-docker-compose up
-```
+**Stocks** - Real-time prices with color-coded change indicators
 
-> No environment variables are required to start. The `.env` template has sensible defaults for everything. You'll connect your board and configure plugins through the web UI at http://localhost:4420.
+![Stocks Display](./images/stocks-display.png)
 
-**Access:**
-- **Web UI**: http://localhost:4420 (start service, send messages, monitor)
-- **API Docs**: http://localhost:4420/docs (interactive API documentation)
+**Sports Scores** - Recent match scores from NFL, Soccer, NHL, and NBA
 
-![Web UI Home](./images/web-ui-home.png)
+![Sports Scores Display](./plugins/sports_scores/docs/sports-scores-display.png)
 
-**To start the display service:**
-1. Open http://localhost:4420 in your browser
-2. Click "▶ Start Service" button
-3. Your board will start updating!
-**To stop:**
-```bash
-docker-compose down
-```
+**Nearby Aircraft** - Real-time aircraft info with call signs, altitude, and speed
 
-### Running on a Raspberry Pi?
+![Nearby Aircraft Display](./plugins/nearby_aircraft/docs/nearby-aircraft-display.png)
 
-The same pre-built image works on Raspberry Pi (arm64) — just follow the steps above on your Pi. See the [Raspberry Pi Guide](./docs/deployment/PI_BUILD_GUIDE.md) for more details.
+### All Available Plugins
 
+| Plugin | What It Shows | API Key? |
+|--------|--------------|----------|
+| [Weather](./plugins/weather/README.md) | Temperature, UV, precipitation, high/low | Yes (free) |
+| [Stocks](./plugins/stocks/README.md) | Stock prices with color indicators | Optional |
+| [Sports Scores](./plugins/sports_scores/README.md) | NFL, Soccer, NHL, NBA scores | Optional |
+| [Traffic](./plugins/traffic/README.md) | Travel time with live traffic | Yes (free tier) |
+| [Muni Transit](./plugins/muni/README.md) | Real-time SF Muni arrivals | Yes (free) |
+| [Home Assistant](./plugins/home_assistant/README.md) | Smart home status (doors, locks, garage) | Yes (self-hosted) |
+| [Last.fm Now Playing](./plugins/last_fm/README.md) | Currently playing music | Yes (free) |
+| [Surf Conditions](./plugins/surf/README.md) | Wave height and quality ratings | No |
+| [Air Quality & Fog](./plugins/air_fog/README.md) | AQI and fog conditions | Yes |
+| [Nearby Aircraft](./plugins/nearby_aircraft/README.md) | Real-time aircraft tracking | Optional |
+| [Disney Park Queue Times](./plugins/disney_parks_times/README.md) | Wait times for Disney rides | No |
+| [WSDOT Ferries](./plugins/wsdot/README.md) | WA State ferry schedules and alerts | Yes (free) |
+| [Bay Wheels](./plugins/baywheels/README.md) | Bike availability at stations | No |
+| [Date & Time](./plugins/date_time/README.md) | Current date/time in many formats | No |
+| [Guest WiFi](./plugins/guest_wifi/README.md) | WiFi credentials for guests | No |
+| [Star Trek Quotes](./plugins/star_trek_quotes/README.md) | Quotes from TNG, Voyager, DS9 | No |
+| [Stardate](./plugins/stardate/README.md) | Current TNG-era stardate | No |
+| [Sun Art](./plugins/sun_art/README.md) | Art pattern that follows the sun | No |
+| [Visual Clock](./plugins/visual_clock/README.md) | Large pixel-art style clock | No |
 
 ---
 
 ## Features
 
-FiestaBoard uses a **plugin architecture** - each feature is a self-contained plugin with its own documentation. Browse the `plugins/` directory or use the web UI's **Integrations** page to discover and enable plugins.
+### Rich Page Editor (WYSIWYG)
 
-### Available Plugins
-- **[Air Quality & Fog](./plugins/air_fog/README.md)**: Monitor AQI and fog conditions
-- **[Bay Wheels](./plugins/baywheels/README.md)**: Track bike availability at multiple stations
-- **[Date & Time](./plugins/date_time/README.md)**: Current date and time with multiple formats (12h/24h, US dates) and timezone autocomplete
-- **[Disney Park Queue Times](./plugins/disney_parks_times/README.md)**: Wait times for Disney parks and rides from Queue-Times.com
-- **[Guest WiFi](./plugins/guest_wifi/README.md)**: Display WiFi credentials for guests
-- **[Home Assistant](./plugins/home_assistant/README.md)**: House status display (doors, garage, locks, etc.)
-- **[Last.fm Now Playing](./plugins/last_fm/README.md)**: Display currently playing music via Last.fm scrobbling
-- **[Muni Transit](./plugins/muni/README.md)**: Real-time SF Muni arrival predictions
-- **[Nearby Aircraft](./plugins/nearby_aircraft/README.md)**: Real-time nearby aircraft information from OpenSky Network API
-- **[Sports Scores](./plugins/sports_scores/README.md)**: Display recent match scores from NFL, Soccer, NHL, and NBA
-- **[Stardate](./plugins/stardate/README.md)**: Current TNG-era stardate (negative values as we're 297 years before stardate 0)
-- **[Sun Art](./plugins/sun_art/README.md)**: Full-screen sun art pattern that changes based on sun position throughout the day
-- **[Star Trek Quotes](./plugins/star_trek_quotes/README.md)**: Random quotes from TNG, Voyager, and DS9
-- **[Stocks](./plugins/stocks/README.md)**: Monitor stock prices with color-coded indicators
-- **[Surf Conditions](./plugins/surf/README.md)**: Live surf reports with wave height and quality ratings
-- **[Traffic](./plugins/traffic/README.md)**: Travel time to destinations with live traffic
-- **[Visual Clock](./plugins/visual_clock/README.md)**: Full-screen clock with large pixel-art style digits
-- **[Weather](./plugins/weather/README.md)**: Current conditions with temperature (F/C), UV index, precipitation chance, daily high/low, and sunset time
-- **[WSDOT](./plugins/wsdot/README.md)**: Washington State Ferries schedules, vessel names, car spots remaining, and alerts
+Create and edit board pages with a visual editor. See exactly how content will appear on your display, including dynamic data from plugins, colors, and alignment - all in real time.
 
-**→ [Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md)** - Create your own plugins!
+![Rich Page Editor](./images/page-editor-wysiwyg.png)
 
-### System Features
-- **Multi-Device Support**: Create pages for both Vestaboard Flagship (22x6) and Note (15x3) - editor and preview adapt to each device's dimensions
-- **Rich WYSIWYG Page Editor**: Create and edit pages with a what-you-see-is-what-you-get editor that shows exactly how content will appear on your board, including template variables, colors, and alignment in real time
-- **Schedule Mode**: Visual calendar to schedule which pages display when. Set different pages for different times and days. Choose a default page for gaps in the schedule, or turn scheduling off to manually select the active page
-- **Page-Based Display**: Create and select pages via the web UI
-- **Configurable Update Interval**: Adjust how often the board checks for new content (10-3600 seconds)
-- **Smart Preview Caching**: Page previews are cached (5 min TTL) for fast UI rendering, while active displays always get fresh data
-- **Silence Schedule**: Configure quiet hours when the board won't update
-- **Docker Ready**: Containerized for easy deployment on any system
-- **Highly Configurable**: Configure plugins, API keys, and settings from the web UI
-- **Secure**: API token support for all integrations
+### Schedule Mode
+
+Use the visual calendar to schedule which page displays at which time. Set different pages for mornings, afternoons, and evenings. Choose a default page for gaps, or turn scheduling off to pick pages manually.
+
+![Schedule Calendar](./images/schedule-calendar.png)
+
+### Multi-Device Support
+
+Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and preview adapt to each device's dimensions automatically.
+
+### More
+
+- **Configurable Update Interval** - Refresh every 10 seconds to every hour
+- **Silence Schedule** - Set quiet hours so the board doesn't flip at night
+- **Smart Caching** - Page previews load fast; active displays always get fresh data
+- **Docker Ready** - One command to deploy on any system, including Raspberry Pi
 
 ---
-
-## New to Technical Setup?
-
-**Not comfortable with Docker or terminal commands?** Check out the step-by-step beginner's guide:
-
-**→ [Beginner's Setup Guide](./docs/setup/BEGINNERS_GUIDE.md)**
-
----
-
-## Hosting vs. Development
-
-**Hosting a FiestaBoard server** (running it to control your board) and **developing FiestaBoard** (contributing code) are different workflows:
-
-| | Hosting (Self-Hosting) | Development |
-|---|---|---|
-| **Goal** | Run the server to control your board | Contribute code or build plugins |
-| **Setup** | Run the install script — it starts the server and opens the setup wizard | `docker-compose -f docker-compose.dev.yml up --build` |
-| **Configuration** | Setup wizard in the browser; plugins configured via web UI | Edit `.env` manually (see `env.example` for all options) |
-| **Web UI** | http://localhost:4420 | http://localhost:4420 |
-| **Hot reload** | No | Yes (Python API auto-reloads; UI requires rebuild) |
-| **Guide** | This README / [Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md) | [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) |
-
-### Basic Setup
-
-1. **Clone or navigate to the project directory**
-
-2. **Create `.env` file**:
-   ```bash
-   cp env.example .env
-   ```
-
-3. **Build and run with Docker Compose**:
-   ```bash
-   # First time (builds images)
-   docker-compose up --build
-   
-   # Or run in background
-   docker-compose up -d --build
-   ```
-
-4. **Open the web UI** at http://localhost:4420, connect your board, and click **"▶ Start Service"**
-
-> No `.env` editing required. The template has sensible defaults for everything. Board connection, plugins, API keys, and all other settings are configured through the web UI.
-
-### Advanced Setup
-
-For detailed setup instructions for specific plugins, see each plugin's README:
-- **Home Assistant**: [plugins/home_assistant/README.md](./plugins/home_assistant/README.md)
-- **Weather**: [plugins/weather/README.md](./plugins/weather/README.md)
-- **Stocks**: [plugins/stocks/README.md](./plugins/stocks/README.md)
-
-Browse `plugins/*/README.md` for all plugin documentation. Each plugin's README includes a link to its setup guide.
-
----
-
-## Configuration
-
-The install script handles getting the server running. After that, everything - board connection, plugins, API keys, and settings - is configured through the **web UI**.
-
-Go to the **Integrations** page to enable plugins, enter API keys, and adjust settings. No need to edit config files.
-
-> **For development:** If you're contributing code or building plugins, see the [Environment Variables Reference](https://fiestaboard.app/docs/reference/environment-variables) for the full list of options.
-
-### Board Connection (set via web UI)
-
-- `BOARD_API_MODE`: `local` (default) or `cloud` - how FiestaBoard connects to your board
-- `BOARD_LOCAL_API_KEY` / `BOARD_HOST`: For local mode
-- `BOARD_READ_WRITE_KEY`: For cloud mode
-
-### Plugins
-
-Plugins are enabled and configured through the web UI's **Integrations** page. Each plugin that connects to an external service needs its own API key. The Integrations page links to setup instructions and has fields to enter your keys.
-
-| Plugin | API Key | Documentation |
-|--------|---------|-------------|
-| Weather | WeatherAPI.com or OpenWeatherMap | [plugins/weather/README.md](./plugins/weather/README.md) |
-| Traffic | Google Routes API | [plugins/traffic/README.md](./plugins/traffic/README.md) |
-| Home Assistant | HA long-lived access token | [plugins/home_assistant/README.md](./plugins/home_assistant/README.md) |
-| Muni Transit | 511.org (free) | [plugins/muni/README.md](./plugins/muni/README.md) |
-| Air/Fog | PurpleAir / OpenWeatherMap | [plugins/air_fog/README.md](./plugins/air_fog/README.md) |
-| Stocks | Finnhub (optional) | [plugins/stocks/README.md](./plugins/stocks/README.md) |
-| Nearby Aircraft | OpenSky (optional) | [plugins/nearby_aircraft/README.md](./plugins/nearby_aircraft/README.md) |
-| Sports Scores | TheSportsDB (optional) | [plugins/sports_scores/README.md](./plugins/sports_scores/README.md) |
-| Bay Wheels | None | [plugins/baywheels/README.md](./plugins/baywheels/README.md) |
-| Date & Time | None | [plugins/date_time/README.md](./plugins/date_time/README.md) |
-| Disney Parks | None | [plugins/disney_parks_times/README.md](./plugins/disney_parks_times/README.md) |
-| Guest WiFi | None | [plugins/guest_wifi/README.md](./plugins/guest_wifi/README.md) |
-| Star Trek Quotes | None | [plugins/star_trek_quotes/README.md](./plugins/star_trek_quotes/README.md) |
-| Sun Art | None | [plugins/sun_art/README.md](./plugins/sun_art/README.md) |
-| Surf | None | [plugins/surf/README.md](./plugins/surf/README.md) |
-| Visual Clock | None | [plugins/visual_clock/README.md](./plugins/visual_clock/README.md) |
-| WSDOT Ferries | WSDOT API key | [plugins/wsdot/README.md](./plugins/wsdot/README.md) |
-| Last.fm | Last.fm API key | [plugins/last_fm/README.md](./plugins/last_fm/README.md) |
-
-See the [Environment Variables Reference](https://fiestaboard.app/docs/reference/environment-variables) for all available options.
-
-## Local Development
-
-If you want to contribute to FiestaBoard or build plugins, use the development environment:
-
-```bash
-docker-compose -f docker-compose.dev.yml up --build
-
-# Access Web UI + API at http://localhost:4420 (single container, same layout as production)
-# API base path: http://localhost:4420/api/
-```
-
-For detailed development workflows, see [LOCAL_DEVELOPMENT.md](./docs/setup/LOCAL_DEVELOPMENT.md).
-
-## How It Works
-
-Select a page in the web UI and the service will keep it updated on your board. Pages use templates with dynamic data sources like weather, time, and more. Create custom pages to display exactly what you want.
-
-## Project Structure
-
-```
-FiestaBoard/
-├── plugins/                        # Plugin-based data sources
-│   ├── _template/                  # Template for new plugins
-│   ├── weather/                    # Weather plugin
-│   ├── stocks/                     # Stocks plugin
-│   ├── sports_scores/              # Sports scores plugin
-│   ├── nearby_aircraft/           # Nearby aircraft plugin
-│   ├── muni/                       # Muni transit plugin
-│   └── .../                        # Other plugins
-├── src/                            # Platform core (API, display service)
-│   ├── api_server.py               # FastAPI REST API
-│   ├── main.py                     # Display service core
-│   ├── config.py                   # Configuration management
-│   ├── board_client.py             # Board API client
-│   ├── plugins/                    # Plugin system infrastructure
-│   └── formatters/                 # Message formatting
-├── web/                            # Next.js web UI
-│   └── src/                        # React components and pages
-├── docs/                           # Documentation
-│   ├── setup/                      # Setup guides
-│   ├── development/                # Plugin development guide
-│   ├── deployment/                 # Deployment guides
-│   └── reference/                  # API research and reference
-├── scripts/                        # Utility scripts
-├── tests/                          # Platform test suite
-├── Dockerfile                      # Unified Dockerfile (API + Web UI + nginx)
-├── docker-compose.yml              # Production compose (single container)
-├── docker-compose.dev.yml          # Development compose (single container + hot-reload)
-└── .env                            # Environment variables
-```
 
 ## Getting Your Board API Key
 
-You need your board's API key to complete the setup wizard. There are two connection modes:
+You'll need your board's API key to finish setup. There are two options:
 
 ### Local API (Recommended)
 
 Faster, supports transition animations, works over your local network.
 
 1. Open the board's mobile app
-2. Go to **Settings** → **Local API**
-3. Copy your Local API key
-4. Note your board's IP address
+2. Go to **Settings** > **Local API**
+3. Copy your API key and note the board's IP address
 
-### Cloud API (Alternative)
+### Cloud API
 
-Works from anywhere with internet. No transition animation support.
+Works from anywhere with internet. No transition animations.
 
 1. Go to [web.vestaboard.com](https://web.vestaboard.com)
-2. Navigate to **Settings** → **API**
+2. Navigate to **Settings** > **API**
 3. Enable **Read/Write API**
-4. Copy your Read/Write API key
+4. Copy the key
 
-> The setup wizard in the web UI will ask for your board API key and save it for you. If you're setting up manually (e.g., for development), see `env.example` for the variable names.
+See [Cloud API Setup](https://fiestaboard.app/docs/setup/cloud-api) for details on choosing between the two modes.
 
-See [Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md) for more details on cloud vs local mode.
+---
 
-## Deployment
+## Running on a Raspberry Pi
 
-### Hosting the Server
+The pre-built Docker image supports ARM64 out of the box. Follow the same Docker Hub setup above on your Pi, or see the full [Raspberry Pi Guide](https://fiestaboard.app/docs/deployment/raspberry-pi) for auto-start on boot and performance tips.
+
+---
+
+## Stopping and Restarting
 
 ```bash
-# Start the server
-docker-compose up -d --build
-
-# Stop the server
+# Stop FiestaBoard
 docker-compose down
 
-# View logs
+# Start it again (no rebuild needed)
+docker-compose up -d
+
+# View logs if something isn't working
 docker-compose logs -f
 ```
 
-### Production Deployment
+Then go to **http://localhost:4420** and click **Start Service**.
 
-- **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: ARM-compatible builds
-- **Docker Compose**: Use `docker-compose.yml` for production deployments
-
+---
 
 ## Troubleshooting
 
 ### Board Not Updating
 
-- Make sure you clicked "▶ Start Service" in the web UI
-- Check your board API key in `.env` is correct
-- Verify your `BOARD_API_MODE` matches the key type you're using
-- For local mode: ensure your board is on the same network
+- Make sure you clicked **Start Service** in the web UI
+- Check your board API key is correct (Settings page in the web UI)
+- For local mode: verify your board is on the same network as the server
+- Check logs: `docker-compose logs -f`
 
 ### Docker Issues
 
-- Ensure Docker is running: `docker ps`
-- Check container logs: `docker-compose logs`
-- Verify `.env` file exists and is readable
+- Make sure Docker Desktop is running (look for the whale icon)
+- Check if the container is running: `docker ps`
+- Port conflict? Change the host port in `docker-compose.yml` (left side of `4420:3000`)
 
 ### Plugin Issues
 
 - Check the plugin's setup guide: `plugins/<plugin_name>/docs/SETUP.md`
-- Verify API keys are correct and don't have extra spaces
+- Verify API keys are correct and have no extra spaces
 - Check API rate limits haven't been exceeded
+
+### Still stuck?
+
+- Check the full [Troubleshooting Guide](https://fiestaboard.app/docs/troubleshooting)
+- Ask in [Discord](https://discord.gg/wc9dDfte)
+- [Open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) on GitHub
+
+---
 
 ## Documentation
 
-**Full documentation is available at [fiestaboard.app](https://fiestaboard.app)**
+Full documentation is at **[fiestaboard.app](https://fiestaboard.app)**, including:
 
-### Setup
-- **[Beginner's Guide](./docs/setup/BEGINNERS_GUIDE.md)**: Step-by-step setup for non-technical users
-- **[Docker Setup](./docs/setup/DOCKER_SETUP.md)**: Docker architecture details
-- **[Cloud API Setup](./docs/setup/CLOUD_API_SETUP.md)**: Cloud API configuration
+- **[Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide)** - Step-by-step for non-technical users
+- **[Your First 10 Minutes](https://fiestaboard.app/docs/setup/first-10-minutes)** - What to do right after setup
+- **[Plugin Configuration](https://fiestaboard.app/docs/plugins/configuration)** - Enable and configure data sources
+- **[Schedule Mode](https://fiestaboard.app/docs/features/schedule)** - Automate your display
+- **[Raspberry Pi Deployment](https://fiestaboard.app/docs/deployment/raspberry-pi)** - Always-on setup
+- **[Plugin Development Guide](https://fiestaboard.app/docs/development/plugin-guide)** - Build your own plugins
 
-### Development
-- **[Local Development](./docs/setup/LOCAL_DEVELOPMENT.md)**: Development environment for contributors
-- **[Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md)**: Create your own plugins
+---
 
-### Plugin Documentation
-Each plugin includes its own docs:
-- **Plugin README**: `plugins/<plugin>/README.md`
-- **Setup guide**: `plugins/<plugin>/docs/SETUP.md`
+## For Developers
 
-### Deployment Guides
-- **[Raspberry Pi](./docs/deployment/PI_BUILD_GUIDE.md)**: Build on Raspberry Pi
+If you want to **contribute code** or **build plugins** (not just use FiestaBoard), see the development guides:
 
-### Reference
-- **[Character Codes](./docs/reference/CHARACTER_CODES.md)**: Board character reference
-- **[Color Guide](./docs/reference/COLOR_GUIDE.md)**: Color coding reference
+- **[Contributing Guide](./CONTRIBUTING.md)** - Branch workflow, PR process, standards
+- **[Local Development](./docs/setup/LOCAL_DEVELOPMENT.md)** - Dev environment with hot-reload
+- **[Plugin Development](./docs/development/PLUGIN_DEVELOPMENT.md)** - Create custom plugins
 
-## Future Features
+```bash
+# Development environment (hot-reload for Python, volume mounts)
+docker-compose -f docker-compose.dev.yml up --build
+```
 
-- Webhook support for manual messages
-- Custom image display
-- Analytics and usage stats
+### Project Structure
 
-## License
+```
+FiestaBoard/
+├── plugins/          # Plugin-based data sources (weather, stocks, etc.)
+├── src/              # Platform core (API server, display service, plugin system)
+├── web/              # Next.js web UI
+├── docs/             # Development documentation
+├── docs-site/        # Documentation website (fiestaboard.app)
+├── Dockerfile        # Unified container (API + Web UI + nginx)
+└── docker-compose.yml
+```
 
-MIT License - see [LICENSE](./LICENSE) file for details.
-
-## Screenshots
-
-### Web UI
-
-![Web UI Home](./images/web-ui-home.png)
-
-### Rich Page Editor (WYSIWYG)
-
-Create and edit board pages with a rich editor that shows exactly what will appear on your split-flap display, including template variables, colors, and formatting in real time.
-
-![Rich Page Editor](./images/page-editor-wysiwyg.png)
-
-### Schedule Mode
-
-Use the visual calendar to schedule which page displays at which time. Set different pages for different times and days of the week. A default page fills any gaps when no slot is scheduled; you can also turn scheduling off and manually choose which page to show.
-
-![Schedule Calendar](./images/schedule-calendar.png)
-
-### Plugin Displays
-
-**Stocks**: Monitor stock prices and percentage changes with color-coded indicators
-
-![Stocks Display](./images/stocks-display.png)
-
-**Nearby Aircraft**: Real-time nearby aircraft information with call signs, altitude, and ground speed
-
-![Nearby Aircraft Display](./plugins/nearby_aircraft/docs/nearby-aircraft-display.png)
-
-**Sports Scores**: Display recent match scores from NFL, Soccer, NHL, and NBA
-
-![Sports Scores Display](./plugins/sports_scores/docs/sports-scores-display.png)
-
-**Weather**: Current conditions with temperature, UV index, precipitation chance, and daily high/low temperatures
-
-![Weather Display](./plugins/weather/docs/weather-display.png)
-
-### Other Available Features
-
-The board can display various screens:
-
-- **Weather + DateTime**: Current conditions with temperature (Fahrenheit/Celsius), UV index with color coding, precipitation chance, daily high/low temperatures, and sunset time
-- **Home Assistant**: House status with green ([G]) and red ([R]) indicators
-- **Star Trek Quotes**: Inspiring quotes from TNG, Voyager, and DS9
-- **Guest WiFi**: SSID and password for guests
-- **Air Quality & Fog**: Monitor AQI and fog conditions
-- **Bay Wheels**: Track bike availability at multiple stations
-- **Muni Transit**: Real-time SF Muni arrival predictions
-- **Traffic**: Travel time to destinations with live traffic
-- **Surf Conditions**: Live surf reports with wave height and quality ratings
-
-**System Features:**
-- **Silence Schedule**: Configure quiet hours when the board won't update (e.g., 8pm-7am)
-
-## External Resources
-
-- [Board API Docs](https://docs.vestaboard.com/docs/read-write-api/introduction)
-- [WeatherAPI.com](https://www.weatherapi.com/)
-- [OpenWeatherMap](https://openweathermap.org/api)
-- [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/)
+---
 
 ## Considering a Vestaboard?
 
@@ -452,7 +260,5 @@ FiestaBoard is free and open source. If you find it useful and want to support c
 
 <a href="https://www.buymeacoffee.com/fiestaboard" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
-Your support helps maintain the project, add new features, and keep the documentation up to date. Every coffee is appreciated!
-
 ---
-Made with ❤️ in San Francisco.
+Made with love in San Francisco.

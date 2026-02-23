@@ -35,16 +35,11 @@ Display what's currently playing on your music services (Spotify, Apple Music, e
 ### Setup
 
 1. Create an account at [last.fm](https://www.last.fm/)
-2. Set up scrobbling from your music app
+2. Set up scrobbling from your music app (Spotify, Apple Music, etc.)
 3. Create an API application at [last.fm/api/account/create](https://www.last.fm/api/account/create)
-4. Add to `.env`:
-
-```bash
-LASTFM_API_KEY=your_api_key_here
-LASTFM_USERNAME=your_username
-```
-
-5. Enable the Last.fm plugin in the Web UI
+4. Go to **Integrations** in the Web UI
+5. Toggle the **Last.fm** plugin on
+6. Enter your API key and username
 
 ### Available Variables
 
@@ -85,14 +80,9 @@ Display your guest WiFi network name and password. **No API key required.**
 
 ### Setup
 
-1. Enable the Guest WiFi plugin in the Web UI
-2. Configure your WiFi details:
-
-```bash
-# In .env
-GUEST_WIFI_SSID=MyNetwork
-GUEST_WIFI_PASSWORD=mypassword123
-```
+1. Go to **Integrations** in the Web UI
+2. Toggle the **Guest WiFi** plugin on
+3. Enter your WiFi network name and password in the settings
 
 ### Color Coding
 
