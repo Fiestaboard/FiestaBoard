@@ -64,9 +64,25 @@ Your board API key is what lets FiestaBoard send content to your display.
 4. Enable the **Read/Write API**
 5. Copy the API key, you'll need it in Step 4
 
-## Step 3: Download FiestaBoard
+## Step 3: Get FiestaBoard
 
-### Option A: Using the Terminal (Recommended)
+Choose the option that works best for you:
+
+### Option A: Pull from Docker Hub (simplest — no repository clone needed)
+
+If you just want to run FiestaBoard without cloning the repository, grab the compose file and start FiestaBoard directly from the pre-built Docker Hub image:
+
+```bash
+# Download the compose file
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
+
+# Start FiestaBoard (pulls the image automatically)
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+When it finishes, **skip to Step 5** — FiestaBoard is already running!
+
+### Option B: Clone the Repository
 
 Open Terminal (Mac/Linux) or PowerShell (Windows):
 
@@ -75,7 +91,7 @@ git clone https://github.com/Fiestaboard/FiestaBoard.git
 cd FiestaBoard
 ```
 
-### Option B: Download ZIP
+### Option C: Download ZIP
 
 1. Go to [github.com/Fiestaboard/FiestaBoard](https://github.com/Fiestaboard/FiestaBoard)
 2. Click the green **Code** button
@@ -84,6 +100,8 @@ cd FiestaBoard
 5. Open a terminal/PowerShell and navigate to the extracted folder
 
 ## Step 4: Run the Install Wizard
+
+*(Skip this step if you used Option A above — you're already running!)*
 
 The install wizard handles everything. It collects your board API key, creates the configuration file, and starts the server.
 

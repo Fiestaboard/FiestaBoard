@@ -25,6 +25,8 @@ That's it -- just your board API key and Docker. The install script gets the ser
 
 ### Installation
 
+#### Option A: Using the Install Script (Recommended)
+
 Run the install script — it checks prerequisites, starts the server, and opens the setup wizard in your browser:
 
 ```bash
@@ -36,6 +38,20 @@ Run the install script — it checks prerequisites, starts the server, and opens
 ```
 
 The setup wizard walks you through connecting your board and choosing data sources.
+
+#### Option B: Pull from Docker Hub (no clone needed)
+
+If you don't want to clone the repository, grab the compose file and start FiestaBoard directly from the pre-built Docker Hub image:
+
+```bash
+# Download the compose file
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
+
+# Start FiestaBoard (pulls the image automatically)
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+Then open **http://localhost:4420**, connect your board via the web UI, and click **"▶ Start Service"**.
 
 ### Manual Setup
 
