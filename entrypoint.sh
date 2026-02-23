@@ -16,8 +16,8 @@ if [ -S /var/run/docker.sock ]; then
     # Re-use an existing group that already owns the socket, or create one
     EXISTING_GROUP=$(getent group "$DOCKER_GID" | cut -d: -f1 || true)
     if [ -z "$EXISTING_GROUP" ]; then
-        groupadd -g "$DOCKER_GID" docker 2>/dev/null || true
-        DOCKER_GROUP="docker"
+        groupadd -g "$DOCKER_GID" dockersock 2>/dev/null || true
+        DOCKER_GROUP="dockersock"
     else
         DOCKER_GROUP="$EXISTING_GROUP"
     fi
