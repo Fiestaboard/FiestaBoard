@@ -22,6 +22,9 @@ finnhub-python>=2.4.19
 # Sun position calculations
 astral>=3.2
 
+# Docker management (for container restart/upgrade from within container)
+docker>=7.1.0
+
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
 
