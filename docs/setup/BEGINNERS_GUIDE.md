@@ -99,20 +99,19 @@ We've made this easy! Just run one script and it handles everything.
 ### What the script does:
 
 - ✅ Checks that Docker is installed and running
-- ✅ Guides you through entering your board API key
 - ✅ Creates the configuration file
-- ✅ Builds and starts the server
-- ✅ Tells you when everything is ready
+- ✅ Pulls and starts the server
+- ✅ Opens the setup wizard in your browser
 
-## Step 5: Use the Web Interface
+## Step 5: Complete the Setup Wizard
 
-Once the installation script completes:
+The script will automatically open the setup wizard in your browser. If it doesn't, go to `http://localhost:4420` manually.
 
-1. **Open your web browser** (Chrome, Safari, Firefox, etc.)
-2. **Go to:** `http://localhost:4420`
-3. You'll see the FiestaBoard control panel!
-4. **Click the green "▶ Start Service" button**
-5. **Watch your board** - it should start updating!
+The wizard walks you through:
+
+1. **Connecting your board** — choose Cloud API or Local API and enter your key
+2. **Adding data sources** — enable plugins like Date & Time, Star Trek Quotes, and more
+3. **You're all set!** — send a test message to your board
 
 ## Step 6: Add Plugins
 
