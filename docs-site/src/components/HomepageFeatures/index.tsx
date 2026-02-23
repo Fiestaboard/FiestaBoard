@@ -6,14 +6,14 @@ import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
-  emoji: string;
+  icon: string;
   description: ReactNode;
 };
 
 const FeatureList: FeatureItem[] = [
   {
     title: 'Plugin Architecture',
-    emoji: '🔌',
+    icon: '/img/features/plugin-architecture.png',
     description: (
       <>
         18 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times,
@@ -23,7 +23,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'WYSIWYG Editor',
-    emoji: '✏️',
+    icon: '/img/features/wysiwyg-editor.png',
     description: (
       <>
         Create pages with a visual editor that shows exactly how content will appear on your 
@@ -33,7 +33,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Schedule Mode',
-    emoji: '📅',
+    icon: '/img/features/schedule-mode.png',
     description: (
       <>
         Visual calendar to schedule which pages display when. Set different pages for 
@@ -43,7 +43,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Docker Ready',
-    emoji: '🐳',
+    icon: '/img/features/docker-ready.png',
     description: (
       <>
         One-command deployment with Docker Compose. Works on Mac, Linux, Windows, 
@@ -53,7 +53,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Highly Customizable',
-    emoji: '🎨',
+    icon: '/img/features/customizable.png',
     description: (
       <>
         Create custom pages with multiple data sources. Configure silence schedules, 
@@ -63,7 +63,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Open Source',
-    emoji: '💚',
+    icon: '/img/features/open-source.png',
     description: (
       <>
         MIT licensed and community-driven. Contribute plugins, report issues, 
@@ -75,7 +75,6 @@ const FeatureList: FeatureItem[] = [
 
 type ShowcaseItem = {
   title: string;
-  emoji: string;
   image: string;
   alt: string;
   description: string;
@@ -85,7 +84,6 @@ type ShowcaseItem = {
 const FeatureShowcaseList: ShowcaseItem[] = [
   {
     title: 'Dashboard & Web UI',
-    emoji: '',
     image: '/img/web-ui-home.png',
     alt: 'FiestaBoard web dashboard showing active display with stock ticker data',
     description: 'Monitor your display, manage pages, and configure plugins from a modern web interface.',
@@ -93,7 +91,6 @@ const FeatureShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'WYSIWYG Page Editor',
-    emoji: '',
     image: '/img/page-editor-wysiwyg.png',
     alt: 'FiestaBoard WYSIWYG page editor with visual board preview',
     description: 'Design your board layouts visually—see exactly how content will appear before sending it to your display.',
@@ -101,7 +98,6 @@ const FeatureShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'Visual Scheduling',
-    emoji: '',
     image: '/img/schedule-calendar.png',
     alt: 'FiestaBoard schedule calendar view with time-based page scheduling',
     description: 'Schedule different pages for different times and days with an intuitive calendar interface.',
@@ -112,7 +108,6 @@ const FeatureShowcaseList: ShowcaseItem[] = [
 const PluginShowcaseList: ShowcaseItem[] = [
   {
     title: 'Weather',
-    emoji: '🌤️',
     image: '/img/weather-display.png',
     alt: 'Weather conditions displayed on split-flap board',
     description: 'Current conditions, UV index, high/low temps',
@@ -120,7 +115,6 @@ const PluginShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'Stocks',
-    emoji: '📈',
     image: '/img/stocks-display.png',
     alt: 'Stock prices displayed on split-flap board',
     description: 'Real-time stock prices with color indicators',
@@ -128,7 +122,6 @@ const PluginShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'Sports Scores',
-    emoji: '🏆',
     image: '/img/sports-scores-display.png',
     alt: 'Live sports scores displayed on split-flap board',
     description: 'NFL, Soccer, NHL, NBA live scores',
@@ -136,7 +129,6 @@ const PluginShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'Sun Art',
-    emoji: '🌅',
     image: '/img/sun-art-sunset.png',
     alt: 'Sun art sunset visualization on split-flap board',
     description: 'Beautiful time-of-day visualizations',
@@ -144,7 +136,6 @@ const PluginShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'Disney Parks',
-    emoji: '🏰',
     image: '/img/disney-parks-times-display.png',
     alt: 'Disney park wait times on split-flap board',
     description: 'Live ride wait times from Disney parks',
@@ -152,7 +143,6 @@ const PluginShowcaseList: ShowcaseItem[] = [
   },
   {
     title: 'Star Trek Quotes',
-    emoji: '🖖',
     image: '/img/star-trek-quotes-display.png',
     alt: 'Star Trek quote displayed on split-flap board',
     description: 'Random quotes from TNG, Voyager, DS9',
@@ -160,11 +150,11 @@ const PluginShowcaseList: ShowcaseItem[] = [
   },
 ];
 
-function Feature({title, emoji, description}: FeatureItem) {
+function Feature({title, icon, description}: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center">
-        <span className={styles.featureEmoji}>{emoji}</span>
+        <img className={styles.featureIcon} src={icon} alt={title} loading="lazy" />
       </div>
       <div className="text--center padding-horiz--md">
         <Heading as="h3">{title}</Heading>
@@ -174,16 +164,14 @@ function Feature({title, emoji, description}: FeatureItem) {
   );
 }
 
-function FeatureShowcase({title, emoji, image, alt, description, link, reverse}: ShowcaseItem & {reverse?: boolean}) {
+function FeatureShowcase({title, image, alt, description, link, reverse}: ShowcaseItem & {reverse?: boolean}) {
   return (
     <div className={clsx(styles.showcaseRow, reverse && styles.showcaseRowReverse)}>
       <div className={styles.showcaseImage}>
         <img src={image} alt={alt} loading="lazy" />
       </div>
       <div className={styles.showcaseContent}>
-        <Heading as="h3">
-          {emoji && <span className={styles.showcaseEmoji}>{emoji}</span>}{emoji && ' '}{title}
-        </Heading>
+        <Heading as="h3">{title}</Heading>
         <p>{description}</p>
         <Link className="button button--primary button--sm" to={link}>
           Learn More →
