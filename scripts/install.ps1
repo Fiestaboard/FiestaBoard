@@ -120,9 +120,10 @@ $hubComposePath = Join-Path $ProjectDir "docker-compose.hub.yml"
 if (Test-Path $hubComposePath) {
     $composeFile = "docker-compose.hub.yml"
     $composeArgs = @("-f", $composeFile, "up", "-d")
+    Write-Host "Pulling and starting FiestaBoard..."
+} else {
+    Write-Host "Building and starting FiestaBoard..."
 }
-
-Write-Host "Pulling and starting FiestaBoard..."
 Write-Host "(This may take a few minutes the first time)"
 Write-Host ""
 

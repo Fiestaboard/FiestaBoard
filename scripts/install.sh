@@ -100,9 +100,10 @@ COMPOSE_ARGS="up -d --build"
 if [ -f "$PROJECT_DIR/docker-compose.hub.yml" ]; then
     COMPOSE_FILE="docker-compose.hub.yml"
     COMPOSE_ARGS="up -d"
+    echo "Pulling and starting FiestaBoard..."
+else
+    echo "Building and starting FiestaBoard..."
 fi
-
-echo "Pulling and starting FiestaBoard..."
 echo "(This may take a few minutes the first time)"
 echo ""
 
