@@ -41,16 +41,14 @@ The setup wizard walks you through connecting your board and choosing data sourc
 
 #### Option B: Pull from Docker Hub (no clone needed)
 
-If you don't want to clone the repository, pull the pre-built image and run it directly:
+If you don't want to clone the repository, grab the compose file and start FiestaBoard directly from the pre-built Docker Hub image:
 
 ```bash
-# Mac/Linux
-docker pull fiestaboard/fiestaboard:latest
-docker run -d -p 4420:3000 -v $(pwd)/data:/app/data --restart unless-stopped fiestaboard/fiestaboard:latest
+# Download the compose file
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
 
-# Windows (PowerShell)
-docker pull fiestaboard/fiestaboard:latest
-docker run -d -p 4420:3000 -v ${PWD}/data:/app/data --restart unless-stopped fiestaboard/fiestaboard:latest
+# Start FiestaBoard (pulls the image automatically)
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
 Then open **http://localhost:4420**, connect your board via the web UI, and click **"▶ Start Service"**.

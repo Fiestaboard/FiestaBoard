@@ -68,18 +68,16 @@ Your board API key is what lets FiestaBoard send content to your display.
 
 Choose the option that works best for you:
 
-### Option A: Pull from Docker Hub (simplest — no download needed)
+### Option A: Pull from Docker Hub (simplest — no repository clone needed)
 
-If you just want to run FiestaBoard without cloning the repository, pull the pre-built image and run it directly:
+If you just want to run FiestaBoard without cloning the repository, grab the compose file and start FiestaBoard directly from the pre-built Docker Hub image:
 
 ```bash
-# Mac/Linux
-docker pull fiestaboard/fiestaboard:latest
-docker run -d -p 4420:3000 -v $(pwd)/data:/app/data --restart unless-stopped fiestaboard/fiestaboard:latest
+# Download the compose file
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
 
-# Windows (PowerShell)
-docker pull fiestaboard/fiestaboard:latest
-docker run -d -p 4420:3000 -v ${PWD}/data:/app/data --restart unless-stopped fiestaboard/fiestaboard:latest
+# Start FiestaBoard (pulls the image automatically)
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
 When it finishes, **skip to Step 5** — FiestaBoard is already running!
