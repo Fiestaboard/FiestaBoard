@@ -61,9 +61,10 @@ LABEL org.opencontainers.image.title="FiestaBoard" \
 
 WORKDIR /app
 
-# Install Node.js, nginx, and wget
+# Install Node.js, nginx, wget, and gosu (for entrypoint privilege dropping)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    gosu \
     nginx \
     wget \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
@@ -99,7 +100,9 @@ COPY supervisord.conf /app/supervisord.conf
 COPY supervisord-dev.conf /app/supervisord-dev.conf
 RUN chown appuser:appuser /app/supervisord.conf /app/supervisord-dev.conf
 
-USER appuser
+# Copy entrypoint script (handles Docker socket permissions at runtime)
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Expose single port
 EXPOSE 3000
@@ -108,4 +111,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
 
+# The entrypoint runs as root to fix Docker socket permissions,
+# then drops to appuser via gosu before executing the CMD.
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["supervisord", "-c", "/app/supervisord.conf"]
