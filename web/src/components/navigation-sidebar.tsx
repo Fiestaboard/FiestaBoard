@@ -118,7 +118,7 @@ export function NavigationSidebar() {
       >
         <nav className="space-y-1 px-3 py-4">
           {navigation.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
 
             return (
@@ -166,7 +166,7 @@ export function NavigationSidebar() {
           {/* Navigation */}
           <nav className="flex-1 space-y-1 px-3 py-4">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
               const Icon = item.icon;
 
               return (
