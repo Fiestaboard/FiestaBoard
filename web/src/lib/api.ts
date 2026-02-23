@@ -775,6 +775,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ template, ...(boardId && { board_id: boardId }) }),
     }),
+  forceRefresh: () =>
+    fetchApi<{ status: string; message: string }>("/force-refresh", {
+      method: "POST",
+    }),
 
   // Schedule endpoints (optional boardId for per-board schedules)
   getSchedules: (boardId?: string) =>
