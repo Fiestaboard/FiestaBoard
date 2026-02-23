@@ -2,6 +2,8 @@
 
 **New to coding or technical setups? No worries!** This guide will walk you through everything step-by-step.
 
+> **Full version online:** For the most up-to-date beginner's guide with images, visit [fiestaboard.app/docs/setup/beginners-guide](https://fiestaboard.app/docs/setup/beginners-guide).
+
 ## What is FiestaBoard?
 
 FiestaBoard is a server you run on your computer (or a Raspberry Pi) that connects to your split-flap display. It uses plugins to pull in data - weather, stocks, transit times, sports scores, and more - and displays it on your board. You choose which plugins to enable and bring the API keys for the services you care about.
@@ -11,7 +13,7 @@ FiestaBoard is a server you run on your computer (or a Raspberry Pi) that connec
 1. **A split-flap display** that's already set up and working with the board's app
 2. **Your board's API key** (you'll get this in Step 2)
 3. **A computer** - Mac, Windows, or Linux
-4. **About 10 minutes** for the initial setup
+4. **About 15 minutes** for the initial setup
 
 > You only need your board API key to get started. No other API keys or configuration are required up front -- plugins like weather, stocks, and transit are all set up later through the web interface.
 
@@ -34,9 +36,14 @@ Docker is free software that runs FiestaBoard. Think of it as a container that p
 5. Open Docker Desktop. It should start automatically
 
 ### For Linux:
-1. Go to the [Docker Desktop for Linux](https://docs.docker.com/desktop/setup/install/linux/) install page
-2. Follow the instructions for your distribution (Ubuntu, Debian, Fedora, Arch, etc.)
-3. Start Docker after installation
+1. Open a terminal and run:
+   ```bash
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+   sudo usermod -aG docker $USER
+   ```
+2. Log out and back in for the group change to take effect
+3. Verify Docker is working: `docker --version`
 
 ## Step 2: Get Your Board API Key
 
@@ -44,100 +51,97 @@ Your board API key is what lets FiestaBoard send content to your display.
 
 ### Local API (Recommended, faster, supports animations)
 1. Open the board's mobile app
-2. Go to **Settings** → **Local API**
+2. Go to **Settings** > **Local API**
 3. Copy the API key and note your board's IP address
 
 ### Cloud API (Alternative, works from anywhere)
 1. Go to [web.vestaboard.com](https://web.vestaboard.com) and log in
 2. Click on your board name
-3. Look for "Settings" or "API" in the menu
+3. Navigate to the API section
 4. Find "Read/Write API" and click "Enable"
 5. Copy the key that appears, paste it somewhere safe
 
-## Step 3: Download FiestaBoard
+## Step 3: Get FiestaBoard Running
 
-### Option A: If you have Git installed:
-1. Open Terminal (Mac/Linux) or Command Prompt (Windows)
-2. Navigate to where you want FiestaBoard (like your Documents folder)
-3. Type: `git clone https://github.com/Fiestaboard/FiestaBoard.git`
-4. Press Enter
+### Easiest: Pull from Docker Hub (no clone needed)
 
-### Option B: If you don't have Git:
+Open Terminal (Mac/Linux) or PowerShell (Windows) and run these two commands:
+
+```bash
+curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
+
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+Wait for it to finish (1-2 minutes the first time). When you see the terminal prompt again, skip to Step 4.
+
+### Alternative: Clone and Install Wizard
+
+```bash
+git clone https://github.com/Fiestaboard/FiestaBoard.git
+cd FiestaBoard
+```
+
+Then run the installation script:
+
+**For Mac/Linux:**
+```bash
+./scripts/install.sh
+```
+
+**For Windows (PowerShell):**
+```powershell
+.\scripts\install.ps1
+```
+
+The script will:
+- Check that Docker is installed and running
+- Ask for your board API key and settings
+- Start the server
+- Open the setup wizard in your browser
+
+### No Git? Download ZIP
+
 1. Go to the FiestaBoard repository on GitHub
 2. Click the green "Code" button
 3. Click "Download ZIP"
 4. Extract the ZIP file to a location you'll remember (like Documents)
+5. Open Terminal/PowerShell and navigate to the extracted folder
+6. Run the install script as shown above
 
-## Step 4: Run the Installation Script
+## Step 4: Connect and Start
 
-We've made this easy! Just run one script and it handles everything.
+1. Open **http://localhost:4420** in your browser
+2. If you haven't already entered your board API key, go to **Settings** and enter it
+3. Click **"Start Service"** to begin updating your board
 
-### For Mac/Linux:
+Your board should now be displaying content!
 
-1. **Open Terminal** (Press Cmd+Space, type "Terminal", press Enter)
-2. **Navigate to the FiestaBoard folder:**
-   ```bash
-   cd Documents/FiestaBoard
-   ```
-3. **Run the installation script:**
-   ```bash
-   ./scripts/install.sh
-   ```
+## Step 5: Make It Yours
 
-### For Windows:
-
-1. **Open PowerShell** (Press Windows key, type "PowerShell", right-click and select "Run as Administrator")
-2. **Navigate to the FiestaBoard folder:**
-   ```powershell
-   cd Documents\FiestaBoard
-   ```
-3. **Run the installation script:**
-   ```powershell
-   .\scripts\install.ps1
-   ```
-
-### What the script does:
-
-- ✅ Checks that Docker is installed and running
-- ✅ Creates the configuration file
-- ✅ Pulls and starts the server
-- ✅ Opens the setup wizard in your browser
-
-## Step 5: Complete the Setup Wizard
-
-The script will automatically open the setup wizard in your browser. If it doesn't, go to `http://localhost:4420` manually.
-
-The wizard walks you through:
-
-1. **Connecting your board** — choose Cloud API or Local API and enter your key
-2. **Adding data sources** — enable plugins like Date & Time, Star Trek Quotes, and more
-3. **You're all set!** — send a test message to your board
-
-## Step 6: Add Plugins
-
-Now that your server is running, you can enable plugins to display different data:
-
-1. In the web interface, go to the **Integrations** page
-2. Enable the plugins you want (Weather, Stocks, Transit, etc.)
-3. For plugins that need API keys, enter them directly in the Integrations page. It links to setup instructions for each one
-4. Create pages using the **Page Editor** to design what appears on your board
+1. Go to the **Integrations** page and enable some plugins (many need no API key -- try Date & Time, Star Trek Quotes, or Visual Clock)
+2. Go to **Pages** and create a new page using the visual editor
+3. Insert live data using the **Variable Picker** button
+4. Go to **Schedule** to automate which pages show at which times
 
 > **Tip:** Many plugins work without any API key (Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, and more). Start with those while you gather API keys for others.
 
-## You're Done!
+For a full walkthrough, see **[Your First 10 Minutes](https://fiestaboard.app/docs/setup/first-10-minutes)**.
 
-Your board should now be updating automatically!
+## Stopping and Starting
 
 ### To stop FiestaBoard:
-- Go back to your Terminal/Command Prompt window
-- Press `Ctrl+C`
-- Then type: `docker-compose down` and press Enter
+```bash
+docker-compose down
+```
 
 ### To start it again later:
-- Open Terminal/Command Prompt/PowerShell
-- Navigate to the FiestaBoard folder
-- Type: `docker-compose up -d` and press Enter
-- Go to `http://localhost:4420` and click Start Service
+```bash
+docker-compose up -d
+```
+Then go to **http://localhost:4420** and click **Start Service**.
+
+> If you used the Docker Hub method, use `docker-compose -f docker-compose.hub.yml up -d` instead.
 
 ## Need Help?
 
@@ -147,27 +151,24 @@ Your board should now be updating automatically!
 - Make sure Docker Desktop is open and the whale icon is in your menu bar (Mac) or system tray (Windows)
 
 **"Connection refused" when accessing http://localhost:4420**
-- Wait a minute after starting, then refresh your browser
-- Make sure Docker containers are running: `docker-compose ps`
-
-**"Invalid API key"**
-- Double-check you copied the key correctly (no extra spaces!)
-- Make sure your `.env` file is named exactly `.env` (not `env.txt` or `.env.txt`)
+- Wait 30-60 seconds after starting, then refresh your browser
+- Make sure Docker containers are running: `docker ps`
 
 **Board not updating**
 - Make sure you clicked "Start Service" in the web interface
-- Check the logs in your Terminal/Command Prompt window for errors
-- Verify your board API key has the right permissions
+- Verify your board API key is correct in Settings
+- For local mode: make sure your board and computer are on the same WiFi network
+- Check the logs: `docker-compose logs -f`
 
 ### Still stuck?
 
-- Check the main [Troubleshooting section](../../README.md#troubleshooting) in the README
-- Open an issue on GitHub with details about your problem
+- Check the full [Troubleshooting Guide](https://fiestaboard.app/docs/troubleshooting)
+- Ask in the [Discord community](https://discord.gg/wc9dDfte)
+- [Open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) on GitHub
 
 ## What's Next?
 
-- **Enable plugins** - Go to the Integrations page in the web UI
-- **Create pages** - Use the Page Editor to design your board layouts
-- **[Set up a schedule](../../README.md#system-features)** - Configure which pages show at which times
-- **Browse plugin docs** - Each plugin has setup instructions in `plugins/<plugin_name>/docs/SETUP.md`
-
+- **[Your First 10 Minutes](https://fiestaboard.app/docs/setup/first-10-minutes)** - What to do right after setup
+- **[Plugin Configuration](https://fiestaboard.app/docs/plugins/configuration)** - Enable and configure data sources
+- **[Schedule Mode](https://fiestaboard.app/docs/features/schedule)** - Automate your display
+- **[Raspberry Pi Deployment](https://fiestaboard.app/docs/deployment/raspberry-pi)** - Set up an always-on board

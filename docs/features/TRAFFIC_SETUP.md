@@ -41,31 +41,29 @@ The Traffic feature uses Google's Routes API (v2) to get real-time travel times.
 
 ### Step 4: Add to Your Configuration
 
-Add the API key to your configuration:
-
-**Option A: Via Web UI (Recommended)**
+**Via Web UI (Recommended):**
 1. Open http://localhost:4420
-2. Go to Settings → Features
-3. Find "Traffic" and toggle it on
-4. Paste your API key in the "Google Routes API Key" field
-5. Click Save
+2. Go to the **Integrations** page
+3. Find the **Traffic** plugin and toggle it on
+4. Paste your API key in the Google Routes API Key field
+5. Click **Save**
 
-**Option B: Via Environment Variable**
+**Via Environment Variable (alternative):**
 Add to your `.env` file:
 ```bash
 GOOGLE_ROUTES_API_KEY=your_api_key_here
 ```
 
-### Step 5: Test It
+### Step 5: Add a Route and Test
 
-1. In the web UI, go to Settings → Features → Traffic
-2. Click "Add Route"
+1. In the web UI, go to the Traffic plugin settings
+2. Click **Add Route**
 3. Enter:
-   - **Origin**: Your home address or `40.7128,-74.0060` (coordinates work too)
-   - **Destination**: Your work address or `37.7899,-122.4001`
-   - **Display Name**: `WORK`
+   - **Origin**: A street address or coordinates (e.g., `40.7128,-74.0060`)
+   - **Destination**: Another address or coordinates (e.g., `40.7580,-73.9855`)
+   - **Display Name**: A short label like `WORK` or `GYM`
    - **Travel Mode**: Choose Drive, Bicycle, Transit, or Walk
-4. Click "Validate Route"
+4. Click **Validate Route**
 
 If it works, you'll see: "Route is valid! Estimated travel time: ~X minutes"
 
@@ -85,7 +83,7 @@ If it works, you'll see: "Route is valid! Estimated travel time: ~X minutes"
 **Cause**: The address format is invalid or Google can't geocode it.
 
 **Fix**:
-1. Try using the full address with city and state: `123 Main St, San Francisco, CA 94102`
+1. Try using the full address with city and state: `123 Main St, Anytown, ST 12345`
 2. Or use coordinates: `40.7128,-74.0060`
 3. Avoid ambiguous addresses like "Main Street"
 
@@ -97,8 +95,8 @@ If it works, you'll see: "Route is valid! Estimated travel time: ~X minutes"
 3. Network connectivity issues
 
 **Fix**:
-1. Double-check your API key in Settings
-2. Check Docker logs: `docker-compose -f docker-compose.dev.yml logs fiestaboard | grep traffic`
+1. Double-check your API key in the Integrations page
+2. Check Docker logs: `docker-compose logs fiestaboard | grep traffic`
 3. Try a different address format
 
 ### Using Coordinates Instead of Addresses
@@ -110,16 +108,12 @@ If addresses aren't working, you can use latitude,longitude coordinates:
 3. Click the coordinates at the top (e.g., "40.7128, -74.0060")
 4. Use this format in the Traffic settings: `40.7128,-74.0060` (no spaces)
 
-**Example**:
-- Origin: `40.7128,-74.0060` (San Francisco)
-- Destination: `37.7899,-122.4001` (Downtown SF)
-
 ## Address Format Tips
 
 ### Good Address Formats
 
 - `123 Main St, New York, NY 10001`
-- `456 Park Ave, New York, NY 10022`
+- `456 Park Ave, Anytown, CA 90210`
 - `San Francisco International Airport, CA`
 - `40.7128,-74.0060` (coordinates)
 
@@ -163,33 +157,32 @@ Each mode returns different routes optimized for that transportation type.
 
 ## Example Configuration
 
-Here's a complete example for a morning commute:
+Here's a complete example for a morning commute display (using placeholder addresses):
 
 **Route 1: Home to Work (Drive)**
-- Origin: `1735 35th Ave, San Francisco, CA 94122`
-- Destination: `525 20th St, San Francisco, CA 94107`
+- Origin: `123 Main St, Anytown, ST 12345`
+- Destination: `456 Business Ave, Anytown, ST 12345`
 - Display Name: `WORK`
 - Travel Mode: Drive
 
 **Route 2: Home to Work (Bike)**
-- Origin: `1735 35th Ave, San Francisco, CA 94122`
-- Destination: `525 20th St, San Francisco, CA 94107`
+- Origin: `123 Main St, Anytown, ST 12345`
+- Destination: `456 Business Ave, Anytown, ST 12345`
 - Display Name: `WORK-BIKE`
 - Travel Mode: Bicycle
 
 **Route 3: Home to Work (Transit)**
-- Origin: `1735 35th Ave, San Francisco, CA 94122`
-- Destination: `525 20th St, San Francisco, CA 94107`
-- Display Name: `WORK-MUNI`
+- Origin: `123 Main St, Anytown, ST 12345`
+- Destination: `456 Business Ave, Anytown, ST 12345`
+- Display Name: `WORK-BUS`
 - Travel Mode: Transit
 
-Then in your template:
+Then in your page template:
 ```
 COMMUTE OPTIONS
 DRIVE: {traffic.routes.0.duration_minutes}m
 BIKE: {traffic.routes.1.duration_minutes}m
-MUNI: {traffic.routes.2.duration_minutes}m
+BUS: {traffic.routes.2.duration_minutes}m
 ```
 
 This lets you compare all three options at a glance!
-

@@ -6,135 +6,185 @@ keywords: [FiestaBoard troubleshooting, debug, common issues, error fixes, split
 
 # Troubleshooting
 
-Solutions for common FiestaBoard issues.
+Solutions for common FiestaBoard issues, organized by what you're seeing.
 
-## Installation Issues
+## Installation and Startup
 
 ### Docker is not running
 
-**Symptom**: `Cannot connect to the Docker daemon`
+**What you see:** `Cannot connect to the Docker daemon`
 
-**Solution**:
-- Make sure Docker Desktop is open and running
-- Look for the Docker whale icon in your system tray (Windows/Mac) or menu bar
-- On Linux, check: `sudo systemctl status docker`
+**Fix:** Make sure Docker Desktop is open and running.
+- **Mac:** Look for the whale icon in the menu bar at the top of the screen
+- **Windows:** Look for the whale icon in the system tray (bottom-right corner)
+- **Linux:** Run `sudo systemctl start docker`
 
 ### Port already in use
 
-**Symptom**: `Bind for 0.0.0.0:8080 failed: port is already allocated`
+**What you see:** `Bind for 0.0.0.0:4420 failed: port is already allocated`
 
-**Solution**:
-- Another application is using port 8080 or 8000
-- Stop the other application, or change the port in `docker-compose.yml`
-- Find what's using the port: `lsof -i :8080` (Mac/Linux) or `netstat -ano | findstr 8080` (Windows)
+**Fix:** Something else is already using port 4420. You have two options:
 
-### Build fails on Raspberry Pi
+1. **Find and stop it:**
+   ```bash
+   # Mac/Linux
+   lsof -i :4420
 
-**Symptom**: Build errors related to missing compilers
+   # Windows
+   netstat -ano | findstr 4420
+   ```
 
-**Solution**:
-Ensure build tools are installed on your Pi:
+2. **Use a different port** by editing the `ports` line in your `docker-compose.yml` (or `docker-compose.hub.yml`):
+   ```yaml
+   ports:
+     - "9090:3000"   # Change 9090 to any free port
+   ```
+   Then access FiestaBoard at `http://localhost:9090` instead.
+
+### Container won't start
+
+**What you see:** Container exits immediately or shows errors.
+
+**Fix:** Check the logs for the actual error:
 ```bash
-sudo apt-get install gcc g++ make
+docker-compose logs fiestaboard
 ```
 
-## Board Connection Issues
+Common causes:
+- Missing `.env` file (run `cp env.example .env` if you cloned the repo)
+- Docker doesn't have enough memory allocated (check Docker Desktop settings)
+- Corrupted build cache: try `docker-compose down && docker-compose up -d --build`
+
+### Build takes a long time on Raspberry Pi
+
+**What you see:** Build seems stuck during `npm install` or Python package installation.
+
+**Fix:** This is normal. First builds on a Pi can take 10-20 minutes. To skip building entirely, use the pre-built image from Docker Hub:
+
+```bash
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+## Board Connection
 
 ### Board not updating
 
-**Checklist**:
-1. Is the display service started? (Click Start in the Web UI)
-2. Is your `BOARD_READ_WRITE_KEY` correct in `.env`?
-3. Is the board on the same network? (for local API mode)
-4. Check the logs: `docker-compose logs -f fiestaboard`
+This is the most common issue. Work through this checklist:
+
+1. **Is the display service started?** Open http://localhost:4420 and check if the service is running. Click **Start Service** if it's stopped.
+2. **Is your API key correct?** Go to **Settings** in the web UI and verify your board API key.
+3. **Is the API mode correct?** Make sure you're using the right mode (Local API or Cloud API) for the key you entered.
+4. **For Local API:** Is your board on the same WiFi network as the computer running FiestaBoard?
+5. **Check the logs** for specific error messages:
+   ```bash
+   docker-compose logs -f fiestaboard
+   ```
 
 ### 401 Unauthorized from board API
 
-**Solution**:
-- Verify your API key at [web.vestaboard.com](https://web.vestaboard.com)
-- Regenerate the key if needed
-- Make sure it's correctly set in `.env` with no extra spaces
+**What you see:** "401 Unauthorized" or "Invalid API key" errors in the logs.
 
-### Board updates are slow
+**Fix:**
+- Double-check your API key has no extra spaces or line breaks
+- For Cloud API: verify the key is still active at [web.vestaboard.com](https://web.vestaboard.com)
+- Try regenerating the key and entering the new one in Settings
 
-**Possible causes**:
-- Cloud API mode has a 15-second rate limit. Increase `REFRESH_INTERVAL_SECONDS`
-- Network latency. Check your connection to the board
-- Too many plugins refreshing. Reduce enabled plugins or increase refresh interval
+### Board updates are slow or laggy
+
+**Possible causes:**
+- **Cloud API mode** has a 15-second rate limit between messages. This is normal.
+- **High refresh interval** - Check Settings to see how often FiestaBoard checks for updates
+- **Network issues** - For Local API, check your WiFi connection
+
+**Fix:** If using Cloud API, set the refresh interval to at least 30 seconds in Settings. For Local API, try restarting FiestaBoard:
+```bash
+docker-compose restart
+```
+
+## Web UI Issues
+
+### Web UI won't load at http://localhost:4420
+
+**Checklist:**
+1. Wait 30-60 seconds after starting - the server needs time to initialize
+2. Check if the container is running: `docker ps`
+3. Try the health endpoint: `http://localhost:4420/api/health`
+4. Check the logs: `docker-compose logs -f fiestaboard`
+
+### Changes not saving
+
+**Possible causes:**
+- The `data/` volume mount isn't working. Check your `docker-compose.yml` has:
+  ```yaml
+  volumes:
+    - ./data:/app/data
+  ```
+- File permissions on the `data/` directory. Try: `chmod -R 755 data/`
+- Container isn't running. Check with `docker ps`
+
+### Page previews look wrong
+
+**Fix:** The preview in the editor should match your board exactly. If it doesn't:
+- Make sure you're editing a page for the right device type (Flagship vs Note)
+- Check that template variables resolve correctly by looking at the live preview
+- Refresh the page in your browser
 
 ## Plugin Issues
 
 ### Weather shows no data
 
-**Checklist**:
-1. Is `WEATHER_API_KEY` set in `.env`?
-2. Is `WEATHER_PROVIDER` set correctly? (`weatherapi` or `openweathermap`)
-3. Is `WEATHER_LOCATION` a valid location string?
-4. Is the Weather plugin enabled in the Integrations page?
+1. Go to **Integrations** and check that the Weather plugin is enabled
+2. Click on the Weather plugin to check your API key is entered
+3. Verify you've entered a valid location
+4. Check if your API key is still active at [weatherapi.com](https://www.weatherapi.com/) or [openweathermap.org](https://openweathermap.org/)
 
 ### Traffic plugin returns errors
 
-**Common causes**:
-- Google Routes API not enabled in Cloud Console
-- Billing not set up (required even for free tier)
-- Invalid address format - try using coordinates instead
+Common causes:
+- Google Routes API is not enabled in Google Cloud Console
+- Billing is not set up (required even for the free tier)
+- Invalid address format - try using coordinates instead of street addresses
 
 See the [Traffic Plugin](/docs/plugins/traffic) guide for detailed setup.
 
 ### Home Assistant connection refused
 
-**Checklist**:
-1. Is the `HOME_ASSISTANT_URL` correct and reachable?
-2. Is your long-lived access token valid?
-3. Can FiestaBoard's Docker container reach your HA instance?
+1. Is the Home Assistant URL correct and reachable from the computer running FiestaBoard?
+2. Is your long-lived access token still valid?
+3. If FiestaBoard runs in Docker and Home Assistant runs on the same machine, use your machine's local IP address (e.g., `192.168.1.100:8123`) instead of `localhost`
 
-If using Docker, ensure both are on the same Docker network or use the host's IP address.
+### A plugin shows stale or outdated data
 
-## Web UI Issues
-
-### Web UI won't load
-
-**Checklist**:
-1. Is the container running? `docker-compose ps`
-2. Try accessing the health endpoint: `http://localhost:4420/api/health`
-3. Check container logs: `docker-compose logs -f fiestaboard`
-
-### Changes not saving
-
-**Possible causes**:
-- The `data/` volume mount is not working - check `docker-compose.yml`
-- File permissions on the `data/` directory
-- Container is not running - check with `docker-compose ps`
+Plugins refresh their data at the interval set in Settings (default: 60 seconds). If data seems stuck:
+1. Try a **Force Refresh** from the API: `curl -X POST http://localhost:4420/api/force-refresh`
+2. Check plugin logs for errors: `docker-compose logs -f fiestaboard | grep plugin_name`
+3. Verify the external API hasn't hit rate limits
 
 ## Getting More Help
 
-### Check the Logs
+### Check the logs
+
+Logs are the best way to diagnose issues:
 
 ```bash
-# All logs
-docker-compose logs -f
+# See all recent logs
+docker-compose logs --tail=100 fiestaboard
 
-# FiestaBoard container only
+# Follow logs in real time
 docker-compose logs -f fiestaboard
 ```
 
-### Interactive API Documentation
+### Interactive API documentation
 
-Visit `http://localhost:4420/docs` for the Swagger UI where you can test API endpoints directly.
+Visit **http://localhost:4420/docs** for the Swagger UI where you can test API endpoints directly and check service status.
 
-### Open an Issue
+### Community support
 
-If you can't resolve the problem:
-1. Go to [GitHub Issues](https://github.com/Fiestaboard/FiestaBoard/issues)
-2. Search for existing issues
-3. If not found, open a new issue with:
-   - Steps to reproduce
-   - Expected vs. actual behavior
-   - Log output
-   - Your environment (OS, Docker version, Pi model, etc.)
+- **[Discord](https://discord.gg/wc9dDfte)** - Ask questions and get help from other FiestaBoard users
+- **[GitHub Issues](https://github.com/Fiestaboard/FiestaBoard/issues)** - Report bugs or request features
 
-## Next Steps
-
-- [Quick Start](/docs/setup/quick-start) - Setup guide
-- [Docker Setup](/docs/setup/docker-setup) - Docker architecture
-- [API Endpoints](/docs/reference/api-endpoints) - API reference
+When reporting an issue, include:
+- What you expected vs. what happened
+- Steps to reproduce the problem
+- Relevant log output (`docker-compose logs fiestaboard`)
+- Your environment (OS, Docker version, board model)
