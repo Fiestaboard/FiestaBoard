@@ -1,5 +1,7 @@
 # Guest WiFi Plugin
 
+![Guest WiFi Display](./docs/guest-wifi-display.png)
+
 Display guest WiFi credentials on your board.
 
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration instructions

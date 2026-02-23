@@ -8,6 +8,8 @@ keywords: [FiestaBoard sports scores, NFL scores, NBA scores, NHL scores, soccer
 
 Display recent sports scores from NFL, Soccer, NHL, and NBA on your board.
 
+![Sports scores on split-flap board](/img/sports-scores-display.png)
+
 ## Overview
 
 The Sports Scores plugin fetches recent match results and displays formatted scores. It supports multiple leagues and updates automatically.

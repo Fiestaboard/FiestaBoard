@@ -8,6 +8,8 @@ keywords: [FiestaBoard Home Assistant, smart home, IoT display, sensor data, hom
 
 Display smart home device states from your Home Assistant instance on your board.
 
+![Home Assistant on split-flap board](/img/home-assistant-display.png)
+
 ## Overview
 
 The Home Assistant plugin connects to your Home Assistant server and displays entity states: door sensors, temperature readings, light status, and any other entity your HA instance tracks.

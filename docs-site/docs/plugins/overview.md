@@ -17,6 +17,8 @@ All plugin management is done through the **Web UI**:
 3. Toggle plugins on or off
 4. For plugins that need API keys, the Integrations page shows you where to get them and has fields to enter them
 
+![Full Integrations page with plugin list and settings](/img/guides/integrations-full.png)
+
 ## No API Key Required
 
 These plugins work immediately after enabling - no registration or API keys needed:

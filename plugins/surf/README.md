@@ -1,5 +1,7 @@
 # Surf Conditions Plugin
 
+![Surf Conditions Display](./docs/surf-display.png)
+
 Display surf conditions including wave height, swell period, and quality rating.
 
 **→ [Setup Guide](./docs/SETUP.md)** - Location configuration

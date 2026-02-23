@@ -147,6 +147,8 @@ The wizard will:
 
 ![FiestaBoard Dashboard](/img/web-ui-home.png)
 
+![Dashboard with active page displayed on the board](/img/guides/dashboard-running.png)
+
 :::info Don't see anything?
 If the page doesn't load, wait 30 seconds and try again - the server may still be starting up. Make sure Docker Desktop is running (look for the whale icon in your system tray or menu bar).
 :::
@@ -160,16 +162,24 @@ If you used the install wizard (Path B or C), you may have already entered your 
 3. If you're using the Local API, also enter your board's IP address
 4. Click **Save**
 
+![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
+
 ## Step 6: Start the Display Service
 
 1. On the main dashboard page, click the **"Start Service"** button
 2. Your board should start updating within a few seconds
+
+![Dashboard before service is started, showing the Start Service button](/img/guides/start-service-button.png)
 
 Congratulations - your board is now controlled by FiestaBoard!
 
 ## Step 7: Make It Yours
 
 Now the fun part. Here's what to do next:
+
+![Integrations page showing all plugins with toggle switches](/img/guides/integrations-full.png)
+
+![Variable Picker dropdown open in the page editor](/img/guides/page-editor-variable-picker-open.png)
 
 ### Enable some plugins
 

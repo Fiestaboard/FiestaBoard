@@ -1,5 +1,7 @@
 # Air Quality & Fog Plugin
 
+![Air Quality & Fog Display](./docs/air-fog-display.png)
+
 Display air quality index (AQI) and fog/visibility conditions.
 
 **→ [Setup Guide](./docs/SETUP.md)** - API key registration and configuration
