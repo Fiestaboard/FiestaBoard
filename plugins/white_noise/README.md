@@ -69,6 +69,7 @@ gentle "light rain" sound instead of an overwhelming clatter.
 - Adjust `max_drops` to control overall board density. Lower values (10-20)
   keep it sparse, higher values (40-60) create a denser rain effect.
 
-## Setup
+## Setup & Configuration
 
-For detailed setup instructions and configuration options, see the [Setup Guide](./docs/SETUP.md).
+- **[Setup Guide](./docs/SETUP.md)** - Installation and basic configuration
+- **[Tuning Guide](./docs/TUNING_GUIDE.md)** - Detailed guide to finding your ideal settings and "sane defaults"
