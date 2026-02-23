@@ -519,11 +519,9 @@ async def system_update_check():
     try:
         # Try GHCR first (checks actual container registry), fall back to GitHub Releases
         latest_version = _check_ghcr_for_latest()
-        registry_source = "ghcr" if latest_version else None
         
         if not latest_version:
             latest_version = _check_github_releases_for_latest()
-            registry_source = "github-releases" if latest_version else None
         
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
