@@ -91,6 +91,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Create nginx directories and set permissions
 RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx /var/lib/nginx/body
 
+# Create data directory for logs and app state
+RUN mkdir -p /app/data/logs
+
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
