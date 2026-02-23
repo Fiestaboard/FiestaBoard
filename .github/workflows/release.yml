@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: read
@@ -101,6 +105,21 @@ jobs:
             return bumpType;
           result-encoding: string
 
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync with latest main
+        run: |
+          # Ensure we're working with the latest main branch.
+          # This handles the case where main has moved forward since the
+          # workflow was triggered (e.g., when multiple PRs merge in quick
+          # succession or a prior release workflow pushed a version bump).
+          git fetch origin main
+          git checkout -B main origin/main
+          echo "Synced to latest main: $(git rev-parse HEAD)"
+
       - name: Bump version
         id: version
         run: |
@@ -112,17 +131,26 @@ jobs:
           echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
           echo "New version: ${NEW_VERSION}"
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Commit version bump
         id: commit
         run: |
           git add package.json web/package.json src/__init__.py
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
-          git push
+
+          # Push with retry to handle transient failures or rare race conditions
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Push succeeded (attempt $attempt)"
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Push failed after 3 attempts"
+              exit 1
+            fi
+            echo "Attempt $attempt failed, pulling latest main and rebasing..."
+            git pull --rebase origin main
+          done
+
           echo "release_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
   build:
