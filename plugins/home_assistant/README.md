@@ -1,5 +1,7 @@
 # Home Assistant Plugin
 
+![Home Assistant Display](./docs/home-assistant-display.png)
+
 Display entity states from your Home Assistant instance.
 
 **→ [Setup Guide](./docs/SETUP.md)** - Access token setup and configuration

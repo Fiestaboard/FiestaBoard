@@ -1,5 +1,7 @@
 # Bay Wheels Plugin
 
+![Bay Wheels Display](./docs/baywheels-display.png)
+
 Display Bay Wheels bike share availability with electric and classic bike counts.
 
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration and station setup

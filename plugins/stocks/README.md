@@ -1,5 +1,7 @@
 # Stock Prices Plugin
 
+![Stock Prices Display](./docs/stocks-display.png)
+
 Display real-time stock prices and percentage changes.
 
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration and optional API key setup

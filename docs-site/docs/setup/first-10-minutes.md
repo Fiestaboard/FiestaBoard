@@ -12,6 +12,8 @@ You've got FiestaBoard running at **http://localhost:4420** and your board is co
 
 If you haven't already, click the **"Start Service"** button on the main dashboard. This tells FiestaBoard to start sending content to your board.
 
+![Dashboard before service is started, showing the Start Service button](/img/guides/start-service-button.png)
+
 ## 2. Enable Your First Plugins
 
 Plugins are data sources - they pull information like weather, time, stock prices, and more so you can put that data on your board.
@@ -36,6 +38,10 @@ Plugins are data sources - they pull information like weather, time, stock price
 You can always come back and enable more plugins later, including ones that need API keys (weather, traffic, stocks, etc.). The Integrations page links to setup instructions for each one.
 :::
 
+![Integrations page showing all plugins with toggle switches](/img/guides/integrations-full.png)
+
+![Plugin settings modal for Weather plugin configuration](/img/guides/integrations-plugin-config.png)
+
 ## 3. Create Your First Page
 
 Pages are the templates for what your board displays. Each page is a layout you design using the visual editor.
@@ -44,6 +50,8 @@ Pages are the templates for what your board displays. Each page is a layout you 
 2. Select the tab matching your board type (**Flagship** for the standard 22x6 board, **Note** for the compact 15x3)
 3. Click **New Page**
 4. Give your page a name (e.g., "Morning Info")
+
+![Empty page editor grid matching board dimensions](/img/guides/page-editor-grid.png)
 
 ### Type some static text
 
@@ -59,6 +67,10 @@ For example, if you enabled the Date & Time plugin, you'll see variables like:
 - `{date_time.time}` - Inserts just the time
 
 Click any variable to insert it into your page at the cursor position. When the page is displayed on your board, the variable is automatically replaced with live data.
+
+![Variable Picker dropdown open showing available plugin variables](/img/guides/page-editor-variable-picker-open.png)
+
+![Page editor with template variables inserted into the grid](/img/guides/page-editor-with-variables.png)
 
 ### Example: A simple morning page
 
@@ -79,6 +91,8 @@ Click **Save** when you're happy with your layout. Your page is now stored and r
 ## 4. Display Your Page
 
 Back on the Pages list, select your new page to make it the active page. Within about 60 seconds (or however long your refresh interval is), your board will update with the content from your page.
+
+![Page editor with live board preview showing rendered content](/img/guides/page-editor-preview.png)
 
 ## 5. Try a Plugin-Only Page
 
@@ -116,6 +130,8 @@ Instead of manually switching between pages, you can have FiestaBoard automatica
 In Schedule settings, you can set a **default page** that displays whenever there's a gap in your schedule. This way your board always shows something.
 :::
 
+![Schedule calendar with multiple time-based entries](/img/guides/schedule-calendar-populated.png)
+
 ## 7. Set Quiet Hours (Optional)
 
 Split-flap displays can be noisy when they flip. If your board is in a bedroom or living room, you'll want to set quiet hours:
@@ -126,6 +142,8 @@ Split-flap displays can be noisy when they flip. If your board is in a bedroom o
 4. Save
 
 During quiet hours, FiestaBoard stops sending updates to the board. Whatever was last displayed stays on the board until quiet hours end.
+
+![Settings page Silence Schedule section for configuring quiet hours](/img/guides/settings-silence-schedule.png)
 
 ## What's Next?
 

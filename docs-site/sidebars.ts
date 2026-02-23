@@ -31,12 +31,35 @@ const sidebars: SidebarsConfig = {
       label: 'Plugins',
       collapsed: true,
       items: [
+        // Weather
         'plugins/weather',
+        'plugins/air-fog',
+        'plugins/surf',
+        // Transit
+        'plugins/muni',
         'plugins/traffic',
+        'plugins/baywheels',
+        'plugins/wsdot',
+        // Data
+        'plugins/stocks',
         'plugins/sports-scores',
+        'plugins/nearby-aircraft',
+        // Entertainment
+        'plugins/disney-parks',
+        'plugins/last-fm',
+        'plugins/star-trek-quotes',
+        'plugins/stardate',
+        // Art
+        'plugins/sun-art',
+        'plugins/visual-clock',
+        // Utility
+        'plugins/date-time',
+        'plugins/guest-wifi',
+        // Home
+        'plugins/home-assistant',
+        // Index pages (hidden from main list but still accessible)
         'plugins/entertainment',
         'plugins/transit',
-        'plugins/home-assistant',
       ],
     },
     {

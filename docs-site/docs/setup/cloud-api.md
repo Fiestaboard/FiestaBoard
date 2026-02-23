@@ -56,6 +56,8 @@ BOARD_READ_WRITE_KEY=your_cloud_api_key_here
 docker-compose restart
 ```
 
+![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
+
 ## Rate Limiting
 
 The Cloud API has a rate limit of **1 message per 15 seconds**. If you see rate limit errors, increase your refresh interval:

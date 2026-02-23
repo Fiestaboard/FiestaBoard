@@ -30,6 +30,8 @@ The schedule feature provides a visual calendar where you can assign pages to sp
    - **End Time** - When the page should stop showing
    - **Days** - Which days this schedule applies to
 
+![Schedule entry form with page, time, and day selection](/img/guides/schedule-entry-form.png)
+
 ### Day Patterns
 
 | Pattern | Days |
@@ -54,6 +56,8 @@ The calendar view provides a visual weekly overview. Each scheduled page appears
 ### List View
 
 The list view shows all schedule entries in a table format, which is useful for managing many entries or making quick edits.
+
+![Schedule list view showing entries in table format](/img/schedule-list-view.png)
 
 ## Schedule Validation
 

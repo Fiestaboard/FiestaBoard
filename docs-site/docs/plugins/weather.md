@@ -8,6 +8,8 @@ keywords: [FiestaBoard weather plugin, weather display, temperature, UV index, s
 
 Display current weather conditions on your board with temperature, conditions, UV index, and more.
 
+![Weather conditions on split-flap board](/img/weather-display.png)
+
 ## Overview
 
 The Weather plugin provides real-time weather data for your location, including:

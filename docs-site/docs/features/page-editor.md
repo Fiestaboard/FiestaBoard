@@ -49,6 +49,8 @@ Template variables let you insert live data from your enabled plugins into any p
 2. Browse available variables grouped by plugin
 3. Click a variable to insert it at the cursor position
 
+![Variable Picker dropdown showing available plugin variables](/img/guides/page-editor-variable-picker-open.png)
+
 ### Variable Types
 
 | Type | Description | Example |
@@ -69,6 +71,8 @@ Here are some commonly used template variables:
 ## Working with Colors
 
 The split-flap display supports colored tiles using special character codes. You can use these in the editor to add visual emphasis to your pages.
+
+![Page editor showing color codes in use](/img/guides/page-editor-colors.png)
 
 | Code | Color | Common Use |
 |------|-------|------------|
@@ -101,6 +105,8 @@ The editor reflects the target device's layout so you can see exactly how your c
 - **Design per device** - Create separate pages optimized for each device's dimensions
 
 ## Managing Pages
+
+![Pages list view with Flagship and Note tabs](/img/pages-list.png)
 
 ### Editing Existing Pages
 

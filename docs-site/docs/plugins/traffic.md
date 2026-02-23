@@ -8,6 +8,8 @@ keywords: [FiestaBoard traffic plugin, Google Routes API, commute time, traffic 
 
 Display commute times and live traffic conditions using the Google Routes API.
 
+![Traffic display on split-flap board](/img/traffic-display.png)
+
 ## Overview
 
 The Traffic plugin shows real-time driving times between configured origin and destination pairs. It supports up to 4 routes and multiple travel modes.

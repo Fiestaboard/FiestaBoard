@@ -32,6 +32,8 @@ Works from anywhere with internet. No transition animation support.
 
 > If you're setting up manually (without the wizard), see `env.example` for the environment variable names (`BOARD_LOCAL_API_KEY`, `BOARD_HOST`, `BOARD_READ_WRITE_KEY`, etc.).
 
+![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
+
 ## Plugin API Keys
 
 These are optional. Enter them in the **Integrations page** of the web UI as you enable plugins. Many plugins work without any API key at all.
@@ -68,6 +70,8 @@ These work out of the box:
 - Sun Art
 - Surf
 - Visual Clock
+
+![Plugin settings modal for Weather plugin configuration](/img/guides/integrations-plugin-config.png)
 
 ## Next Steps
 
