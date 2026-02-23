@@ -15,14 +15,10 @@ Display San Francisco Muni bus and rail arrival predictions.
 ### Setup
 
 1. Register for a free API key at [511.org](https://511.org/open-data/token)
-2. Add to `.env`:
-
-```bash
-MUNI_API_KEY=your_511_api_key_here
-```
-
-3. Enable the Muni plugin in the Web UI **Integrations** page
-4. Configure your stops and routes
+2. Go to **Integrations** in the Web UI
+3. Toggle the **Muni Transit** plugin on
+4. Enter your 511.org API key
+5. Configure your stops and routes
 
 ### Available Variables
 
@@ -45,14 +41,10 @@ Display Washington State Ferry schedules, vessel names, car availability, and al
 ### Setup
 
 1. Request a free API key at [wsdot.wa.gov/traffic/api](https://wsdot.wa.gov/traffic/api/)
-2. Add to `.env`:
-
-```bash
-WSDOT_API_KEY=your_wsdot_key_here
-```
-
-3. Enable the WSDOT plugin in the Web UI
-4. Select your ferry route
+2. Go to **Integrations** in the Web UI
+3. Toggle the **WSDOT Ferries** plugin on
+4. Enter your WSDOT API key
+5. Select your ferry route
 
 ### Available Variables
 

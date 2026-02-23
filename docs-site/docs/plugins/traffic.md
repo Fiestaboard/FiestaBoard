@@ -38,17 +38,11 @@ The Routes API requires billing to be enabled:
 
 ### 4. Configure FiestaBoard
 
-Add to your `.env` file:
-
-```bash
-GOOGLE_ROUTES_API_KEY=your_api_key_here
-```
-
-Or configure via the Web UI:
-
-1. Go to **Settings → Features → Traffic**
-2. Enter your API key
-3. Save
+1. Open **http://localhost:4420**
+2. Go to the **Integrations** page
+3. Toggle the **Traffic** plugin on
+4. Enter your Google Routes API key
+5. Click **Save**
 
 ### 5. Configure Routes
 
@@ -74,7 +68,7 @@ You can use either format for origins and destinations:
 
 | Format | Example |
 |--------|---------|
-| Full address | `1735 35th Ave, San Francisco, CA` |
+| Full address | `123 Main St, Anytown, ST 12345` |
 | Coordinates | `37.7749,-122.4194` |
 
 :::tip

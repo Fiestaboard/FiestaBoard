@@ -23,20 +23,14 @@ The Home Assistant plugin connects to your Home Assistant server and displays en
 5. Give it a name (e.g., "FiestaBoard")
 6. Copy the token immediately. It won't be shown again
 
-### 2. Configure FiestaBoard
+### 2. Configure in the Web UI
 
-Add to your `.env` file:
-
-```bash
-HOME_ASSISTANT_URL=http://192.168.1.100:8123    # Your HA address
-HOME_ASSISTANT_TOKEN=your_long_lived_token_here
-```
-
-Or configure via the Web UI Integrations page.
-
-### 3. Enable the Plugin
-
-Go to **Integrations** in the Web UI and toggle the Home Assistant plugin on.
+1. Open **http://localhost:4420**
+2. Go to the **Integrations** page
+3. Toggle the **Home Assistant** plugin on
+4. Enter your Home Assistant URL (e.g., `http://192.168.1.100:8123`)
+5. Paste your long-lived access token
+6. Click **Save**
 
 ## Available Variables
 

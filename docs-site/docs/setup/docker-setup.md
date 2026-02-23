@@ -1,12 +1,16 @@
 ---
 sidebar_position: 4
 description: "Understand FiestaBoard's Docker architecture, container configuration, and docker-compose setup for production and development."
-keywords: [FiestaBoard Docker, docker-compose, container setup, architecture, nginx, Flask, React]
+keywords: [FiestaBoard Docker, docker-compose, container setup, architecture, nginx, FastAPI, Next.js]
 ---
 
 # Docker Setup
 
-FiestaBoard runs as a single Docker container. This page explains the architecture and how to configure it.
+FiestaBoard runs as a single Docker container that bundles the web UI, API, and display service together. This page explains the architecture for users who want to understand what's running under the hood or customize their deployment.
+
+:::tip Most users don't need this page
+If you followed the [Quick Start](/docs/setup/quick-start) or [Beginner's Guide](/docs/setup/beginners-guide), everything is already configured correctly. This page is for advanced configuration and troubleshooting.
+:::
 
 :::info Upgrading from V1?
 V1 used two containers (`fiestaboard-api` on port 8000 and `fiestaboard-ui` on port 8080). V2 consolidates everything into one container on port 4420. See the [V2 Migration Guide](/docs/setup/v2-migration#docker-architecture-migration) for full upgrade instructions.
