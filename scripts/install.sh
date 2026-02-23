@@ -132,7 +132,7 @@ if [ "$SKIP_CONFIG" = false ]; then
     echo "  3) Skip for now"
     echo "     - You can configure the board later in the web UI"
     echo ""
-    read -p "Enter your choice (1/2/3): " API_MODE_CHOICE
+    read -p "Enter your choice (1/2/3, default: 3): " API_MODE_CHOICE
     
     case $API_MODE_CHOICE in
         1)
@@ -275,7 +275,7 @@ echo "Waiting for services to start..."
 sleep 10
 
 # Check if services are running
-if $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -q "Up\|running"; then
+if $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -qE "Up|running"; then
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}✓ FiestaBoard is running!${NC}"

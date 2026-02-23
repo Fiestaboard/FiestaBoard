@@ -142,7 +142,7 @@ if (-not $skipConfig) {
     Write-Host "  3) Skip for now"
     Write-Host "     - You can configure the board later in the web UI"
     Write-Host ""
-    $apiModeChoice = Read-Host "Enter your choice (1/2/3)"
+    $apiModeChoice = Read-Host "Enter your choice (1/2/3, default: 3)"
     
     switch ($apiModeChoice) {
         "1" {
