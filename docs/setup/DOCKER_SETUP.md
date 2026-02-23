@@ -208,6 +208,6 @@ See the [Environment Variables Reference](https://fiestaboard.app/docs/reference
 
 ## Production Deployment
 
-For production deployment, use the pre-built image from the GitHub Container Registry (`ghcr.io/fiestaboard/fiestaboard:latest`) with proper environment variables configured. Images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.
+For production deployment, use the pre-built image from Docker Hub (`fiestaboard/fiestaboard:latest`) with proper environment variables configured. Images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.
 
 

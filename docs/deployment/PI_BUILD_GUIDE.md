@@ -2,7 +2,7 @@
 
 ## Quick Start - Running FiestaBoard on a Raspberry Pi
 
-The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Docker image from the GitHub Container Registry. No need to clone the repo or build anything.
+The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Docker image from Docker Hub. No need to clone the repo or build anything.
 
 ### Prerequisites
 
@@ -22,8 +22,8 @@ The easiest way to run FiestaBoard on a Raspberry Pi is to pull the pre-built Do
 # Create a project folder
 mkdir ~/FiestaBoard && cd ~/FiestaBoard
 
-# Pull the pre-built image from GHCR (docker compose up also does this automatically)
-docker pull ghcr.io/fiestaboard/fiestaboard:latest
+# Pull the pre-built image from Docker Hub (docker compose up also does this automatically)
+docker pull fiestaboard/fiestaboard:latest
 ```
 
 Next, create a `docker-compose.yml` file in `~/FiestaBoard/`:
@@ -31,7 +31,7 @@ Next, create a `docker-compose.yml` file in `~/FiestaBoard/`:
 ```yaml
 services:
   fiestaboard:
-    image: ghcr.io/fiestaboard/fiestaboard:latest
+    image: fiestaboard/fiestaboard:latest
     container_name: fiestaboard
     env_file: .env
     environment:
@@ -125,13 +125,13 @@ Simply use the same `docker pull` commands above on your Pi!
 After merging a PR with the `pi` label:
 
 1. Check the release workflow runs successfully (~15 min)
-2. Verify images on GHCR show all architectures
+2. Verify images on Docker Hub show all architectures
 3. Test pulling and running on a Raspberry Pi:
 
 ```bash
 # On your Raspberry Pi
-docker pull ghcr.io/fiestaboard/fiestaboard:latest
-docker-compose up -f docker-compose.ghcr.yml up -d
+docker pull fiestaboard/fiestaboard:latest
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
 ## Technical Details

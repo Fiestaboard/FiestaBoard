@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml)
-[![Docker](https://img.shields.io/badge/docker-fiestaboard-blue?logo=docker)](https://ghcr.io/fiestaboard/fiestaboard)
+[![Docker](https://img.shields.io/badge/docker-fiestaboard-blue?logo=docker)](https://hub.docker.com/r/fiestaboard/fiestaboard)
 [![Documentation](https://img.shields.io/badge/docs-fiestaboard.app-orange)](https://fiestaboard.app)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white)](https://discord.gg/wc9dDfte)
 

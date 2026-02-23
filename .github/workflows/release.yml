@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
   pull-requests: read
 
 jobs:
@@ -41,7 +40,6 @@ jobs:
       release_sha: ${{ steps.commit.outputs.release_sha }}
       build_pi: ${{ steps.bump_type.outputs.build_pi }}
       platforms: ${{ steps.bump_type.outputs.build_pi == 'true' && 'linux/amd64,linux/arm/v7,linux/arm64' || 'linux/amd64' }}
-      owner_lower: ${{ steps.owner_lower.outputs.owner_lower }}
     steps:
       # Use RELEASE_PAT when branch protection/rulesets block GITHUB_TOKEN from pushing to main.
       # Add repo secret RELEASE_PAT (PAT with repo scope) and allow that user to bypass rules on main.
@@ -50,10 +48,6 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
-
-      - name: Set owner lowercase for GHCR
-        id: owner_lower
-        run: echo "owner_lower=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -156,12 +150,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push unified image
         id: build
@@ -174,14 +167,10 @@ jobs:
           build-args: |
             VERSION=${{ needs.prep.outputs.version }}
           tags: |
-            ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard:${{ needs.prep.outputs.version }}
-            ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard:latest
-          cache-from: |
-            type=gha
-            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard:buildcache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard:buildcache,mode=max
+            fiestaboard/fiestaboard:${{ needs.prep.outputs.version }}
+            fiestaboard/fiestaboard:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   release:
     name: Create Release
@@ -195,38 +184,6 @@ jobs:
           ref: ${{ needs.prep.outputs.release_sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Make container packages public
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const owner = '${{ needs.prep.outputs.owner_lower }}';
-            const packages = ['fiestaboard-api', 'fiestaboard-ui'];
-
-            for (const pkg of packages) {
-              try {
-                await github.request('PATCH /orgs/{org}/packages/{package_type}/{package_name}', {
-                  org: owner,
-                  package_type: 'container',
-                  package_name: pkg,
-                  visibility: 'public'
-                });
-                console.log(`✅ ${pkg} is now public`);
-              } catch (orgError) {
-                console.log(`Org API failed for ${pkg}, trying user API: ${orgError.message}`);
-                try {
-                  await github.request('PATCH /user/packages/{package_type}/{package_name}', {
-                    package_type: 'container',
-                    package_name: pkg,
-                    visibility: 'public'
-                  });
-                  console.log(`✅ ${pkg} is now public (user-level)`);
-                } catch (userError) {
-                  core.warning(`Could not make ${pkg} public: ${userError.message}`);
-                }
-              }
-            }
 
       - name: Create GitHub Release
         id: create-release
@@ -290,7 +247,7 @@ jobs:
             
             releaseNotes += `**Platforms:** ${platforms}\n\n`;
             releaseNotes += `\`\`\`bash\n`;
-            releaseNotes += `docker pull ghcr.io/${{ needs.prep.outputs.owner_lower }}/fiestaboard:${version}\n`;
+            releaseNotes += `docker pull fiestaboard/fiestaboard:${version}\n`;
             releaseNotes += `\`\`\`\n`;
             
             if (buildPi) {

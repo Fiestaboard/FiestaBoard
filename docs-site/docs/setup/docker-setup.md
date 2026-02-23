@@ -50,7 +50,7 @@ FiestaBoard runs in a single unified container:
 | `docker-compose.yml` | Standard deployment |
 | `docker-compose.dev.yml` | Development with hot reload |
 | `docker-compose.prod.yml` | Production-optimized |
-| `docker-compose.ghcr.yml` | Using pre-built images from GitHub Container Registry |
+| `docker-compose.hub.yml` | Using pre-built images from Docker Hub |
 
 ## Quick Start
 
@@ -62,7 +62,7 @@ docker-compose up -d --build
 docker-compose -f docker-compose.dev.yml up --build
 
 # Using pre-built images (no build needed)
-docker-compose -f docker-compose.ghcr.yml up -d
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
 ## Access Points

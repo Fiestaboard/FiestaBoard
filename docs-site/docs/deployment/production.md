@@ -16,10 +16,10 @@ Use the production-optimized Docker Compose file:
 docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
-Or use pre-built images from GitHub Container Registry:
+Or use pre-built images from Docker Hub:
 
 ```bash
-docker-compose -f docker-compose.ghcr.yml up -d
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
 ## Recommended Configuration
