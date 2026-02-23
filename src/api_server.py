@@ -33,6 +33,7 @@ from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .templates.engine import get_template_engine, reset_template_engine
 from .text_to_board import text_to_board_array
 from .devices import get_dimensions
+from .board_client import board_client_from_board_dict
 
 logger = logging.getLogger(__name__)
 
@@ -3739,7 +3740,6 @@ async def render_template_live(request: dict):
 
     sent_to_board = False
     if target_board:
-        from .board_client import board_client_from_board_dict
         client = board_client_from_board_dict(target_board)
         if client:
             device_type = target_board.get("device_type", "flagship")
