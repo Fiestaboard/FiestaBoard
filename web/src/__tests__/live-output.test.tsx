@@ -20,6 +20,7 @@ vi.mock("@/lib/api", async () => {
       updatePage: vi.fn(),
       getPage: vi.fn(),
       getBoardSettings: vi.fn(),
+      forceRefresh: vi.fn(),
     },
   };
 });
@@ -98,6 +99,7 @@ describe("Live Output Mode", () => {
       },
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
+    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
   });
 
   afterEach(() => {
@@ -287,6 +289,7 @@ describe("Live Output - Board Selector Interaction", () => {
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(multiBoardSettings);
+    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
     vi.mocked(api.createPage).mockResolvedValue({
       status: "success",
       page: {
@@ -360,6 +363,7 @@ describe("Live Output - Auto-timeout", () => {
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
+    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
     vi.mocked(api.createPage).mockResolvedValue({
       status: "success",
       page: {
@@ -466,6 +470,7 @@ describe("Live Output - Cleanup on unmount", () => {
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
+    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
   });
 
   it("live mode state is destroyed when component unmounts (navigating away)", async () => {
@@ -498,5 +503,45 @@ describe("Live Output - Cleanup on unmount", () => {
       const newToggle = screen.getByRole("switch", { name: /toggle live output to board/i });
       expect(newToggle).toHaveAttribute("data-state", "unchecked");
     });
+  });
+
+  it("calls forceRefresh on unmount when live output was enabled", async () => {
+    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "checked");
+    });
+
+    unmount();
+
+    expect(vi.mocked(api.forceRefresh)).toHaveBeenCalled();
+  });
+
+  it("does not call forceRefresh on unmount when live output was not enabled", async () => {
+    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
+    const { unmount } = render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    unmount();
+
+    expect(vi.mocked(api.forceRefresh)).not.toHaveBeenCalled();
   });
 });

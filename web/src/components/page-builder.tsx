@@ -183,6 +183,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
   const lastLiveSentPreview = useRef<string | null>(null);
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const liveOutputEnabledRef = useRef(false);
 
   const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -219,6 +220,22 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       }
     };
   }, [liveOutputEnabled, debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, disableLiveOutput]);
+
+  // Keep ref in sync with state so cleanup can access latest value
+  useEffect(() => {
+    liveOutputEnabledRef.current = liveOutputEnabled;
+  }, [liveOutputEnabled]);
+
+  // Restore board display when component unmounts if live output was active
+  useEffect(() => {
+    return () => {
+      if (liveOutputEnabledRef.current) {
+        api.forceRefresh().catch(() => {
+          // Silently ignore errors during cleanup
+        });
+      }
+    };
+  }, []);
 
   // Track if we need to re-preview after current mutation completes
   const needsRePreview = useRef(false);
@@ -312,21 +329,21 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedTemplateLines(templateLines);
-    }, 300);
+    }, 150);
     return () => clearTimeout(timeoutId);
   }, [templateLines]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedLineAlignments(lineAlignments);
-    }, 300);
+    }, 150);
     return () => clearTimeout(timeoutId);
   }, [lineAlignments]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedLineWrapEnabled(lineWrapEnabled);
-    }, 300);
+    }, 150);
     return () => clearTimeout(timeoutId);
   }, [lineWrapEnabled]);
 
@@ -666,7 +683,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         // Mark that we need to re-preview after the current mutation completes
         needsRePreview.current = true;
       }
-    }, 500); // 500ms debounce
+    }, 200); // 200ms debounce
 
     return () => {
       console.log('[Preview] useEffect cleanup (timeout cleared)');
