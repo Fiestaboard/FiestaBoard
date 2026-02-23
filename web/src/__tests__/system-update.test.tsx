@@ -26,7 +26,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("SystemUpdate", () => {
-  it("always shows Restart Only and Pull & Restart buttons when up to date in production", async () => {
+  it("renders nothing when up to date", async () => {
     server.use(
       http.get(`${API_BASE}/system/update-check`, () => {
         return HttpResponse.json({
@@ -42,61 +42,14 @@ describe("SystemUpdate", () => {
 
     render(<SystemUpdate />, { wrapper: TestWrapper });
 
+    // Wait for query to settle, then verify no alert is rendered
     await waitFor(() => {
-      expect(screen.getByText("Up to Date")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
-
-    // All buttons should be visible
-    expect(screen.getByText("Restart Only")).toBeInTheDocument();
-    expect(screen.getByText("View Package")).toBeInTheDocument();
-
-    // Pull & Restart should be disabled (no update available)
-    const pullButton = screen.getByRole("button", { name: /Pull & Restart/i });
-    expect(pullButton).toBeDisabled();
-
-    // Restart Only should be enabled (production mode)
-    const restartButton = screen.getByRole("button", { name: /Restart Only/i });
-    expect(restartButton).toBeEnabled();
+    expect(screen.queryByText("Update Available")).not.toBeInTheDocument();
   });
 
-  it("shows all buttons disabled in non-production mode", async () => {
-    server.use(
-      http.get(`${API_BASE}/system/update-check`, () => {
-        return HttpResponse.json({
-          current_version: "2.0.1",
-          latest_version: "2.0.2",
-          update_available: true,
-          package_url: "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard",
-          error: null,
-          is_production: false,
-        });
-      })
-    );
-
-    render(<SystemUpdate />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText("Update Available")).toBeInTheDocument();
-    });
-
-    // All buttons should be visible
-    expect(screen.getByText("Restart Only")).toBeInTheDocument();
-    expect(screen.getByText("View Package")).toBeInTheDocument();
-
-    // Both action buttons should be disabled (non-production)
-    const pullButton = screen.getByRole("button", { name: /Pull & Restart/i });
-    expect(pullButton).toBeDisabled();
-
-    const restartButton = screen.getByRole("button", { name: /Restart Only/i });
-    expect(restartButton).toBeDisabled();
-
-    // Should show non-production message
-    expect(
-      screen.getByText("Container management is only available in production mode.")
-    ).toBeInTheDocument();
-  });
-
-  it("enables all action buttons when update available in production", async () => {
+  it("shows update alert when update is available", async () => {
     server.use(
       http.get(`${API_BASE}/system/update-check`, () => {
         return HttpResponse.json({
@@ -116,15 +69,33 @@ describe("SystemUpdate", () => {
       expect(screen.getByText("Update Available")).toBeInTheDocument();
     });
 
-    // Both action buttons should be enabled
-    const pullButton = screen.getByRole("button", { name: /Pull & Restart/i });
-    expect(pullButton).toBeEnabled();
+    // Should show version badge and current version
+    expect(screen.getByText("v2.0.2")).toBeInTheDocument();
+    expect(screen.getByText("You are running v2.0.1.")).toBeInTheDocument();
 
-    const restartButton = screen.getByRole("button", { name: /Restart Only/i });
-    expect(restartButton).toBeEnabled();
+    // Should show View Release link but no restart/upgrade buttons
+    expect(screen.getByText("View Release")).toBeInTheDocument();
+    expect(screen.queryByText("Restart Only")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pull & Restart/i)).not.toBeInTheDocument();
   });
 
-  it("shows buttons when no update available in non-production mode", async () => {
+  it("renders nothing when update check fails", async () => {
+    server.use(
+      http.get(`${API_BASE}/system/update-check`, () => {
+        return HttpResponse.error();
+      })
+    );
+
+    render(<SystemUpdate />, { wrapper: TestWrapper });
+
+    // Wait for query to settle, then verify no alert is rendered
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("Update Available")).not.toBeInTheDocument();
+  });
+
+  it("renders nothing in non-production mode with no update", async () => {
     server.use(
       http.get(`${API_BASE}/system/update-check`, () => {
         return HttpResponse.json({
@@ -141,19 +112,8 @@ describe("SystemUpdate", () => {
     render(<SystemUpdate />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Up to Date")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
-
-    // All buttons should be visible but disabled
-    const pullButton = screen.getByRole("button", { name: /Pull & Restart/i });
-    expect(pullButton).toBeDisabled();
-
-    const restartButton = screen.getByRole("button", { name: /Restart Only/i });
-    expect(restartButton).toBeDisabled();
-
-    // Non-production message
-    expect(
-      screen.getByText("Container management is only available in production mode.")
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Update Available")).not.toBeInTheDocument();
   });
 });

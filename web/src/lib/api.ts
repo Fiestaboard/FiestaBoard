@@ -659,10 +659,7 @@ export interface UpdateCheckResponse {
   is_production: boolean;
 }
 
-export interface SystemRestartResponse {
-  status: string;
-  message: string;
-}
+
 
 // API client with typed methods
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
@@ -1020,10 +1017,6 @@ export const api = {
   // System management endpoints
   checkForUpdate: () =>
     fetchApi<UpdateCheckResponse>("/system/update-check"),
-  restartSystem: () =>
-    fetchApi<SystemRestartResponse>("/system/restart", { method: "POST" }),
-  upgradeSystem: () =>
-    fetchApi<SystemRestartResponse>("/system/upgrade", { method: "POST" }),
 
   // Plugin system endpoints
   listPlugins: () =>

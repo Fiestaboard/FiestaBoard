@@ -25,6 +25,9 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6 sm:space-y-8 max-w-4xl">
+          {/* Update alert banner */}
+          <SystemUpdate />
+
           {/* General Settings & Service Control */}
           <section>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">General Settings</h2>
@@ -49,15 +52,6 @@ export default function SettingsPage() {
                 Manage Integrations
               </Button>
             </Link>
-          </section>
-
-          {/* System Update */}
-          <section>
-            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">System Update</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Check for new versions and update your FiestaBoard installation.
-            </p>
-            <SystemUpdate />
           </section>
 
           {/* Debug Tools */}
