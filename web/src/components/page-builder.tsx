@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -182,11 +182,43 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
   const lastLiveSentPreview = useRef<string | null>(null);
+  const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+  const disableLiveOutput = useCallback(() => {
+    setLiveOutputEnabled(false);
+    lastLiveSentPreview.current = null;
+    toast.info("Live output turned off due to inactivity");
+  }, []);
 
   // Debounced state (for expensive operations)
   const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
   const [debouncedLineAlignments, setDebouncedLineAlignments] = useState<LineAlignment[]>(defaultAlignments());
   const [debouncedLineWrapEnabled, setDebouncedLineWrapEnabled] = useState<boolean[]>(defaultWraps());
+
+  // Auto-timeout: disable live mode after inactivity
+  useEffect(() => {
+    if (!liveOutputEnabled) {
+      if (liveTimeoutRef.current) {
+        clearTimeout(liveTimeoutRef.current);
+        liveTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (liveTimeoutRef.current) {
+      clearTimeout(liveTimeoutRef.current);
+    }
+    liveTimeoutRef.current = setTimeout(disableLiveOutput, LIVE_OUTPUT_TIMEOUT_MS);
+
+    return () => {
+      if (liveTimeoutRef.current) {
+        clearTimeout(liveTimeoutRef.current);
+        liveTimeoutRef.current = null;
+      }
+    };
+  }, [liveOutputEnabled, debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, disableLiveOutput]);
 
   // Track if we need to re-preview after current mutation completes
   const needsRePreview = useRef(false);

@@ -331,3 +331,172 @@ describe("Live Output - Board Selector Interaction", () => {
     });
   });
 });
+
+describe("Live Output - Auto-timeout", () => {
+  const mockOnClose = vi.fn();
+  const mockOnSave = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getTemplateVariables).mockResolvedValue({
+      variables: {},
+      max_lengths: {},
+      colors: {},
+      symbols: [],
+      filters: [],
+      formatting: {},
+      syntax_examples: {},
+    });
+    vi.mocked(api.renderTemplate).mockResolvedValue({
+      rendered: "test",
+      lines: ["test"],
+      line_count: 1,
+    });
+    vi.mocked(api.renderTemplateLive).mockResolvedValue({
+      rendered: "test",
+      lines: ["test"],
+      line_count: 1,
+      sent_to_board: true,
+      board_id: "board-1",
+    });
+    vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
+    vi.mocked(api.createPage).mockResolvedValue({
+      status: "success",
+      page: {
+        id: "test-page-id",
+        name: "Test Page",
+        type: "template",
+        device_type: "flagship",
+        template: ["", "", "", "", "", ""],
+        duration_seconds: 300,
+        created_at: new Date().toISOString(),
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("auto-disables live mode after 5 minutes of inactivity", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { act } = await import("@testing-library/react");
+
+    render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "checked");
+    });
+
+    // Advance past the 5-minute timeout
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 100);
+    });
+
+    expect(toggle).toHaveAttribute("data-state", "unchecked");
+  });
+
+  it("does not auto-disable before the 5 minute timeout", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { act } = await import("@testing-library/react");
+
+    render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "checked");
+    });
+
+    // Advance to just under 5 minutes
+    await act(async () => {
+      vi.advanceTimersByTime(4 * 60 * 1000);
+    });
+
+    // Should still be enabled
+    expect(toggle).toHaveAttribute("data-state", "checked");
+  });
+});
+
+describe("Live Output - Cleanup on unmount", () => {
+  const mockOnClose = vi.fn();
+  const mockOnSave = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getTemplateVariables).mockResolvedValue({
+      variables: {},
+      max_lengths: {},
+      colors: {},
+      symbols: [],
+      filters: [],
+      formatting: {},
+      syntax_examples: {},
+    });
+    vi.mocked(api.renderTemplate).mockResolvedValue({
+      rendered: "test",
+      lines: ["test"],
+      line_count: 1,
+    });
+    vi.mocked(api.renderTemplateLive).mockResolvedValue({
+      rendered: "test",
+      lines: ["test"],
+      line_count: 1,
+      sent_to_board: true,
+      board_id: "board-1",
+    });
+    vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
+  });
+
+  it("live mode state is destroyed when component unmounts (navigating away)", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "checked");
+    });
+
+    unmount();
+
+    // Re-render - live mode should start as off (state was destroyed)
+    render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      const newToggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+      expect(newToggle).toHaveAttribute("data-state", "unchecked");
+    });
+  });
+});
