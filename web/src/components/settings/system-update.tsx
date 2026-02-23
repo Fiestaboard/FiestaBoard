@@ -85,7 +85,6 @@ export function SystemUpdate() {
   }
 
   const getDisabledReason = (requiresUpdate: boolean) => {
-    if (!updateCheck?.is_production) return "Only available in production mode";
     if (requiresUpdate && !updateCheck?.update_available) return "No update available";
     return undefined;
   };
@@ -146,41 +145,58 @@ export function SystemUpdate() {
               Container management is only available in production mode.
             </p>
           )}
-          {updateCheck.is_production && updateCheck.update_available && (
+          {updateCheck.is_production && !updateCheck.docker_connected && (
+            <p className="text-sm text-muted-foreground">
+              Docker socket is not connected. To enable one-click upgrade and
+              restart, mount the Docker socket (
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                /var/run/docker.sock
+              </code>
+              ) into the container.
+              {updateCheck.update_available && (
+                <> You can still upgrade manually by pulling the latest image.</>
+              )}
+            </p>
+          )}
+          {updateCheck.is_production && updateCheck.docker_connected && updateCheck.update_available && (
             <p className="text-sm text-muted-foreground">
               If your container is configured with the <code className="text-xs bg-muted px-1 py-0.5 rounded">latest</code> tag, 
               you can pull the newest image and restart automatically.
             </p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => upgradeMutation.mutate()}
-              disabled={!updateCheck.is_production || !updateCheck.update_available || upgradeMutation.isPending || restartMutation.isPending}
-              title={getDisabledReason(true)}
-            >
-              {upgradeMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
-              )}
-              Pull &amp; Restart
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => restartMutation.mutate()}
-              disabled={!updateCheck.is_production || restartMutation.isPending || upgradeMutation.isPending}
-              title={getDisabledReason(false)}
-            >
-              {restartMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RotateCcw className="h-4 w-4 mr-2" />
-              )}
-              Restart Only
-            </Button>
+            {updateCheck.is_production && updateCheck.docker_connected && (
+              <>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => upgradeMutation.mutate()}
+                  disabled={!updateCheck.update_available || upgradeMutation.isPending || restartMutation.isPending}
+                  title={getDisabledReason(true)}
+                >
+                  {upgradeMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Pull &amp; Restart
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => restartMutation.mutate()}
+                  disabled={restartMutation.isPending || upgradeMutation.isPending}
+                  title={getDisabledReason(false)}
+                >
+                  {restartMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                  )}
+                  Restart Only
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="sm" asChild>
               <a
                 href={updateCheck.package_url}

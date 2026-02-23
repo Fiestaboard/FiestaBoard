@@ -252,6 +252,7 @@ class UpdateCheckResponse(BaseModel):
     package_url: str
     error: str | None = None
     is_production: bool
+    docker_connected: bool = False
 
 
 class SystemRestartResponse(BaseModel):
@@ -496,6 +497,21 @@ def _check_github_releases_for_latest() -> Optional[str]:
         return None
 
 
+def _check_docker_connected() -> bool:
+    """Check whether the Docker socket is accessible.
+    
+    Returns True if the Docker daemon is reachable, False otherwise.
+    """
+    try:
+        import docker
+        client = docker.from_env()
+        client.ping()
+        return True
+    except Exception as e:
+        logger.debug(f"Docker socket not accessible: {e}")
+        return False
+
+
 @app.get("/system/update-check", response_model=UpdateCheckResponse)
 async def system_update_check():
     """Check if a newer version of FiestaBoard is available.
@@ -507,6 +523,7 @@ async def system_update_check():
     Returns the current version, latest version, and whether an update is available.
     """
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    docker_connected = _check_docker_connected()
     
     try:
         # Try Docker Hub first (checks actual container registry), fall back to GitHub Releases
@@ -523,6 +540,7 @@ async def system_update_check():
                 update_available=update_available,
                 package_url=GITHUB_PACKAGE_URL,
                 is_production=is_production,
+                docker_connected=docker_connected,
             )
         
         raise RuntimeError("Both Docker Hub and GitHub Releases checks failed")
@@ -535,6 +553,7 @@ async def system_update_check():
             package_url=GITHUB_PACKAGE_URL,
             error=f"Could not check for updates: {e}",
             is_production=is_production,
+            docker_connected=docker_connected,
         )
 
 

@@ -649,6 +649,7 @@ export interface UpdateCheckResponse {
   package_url: string;
   error: string | null;
   is_production: boolean;
+  docker_connected: boolean;
 }
 
 export interface SystemRestartResponse {

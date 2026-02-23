@@ -75,6 +75,42 @@ class TestUpdateCheck:
         assert response.status_code == 200
         assert response.json()["is_production"] is True
 
+    def test_docker_connected_true(self, client):
+        """Test docker_connected is True when Docker socket is accessible."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"tag_name": "v99.0.0"}
+        mock_response.raise_for_status = Mock()
+
+        mock_docker_client = Mock()
+        mock_docker_client.ping = Mock(return_value=True)
+        mock_docker_module = Mock()
+        mock_docker_module.from_env = Mock(return_value=mock_docker_client)
+
+        with patch("src.api_server.requests.get", return_value=mock_response), \
+             patch.dict("sys.modules", {"docker": mock_docker_module}):
+            response = client.get("/system/update-check")
+
+        assert response.status_code == 200
+        assert response.json()["docker_connected"] is True
+
+    def test_docker_connected_false_when_socket_unavailable(self, client):
+        """Test docker_connected is False when Docker socket is not accessible."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"tag_name": "v99.0.0"}
+        mock_response.raise_for_status = Mock()
+
+        mock_docker_module = Mock()
+        mock_docker_module.from_env = Mock(side_effect=Exception("Cannot connect to Docker daemon"))
+
+        with patch("src.api_server.requests.get", return_value=mock_response), \
+             patch.dict("sys.modules", {"docker": mock_docker_module}):
+            response = client.get("/system/update-check")
+
+        assert response.status_code == 200
+        assert response.json()["docker_connected"] is False
+
     def test_tag_name_without_v_prefix(self, client):
         """Test parsing tag names without 'v' prefix."""
         mock_response = Mock()
