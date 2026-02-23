@@ -155,7 +155,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm/v7,linux/arm64
+          platforms: linux/amd64,linux/arm64
           build-args: |
             VERSION=${{ needs.prep.outputs.version }}
           tags: |
@@ -232,12 +232,12 @@ jobs:
             
             releaseNotes += `\n\n## Docker Images\n\n`;
             
-            releaseNotes += `**Platforms:** \`linux/amd64\`, \`linux/arm/v7\`, \`linux/arm64\`\n\n`;
+            releaseNotes += `**Platforms:** \`linux/amd64\`, \`linux/arm64\`\n\n`;
             releaseNotes += `\`\`\`bash\n`;
             releaseNotes += `docker pull fiestaboard/fiestaboard:${version}\n`;
             releaseNotes += `\`\`\`\n`;
             releaseNotes += `\n### 🍓 Raspberry Pi Support\n\n`;
-            releaseNotes += `This release includes multi-architecture images that work on Raspberry Pi (arm/v7 and arm64).\n`;
+            releaseNotes += `This release includes multi-architecture images that work on Raspberry Pi (arm64).\n`;
             releaseNotes += `Simply use the same \`docker pull\` commands above on your Pi!\n`;
             
             // Create the release

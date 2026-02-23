@@ -71,7 +71,7 @@ docker-compose down
 
 ### Running on a Raspberry Pi?
 
-The same pre-built image works on Raspberry Pi (arm64 and arm/v7) when a release includes Pi support. Just follow the steps above on your Pi. See the [Raspberry Pi Guide](./docs/deployment/PI_BUILD_GUIDE.md) for more details.
+The same pre-built image works on Raspberry Pi (arm64) — just follow the steps above on your Pi. See the [Raspberry Pi Guide](./docs/deployment/PI_BUILD_GUIDE.md) for more details.
 
 
 ---

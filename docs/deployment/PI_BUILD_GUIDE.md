@@ -73,15 +73,17 @@ docker compose up -d
 
 ### Overview
 
-Every release automatically builds multi-architecture Docker images for `linux/amd64`, `linux/arm/v7`, and `linux/arm64`. This means every release supports Raspberry Pi out of the box.
+Every release automatically builds multi-architecture Docker images for `linux/amd64` and `linux/arm64`. This means every release supports Raspberry Pi out of the box.
+
+> **Note:** ARM32v7 (`linux/arm/v7`) is no longer supported because Node.js dropped 32-bit ARM support starting from v20+. Use a 64-bit OS on your Pi.
 
 ## What Gets Built
 
-- **Platforms:** `linux/amd64`, `linux/arm/v7`, `linux/arm64`
+- **Platforms:** `linux/amd64`, `linux/arm64`
 - **Build time:** ~15 minutes
 - **Compatible with:**
-  - Raspberry Pi 3B+ (arm/v7)
-  - Raspberry Pi Zero 2W (arm/v7)
+  - Raspberry Pi 3B+ (arm64, requires 64-bit OS)
+  - Raspberry Pi Zero 2W (arm64, requires 64-bit OS)
   - Raspberry Pi 4 (arm64)
   - Raspberry Pi 5 (arm64)
   - Any x86-64 system (amd64)
@@ -93,11 +95,11 @@ Release notes will show:
 ```markdown
 ## Docker Images
 
-**Platforms:** `linux/amd64`, `linux/arm/v7`, `linux/arm64`
+**Platforms:** `linux/amd64`, `linux/arm64`
 
 ### Raspberry Pi Support
 
-This release includes multi-architecture images that work on Raspberry Pi (arm/v7 and arm64).
+This release includes multi-architecture images that work on Raspberry Pi (arm64).
 Simply use the same `docker pull` commands above on your Pi!
 ```
 
@@ -133,7 +135,7 @@ These are needed to compile Python packages with C extensions:
 The workflow uses QEMU emulation and Docker Buildx to build for all platforms:
 
 ```yaml
-platforms: linux/amd64,linux/arm/v7,linux/arm64
+platforms: linux/amd64,linux/arm64
 ```
 
 ## Troubleshooting
