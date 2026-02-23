@@ -385,6 +385,6 @@ test.describe("Note pages – Heart / Degree character", () => {
     // Tile at (0,0) = A, tile at (0,1) = heart on Note, tile at (0,2) = B
     await expect(firstTile).toHaveAttribute("data-target-char", "A");
     const heartTile = page.locator('[data-testid="char-tile-0-1"]');
-    await expect(heartTile).toHaveAttribute("data-target-char", "❤");
+    await expect(heartTile).toHaveAttribute("data-target-char", "♥");
   });
 });

@@ -55,7 +55,7 @@ const BOARD_CHARS = [
 ];
 
 // Extended characters that are not in BOARD_CHARS but can appear from device substitutions
-const EXTRA_CHARS: Record<string, boolean> = { '❤': true };
+const EXTRA_CHARS: Record<string, boolean> = { '♥': true };
 
 // Backward compatibility alias
 const FIESTABOARD_CHARS = BOARD_CHARS;
@@ -64,6 +64,16 @@ const FIESTABOARD_CHARS = BOARD_CHARS;
 const isColorTile = (char: string) => {
   return ['63', '64', '65', '66', '67', '68', '69', '70', '71'].includes(char);
 };
+
+// Resolve color code to hex value, accounting for white board inversion.
+// On white Vestaboard hardware, white (69) and black (70) tiles are swapped.
+function resolveColorCode(code: string, isWhiteBoard: boolean): string {
+  if (isWhiteBoard) {
+    if (code === "69" || code === "white") return BOARD_COLORS.black;
+    if (code === "70" || code === "black") return BOARD_COLORS.white;
+  }
+  return ALL_COLOR_CODES[code] || BOARD_COLORS.black;
+}
 
 // Helper function to find character index in BOARD_CHARS array
 function getCharIndex(char: string): number {
@@ -145,7 +155,7 @@ function messageToGrid(message: string, rows: number = ROWS, cols: number = COLS
         const token = tokens[col];
         // On Note, degree symbol (code 62) displays as heart
         if (isNote && token.type === "char" && token.value === "°") {
-          rowTokens.push({ type: "char", value: "❤" });
+          rowTokens.push({ type: "char", value: "♥" });
         } else {
           rowTokens.push(token);
         }
@@ -634,7 +644,7 @@ const CharTile = memo(function CharTile({
         {!isAnimating && !isTransitioning && (() => {
           // If token is a color tile, always render as color tile (not character)
           if (token.type === "color") {
-            const bgColor = ALL_COLOR_CODES[token.code] || BOARD_COLORS.black;
+            const bgColor = resolveColorCode(token.code, isWhiteBoard);
             const marginClasses = size === "sm"
               ? "[--color-margin-top:3px] [--color-margin-bottom:4px] [--color-margin-h:1px]"
               : size === "md"
@@ -673,13 +683,13 @@ const CharTile = memo(function CharTile({
           }
           
           // Regular character tile
-          // Use original token value for extended chars (like ❤ on Note) that aren't in BOARD_CHARS
+          // Use original token value for extended chars (like ♥ on Note) that aren't in BOARD_CHARS
           const originalChar = getCharFromToken(token);
           const targetChar = EXTRA_CHARS[originalChar] ? originalChar : BOARD_CHARS[targetCharIndex];
           const isColor = isColorTile(targetChar);
-          const charBg = isColor ? (ALL_COLOR_CODES[targetChar] || tileBg) : tileBg;
+          const charBg = isColor ? resolveColorCode(targetChar, isWhiteBoard) : tileBg;
           // Heart character should render in red
-          const isHeart = targetChar === '❤';
+          const isHeart = targetChar === '♥';
           const charColor = isHeart ? '#eb4034' : textColor;
           
           return (
@@ -738,7 +748,7 @@ const CharTile = memo(function CharTile({
           
           // If it's a color tile, use the same rendering as static display
           if (isCurrentColor) {
-            const bgColor = ALL_COLOR_CODES[currentChar] || BOARD_COLORS.black;
+            const bgColor = resolveColorCode(currentChar, isWhiteBoard);
             const marginClasses = size === "sm"
               ? "[--color-margin-top:3px] [--color-margin-bottom:4px] [--color-margin-h:1px]"
               : size === "md"
