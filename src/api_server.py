@@ -408,10 +408,11 @@ async def version():
     (from VERSION environment variable). In production builds, these should match.
     """
     build_version = os.getenv("VERSION", "dev")
+    production = os.getenv("PRODUCTION", "false").lower() == "true"
     return VersionResponse(
         package_version=__version__,
         build_version=build_version,
-        is_dev=build_version == "dev"
+        is_dev=build_version == "dev" and not production
     )
 
 

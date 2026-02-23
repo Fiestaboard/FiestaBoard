@@ -273,3 +273,34 @@ class TestStatusEndpoint:
         with patch('src.api_server.get_service', return_value=None):
             response = client.get("/status")
             assert response.status_code == 503
+
+
+class TestVersionEndpoint:
+    """Tests for the /version API endpoint."""
+
+    @pytest.fixture
+    def client(self):
+        from src.api_server import app
+        return TestClient(app, raise_server_exceptions=False)
+
+    def test_version_is_dev_when_no_env_vars(self, client):
+        with patch.dict('os.environ', {'VERSION': 'dev', 'PRODUCTION': 'false'}):
+            response = client.get("/version")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_dev"] is True
+
+    def test_version_is_not_dev_when_production_true(self, client):
+        with patch.dict('os.environ', {'PRODUCTION': 'true', 'VERSION': 'dev'}):
+            response = client.get("/version")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_dev"] is False
+
+    def test_version_is_not_dev_when_version_set(self, client):
+        with patch.dict('os.environ', {'VERSION': '1.2.3', 'PRODUCTION': 'false'}):
+            response = client.get("/version")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_dev"] is False
+        assert data["build_version"] == "1.2.3"
