@@ -154,6 +154,11 @@ const config: Config = {
           ],
         },
         {
+          href: 'https://hub.docker.com/r/fiestaboard/fiestaboard',
+          label: 'Docker Hub',
+          position: 'right',
+        },
+        {
           href: 'https://discord.gg/wc9dDfte',
           label: 'Discord',
           position: 'right',
@@ -209,6 +214,10 @@ const config: Config = {
         {
           title: 'Community',
           items: [
+            {
+              label: 'Docker Hub',
+              href: 'https://hub.docker.com/r/fiestaboard/fiestaboard',
+            },
             {
               label: 'Discord',
               href: 'https://discord.gg/wc9dDfte',
