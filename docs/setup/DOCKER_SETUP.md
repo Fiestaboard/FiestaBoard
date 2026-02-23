@@ -206,6 +206,44 @@ For advanced users who want to override settings via `.env`, here are the key va
 
 See the [Environment Variables Reference](https://fiestaboard.app/docs/reference/environment-variables) for the full list of options.
 
+## Authenticating with GitHub Container Registry
+
+FiestaBoard publishes pre-built Docker images to the [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) (ghcr.io). If you've never pulled an image from ghcr.io before, you may need to authenticate Docker first.
+
+### Step 1: Create a Personal Access Token (classic)
+
+GitHub's Container Registry requires a **personal access token (classic)** for authentication. Fine-grained tokens are not supported for ghcr.io.
+
+1. Go to [GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+2. Click **"Generate new token (classic)"**
+3. Give it a descriptive name (e.g., `ghcr-pull-fiestaboard`)
+4. Select the **`read:packages`** scope (this is all you need to pull images)
+5. Click **"Generate token"** and copy it — you won't be able to see it again
+
+### Step 2: Log in to the Container Registry
+
+Use Docker CLI to authenticate with ghcr.io. Replace `YOUR_GITHUB_USERNAME` and `YOUR_TOKEN` with your values:
+
+```bash
+# Save your token to an environment variable
+export CR_PAT=YOUR_TOKEN
+
+# Log in to ghcr.io
+echo $CR_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+```
+
+You should see `Login Succeeded`. This is a one-time setup — Docker will remember your credentials for future pulls.
+
+### Step 3: Pull and Run FiestaBoard
+
+Once authenticated, you can use the pre-built images:
+
+```bash
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+> **Reference:** [GitHub's official guide to working with the Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+
 ## Production Deployment
 
 For production deployment, use the pre-built image from the GitHub Container Registry (`ghcr.io/fiestaboard/fiestaboard:latest`) with proper environment variables configured. Images are published with each release. Note that ARM images for Raspberry Pi are built on-demand; see the [Raspberry Pi Guide](../deployment/PI_BUILD_GUIDE.md) for details.

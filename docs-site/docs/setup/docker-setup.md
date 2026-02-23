@@ -52,6 +52,42 @@ FiestaBoard runs in a single unified container:
 | `docker-compose.prod.yml` | Production-optimized |
 | `docker-compose.ghcr.yml` | Using pre-built images from GitHub Container Registry |
 
+## Authenticating with GitHub Container Registry
+
+FiestaBoard publishes pre-built Docker images to the [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) (ghcr.io). If you've never pulled an image from ghcr.io before, you'll need to authenticate Docker first.
+
+### 1. Create a Personal Access Token (classic)
+
+GitHub's Container Registry requires a **personal access token (classic)** for authentication. Fine-grained tokens are not supported for ghcr.io.
+
+1. Go to [GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+2. Click **"Generate new token (classic)"**
+3. Give it a descriptive name (e.g., `ghcr-pull-fiestaboard`)
+4. Select the **`read:packages`** scope (this is all you need to pull images)
+5. Click **"Generate token"** and copy it — you won't be able to see it again
+
+### 2. Log in to the Container Registry
+
+Use Docker CLI to authenticate with ghcr.io. Replace `YOUR_GITHUB_USERNAME` and `YOUR_TOKEN` with your values:
+
+```bash
+# Save your token to an environment variable
+export CR_PAT=YOUR_TOKEN
+
+# Log in to ghcr.io
+echo $CR_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+```
+
+You should see `Login Succeeded`. This is a one-time setup — Docker will remember your credentials for future pulls.
+
+:::tip
+Never commit your personal access token to version control. Use environment variables or a credential manager to store it securely.
+:::
+
+:::info Reference
+See [GitHub's official guide to working with the Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) for more details.
+:::
+
 ## Quick Start
 
 ```bash
@@ -61,7 +97,7 @@ docker-compose up -d --build
 # Development with hot reload
 docker-compose -f docker-compose.dev.yml up --build
 
-# Using pre-built images (no build needed)
+# Using pre-built images (no build needed — requires ghcr.io authentication above)
 docker-compose -f docker-compose.ghcr.yml up -d
 ```
 

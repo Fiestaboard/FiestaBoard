@@ -67,6 +67,10 @@ docker-compose -f docker-compose.ghcr.yml up -d
 
 This skips the build step entirely and pulls ready-to-run ARM images.
 
+:::note First time pulling from ghcr.io?
+You'll need to authenticate Docker with the GitHub Container Registry before pulling images. See [Authenticating with GitHub Container Registry](/docs/setup/docker-setup#authenticating-with-github-container-registry) for setup instructions.
+:::
+
 ## Pi Build Labels
 
 FiestaBoard's CI pipeline supports building ARM images on demand. When contributing:

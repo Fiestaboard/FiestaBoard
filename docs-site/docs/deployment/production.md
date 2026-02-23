@@ -22,6 +22,10 @@ Or use pre-built images from GitHub Container Registry:
 docker-compose -f docker-compose.ghcr.yml up -d
 ```
 
+:::note First time pulling from ghcr.io?
+You'll need to authenticate Docker with the GitHub Container Registry before pulling images. See [Authenticating with GitHub Container Registry](/docs/setup/docker-setup#authenticating-with-github-container-registry) for setup instructions.
+:::
+
 ## Recommended Configuration
 
 ### Environment Variables
