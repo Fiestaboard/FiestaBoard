@@ -143,7 +143,7 @@ export function SystemUpdate() {
                     ) : (
                       <RotateCcw className="h-4 w-4 mr-2" />
                     )}
-                    Restart &amp; Update
+                    Restart & Update
                   </Button>
                   <Button variant="outline" size="sm" asChild>
                     <a

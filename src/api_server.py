@@ -437,6 +437,7 @@ async def version():
 
 GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
 GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
+RESTART_DELAY_SECONDS = 2
 
 
 @app.get("/system/update-check", response_model=UpdateCheckResponse)
@@ -499,7 +500,7 @@ async def system_restart(background_tasks: BackgroundTasks):
         from .system.docker_manager import get_docker_manager
         docker_mgr = get_docker_manager()
         # Schedule restart in background so the response can be sent first
-        background_tasks.add_task(docker_mgr.restart_container, "all", delay=2)
+        background_tasks.add_task(docker_mgr.restart_container, "all", delay=RESTART_DELAY_SECONDS)
         return SystemRestartResponse(
             status="success",
             message="Container restart initiated. FiestaBoard will be back shortly."
@@ -513,10 +514,14 @@ def _is_newer_version(latest: str, current: str) -> bool:
     """Compare two semver-style version strings.
     
     Returns True if latest is strictly newer than current.
+    Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
     """
     try:
         def parse_version(v: str):
-            return tuple(int(x) for x in v.split("."))
+            parts = v.split(".")
+            if not parts or not all(p.isdigit() for p in parts):
+                raise ValueError(f"Invalid version: {v}")
+            return tuple(int(x) for x in parts)
         return parse_version(latest) > parse_version(current)
     except (ValueError, AttributeError):
         return False
