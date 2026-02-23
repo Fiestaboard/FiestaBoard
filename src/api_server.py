@@ -437,38 +437,29 @@ async def version():
 
 GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
 GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
-GHCR_TOKEN_URL = "https://ghcr.io/token?scope=repository:fiestaboard/fiestaboard:pull"
-GHCR_TAGS_URL = "https://ghcr.io/v2/fiestaboard/fiestaboard/tags/list"
+DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
 RESTART_DELAY_SECONDS = 2
 
 
-def _check_ghcr_for_latest() -> Optional[str]:
-    """Check GHCR (GitHub Container Registry) for the latest version tag.
+def _check_dockerhub_for_latest() -> Optional[str]:
+    """Check Docker Hub for the latest version tag.
     
-    Queries the OCI distribution API using an anonymous token (no authentication
-    required for public packages). Filters tags to find the highest semver version.
+    Queries the Docker Hub API for available tags. No authentication required
+    for public repositories. Filters tags to find the highest semver version.
     
     Returns the latest version string, or None if the check fails.
     """
     try:
-        # Step 1: Get anonymous token for public package access
-        token_resp = requests.get(GHCR_TOKEN_URL, timeout=10)
-        token_resp.raise_for_status()
-        token = token_resp.json().get("token")
-        if not token:
-            logger.warning("GHCR token response missing token field")
-            return None
+        # Query Docker Hub tags endpoint
+        resp = requests.get(DOCKERHUB_TAGS_URL, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
         
-        # Step 2: List tags from the registry
-        tags_resp = requests.get(
-            GHCR_TAGS_URL,
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10,
-        )
-        tags_resp.raise_for_status()
-        tags = tags_resp.json().get("tags", [])
+        # Extract tag names from results
+        results = data.get("results", [])
+        tags = [result.get("name") for result in results if result.get("name")]
         
-        # Step 3: Filter to semver-style tags and find the highest version
+        # Filter to semver-style tags and find the highest version
         version_tags = []
         for tag in tags:
             parts = tag.split(".")
@@ -481,7 +472,7 @@ def _check_ghcr_for_latest() -> Optional[str]:
         best = max(version_tags)
         return ".".join(str(p) for p in best)
     except Exception as e:
-        logger.debug(f"GHCR version check failed: {e}")
+        logger.debug(f"Docker Hub version check failed: {e}")
         return None
 
 
@@ -508,17 +499,17 @@ def _check_github_releases_for_latest() -> Optional[str]:
 async def system_update_check():
     """Check if a newer version of FiestaBoard is available.
     
-    Checks GHCR (GitHub Container Registry) for the latest container image tag,
-    with a fallback to the GitHub Releases API. No authentication is required
-    because the package and repository are public.
+    Checks Docker Hub for the latest container image tag, with a fallback to
+    the GitHub Releases API. No authentication is required because the package
+    and repository are public.
     
     Returns the current version, latest version, and whether an update is available.
     """
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
     
     try:
-        # Try GHCR first (checks actual container registry), fall back to GitHub Releases
-        latest_version = _check_ghcr_for_latest()
+        # Try Docker Hub first (checks actual container registry), fall back to GitHub Releases
+        latest_version = _check_dockerhub_for_latest()
         
         if not latest_version:
             latest_version = _check_github_releases_for_latest()
@@ -533,7 +524,7 @@ async def system_update_check():
                 is_production=is_production,
             )
         
-        raise RuntimeError("Both GHCR and GitHub Releases checks failed")
+        raise RuntimeError("Both Docker Hub and GitHub Releases checks failed")
     except Exception as e:
         logger.warning(f"Failed to check for updates: {e}")
         return UpdateCheckResponse(
@@ -577,7 +568,7 @@ async def system_restart(background_tasks: BackgroundTasks):
 
 @app.post("/system/upgrade", response_model=SystemRestartResponse)
 async def system_upgrade(background_tasks: BackgroundTasks):
-    """Pull latest container images from GHCR and restart.
+    """Pull latest container images from Docker Hub and restart.
     
     This is the recommended way to update when using the :latest tag.
     In production mode, pulls the newest image and restarts the container.

@@ -91,101 +91,93 @@ class TestUpdateCheck:
         assert data["update_available"] is True
 
 
-class TestGHCRCheck:
-    """Tests for GHCR (GitHub Container Registry) version checking."""
+class TestDockerHubCheck:
+    """Tests for Docker Hub version checking."""
 
-    def test_ghcr_check_returns_latest_version(self):
-        """Test GHCR check correctly finds the highest semver tag."""
-        from src.api_server import _check_ghcr_for_latest
-
-        token_resp = Mock()
-        token_resp.status_code = 200
-        token_resp.json.return_value = {"token": "test-token"}
-        token_resp.raise_for_status = Mock()
+    def test_dockerhub_check_returns_latest_version(self):
+        """Test Docker Hub check correctly finds the highest semver tag."""
+        from src.api_server import _check_dockerhub_for_latest
 
         tags_resp = Mock()
         tags_resp.status_code = 200
-        tags_resp.json.return_value = {"tags": ["latest", "2.0.0", "2.0.1", "2.1.0", "main"]}
+        tags_resp.json.return_value = {
+            "results": [
+                {"name": "latest"},
+                {"name": "2.0.0"},
+                {"name": "2.0.1"},
+                {"name": "2.1.0"},
+                {"name": "main"}
+            ]
+        }
         tags_resp.raise_for_status = Mock()
 
-        def mock_get(url, **kwargs):
-            if "token" in url:
-                return token_resp
-            return tags_resp
-
-        with patch("src.api_server.requests.get", side_effect=mock_get):
-            result = _check_ghcr_for_latest()
+        with patch("src.api_server.requests.get", return_value=tags_resp):
+            result = _check_dockerhub_for_latest()
 
         assert result == "2.1.0"
 
-    def test_ghcr_check_no_version_tags(self):
-        """Test GHCR check returns None when no semver tags exist."""
-        from src.api_server import _check_ghcr_for_latest
-
-        token_resp = Mock()
-        token_resp.status_code = 200
-        token_resp.json.return_value = {"token": "test-token"}
-        token_resp.raise_for_status = Mock()
+    def test_dockerhub_check_no_version_tags(self):
+        """Test Docker Hub check returns None when no semver tags exist."""
+        from src.api_server import _check_dockerhub_for_latest
 
         tags_resp = Mock()
         tags_resp.status_code = 200
-        tags_resp.json.return_value = {"tags": ["latest", "main", "dev"]}
+        tags_resp.json.return_value = {
+            "results": [
+                {"name": "latest"},
+                {"name": "main"},
+                {"name": "dev"}
+            ]
+        }
         tags_resp.raise_for_status = Mock()
 
-        def mock_get(url, **kwargs):
-            if "token" in url:
-                return token_resp
-            return tags_resp
-
-        with patch("src.api_server.requests.get", side_effect=mock_get):
-            result = _check_ghcr_for_latest()
+        with patch("src.api_server.requests.get", return_value=tags_resp):
+            result = _check_dockerhub_for_latest()
 
         assert result is None
 
-    def test_ghcr_check_network_failure(self):
-        """Test GHCR check returns None on network error."""
-        from src.api_server import _check_ghcr_for_latest
+    def test_dockerhub_check_network_failure(self):
+        """Test Docker Hub check returns None on network error."""
+        from src.api_server import _check_dockerhub_for_latest
 
         with patch("src.api_server.requests.get", side_effect=Exception("Connection refused")):
-            result = _check_ghcr_for_latest()
+            result = _check_dockerhub_for_latest()
 
         assert result is None
 
-    def test_ghcr_check_missing_token(self):
-        """Test GHCR check returns None when token is missing from response."""
-        from src.api_server import _check_ghcr_for_latest
+    def test_dockerhub_check_empty_results(self):
+        """Test Docker Hub check returns None when results array is empty."""
+        from src.api_server import _check_dockerhub_for_latest
 
-        token_resp = Mock()
-        token_resp.status_code = 200
-        token_resp.json.return_value = {}
-        token_resp.raise_for_status = Mock()
+        tags_resp = Mock()
+        tags_resp.status_code = 200
+        tags_resp.json.return_value = {"results": []}
+        tags_resp.raise_for_status = Mock()
 
-        with patch("src.api_server.requests.get", return_value=token_resp):
-            result = _check_ghcr_for_latest()
+        with patch("src.api_server.requests.get", return_value=tags_resp):
+            result = _check_dockerhub_for_latest()
 
         assert result is None
 
-    def test_update_check_uses_ghcr_first(self, client):
-        """Test that update-check tries GHCR before falling back to GitHub Releases."""
+    def test_update_check_uses_dockerhub_first(self, client):
+        """Test that update-check tries Docker Hub before falling back to GitHub Releases."""
         from src import __version__
 
         call_order = []
 
-        token_resp = Mock()
-        token_resp.status_code = 200
-        token_resp.json.return_value = {"token": "test-token"}
-        token_resp.raise_for_status = Mock()
-
         tags_resp = Mock()
         tags_resp.status_code = 200
-        tags_resp.json.return_value = {"tags": ["99.0.0", "2.0.0"]}
+        tags_resp.json.return_value = {
+            "results": [
+                {"name": "99.0.0"},
+                {"name": "2.0.0"}
+            ]
+        }
         tags_resp.raise_for_status = Mock()
 
         def mock_get(url, **kwargs):
             call_order.append(url)
-            if "token" in url:
-                return token_resp
-            if "ghcr.io" in url:
+            if "hub.docker.com" in url:
                 return tags_resp
             # GitHub Releases should NOT be called
             raise AssertionError("Should not reach GitHub Releases API")
@@ -197,22 +189,22 @@ class TestGHCRCheck:
         data = response.json()
         assert data["latest_version"] == "99.0.0"
         assert data["update_available"] is True
-        # Verify GHCR was called (token + tags)
-        assert any("ghcr.io" in url for url in call_order)
+        # Verify Docker Hub was called
+        assert any("hub.docker.com" in url for url in call_order)
 
     def test_update_check_falls_back_to_github_releases(self, client):
-        """Test fallback to GitHub Releases when GHCR fails."""
+        """Test fallback to GitHub Releases when Docker Hub fails."""
         releases_resp = Mock()
         releases_resp.status_code = 200
         releases_resp.json.return_value = {"tag_name": "v99.0.0"}
         releases_resp.raise_for_status = Mock()
 
-        call_count = {"ghcr": 0, "github": 0}
+        call_count = {"dockerhub": 0, "github": 0}
 
         def mock_get(url, **kwargs):
-            if "ghcr.io" in url:
-                call_count["ghcr"] += 1
-                raise Exception("GHCR unavailable")
+            if "hub.docker.com" in url:
+                call_count["dockerhub"] += 1
+                raise Exception("Docker Hub unavailable")
             call_count["github"] += 1
             return releases_resp
 
@@ -223,7 +215,7 @@ class TestGHCRCheck:
         data = response.json()
         assert data["latest_version"] == "99.0.0"
         assert data["update_available"] is True
-        assert call_count["ghcr"] > 0  # GHCR was attempted
+        assert call_count["dockerhub"] > 0  # Docker Hub was attempted
         assert call_count["github"] > 0  # GitHub was used as fallback
 
 
