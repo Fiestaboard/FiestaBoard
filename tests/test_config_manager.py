@@ -27,8 +27,17 @@ def mock_time_service():
 
 
 @pytest.fixture(autouse=True)
-def reset_singleton(tmp_path):
-    """Reset ConfigManager singleton between tests."""
+def reset_singleton(tmp_path, monkeypatch):
+    """Reset ConfigManager singleton between tests and clear env vars."""
+    # Clear environment variables that could interfere with validation tests
+    monkeypatch.delenv("BOARD_READ_WRITE_KEY", raising=False)
+    monkeypatch.delenv("FB_READ_WRITE_KEY", raising=False)
+    monkeypatch.delenv("WEATHER_API_KEY", raising=False)
+    monkeypatch.delenv("BOARD_LOCAL_API_KEY", raising=False)
+    monkeypatch.delenv("FB_LOCAL_API_KEY", raising=False)
+    monkeypatch.delenv("BOARD_HOST", raising=False)
+    monkeypatch.delenv("FB_HOST", raising=False)
+    
     ConfigManager._instance = None
     ConfigManager._lock = threading.Lock()
     yield tmp_path
