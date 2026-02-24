@@ -602,11 +602,106 @@ Add MQTT configuration to the FiestaBoard web UI:
 
 ### Phase 5: Documentation & Testing
 
-- [ ] **User documentation** — Setup guide for connecting FiestaBoard to HA via MQTT
-- [ ] **Automation examples** — Curated HA automation YAML examples
-- [ ] **Unit tests** — MQTT service, discovery payloads, state sync, command handling
+- [x] **User documentation** — Setup guide at `docs-site/docs/integrations/home-assistant-control.md`
+- [ ] **Automation examples** — Curated HA automation YAML examples (included in user docs)
+- [x] **Unit tests: Config** — `tests/test_mqtt_config.py` — 33 tests for MQTTConfig (defaults, validation, serialization, env loading)
+- [x] **Unit tests: Discovery** — `tests/test_mqtt_discovery.py` — 47 tests for discovery payloads, entity definitions, topic generation, device info
+- [ ] **Unit tests: Client** — `tests/test_mqtt_client.py` — MQTT client wrapper (connect, publish, subscribe, reconnect, LWT)
+- [ ] **Unit tests: State sync** — `tests/test_mqtt_state.py` — State synchronization between FiestaBoard and MQTT
+- [ ] **Unit tests: Commands** — `tests/test_mqtt_commands.py` — Command handling from HA to FiestaBoard
 - [ ] **Integration tests** — End-to-end MQTT flow with mock broker
 - [ ] **Update README** — Add Home Assistant section to project README
+
+---
+
+## Testing Strategy
+
+The MQTT module (`src/mqtt/`) follows the same testing patterns as the rest of FiestaBoard: **pytest** with `unittest.mock`, organized in `tests/test_mqtt_*.py`, and run by the standard `pytest` command configured in `pyproject.toml`.
+
+### Test Structure
+
+The MQTT integration is tested at three levels:
+
+```
+tests/
+├── test_mqtt_config.py        ← Config validation, serialization, env loading (33 tests)
+├── test_mqtt_discovery.py     ← Discovery payloads, entity definitions, topics (47 tests)
+├── test_mqtt_client.py        ← Client wrapper: connect, publish, subscribe, LWT (planned)
+├── test_mqtt_state.py         ← State sync: FiestaBoard state → MQTT topics (planned)
+└── test_mqtt_commands.py      ← Command handling: MQTT commands → FiestaBoard API (planned)
+```
+
+### How It Fits Into the Existing Test Suite
+
+The MQTT module is **not a separate package** — it's a standard Python module in `src/mqtt/` with tests in `tests/`, exactly like every other FiestaBoard module:
+
+| Module | Source | Tests | Pattern |
+|--------|--------|-------|---------|
+| Settings | `src/settings/` | `tests/test_output.py` | Dataclass + service + API endpoint tests |
+| Schedules | `src/schedules/` | `tests/test_schedules_*.py` | Model, storage, service, midnight rollover |
+| Templates | `src/templates/` | `tests/test_templates.py` | Engine logic, variable resolution |
+| **MQTT** | **`src/mqtt/`** | **`tests/test_mqtt_*.py`** | **Config, discovery, client, state, commands** |
+
+Running the MQTT tests:
+```bash
+# Run just the MQTT tests
+pytest tests/test_mqtt_config.py tests/test_mqtt_discovery.py -v
+
+# Run all tests (MQTT tests included automatically)
+pytest tests/ -v
+
+# Run all tests including plugin tests
+pytest
+```
+
+### What Each Test File Covers
+
+**`test_mqtt_config.py`** (33 tests) — Configuration layer:
+- Default values (disabled by default, standard ports, standard topics)
+- Validation rules (required fields when enabled, port range, non-empty strings)
+- Serialization round-trip (`to_dict` / `from_dict`)
+- Environment variable loading (`from_env` with various truthy/falsy values)
+
+**`test_mqtt_discovery.py`** (47 tests) — Discovery payload correctness:
+- Entity registry (count, types, uniqueness, required fields)
+- Device info block (identifiers, name, manufacturer, version, URL)
+- Discovery topic format (`{prefix}/{type}/{node_id}/{object_id}/config`)
+- Per-entity payload structure (state_topic, command_topic, availability)
+- Type-specific fields (switch on/off, select options, text length, number range)
+- Full message generation (all entities, JSON validity, dynamic page list)
+
+**`test_mqtt_client.py`** (planned) — MQTT client wrapper:
+- Connection lifecycle (connect, disconnect, reconnect with backoff)
+- Publish with retain flag
+- Subscribe to command topics
+- Last Will and Testament (LWT) setup
+- Graceful degradation when broker is unavailable
+
+**`test_mqtt_state.py`** (planned) — State synchronization:
+- FiestaBoard state changes → MQTT state topic updates
+- Retained message behavior
+- Polling fallback for missed events
+
+**`test_mqtt_commands.py`** (planned) — Command handling:
+- MQTT command → FiestaBoard API call mapping
+- Invalid command handling
+- State update after command execution
+
+### Dependency: `paho-mqtt`
+
+The `paho-mqtt` package is the only new dependency. It's added to `pyproject.toml` as an **optional dependency** (not a hard requirement), so:
+- Users who don't enable MQTT don't need it installed
+- Tests that test config/discovery logic don't need `paho-mqtt` (they test our code, not the MQTT library)
+- Tests that test the client wrapper mock `paho-mqtt` — no real broker needed
+- Integration tests (future) can use a mock MQTT broker in-memory
+
+### CI/CD Integration
+
+The MQTT tests run in the same CI pipeline as all other tests:
+- `pytest tests/` already picks up `test_mqtt_*.py` files automatically
+- No special CI configuration needed
+- No MQTT broker needed in CI (all broker interactions are mocked)
+- Coverage is tracked alongside existing modules via `pytest-cov`
 
 ### Future: Phase 6 (Optional — Enhanced Discovery & Custom HA Integration)
 
