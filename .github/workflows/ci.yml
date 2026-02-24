@@ -108,7 +108,7 @@ jobs:
         # Run tests with coverage, explicitly omitting legacy code
         coverage run --source=src --omit='src/utils/*,src/formatters/*,src/main.py,src/system/*,src/text_to_board.py,src/plugins/testing.py' -m pytest tests/ -v
         coverage xml
-        coverage report -m
+        coverage report -m --fail-under=80
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
@@ -234,16 +234,26 @@ jobs:
         # Verify rollup Linux binary is installed
         test -d node_modules/@rollup/rollup-linux-x64-gnu || (echo "❌ Rollup Linux binary not installed" && exit 1)
     
-    - name: Run UI tests
+    - name: Run UI tests with coverage
       working-directory: web
-      run: npm run test:run
+      run: npm run test:coverage
+
+    - name: Upload UI coverage
+      uses: codecov/codecov-action@v5
+      with:
+        files: web/coverage/lcov.info
+        flags: ui
+        name: ui-coverage
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code

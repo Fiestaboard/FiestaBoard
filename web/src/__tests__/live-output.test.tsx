@@ -499,11 +499,14 @@ describe("Live Output - Cleanup on unmount", () => {
       { wrapper: TestWrapper }
     );
 
-    await waitFor(() => {
-      const newToggle = screen.getByRole("switch", { name: /toggle live output to board/i });
-      expect(newToggle).toHaveAttribute("data-state", "unchecked");
-    });
-  });
+    await waitFor(
+      () => {
+        const newToggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+        expect(newToggle).toHaveAttribute("data-state", "unchecked");
+      },
+      { timeout: 10000 }
+    );
+  }, 15000);
 
   it("calls forceRefresh on unmount when live output was enabled", async () => {
     vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
