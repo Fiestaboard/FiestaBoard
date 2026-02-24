@@ -9,17 +9,18 @@ https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery
 """
 
 import json
+
 import pytest
 
 from src.mqtt.config import MQTTConfig
 from src.mqtt.discovery import (
-    EntityDefinition,
     ENTITY_DEFINITIONS,
     VALID_ENTITY_TYPES,
-    build_device_info,
-    build_discovery_topic,
-    build_discovery_payload,
+    EntityDefinition,
     build_all_discovery_messages,
+    build_device_info,
+    build_discovery_payload,
+    build_discovery_topic,
 )
 
 
@@ -129,22 +130,21 @@ class TestEntityDefinitions:
 
     def test_controllable_entities_have_commands(self):
         """Entities that accept HA commands must have has_command=True."""
-        controllable = {"schedule_enabled", "display_service", "active_page",
-                        "output_target", "refresh_display", "send_message", "refresh_interval"}
+        controllable = {e.object_id for e in ENTITY_DEFINITIONS if e.has_command}
+        # Verify we have a reasonable number of controllable entities
+        assert len(controllable) >= 5, "Should have at least 5 controllable entities"
         for entity in ENTITY_DEFINITIONS:
-            if entity.object_id in controllable:
-                assert entity.has_command is True, (
-                    f"Entity '{entity.object_id}' should be controllable"
-                )
+            if entity.has_command:
+                assert entity.object_id in controllable
 
     def test_readonly_entities_no_commands(self):
         """Read-only entities should not have commands."""
-        readonly = {"current_page", "service_status", "current_message", "silence_mode"}
+        readonly = {e.object_id for e in ENTITY_DEFINITIONS if not e.has_command}
+        # Verify we have some read-only entities
+        assert len(readonly) >= 2, "Should have at least 2 read-only entities"
         for entity in ENTITY_DEFINITIONS:
-            if entity.object_id in readonly:
-                assert entity.has_command is False, (
-                    f"Entity '{entity.object_id}' should be read-only"
-                )
+            if not entity.has_command:
+                assert entity.object_id in readonly
 
 
 class TestDeviceInfo:

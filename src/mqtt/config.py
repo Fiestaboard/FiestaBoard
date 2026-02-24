@@ -4,12 +4,7 @@ Defines configuration dataclasses and validation for the MQTT connection
 settings. All settings are opt-in and disabled by default.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional
-
-
-# Valid entity types supported by HA MQTT Discovery
-VALID_ENTITY_TYPES = ["switch", "select", "sensor", "binary_sensor", "button", "text", "number"]
+from dataclasses import dataclass
 
 # Default MQTT settings
 DEFAULT_BROKER_HOST = "localhost"
@@ -22,7 +17,7 @@ DEFAULT_INSTANCE_ID = "fiestaboard_1"
 @dataclass
 class MQTTConfig:
     """MQTT connection and discovery configuration.
-    
+
     Attributes:
         enabled: Whether MQTT integration is active (default: False)
         broker_host: MQTT broker hostname or IP
@@ -36,38 +31,38 @@ class MQTTConfig:
     enabled: bool = False
     broker_host: str = DEFAULT_BROKER_HOST
     broker_port: int = DEFAULT_BROKER_PORT
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
     discovery_prefix: str = DEFAULT_DISCOVERY_PREFIX
     base_topic: str = DEFAULT_BASE_TOPIC
     instance_id: str = DEFAULT_INSTANCE_ID
-    
-    def validate(self) -> List[str]:
+
+    def validate(self) -> list[str]:
         """Validate the MQTT configuration.
-        
+
         Returns:
             List of validation error messages. Empty list means valid.
         """
         errors = []
-        
+
         if self.enabled:
             if not self.broker_host or not self.broker_host.strip():
                 errors.append("MQTT broker host is required when MQTT is enabled")
-            
+
             if not isinstance(self.broker_port, int) or self.broker_port < 1 or self.broker_port > 65535:
                 errors.append("MQTT broker port must be between 1 and 65535")
-            
+
             if not self.instance_id or not self.instance_id.strip():
                 errors.append("MQTT instance ID is required")
-            
+
             if not self.base_topic or not self.base_topic.strip():
                 errors.append("MQTT base topic is required")
-            
+
             if not self.discovery_prefix or not self.discovery_prefix.strip():
                 errors.append("MQTT discovery prefix is required")
-        
+
         return errors
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
@@ -80,14 +75,14 @@ class MQTTConfig:
             "base_topic": self.base_topic,
             "instance_id": self.instance_id,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "MQTTConfig":
         """Create from dictionary.
-        
+
         Args:
             data: Dictionary with configuration values.
-            
+
         Returns:
             MQTTConfig instance with validated defaults for missing fields.
         """
@@ -105,10 +100,10 @@ class MQTTConfig:
     @classmethod
     def from_env(cls, env: dict) -> "MQTTConfig":
         """Create from environment variables dictionary.
-        
+
         Args:
             env: Dictionary of environment variables (e.g., os.environ).
-            
+
         Returns:
             MQTTConfig instance.
         """
@@ -117,7 +112,7 @@ class MQTTConfig:
             port = int(port_str)
         except (ValueError, TypeError):
             port = DEFAULT_BROKER_PORT
-        
+
         return cls(
             enabled=env.get("MQTT_ENABLED", "false").lower() in ("true", "1", "yes"),
             broker_host=env.get("MQTT_BROKER_HOST", DEFAULT_BROKER_HOST),

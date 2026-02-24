@@ -17,15 +17,18 @@ References:
 
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from src.mqtt.config import MQTTConfig, VALID_ENTITY_TYPES
+from src.mqtt.config import MQTTConfig
+
+# Valid entity types supported by HA MQTT Discovery
+VALID_ENTITY_TYPES = ["switch", "select", "sensor", "binary_sensor", "button", "text", "number"]
 
 
 @dataclass
 class EntityDefinition:
     """Definition of a single HA entity exposed via MQTT Discovery.
-    
+
     Attributes:
         entity_type: HA entity type (switch, sensor, select, etc.)
         object_id: Unique object ID within the device (e.g., 'schedule_enabled')
@@ -48,20 +51,20 @@ class EntityDefinition:
     name: str
     icon: str
     has_command: bool = False
-    options: Optional[List[str]] = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    step: Optional[float] = None
-    unit: Optional[str] = None
-    device_class: Optional[str] = None
+    options: list[str] | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    step: float | None = None
+    unit: str | None = None
+    device_class: str | None = None
     payload_on: str = "ON"
     payload_off: str = "OFF"
-    min_length: Optional[int] = None
-    max_length: Optional[int] = None
+    min_length: int | None = None
+    max_length: int | None = None
 
 
 # All entities FiestaBoard exposes to Home Assistant
-ENTITY_DEFINITIONS: List[EntityDefinition] = [
+ENTITY_DEFINITIONS: list[EntityDefinition] = [
     # Switches
     EntityDefinition(
         entity_type="switch",
@@ -153,17 +156,17 @@ ENTITY_DEFINITIONS: List[EntityDefinition] = [
 ]
 
 
-def build_device_info(config: MQTTConfig, sw_version: str = "1.0.0", configuration_url: Optional[str] = None) -> Dict[str, Any]:
+def build_device_info(config: MQTTConfig, sw_version: str = "1.0.0", configuration_url: str | None = None) -> dict[str, Any]:
     """Build the HA device info block shared by all entities.
-    
+
     This block appears in every discovery payload and tells HA that all
     entities belong to the same FiestaBoard device.
-    
+
     Args:
         config: MQTT configuration with instance ID.
         sw_version: FiestaBoard software version string.
         configuration_url: URL to FiestaBoard web UI (e.g., 'http://192.168.1.50:4420').
-        
+
     Returns:
         Device info dictionary for inclusion in discovery payloads.
     """
@@ -181,13 +184,13 @@ def build_device_info(config: MQTTConfig, sw_version: str = "1.0.0", configurati
 
 def build_discovery_topic(config: MQTTConfig, entity: EntityDefinition) -> str:
     """Build the MQTT topic where the discovery payload should be published.
-    
+
     Format: {discovery_prefix}/{entity_type}/{instance_id}/{object_id}/config
-    
+
     Args:
         config: MQTT configuration.
         entity: Entity definition.
-        
+
     Returns:
         Discovery topic string (e.g., 'homeassistant/switch/fiestaboard_1/schedule_enabled/config').
     """
@@ -197,30 +200,30 @@ def build_discovery_topic(config: MQTTConfig, entity: EntityDefinition) -> str:
 def build_discovery_payload(
     config: MQTTConfig,
     entity: EntityDefinition,
-    device_info: Dict[str, Any],
-) -> Dict[str, Any]:
+    device_info: dict[str, Any],
+) -> dict[str, Any]:
     """Build a single HA MQTT Discovery payload for an entity.
-    
+
     The payload tells HA everything it needs to create the entity:
     name, state topic, command topic, availability, device linkage, etc.
-    
+
     Args:
         config: MQTT configuration.
         entity: Entity definition.
         device_info: Shared device info block from build_device_info().
-        
+
     Returns:
         Discovery payload dictionary ready for JSON serialization.
-        
+
     Raises:
         ValueError: If entity_type is not a valid HA entity type.
     """
     if entity.entity_type not in VALID_ENTITY_TYPES:
         raise ValueError(f"Invalid entity type: {entity.entity_type}. Must be one of {VALID_ENTITY_TYPES}")
-    
+
     unique_id = f"{config.instance_id}_{entity.object_id}"
-    
-    payload: Dict[str, Any] = {
+
+    payload: dict[str, Any] = {
         "name": entity.name,
         "unique_id": unique_id,
         "icon": entity.icon,
@@ -230,31 +233,31 @@ def build_discovery_payload(
         "payload_not_available": "offline",
         "device": device_info,
     }
-    
+
     # Add command topic for controllable entities
     if entity.has_command:
         payload["command_topic"] = f"{config.base_topic}/{entity.object_id}/set"
-    
+
     # Type-specific fields
     if entity.entity_type == "switch":
         payload["payload_on"] = entity.payload_on
         payload["payload_off"] = entity.payload_off
-    
+
     elif entity.entity_type == "binary_sensor":
         payload["payload_on"] = entity.payload_on
         payload["payload_off"] = entity.payload_off
         if entity.device_class:
             payload["device_class"] = entity.device_class
-    
+
     elif entity.entity_type == "select" and entity.options is not None:
         payload["options"] = entity.options
-    
+
     elif entity.entity_type == "text":
         if entity.min_length is not None:
             payload["min"] = entity.min_length
         if entity.max_length is not None:
             payload["max"] = entity.max_length
-    
+
     elif entity.entity_type == "number":
         if entity.min_value is not None:
             payload["min"] = entity.min_value
@@ -264,34 +267,34 @@ def build_discovery_payload(
             payload["step"] = entity.step
         if entity.unit:
             payload["unit_of_measurement"] = entity.unit
-    
+
     return payload
 
 
 def build_all_discovery_messages(
     config: MQTTConfig,
     sw_version: str = "1.0.0",
-    configuration_url: Optional[str] = None,
-    page_names: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
+    configuration_url: str | None = None,
+    page_names: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """Build all discovery messages for FiestaBoard.
-    
+
     Generates the complete set of discovery topic/payload pairs for
     all FiestaBoard entities. Each message, when published as a retained
     MQTT message, tells HA about one entity.
-    
+
     Args:
         config: MQTT configuration.
         sw_version: FiestaBoard software version.
         configuration_url: URL to FiestaBoard web UI.
         page_names: Current list of page names (for active_page select options).
-        
+
     Returns:
         List of dicts, each with 'topic' and 'payload' keys.
     """
     device_info = build_device_info(config, sw_version, configuration_url)
     messages = []
-    
+
     for entity in ENTITY_DEFINITIONS:
         # Inject dynamic page list into active_page entity
         if entity.object_id == "active_page" and page_names is not None:
@@ -303,13 +306,13 @@ def build_all_discovery_messages(
                 has_command=entity.has_command,
                 options=page_names,
             )
-        
+
         topic = build_discovery_topic(config, entity)
         payload = build_discovery_payload(config, entity, device_info)
-        
+
         messages.append({
             "topic": topic,
             "payload": json.dumps(payload),
         })
-    
+
     return messages

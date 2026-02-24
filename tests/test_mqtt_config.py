@@ -1,14 +1,13 @@
 """Tests for MQTT configuration."""
 
-import pytest
 
 from src.mqtt.config import (
-    MQTTConfig,
+    DEFAULT_BASE_TOPIC,
     DEFAULT_BROKER_HOST,
     DEFAULT_BROKER_PORT,
     DEFAULT_DISCOVERY_PREFIX,
-    DEFAULT_BASE_TOPIC,
     DEFAULT_INSTANCE_ID,
+    MQTTConfig,
 )
 
 
