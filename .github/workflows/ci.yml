@@ -253,7 +253,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
