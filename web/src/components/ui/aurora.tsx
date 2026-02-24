@@ -161,7 +161,7 @@ export function Aurora({
       delete geometry.attributes.uv;
     }
 
-    const colorStopsArray = colorStops.map((hex) => {
+    const initialStops = propsRef.current.colorStops.map((hex) => {
       const c = new Color(hex);
       return [c.r, c.g, c.b];
     });
@@ -171,10 +171,10 @@ export function Aurora({
       fragment: FRAG,
       uniforms: {
         uTime: { value: 0 },
-        uAmplitude: { value: amplitude },
-        uColorStops: { value: colorStopsArray },
+        uAmplitude: { value: propsRef.current.amplitude },
+        uColorStops: { value: initialStops },
         uResolution: { value: [ctn.offsetWidth, ctn.offsetHeight] },
-        uBlend: { value: blend },
+        uBlend: { value: propsRef.current.blend },
       },
     });
 
@@ -188,8 +188,8 @@ export function Aurora({
       const timeVal = props.time ?? t * 0.01;
       program.uniforms.uTime.value = timeVal * (props.speed ?? 1.0) * 0.1;
       program.uniforms.uAmplitude.value = props.amplitude ?? 1.0;
-      program.uniforms.uBlend.value = props.blend ?? blend;
-      const stops = props.colorStops ?? colorStops;
+      program.uniforms.uBlend.value = props.blend ?? 0.5;
+      const stops = props.colorStops;
       program.uniforms.uColorStops.value = stops.map((hex) => {
         const c = new Color(hex);
         return [c.r, c.g, c.b];
