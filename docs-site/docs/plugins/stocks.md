@@ -26,7 +26,7 @@ The Stock Prices plugin shows:
 3. Toggle **Stock Prices** on
 4. Use the symbol picker to add up to 5 stock symbols
 5. Choose your time window for change calculation
-6. Click **Save**
+6. Click **Save Changes**
 
 :::tip
 No API key is required for stock data. An optional Finnhub API key enables better symbol search -- get one free at [finnhub.io](https://finnhub.io/).

@@ -22,7 +22,7 @@ In the FiestaBoard web UI:
 1. Go to **Integrations** and find **Santa Tracker**
 2. Toggle **Enabled** to on
 3. Optionally set a specific year (defaults to current year)
-4. Click **Save**
+4. Click **Save Changes**
 
 ### 2. Use in Templates
 

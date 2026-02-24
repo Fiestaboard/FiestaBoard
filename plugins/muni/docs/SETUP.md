@@ -41,11 +41,11 @@ SF Muni integration provides real-time arrival predictions for San Francisco Mun
 ### 2. Enable Muni Transit
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features**
+1. Go to the **Integrations** page
 2. Find **Muni Transit** section
-3. Toggle **Enable Muni** to ON
+3. Toggle the **Muni Transit** plugin on
 4. Enter your 511.org API key
-5. Click **Save**
+5. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -59,7 +59,7 @@ MUNI_REFRESH_SECONDS=60  # Optional: refresh interval (default: 60)
 
 The web UI provides a visual stop finder:
 
-1. Go to **Settings** → **Features** → **Muni Transit**
+1. Go to the **Muni Transit** plugin on the **Integrations** page
 2. Click **Find Stops** button
 3. Use one of three methods to find stops:
 
@@ -100,7 +100,7 @@ Longitude: -74.0060
 
 ### 4. Create a Page to Display Muni Data
 
-1. Go to **Pages** → **Create New Page**
+1. Go to **Pages** and click **New**
 2. Choose **Template** page type
 3. Add your template using Muni variables:
 
@@ -264,7 +264,7 @@ TRANSIT_CACHE_REFRESH_SECONDS=90  # Default: 90
 
 Check cache status via API:
 ```bash
-curl http://localhost:4420/transit/cache/status
+curl http://localhost:4420/api/transit/cache/status
 ```
 
 Returns:

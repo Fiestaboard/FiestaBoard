@@ -28,11 +28,11 @@ The Sports Scores feature displays recent match scores from NFL, Soccer, NHL, an
 ### 1. Enable Sports Scores
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Integrations**
+1. Go to the **Integrations** page
 2. Find **Sports Scores** plugin
-3. Toggle **Enable** to ON
+3. Toggle the **Sports Scores** plugin on
 4. Select at least one sport (NFL, Soccer, NHL, NBA)
-5. Click **Save**
+5. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -85,7 +85,7 @@ SPORTS_SCORES_API_KEY=your_api_key_here
 
 ### 5. Create a Page to Display Scores
 
-1. Go to **Pages** → **Create New Page**
+1. Go to **Pages** and click **New**
 2. Choose **Template** page type
 3. Add your template using sports score variables:
 

@@ -38,7 +38,7 @@ The Last.fm plugin shows:
 2. Go to the **Integrations** page
 3. Toggle **Last.fm** on
 4. Enter your API key and Last.fm username
-5. Click **Save**
+5. Click **Save Changes**
 
 ## Available Variables
 

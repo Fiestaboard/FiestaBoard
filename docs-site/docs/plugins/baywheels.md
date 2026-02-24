@@ -24,7 +24,7 @@ The Bay Wheels plugin shows:
 2. Go to the **Integrations** page
 3. Toggle **Bay Wheels** on
 4. Use the station picker to select stations near you
-5. Click **Save**
+5. Click **Save Changes**
 
 :::tip
 No API key is needed -- Bay Wheels uses a public data feed.

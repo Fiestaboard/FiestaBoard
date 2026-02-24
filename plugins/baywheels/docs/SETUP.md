@@ -28,10 +28,10 @@ Bay Wheels integration allows you to track bike availability at multiple station
 ### 1. Enable Bay Wheels
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features**
+1. Go to the **Integrations** page
 2. Find **Bay Wheels** section
-3. Toggle **Enable Bay Wheels** to ON
-4. Click **Save**
+3. Toggle the **Bay Wheels** plugin on
+4. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -44,7 +44,7 @@ BAYWHEELS_REFRESH_SECONDS=60  # Optional: refresh interval (default: 60)
 
 The web UI provides a visual station finder:
 
-1. Go to **Settings** → **Features** → **Bay Wheels**
+1. Go to the **Bay Wheels** plugin on the **Integrations** page
 2. Click **Find Stations** button
 3. Use one of three methods to find stations:
 
@@ -82,21 +82,20 @@ Longitude: -74.0060
 
 ### 3. Create a Page to Display Bay Wheels Data
 
-1. Go to **Pages** → **Create New Page**
+1. Go to **Pages** and click **New**
 2. Choose **Template** page type
 3. Add your template using Bay Wheels variables:
 
 **Example Template:**
 ```
 {center}BAY WHEELS
-{{baywheels.stations.0.name}}
-E-Bikes: {{baywheels.stations.0.electric_bikes}}
-Classic: {{baywheels.stations.0.classic_bikes}}
-Docks: {{baywheels.stations.0.docks_available}}
+{baywheels.stations.0.station_name}
+E-Bikes: {baywheels.stations.0.electric_bikes}
+Classic: {baywheels.stations.0.classic_bikes}
 
-{{baywheels.stations.1.name}}
-E-Bikes: {{baywheels.stations.1.electric_bikes}}
-Classic: {{baywheels.stations.1.classic_bikes}}
+{baywheels.stations.1.station_name}
+E-Bikes: {baywheels.stations.1.electric_bikes}
+Classic: {baywheels.stations.1.classic_bikes}
 ```
 
 4. **Save** and **Set as Active**
@@ -108,13 +107,11 @@ Classic: {{baywheels.stations.1.classic_bikes}}
 Access individual stations using index (0-3):
 
 ```
-{{baywheels.stations.0.name}}              # Station name (e.g., "19th St BART")
-{{baywheels.stations.0.electric_bikes}}    # Number of electric bikes available
-{{baywheels.stations.0.classic_bikes}}     # Number of classic bikes available
-{{baywheels.stations.0.total_bikes}}       # Total bikes available
-{{baywheels.stations.0.docks_available}}   # Number of docks available
-{{baywheels.stations.0.capacity}}          # Total station capacity
-{{baywheels.stations.0.is_renting}}        # "Yes" or "No"
+{baywheels.stations.0.station_name}       # Station name (e.g., "19th St BART")
+{baywheels.stations.0.electric_bikes}    # Number of electric bikes available
+{baywheels.stations.0.classic_bikes}     # Number of classic bikes available
+{baywheels.stations.0.num_bikes_available} # Total bikes available
+{baywheels.stations.0.is_renting}        # "Yes" or "No"
 ```
 
 ### Aggregate Variables
@@ -122,16 +119,15 @@ Access individual stations using index (0-3):
 Total across all configured stations:
 
 ```
-{{baywheels.total_electric}}    # Total electric bikes across all stations
-{{baywheels.total_classic}}     # Total classic bikes across all stations
-{{baywheels.total_bikes}}       # Total bikes across all stations
-{{baywheels.total_docks}}       # Total docks across all stations
+{baywheels.total_electric}    # Total electric bikes across all stations
+{baywheels.total_classic}     # Total classic bikes across all stations
+{baywheels.total_bikes}       # Total bikes across all stations
 ```
 
 ### Station Count
 
 ```
-{{baywheels.station_count}}     # Number of configured stations
+{baywheels.station_count}     # Number of configured stations
 ```
 
 ## Example Templates
@@ -141,39 +137,38 @@ Total across all configured stations:
 ```
 {center}BAY WHEELS
 19th & Telegraph
-E-Bikes: {{baywheels.stations.0.electric_bikes}}
-Classic: {{baywheels.stations.0.classic_bikes}}
-Docks: {{baywheels.stations.0.docks_available}}
+E-Bikes: {baywheels.stations.0.electric_bikes}
+Classic: {baywheels.stations.0.classic_bikes}
 ```
 
 ### Multiple Stations Compact
 
 ```
 {center}BIKE SHARE
-HOME: {{baywheels.stations.0.electric_bikes}}E {{baywheels.stations.0.classic_bikes}}C
-WORK: {{baywheels.stations.1.electric_bikes}}E {{baywheels.stations.1.classic_bikes}}C
-GYM:  {{baywheels.stations.2.electric_bikes}}E {{baywheels.stations.2.classic_bikes}}C
+HOME: {baywheels.stations.0.electric_bikes}E {baywheels.stations.0.classic_bikes}C
+WORK: {baywheels.stations.1.electric_bikes}E {baywheels.stations.1.classic_bikes}C
+GYM:  {baywheels.stations.2.electric_bikes}E {baywheels.stations.2.classic_bikes}C
 ```
 
 ### Aggregate Summary
 
 ```
 {center}BAY WHEELS TOTAL
-{{baywheels.station_count}} Stations Monitored
-E-Bikes: {{baywheels.total_electric}}
-Classic: {{baywheels.total_classic}}
-Docks: {{baywheels.total_docks}}
+{baywheels.station_count} Stations Monitored
+E-Bikes: {baywheels.total_electric}
+Classic: {baywheels.total_classic}
+Bikes: {baywheels.total_bikes}
 ```
 
 ### With Station Names
 
 ```
 {center}BIKE AVAILABILITY
-{{baywheels.stations.0.name|truncate:22}}
-E:{{baywheels.stations.0.electric_bikes}} C:{{baywheels.stations.0.classic_bikes}} D:{{baywheels.stations.0.docks_available}}
+{baywheels.stations.0.station_name}
+E:{baywheels.stations.0.electric_bikes} C:{baywheels.stations.0.classic_bikes}
 
-{{baywheels.stations.1.name|truncate:22}}
-E:{{baywheels.stations.1.electric_bikes}} C:{{baywheels.stations.1.classic_bikes}} D:{{baywheels.stations.1.docks_available}}
+{baywheels.stations.1.station_name}
+E:{baywheels.stations.1.electric_bikes} C:{baywheels.stations.1.classic_bikes}
 ```
 
 ## Configuration Reference
@@ -279,7 +274,7 @@ Bay Wheels data shows current availability. For best results:
 **Problem:** Station names overflow on display
 
 **Solutions:**
-1. **Use truncate filter**: `{{baywheels.stations.0.name|truncate:22}}`
+1. **Use truncate filter**: `{baywheels.stations.0.station_name|truncate:22}`
 2. **Configure custom names**: Set short names in config.json
 3. **Use abbreviations**: "BART" instead of "BART Station"
 
@@ -309,18 +304,18 @@ Bay Wheels uses the **GBFS (General Bikeshare Feed Specification)** standard:
 
 ```
 {center}MORNING COMMUTE
-Muni: {{muni.stops.0.formatted}}
-Bikes: {{baywheels.stations.0.electric_bikes}}E
-Traffic: {{traffic.routes.0.duration_minutes}}m
+Muni: {muni.stops.0.formatted}
+Bikes: {baywheels.stations.0.electric_bikes}E
+Traffic: {traffic.routes.0.duration_minutes}m
 ```
 
 ### Multiple Station Comparisons
 
 ```
 {center}WHICH STATION?
-19th: {{baywheels.stations.0.electric_bikes}}E {{baywheels.stations.0.docks_available}}D
-Mkt:  {{baywheels.stations.1.electric_bikes}}E {{baywheels.stations.1.docks_available}}D
-Emb:  {{baywheels.stations.2.electric_bikes}}E {{baywheels.stations.2.docks_available}}D
+19th: {baywheels.stations.0.electric_bikes}E {baywheels.stations.0.classic_bikes}C
+Mkt:  {baywheels.stations.1.electric_bikes}E {baywheels.stations.1.classic_bikes}C
+Emb:  {baywheels.stations.2.electric_bikes}E {baywheels.stations.2.classic_bikes}C
 ```
 
 ## API Reference

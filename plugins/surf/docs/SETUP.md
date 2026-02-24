@@ -28,10 +28,10 @@ The Surf feature provides real-time surf conditions including wave height, swell
 ### 1. Enable Surf Monitoring
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features**
+1. Go to the **Integrations** page
 2. Find **Surf Conditions** section
-3. Toggle **Enable Surf** to ON
-4. Click **Save**
+3. Toggle the **Surf** plugin on
+4. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -49,9 +49,9 @@ SURF_REFRESH_SECONDS=600  # Optional: 10 minutes (default)
 To monitor a different surf spot:
 
 Via Web UI:
-1. Go to **Settings** → **Features** → **Surf**
+1. Go to the **Surf** plugin on the **Integrations** page
 2. Enter **Latitude** and **Longitude**
-3. Click **Save**
+3. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -70,16 +70,16 @@ SURF_LONGITUDE=-122.4782
 
 ### 3. Create a Page to Display Surf Data
 
-1. Go to **Pages** → **Create New Page**
+1. Go to **Pages** and click **New**
 2. Choose **Template** page type
 3. Add your template using surf variables:
 
 **Example Template:**
 ```
 {center}SURF REPORT
-{{surf.formatted_message}}
-Quality: {{surf.quality}}
-Wind: {{surf.wind_speed}}mph {{surf.wind_direction_cardinal}}
+{surf.formatted}
+Quality: {surf.quality}
+Wind: {surf.wind_speed}mph {surf.wind_direction}
 ```
 
 4. **Save** and **Set as Active**
@@ -89,7 +89,7 @@ Wind: {{surf.wind_speed}}mph {{surf.wind_direction_cardinal}}
 ### Pre-Formatted Message
 
 ```
-{{surf.formatted_message}}
+{surf.formatted}
 # Example: "OB SURF: 4.5ft @ 12s"
 ```
 
@@ -98,33 +98,22 @@ Includes location abbreviation, wave height, and swell period.
 ### Wave Data
 
 ```
-{{surf.wave_height}}           # Wave height in feet (e.g., "4.5")
-{{surf.wave_height_m}}         # Wave height in meters (e.g., "1.37")
-{{surf.swell_period}}          # Swell period in seconds (e.g., "12.0")
+{surf.wave_height}           # Wave height in feet (e.g., "4.5")
+{surf.swell_period}          # Swell period in seconds (e.g., "12.0")
 ```
 
 ### Wind Conditions
 
 ```
-{{surf.wind_speed}}            # Wind speed in mph (e.g., "8.5")
-{{surf.wind_speed_kmh}}        # Wind speed in km/h (e.g., "13.7")
-{{surf.wind_direction}}        # Wind direction in degrees (e.g., "270")
-{{surf.wind_direction_cardinal}}  # Cardinal direction (e.g., "W")
+{surf.wind_speed}            # Wind speed in mph (e.g., "8.5")
+{surf.wind_direction}        # Wind direction (e.g., "W")
 ```
 
 ### Quality Rating
 
 ```
-{{surf.quality}}               # Quality rating (EXCELLENT, GOOD, FAIR, POOR)
-{{surf.quality_color}}         # Color for display (GREEN, YELLOW, ORANGE, RED)
-```
-
-### Location Info
-
-```
-{{surf.location}}              # Location name (e.g., "Example Surf Spot")
-{{surf.latitude}}              # Configured latitude
-{{surf.longitude}}             # Configured longitude
+{surf.quality}               # Quality rating (EXCELLENT, GOOD, FAIR, POOR)
+{surf.quality_color}         # Color for display (GREEN, YELLOW, ORANGE, RED)
 ```
 
 ## Quality Rating System
@@ -161,9 +150,9 @@ Surf quality is automatically calculated based on swell period and wind conditio
 
 ```
 {center}SURF CHECK
-{{surf.formatted_message}}
-{{surf.quality}}
-Wind: {{surf.wind_speed}}mph {{surf.wind_direction_cardinal}}
+{surf.formatted}
+{surf.quality}
+Wind: {surf.wind_speed}mph {surf.wind_direction}
 ```
 
 Output:
@@ -178,27 +167,27 @@ Wind: 8mph W
 
 ```
 {center}EXAMPLE SURF SPOT
-Wave Height: {{surf.wave_height}}ft
-Swell Period: {{surf.swell_period}}s
-Quality: {{surf.quality}}
-Wind: {{surf.wind_speed}}mph {{surf.wind_direction_cardinal}}
+Wave Height: {surf.wave_height}ft
+Swell Period: {surf.swell_period}s
+Quality: {surf.quality}
+Wind: {surf.wind_speed}mph {surf.wind_direction}
 ```
 
 ### Quick Check
 
 ```
-{center}SURF: {{surf.quality}}
-{{surf.wave_height}}ft @ {{surf.swell_period}}s
-Wind: {{surf.wind_speed}}mph
+{center}SURF: {surf.quality}
+{surf.wave_height}ft @ {surf.swell_period}s
+Wind: {surf.wind_speed}mph
 ```
 
 ### With Color Coding
 
 ```
 {center}SURF CONDITIONS
-{{surf.formatted_message}}
-{{{surf.quality_color}}}{{surf.quality}}
-Wind: {{surf.wind_direction_cardinal}} {{surf.wind_speed}}mph
+{surf.formatted}
+{{surf.quality_color}}{surf.quality}
+Wind: {surf.wind_direction} {surf.wind_speed}mph
 ```
 
 ### Multi-Location (Manual)
@@ -407,18 +396,18 @@ Surf uses **Open-Meteo Marine API**:
 
 ```
 {center}MORNING SURF CHECK
-{{surf.formatted_message}}
-Quality: {{surf.quality}}
+{surf.formatted}
+Quality: {surf.quality}
 
-Weather: {{weather.temperature}}° {{weather.condition}}
-Commute: {{muni.stops.0.formatted}}
+Weather: {weather.temperature}° {weather.condition}
+Commute: {muni.stops.0.formatted}
 ```
 
 ### Multiple Spots (Manual)
 
 ```
 {center}BAY AREA SURF
-OB: {{surf.wave_height}}ft GOOD
+OB: {surf.wave_height}ft GOOD
 PC: 3ft FAIR
 SC: 5ft EXCELLENT
 Check cams before driving!

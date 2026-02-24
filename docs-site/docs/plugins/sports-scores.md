@@ -43,7 +43,7 @@ The Sports Scores plugin works **without an API key** using free data from TheSp
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{sports_scores.scores}` | Formatted recent scores | `NFL CHIEFS 27 BILLS 24` |
+| `{sports_scores.formatted}` | Formatted recent scores | `NFL CHIEFS 27 BILLS 24` |
 
 ## Example Display
 

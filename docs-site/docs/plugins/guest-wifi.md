@@ -24,7 +24,7 @@ The Guest WiFi plugin provides a simple way to share WiFi credentials:
 2. Go to the **Integrations** page
 3. Toggle **Guest WiFi** on
 4. Enter your network name and password
-5. Click **Save**
+5. Click **Save Changes**
 
 ## Available Variables
 

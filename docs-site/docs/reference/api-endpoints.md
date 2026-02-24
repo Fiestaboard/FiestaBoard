@@ -6,13 +6,15 @@ keywords: [FiestaBoard API, REST API, API endpoints, API reference, display API,
 
 # API Endpoints
 
-FiestaBoard provides a REST API powered by FastAPI. Interactive API documentation is available at `http://localhost:4420/docs` when FiestaBoard is running.
+FiestaBoard provides a REST API powered by FastAPI. Interactive API documentation is available at `http://localhost:4420/api/docs` when FiestaBoard is running.
 
 ## Base URL
 
 ```
 http://localhost:4420
 ```
+
+When using the default deployment, prefix all paths with `/api` (e.g. `GET http://localhost:4420/api/health`).
 
 ## System Endpoints
 
@@ -37,9 +39,8 @@ http://localhost:4420
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/service/start` | Start the display service |
-| `POST` | `/service/stop` | Stop the display service |
-| `POST` | `/service/restart` | Restart the display service |
+| `POST` | `/start` | Start the display service |
+| `POST` | `/stop` | Stop the display service |
 
 ## Page Endpoints
 
@@ -50,7 +51,7 @@ http://localhost:4420
 | `GET` | `/pages/{id}` | Get a specific page |
 | `PUT` | `/pages/{id}` | Update a page |
 | `DELETE` | `/pages/{id}` | Delete a page |
-| `GET` | `/pages/{id}/preview` | Preview a page (with variables resolved) |
+| `POST` | `/pages/{id}/preview` | Preview a page (with variables resolved) |
 
 ### Page Fields
 
@@ -87,7 +88,6 @@ When creating or updating a page, the following fields are available:
 |--------|----------|-------------|
 | `GET` | `/plugins` | List all plugins with status |
 | `GET` | `/plugins/{id}` | Get plugin details |
-| `GET` | `/plugins/{id}/config` | Get plugin configuration |
 | `PUT` | `/plugins/{id}/config` | Update plugin configuration |
 | `POST` | `/plugins/{id}/enable` | Enable a plugin |
 | `POST` | `/plugins/{id}/disable` | Disable a plugin |
@@ -98,9 +98,13 @@ When creating or updating a page, the following fields are available:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/settings` | Get all settings |
-| `PUT` | `/settings` | Update settings |
 | `GET` | `/settings/all` | Get all settings in a single call |
+| `GET` | `/settings/transitions` | Get transition animation settings |
+| `PUT` | `/settings/transitions` | Update transition settings |
+| `GET` | `/settings/output` | Get output target settings |
+| `PUT` | `/settings/output` | Update output target |
+| `GET` | `/settings/board` | Get board configuration |
+| `PUT` | `/settings/board` | Update board configuration |
 
 ### Board Management
 
@@ -137,13 +141,13 @@ When creating or updating a page, the following fields are available:
 ### Get Service Status
 
 ```bash
-curl http://localhost:4420/status
+curl http://localhost:4420/api/status
 ```
 
 ### Send a Message
 
 ```bash
-curl -X POST http://localhost:4420/send-message \
+curl -X POST http://localhost:4420/api/send-message \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello World!"}'
 ```
@@ -151,13 +155,13 @@ curl -X POST http://localhost:4420/send-message \
 ### List Plugins
 
 ```bash
-curl http://localhost:4420/plugins
+curl http://localhost:4420/api/plugins
 ```
 
 ### Preview a Page
 
 ```bash
-curl http://localhost:4420/pages/1/preview
+curl -X POST http://localhost:4420/api/pages/1/preview
 ```
 
 ## Interactive Documentation
@@ -165,7 +169,7 @@ curl http://localhost:4420/pages/1/preview
 For a complete interactive API explorer with request/response schemas, visit:
 
 ```
-http://localhost:4420/docs
+http://localhost:4420/api/docs
 ```
 
 This provides a Swagger UI where you can try out any endpoint directly in your browser.

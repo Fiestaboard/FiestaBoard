@@ -44,7 +44,7 @@ The Routes API requires billing to be enabled:
 2. Go to the **Integrations** page
 3. Toggle the **Traffic** plugin on
 4. Enter your Google Routes API key
-5. Click **Save**
+5. Click **Save Changes**
 
 ### 5. Configure Routes
 
@@ -81,7 +81,7 @@ Using coordinates is faster and avoids geocoding errors. You can find coordinate
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{traffic.commute}` | Formatted commute display | `TO WORK 25 MIN` |
+| `{traffic.formatted}` | Formatted commute display | `TO WORK 25 MIN` |
 
 ## Costs
 

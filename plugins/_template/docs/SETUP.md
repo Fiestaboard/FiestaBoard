@@ -30,7 +30,7 @@ In the FiestaBoard web UI:
 2. Click **Configure**
 3. Enter your API key
 4. Configure other settings as needed
-5. Click **Save**
+5. Click **Save Changes**
 
 ### 3. Use in Templates
 

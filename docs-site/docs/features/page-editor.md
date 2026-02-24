@@ -34,7 +34,7 @@ The Vestaboard Note supports a heart character (❤) at code 62, which displays 
 1. Open the FiestaBoard Web UI at `http://localhost:4420`
 2. Navigate to the **Pages** section
 3. Select the **Flagship** or **Note** tab for your target device
-4. Click **New Page**
+4. Click **New**
 5. Give your page a name
 6. Use the editor to compose your content (dimensions match your target device)
 7. Click **Save**
@@ -45,7 +45,7 @@ Template variables let you insert live data from your enabled plugins into any p
 
 ### Inserting Variables
 
-1. In the page editor, click the **Variable Picker** button
+1. In the page editor, click the **Variables** button
 2. Browse available variables grouped by plugin
 3. Click a variable to insert it at the cursor position
 
@@ -63,10 +63,10 @@ Template variables let you insert live data from your enabled plugins into any p
 Here are some commonly used template variables:
 
 - `{weather.temperature}` - Current temperature
-- `{weather.conditions}` - Weather conditions (Sunny, Cloudy, etc.)
+- `{weather.condition}` - Weather conditions (Sunny, Cloudy, etc.)
 - `{stocks.prices}` - Stock price display
-- `{date_time.current}` - Current date and time
-- `{muni.arrivals}` - Transit arrival times
+- `{date_time.datetime}` - Current date and time
+- `{muni.formatted}` - Transit arrival times
 
 ## Working with Colors
 

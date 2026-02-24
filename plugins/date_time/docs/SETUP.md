@@ -39,7 +39,7 @@ The default timezone is `America/Los_Angeles`. To change it:
    - Use arrow keys (↑↓) to navigate through options
    - Press Enter to select
    - Invalid timezones will show an error message
-4. Click **Save**
+4. Click **Save Changes**
 
 **Via Environment Variable:**
 ```bash

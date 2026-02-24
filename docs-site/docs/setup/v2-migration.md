@@ -102,7 +102,7 @@ Two new endpoints manage multiple board instances:
 Add a new board instance.
 
 ```bash
-curl -X POST http://localhost:4420/settings/board/add \
+curl -X POST http://localhost:4420/api/settings/board/add \
   -H "Content-Type: application/json" \
   -d '{
     "device_type": "note",
@@ -128,7 +128,7 @@ curl -X POST http://localhost:4420/settings/board/add \
 Remove a board instance by its UUID.
 
 ```bash
-curl -X DELETE http://localhost:4420/settings/board/abc123-...
+curl -X DELETE http://localhost:4420/api/settings/board/abc123-...
 ```
 
 ---
@@ -155,7 +155,7 @@ This is the biggest infrastructure change in V2. FiestaBoard moved from two sepa
 | **Architecture** | Two containers | One container |
 | **Web UI URL** | `http://localhost:8080` | `http://localhost:4420` |
 | **API URL** | `http://localhost:8000` (direct) | `http://localhost:4420` (same port, proxied via nginx) |
-| **API Docs** | `http://localhost:8000/docs` | `http://localhost:4420/docs` |
+| **API Docs** | `http://localhost:8000/docs` | `http://localhost:4420/api/docs` |
 | **docker-compose services** | `fiestaboard-api` + `fiestaboard-ui` | `fiestaboard` |
 | **Dockerfile** | `Dockerfile.api` + `Dockerfile.ui` | `Dockerfile` (unified) |
 | **Volumes** | Separate source mounts per service | `./data:/app/data` only |

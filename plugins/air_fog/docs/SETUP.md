@@ -61,11 +61,11 @@ At least one API key required:
 ### 2. Enable Air Quality & Fog
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features**
+1. Go to the **Integrations** page
 2. Find **Air Quality & Fog** section
-3. Toggle **Enable Air Quality/Fog** to ON
+3. Toggle the **Air Quality & Fog** plugin on
 4. Enter your API keys (at least one)
-5. Click **Save**
+5. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -94,9 +94,9 @@ AIR_FOG_REFRESH_SECONDS=300
 To monitor a different location:
 
 Via Web UI:
-1. Go to **Settings** → **Features** → **Air Quality & Fog**
+1. Go to the **Air Quality & Fog** plugin on the **Integrations** page
 2. Enter **Latitude** and **Longitude**
-3. Click **Save**
+3. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -121,53 +121,43 @@ Without a sensor ID, FiestaBoard averages nearby outdoor sensors within ~5km.
 
 ### 5. Create a Page to Display Air Quality/Fog Data
 
-1. Go to **Pages** → **Create New Page**
+1. Go to **Pages** and click **New**
 2. Choose **Template** page type
 3. Add your template using air quality variables:
 
 **Example Template:**
 ```
 {center}AIR & FOG
-{{air_fog.alert_message}}
-{{air_fog.formatted_message}}
-Dew Point: {{air_fog.dew_point_f}}°F
+{air_fog.formatted}
+AQI: {air_fog.aqi}
+Fog: {air_fog.fog_status}
 ```
 
 4. **Save** and **Set as Active**
 
 ## Template Variables
 
-### Alert Messages
+### Pre-Formatted Message
 
 ```
-{{air_fog.alert_message}}      # Combined alert (e.g., "FOG: HEAVY | AIR: UNHEALTHY")
-{{air_fog.formatted_message}}  # Pre-formatted: "AQI:42 VIS:2.5mi HUM:85%"
+{air_fog.formatted}           # Pre-formatted display string
 ```
 
 ### Air Quality
 
 ```
-{{air_fog.pm2_5_aqi}}          # Air Quality Index value (e.g., "42")
-{{air_fog.pm2_5}}              # PM2.5 concentration µg/m³ (e.g., "12.5")
-{{air_fog.air_status}}         # Status text (e.g., "AIR: GOOD", "AIR: UNHEALTHY")
-{{air_fog.air_color}}          # Color code (GREEN, YELLOW, ORANGE, RED, PURPLE, MAROON)
+{air_fog.aqi}                 # Air Quality Index value (e.g., "42")
+{air_fog.air_status}          # Status text (e.g., "AIR: GOOD", "AIR: UNHEALTHY")
+{air_fog.air_color}           # Color code (GREEN, YELLOW, ORANGE, RED, PURPLE, MAROON)
 ```
 
 ### Fog Conditions
 
 ```
-{{air_fog.fog_status}}         # Fog status (e.g., "FOG: HEAVY", "CLEAR")
-{{air_fog.fog_color}}          # Color code (GREEN, YELLOW, ORANGE)
-{{air_fog.is_foggy}}           # Boolean: "true" or "false"
-{{air_fog.visibility_m}}       # Visibility in meters
-```
-
-### Weather Data
-
-```
-{{air_fog.humidity}}           # Relative humidity percentage
-{{air_fog.temperature_f}}      # Temperature in Fahrenheit
-{{air_fog.dew_point_f}}        # Dew point in Fahrenheit
+{air_fog.fog_status}          # Fog status (e.g., "FOG: HEAVY", "CLEAR")
+{air_fog.fog_color}           # Color code (GREEN, YELLOW, ORANGE)
+{air_fog.is_foggy}            # Boolean: "true" or "false"
+{air_fog.visibility}          # Visibility in meters
 ```
 
 ## AQI Categories & Color Coding
@@ -231,64 +221,60 @@ Triggered when:
 
 ```
 {center}AIR & FOG
-{{air_fog.alert_message}}
-{{air_fog.formatted_message}}
+{air_fog.formatted}
+{air_fog.air_status}
 ```
 
 Output example:
 ```
      AIR & FOG
-FOG: HEAVY | AIR: GOOD
-AQI:42 VIS:0.8mi HUM:95%
+AQI:42 VIS:0.8mi
+AIR: GOOD
 ```
 
 ### Detailed Conditions
 
 ```
 {center}AIR QUALITY & FOG
-AQI: {{air_fog.pm2_5_aqi}} ({{air_fog.air_status}})
-PM2.5: {{air_fog.pm2_5}} µg/m³
+AQI: {air_fog.aqi} ({air_fog.air_status})
 
-Visibility: {{air_fog.visibility_m}}m
-Humidity: {{air_fog.humidity}}%
-Dew Point: {{air_fog.dew_point_f}}°F
+Visibility: {air_fog.visibility}m
+Fog: {air_fog.fog_status}
 ```
 
 ### Simple AQI Only
 
 ```
 {center}AIR QUALITY
-{{air_fog.air_status}}
-AQI: {{air_fog.pm2_5_aqi}}
-PM2.5: {{air_fog.pm2_5}} µg/m³
+{air_fog.air_status}
+AQI: {air_fog.aqi}
 ```
 
 ### Fog Alert Only
 
 ```
 {center}FOG CONDITIONS
-{{air_fog.fog_status}}
-Visibility: {{air_fog.visibility_m}}m
-Humidity: {{air_fog.humidity}}%
+{air_fog.fog_status}
+Visibility: {air_fog.visibility}m
 ```
 
 ### Morning Commute Check
 
 ```
 {center}MORNING CONDITIONS
-{{air_fog.alert_message}}
+{air_fog.formatted}
 
-Weather: {{weather.temperature}}°
-Commute: {{traffic.routes.0.duration_minutes}}m
+Weather: {weather.temperature}°
+Commute: {traffic.routes.0.duration_minutes}m
 ```
 
 ### With Color Coding
 
 ```
 {center}AIR & FOG
-{{{air_fog.air_color}}}{{air_fog.air_status}}
-{{{air_fog.fog_color}}}{{air_fog.fog_status}}
-AQI:{{air_fog.pm2_5_aqi}} VIS:{{air_fog.visibility_m}}m
+{{air_fog.air_color}}{air_fog.air_status}
+{{air_fog.fog_color}}{air_fog.fog_status}
+AQI:{air_fog.aqi} VIS:{air_fog.visibility}m
 ```
 
 ## Configuration Reference
@@ -476,18 +462,18 @@ San Francisco's famous fog is most common:
 
 ```
 {center}DAILY BRIEFING
-{{air_fog.alert_message}}
+{air_fog.formatted}
 
-Weather: {{weather.temperature}}° {{weather.condition}}
-Surf: {{surf.wave_height}}ft {{surf.quality}}
-Commute: {{traffic.routes.0.duration_minutes}}m
+Weather: {weather.temperature}° {weather.condition}
+Surf: {surf.wave_height}ft {surf.quality}
+Commute: {traffic.routes.0.duration_minutes}m
 ```
 
 ### Conditional Alerts
 
 ```python
 # In advanced template logic
-if air_fog.pm2_5_aqi > 150:
+if air_fog.aqi > 150:
     display("⚠️ UNHEALTHY AIR - STAY INSIDE")
 elif air_fog.is_foggy == "true":
     display("🌫️ FOG ALERT - DRIVE CAREFULLY")

@@ -31,9 +31,8 @@ Use Cloud API when:
 
 1. Open http://localhost:4420
 2. Go to **Settings**
-3. Set the API mode to **Cloud**
-4. Paste your Read/Write API key
-5. Click **Save**
+3. Set the API mode to **Cloud API**
+4. Paste your Read/Write API key (settings save automatically)
 
 ### 3. Test the Connection
 

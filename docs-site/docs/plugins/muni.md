@@ -32,7 +32,7 @@ The SF Muni plugin provides:
 3. Toggle **SF Muni** on
 4. Enter your 511.org API key
 5. Use the stop picker to select your stops
-6. Click **Save**
+6. Click **Save Changes**
 
 ## Available Variables
 

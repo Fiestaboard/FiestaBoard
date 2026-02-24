@@ -20,7 +20,7 @@ Display random dad jokes on your board using the [icanhazdadjoke](https://icanha
 **Option A: Web UI**
 1. Go to **Integrations** and find "Dad Jokes"
 2. Toggle **Enable Dad Jokes** to on
-3. Click **Save**
+3. Click **Save Changes**
 
 **Option B: Environment Variable**
 

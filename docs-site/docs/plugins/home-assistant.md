@@ -32,7 +32,7 @@ The Home Assistant plugin connects to your Home Assistant server and displays en
 3. Toggle the **Home Assistant** plugin on
 4. Enter your Home Assistant URL (e.g., `http://192.168.1.100:8123`)
 5. Paste your long-lived access token
-6. Click **Save**
+6. Click **Save Changes**
 
 ## Available Variables
 
@@ -40,7 +40,7 @@ The Home Assistant plugin provides dynamic variables based on your configured en
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{home_assistant.status}` | Formatted entity states | `FRONT DOOR CLOSED` |
+| `{home_assistant.connected}` | Whether HA is connected | `true` |
 
 ## Entity Selection
 

@@ -59,13 +59,13 @@ The Weather feature displays current weather conditions with temperature, weathe
 ### 3. Enable Weather
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features**
+1. Go to the **Integrations** page
 2. Find **Weather** section
-3. Toggle **Enable Weather** to ON
+3. Toggle the **Weather** plugin on
 4. Select **Provider** (weatherapi or openweathermap)
 5. Enter your **API Key**
 6. Enter **Location** (e.g., "San Francisco, CA")
-7. Click **Save**
+7. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -105,17 +105,17 @@ Multiple locations (in config.json):
 
 ### 5. Create a Page to Display Weather
 
-1. Go to **Pages** → **Create New Page**
+1. Go to **Pages** and click **New**
 2. Choose **Template** page type
 3. Add your template using weather variables:
 
 **Example Template:**
 ```
 {center}WEATHER
-{{weather.temperature}}° {{weather.condition}}
-Feels like: {{weather.feels_like}}°
-Humidity: {{weather.humidity}}%
-Wind: {{weather.wind_speed}}mph {{weather.wind_direction}}
+{weather.temperature}° {weather.condition}
+Feels like: {weather.feels_like}°
+Humidity: {weather.humidity}%
+Wind: {weather.wind_speed}mph
 ```
 
 4. **Save** and **Set as Active**
@@ -125,27 +125,25 @@ Wind: {{weather.wind_speed}}mph {{weather.wind_direction}}
 ### Single Location
 
 ```
-{{weather.temperature}}        # Current temperature (e.g., "68")
-{{weather.feels_like}}         # Feels like temperature (e.g., "65")
-{{weather.condition}}          # Weather condition (e.g., "Partly Cloudy")
-{{weather.condition_icon}}     # Text-based icon (e.g., "{partly}")
-{{weather.humidity}}           # Humidity percentage (e.g., "75")
-{{weather.wind_speed}}         # Wind speed in mph (e.g., "12")
-{{weather.wind_direction}}     # Wind direction (e.g., "NW")
-{{weather.location}}           # Location name (e.g., "San Francisco")
+{weather.temperature}        # Current temperature (e.g., "68")
+{weather.feels_like}         # Feels like temperature (e.g., "65")
+{weather.condition}          # Weather condition (e.g., "Partly Cloudy")
+{weather.humidity}           # Humidity percentage (e.g., "75")
+{weather.wind_speed}         # Wind speed in mph (e.g., "12")
+{weather.location}           # Location name (e.g., "San Francisco")
 ```
 
 ### Multiple Locations
 
 Access by index (0-based):
 ```
-{{weather.locations.0.temperature}}
-{{weather.locations.0.condition}}
-{{weather.locations.0.name}}   # Custom location name (e.g., "HOME")
+{weather.locations.0.temperature}
+{weather.locations.0.condition}
+{weather.locations.0.name}   # Custom location name (e.g., "HOME")
 
-{{weather.locations.1.temperature}}
-{{weather.locations.1.condition}}
-{{weather.locations.1.name}}   # e.g., "WORK"
+{weather.locations.1.temperature}
+{weather.locations.1.condition}
+{weather.locations.1.name}   # e.g., "WORK"
 ```
 
 ### Weather Icons
@@ -167,8 +165,8 @@ Text-based icons for display:
 
 ```
 {center}WEATHER
-{{weather.temperature}}° {{weather.condition}}
-Feels like: {{weather.feels_like}}°
+{weather.temperature}° {weather.condition}
+Feels like: {weather.feels_like}°
 ```
 
 Output:
@@ -182,57 +180,57 @@ Feels like: 65°
 
 ```
 {center}SF WEATHER
-Temp: {{weather.temperature}}° (Feels {{weather.feels_like}}°)
-Conditions: {{weather.condition}}
-Humidity: {{weather.humidity}}%
-Wind: {{weather.wind_speed}}mph {{weather.wind_direction}}
+Temp: {weather.temperature}° (Feels {weather.feels_like}°)
+Conditions: {weather.condition}
+Humidity: {weather.humidity}%
+Wind: {weather.wind_speed}mph
 ```
 
 ### With Icon
 
 ```
-{center}WEATHER {{weather.condition_icon}}
-{{weather.temperature}}° {{weather.condition}}
-Humidity: {{weather.humidity}}%
-Wind: {{weather.wind_speed}}mph
+{center}WEATHER {weather.condition}
+{weather.temperature}° {weather.condition}
+Humidity: {weather.humidity}%
+Wind: {weather.wind_speed}mph
 ```
 
 ### Multiple Locations
 
 ```
 {center}WEATHER
-HOME: {{weather.locations.0.temperature}}° {{weather.locations.0.condition}}
-WORK: {{weather.locations.1.temperature}}° {{weather.locations.1.condition}}
-GYM:  {{weather.locations.2.temperature}}° {{weather.locations.2.condition}}
+HOME: {weather.locations.0.temperature}° {weather.locations.0.condition}
+WORK: {weather.locations.1.temperature}° {weather.locations.1.condition}
+GYM:  {weather.locations.2.temperature}° {weather.locations.2.condition}
 ```
 
 ### Compact Multi-Location
 
 ```
 {center}TEMPS
-{{weather.locations.0.name}}: {{weather.locations.0.temperature}}°
-{{weather.locations.1.name}}: {{weather.locations.1.temperature}}°
-{{weather.locations.2.name}}: {{weather.locations.2.temperature}}°
+{weather.locations.0.name}: {weather.locations.0.temperature}°
+{weather.locations.1.name}: {weather.locations.1.temperature}°
+{weather.locations.2.name}: {weather.locations.2.temperature}°
 ```
 
 ### Weather + DateTime (Classic)
 
 ```
-{center}{{datetime.date}}
-{{datetime.time}}
+{center}{date_time.date}
+{date_time.time}
 
-{{weather.temperature}}° {{weather.condition}}
-Feels like: {{weather.feels_like}}°
+{weather.temperature}° {weather.condition}
+Feels like: {weather.feels_like}°
 ```
 
 ### Morning Briefing
 
 ```
 {center}MORNING BRIEF
-Weather: {{weather.temperature}}° {{weather.condition}}
-Commute: {{traffic.routes.0.duration_minutes}}m
-Muni: {{muni.stops.0.formatted}}
-AQI: {{air_fog.pm2_5_aqi}}
+Weather: {weather.temperature}° {weather.condition}
+Commute: {traffic.routes.0.duration_minutes}m
+Muni: {muni.stops.0.formatted}
+AQI: {air_fog.aqi}
 ```
 
 ## Configuration Reference
@@ -526,11 +524,11 @@ Common weather conditions and their icons:
 ### Combining with DateTime
 
 ```
-{center}{{datetime.day_name}}, {{datetime.date}}
-{{datetime.time}}
+{center}{date_time.day_of_week}, {date_time.date}
+{date_time.time}
 
-{{weather.temperature}}° {{weather.condition}}
-Humidity: {{weather.humidity}}%
+{weather.temperature}° {weather.condition}
+Humidity: {weather.humidity}%
 ```
 
 ### Weather-Based Alerts
@@ -549,22 +547,22 @@ elif weather.temperature < 40:
 
 ```
 {center}WEATHER COMPARISON
-HOME: {{weather.locations.0.temperature}}°
-WORK: {{weather.locations.1.temperature}}°
-DIFF: {{weather.locations.1.temperature - weather.locations.0.temperature}}°
+HOME: {weather.locations.0.temperature}°
+WORK: {weather.locations.1.temperature}°
+DIFF: {weather.locations.1.temperature - weather.locations.0.temperature}°
 ```
 
 ### Complete Dashboard
 
 ```
 {center}DAILY BRIEF
-{{datetime.date}} {{datetime.time}}
+{date_time.date} {date_time.time}
 
-Weather: {{weather.temperature}}° {{weather.condition}}
-AQI: {{air_fog.pm2_5_aqi}}
-Surf: {{surf.wave_height}}ft {{surf.quality}}
-Commute: {{traffic.routes.0.duration_minutes}}m
-Transit: {{muni.stops.0.formatted}}
+Weather: {weather.temperature}° {weather.condition}
+AQI: {air_fog.aqi}
+Surf: {surf.wave_height}ft {surf.quality}
+Commute: {traffic.routes.0.duration_minutes}m
+Transit: {muni.stops.0.formatted}
 ```
 
 ## API Reference

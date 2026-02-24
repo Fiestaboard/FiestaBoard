@@ -25,7 +25,7 @@ The Date & Time plugin provides:
 2. Go to the **Integrations** page
 3. Toggle **Date & Time** on
 4. Set your timezone
-5. Click **Save**
+5. Click **Save Changes**
 
 :::tip
 Date & Time is enabled by default and requires no API key.

@@ -40,7 +40,7 @@ The Weather plugin provides real-time weather data for your location, including:
 2. Go to the **Integrations** page
 3. Toggle the **Weather** plugin on
 4. Enter your API key, choose your provider, and set your location
-5. Click **Save**
+5. Click **Save Changes**
 
 :::tip
 All plugin configuration is done through the web UI. You don't need to edit any `.env` files. The Integrations page saves your settings automatically.
@@ -51,12 +51,12 @@ All plugin configuration is done through the web UI. You don't need to edit any 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `{weather.temperature}` | Current temperature | `72°F` |
-| `{weather.conditions}` | Current conditions | `Sunny` |
-| `{weather.high}` | Today's high | `78°F` |
-| `{weather.low}` | Today's low | `58°F` |
-| `{weather.uv}` | UV index | `6` |
+| `{weather.condition}` | Current conditions | `Sunny` |
+| `{weather.high_temp}` | Today's high | `78°F` |
+| `{weather.low_temp}` | Today's low | `58°F` |
+| `{weather.uv_index}` | UV index | `6` |
 | `{weather.humidity}` | Humidity percentage | `65%` |
-| `{weather.wind}` | Wind speed | `12 mph` |
+| `{weather.wind_speed}` | Wind speed | `12 mph` |
 
 ## Color Rules
 

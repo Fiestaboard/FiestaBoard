@@ -76,7 +76,7 @@ const config: Config = {
           price: '0',
           priceCurrency: 'USD',
         },
-        featureList: 'WYSIWYG page editor, Schedule mode, 18 plugins, Docker deployment, Raspberry Pi support, Weather display, Stock ticker, Sports scores, Transit times, Home Assistant integration',
+        featureList: 'WYSIWYG page editor, Schedule mode, 23 plugins, Docker deployment, Raspberry Pi support, Weather display, Stock ticker, Sports scores, Transit times, Home Assistant integration',
         screenshot: 'https://fiestaboard.app/img/web-ui-home.png',
         softwareRequirements: 'Docker and Docker Compose',
         codeRepository: 'https://github.com/Fiestaboard/FiestaBoard',

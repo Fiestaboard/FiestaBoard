@@ -30,12 +30,12 @@ The Sun Art feature displays a full-screen 6x22 bit image pattern that changes b
 ### 1. Enable Sun Art
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Integrations**
+1. Go to the **Integrations** page
 2. Find **Sun Art** section
-3. Toggle **Enable Sun Art** to ON
+3. Toggle the **Sun Art** plugin on
 4. Enter your **Latitude** and **Longitude**
 5. Set **Refresh Interval** (default: 300 seconds / 5 minutes)
-6. Click **Save**
+6. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -83,7 +83,7 @@ Longer intervals (600+ seconds) are more efficient but may miss subtle transitio
 
 The plugin uses the timezone from **General Settings** for sun calculations. Make sure your timezone is correctly configured:
 
-1. Go to **Settings** → **General**
+1. Go to the **Settings** page under **General Settings**
 2. Check that **Timezone** is set correctly (e.g., "America/Los_Angeles")
 3. The current time display should match your local time
 

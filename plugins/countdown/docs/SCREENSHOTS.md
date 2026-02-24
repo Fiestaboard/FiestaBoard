@@ -106,8 +106,7 @@ If a physical board photo is not available, use the web UI preview showing the r
    ```bash
    docker-compose -f docker-compose.dev.yml up
    ```
-2. Open http://localhost:8080 in your browser
-3. Start the service if not already running
+2. Open http://localhost:4420 in your browser
 
 ### Capture Process
 1. Use your OS screenshot tool (or browser dev tools)

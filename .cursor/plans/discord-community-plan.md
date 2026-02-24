@@ -22,7 +22,7 @@
 |---------|-------|
 | **Server Name** | FiestaBoard |
 | **Server Icon** | Use `fiesta-icon.png` from the repository |
-| **Server Description** | The official FiestaBoard community — open-source split-flap display control with 18+ plugin integrations. Get help, share setups, suggest ideas, and build plugins. |
+| **Server Description** | The official FiestaBoard community — open-source split-flap display control with 23+ plugin integrations. Get help, share setups, suggest ideas, and build plugins. |
 | **Default Notification Setting** | Only @mentions |
 | **Verification Level** | Medium (must be registered on Discord for more than 5 minutes and a member of the server for more than 10 minutes) |
 | **Explicit Media Content Filter** | Scan media content from all members |

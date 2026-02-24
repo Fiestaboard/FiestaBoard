@@ -31,7 +31,7 @@ Once a plugin is enabled, its data becomes available as **template variables** i
 ### Inserting Variables
 
 1. Create or edit a page in the **Pages** section
-2. Click the **Variable Picker** button (looks like `{x}`) in the editor toolbar
+2. Click the **Variables** button in the editor toolbar
 3. Browse variables grouped by plugin
 4. Click a variable to insert it at the cursor position
 
@@ -43,7 +43,7 @@ Variables use the format `{plugin_name.variable_name}`:
 
 ```
 Temperature: {weather.temperature}
-Conditions:  {weather.conditions}
+Conditions:  {weather.condition}
 ```
 
 When the page is displayed on your board, these are replaced with live data (e.g., `72*F` and `SUNNY`).
@@ -63,7 +63,7 @@ Some plugins provide array variables that expand into multiple lines:
 
 ```
 {stocks.prices}    → Multiple rows of stock data
-{muni.arrivals}    → Multiple rows of transit arrivals
+{muni.formatted}   → Multiple rows of transit arrivals
 ```
 
 ## Alternative: Environment Variables
@@ -85,24 +85,24 @@ You can also manage plugins programmatically:
 
 ```bash
 # Enable a plugin
-curl -X POST http://localhost:4420/plugins/weather/enable
+curl -X POST http://localhost:4420/api/plugins/weather/enable
 
 # Disable a plugin
-curl -X POST http://localhost:4420/plugins/weather/disable
+curl -X POST http://localhost:4420/api/plugins/weather/disable
 
-# Get plugin configuration
-curl http://localhost:4420/plugins/weather/config
+# Get plugin details and configuration
+curl http://localhost:4420/api/plugins/weather
 
 # Update plugin configuration
-curl -X PUT http://localhost:4420/plugins/weather/config \
+curl -X PUT http://localhost:4420/api/plugins/weather/config \
   -H "Content-Type: application/json" \
   -d '{"location": "San Francisco, CA"}'
 
 # Get all available variables from a plugin
-curl http://localhost:4420/plugins/weather/variables
+curl http://localhost:4420/api/plugins/weather/variables
 
 # List all plugins and their status
-curl http://localhost:4420/plugins
+curl http://localhost:4420/api/plugins
 ```
 
 ## Next Steps

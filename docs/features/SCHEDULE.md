@@ -48,21 +48,13 @@ When Schedule Mode is enabled:
 4. If no match, displays the default page
 5. If no match and no default page, shows a warning
 
-The system checks for schedule updates every 60 seconds, so page switches may be delayed by up to 1 minute.
+The system checks for schedule updates at your configured refresh interval (default: 300 seconds), so page switches may be delayed by up to one refresh cycle.
 
 ## Known Limitations
 
 ### 1. Midnight Boundary
 
-**Limitation**: Schedules cannot span midnight (e.g., 23:00-01:00)
-
-**Why**: The validation logic requires `end_time` to be after `start_time` within the same day.
-
-**Workaround**: Create two separate schedules:
-- Schedule 1: `23:00` - `23:59` (Day 1)
-- Schedule 2: `00:00` - `01:00` (Day 2, next day pattern)
-
-**Status**: Known limitation, may be addressed in future updates
+**Supported**: Schedules can span midnight (e.g., 23:00-01:00). When the end time is earlier than the start time, the system treats it as a midnight rollover and handles it automatically.
 
 ### 2. Timezone Handling
 
@@ -77,11 +69,11 @@ The system checks for schedule updates every 60 seconds, so page switches may be
 
 ### 3. Switch Delay
 
-**Limitation**: Pages switch up to 60 seconds after the scheduled time
+**Limitation**: Pages switch up to one refresh interval after the scheduled time (default interval: 300 seconds)
 
-**Why**: The UI polls for schedule updates every 60 seconds to balance responsiveness with server load
+**Why**: The display service checks at the configured refresh interval to balance responsiveness with server load
 
-**Example**: A schedule set for `09:00:00` might not switch until `09:00:45` or even `09:01:00`
+**Example**: With default 300-second refresh, a schedule set for `09:00:00` might not switch until the next refresh cycle (e.g. up to ~5 minutes later)
 
 **Status**: This is acceptable for most use cases (digital signage, dashboards)
 
@@ -236,7 +228,6 @@ Use consistent day patterns (e.g., all weekday schedules use same times) for eas
 
 Potential improvements for future versions:
 
-- [ ] Support for overnight schedules (spanning midnight)
 - [ ] Explicit timezone selection in settings
 - [ ] Real-time schedule switching (WebSocket updates)
 - [ ] Calendar view for visualizing schedules

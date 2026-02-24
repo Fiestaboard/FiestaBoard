@@ -12,7 +12,6 @@ Edit your `.env` file:
 GUEST_WIFI_ENABLED=true
 GUEST_WIFI_SSID=YourGuestNetwork
 GUEST_WIFI_PASSWORD=YourPassword
-GUEST_WIFI_REFRESH_SECONDS=60
 ```
 
 Then restart the service:
@@ -40,10 +39,6 @@ docker-compose restart
 - `GUEST_WIFI_ENABLED`: Set to `true` to enable, `false` to disable
 - `GUEST_WIFI_SSID`: Your guest WiFi network name
 - `GUEST_WIFI_PASSWORD`: Your guest WiFi password
-
-### Optional Settings
-
-- `GUEST_WIFI_REFRESH_SECONDS`: How often to refresh the display (default: 60 seconds)
 
 ## Display Format
 
@@ -187,6 +182,5 @@ Potential improvements:
 GUEST_WIFI_ENABLED=true
 GUEST_WIFI_SSID=GuestNetwork-5G
 GUEST_WIFI_PASSWORD=Welcome2024!
-GUEST_WIFI_REFRESH_SECONDS=60
 ```
 

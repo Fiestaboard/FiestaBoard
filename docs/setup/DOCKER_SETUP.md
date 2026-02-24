@@ -57,7 +57,7 @@ docker-compose down
 ### Access
 
 - **Web UI**: http://localhost:4420
-- **API Docs**: http://localhost:4420/docs (FastAPI auto-generated docs)
+- **API Docs**: http://localhost:4420/api/docs (FastAPI auto-generated docs)
 
 ## Development
 
@@ -106,24 +106,24 @@ docker run -d \
 
 ### Test Health
 ```bash
-curl http://localhost:4420/health
+curl http://localhost:4420/api/health
 ```
 
 ### Test Service Status
 ```bash
-curl http://localhost:4420/status
+curl http://localhost:4420/api/status
 ```
 
 ### Toggle Dev Mode
 ```bash
-curl -X POST http://localhost:4420/dev-mode \
+curl -X POST http://localhost:4420/api/dev-mode \
   -H "Content-Type: application/json" \
   -d '{"dev_mode": true}'
 ```
 
 ### Send Custom Message
 ```bash
-curl -X POST http://localhost:4420/send-message \
+curl -X POST http://localhost:4420/api/send-message \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello from API!"}'
 ```
@@ -162,14 +162,14 @@ curl -X POST http://localhost:4420/send-message \
 
 3. **Test API directly:**
    ```bash
-   curl http://localhost:4420/health
+   curl http://localhost:4420/api/health
    ```
 
 ### Web UI Can't Connect to API
 
 1. **Check the service is running:**
    ```bash
-   curl http://localhost:4420/health
+   curl http://localhost:4420/api/health
    ```
 
 2. **Check container logs:**

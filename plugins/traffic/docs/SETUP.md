@@ -45,8 +45,8 @@ Add the API key to your configuration:
 
 **Option A: Via Web UI (Recommended)**
 1. Open http://localhost:4420
-2. Go to Settings → Features
-3. Find "Traffic" and toggle it on
+2. Go to the **Integrations** page
+3. Find **Traffic** and toggle the plugin on
 4. Paste your API key in the "Google Routes API Key" field
 5. Click Save
 
@@ -58,7 +58,7 @@ GOOGLE_ROUTES_API_KEY=your_api_key_here
 
 ### Step 5: Test It
 
-1. In the web UI, go to Settings → Features → Traffic
+1. In the web UI, go to the **Traffic** plugin on the **Integrations** page
 2. Click "Add Route"
 3. Enter:
    - **Origin**: Your home address or `40.7128,-74.0060` (coordinates work too)

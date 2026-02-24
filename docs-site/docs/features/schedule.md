@@ -65,7 +65,7 @@ FiestaBoard automatically validates your schedule and provides real-time feedbac
 
 - **Overlap Detection** - Warns if two schedules overlap on the same day/time
 - **Gap Detection** - Shows unscheduled time periods
-- **Active Page Resolution** - The system checks every 60 seconds which page should be displayed based on the current time
+- **Active Page Resolution** - The system checks at your configured refresh interval (default: 300 seconds) which page should be displayed based on the current time
 
 :::info
 When no schedule is active, FiestaBoard displays the default page. You can set the default page in Settings.
@@ -73,7 +73,7 @@ When no schedule is active, FiestaBoard displays the default page. You can set t
 
 ## How Page Resolution Works
 
-Every 60 seconds, the display service:
+At your configured refresh interval (default: 300 seconds), the display service:
 
 1. Checks the current local time and day of week
 2. Looks for enabled schedule entries that match the current time
@@ -82,8 +82,8 @@ Every 60 seconds, the display service:
 
 ## Known Limitations
 
-- **No midnight spanning** - Schedules cannot cross midnight (e.g., 11 PM to 1 AM). As a workaround, create two separate entries: one from 11 PM to 11:59 PM and another from 12 AM to 1 AM. The system handles the transition automatically with no gap.
-- **Switching delay** - There may be up to a 60-second delay when switching between scheduled pages.
+- **Midnight spanning supported** - Schedules can cross midnight (e.g., 11 PM to 1 AM). The system handles the rollover automatically.
+- **Switching delay** - There may be a delay of up to one refresh interval when switching between scheduled pages.
 - **Recommended limit** - For optimal performance, keep the total number of schedule entries under 50.
 
 ## Next Steps

@@ -8,18 +8,16 @@ keywords: [FiestaBoard getting started, first page, enable plugins, setup walkth
 
 You've got FiestaBoard running at **http://localhost:4420** and your board is connected. Now what? This guide walks you through everything you can do in your first 10 minutes to get the most out of your board.
 
-## 1. Start the Display Service
+## 1. Verify the Display Service
 
-If you haven't already, click the **"Start Service"** button on the main dashboard. This tells FiestaBoard to start sending content to your board.
-
-![Dashboard before service is started, showing the Start Service button](/img/guides/start-service-button.png)
+The display service starts automatically when the container is running. Open the dashboard at **http://localhost:4420** and verify the status shows **Running**.
 
 ## 2. Enable Your First Plugins
 
 Plugins are data sources - they pull information like weather, time, stock prices, and more so you can put that data on your board.
 
 1. Click **Integrations** in the navigation
-2. You'll see all 18 available plugins. Start by enabling a few that need no API key:
+2. You'll see all 23 available plugins. Start by enabling a few that need no API key:
 
 | Plugin | What It Shows |
 |--------|--------------|
@@ -48,7 +46,7 @@ Pages are the templates for what your board displays. Each page is a layout you 
 
 1. Click **Pages** in the navigation
 2. Select the tab matching your board type (**Flagship** for the standard 22x6 board, **Note** for the compact 15x3)
-3. Click **New Page**
+3. Click **New**
 4. Give your page a name (e.g., "Morning Info")
 
 ![Empty page editor grid matching board dimensions](/img/guides/page-editor-grid.png)
@@ -59,10 +57,10 @@ The editor shows a grid matching your board's dimensions. Click on a row and sta
 
 ### Add live data from plugins
 
-This is where it gets fun. Click the **Variable Picker** button (it looks like `{x}`) in the editor toolbar. You'll see a list of all the variables available from your enabled plugins.
+This is where it gets fun. Click the **Variables** button in the editor toolbar. You'll see a list of all the variables available from your enabled plugins.
 
 For example, if you enabled the Date & Time plugin, you'll see variables like:
-- `{date_time.current}` - Inserts the current date and time
+- `{date_time.datetime}` - Inserts the current date and time
 - `{date_time.date}` - Inserts just the date
 - `{date_time.time}` - Inserts just the time
 
@@ -167,4 +165,4 @@ Create pages for different moods and times of day. Mix and match plugin variable
 - **[Color Guide](/docs/reference/color-guide)** - Add colored tiles to your pages
 - **[Character Codes](/docs/reference/character-codes)** - Special characters available on the board
 - **[Schedule Mode](/docs/features/schedule)** - Advanced scheduling with day patterns
-- **[All Plugins](/docs/plugins/overview)** - Full list of all 18 plugins
+- **[All Plugins](/docs/plugins/overview)** - Full list of all 23 plugins

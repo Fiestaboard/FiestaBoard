@@ -872,9 +872,9 @@ test.describe("Getting Started Workflow Screenshots", () => {
     const pageId = await createPage("Weather Page", [
       "{date_time.date}",
       "SAN FRANCISCO",
-      "{weather.temp_f} F {weather.conditions}",
-      "H {weather.high_f} L {weather.low_f}",
-      "UV {weather.uv}",
+      "{weather.temperature} F {weather.condition}",
+      "H {weather.high_temp} L {weather.low_temp}",
+      "UV {weather.uv_index}",
       "",
     ]);
 

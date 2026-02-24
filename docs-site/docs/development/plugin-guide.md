@@ -684,9 +684,9 @@ docker-compose exec fiestaboard python scripts/validate_plugins.py --verbose
 docker-compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 
 # Verify the plugin loads and appears in the API
-curl http://localhost:4420/plugins
-curl http://localhost:4420/plugins/my_plugin
-curl http://localhost:4420/plugins/my_plugin/data
+curl http://localhost:4420/api/plugins
+curl http://localhost:4420/api/plugins/my_plugin
+curl http://localhost:4420/api/plugins/my_plugin/data
 ```
 
 The validator checks:
