@@ -888,9 +888,10 @@ interface PluginCardProps {
   onToggle: (pluginId: string, enabled: boolean) => void;
   isToggling: boolean;
   onConfigUpdate: () => void;
+  index?: number;
 }
 
-function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCardProps) {
+function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }: PluginCardProps) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -981,10 +982,13 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
   const Icon = getPluginIcon(plugin.icon);
   
   return (
-    <Card className={cn(
-      "transition-all duration-200 hover:shadow-md",
-      plugin.enabled ? "border-primary/50" : "opacity-75"
-    )}>
+    <Card
+      className={cn(
+        "animate-card-fade-in transition-all duration-200 hover:shadow-md",
+        plugin.enabled ? "border-primary/50" : "opacity-75"
+      )}
+      style={{ animationDelay: `${index * 80}ms` }}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1387,13 +1391,14 @@ export default function IntegrationsPage() {
                   </Badge>
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {plugins.map((plugin) => (
+                  {plugins.map((plugin, index) => (
                     <PluginCard
                       key={plugin.id}
                       plugin={plugin}
                       onToggle={handleToggle}
                       isToggling={toggleMutation.isPending}
                       onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                      index={index}
                     />
                   ))}
                 </div>
