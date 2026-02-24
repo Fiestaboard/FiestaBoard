@@ -194,6 +194,57 @@ describe("scheduleToCalendarEvents", () => {
       expect(event.end.getDate()).toBe(event.start.getDate());
     }
   });
+
+  it("wraps Saturday midnight rollover morning part to Sunday (repeating weekly)", () => {
+    const schedule = makeSchedule({
+      start_time: "23:00",
+      end_time: "06:45",
+      day_pattern: "all",
+    });
+
+    const events = scheduleToCalendarEvents(schedule, WEEK_START, MOCK_PAGES);
+    const morningEvents = events.filter((e) => e.resource.splitPart === "morning");
+
+    // Sunday (weekStart) should have a morning event from Saturday's rollover
+    const sundayMorning = morningEvents.find(
+      (e) => getDay(e.start) === 0 // Sunday
+    );
+    expect(sundayMorning).toBeDefined();
+    expect(sundayMorning!.start.getHours()).toBe(0);
+    expect(sundayMorning!.end.getHours()).toBe(6);
+    expect(sundayMorning!.end.getMinutes()).toBe(45);
+
+    // All morning events should fall within the same week (Sun-Sat)
+    for (const event of morningEvents) {
+      expect(event.start.getTime()).toBeGreaterThanOrEqual(WEEK_START.getTime());
+    }
+  });
+
+  it("wraps Saturday morning rollover for custom Saturday-only schedule", () => {
+    const schedule = makeSchedule({
+      start_time: "22:00",
+      end_time: "03:00",
+      day_pattern: "custom",
+      custom_days: ["saturday"],
+    });
+
+    const events = scheduleToCalendarEvents(schedule, WEEK_START, MOCK_PAGES);
+
+    // 1 day × 2 parts = 2 events
+    expect(events).toHaveLength(2);
+
+    const evening = events.find((e) => e.resource.splitPart === "evening")!;
+    const morning = events.find((e) => e.resource.splitPart === "morning")!;
+
+    // Evening is on Saturday
+    expect(getDay(evening.start)).toBe(6);
+    expect(evening.start.getHours()).toBe(22);
+
+    // Morning wraps to Sunday (weekStart)
+    expect(getDay(morning.start)).toBe(0);
+    expect(morning.start.getHours()).toBe(0);
+    expect(morning.end.getHours()).toBe(3);
+  });
 });
 
 describe("schedulesToCalendarEvents", () => {
