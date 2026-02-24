@@ -163,6 +163,8 @@ Each mode returns different routes optimized for that transportation type.
 
 ## Example Configuration
 
+![Traffic Display](./traffic-display.png)
+
 Here's a complete example for a morning commute:
 
 **Route 1: Home to Work (Drive)**
