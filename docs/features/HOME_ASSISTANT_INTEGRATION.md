@@ -7,6 +7,7 @@ This document outlines the plan to expose FiestaBoard as a controllable device w
 ### Goals
 
 - Expose FiestaBoard as a native device in Home Assistant
+- **Automatic discovery** — FiestaBoard appears in HA with zero manual setup
 - Enable HA automations to control schedules, pages, display state, and messages
 - Zero installation on the HA side (no HACS, no custom components required)
 - Allow the smart home community to integrate FiestaBoard into their automations
@@ -15,49 +16,218 @@ This document outlines the plan to expose FiestaBoard as a controllable device w
 
 ## Research: Integration Approaches
 
-Three approaches were evaluated for exposing FiestaBoard to Home Assistant:
+Four approaches were evaluated for exposing FiestaBoard to Home Assistant. The key criteria are: **auto-discovery support**, **ease of setup**, **no HA-side installation**, and **real-time state updates**.
 
-### Option A: MQTT Discovery (✅ Recommended — Primary Approach)
+### Option A: MQTT Discovery (✅ Recommended)
 
 **How it works:** FiestaBoard connects to an MQTT broker and publishes [Home Assistant MQTT Discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) messages. HA automatically discovers FiestaBoard as a device with switches, sensors, selects, buttons, and text entities — no installation required on the HA side.
 
+**Why MQTT is the best approach:**
+
+MQTT is an **open standard** (ISO/IEC 20922, OASIS standard) — it's not proprietary to Home Assistant or any vendor. It's the universal language of IoT and smart home devices. Home Assistant has first-class, built-in support for MQTT Discovery, meaning any device that speaks MQTT can be auto-discovered without custom code on the HA side.
+
+This is the same proven pattern used by the most popular HA integrations:
+- **Zigbee2MQTT** — All Zigbee devices appear via MQTT Discovery
+- **Tasmota** — Smart plugs, switches, sensors auto-discovered via MQTT
+- **ESPHome** — DIY sensors and controllers use MQTT Discovery
+- **Frigate** — NVR camera system exposes cameras via MQTT
+- **Room Assistant** — Room presence detection via MQTT
+
+The reason all these projects chose MQTT is the same reason it's right for FiestaBoard: **it's the only approach that gives you auto-discovery + zero HA installation + real-time updates + open standard** all at once.
+
 | Pros | Cons |
 |------|------|
-| Zero installation on HA (no HACS, no custom components) | Requires an MQTT broker (Mosquitto — very common in HA setups) |
-| FiestaBoard appears as a native device automatically | Adds MQTT dependency to FiestaBoard |
-| Supports all needed entity types (switch, select, sensor, button, text) | Slightly more complex than pure REST |
-| Real-time state updates via MQTT pub/sub | Need to keep MQTT state in sync with FiestaBoard state |
-| Well-documented, battle-tested protocol (used by Zigbee2MQTT, Tasmota, ESPHome) | |
-| No HA version compatibility concerns | |
+| ✅ **Auto-discovery** — device appears in HA automatically | Requires an MQTT broker (Mosquitto — most common HA add-on) |
+| ✅ Zero installation on HA (no HACS, no custom components) | Adds `paho-mqtt` dependency to FiestaBoard |
+| ✅ Open standard (ISO/IEC 20922) — not locked to any vendor | Need to keep MQTT state in sync with FiestaBoard state |
+| ✅ Real-time bidirectional state updates | |
+| ✅ All needed entity types supported (switch, select, sensor, button, text, number) | |
+| ✅ No HA version compatibility concerns | |
+| ✅ Battle-tested by Zigbee2MQTT, Tasmota, ESPHome, Frigate | |
+| ✅ Lightweight — publish/subscribe is minimal overhead | |
+
+**Is MQTT difficult to set up?** No. For FiestaBoard users:
+1. Most HA users already have Mosquitto (it's the #1 HA add-on — one click to install)
+2. FiestaBoard configuration is just: broker host, port, optional username/password
+3. Once connected, everything is automatic — entities appear in HA within seconds
 
 ### Option B: Custom HA Integration (custom_components)
 
 **How it works:** A Python package installed in HA's `custom_components/fiestaboard/` directory that communicates with FiestaBoard's REST API. Can be distributed via HACS or submitted to HA core.
 
+**Why not primary:** Requires installation on the HA side (either HACS or manual file copy), requires maintaining a separate Python codebase that must stay compatible with HA's frequently-changing internal APIs, and the HA core submission process is lengthy. However, this could be a good **Phase 2** for users who want custom Lovelace cards or don't run MQTT.
+
 | Pros | Cons |
 |------|------|
-| Richer UI integration possibilities | Requires installation on HA side |
-| Can add custom dashboard cards | Must maintain compatibility with HA versions |
-| Full control over entity behavior | HACS distribution or HA core submission process |
-| Could add a config flow UI in HA | Separate codebase to maintain |
-| | User explicitly wants to avoid HACS |
+| Richer UI integration (custom dashboard cards) | ❌ Requires installation on HA side |
+| Config flow UI within HA | ❌ Must maintain HA version compatibility |
+| Full control over entity behavior | ❌ HACS distribution or HA core submission process |
+| Could pair with SSDP/Zeroconf for discovery | ❌ Separate codebase to maintain |
 
-### Option C: HA REST Integration (Manual Setup)
+### Option C: SSDP / Zeroconf (Network Discovery)
+
+**How it works:** FiestaBoard advertises itself on the local network via SSDP (UPnP) or mDNS/Zeroconf (like Apple Bonjour). HA can detect the device on the network. This is how Philips Hue, Chromecast, and Sonos are discovered.
+
+**Why not primary:** Network discovery only tells HA "this device exists on your network." To actually *control* the device, you still need either a custom HA integration (Option B) to handle the discovered device, or MQTT (Option A) for entity control. SSDP/Zeroconf alone can't expose switches, sensors, selects, etc. — it's only a discovery mechanism, not a control protocol.
+
+| Pros | Cons |
+|------|------|
+| True network-level auto-discovery | ❌ Discovery only — no control capability by itself |
+| No MQTT broker needed for discovery step | ❌ Requires a custom_components integration to handle discovery |
+| Same mechanism as Hue, Chromecast | ❌ More complex to implement correctly |
+
+**Note:** SSDP/Zeroconf could be added as a **complement** to MQTT Discovery in a future phase (see Phase 6).
+
+### Option D: HA REST Integration (Manual Setup)
 
 **How it works:** Users manually configure HA's built-in [RESTful](https://www.home-assistant.io/integrations/rest/) platform to call FiestaBoard's existing API endpoints.
 
+**Why not:** No auto-discovery, requires extensive manual YAML per entity, polling-only (no real-time), and poor user experience. Already possible today for power users, but not a good default path.
+
 | Pros | Cons |
 |------|------|
-| Already possible today with existing API | Requires manual YAML configuration per entity |
-| No code changes needed in FiestaBoard | No auto-discovery — tedious setup |
-| | No real-time state updates (polling only) |
-| | Poor user experience |
+| Already possible today with existing API | ❌ No auto-discovery — manual YAML per entity |
+| No code changes needed in FiestaBoard | ❌ No real-time state updates (polling only) |
+| | ❌ Poor user experience |
+
+### Comparison: Auto-Discovery Capabilities
+
+| Feature | MQTT Discovery | Custom Integration | SSDP/Zeroconf | REST |
+|---------|:---:|:---:|:---:|:---:|
+| **Auto-discovery in HA** | ✅ Built-in | ⚠️ With config flow | ⚠️ Needs custom_components | ❌ Manual only |
+| **Zero HA-side install** | ✅ | ❌ | ❌ | ✅ |
+| **Real-time updates** | ✅ | ✅ | N/A | ❌ Polling |
+| **Entity control** | ✅ | ✅ | ❌ Discovery only | ⚠️ Limited |
+| **Open standard** | ✅ ISO/IEC 20922 | ❌ HA-specific | ✅ | ✅ |
+| **Setup complexity** | Low (broker host) | Medium (install + config) | High (+ custom integration) | High (YAML per entity) |
+| **Maintenance burden** | Low | High (HA API changes) | Medium | Low |
 
 ### Decision
 
-**MQTT Discovery is the recommended primary approach.** It satisfies the core requirement of native HA device support without requiring any installation on the HA side. FiestaBoard publishes discovery messages, and HA automatically picks up the device. This is the same proven pattern used by Zigbee2MQTT, Tasmota, and ESPHome.
+**MQTT Discovery is the best approach for FiestaBoard.** It's the only option that checks every box: automatic discovery, zero HA-side installation, real-time bidirectional state updates, open standard, and low maintenance burden. This is the same conclusion reached by Zigbee2MQTT, Tasmota, ESPHome, and every other major third-party HA device project.
 
-A **Custom HA Integration can be considered as a future Phase 2** for users who want deeper dashboard integration or don't run MQTT.
+**Future phases** can add SSDP/Zeroconf for network-level discovery and/or a custom HA integration for richer dashboard features — but MQTT Discovery is the right foundation.
+
+---
+
+## How Auto-Discovery Works
+
+This is how FiestaBoard becomes automatically discoverable by Home Assistant — the user experience from "plugged in" to "showing up in HA":
+
+### The Discovery Flow
+
+```
+ FiestaBoard starts up
+        │
+        ▼
+ ┌──────────────────┐     1. Connect to MQTT broker
+ │  MQTT Service    │────────────────────────────────►┌──────────────┐
+ │  (in FiestaBoard)│                                 │ MQTT Broker  │
+ └──────────────────┘                                 │ (Mosquitto)  │
+        │                                             └──────┬───────┘
+        │  2. Publish discovery configs to                    │
+        │     homeassistant/<type>/fiestaboard/<entity>/config│
+        │─────────────────────────────────────────────────────►
+        │                                                     │
+        │  3. Publish availability: "online"                  │
+        │─────────────────────────────────────────────────────►
+        │                                                     │
+        │  4. Publish current state for all entities          │
+        │─────────────────────────────────────────────────────►
+        │                                                     │
+        │                      ┌──────────────────────────────┤
+        │                      │  5. HA's MQTT integration    │
+        │                      │     reads discovery configs  │
+        │                      ▼                              │
+        │               ┌─────────────┐                       │
+        │               │    Home     │ 6. FiestaBoard device │
+        │               │  Assistant  │    appears in HA with │
+        │               │             │    all entities ready │
+        │               └─────────────┘                       │
+        │                      │                              │
+        │  7. HA subscribes to command topics                 │
+        │◄─────────────────────┴──────────────────────────────┤
+        │     (e.g., user toggles switch in HA)               │
+        ▼                                                     │
+ FiestaBoard executes command, publishes updated state ──────►│
+```
+
+### Step-by-Step: What Happens Automatically
+
+1. **FiestaBoard boots** and connects to the MQTT broker (host/port from settings)
+2. **Discovery messages published** — FiestaBoard publishes retained JSON configs to `homeassistant/switch/fiestaboard/schedule_enabled/config`, `homeassistant/select/fiestaboard/active_page/config`, etc. These messages tell HA: "I'm a device called FiestaBoard, I have these entities, here are my state/command topics."
+3. **Availability announced** — FiestaBoard publishes `"online"` to `fiestaboard/status` (with a Last Will and Testament of `"offline"` so HA knows if FiestaBoard disconnects)
+4. **State published** — Current state of all entities published to their respective topics
+5. **HA auto-discovers** — Home Assistant's built-in MQTT integration sees the discovery messages and **automatically creates the device and all entities** — no user action needed
+6. **Device appears** — FiestaBoard shows up in HA → Settings → Devices & Services → MQTT with all switches, sensors, selects, buttons, etc. ready to use
+7. **Bidirectional control** — HA subscribes to command topics. When a user toggles a switch or sends a message from HA, FiestaBoard receives the command, executes it, and publishes the updated state back
+
+### What The User Sees in Home Assistant
+
+After FiestaBoard connects to MQTT, the user sees:
+
+**Settings → Devices & Services → MQTT → FiestaBoard**
+
+```
+╔══════════════════════════════════════════════════╗
+║  🎪 FiestaBoard                                  ║
+║  Manufacturer: FiestaBoard                       ║
+║  Model: Vestaboard Flagship                      ║
+║  Configuration: http://<your-ip>:4420             ║
+╠══════════════════════════════════════════════════╣
+║                                                  ║
+║  Controls                                        ║
+║  ─────────                                       ║
+║  🔀 Schedule         [ON/OFF toggle]             ║
+║  🖥️ Display Service   [ON/OFF toggle]             ║
+║  📄 Active Page       [▾ Weather Dashboard]       ║
+║  🎯 Output Target     [▾ Board]                   ║
+║  💬 Send Message      [____________] [Send]       ║
+║  🔄 Refresh Display   [Press]                     ║
+║  ⏱️ Refresh Interval   ──●──── 300s               ║
+║                                                  ║
+║  Sensors                                         ║
+║  ───────                                         ║
+║  📄 Current Page:      Weather Dashboard          ║
+║  💚 Service Status:    Running                    ║
+║  💬 Board Message:     "72°F Sunny SF"            ║
+║  🔇 Silence Mode:     Off                        ║
+║                                                  ║
+╚══════════════════════════════════════════════════╝
+```
+
+**No manual configuration needed. No YAML. No HACS install. It just appears.**
+
+### Discovery Message Example
+
+Here's what a single discovery message looks like (FiestaBoard publishes this to the broker, and HA reads it automatically):
+
+**Topic:** `homeassistant/switch/fiestaboard/schedule_enabled/config`
+
+```json
+{
+  "name": "Schedule",
+  "unique_id": "fiestaboard_1_schedule_enabled",
+  "icon": "mdi:calendar-clock",
+  "state_topic": "fiestaboard/schedule_enabled/state",
+  "command_topic": "fiestaboard/schedule_enabled/set",
+  "payload_on": "ON",
+  "payload_off": "OFF",
+  "availability_topic": "fiestaboard/status",
+  "payload_available": "online",
+  "payload_not_available": "offline",
+  "device": {
+    "identifiers": ["fiestaboard_1"],
+    "name": "FiestaBoard",
+    "manufacturer": "FiestaBoard",
+    "model": "Vestaboard Flagship",
+    "sw_version": "1.0.0",
+    "configuration_url": "http://<your-fiestaboard-ip>:4420"
+  }
+}
+```
+
+HA reads this and automatically creates `switch.fiestaboard_schedule` — subscribes to the state topic, knows where to send commands, links it to the FiestaBoard device, and makes it available in automations and dashboards.
 
 ---
 
@@ -438,14 +608,16 @@ Add MQTT configuration to the FiestaBoard web UI:
 - [ ] **Integration tests** — End-to-end MQTT flow with mock broker
 - [ ] **Update README** — Add Home Assistant section to project README
 
-### Future: Phase 6 (Optional — Custom HA Integration)
+### Future: Phase 6 (Optional — Enhanced Discovery & Custom HA Integration)
 
-If deeper HA integration is desired beyond what MQTT Discovery provides:
+Add complementary discovery methods and deeper HA integration:
 
-- [ ] Create `custom_components/fiestaboard/` for HA
-- [ ] Config flow UI for setup within HA
-- [ ] Custom Lovelace dashboard card showing board preview
-- [ ] Submit to Home Assistant core for native inclusion
+- [ ] **SSDP/Zeroconf advertisement** — Advertise FiestaBoard via mDNS (`_fiestaboard._tcp.local`) so it's discoverable on the local network even before MQTT is configured. This is how ESPHome devices are found on the network. Combined with a custom integration, this could enable "click to add" in HA's integrations page.
+- [ ] **Custom HA Integration (`custom_components/fiestaboard/`)** — For users who want deeper integration:
+  - Config flow UI for setup within HA
+  - Custom Lovelace dashboard card showing a live board preview
+  - Native HA discovery via SSDP/Zeroconf handler
+- [ ] **Submit to Home Assistant core** — Apply for native inclusion in HA (long process, but ultimate goal for seamless UX)
 
 ---
 
@@ -523,17 +695,28 @@ This is the standard Python MQTT client library, widely used and well-maintained
 
 | Aspect | Decision |
 |--------|----------|
-| **Primary approach** | MQTT Discovery (zero install on HA side) |
+| **Primary approach** | MQTT Discovery (zero install on HA side, automatic discovery) |
+| **Auto-discovery** | ✅ Yes — FiestaBoard appears automatically in HA Devices via MQTT Discovery |
+| **HA-side installation** | None required — MQTT integration is built into HA core |
+| **Protocol** | MQTT (open standard, ISO/IEC 20922) |
 | **Entities exposed** | 11 entities (2 switches, 2 selects, 3 sensors, 2 buttons, 1 text, 1 number) |
-| **New dependency** | `paho-mqtt` (standard MQTT client) |
+| **New dependency** | `paho-mqtt` (standard Python MQTT client) |
 | **Configuration** | Opt-in via FiestaBoard settings, disabled by default |
 | **HA compatibility** | Any HA installation with MQTT integration enabled |
 | **Impact on existing users** | None — feature is opt-in, MQTT disabled by default |
-| **Future expansion** | Custom HA integration for deeper dashboard features |
+| **Future expansion** | SSDP/Zeroconf for network discovery, custom HA integration for dashboard cards |
 
 ---
 
 ## Open Questions for Review
+
+### Resolved by Research
+
+- **✅ Is MQTT the best approach?** — Yes. MQTT Discovery is the only approach that provides auto-discovery + zero HA-side installation + real-time state updates + open standard. It's the same approach chosen by Zigbee2MQTT, Tasmota, ESPHome, and Frigate. See the comparison table in the Research section.
+
+- **✅ Can FiestaBoard be auto-discovered?** — Yes. MQTT Discovery makes FiestaBoard appear automatically in HA → Settings → Devices & Services → MQTT. No manual YAML, no HACS, no custom components needed. See the "How Auto-Discovery Works" section for the complete flow.
+
+### Remaining Questions
 
 1. **Instance naming**: Should multiple FiestaBoard instances be supported (e.g., `fiestaboard_living_room`, `fiestaboard_office`)? The plan supports this via `MQTT_INSTANCE_ID`.
 
