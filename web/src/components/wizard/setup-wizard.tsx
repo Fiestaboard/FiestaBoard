@@ -13,6 +13,7 @@ import {
   clearWizardProgress,
   WizardProgress 
 } from "@/lib/setup-detection";
+import { Aurora } from "@/components/ui/aurora";
 import { StepBoardSetup } from "./step-board-setup";
 import { StepEasyPlugins } from "./step-easy-plugins";
 import { StepWelcome } from "./step-welcome";
@@ -175,8 +176,15 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-primary/10" />
+      {/* Aurora background */}
+      <div className="absolute inset-0">
+        <Aurora
+          colorStops={["#3A29FF", "#F222FF", "#FF7C20"]}
+          blend={0.5}
+          amplitude={1.0}
+          speed={0.5}
+        />
+      </div>
       
       {/* Content container */}
       <div className="relative h-full flex flex-col">
