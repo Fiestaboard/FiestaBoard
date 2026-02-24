@@ -8,7 +8,7 @@ on:
     branches: [ '**' ]
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 permissions:
