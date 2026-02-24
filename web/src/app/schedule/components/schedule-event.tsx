@@ -36,11 +36,21 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
   );
 
   // Format time range (e.g., "9:00a - 5:00p")
+  // For midnight-split events, show the original schedule time range
   const timeRange = useMemo(() => {
+    if (resource.isMidnightSplit) {
+      const orig = resource.originalSchedule;
+      const [startH, startM] = orig.start_time.split(":").map(Number);
+      const [endH, endM] = orig.end_time.split(":").map(Number);
+      // Arbitrary date; only hours/minutes matter for formatting
+      const startDate = new Date(2000, 0, 1, startH, startM);
+      const endDate = new Date(2000, 0, 1, endH, endM);
+      return `${format(startDate, "h:mma").toLowerCase()} - ${format(endDate, "h:mma").toLowerCase()}`;
+    }
     const startTime = format(event.start, "h:mma").toLowerCase();
     const endTime = format(event.end, "h:mma").toLowerCase();
     return `${startTime} - ${endTime}`;
-  }, [event.start, event.end]);
+  }, [event.start, event.end, resource.isMidnightSplit, resource.originalSchedule]);
 
   return (
     <div

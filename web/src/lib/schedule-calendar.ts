@@ -135,6 +135,10 @@ export function scheduleToCalendarEvents(
         // Split into two events at the midnight boundary
         const nextDay = addDays(day, 1);
 
+        // For a repeating weekly schedule, Saturday's morning continuation
+        // should wrap to this week's Sunday instead of next week's Sunday
+        const morningDay = dayOfWeek === 6 ? weekStart : nextDay;
+
         // Evening part: start_time → midnight
         const eveningEnd = setMinutes(setHours(nextDay, 0), 0);
         events.push({
@@ -155,13 +159,13 @@ export function scheduleToCalendarEvents(
         });
 
         // Morning part: midnight → end_time
-        const morningStart = setMinutes(setHours(nextDay, 0), 0);
+        const morningStart = setMinutes(setHours(morningDay, 0), 0);
         const morningEnd = setMinutes(
-          setHours(nextDay, endTime.hours),
+          setHours(morningDay, endTime.hours),
           endTime.minutes
         );
         events.push({
-          id: `${schedule.id}-${format(nextDay, "yyyy-MM-dd")}-morning`,
+          id: `${schedule.id}-${format(morningDay, "yyyy-MM-dd")}-morning`,
           title: pageName,
           start: morningStart,
           end: morningEnd,
