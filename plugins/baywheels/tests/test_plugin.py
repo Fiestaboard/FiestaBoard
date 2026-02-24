@@ -2,6 +2,7 @@
 
 import pytest
 import json
+import time
 from unittest.mock import Mock, patch
 from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
 
@@ -859,4 +860,80 @@ class TestBayWheelsPluginClass:
             result = plugin.fetch_data()
             assert result.available
             assert result.data["is_renting"] == "No"
+
+    def test_get_station_information_success(self, plugin):
+        """Test _get_station_information with successful API call."""
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "data": {
+                "stations": [
+                    {
+                        "station_id": "123",
+                        "name": "Test Station",
+                        "lat": 37.7749,
+                        "lon": -122.4194
+                    }
+                ]
+            }
+        }
+        with patch('plugins.baywheels.requests.get', return_value=mock_resp), \
+             patch('plugins.baywheels.time.time', return_value=1000):
+            result = plugin._get_station_information()
+            assert result is not None
+            assert "123" in result
+            assert result["123"]["name"] == "Test Station"
+
+    def test_get_station_information_cached(self, plugin):
+        """Test _get_station_information returns cached data."""
+        import plugins.baywheels as bw_module
+        bw_module._station_info_cache = {"123": {"name": "Cached"}}
+        bw_module._station_info_cache_time = time.time()
+        result = plugin._get_station_information()
+        assert result is not None
+        assert "123" in result
+        assert result["123"]["name"] == "Cached"
+        bw_module._station_info_cache = None
+        bw_module._station_info_cache_time = 0
+
+    def test_get_station_information_api_error(self, plugin):
+        """Test _get_station_information with API error returns cached data."""
+        import plugins.baywheels as bw_module
+        bw_module._station_info_cache = {"123": {"name": "Cached"}}
+        bw_module._station_info_cache_time = 0
+        with patch('plugins.baywheels.requests.get', side_effect=Exception("API error")):
+            result = plugin._get_station_information()
+            assert result == bw_module._station_info_cache
+        bw_module._station_info_cache = None
+        bw_module._station_info_cache_time = 0
+
+    def test_get_formatted_display_with_cache(self, plugin):
+        """Test get_formatted_display with cached data."""
+        plugin._cache = {
+            "stations": [
+                {
+                    "station_name": "Station 1",
+                    "electric_bikes": 5,
+                    "classic_bikes": 3
+                },
+                {
+                    "station_name": "Station 2",
+                    "electric_bikes": 2,
+                    "classic_bikes": 1
+                }
+            ]
+        }
+        lines = plugin.get_formatted_display()
+        assert lines is not None
+        assert len(lines) == 6
+        assert "BAY WHEELS" in lines[0]
+        assert "Station 1" in lines[2]
+        assert "5E" in lines[2]
+        assert "3C" in lines[2]
+
+    def test_get_formatted_display_no_cache(self, plugin):
+        """Test get_formatted_display without cache."""
+        plugin._cache = None
+        plugin._config = {}
+        lines = plugin.get_formatted_display()
+        assert lines is None
 
