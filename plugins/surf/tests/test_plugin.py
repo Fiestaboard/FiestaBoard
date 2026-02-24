@@ -452,3 +452,65 @@ class TestSurfPluginClass:
             result = plugin.fetch_data()
             assert not result.available
 
+    def test_fetch_marine_data_success(self, plugin):
+        """Test _fetch_marine_data with successful API call."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "current": {"wave_height": 1.5, "swell_wave_period": 12.0},
+            "daily": {"wave_height_max": [2.0], "swell_wave_period_max": [13.0]}
+        }
+        with patch('plugins.surf.requests.get', return_value=mock_response):
+            result = plugin._fetch_marine_data()
+            assert result is not None
+            assert "current" in result
+            assert "daily" in result
+
+    def test_fetch_marine_data_api_error(self, plugin):
+        """Test _fetch_marine_data with API error."""
+        with patch('plugins.surf.requests.get', side_effect=Exception("API error")):
+            result = plugin._fetch_marine_data()
+            assert result is None
+
+    def test_fetch_wind_data_success(self, plugin):
+        """Test _fetch_wind_data with successful API call."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "current": {"wind_speed_10m": 10.0, "wind_direction_10m": 180}
+        }
+        with patch('plugins.surf.requests.get', return_value=mock_response):
+            result = plugin._fetch_wind_data()
+            assert result is not None
+            assert result["wind_speed_mph"] == 10.0
+            assert result["wind_direction"] == 180
+
+    def test_fetch_wind_data_api_error(self, plugin):
+        """Test _fetch_wind_data with API error."""
+        with patch('plugins.surf.requests.get', side_effect=Exception("API error")):
+            result = plugin._fetch_wind_data()
+            assert result is None
+
+    def test_get_formatted_display_success(self, plugin):
+        """Test get_formatted_display with successful data."""
+        plugin._cache = {
+            "wave_height": "2.0",
+            "swell_period": "12.0",
+            "quality": "EXCELLENT",
+            "wind_speed": "8.0",
+            "wind_direction": "W"
+        }
+        with patch.object(plugin, 'fetch_data', return_value=Mock(available=True, data=plugin._cache)):
+            lines = plugin.get_formatted_display()
+            assert lines is not None
+            assert len(lines) == 6
+            assert "SURF CONDITIONS" in lines[0]
+            assert "WAVES:" in lines[2]
+            assert "SWELL:" in lines[3]
+            assert "QUALITY:" in lines[4]
+            assert "WIND:" in lines[5]
+
+    def test_get_formatted_display_no_data(self, plugin):
+        """Test get_formatted_display when fetch fails."""
+        with patch.object(plugin, 'fetch_data', return_value=Mock(available=False, data=None)):
+            lines = plugin.get_formatted_display()
+            assert lines is None
+
