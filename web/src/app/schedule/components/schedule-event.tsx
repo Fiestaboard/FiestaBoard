@@ -42,6 +42,7 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
       const orig = resource.originalSchedule;
       const [startH, startM] = orig.start_time.split(":").map(Number);
       const [endH, endM] = orig.end_time.split(":").map(Number);
+      // Arbitrary date; only hours/minutes matter for formatting
       const startDate = new Date(2000, 0, 1, startH, startM);
       const endDate = new Date(2000, 0, 1, endH, endM);
       return `${format(startDate, "h:mma").toLowerCase()} - ${format(endDate, "h:mma").toLowerCase()}`;
