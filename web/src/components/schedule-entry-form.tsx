@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +51,12 @@ export function ScheduleEntryForm({
   prefillCustomDays,
 }: ScheduleEntryFormProps) {
   const isEdit = Boolean(schedule);
+  
+  // Sort pages alphabetically by name for consistent UI ordering
+  const sortedPages = useMemo(
+    () => [...pages].sort((a, b) => a.name.localeCompare(b.name)),
+    [pages]
+  );
   
   // Use schedule values if editing, prefill values if creating from calendar, or defaults
   const [pageId, setPageId] = useState(schedule?.page_id || "");
@@ -153,7 +159,7 @@ export function ScheduleEntryForm({
             <SelectValue placeholder="Select a page" />
           </SelectTrigger>
           <SelectContent>
-            {pages.map((page) => (
+            {sortedPages.map((page) => (
               <SelectItem key={page.id} value={page.id}>
                 {page.name}
               </SelectItem>

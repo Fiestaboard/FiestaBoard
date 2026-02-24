@@ -421,4 +421,45 @@ describe("PageGridSelector", () => {
       expect(screen.getByText("CHOOSE A PAGE")).toBeInTheDocument();
     });
   });
+
+  it("renders pages in alphabetical order by name", async () => {
+    const unorderedPages: Page[] = [
+      { id: "page-z", name: "Zebra Page", template: "T", updated_at: "2024-01-01T00:00:00Z" },
+      { id: "page-a", name: "Alpha Page", template: "T", updated_at: "2024-01-02T00:00:00Z" },
+      { id: "page-m", name: "Middle Page", template: "T", updated_at: "2024-01-03T00:00:00Z" },
+    ];
+
+    vi.mocked(api.getPages).mockResolvedValue({
+      pages: unorderedPages,
+      total: unorderedPages.length,
+    });
+
+    vi.mocked(api.previewPagesBatch).mockResolvedValue({
+      previews: {},
+      total: 0,
+      successful: 0,
+    });
+
+    render(
+      <PageGridSelector
+        activePageId={null}
+        onSelectPage={vi.fn()}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Alpha Page")).toBeInTheDocument();
+      expect(screen.getByText("Middle Page")).toBeInTheDocument();
+      expect(screen.getByText("Zebra Page")).toBeInTheDocument();
+    });
+
+    // Verify order: get all page name elements and check order
+    const buttons = screen.getAllByRole("button");
+    const names = buttons.map(btn => {
+      const nameEl = btn.querySelector(".text-sm");
+      return nameEl?.textContent;
+    }).filter(Boolean);
+    expect(names).toEqual(["Alpha Page", "Middle Page", "Zebra Page"]);
+  });
 });

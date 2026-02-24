@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
@@ -27,6 +28,12 @@ export function PagePickerDialog({
   onSelect,
   allowNone = false,
 }: PagePickerDialogProps) {
+  // Sort pages alphabetically by name for consistent UI ordering
+  const sortedPages = useMemo(
+    () => [...pages].sort((a, b) => a.name.localeCompare(b.name)),
+    [pages]
+  );
+
   return (
     <div className="space-y-2">
       {allowNone && (
@@ -43,7 +50,7 @@ export function PagePickerDialog({
         </button>
       )}
       
-      {pages.map((page) => (
+      {sortedPages.map((page) => (
         <button
           key={page.id}
           onClick={() => onSelect(page.id)}
