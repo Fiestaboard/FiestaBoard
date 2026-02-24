@@ -25,7 +25,7 @@ The Nearby Aircraft plugin shows:
 2. Go to the **Integrations** page
 3. Toggle **Nearby Aircraft** on
 4. Set your location coordinates and search radius
-5. Click **Save**
+5. Click **Save Changes**
 
 :::tip
 No API key is required for basic usage. An optional OpenSky Network account increases rate limits -- register free at [opensky-network.org](https://opensky-network.org/).

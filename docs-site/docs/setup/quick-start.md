@@ -55,9 +55,9 @@ The wizard asks for your board API key, device type, and board color, then start
 
 Once FiestaBoard is running at **http://localhost:4420**:
 
-1. Enter your board API key in the setup screen (or go to **Settings** if you've already been through setup)
-2. Click **"Start Service"** to begin updating your board
-3. Your board is now connected!
+1. The setup wizard will guide you through connecting your board (or go to **Settings** if you've already been through setup)
+2. Once connected, the display service starts automatically
+3. Verify the dashboard shows **Running** — your board is now connected!
 
 ![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
 
@@ -66,7 +66,7 @@ Once FiestaBoard is running at **http://localhost:4420**:
 Now that FiestaBoard is running, you'll want to:
 
 1. **Enable some plugins** - Go to the **Integrations** page and turn on plugins like Date & Time, Star Trek Quotes, or Weather
-2. **Create your first page** - Go to **Pages**, click **New Page**, and use the visual editor to design what your board shows
+2. **Create your first page** - Go to **Pages**, click **New**, and use the visual editor to design what your board shows
 3. **Set up a schedule** - Go to **Schedule** to automate which pages display at which times
 
 :::tip Start simple
@@ -110,7 +110,7 @@ docker-compose down
 docker-compose up -d
 ```
 
-After restarting, open **http://localhost:4420** and click **Start Service** to resume.
+After restarting, open **http://localhost:4420** — the service resumes automatically.
 
 ## Running on a Raspberry Pi?
 
@@ -119,6 +119,6 @@ The same Docker image works on Raspberry Pi (ARM64). Follow the steps above on y
 ## Next Steps
 
 - **[Your First 10 Minutes](/docs/setup/first-10-minutes)** - Create your first page and enable plugins
-- **[Plugins Overview](/docs/plugins/overview)** - See all 18 available plugins
+- **[Plugins Overview](/docs/plugins/overview)** - See all 23 available plugins
 - **[Beginner's Guide](/docs/setup/beginners-guide)** - More detailed step-by-step instructions
 - **[Docker Setup](/docs/setup/docker-setup)** - Understand the Docker architecture

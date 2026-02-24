@@ -6,7 +6,7 @@ keywords: [FiestaBoard plugins, plugin overview, available plugins, split-flap i
 
 # Plugins Overview
 
-FiestaBoard uses a **plugin architecture** - each data source is a self-contained plugin you can enable or disable independently. There are currently 18 built-in plugins, and many work without any API key.
+FiestaBoard uses a **plugin architecture** - each data source is a self-contained plugin you can enable or disable independently. There are currently 23 built-in plugins, and many work without any API key.
 
 ## Enabling Plugins
 
@@ -26,14 +26,18 @@ These plugins work immediately after enabling - no registration or API keys need
 | Plugin | What It Shows |
 |--------|--------------|
 | **Bay Wheels** | Bike availability at Bay Area stations |
+| **Countdown** | Time remaining until a target event |
+| **Dad Jokes** | Random dad jokes from icanhazdadjoke |
 | **Date & Time** | Current date and time in multiple formats (12h/24h, US/international) with timezone support |
 | **Disney Parks Queue Times** | Live wait times for rides at Disney parks worldwide |
 | **Guest WiFi** | Your WiFi network name and password for guests |
+| **Santa Tracker** | Track Santa's journey around the world on Christmas Eve |
 | **Star Trek Quotes** | Random quotes from TNG, Voyager, and DS9 |
 | **Stardate** | Current TNG-era stardate |
 | **Sun Art** | Full-screen art pattern that changes with the sun's position throughout the day |
 | **Surf Conditions** | Wave height, swell period, and quality ratings |
 | **Visual Clock** | Large pixel-art style clock that fills the whole board |
+| **White Noise** | Ambient rain/white noise effect with cascading tiles |
 
 ## Free API Key Required
 
@@ -71,11 +75,11 @@ These plugins work without an API key but offer additional features with one:
 Once a plugin is enabled, its data becomes available as **template variables** in the page editor:
 
 1. Create or edit a page in the **Pages** section
-2. Click the **Variable Picker** button in the editor toolbar
+2. Click the **Variables** button in the editor toolbar
 3. Browse variables grouped by plugin
 4. Click a variable to insert it at the cursor position
 
-Variables look like `{weather.temperature}` or `{date_time.current}` and are automatically replaced with live data when the page is displayed.
+Variables look like `{weather.temperature}` or `{date_time.datetime}` and are automatically replaced with live data when the page is displayed.
 
 For more details, see [Plugin Configuration](/docs/plugins/configuration).
 

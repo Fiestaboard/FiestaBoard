@@ -20,7 +20,7 @@ The Stardate plugin calculates and displays the current stardate using the TNG-e
 2. Go to the **Integrations** page
 3. Toggle **Stardate** on
 4. Set your timezone
-5. Click **Save**
+5. Click **Save Changes**
 
 ## Available Variables
 

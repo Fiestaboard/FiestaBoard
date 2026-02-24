@@ -75,7 +75,7 @@ docker-compose -f docker-compose.hub.yml up -d
 |---------|-----|-------------|
 | Web UI | http://localhost:4420 | Main application interface |
 | API | http://localhost:4420 | API access (via nginx proxy) |
-| API Docs | http://localhost:4420/docs | Interactive FastAPI documentation |
+| API Docs | http://localhost:4420/api/docs | Interactive FastAPI documentation |
 
 ## Key API Endpoints
 

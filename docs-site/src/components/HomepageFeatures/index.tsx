@@ -16,7 +16,7 @@ const FeatureList: FeatureItem[] = [
     icon: '/img/features/plugin-architecture.png',
     description: (
       <>
-        18 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times,
+        23 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times,
         ferry schedules, and more. Create your own plugins with our developer guide.
       </>
     ),
@@ -254,7 +254,7 @@ export default function HomepageFeatures(): ReactNode {
         <div className="container">
           <div className="text--center margin-bottom--lg">
             <Heading as="h2" className={styles.sectionTitle}>
-              18 Plugins and Counting
+              23 Plugins and Counting
             </Heading>
             <p className={styles.sectionSubtitle}>
               From weather and stocks to Disney park wait times—there's a plugin for everything

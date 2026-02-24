@@ -159,17 +159,15 @@ If you used the install wizard (Path B or C), you may have already entered your 
 
 1. In the FiestaBoard dashboard, go to **Settings**
 2. Enter your board API key (from Step 2)
-3. If you're using the Local API, also enter your board's IP address
-4. Click **Save**
+3. If you're using the Local API, also enter your board's IP address (settings save automatically)
 
 ![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
 
-## Step 6: Start the Display Service
+## Step 6: Verify the Service is Running
 
-1. On the main dashboard page, click the **"Start Service"** button
-2. Your board should start updating within a few seconds
-
-![Dashboard before service is started, showing the Start Service button](/img/guides/start-service-button.png)
+1. Go to the main dashboard at **http://localhost:4420**
+2. The display service starts automatically — verify the status shows **Running**
+3. Your board should start updating within a few seconds
 
 Congratulations - your board is now controlled by FiestaBoard!
 
@@ -199,9 +197,9 @@ Now the fun part. Here's what to do next:
 ### Create your first page
 
 1. Go to the **Pages** section
-2. Click **New Page**
+2. Click **New**
 3. Use the visual editor to type what you want on the board
-4. Use the **Variable Picker** button to insert live data (like `{weather.temperature}` or `{date_time.current}`)
+4. Use the **Variables** button to insert live data (like `{weather.temperature}` or `{date_time.datetime}`)
 5. Click **Save**
 
 ### Set it as active
@@ -230,7 +228,7 @@ Open Terminal/PowerShell, navigate to the FiestaBoard folder (if applicable), an
 docker-compose up -d
 ```
 
-Then go to **http://localhost:4420** and click **Start Service**.
+Then go to **http://localhost:4420** — the service starts automatically.
 
 :::tip
 If you used Path A (Docker Hub pull), make sure you're in the folder where the `docker-compose.hub.yml` file is, and use:
@@ -253,7 +251,7 @@ Make sure Docker Desktop is open. Look for the whale icon in your menu bar (Mac)
 
 ### Board not updating
 
-1. Check that you clicked **Start Service** in the web UI
+1. Check that the service shows **Running** on the dashboard
 2. Verify your board API key is correct (go to Settings)
 3. For Local API: make sure your board and computer are on the same WiFi network
 4. Check the logs: `docker-compose logs -f`
@@ -267,6 +265,6 @@ Make sure Docker Desktop is open. Look for the whale icon in your menu bar (Mac)
 ## Next Steps
 
 - **[Your First 10 Minutes](/docs/setup/first-10-minutes)** - Detailed walkthrough of creating pages, enabling plugins, and scheduling
-- **[Plugins Overview](/docs/plugins/overview)** - See all 18 available plugins
+- **[Plugins Overview](/docs/plugins/overview)** - See all 23 available plugins
 - **[Schedule Mode](/docs/features/schedule)** - Automate when different pages display
 - **[Quick Start](/docs/setup/quick-start)** - Condensed reference for experienced users

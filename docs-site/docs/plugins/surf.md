@@ -25,7 +25,7 @@ The Surf Conditions plugin provides:
 2. Go to the **Integrations** page
 3. Toggle **Surf Conditions** on
 4. Set the latitude and longitude of your surf spot
-5. Click **Save**
+5. Click **Save Changes**
 
 ## Available Variables
 

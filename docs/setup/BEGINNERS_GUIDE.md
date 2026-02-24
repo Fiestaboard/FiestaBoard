@@ -112,8 +112,8 @@ The script will:
 ## Step 4: Connect and Start
 
 1. Open **http://localhost:4420** in your browser
-2. If you haven't already entered your board API key, go to **Settings** and enter it
-3. Click **"Start Service"** to begin updating your board
+2. The setup wizard will guide you through connecting your board
+3. The display service starts automatically once your board is connected
 
 Your board should now be displaying content!
 
@@ -121,7 +121,7 @@ Your board should now be displaying content!
 
 1. Go to the **Integrations** page and enable some plugins (many need no API key -- try Date & Time, Star Trek Quotes, or Visual Clock)
 2. Go to **Pages** and create a new page using the visual editor
-3. Insert live data using the **Variable Picker** button
+3. Insert live data using the **Variables** button
 4. Go to **Schedule** to automate which pages show at which times
 
 > **Tip:** Many plugins work without any API key (Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, and more). Start with those while you gather API keys for others.
@@ -139,7 +139,7 @@ docker-compose down
 ```bash
 docker-compose up -d
 ```
-Then go to **http://localhost:4420** and click **Start Service**.
+Then go to **http://localhost:4420** — the service starts automatically.
 
 > If you used the Docker Hub method, use `docker-compose -f docker-compose.hub.yml up -d` instead.
 
@@ -155,7 +155,7 @@ Then go to **http://localhost:4420** and click **Start Service**.
 - Make sure Docker containers are running: `docker ps`
 
 **Board not updating**
-- Make sure you clicked "Start Service" in the web interface
+- Make sure the dashboard shows **Running** at http://localhost:4420
 - Verify your board API key is correct in Settings
 - For local mode: make sure your board and computer are on the same WiFi network
 - Check the logs: `docker-compose logs -f`

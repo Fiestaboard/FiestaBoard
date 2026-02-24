@@ -24,7 +24,7 @@ The Sun Art plugin creates dynamic visual patterns using the board's color tiles
 2. Go to the **Integrations** page
 3. Toggle **Sun Art** on
 4. Set your latitude and longitude
-5. Click **Save**
+5. Click **Save Changes**
 
 :::tip
 Sun Art fills the entire board -- use it as a standalone full-screen display or in a schedule rotation.

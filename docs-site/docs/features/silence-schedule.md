@@ -30,8 +30,8 @@ You can also configure silence hours in your `.env` file:
 
 ```bash
 # Silence Schedule
-SILENCE_START_TIME=22:00    # 10:00 PM
-SILENCE_END_TIME=07:00      # 7:00 AM
+SILENCE_SCHEDULE_START_TIME=22:00    # 10:00 PM
+SILENCE_SCHEDULE_END_TIME=07:00      # 7:00 AM
 ```
 
 ## How It Works
@@ -57,15 +57,15 @@ The silence schedule uses your configured timezone (`TIMEZONE` in `.env`). Make 
 ### Nighttime Quiet Hours
 
 ```bash
-SILENCE_START_TIME=22:00    # Board goes quiet at 10 PM
-SILENCE_END_TIME=07:00      # Board resumes at 7 AM
+SILENCE_SCHEDULE_START_TIME=22:00    # Board goes quiet at 10 PM
+SILENCE_SCHEDULE_END_TIME=07:00      # Board resumes at 7 AM
 ```
 
 ### Office Hours Only
 
 ```bash
-SILENCE_START_TIME=18:00    # Quiet after 6 PM
-SILENCE_END_TIME=08:00      # Resume at 8 AM
+SILENCE_SCHEDULE_START_TIME=18:00    # Quiet after 6 PM
+SILENCE_SCHEDULE_END_TIME=08:00      # Resume at 8 AM
 ```
 
 ## Next Steps

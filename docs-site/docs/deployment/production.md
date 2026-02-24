@@ -28,10 +28,9 @@ docker-compose -f docker-compose.hub.yml up -d
 
 ```bash
 # In .env
-REFRESH_INTERVAL_SECONDS=60    # Don't refresh too frequently
-LOG_LEVEL=WARNING              # Reduce log verbosity in production
-SILENCE_START_TIME=22:00       # Set quiet hours
-SILENCE_END_TIME=07:00
+REFRESH_INTERVAL_SECONDS=300   # Refresh every 5 minutes (default)
+SILENCE_SCHEDULE_START_TIME=22:00       # Set quiet hours
+SILENCE_SCHEDULE_END_TIME=07:00
 ```
 
 ### Data Backup
@@ -68,7 +67,7 @@ Pull the latest code and rebuild the images first, then bring down the old conta
 FiestaBoard provides a health endpoint:
 
 ```bash
-curl http://localhost:4420/health
+curl http://localhost:4420/api/health
 ```
 
 You can use this with monitoring tools like Uptime Kuma or Healthchecks.io.

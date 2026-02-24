@@ -24,7 +24,7 @@ The Disney Parks plugin shows:
 2. Go to the **Integrations** page
 3. Toggle **Disney Parks Queue Times** on
 4. Select your park and choose rides to monitor
-5. Click **Save**
+5. Click **Save Changes**
 
 :::tip
 Data comes from Queue-Times.com -- no API key or account needed.

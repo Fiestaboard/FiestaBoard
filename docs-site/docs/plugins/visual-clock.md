@@ -25,7 +25,7 @@ The Visual Clock plugin creates a large, colorful clock display:
 2. Go to the **Integrations** page
 3. Toggle **Visual Clock** on
 4. Choose your time format, color pattern, and timezone
-5. Click **Save**
+5. Click **Save Changes**
 
 ## Available Variables
 

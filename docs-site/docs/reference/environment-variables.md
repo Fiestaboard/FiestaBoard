@@ -58,24 +58,26 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `TIMEZONE` | TZ database timezone name | `America/Los_Angeles` |
-| `LATITUDE` | Latitude for location-based plugins | - |
-| `LONGITUDE` | Longitude for location-based plugins | - |
+| `SURF_LATITUDE` | Latitude for surf plugin | - |
+| `SURF_LONGITUDE` | Longitude for surf plugin | - |
+| `AIR_FOG_LATITUDE` | Latitude for air quality plugin | - |
+| `AIR_FOG_LONGITUDE` | Longitude for air quality plugin | - |
 
 ## Plugin API Keys
 
 | Variable | Plugin | Description |
 |----------|--------|-------------|
 | `GOOGLE_ROUTES_API_KEY` | Traffic | Google Routes API key |
-| `HOME_ASSISTANT_URL` | Home Assistant | HA instance URL |
-| `HOME_ASSISTANT_TOKEN` | Home Assistant | Long-lived access token |
+| `HOME_ASSISTANT_BASE_URL` | Home Assistant | HA instance URL |
+| `HOME_ASSISTANT_ACCESS_TOKEN` | Home Assistant | Long-lived access token |
 | `LASTFM_API_KEY` | Last.fm | Last.fm API key |
 | `LASTFM_USERNAME` | Last.fm | Last.fm username |
 | `MUNI_API_KEY` | Muni Transit | 511.org API key |
-| `WSDOT_API_KEY` | WSDOT Ferries | WSDOT API key |
+| `WSDOT_API_ACCESS_CODE` | WSDOT Ferries | WSDOT API access code |
 | `PURPLEAIR_API_KEY` | Air Quality | PurpleAir API key |
-| `OWM_API_KEY` | Air Quality | OpenWeatherMap API key |
+| `OPENWEATHERMAP_API_KEY` | Air Quality | OpenWeatherMap API key |
 | `FINNHUB_API_KEY` | Stocks | Finnhub API key (optional) |
-| `SPORTS_API_KEY` | Sports Scores | TheSportsDB API key (optional) |
+| `SPORTS_SCORES_API_KEY` | Sports Scores | TheSportsDB API key (optional) |
 
 ## Guest WiFi
 
@@ -88,15 +90,14 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SILENCE_START_TIME` | Quiet hours start (HH:MM) | - |
-| `SILENCE_END_TIME` | Quiet hours end (HH:MM) | - |
+| `SILENCE_SCHEDULE_START_TIME` | Quiet hours start (HH:MM) | - |
+| `SILENCE_SCHEDULE_END_TIME` | Quiet hours end (HH:MM) | - |
 
 ## System Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REFRESH_INTERVAL_SECONDS` | Display update interval (seconds) | `60` |
-| `LOG_LEVEL` | Logging level | `INFO` |
+| `REFRESH_INTERVAL_SECONDS` | Display update interval (seconds) | `300` |
 | `VERSION` | Build version (set automatically during Docker builds -- do not change) | `dev` |
 
 ## Example `.env` File
@@ -119,12 +120,12 @@ WEATHER_LOCATION=San Francisco, CA
 GOOGLE_ROUTES_API_KEY=your_google_key
 
 # Optional: Home Assistant
-HOME_ASSISTANT_URL=http://192.168.1.100:8123
-HOME_ASSISTANT_TOKEN=your_ha_token
+HOME_ASSISTANT_BASE_URL=http://192.168.1.100:8123
+HOME_ASSISTANT_ACCESS_TOKEN=your_ha_token
 
 # Optional: Silence Schedule
-SILENCE_START_TIME=22:00
-SILENCE_END_TIME=07:00
+SILENCE_SCHEDULE_START_TIME=22:00
+SILENCE_SCHEDULE_END_TIME=07:00
 ```
 
 ## Next Steps

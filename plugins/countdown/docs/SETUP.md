@@ -30,7 +30,7 @@ In the FiestaBoard web UI:
 3. Set the **Event Name** (e.g., "Last Day of School")
 4. Set the **Target Date & Time** in ISO format (e.g., `2025-06-15T00:00:00`)
 5. Optionally set the **Timezone** (defaults to America/Los_Angeles)
-6. Click **Save**
+6. Click **Save Changes**
 
 ![Countdown plugin configuration dialog](./configuration-dialog.png)
 
@@ -41,7 +41,7 @@ Create or edit a page template to display the countdown:
 1. Go to **Pages** in the web UI
 2. Click **Create Page** or edit an existing page
 3. Use the template editor to add countdown variables (see below)
-4. Click **Save**
+4. Click **Save Changes**
 
 ![Page editor with countdown template](./page-editor.png)
 

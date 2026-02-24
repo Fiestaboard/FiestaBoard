@@ -51,7 +51,7 @@ Then open **http://localhost:4420** to connect your board and start the service.
 
 ## What You Can Display
 
-FiestaBoard includes **18 built-in plugins**. Many work without any API key at all:
+FiestaBoard includes **23 built-in plugins**. Many work without any API key at all:
 
 | Plugin | Description | API Key? |
 |--------|-------------|----------|
@@ -66,7 +66,7 @@ FiestaBoard includes **18 built-in plugins**. Many work without any API key at a
 | Last.fm | Currently playing music | Yes (free) |
 | Visual Clock | Large pixel-art clock | No |
 | Star Trek Quotes | Quotes from TNG, Voyager, DS9 | No |
-| And 7 more... | Transit, aircraft, ferries, WiFi, sun art, etc. | Varies |
+| And 12 more... | Transit, aircraft, ferries, WiFi, sun art, countdown, etc. | Varies |
 
 ## Key Features
 

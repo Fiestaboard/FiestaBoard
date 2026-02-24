@@ -33,7 +33,7 @@ The WSDOT plugin shows:
 3. Toggle **WSDOT** on
 4. Enter your API access code
 5. Select your ferry routes (up to 4)
-6. Click **Save**
+6. Click **Save Changes**
 
 ## Available Variables
 

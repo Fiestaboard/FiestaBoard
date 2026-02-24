@@ -28,12 +28,12 @@ The Nearby Aircraft feature displays real-time information about aircraft flying
 ### 1. Enable Nearby Aircraft
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features**
+1. Go to the **Integrations** page
 2. Find **Nearby Aircraft** section
-3. Toggle **Enable Nearby Aircraft** to ON
+3. Toggle the **Nearby Aircraft** plugin on
 4. Enter your **Latitude** and **Longitude**
 5. Set **Radius (km)** (default: 50 km)
-6. Click **Save**
+6. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -78,9 +78,9 @@ For higher rate limits and better reliability:
    - Copy your **Client ID** and **Client Secret**
 
 3. **Add Credentials**
-   - In FiestaBoard Settings → Features → Nearby Aircraft
+   - In the **Nearby Aircraft** plugin on the **Integrations** page
    - Paste **Client ID** and **Client Secret**
-   - Click **Save**
+   - Click **Save Changes**
 
 **Rate Limits:**
 - **Unauthenticated**: 400 API credits/day (1 request per 10 seconds)

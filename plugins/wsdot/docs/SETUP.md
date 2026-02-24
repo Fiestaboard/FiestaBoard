@@ -55,7 +55,7 @@ In the FiestaBoard web UI:
 4. Add one or more **Ferry Routes**:
    - For each route, set **Route ID** to one of the numbers in the table (e.g. `7` for Mukilteo–Clinton).
 5. Optionally set **Refresh Interval** (default 120 seconds; minimum 60).
-6. Click **Save**.
+6. Click **Save Changes**.
 
 ### 4. Use in Templates
 

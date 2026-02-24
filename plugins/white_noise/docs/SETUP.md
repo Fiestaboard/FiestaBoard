@@ -10,9 +10,9 @@ The White Noise plugin comes bundled with FiestaBoard and requires no additional
 
 ### Using the Web UI
 
-1. Navigate to **Settings** in the FiestaBoard web interface
-2. Find the **White Noise** plugin in the plugins list
-3. Toggle **Enable White Noise** to activate the plugin
+1. Go to the **Integrations** page in the FiestaBoard web interface
+2. Find the **White Noise** plugin
+3. Toggle the **White Noise** plugin on
 4. Configure the rain effect:
    - **Rain Intensity**: Choose how many drops appear per frame
      - `light` (3 drops) - Gentle drizzle, minimal sound

@@ -36,7 +36,7 @@ The Air Quality & Fog plugin provides:
 2. Go to the **Integrations** page
 3. Toggle **Air Quality & Fog** on
 4. Enter your API keys and set your location coordinates
-5. Click **Save**
+5. Click **Save Changes**
 
 ## Available Variables
 

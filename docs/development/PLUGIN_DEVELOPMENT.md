@@ -596,12 +596,12 @@ When you submit a PR with a new plugin:
 
 3. Check the plugin loaded:
    ```bash
-   curl http://localhost:4420/plugins
+   curl http://localhost:4420/api/plugins
    ```
 
 4. Test data fetching:
    ```bash
-   curl http://localhost:4420/plugins/my_plugin/data
+   curl http://localhost:4420/api/plugins/my_plugin/data
    ```
 
 ### Plugin API Endpoints

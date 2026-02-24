@@ -71,7 +71,7 @@ docker-compose -f docker-compose.hub.yml up -d
 
 This is the most common issue. Work through this checklist:
 
-1. **Is the display service started?** Open http://localhost:4420 and check if the service is running. Click **Start Service** if it's stopped.
+1. **Is the display service running?** Open http://localhost:4420 and check if the dashboard shows **Running**. If it shows **Stopped** or **Disconnected**, check that your Docker container is running (`docker ps`).
 2. **Is your API key correct?** Go to **Settings** in the web UI and verify your board API key.
 3. **Is the API mode correct?** Make sure you're using the right mode (Local API or Cloud API) for the key you entered.
 4. **For Local API:** Is your board on the same WiFi network as the computer running FiestaBoard?
@@ -155,7 +155,7 @@ See the [Traffic Plugin](/docs/plugins/traffic) guide for detailed setup.
 
 ### A plugin shows stale or outdated data
 
-Plugins refresh their data at the interval set in Settings (default: 60 seconds). If data seems stuck:
+Plugins refresh their data at the interval set in Settings (default: 300 seconds). If data seems stuck:
 1. Try a **Force Refresh** from the API: `curl -X POST http://localhost:4420/api/force-refresh`
 2. Check plugin logs for errors: `docker-compose logs -f fiestaboard | grep plugin_name`
 3. Verify the external API hasn't hit rate limits
@@ -176,7 +176,7 @@ docker-compose logs -f fiestaboard
 
 ### Interactive API documentation
 
-Visit **http://localhost:4420/docs** for the Swagger UI where you can test API endpoints directly and check service status.
+Visit **http://localhost:4420/api/docs** for the Swagger UI where you can test API endpoints directly and check service status.
 
 ### Community support
 

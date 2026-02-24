@@ -68,14 +68,15 @@ All screenshots should be placed in the `/workspace/plugins/white_noise/docs/` d
    docker-compose -f docker-compose.dev.yml up
    ```
 
-2. Navigate to `http://localhost:3000` in your browser
+2. Navigate to `http://localhost:4420` in your browser
 
-3. Configure a board with the white noise plugin:
-   - Go to Settings → Plugins
-   - Enable "White Noise" plugin
+3. Configure the white noise plugin:
+   - Go to the **Integrations** page
+   - Toggle the **White Noise** plugin on
    - Configure the desired intensity and color settings
+   - Click **Save Changes**
 
-4. Create a board template with `{white_noise}` as the content
+4. Create a page template with `{white_noise.white_noise}` as the content
 
 5. View the board and capture screenshots:
    - Use your browser's screenshot tool or operating system's screenshot utility

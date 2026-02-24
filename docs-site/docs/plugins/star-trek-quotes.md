@@ -25,7 +25,7 @@ The Star Trek Quotes plugin provides:
 2. Go to the **Integrations** page
 3. Toggle **Star Trek Quotes** on
 4. (Optional) Adjust the series ratio to prefer certain shows
-5. Click **Save**
+5. Click **Save Changes**
 
 ## Available Variables
 

@@ -46,7 +46,7 @@ The Traffic feature uses Google's Routes API (v2) to get real-time travel times.
 2. Go to the **Integrations** page
 3. Find the **Traffic** plugin and toggle it on
 4. Paste your API key in the Google Routes API Key field
-5. Click **Save**
+5. Click **Save Changes**
 
 **Via Environment Variable (alternative):**
 Add to your `.env` file:

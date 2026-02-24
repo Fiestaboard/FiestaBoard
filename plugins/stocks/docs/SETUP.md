@@ -29,10 +29,10 @@ The Stocks feature lets you monitor up to 5 stock symbols with real-time prices,
 ### 1. Enable Stocks Monitoring
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features**
+1. Go to the **Integrations** page
 2. Find **Stocks** section
-3. Toggle **Enable Stocks** to ON
-4. Click **Save**
+3. Toggle the **Stocks** plugin on
+4. Click **Save Changes**
 
 Via Environment Variables:
 ```bash
@@ -46,7 +46,7 @@ STOCKS_REFRESH_SECONDS=300  # Optional: refresh interval (default: 5 minutes)
 ### 2. Add Stock Symbols
 
 Via Web UI (Recommended):
-1. Go to **Settings** → **Features** → **Stocks**
+1. Go to the **Stocks** plugin on the **Integrations** page
 2. Use the **Symbol Search** to find stocks:
    - Type symbol or company name (e.g., "AAPL" or "Apple")
    - Autocomplete suggestions appear
@@ -65,7 +65,7 @@ STOCKS_SYMBOLS=GOOG,AAPL,MSFT,TSLA,NVDA
 Select the period for percentage change calculation:
 
 Via Web UI:
-1. In **Settings** → **Features** → **Stocks**
+1. In the **Stocks** plugin on the **Integrations** page
 2. Select **Time Window** from dropdown:
    - 1 Day (default)
    - 5 Days
@@ -100,18 +100,18 @@ FINNHUB_API_KEY=your_finnhub_api_key_here
 
 ### 5. Create a Page to Display Stocks
 
-1. Go to **Pages** → **Create New Page**
+1. Go to **Pages** and click **New**
 2. Choose **Template** page type
 3. Add your template using stock variables:
 
 **Example Template:**
 ```
 {center}STOCK PRICES
-{{stocks.stocks.0.formatted}}
-{{stocks.stocks.1.formatted}}
-{{stocks.stocks.2.formatted}}
-{{stocks.stocks.3.formatted}}
-{{stocks.stocks.4.formatted}}
+{stocks.stocks.0.formatted}
+{stocks.stocks.1.formatted}
+{stocks.stocks.2.formatted}
+{stocks.stocks.3.formatted}
+{stocks.stocks.4.formatted}
 ```
 
 4. **Save** and **Set as Active**
@@ -123,7 +123,7 @@ FINNHUB_API_KEY=your_finnhub_api_key_here
 Easiest way to display stocks with automatic formatting:
 
 ```
-{{stocks.stocks.0.formatted}}
+{stocks.stocks.0.formatted}
 # Example output: "GOOG{green} $150.25 +1.18%"
 ```
 
@@ -138,20 +138,17 @@ The `formatted` variable includes:
 Access specific stocks using index (0-4):
 
 ```
-{{stocks.stocks.0.symbol}}          # Symbol (e.g., "GOOG")
-{{stocks.stocks.0.current_price}}   # Current price (e.g., "150.25")
-{{stocks.stocks.0.change_percent}}  # Percentage change (e.g., "+1.18%")
-{{stocks.stocks.0.change_amount}}   # Dollar change (e.g., "+1.75")
-{{stocks.stocks.0.color}}           # Color name (green/red/white)
-{{stocks.stocks.0.color_code}}      # Board color code (66/63/69)
+{stocks.stocks.0.symbol}          # Symbol (e.g., "GOOG")
+{stocks.stocks.0.current_price}   # Current price (e.g., "150.25")
+{stocks.stocks.0.change_percent}  # Percentage change (e.g., "+1.18%")
+{stocks.stocks.0.change_direction} # Change direction (e.g., "up"/"down")
+{stocks.stocks.0.formatted}       # Pre-formatted line with color
 ```
 
 ### Metadata
 
 ```
-{{stocks.symbol_count}}             # Number of configured stocks
-{{stocks.time_window}}              # Time window (e.g., "1 Day")
-{{stocks.last_updated}}             # Last update timestamp
+{stocks.symbol_count}             # Number of configured stocks
 ```
 
 ## Example Templates
@@ -162,11 +159,11 @@ Access specific stocks using index (0-4):
 
 ```
 {center}MY PORTFOLIO
-{{stocks.stocks.0.formatted}}
-{{stocks.stocks.1.formatted}}
-{{stocks.stocks.2.formatted}}
-{{stocks.stocks.3.formatted}}
-{{stocks.stocks.4.formatted}}
+{stocks.stocks.0.formatted}
+{stocks.stocks.1.formatted}
+{stocks.stocks.2.formatted}
+{stocks.stocks.3.formatted}
+{stocks.stocks.4.formatted}
 ```
 
 Output example:
@@ -182,28 +179,28 @@ NVDA{green} $495.20 +1.95%
 ### With Header
 
 ```
-{center}TECH STOCKS - {{stocks.time_window}}
-{{stocks.stocks.0.formatted}}
-{{stocks.stocks.1.formatted}}
-{{stocks.stocks.2.formatted}}
+{center}TECH STOCKS
+{stocks.stocks.0.formatted}
+{stocks.stocks.1.formatted}
+{stocks.stocks.2.formatted}
 ```
 
 ### Compact Format
 
 ```
 {center}STOCKS
-{{stocks.stocks.0.symbol}}: {{stocks.stocks.0.current_price}} ({{stocks.stocks.0.change_percent}})
-{{stocks.stocks.1.symbol}}: {{stocks.stocks.1.current_price}} ({{stocks.stocks.1.change_percent}})
-{{stocks.stocks.2.symbol}}: {{stocks.stocks.2.current_price}} ({{stocks.stocks.2.change_percent}})
+{stocks.stocks.0.symbol}: {stocks.stocks.0.current_price} ({stocks.stocks.0.change_percent})
+{stocks.stocks.1.symbol}: {stocks.stocks.1.current_price} ({stocks.stocks.1.change_percent})
+{stocks.stocks.2.symbol}: {stocks.stocks.2.current_price} ({stocks.stocks.2.change_percent})
 ```
 
 ### Major Indices
 
 ```
 {center}MARKET INDICES
-{{stocks.stocks.0.formatted}}
-{{stocks.stocks.1.formatted}}
-{{stocks.stocks.2.formatted}}
+{stocks.stocks.0.formatted}
+{stocks.stocks.1.formatted}
+{stocks.stocks.2.formatted}
 ```
 
 With symbols: `^GSPC` (S&P 500), `^IXIC` (Nasdaq), `^DJI` (Dow Jones)
@@ -212,8 +209,8 @@ With symbols: `^GSPC` (S&P 500), `^IXIC` (Nasdaq), `^DJI` (Dow Jones)
 
 ```
 {center}PORTFOLIO VALUE
-{{stocks.stocks.0.symbol|pad:6}}${{stocks.stocks.0.current_price|pad:8}}{{stocks.stocks.0.change_percent|pad:8}}
-{{stocks.stocks.1.symbol|pad:6}}${{stocks.stocks.1.current_price|pad:8}}{{stocks.stocks.1.change_percent|pad:8}}
+{stocks.stocks.0.symbol|pad:6}${stocks.stocks.0.current_price|pad:8}{stocks.stocks.0.change_percent|pad:8}
+{stocks.stocks.1.symbol|pad:6}${stocks.stocks.1.current_price|pad:8}{stocks.stocks.1.change_percent|pad:8}
 ```
 
 ## Configuration Reference
@@ -386,7 +383,7 @@ Prices and percentages are automatically aligned.
 3. **Check logs**: Look for Yahoo Finance API errors
 4. **Test directly**: 
    ```bash
-   curl http://localhost:4420/displays/stocks
+   curl http://localhost:4420/api/displays/stocks
    ```
 5. **Restart service**: May need container restart
 
@@ -445,24 +442,24 @@ Stocks uses **Yahoo Finance (yfinance)**:
 ```
 {center}MORNING BRIEF
 STOCKS
-{{stocks.stocks.0.formatted}}
-{{stocks.stocks.1.formatted}}
+{stocks.stocks.0.formatted}
+{stocks.stocks.1.formatted}
 
-COMMUTE: {{muni.stops.0.formatted}}
-WEATHER: {{weather.temperature}}° {{weather.condition}}
+COMMUTE: {muni.stops.0.formatted}
+WEATHER: {weather.temperature}° {weather.condition}
 ```
 
 ### Portfolio Performance
 
 ```
-{center}PORTFOLIO - {{stocks.time_window}}
+{center}PORTFOLIO
 TECH
-{{stocks.stocks.0.formatted}}
-{{stocks.stocks.1.formatted}}
+{stocks.stocks.0.formatted}
+{stocks.stocks.1.formatted}
 
 INDICES
-{{stocks.stocks.2.formatted}}
-{{stocks.stocks.3.formatted}}
+{stocks.stocks.2.formatted}
+{stocks.stocks.3.formatted}
 ```
 
 ### Custom Color Logic

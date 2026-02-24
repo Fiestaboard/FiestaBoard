@@ -49,8 +49,8 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ### After Setup
 
-1. Open **http://localhost:4420**
-2. Click **"Start Service"** to begin updating your board
+1. Open **http://localhost:4420** — the setup wizard will guide you through connecting your board
+2. The display service starts automatically once your board is connected
 3. Go to **Integrations** to enable plugins (weather, stocks, etc.)
 4. Go to **Pages** to create and design what your board displays
 5. Go to **Schedule** to automate when different pages show up
@@ -61,7 +61,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ## What Can You Display?
 
-FiestaBoard has **18 built-in plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
+FiestaBoard has **23 built-in plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
@@ -105,6 +105,7 @@ FiestaBoard has **18 built-in plugins** covering weather, finance, transit, spor
 | [Stardate](./plugins/stardate/README.md) | Current TNG-era stardate | No |
 | [Sun Art](./plugins/sun_art/README.md) | Art pattern that follows the sun | No |
 | [Visual Clock](./plugins/visual_clock/README.md) | Large pixel-art style clock | No |
+| [White Noise](./plugins/white_noise/README.md) | Ambient rain/white noise effect | No |
 
 ---
 
@@ -179,7 +180,7 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-Then go to **http://localhost:4420** and click **Start Service**.
+Then go to **http://localhost:4420** — the service starts automatically once the container is running.
 
 ---
 
@@ -187,7 +188,7 @@ Then go to **http://localhost:4420** and click **Start Service**.
 
 ### Board Not Updating
 
-- Make sure you clicked **Start Service** in the web UI
+- Make sure the service shows **Running** on the dashboard (http://localhost:4420)
 - Check your board API key is correct (Settings page in the web UI)
 - For local mode: verify your board is on the same network as the server
 - Check logs: `docker-compose logs -f`
