@@ -131,6 +131,8 @@ docker-compose logs -f | grep -i "home\|assistant"
 
 ## Display Format
 
+![Home Assistant Display](./home-assistant-display.png)
+
 The board will show:
 
 ```

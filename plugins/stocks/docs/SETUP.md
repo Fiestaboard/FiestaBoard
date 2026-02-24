@@ -156,6 +156,8 @@ Access specific stocks using index (0-4):
 
 ## Example Templates
 
+![Stock Prices Display](./stocks-display.png)
+
 ### Simple List
 
 ```
