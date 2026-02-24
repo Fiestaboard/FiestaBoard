@@ -100,10 +100,10 @@ class PageStorage:
         """Get all stored pages.
         
         Returns:
-            List of all pages, ordered by created_at
+            List of all pages, ordered alphabetically by name
         """
         pages = list(self._pages.values())
-        pages.sort(key=lambda p: p.created_at)
+        pages.sort(key=lambda p: p.name.lower())
         return pages
     
     def get(self, page_id: str) -> Optional[Page]:
