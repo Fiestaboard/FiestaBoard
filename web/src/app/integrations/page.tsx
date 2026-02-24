@@ -1042,7 +1042,7 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
             )}
           </div>
           {plugin.enabled && (
-            <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen} modal={false}>
+            <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 text-xs">
                   <Settings className="h-3 w-3 mr-1" />
