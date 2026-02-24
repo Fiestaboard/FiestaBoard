@@ -127,7 +127,25 @@ export function ScheduleCalendarView({
     ({ event, start, end }: EventInteractionArgs<CalendarEvent>) => {
       const startTime = extractTimeFromDate(start as Date);
       const endTime = extractTimeFromDate(end as Date);
-      onEventTimeChange(event.resource.scheduleId, startTime, endTime);
+
+      if (event.resource.isMidnightSplit) {
+        const orig = event.resource.originalSchedule;
+        if (event.resource.splitPart === "evening") {
+          // Evening part: end must stay at midnight (00:00)
+          if (endTime !== "00:00") {
+            return; // Revert – can't change midnight boundary
+          }
+          onEventTimeChange(event.resource.scheduleId, startTime, orig.end_time);
+        } else {
+          // Morning part: start must stay at midnight (00:00)
+          if (startTime !== "00:00") {
+            return; // Revert – can't change midnight boundary
+          }
+          onEventTimeChange(event.resource.scheduleId, orig.start_time, endTime);
+        }
+      } else {
+        onEventTimeChange(event.resource.scheduleId, startTime, endTime);
+      }
     },
     [onEventTimeChange]
   );
@@ -269,7 +287,7 @@ export function ScheduleCalendarView({
           tooltipAccessor={(event: CalendarEvent) =>
             `${event.title}\n${format(event.start, "h:mm a")} - ${format(event.end, "h:mm a")}`
           }
-          draggableAccessor={() => true}
+          draggableAccessor={(event: CalendarEvent) => !event.resource.isMidnightSplit}
           resizableAccessor={() => true}
           longPressThreshold={150}
         />

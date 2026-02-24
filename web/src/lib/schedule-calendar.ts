@@ -30,6 +30,10 @@ export interface CalendarEvent {
     enabled: boolean;
     dayPattern: string;
     originalSchedule: ScheduleEntry;
+    /** True when the event is one half of a midnight-split schedule */
+    isMidnightSplit?: boolean;
+    /** Which half of the split: "evening" ends at 00:00, "morning" starts at 00:00 */
+    splitPart?: "evening" | "morning";
   };
 }
 
@@ -114,6 +118,10 @@ export function scheduleToCalendarEvents(
   const endTime = parseTime(schedule.end_time);
   const pageName = getPageName(schedule.page_id, pages);
 
+  const isMidnightRollover =
+    endTime.hours < startTime.hours ||
+    (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes);
+
   for (const day of daysInWeek) {
     const dayOfWeek = getDay(day);
 
@@ -122,29 +130,73 @@ export function scheduleToCalendarEvents(
         setHours(day, startTime.hours),
         startTime.minutes
       );
-      // Handle midnight rollover: if end time is before or equal to start time,
-      // the event spans into the next day (e.g. 23:00 to 06:45)
-      const endDay =
-        endTime.hours < startTime.hours ||
-        (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes)
-          ? addDays(day, 1)
-          : day;
-      const eventEnd = setMinutes(setHours(endDay, endTime.hours), endTime.minutes);
 
-      events.push({
-        id: `${schedule.id}-${format(day, "yyyy-MM-dd")}`,
-        title: pageName,
-        start: eventStart,
-        end: eventEnd,
-        resource: {
-          scheduleId: schedule.id,
-          pageId: schedule.page_id,
-          pageName,
-          enabled: schedule.enabled,
-          dayPattern: schedule.day_pattern,
-          originalSchedule: schedule,
-        },
-      });
+      if (isMidnightRollover) {
+        // Split into two events at the midnight boundary
+        const nextDay = addDays(day, 1);
+
+        // Evening part: start_time → midnight
+        const eveningEnd = setMinutes(setHours(nextDay, 0), 0);
+        events.push({
+          id: `${schedule.id}-${format(day, "yyyy-MM-dd")}-evening`,
+          title: pageName,
+          start: eventStart,
+          end: eveningEnd,
+          resource: {
+            scheduleId: schedule.id,
+            pageId: schedule.page_id,
+            pageName,
+            enabled: schedule.enabled,
+            dayPattern: schedule.day_pattern,
+            originalSchedule: schedule,
+            isMidnightSplit: true,
+            splitPart: "evening",
+          },
+        });
+
+        // Morning part: midnight → end_time
+        const morningStart = setMinutes(setHours(nextDay, 0), 0);
+        const morningEnd = setMinutes(
+          setHours(nextDay, endTime.hours),
+          endTime.minutes
+        );
+        events.push({
+          id: `${schedule.id}-${format(nextDay, "yyyy-MM-dd")}-morning`,
+          title: pageName,
+          start: morningStart,
+          end: morningEnd,
+          resource: {
+            scheduleId: schedule.id,
+            pageId: schedule.page_id,
+            pageName,
+            enabled: schedule.enabled,
+            dayPattern: schedule.day_pattern,
+            originalSchedule: schedule,
+            isMidnightSplit: true,
+            splitPart: "morning",
+          },
+        });
+      } else {
+        // Normal same-day event
+        const eventEnd = setMinutes(
+          setHours(day, endTime.hours),
+          endTime.minutes
+        );
+        events.push({
+          id: `${schedule.id}-${format(day, "yyyy-MM-dd")}`,
+          title: pageName,
+          start: eventStart,
+          end: eventEnd,
+          resource: {
+            scheduleId: schedule.id,
+            pageId: schedule.page_id,
+            pageName,
+            enabled: schedule.enabled,
+            dayPattern: schedule.day_pattern,
+            originalSchedule: schedule,
+          },
+        });
+      }
     }
   }
 

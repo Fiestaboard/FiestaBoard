@@ -48,7 +48,7 @@ describe("scheduleToCalendarEvents", () => {
     }
   });
 
-  it("handles midnight rollover (end time before start time)", () => {
+  it("splits midnight rollover into evening and morning events", () => {
     const schedule = makeSchedule({
       start_time: "23:00",
       end_time: "06:45",
@@ -57,26 +57,36 @@ describe("scheduleToCalendarEvents", () => {
 
     const events = scheduleToCalendarEvents(schedule, WEEK_START, MOCK_PAGES);
 
-    expect(events).toHaveLength(7);
-    for (const event of events) {
+    // 7 days × 2 parts (evening + morning) = 14 events
+    expect(events).toHaveLength(14);
+
+    const eveningEvents = events.filter((e) => e.resource.splitPart === "evening");
+    const morningEvents = events.filter((e) => e.resource.splitPart === "morning");
+
+    expect(eveningEvents).toHaveLength(7);
+    expect(morningEvents).toHaveLength(7);
+
+    for (const event of eveningEvents) {
+      expect(event.resource.isMidnightSplit).toBe(true);
       expect(event.start.getHours()).toBe(23);
+      expect(event.start.getMinutes()).toBe(0);
+      expect(event.end.getHours()).toBe(0);
+      expect(event.end.getMinutes()).toBe(0);
+      // End is midnight of the next day
+      expect(event.end.getTime()).toBeGreaterThan(event.start.getTime());
+    }
+
+    for (const event of morningEvents) {
+      expect(event.resource.isMidnightSplit).toBe(true);
+      expect(event.start.getHours()).toBe(0);
       expect(event.start.getMinutes()).toBe(0);
       expect(event.end.getHours()).toBe(6);
       expect(event.end.getMinutes()).toBe(45);
-      // End should be on the NEXT day (midnight rollover)
-      expect(event.end.getDate()).toBe(
-        new Date(
-          event.start.getFullYear(),
-          event.start.getMonth(),
-          event.start.getDate() + 1
-        ).getDate()
-      );
-      // End time must be after start time
       expect(event.end.getTime()).toBeGreaterThan(event.start.getTime());
     }
   });
 
-  it("handles midnight rollover for custom days", () => {
+  it("splits midnight rollover for custom days", () => {
     const schedule = makeSchedule({
       start_time: "22:00",
       end_time: "02:00",
@@ -86,17 +96,20 @@ describe("scheduleToCalendarEvents", () => {
 
     const events = scheduleToCalendarEvents(schedule, WEEK_START, MOCK_PAGES);
 
-    expect(events).toHaveLength(1);
-    const event = events[0];
-    expect(event.start.getHours()).toBe(22);
-    expect(event.end.getHours()).toBe(2);
-    // End should be next day (Tuesday)
-    expect(event.end.getTime()).toBeGreaterThan(event.start.getTime());
+    // 1 day × 2 parts = 2 events
+    expect(events).toHaveLength(2);
+
+    const evening = events.find((e) => e.resource.splitPart === "evening")!;
+    const morning = events.find((e) => e.resource.splitPart === "morning")!;
+
+    expect(evening.start.getHours()).toBe(22);
+    expect(evening.end.getHours()).toBe(0);
+    expect(morning.start.getHours()).toBe(0);
+    expect(morning.end.getHours()).toBe(2);
   });
 
-  it("treats same start/end time as midnight rollover (full 24h span)", () => {
+  it("splits same start/end time as midnight rollover", () => {
     // Edge case: start == end triggers rollover, consistent with backend behavior
-    // (end_minutes <= start_minutes means midnight rollover)
     const schedule = makeSchedule({
       start_time: "12:00",
       end_time: "12:00",
@@ -105,8 +118,45 @@ describe("scheduleToCalendarEvents", () => {
 
     const events = scheduleToCalendarEvents(schedule, WEEK_START, MOCK_PAGES);
 
+    // 5 weekdays × 2 parts = 10 events
+    expect(events).toHaveLength(10);
+
     for (const event of events) {
+      expect(event.resource.isMidnightSplit).toBe(true);
       expect(event.end.getTime()).toBeGreaterThan(event.start.getTime());
+    }
+  });
+
+  it("preserves originalSchedule reference on both split parts", () => {
+    const schedule = makeSchedule({
+      start_time: "23:00",
+      end_time: "06:45",
+      day_pattern: "custom",
+      custom_days: ["wednesday"],
+    });
+
+    const events = scheduleToCalendarEvents(schedule, WEEK_START, MOCK_PAGES);
+    expect(events).toHaveLength(2);
+
+    // Both parts should reference the same original schedule
+    for (const event of events) {
+      expect(event.resource.originalSchedule).toBe(schedule);
+      expect(event.resource.scheduleId).toBe(schedule.id);
+    }
+  });
+
+  it("normal same-day events have no split metadata", () => {
+    const schedule = makeSchedule({
+      start_time: "09:00",
+      end_time: "17:00",
+      day_pattern: "all",
+    });
+
+    const events = scheduleToCalendarEvents(schedule, WEEK_START, MOCK_PAGES);
+
+    for (const event of events) {
+      expect(event.resource.isMidnightSplit).toBeUndefined();
+      expect(event.resource.splitPart).toBeUndefined();
     }
   });
 
@@ -160,17 +210,23 @@ describe("schedulesToCalendarEvents", () => {
 
     const events = schedulesToCalendarEvents(schedules, WEEK_START, MOCK_PAGES);
 
-    // 7 events from each schedule
-    expect(events).toHaveLength(14);
+    // 7 normal events from s1 + 14 split events from s2 (7 evening + 7 morning)
+    expect(events).toHaveLength(21);
 
     const s1Events = events.filter((e) => e.resource.scheduleId === "s1");
     const s2Events = events.filter((e) => e.resource.scheduleId === "s2");
 
     expect(s1Events).toHaveLength(7);
-    expect(s2Events).toHaveLength(7);
+    expect(s2Events).toHaveLength(14);
 
-    // Verify midnight rollover events have end after start
+    // Normal events should not be marked as split
+    for (const event of s1Events) {
+      expect(event.resource.isMidnightSplit).toBeUndefined();
+    }
+
+    // Split events should all have end after start
     for (const event of s2Events) {
+      expect(event.resource.isMidnightSplit).toBe(true);
       expect(event.end.getTime()).toBeGreaterThan(event.start.getTime());
     }
   });
