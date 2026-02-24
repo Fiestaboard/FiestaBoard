@@ -588,6 +588,43 @@ class TestTrafficPluginClass:
             result = plugin._fetch_single_route("A", "B", "DEST")
             assert result is None
 
+    def test_fetch_single_route_empty_routes(self, plugin):
+        """Test when API returns no routes in response."""
+        plugin._config = {"api_key": "test_key"}
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"routes": []}
+        with patch('plugins.traffic.requests.post', return_value=mock_resp):
+            result = plugin._fetch_single_route("A", "B", "DEST")
+            assert result is None
+
+    def test_fetch_single_route_missing_static_duration(self, plugin):
+        """Test when staticDuration is 0 or missing."""
+        plugin._config = {"api_key": "test_key"}
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "routes": [{"duration": "1800s", "staticDuration": "0s"}]
+        }
+        with patch('plugins.traffic.requests.post', return_value=mock_resp):
+            result = plugin._fetch_single_route("A", "B", "DEST")
+            assert result is not None
+            assert result["duration_minutes"] == 30
+
+    def test_fetch_data_all_routes_fail(self, plugin):
+        """Test when all routes fail to fetch."""
+        plugin._config = {
+            "api_key": "test_key",
+            "routes": [
+                {"origin": "A", "destination": "B", "destination_name": "DEST1"},
+                {"origin": "C", "destination": "D", "destination_name": "DEST2"}
+            ]
+        }
+        with patch.object(plugin, '_fetch_single_route', return_value=None):
+            result = plugin.fetch_data()
+            assert not result.available
+            assert "Failed to fetch any route data" in result.error
+
     def test_fetch_data_success(self, plugin):
         plugin._config = {
             "api_key": "test_key",
@@ -607,3 +644,45 @@ class TestTrafficPluginClass:
             result = plugin.fetch_data()
             assert result.available
             assert result.data["route_count"] == 1
+
+    def test_get_formatted_display_with_cache(self, plugin):
+        """Test get_formatted_display with cached data."""
+        plugin._cache = {
+            "routes": [
+                {"formatted": "HOME: 30m (+5m)"},
+                {"formatted": "WORK: 25m"}
+            ]
+        }
+        lines = plugin.get_formatted_display()
+        assert lines is not None
+        assert len(lines) == 6
+        assert lines[0] == "TRAFFIC".center(22)
+        assert lines[2] == "HOME: 30m (+5m)"
+        assert lines[3] == "WORK: 25m"
+
+    def test_get_formatted_display_no_cache(self, plugin):
+        """Test get_formatted_display without cache."""
+        plugin._cache = None
+        plugin._config = {
+            "api_key": "test_key",
+            "routes": [{"origin": "A", "destination": "B", "destination_name": "DEST"}]
+        }
+        mock_route = {
+            "duration_minutes": 20,
+            "delay_minutes": 0,
+            "traffic_status": "LIGHT",
+            "traffic_color": "{62}",
+            "destination_name": "DEST",
+            "formatted": "DEST: 20m"
+        }
+        with patch.object(plugin, '_fetch_single_route', return_value=mock_route):
+            lines = plugin.get_formatted_display()
+            assert lines is not None
+            assert len(lines) == 6
+
+    def test_get_formatted_display_fetch_fails(self, plugin):
+        """Test get_formatted_display when fetch fails."""
+        plugin._cache = None
+        plugin._config = {"api_key": "test_key", "routes": []}
+        result = plugin.get_formatted_display()
+        assert result is None
