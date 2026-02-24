@@ -713,3 +713,99 @@ class TestAirFogPluginClass:
             result = plugin.fetch_data()
             assert not result.available
 
+    def test_fetch_purpleair_data_with_sensor_id(self, plugin):
+        """Test _fetch_purpleair_data with specific sensor ID."""
+        plugin._config = {
+            "purpleair_api_key": "test_key",
+            "purpleair_sensor_id": "12345"
+        }
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "sensor": {"pm2.5_10minute": 25.5}
+        }
+        with patch('plugins.air_fog.requests.get', return_value=mock_resp):
+            result = plugin._fetch_purpleair_data()
+            assert result is not None
+            assert result["pm2_5"] == 25.5
+            assert "aqi" in result
+
+    def test_fetch_purpleair_data_no_sensor_id(self, plugin):
+        """Test _fetch_purpleair_data without sensor ID (nearby search)."""
+        plugin._config = {
+            "purpleair_api_key": "test_key",
+            "latitude": 37.7749,
+            "longitude": -122.4194
+        }
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "data": [[30.0], [35.0], [28.0]]
+        }
+        with patch('plugins.air_fog.requests.get', return_value=mock_resp):
+            result = plugin._fetch_purpleair_data()
+            assert result is not None
+            assert result["pm2_5"] == 31.0  # Average of 30, 35, 28
+
+    def test_fetch_purpleair_data_no_api_key(self, plugin):
+        """Test _fetch_purpleair_data without API key."""
+        plugin._config = {}
+        result = plugin._fetch_purpleair_data()
+        assert result is None
+
+    def test_fetch_purpleair_data_api_error(self, plugin):
+        """Test _fetch_purpleair_data with API error."""
+        plugin._config = {
+            "purpleair_api_key": "test_key",
+            "purpleair_sensor_id": "12345"
+        }
+        with patch('plugins.air_fog.requests.get', side_effect=Exception("API error")):
+            result = plugin._fetch_purpleair_data()
+            assert result is None
+
+    def test_fetch_purpleair_data_no_nearby_sensors(self, plugin):
+        """Test _fetch_purpleair_data with no nearby sensors."""
+        plugin._config = {
+            "purpleair_api_key": "test_key",
+            "latitude": 37.7749,
+            "longitude": -122.4194
+        }
+        mock_resp = Mock()
+        mock_resp.json.return_value = {"data": []}
+        with patch('plugins.air_fog.requests.get', return_value=mock_resp):
+            result = plugin._fetch_purpleair_data()
+            assert result is None
+
+    def test_fetch_openweathermap_data_success(self, plugin):
+        """Test _fetch_openweathermap_data with successful response."""
+        plugin._config = {
+            "openweathermap_api_key": "test_key",
+            "latitude": 37.7749,
+            "longitude": -122.4194
+        }
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "visibility": 10000,
+            "main": {"humidity": 70, "temp": 293.15}
+        }
+        with patch('plugins.air_fog.requests.get', return_value=mock_resp):
+            result = plugin._fetch_openweathermap_data()
+            assert result is not None
+            assert result["visibility_m"] == 10000
+            assert result["humidity"] == 70
+
+    def test_fetch_openweathermap_data_no_api_key(self, plugin):
+        """Test _fetch_openweathermap_data without API key."""
+        plugin._config = {}
+        result = plugin._fetch_openweathermap_data()
+        assert result is None
+
+    def test_fetch_openweathermap_data_api_error(self, plugin):
+        """Test _fetch_openweathermap_data with API error."""
+        plugin._config = {
+            "openweathermap_api_key": "test_key",
+            "latitude": 37.7749,
+            "longitude": -122.4194
+        }
+        with patch('plugins.air_fog.requests.get', side_effect=Exception("API error")):
+            result = plugin._fetch_openweathermap_data()
+            assert result is None
+
