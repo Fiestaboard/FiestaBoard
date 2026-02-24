@@ -6,6 +6,7 @@ import {
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
+  addDays,
   setHours,
   setMinutes,
   format,
@@ -121,7 +122,14 @@ export function scheduleToCalendarEvents(
         setHours(day, startTime.hours),
         startTime.minutes
       );
-      const eventEnd = setMinutes(setHours(day, endTime.hours), endTime.minutes);
+      // Handle midnight rollover: if end time is before or equal to start time,
+      // the event spans into the next day (e.g. 23:00 to 06:45)
+      const endDay =
+        endTime.hours < startTime.hours ||
+        (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes)
+          ? addDays(day, 1)
+          : day;
+      const eventEnd = setMinutes(setHours(endDay, endTime.hours), endTime.minutes);
 
       events.push({
         id: `${schedule.id}-${format(day, "yyyy-MM-dd")}`,
