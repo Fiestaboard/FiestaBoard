@@ -89,7 +89,7 @@ omit = [
 branch = true
 
 [tool.coverage.report]
-fail_under = 49
+fail_under = 80
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
@@ -98,10 +98,6 @@ exclude_lines = [
     "raise NotImplementedError",
     "pass",
 ]
-# Note: Coverage threshold is set to 49% (current coverage is 49%)
-# Target is 80%. See GitHub issue #63 for improvement plan.
-# Low coverage areas: api_server (32%), config_manager (50%), templates/engine (52%), plugins/registry (57%)
-# Related issues: #58 (legacy data sources), #59 (env vars), #60 (naming), #61 (API redundancy)
 
 [tool.coverage.html]
 directory = "coverage/html"

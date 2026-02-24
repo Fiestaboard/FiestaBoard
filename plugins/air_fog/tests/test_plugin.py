@@ -570,3 +570,146 @@ class TestGetAirFogSource:
         
         assert source is None
 
+
+class TestAirFogPluginClass:
+    """Tests for AirFogPlugin class (plugins/air_fog/__init__.py)."""
+
+    @pytest.fixture
+    def plugin(self):
+        from plugins.air_fog import AirFogPlugin
+        manifest = {"id": "air_fog", "name": "Air & Fog", "version": "1.0.0"}
+        return AirFogPlugin(manifest)
+
+    def test_plugin_id(self, plugin):
+        assert plugin.plugin_id == "air_fog"
+
+    def test_validate_config_purpleair_key(self, plugin):
+        assert plugin.validate_config({"purpleair_api_key": "k"}) == []
+
+    def test_validate_config_owm_key(self, plugin):
+        assert plugin.validate_config({"openweathermap_api_key": "k"}) == []
+
+    def test_validate_config_no_keys(self, plugin):
+        errors = plugin.validate_config({})
+        assert len(errors) == 1
+
+    def test_calculate_dew_point_100_humidity(self):
+        from plugins.air_fog import AirFogPlugin
+        dp = AirFogPlugin.calculate_dew_point(68.0, 100.0)
+        assert abs(dp - 68.0) < 0.5
+
+    def test_calculate_dew_point_low_humidity(self):
+        from plugins.air_fog import AirFogPlugin
+        dp = AirFogPlugin.calculate_dew_point(70.0, 50.0)
+        assert dp < 70.0
+
+    def test_calculate_aqi_good(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, cat, color = AirFogPlugin.calculate_aqi_from_pm25(5.0)
+        assert cat == "GOOD"
+        assert color == "GREEN"
+
+    def test_calculate_aqi_moderate(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, cat, _ = AirFogPlugin.calculate_aqi_from_pm25(20.0)
+        assert cat == "MODERATE"
+
+    def test_calculate_aqi_unhealthy_sensitive(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, cat, _ = AirFogPlugin.calculate_aqi_from_pm25(40.0)
+        assert cat == "UNHEALTHY_SENSITIVE"
+
+    def test_calculate_aqi_unhealthy(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, cat, _ = AirFogPlugin.calculate_aqi_from_pm25(100.0)
+        assert cat == "UNHEALTHY"
+
+    def test_calculate_aqi_very_unhealthy(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, cat, _ = AirFogPlugin.calculate_aqi_from_pm25(200.0)
+        assert cat == "VERY_UNHEALTHY"
+
+    def test_calculate_aqi_hazardous(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, cat, _ = AirFogPlugin.calculate_aqi_from_pm25(300.0)
+        assert cat == "HAZARDOUS"
+
+    def test_calculate_aqi_extreme(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, cat, _ = AirFogPlugin.calculate_aqi_from_pm25(600.0)
+        assert aqi == 500
+
+    def test_calculate_aqi_negative(self):
+        from plugins.air_fog import AirFogPlugin
+        aqi, _, _ = AirFogPlugin.calculate_aqi_from_pm25(-5.0)
+        assert aqi == 0
+
+    def test_determine_fog_status_foggy(self, plugin):
+        is_foggy, status, color = plugin.determine_fog_status(1000, 70, 65)
+        assert is_foggy is True
+        assert status == "FOG"
+        assert color == "ORANGE"
+
+    def test_determine_fog_status_humidity_temp(self, plugin):
+        is_foggy, status, _ = plugin.determine_fog_status(5000, 96, 55)
+        assert is_foggy is True
+
+    def test_determine_fog_status_haze(self, plugin):
+        is_foggy, status, color = plugin.determine_fog_status(2500, 70, 65)
+        assert is_foggy is False
+        assert status == "HAZE"
+        assert color == "YELLOW"
+
+    def test_determine_fog_status_clear(self, plugin):
+        is_foggy, status, color = plugin.determine_fog_status(10000, 50, 70)
+        assert is_foggy is False
+        assert status == "CLEAR"
+        assert color == "GREEN"
+
+    def test_determine_air_status_good(self, plugin):
+        assert plugin.determine_air_status(40) == ("GOOD", "GREEN")
+
+    def test_determine_air_status_moderate(self, plugin):
+        assert plugin.determine_air_status(75) == ("MODERATE", "YELLOW")
+
+    def test_determine_air_status_moderate_high(self, plugin):
+        assert plugin.determine_air_status(125) == ("MODERATE HIGH", "ORANGE")
+
+    def test_determine_air_status_unhealthy(self, plugin):
+        assert plugin.determine_air_status(175) == ("UNHEALTHY", "RED")
+
+    def test_determine_air_status_very_unhealthy(self, plugin):
+        assert plugin.determine_air_status(250) == ("VERY UNHEALTHY", "PURPLE")
+
+    def test_determine_air_status_hazardous(self, plugin):
+        assert plugin.determine_air_status(350) == ("HAZARDOUS", "MAROON")
+
+    def test_color_to_code(self, plugin):
+        assert plugin._color_to_code("GREEN") == 66
+        assert plugin._color_to_code("YELLOW") == 65
+        assert plugin._color_to_code("ORANGE") == 64
+        assert plugin._color_to_code("RED") == 63
+        assert plugin._color_to_code("PURPLE") == 68
+        assert plugin._color_to_code("MAROON") == 68
+        assert plugin._color_to_code("UNKNOWN") == 66
+
+    def test_fetch_data_both_sources(self, plugin):
+        plugin._config = {
+            "purpleair_api_key": "test",
+            "openweathermap_api_key": "test",
+        }
+        pa_data = {"aqi": 75, "pm2_5": 20.0, "aqi_category": "MODERATE", "aqi_color": "YELLOW"}
+        owm_data = {"visibility_m": 5000, "humidity": 75, "temperature_f": 62.5}
+        with patch.object(plugin, '_fetch_purpleair_data', return_value=pa_data), \
+             patch.object(plugin, '_fetch_openweathermap_data', return_value=owm_data):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["aqi"] == 75
+            assert "VIS:" in result.data["formatted"]
+
+    def test_fetch_data_no_sources(self, plugin):
+        with patch.object(plugin, '_fetch_purpleair_data', return_value=None), \
+             patch.object(plugin, '_fetch_openweathermap_data', return_value=None):
+            result = plugin.fetch_data()
+            assert not result.available
+

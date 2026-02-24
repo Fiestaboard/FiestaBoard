@@ -1,0 +1,174 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
+import { GeneralSettings } from "@/components/general-settings";
+import { http, HttpResponse } from "msw";
+import { server } from "./mocks/server";
+
+const API_BASE = "/api";
+
+function TestWrapper({ children }: { children: React.ReactNode }) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="light">
+        {children}
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
+describe("GeneralSettings extended", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("handles polling interval change with valid value", async () => {
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const input = document.getElementById("polling-interval");
+      expect(input).toBeInTheDocument();
+      expect(parseInt((input as HTMLInputElement).value, 10)).toBeGreaterThanOrEqual(10);
+    });
+
+    const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
+    fireEvent.change(pollingInput, { target: { value: "120" } });
+    // handlePollingIntervalChange(120) updates state when value >= 10
+    expect(pollingInput).toBeInTheDocument();
+  });
+
+  it("ignores polling interval change with value less than 10", async () => {
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(document.getElementById("polling-interval")).toBeInTheDocument();
+    });
+
+    const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
+    const beforeValue = pollingInput.value;
+    fireEvent.change(pollingInput, { target: { value: "5" } });
+
+    await waitFor(() => {
+      // handlePollingIntervalChange ignores values < 10, state unchanged
+      expect(pollingInput.value).not.toBe("5");
+      expect(parseInt(pollingInput.value, 10)).toBeGreaterThanOrEqual(10);
+    });
+  });
+
+  it("shows silence time pickers when enabled including end time", async () => {
+    const user = userEvent.setup();
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const switches = screen.getAllByRole("switch");
+      expect(switches.length).toBeGreaterThan(0);
+    });
+
+    const silenceToggle = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "silence-enabled");
+    expect(silenceToggle).toBeDefined();
+    await user.click(silenceToggle!);
+
+    await waitFor(() => {
+      expect(screen.getByText("End Time")).toBeInTheDocument();
+      expect(screen.getByText("When silence ends")).toBeInTheDocument();
+      expect(screen.getByText("Start Time")).toBeInTheDocument();
+    });
+  });
+
+  it("shows dev mode toggle error on mutation failure", async () => {
+    const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
+    server.use(
+      http.post(`${API_BASE}/dev-mode`, () =>
+        HttpResponse.json({ error: "Failed" }, { status: 500 })
+      )
+    );
+
+    const user = userEvent.setup();
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const devModeSwitch = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "dev-mode");
+      expect(devModeSwitch).toBeInTheDocument();
+    });
+
+    const devModeSwitch = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "dev-mode");
+    if (devModeSwitch) {
+      await user.click(devModeSwitch);
+
+      await waitFor(() => {
+        expect(toastSpy).toHaveBeenCalledWith("Failed to toggle dev mode");
+      });
+    }
+
+    toastSpy.mockRestore();
+  });
+
+  it("displays Board Update Interval description", async () => {
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText(/How often the board checks for content updates/i)).toBeInTheDocument();
+    });
+  });
+
+  it("displays Requires service restart note for polling", async () => {
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Requires service restart/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows Stopped badge when service is not running", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/all`, () =>
+        HttpResponse.json({
+          general: { timezone: "America/Los_Angeles", refresh_interval_seconds: 300, output_target: "board" },
+          silence_schedule: { config: { enabled: false, start_time: "04:00+00:00", end_time: "15:00+00:00" } },
+          polling: { interval_seconds: 300 },
+          transitions: { strategy: "column", step_interval_ms: 500, step_size: 2, available_strategies: [] },
+          output: { target: "board", dev_mode: false, effective_target: "board", available_targets: [] },
+          board: { board_type: "black", boards: [], devices: [] },
+          status: { running: false, config_summary: { dev_mode: false } },
+        })
+      )
+    );
+
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("○ Stopped")).toBeInTheDocument();
+    });
+  });
+
+  it("shows dev mode preview text when dev mode is on", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/all`, () =>
+        HttpResponse.json({
+          general: { timezone: "America/Los_Angeles", refresh_interval_seconds: 300, output_target: "board" },
+          silence_schedule: { config: { enabled: false, start_time: "04:00+00:00", end_time: "15:00+00:00" } },
+          polling: { interval_seconds: 300 },
+          transitions: { strategy: "column", step_interval_ms: 500, step_size: 2, available_strategies: [] },
+          output: { target: "board", dev_mode: false, effective_target: "board", available_targets: [] },
+          board: { board_type: "black", boards: [], devices: [] },
+          status: { running: true, config_summary: { dev_mode: true } },
+        })
+      )
+    );
+
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText(/preview only/i)).toBeInTheDocument();
+    });
+  });
+});

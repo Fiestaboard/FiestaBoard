@@ -730,3 +730,133 @@ class TestBayWheelsConfig:
             assert source is not None
             assert source.station_ids == ["test-station"]
 
+
+class TestBayWheelsPluginClass:
+    """Tests for BayWheelsPlugin class (plugins/baywheels/__init__.py)."""
+
+    @pytest.fixture
+    def plugin(self):
+        from plugins.baywheels import BayWheelsPlugin
+        manifest = {"id": "baywheels", "name": "Bay Wheels", "version": "1.0.0"}
+        return BayWheelsPlugin(manifest)
+
+    def test_plugin_id(self, plugin):
+        assert plugin.plugin_id == "baywheels"
+
+    def test_validate_config_valid(self, plugin):
+        assert plugin.validate_config({"station_ids": ["s1"]}) == []
+
+    def test_validate_config_no_stations(self, plugin):
+        errors = plugin.validate_config({})
+        assert len(errors) == 1
+
+    def test_validate_config_empty_list(self, plugin):
+        errors = plugin.validate_config({"station_ids": []})
+        assert len(errors) == 1
+
+    def test_get_status_color_red(self, plugin):
+        assert plugin._get_status_color(0) == "{63}"
+        assert plugin._get_status_color(1) == "{63}"
+
+    def test_get_status_color_yellow(self, plugin):
+        assert plugin._get_status_color(2) == "{65}"
+        assert plugin._get_status_color(5) == "{65}"
+
+    def test_get_status_color_green(self, plugin):
+        assert plugin._get_status_color(6) == "{66}"
+        assert plugin._get_status_color(10) == "{66}"
+
+    def test_fetch_data_no_station_ids(self, plugin):
+        plugin._config = {}
+        result = plugin.fetch_data()
+        assert not result.available
+
+    def test_fetch_data_success(self, plugin):
+        plugin._config = {"station_ids": ["station-1"]}
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "data": {
+                "stations": [{
+                    "station_id": "station-1",
+                    "num_bikes_available": 10,
+                    "num_ebikes_available": 7,
+                    "is_renting": 1,
+                }]
+            }
+        }
+        mock_resp.raise_for_status.return_value = None
+        station_info = {"station-1": {"name": "Test Station", "lat": 37.77, "lon": -122.42}}
+        with patch('plugins.baywheels.requests.get', return_value=mock_resp), \
+             patch.object(plugin, '_get_station_information', return_value=station_info):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["electric_bikes"] == 7
+            assert result.data["classic_bikes"] == 3
+            assert result.data["station_count"] == 1
+
+    def test_fetch_data_station_not_found(self, plugin):
+        plugin._config = {"station_ids": ["missing"]}
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "data": {
+                "stations": [{
+                    "station_id": "other",
+                    "num_bikes_available": 5,
+                    "num_ebikes_available": 2,
+                    "is_renting": 1,
+                }]
+            }
+        }
+        mock_resp.raise_for_status.return_value = None
+        with patch('plugins.baywheels.requests.get', return_value=mock_resp), \
+             patch.object(plugin, '_get_station_information', return_value={}):
+            result = plugin.fetch_data()
+            assert not result.available
+
+    def test_fetch_data_exception(self, plugin):
+        plugin._config = {"station_ids": ["s1"]}
+        with patch('plugins.baywheels.requests.get', side_effect=Exception("fail")):
+            result = plugin.fetch_data()
+            assert not result.available
+
+    def test_fetch_data_long_station_name(self, plugin):
+        plugin._config = {"station_ids": ["station-1"]}
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "data": {
+                "stations": [{
+                    "station_id": "station-1",
+                    "num_bikes_available": 5,
+                    "num_ebikes_available": 3,
+                    "is_renting": 1,
+                }]
+            }
+        }
+        mock_resp.raise_for_status.return_value = None
+        station_info = {"station-1": {"name": "A Very Long Station Name Here", "lat": 37.77, "lon": -122.42}}
+        with patch('plugins.baywheels.requests.get', return_value=mock_resp), \
+             patch.object(plugin, '_get_station_information', return_value=station_info):
+            result = plugin.fetch_data()
+            assert result.available
+            assert len(result.data["station_name"]) <= 10
+
+    def test_fetch_data_not_renting(self, plugin):
+        plugin._config = {"station_ids": ["station-1"]}
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "data": {
+                "stations": [{
+                    "station_id": "station-1",
+                    "num_bikes_available": 5,
+                    "num_ebikes_available": 3,
+                    "is_renting": 0,
+                }]
+            }
+        }
+        mock_resp.raise_for_status.return_value = None
+        with patch('plugins.baywheels.requests.get', return_value=mock_resp), \
+             patch.object(plugin, '_get_station_information', return_value={}):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["is_renting"] == "No"
+
