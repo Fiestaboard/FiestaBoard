@@ -197,9 +197,23 @@
   color: var(--rbc-primary-color);
 }
 
-/* ===== Current Time Indicator - hide for template view ===== */
+/* ===== Current Time Indicator ===== */
 .schedule-calendar-container .rbc-current-time-indicator {
-  display: none;
+  background-color: var(--destructive);
+  height: 2px;
+  z-index: 3;
+}
+
+.schedule-calendar-container .rbc-current-time-indicator::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  background-color: var(--destructive);
+  border-radius: 50%;
 }
 
 /* ===== Events ===== */
