@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import patch, Mock, MagicMock
 
+from plugins.weather import WeatherPlugin
 from plugins.weather.source import WeatherSource, _uv_to_display_index
 
 
@@ -812,3 +813,158 @@ class TestWeatherForecastData:
         assert "feels_like_c" in result
         assert "high_temp_c" in result
         assert "low_temp_c" in result
+
+
+class TestWeatherPluginMethods:
+    """Tests for WeatherPlugin public methods."""
+
+    @pytest.fixture
+    def weather_manifest(self):
+        """Create a test manifest for the weather plugin."""
+        return {
+            "id": "weather",
+            "name": "Weather",
+            "version": "1.0.0",
+            "description": "Weather plugin",
+            "author": "Test",
+            "settings_schema": {},
+            "variables": {"simple": ["temperature", "condition"]},
+            "max_lengths": {}
+        }
+
+    @pytest.fixture
+    def plugin(self, weather_manifest):
+        return WeatherPlugin(weather_manifest)
+
+    def test_validate_config_valid(self, plugin):
+        """Test validate_config with valid configuration."""
+        config = {
+            "api_key": "test_key",
+            "provider": "weatherapi",
+            "locations": [{"location": "San Francisco", "name": "SF"}],
+            "refresh_seconds": 300
+        }
+        errors = plugin.validate_config(config)
+        assert len(errors) == 0
+
+    def test_validate_config_missing_api_key(self, plugin):
+        """Test validate_config with missing API key."""
+        config = {"locations": [{"location": "SF", "name": "SF"}]}
+        errors = plugin.validate_config(config)
+        assert any("API key" in e for e in errors)
+
+    def test_validate_config_missing_locations(self, plugin):
+        """Test validate_config with missing locations."""
+        config = {"api_key": "test_key"}
+        errors = plugin.validate_config(config)
+        assert any("location" in e for e in errors)
+
+    def test_validate_config_invalid_provider(self, plugin):
+        """Test validate_config with invalid provider."""
+        config = {
+            "api_key": "test_key",
+            "locations": [{"location": "SF", "name": "SF"}],
+            "provider": "invalid_provider"
+        }
+        errors = plugin.validate_config(config)
+        assert any("provider" in e for e in errors)
+
+    def test_validate_config_invalid_refresh(self, plugin):
+        """Test validate_config with invalid refresh interval."""
+        config = {
+            "api_key": "test_key",
+            "locations": [{"location": "SF", "name": "SF"}],
+            "refresh_seconds": 30
+        }
+        errors = plugin.validate_config(config)
+        assert any("Refresh interval" in e for e in errors)
+
+    def test_validate_config_legacy_location(self, plugin):
+        """Test validate_config with legacy single location."""
+        config = {
+            "api_key": "test_key",
+            "location": "San Francisco, CA"
+        }
+        errors = plugin.validate_config(config)
+        assert len(errors) == 0
+
+    def test_on_config_change(self, plugin):
+        """Test on_config_change resets source and cache."""
+        plugin._source = Mock()
+        plugin._cache = {"temperature": 70}
+        old_config = {"api_key": "old_key"}
+        new_config = {"api_key": "new_key"}
+        plugin.on_config_change(old_config, new_config)
+        assert plugin._source is None
+        assert plugin._cache is None
+
+    def test_get_source_no_config(self, plugin):
+        """Test _get_source with no config."""
+        plugin._config = None
+        result = plugin._get_source()
+        assert result is None
+
+    def test_get_source_no_api_key(self, plugin):
+        """Test _get_source with missing API key."""
+        plugin._config = {"locations": [{"location": "SF", "name": "SF"}]}
+        result = plugin._get_source()
+        assert result is None
+
+    def test_get_source_no_locations(self, plugin):
+        """Test _get_source with no locations."""
+        plugin._config = {"api_key": "test_key"}
+        result = plugin._get_source()
+        assert result is None
+
+    def test_get_source_legacy_location(self, plugin):
+        """Test _get_source with legacy location format."""
+        plugin._config = {
+            "api_key": "test_key",
+            "location": "San Francisco, CA"
+        }
+        result = plugin._get_source()
+        assert result is not None
+
+    def test_get_formatted_display_with_cache(self, plugin):
+        """Test get_formatted_display with cached data."""
+        plugin._cache = {
+            "temperature": 72,
+            "condition": "Sunny",
+            "feels_like": 70,
+            "humidity": 65,
+            "wind_speed": 10
+        }
+        lines = plugin.get_formatted_display()
+        assert lines is not None
+        assert len(lines) == 6
+        assert "WEATHER" in lines[0]
+        assert "72°" in lines[1]
+        assert "Sunny" in lines[1]
+        assert "FEELS LIKE" in lines[2]
+        assert "HUMIDITY" in lines[3]
+        assert "WIND" in lines[4]
+
+    def test_get_formatted_display_no_cache(self, plugin):
+        """Test get_formatted_display without cache (fetch fails)."""
+        plugin._cache = None
+        plugin._config = {}
+        lines = plugin.get_formatted_display()
+        assert lines is None
+
+    def test_fetch_data_exception(self, plugin):
+        """Test fetch_data with exception during fetch."""
+        plugin._config = {"api_key": "test_key", "locations": [{"location": "SF", "name": "SF"}]}
+        mock_source = Mock()
+        mock_source.fetch_multiple_locations.side_effect = Exception("Test error")
+        with patch.object(plugin, '_get_source', return_value=mock_source):
+            result = plugin.fetch_data()
+            assert not result.available
+            assert "Test error" in result.error
+
+    def test_cleanup(self, plugin):
+        """Test cleanup method."""
+        plugin._source = Mock()
+        plugin._cache = {"data": "test"}
+        plugin.cleanup()
+        assert plugin._source is None
+        assert plugin._cache is None
