@@ -647,3 +647,232 @@ class TestMuniFormatter:
         
         assert "No arrivals" in result
 
+
+class TestMuniPluginClass:
+    """Tests for MuniPlugin class (plugins/muni/__init__.py)."""
+
+    @pytest.fixture
+    def plugin(self):
+        from plugins.muni import MuniPlugin
+        manifest = {"id": "muni", "name": "SF Muni", "version": "1.0.0"}
+        return MuniPlugin(manifest)
+
+    def test_plugin_id(self, plugin):
+        assert plugin.plugin_id == "muni"
+
+    def test_validate_config_valid(self, plugin):
+        assert plugin.validate_config({"api_key": "k", "stop_codes": ["1"]}) == []
+
+    def test_validate_config_missing_key(self, plugin):
+        errors = plugin.validate_config({"stop_codes": ["1"]})
+        assert len(errors) == 1
+
+    def test_validate_config_missing_stops(self, plugin):
+        errors = plugin.validate_config({"api_key": "k"})
+        assert len(errors) == 1
+
+    def test_validate_config_empty(self, plugin):
+        errors = plugin.validate_config({})
+        assert len(errors) == 2
+
+    def test_normalize_line_code_known(self, plugin):
+        assert plugin._normalize_line_code("JUDAH") == "N"
+        assert plugin._normalize_line_code("N-JUDAH") == "N"
+        assert plugin._normalize_line_code("CHURCH") == "J"
+        assert plugin._normalize_line_code("TARAVAL") == "L"
+        assert plugin._normalize_line_code("OCEAN VIEW") == "M"
+        assert plugin._normalize_line_code("THIRD") == "T"
+        assert plugin._normalize_line_code("SHUTTLE") == "S"
+        assert plugin._normalize_line_code("MARKET") == "F"
+
+    def test_normalize_line_code_single_letter(self, plugin):
+        assert plugin._normalize_line_code("N") == "N"
+        assert plugin._normalize_line_code("J") == "J"
+
+    def test_normalize_line_code_dash(self, plugin):
+        assert plugin._normalize_line_code("KT-OTHER") == "KT"
+
+    def test_normalize_line_code_unknown(self, plugin):
+        assert plugin._normalize_line_code("XY") == "XY"
+
+    def test_get_display_line_name(self, plugin):
+        assert plugin._get_display_line_name("N") == "N-JUDAH"
+        assert plugin._get_display_line_name("Z") == "Z"
+
+    def test_calculate_minutes_until_future(self, plugin):
+        ts = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+        assert 9 <= plugin._calculate_minutes_until(ts) <= 11
+
+    def test_calculate_minutes_until_past(self, plugin):
+        ts = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+        assert plugin._calculate_minutes_until(ts) == 0
+
+    def test_calculate_minutes_until_z_suffix(self, plugin):
+        future = datetime.now(timezone.utc) + timedelta(minutes=15)
+        ts = future.strftime("%Y-%m-%dT%H:%M:%SZ")
+        assert 14 <= plugin._calculate_minutes_until(ts) <= 16
+
+    def test_calculate_minutes_until_invalid(self, plugin):
+        assert plugin._calculate_minutes_until("bad") is None
+
+    def test_parse_stop_data_empty(self, plugin):
+        assert plugin._parse_stop_data([], "123") is None
+
+    def test_parse_stop_data_basic(self, plugin):
+        now = datetime.now(timezone.utc)
+        visits = [
+            {
+                "MonitoredVehicleJourney": {
+                    "PublishedLineName": "N",
+                    "Occupancy": "MANY_SEATS",
+                    "MonitoredCall": {
+                        "StopPointName": "Church St & Duboce",
+                        "ExpectedArrivalTime": (now + timedelta(minutes=5)).isoformat(),
+                    }
+                }
+            },
+            {
+                "MonitoredVehicleJourney": {
+                    "PublishedLineName": "N",
+                    "Occupancy": "FEW_SEATS",
+                    "MonitoredCall": {
+                        "StopPointName": "Church St & Duboce",
+                        "ExpectedArrivalTime": (now + timedelta(minutes=12)).isoformat(),
+                    }
+                }
+            },
+        ]
+        result = plugin._parse_stop_data(visits, "15726")
+        assert result is not None
+        assert result["stop_code"] == "15726"
+        assert "N" in result["lines"]
+        assert result["lines"]["N"]["line"] == "N-JUDAH"
+        assert result["all_lines"]["next_arrival"] is not None
+        assert result["line"] == "N-JUDAH"
+
+    def test_parse_stop_data_list_fields(self, plugin):
+        now = datetime.now(timezone.utc)
+        visits = [{
+            "MonitoredVehicleJourney": {
+                "PublishedLineName": ["N"],
+                "Occupancy": None,
+                "MonitoredCall": {
+                    "StopPointName": ["Test Stop"],
+                    "ExpectedArrivalTime": (now + timedelta(minutes=5)).isoformat(),
+                }
+            }
+        }]
+        result = plugin._parse_stop_data(visits, "15726")
+        assert result is not None
+
+    def test_parse_stop_data_delayed(self, plugin):
+        now = datetime.now(timezone.utc)
+        visits = [{
+            "MonitoredVehicleJourney": {
+                "PublishedLineName": "N",
+                "Delay": "PT5M",
+                "MonitoredCall": {
+                    "StopPointName": "Test",
+                    "ExpectedArrivalTime": (now + timedelta(minutes=5)).isoformat(),
+                }
+            }
+        }]
+        result = plugin._parse_stop_data(visits, "15726")
+        assert result is not None
+        assert result["is_delayed"] is True
+        assert "{63}" in result["formatted"]
+
+    def test_parse_stop_data_no_published_line(self, plugin):
+        now = datetime.now(timezone.utc)
+        visits = [{
+            "MonitoredVehicleJourney": {
+                "MonitoredCall": {
+                    "StopPointName": "Test",
+                    "ExpectedArrivalTime": (now + timedelta(minutes=5)).isoformat(),
+                }
+            }
+        }]
+        assert plugin._parse_stop_data(visits, "15726") is None
+
+    def test_parse_stop_data_full_occupancy(self, plugin):
+        now = datetime.now(timezone.utc)
+        visits = [{
+            "MonitoredVehicleJourney": {
+                "PublishedLineName": "N",
+                "Occupancy": "FULL",
+                "MonitoredCall": {
+                    "StopPointName": "Test",
+                    "ExpectedArrivalTime": (now + timedelta(minutes=5)).isoformat(),
+                }
+            }
+        }]
+        result = plugin._parse_stop_data(visits, "15726")
+        assert result is not None
+
+    def test_fetch_data_no_stops(self, plugin):
+        plugin._config = {}
+        result = plugin.fetch_data()
+        assert not result.available
+
+    def test_fetch_data_no_cache(self, plugin):
+        plugin._config = {"api_key": "k", "stop_codes": ["1"]}
+        with patch.object(plugin, '_get_transit_cache', return_value=None):
+            result = plugin.fetch_data()
+            assert not result.available
+
+    def test_fetch_data_cache_not_ready(self, plugin):
+        plugin._config = {"api_key": "k", "stop_codes": ["1"]}
+        mock_cache = Mock()
+        mock_cache.is_ready.return_value = False
+        with patch.object(plugin, '_get_transit_cache', return_value=mock_cache):
+            result = plugin.fetch_data()
+            assert not result.available
+
+    def test_fetch_data_no_arrivals(self, plugin):
+        plugin._config = {"api_key": "k", "stop_codes": ["1"]}
+        mock_cache = Mock()
+        mock_cache.is_ready.return_value = True
+        mock_cache.get_stops_data.return_value = {"1": []}
+        with patch.object(plugin, '_get_transit_cache', return_value=mock_cache):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["formatted"] == "NO ARRIVALS"
+
+    def test_fetch_data_success(self, plugin):
+        plugin._config = {"api_key": "k", "stop_codes": ["15726"]}
+        now = datetime.now(timezone.utc)
+        visits = [{
+            "MonitoredVehicleJourney": {
+                "PublishedLineName": "N",
+                "Occupancy": "MANY_SEATS",
+                "MonitoredCall": {
+                    "StopPointName": "Test Stop",
+                    "ExpectedArrivalTime": (now + timedelta(minutes=5)).isoformat(),
+                }
+            }
+        }]
+        mock_cache = Mock()
+        mock_cache.is_ready.return_value = True
+        mock_cache.get_stops_data.return_value = {"15726": visits}
+        with patch.object(plugin, '_get_transit_cache', return_value=mock_cache):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["stop_count"] == 1
+            assert result.data["stop_name"] == "Test Stop"
+
+    def test_fetch_data_exception(self, plugin):
+        plugin._config = {"api_key": "k", "stop_codes": ["1"]}
+        mock_cache = Mock()
+        mock_cache.is_ready.return_value = True
+        mock_cache.get_stops_data.side_effect = RuntimeError("fail")
+        with patch.object(plugin, '_get_transit_cache', return_value=mock_cache):
+            result = plugin.fetch_data()
+            assert not result.available
+
+    def test_cleanup(self, plugin):
+        plugin._cache = {"a": 1}
+        plugin._transit_cache = "something"
+        plugin.cleanup()
+        assert plugin._cache is None
+        assert plugin._transit_cache is None
+

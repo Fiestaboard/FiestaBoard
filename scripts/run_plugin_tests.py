@@ -36,9 +36,8 @@ PLUGINS_DIR = PROJECT_ROOT / "plugins"
 COVERAGE_DIR = PROJECT_ROOT / "coverage"
 
 # Default settings
-# Coverage threshold removed - tests pass regardless of coverage
-# Warnings shown if coverage is below WARNING_THRESHOLD
-WARNING_THRESHOLD = 50  # Warn if coverage is below this percentage
+DEFAULT_FAIL_UNDER = 80  # Minimum coverage percentage required
+WARNING_THRESHOLD = 80  # Warn if coverage is below this percentage
 SKIP_DIRECTORIES = {"_template", "__pycache__"}
 
 
@@ -195,12 +194,11 @@ def run_plugin_tests(
         # Parse test results
         tests_run, tests_failed = parse_test_results(test_result.stdout + test_result.stderr)
         
-        # Tests pass if pytest succeeded (coverage is informational only)
-        passed = test_result.returncode == 0
+        # Tests pass if pytest succeeded AND coverage meets threshold
+        passed = test_result.returncode == 0 and coverage >= DEFAULT_FAIL_UNDER
         
-        # Warn if coverage is low
-        if coverage < WARNING_THRESHOLD:
-            print(f"⚠️  WARNING: {plugin_id} has low test coverage ({coverage:.1f}%). Target is {WARNING_THRESHOLD}%+. See GitHub issue #64 for improvement plan.", file=sys.stderr)
+        if coverage < DEFAULT_FAIL_UNDER:
+            print(f"❌ FAIL: {plugin_id} coverage ({coverage:.1f}%) is below minimum threshold ({DEFAULT_FAIL_UNDER}%)", file=sys.stderr)
         
         return PluginTestResult(
             plugin_id=plugin_id,
@@ -381,7 +379,7 @@ def main():
     args = parser.parse_args()
     
     print("FiestaBoard Plugin Test Runner")
-    print(f"Coverage warning threshold: {WARNING_THRESHOLD}% (tests pass regardless of coverage)")
+    print(f"Coverage threshold: {DEFAULT_FAIL_UNDER}% (plugins must meet this to pass)")
     print()
     
     # Discover plugins

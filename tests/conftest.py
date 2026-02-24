@@ -10,7 +10,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def reset_singletons():
     """Reset all singleton service instances before each test.
-    
+
     This ensures tests don't pollute each other with leftover state
     from singleton instances.
     """
@@ -19,15 +19,15 @@ def reset_singletons():
     from src.settings import service as settings_service
     from src.pages import service as pages_service
     from src.templates import engine as template_engine
-    
+
     # Reset all singletons before the test
     displays_service._display_service = None
     settings_service._settings_service = None
     pages_service._page_service = None
     template_engine._template_engine = None
-    
+
     yield
-    
+
     # Reset again after the test (cleanup)
     displays_service._display_service = None
     settings_service._settings_service = None

@@ -475,3 +475,214 @@ class TestTrafficIndexEdgeCases:
             duration_normal=1800
         )
         assert index == 1.03  # Rounded to 2 decimals
+
+
+class TestTrafficPluginClass:
+    """Tests for TrafficPlugin class (plugins/traffic/__init__.py)."""
+
+    @pytest.fixture
+    def plugin(self):
+        from plugins.traffic import TrafficPlugin
+        manifest = {"id": "traffic", "name": "Traffic", "version": "1.0.0"}
+        return TrafficPlugin(manifest)
+
+    def test_plugin_id(self, plugin):
+        assert plugin.plugin_id == "traffic"
+
+    def test_validate_config_valid(self, plugin):
+        config = {"api_key": "k", "routes": [{"origin": "A", "destination": "B"}]}
+        assert plugin.validate_config(config) == []
+
+    def test_validate_config_missing_key(self, plugin):
+        errors = plugin.validate_config({"routes": [{}]})
+        assert any("API key" in e for e in errors)
+
+    def test_validate_config_missing_routes(self, plugin):
+        errors = plugin.validate_config({"api_key": "k"})
+        assert any("route" in e for e in errors)
+
+    def test_validate_config_empty(self, plugin):
+        errors = plugin.validate_config({})
+        assert len(errors) == 2
+
+    def test_get_traffic_status_light(self, plugin):
+        status, color = plugin._get_traffic_status(1.0)
+        assert status == "LIGHT"
+        assert color == "{66}"
+
+    def test_get_traffic_status_moderate(self, plugin):
+        status, color = plugin._get_traffic_status(1.3)
+        assert status == "MODERATE"
+        assert color == "{65}"
+
+    def test_get_traffic_status_heavy(self, plugin):
+        status, color = plugin._get_traffic_status(1.6)
+        assert status == "HEAVY"
+        assert color == "{63}"
+
+    def test_parse_duration(self, plugin):
+        assert plugin._parse_duration("1800s") == 1800
+        assert plugin._parse_duration("") == 0
+        assert plugin._parse_duration("3600") == 3600
+
+    def test_build_waypoint_address(self, plugin):
+        wp = plugin._build_waypoint("123 Main St, City, ST")
+        assert wp == {"address": "123 Main St, City, ST"}
+
+    def test_build_waypoint_latlng(self, plugin):
+        wp = plugin._build_waypoint("37.7749, -122.4194")
+        assert "location" in wp
+        assert wp["location"]["latLng"]["latitude"] == 37.7749
+        assert wp["location"]["latLng"]["longitude"] == -122.4194
+
+    def test_build_waypoint_invalid_latlng(self, plugin):
+        wp = plugin._build_waypoint("abc, def")
+        assert wp == {"address": "abc, def"}
+
+    def test_fetch_data_no_routes(self, plugin):
+        plugin._config = {}
+        result = plugin.fetch_data()
+        assert not result.available
+
+    def test_fetch_single_route_success(self, plugin):
+        plugin._config = {"api_key": "test_key"}
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "routes": [{
+                "duration": "2700s",
+                "staticDuration": "1800s",
+            }]
+        }
+        with patch('plugins.traffic.requests.post', return_value=mock_resp):
+            result = plugin._fetch_single_route("Home", "Work", "WORK")
+            assert result is not None
+            assert result["duration_minutes"] == 45
+            assert result["delay_minutes"] == 15
+            assert result["traffic_status"] == "MODERATE"
+
+    def test_fetch_single_route_no_delay(self, plugin):
+        plugin._config = {"api_key": "test_key"}
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "routes": [{"duration": "1800s", "staticDuration": "1800s"}]
+        }
+        with patch('plugins.traffic.requests.post', return_value=mock_resp):
+            result = plugin._fetch_single_route("A", "B", "DEST")
+            assert result is not None
+            assert result["delay_minutes"] == 0
+            assert "DEST: 30m" == result["formatted"]
+
+    def test_fetch_single_route_api_error(self, plugin):
+        plugin._config = {"api_key": "test_key"}
+        with patch('plugins.traffic.requests.post', side_effect=Exception("fail")):
+            result = plugin._fetch_single_route("A", "B", "DEST")
+            assert result is None
+
+    def test_fetch_single_route_bad_status(self, plugin):
+        plugin._config = {"api_key": "test_key"}
+        mock_resp = Mock()
+        mock_resp.status_code = 403
+        with patch('plugins.traffic.requests.post', return_value=mock_resp):
+            result = plugin._fetch_single_route("A", "B", "DEST")
+            assert result is None
+
+    def test_fetch_single_route_empty_routes(self, plugin):
+        """Test when API returns no routes in response."""
+        plugin._config = {"api_key": "test_key"}
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"routes": []}
+        with patch('plugins.traffic.requests.post', return_value=mock_resp):
+            result = plugin._fetch_single_route("A", "B", "DEST")
+            assert result is None
+
+    def test_fetch_single_route_missing_static_duration(self, plugin):
+        """Test when staticDuration is 0 or missing."""
+        plugin._config = {"api_key": "test_key"}
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "routes": [{"duration": "1800s", "staticDuration": "0s"}]
+        }
+        with patch('plugins.traffic.requests.post', return_value=mock_resp):
+            result = plugin._fetch_single_route("A", "B", "DEST")
+            assert result is not None
+            assert result["duration_minutes"] == 30
+
+    def test_fetch_data_all_routes_fail(self, plugin):
+        """Test when all routes fail to fetch."""
+        plugin._config = {
+            "api_key": "test_key",
+            "routes": [
+                {"origin": "A", "destination": "B", "destination_name": "DEST1"},
+                {"origin": "C", "destination": "D", "destination_name": "DEST2"}
+            ]
+        }
+        with patch.object(plugin, '_fetch_single_route', return_value=None):
+            result = plugin.fetch_data()
+            assert not result.available
+            assert "Failed to fetch any route data" in result.error
+
+    def test_fetch_data_success(self, plugin):
+        plugin._config = {
+            "api_key": "test_key",
+            "routes": [
+                {"origin": "Home", "destination": "Work", "destination_name": "WORK"}
+            ]
+        }
+        mock_route = {
+            "duration_minutes": 30,
+            "delay_minutes": 5,
+            "traffic_status": "MODERATE",
+            "traffic_color": "{65}",
+            "destination_name": "WORK",
+            "formatted": "WORK: 30m (+5m)",
+        }
+        with patch.object(plugin, '_fetch_single_route', return_value=mock_route):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["route_count"] == 1
+
+    def test_get_formatted_display_with_cache(self, plugin):
+        """Test get_formatted_display with cached data."""
+        plugin._cache = {
+            "routes": [
+                {"formatted": "HOME: 30m (+5m)"},
+                {"formatted": "WORK: 25m"}
+            ]
+        }
+        lines = plugin.get_formatted_display()
+        assert lines is not None
+        assert len(lines) == 6
+        assert lines[0] == "TRAFFIC".center(22)
+        assert lines[2] == "HOME: 30m (+5m)"
+        assert lines[3] == "WORK: 25m"
+
+    def test_get_formatted_display_no_cache(self, plugin):
+        """Test get_formatted_display without cache."""
+        plugin._cache = None
+        plugin._config = {
+            "api_key": "test_key",
+            "routes": [{"origin": "A", "destination": "B", "destination_name": "DEST"}]
+        }
+        mock_route = {
+            "duration_minutes": 20,
+            "delay_minutes": 0,
+            "traffic_status": "LIGHT",
+            "traffic_color": "{62}",
+            "destination_name": "DEST",
+            "formatted": "DEST: 20m"
+        }
+        with patch.object(plugin, '_fetch_single_route', return_value=mock_route):
+            lines = plugin.get_formatted_display()
+            assert lines is not None
+            assert len(lines) == 6
+
+    def test_get_formatted_display_fetch_fails(self, plugin):
+        """Test get_formatted_display when fetch fails."""
+        plugin._cache = None
+        plugin._config = {"api_key": "test_key", "routes": []}
+        result = plugin.get_formatted_display()
+        assert result is None

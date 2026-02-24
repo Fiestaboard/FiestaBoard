@@ -798,9 +798,72 @@ export const handlers = [
     });
   }),
 
+  http.put(`${API_BASE}/plugins/:pluginId/config`, async ({ request, params }) => {
+    const { pluginId } = params;
+    const body = await request.json() as { config: Record<string, unknown> };
+    return HttpResponse.json({
+      status: "success",
+      plugin_id: pluginId,
+      config: body.config,
+    });
+  }),
+
   // Silence status endpoint
   http.get(`${API_BASE}/silence-status`, () => {
     return HttpResponse.json(mockSilenceStatus);
+  }),
+
+  // Schedule endpoints (for active-page-display)
+  http.get(`${API_BASE}/schedules`, ({ request }) => {
+    const url = new URL(request.url);
+    const boardId = url.searchParams.get("board_id");
+    return HttpResponse.json({
+      schedules: [],
+      total: 0,
+      default_page_id: null,
+      enabled: false,
+      ...(boardId && { board_id: boardId }),
+    });
+  }),
+
+  http.get(`${API_BASE}/schedules/active/page`, ({ request }) => {
+    const url = new URL(request.url);
+    return HttpResponse.json({
+      page_id: "page-1",
+      source: "schedule",
+      schedule_enabled: true,
+      ...(url.searchParams.get("board_id") && { board_id: url.searchParams.get("board_id") }),
+    });
+  }),
+
+  // All settings endpoint (for general-settings)
+  http.get(`${API_BASE}/settings/all`, () => {
+    return HttpResponse.json({
+      general: {
+        timezone: "America/Los_Angeles",
+        refresh_interval_seconds: 300,
+        output_target: "board",
+      },
+      silence_schedule: {
+        config: {
+          enabled: false,
+          start_time: "04:00+00:00",
+          end_time: "15:00+00:00",
+        },
+      },
+      polling: { interval_seconds: 300 },
+      transitions: mockTransitionSettings,
+      output: mockOutputSettings,
+      board: {
+        board_type: "black",
+        boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+        devices: ["flagship"],
+      },
+      status: {
+        running: true,
+        config_summary: { dev_mode: false },
+      },
+    });
   }),
 
   // Version endpoint

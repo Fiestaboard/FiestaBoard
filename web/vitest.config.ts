@@ -14,6 +14,42 @@ export default defineConfig({
         resources: "usable",
       },
     },
+    coverage: {
+      provider: "v8",
+      include: [
+        "src/lib/**",
+        "src/hooks/**",
+        "src/components/board-display.tsx",
+        "src/components/active-page-display.tsx",
+        "src/components/navigation-sidebar.tsx",
+        "src/components/service-status.tsx",
+        "src/components/service-controls.tsx",
+        "src/components/config-display.tsx",
+        "src/components/general-settings.tsx",
+        "src/components/silence-mode-status.tsx",
+        "src/components/theme-toggle.tsx",
+        "src/components/day-selector.tsx",
+        "src/components/time-picker.tsx",
+        "src/components/timezone-picker.tsx",
+        "src/components/page-grid-selector.tsx",
+        "src/components/page-picker-dialog.tsx",
+        "src/components/schedule-entry-form.tsx",
+        "src/components/live-output.tsx",
+        "src/components/output-target-selector.tsx",
+        "src/components/notification-display.tsx",
+      ],
+      exclude: [
+        "src/__tests__/**",
+        "**/*.stories.tsx",
+      ],
+      thresholds: {
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80,
+      },
+      reporter: ["text", "text-summary", "lcov"],
+    },
   },
   resolve: {
     alias: {
@@ -21,8 +57,3 @@ export default defineConfig({
     },
   },
 });
-
-
-
-
-

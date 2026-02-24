@@ -192,9 +192,6 @@ class HomeAssistantPlugin(PluginBase):
                 return None
         
         data = self._cache
-        if not data:
-            return None
-        
         entities = data.get("entities", {})
         lines = ["HOME ASSISTANT".center(22), ""]
         

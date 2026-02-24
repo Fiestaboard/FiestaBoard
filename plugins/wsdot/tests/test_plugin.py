@@ -393,3 +393,203 @@ class TestWsdotCleanup:
         plugin.cleanup()
         assert plugin._cache is None
         assert plugin._vessel_names == {}
+
+
+class TestGetHelper:
+    """Test _get helper function."""
+
+    def test_get_exact_match(self):
+        from plugins.wsdot import _get
+        obj = {"Key": "value"}
+        result = _get(obj, "Key")
+        assert result == "value"
+
+    def test_get_lowercase_alt(self):
+        from plugins.wsdot import _get
+        obj = {"key": "value"}
+        result = _get(obj, "Key")
+        assert result == "value"
+
+    def test_get_default(self):
+        from plugins.wsdot import _get
+        obj = {"other": "value"}
+        result = _get(obj, "Key", default="default")
+        assert result == "default"
+
+    def test_get_empty_key(self):
+        from plugins.wsdot import _get
+        obj = {"": "value"}
+        result = _get(obj, "", default="default")
+        assert result == "value"
+
+
+class TestParseTimeEdgeCases:
+    """Test _parse_time edge cases."""
+
+    def test_parse_time_error_handling(self):
+        from plugins.wsdot import _parse_time
+        result = _parse_time("/Date(invalid)/")
+        assert isinstance(result, str)
+
+    def test_parse_time_overflow_error(self):
+        from plugins.wsdot import _parse_time
+        result = _parse_time("/Date(999999999999999999999999999)/")
+        assert isinstance(result, str)
+
+    def test_parse_time_iso_with_t(self):
+        from plugins.wsdot import _parse_time
+        result = _parse_time("2024-01-15T14:30:00")
+        assert result == "14:30"
+
+    def test_parse_time_short_string(self):
+        from plugins.wsdot import _parse_time
+        result = _parse_time("12:3")
+        assert isinstance(result, str)
+
+    def test_parse_time_non_string(self):
+        from plugins.wsdot import _parse_time
+        result = _parse_time(12345)
+        assert isinstance(result, str)
+
+
+class TestWsdotFetchDataEdgeCases:
+    """Test fetch_data edge cases."""
+
+    @patch('plugins.wsdot.requests.get')
+    def test_fetch_data_route_processing_edge_cases(self, mock_get):
+        """Test fetch_data with route processing edge cases."""
+        def get_side_effect(url, **kwargs):
+            if "vessels" in url:
+                return Mock(
+                    status_code=200,
+                    json=lambda: [{"VesselID": 1, "VesselName": "Vessel1"}],
+                    raise_for_status=Mock(),
+                )
+            if "terminalsailingspace" in url:
+                return Mock(
+                    status_code=200,
+                    json=lambda: [
+                        {
+                            "DepartingTerminalID": 1,
+                            "ArrivingTerminalID": 2,
+                            "Times": [
+                                {
+                                    "DepartingTime": "/Date(1770212100000-0800)/",
+                                    "VesselID": 1,
+                                    "SpaceForStandbyVehicles": None
+                                }
+                            ]
+                        }
+                    ],
+                    raise_for_status=Mock(),
+                )
+            return Mock(status_code=200, json=lambda: [], raise_for_status=Mock())
+
+        mock_get.side_effect = get_side_effect
+        plugin = _plugin()
+        plugin.config = {"api_access_code": "x", "routes": [{"route_id": 9}]}
+        result = plugin.fetch_data()
+        assert result.available
+
+    def test_get_formatted_display_with_cache(self):
+        """Test get_formatted_display with cached data."""
+        plugin = _plugin()
+        plugin._cache = {
+            "routes": [
+                {
+                    "route_id": 9,
+                    "formatted": "Route 9 --"
+                }
+            ]
+        }
+        lines = plugin.get_formatted_display()
+        assert lines is not None
+        assert len(lines) == 6
+
+    def test_get_formatted_display_no_cache(self):
+        """Test get_formatted_display without cache."""
+        plugin = _plugin()
+        plugin._cache = None
+        plugin.config = {}
+        lines = plugin.get_formatted_display()
+        assert lines is None
+
+    def test_get_access_code_from_env(self, monkeypatch):
+        """Test _get_access_code reads from environment."""
+        monkeypatch.setenv("WSDOT_API_ACCESS_CODE", "env_key")
+        plugin = _plugin()
+        plugin.config = {}
+        code = plugin._get_access_code()
+        assert code == "env_key"
+
+    def test_get_method_no_access_code(self):
+        """Test _get returns None without access code."""
+        plugin = _plugin()
+        plugin.config = {}
+        result = plugin._get("http://test.com", "/path")
+        assert result is None
+
+    @patch('plugins.wsdot.requests.get')
+    def test_fetch_vessel_names_non_list_response(self, mock_get):
+        """Test _fetch_vessel_names with non-list response."""
+        mock_response = Mock()
+        mock_response.json.return_value = {"VesselBasics": {"VesselID": 1, "VesselName": "Test"}}
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+        
+        plugin = _plugin()
+        plugin.config = {"api_access_code": "test"}
+        result = plugin._fetch_vessel_names()
+        assert 1 in result
+
+    @patch('plugins.wsdot.requests.get')
+    def test_fetch_terminal_sailing_space_non_list(self, mock_get):
+        """Test _fetch_terminal_sailing_space with non-list response."""
+        mock_response = Mock()
+        mock_response.json.return_value = {"TerminalSailingSpaces": {"TerminalID": 1}}
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+        
+        plugin = _plugin()
+        plugin.config = {"api_access_code": "test"}
+        plugin._fetch_terminal_sailing_space()
+        assert 1 in plugin._sailing_space
+
+    @patch('plugins.wsdot.requests.get')
+    def test_fetch_terminal_sailing_space_empty(self, mock_get):
+        """Test _fetch_terminal_sailing_space with empty response."""
+        mock_response = Mock()
+        mock_response.json.return_value = None
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+        
+        plugin = _plugin()
+        plugin.config = {"api_access_code": "test"}
+        plugin._fetch_terminal_sailing_space()
+        assert plugin._sailing_space == {}
+
+    def test_get_drive_up_space_fallback_logic(self):
+        """Test _get_drive_up_space fallback to other terminal."""
+        plugin = _plugin()
+        plugin.config = {"api_access_code": "test"}
+        plugin._sailing_space = {}
+        
+        with patch.object(plugin, '_get_drive_up_space_for_terminal', side_effect=["", "5"]):
+            result = plugin._get_drive_up_space(8, "/Date(123)/", 1, route_id=9)
+            assert result == "5"
+
+    def test_get_drive_up_space_for_terminal_terminal_not_in_sailing_space(self):
+        """Test _get_drive_up_space_for_terminal with missing terminal."""
+        plugin = _plugin()
+        plugin.config = {"api_access_code": "test"}
+        plugin._sailing_space = {}
+        result = plugin._get_drive_up_space_for_terminal(1, "/Date(123)/", 1)
+        assert result == ""
+
+    def test_get_drive_up_space_for_terminal_invalid_vessel_id(self):
+        """Test _get_drive_up_space_for_terminal with invalid vessel ID."""
+        plugin = _plugin()
+        plugin.config = {"api_access_code": "test"}
+        plugin._sailing_space = {1: {"DepartingSpaces": []}}
+        result = plugin._get_drive_up_space_for_terminal(1, "/Date(123)/", "invalid")
+        assert result == ""
