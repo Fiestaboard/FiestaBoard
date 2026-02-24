@@ -149,29 +149,6 @@ describe("PagePickerDialog", () => {
     expect(templateBadges.length).toBe(2);
     expect(screen.getByText("plugin")).toBeInTheDocument();
   });
-
-  it("renders pages in alphabetical order by name", () => {
-    const onSelect = vi.fn();
-    const unorderedPages = [
-      { id: "page1", name: "Zebra Page" },
-      { id: "page2", name: "Alpha Page" },
-      { id: "page3", name: "Middle Page" },
-    ];
-
-    const { container } = render(
-      <PagePickerDialog
-        pages={unorderedPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-      />
-    );
-
-    const buttons = container.querySelectorAll("button");
-    const names = Array.from(buttons).map(
-      (btn) => btn.querySelector(".text-sm")?.textContent
-    );
-    expect(names).toEqual(["Alpha Page", "Middle Page", "Zebra Page"]);
-  });
 });
 
 describe("DaySelector", () => {

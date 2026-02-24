@@ -154,6 +154,32 @@ class TestPageStorage:
         pages = storage.list_all()
         assert len(pages) == 2
     
+    def test_list_all_alphabetical_order(self, storage):
+        """Test that list_all returns pages sorted alphabetically by name."""
+        page_z = Page(name="Zebra Page", type="single", display_type="weather")
+        page_a = Page(name="Alpha Page", type="single", display_type="datetime")
+        page_m = Page(name="Middle Page", type="template", template=["Hi", "", "", "", "", ""])
+        storage.create(page_z)
+        storage.create(page_a)
+        storage.create(page_m)
+        
+        pages = storage.list_all()
+        names = [p.name for p in pages]
+        assert names == ["Alpha Page", "Middle Page", "Zebra Page"]
+    
+    def test_list_all_alphabetical_case_insensitive(self, storage):
+        """Test that list_all sorts case-insensitively."""
+        page_upper = Page(name="Bravo", type="single", display_type="weather")
+        page_lower = Page(name="alpha", type="single", display_type="datetime")
+        page_mixed = Page(name="Charlie", type="single", display_type="weather")
+        storage.create(page_upper)
+        storage.create(page_lower)
+        storage.create(page_mixed)
+        
+        pages = storage.list_all()
+        names = [p.name for p in pages]
+        assert names == ["alpha", "Bravo", "Charlie"]
+    
     def test_update_page(self, storage):
         """Test updating a page."""
         page = Page(name="Original", type="single", display_type="weather")

@@ -239,13 +239,10 @@ export function PageGridSelector({
   const { data: boardSettings } = useBoardSettings();
   
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
-  // Always sort alphabetically by name for consistent UI ordering
   const pages = useMemo(() => {
     const allPages = pagesData?.pages || [];
-    const filtered = deviceTypeFilter
-      ? allPages.filter(p => (p.device_type || "flagship") === deviceTypeFilter)
-      : allPages;
-    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    if (!deviceTypeFilter) return allPages;
+    return allPages.filter(p => (p.device_type || "flagship") === deviceTypeFilter);
   }, [pagesData, deviceTypeFilter]);
   
   // State for batch preview data
