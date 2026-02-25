@@ -203,7 +203,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: digests-${{ matrix.arch }}
           path: /tmp/digests/*
@@ -216,7 +216,7 @@ jobs:
     needs: [prep, build]
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
           pattern: digests-*
@@ -338,7 +338,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Update Docker Hub Description
-        uses: peter-evans/dockerhub-description@v4
+        uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
