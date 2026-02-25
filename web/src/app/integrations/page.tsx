@@ -987,7 +987,7 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
         "animate-card-fade-in transition-all duration-200 hover:shadow-md",
         plugin.enabled ? "border-primary/50" : "opacity-75"
       )}
-      style={{ animationDelay: `${index * 80}ms` }}
+      style={{ animationDelay: `${index * 150}ms` }}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
@@ -1380,30 +1380,36 @@ export default function IntegrationsPage() {
           </Card>
         ) : (
           <div className="space-y-8">
-            {Object.entries(groupedPlugins || {})
-              .sort(([a], [b]) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b))
-              .map(([category, plugins]) => (
-              <section key={category}>
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  {CATEGORY_LABELS[category] || category}
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {plugins.length}
-                  </Badge>
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {plugins.map((plugin, index) => (
-                    <PluginCard
-                      key={plugin.id}
-                      plugin={plugin}
-                      onToggle={handleToggle}
-                      isToggling={toggleMutation.isPending}
-                      onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                      index={index}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+            {(() => {
+              let globalIndex = 0;
+              return Object.entries(groupedPlugins || {})
+                .sort(([a], [b]) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b))
+                .map(([category, plugins]) => (
+                <section key={category}>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    {CATEGORY_LABELS[category] || category}
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {plugins.length}
+                    </Badge>
+                  </h2>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {plugins.map((plugin) => {
+                      const cardIndex = globalIndex++;
+                      return (
+                        <PluginCard
+                          key={plugin.id}
+                          plugin={plugin}
+                          onToggle={handleToggle}
+                          isToggling={toggleMutation.isPending}
+                          onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                          index={cardIndex}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              ));
+            })()}
           </div>
         )}
       </div>

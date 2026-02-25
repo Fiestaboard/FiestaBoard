@@ -609,7 +609,7 @@
 }
 
 .animate-card-fade-in {
-  animation: card-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: card-fade-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Respect reduced motion preferences */
