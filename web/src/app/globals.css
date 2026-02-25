@@ -596,6 +596,36 @@
   }
 }
 
+/* Card fade-in animation (inspired by reactbits CardNav) */
+@keyframes card-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-card-fade-in {
+  animation: card-fade-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Shiny text sweep animation (reactbits ShinyText) */
+@keyframes shiny-text {
+  from {
+    background-position: 150% center;
+  }
+  to {
+    background-position: -50% center;
+  }
+}
+
+.animate-shiny-text {
+  animation: shiny-text 3s linear infinite;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *,
