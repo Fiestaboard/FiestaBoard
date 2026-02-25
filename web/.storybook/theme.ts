@@ -2,8 +2,8 @@ import { create } from "@storybook/theming/create";
 
 export default create({
   base: "dark",
-  brandTitle: "Vesta UI Components",
-  brandUrl: "https://github.com/yourusername/vesta",
+  brandTitle: "FiestaBoard UI Components",
+  brandUrl: "https://github.com/Fiestaboard/FiestaBoard",
   brandTarget: "_self",
 
   // UI

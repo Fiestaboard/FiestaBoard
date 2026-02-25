@@ -10,7 +10,7 @@ This script creates schedules that:
 This allows you to manually verify that schedule switching works in real-time.
 
 Usage:
-    python scripts/create_test_schedule.py [--api-url http://localhost:6969]
+    python scripts/create_test_schedule.py [--api-url http://localhost:4420/api]
 """
 
 import argparse
@@ -53,7 +53,7 @@ def create_schedule(api_url: str, page_id: str, start_time: str, end_time: str, 
 
 def main():
     parser = argparse.ArgumentParser(description="Create test schedules for manual verification")
-    parser.add_argument("--api-url", default="http://localhost:6969", help="API URL")
+    parser.add_argument("--api-url", default="http://localhost:4420/api", help="API URL")
     args = parser.parse_args()
     
     print("🔧 Creating test schedules for schedule switching verification...\n")

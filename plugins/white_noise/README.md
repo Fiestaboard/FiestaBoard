@@ -71,5 +71,4 @@ gentle "light rain" sound instead of an overwhelming clatter.
 
 ## Setup & Configuration
 
-- **[Setup Guide](./docs/SETUP.md)** - Installation and basic configuration
-- **[Tuning Guide](./docs/TUNING_GUIDE.md)** - Detailed guide to finding your ideal settings and "sane defaults"
+- **[Setup Guide](./docs/SETUP.md)** - Installation and configuration (includes advanced tuning tips)
