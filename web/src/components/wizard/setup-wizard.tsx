@@ -175,11 +175,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-background">
-      {/* Aurora background */}
-      <div className="absolute inset-0">
+    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+      {/* Aurora background - fixed so it stays in place while content scrolls */}
+      <div className="fixed inset-0 pointer-events-none">
         <Aurora
-          colorStops={["#FFD600", "#FF3D00", "#AA00FF"]}
+          colorStops={["#f8e71c", "#eb4034", "#AA00FF", "#9b59b6"]}
           blend={0.5}
           amplitude={1.0}
           speed={0.5}
@@ -187,7 +187,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       </div>
       
       {/* Content container */}
-      <div className="relative h-full flex items-start justify-center overflow-y-auto py-6 sm:py-10 px-4 sm:px-6">
+      <div className="relative min-h-full flex items-start justify-center py-6 sm:py-10 px-4 sm:px-6">
         <div className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
           {/* Header */}
           <header className="text-center pb-4">
