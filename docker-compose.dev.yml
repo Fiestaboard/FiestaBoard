@@ -12,12 +12,15 @@ services:
       - "4420:3000"
     environment:
       - PRODUCTION=false
+      - WATCHPACK_POLLING=true
     volumes:
       - ./data:/app/data
       - ./src:/app/src
       - ./plugins:/app/plugins
       - ./tests:/app/tests
       - ./scripts:/app/scripts
+      - ./web:/app/web
+      - web-dev-node-modules:/app/web/node_modules
       - ./start-dev.sh:/app/start-dev.sh:ro
       - ./supervisord-dev.conf:/app/supervisord-dev.conf:ro
     command: ["/bin/sh", "/app/start-dev.sh"]
@@ -75,5 +78,6 @@ services:
         max-file: "3"
 
 volumes:
+  web-dev-node-modules:
   fiestaboard-web-node-modules:
   fiestaboard-storybook-node-modules:

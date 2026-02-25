@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   Key,
   KeyRound,
 } from "lucide-react";
+import { BoardDisplay } from "@/components/board-display";
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -178,6 +179,26 @@ export function StepBoardSetup({
     : !!config.local_api_key && !!config.host;
 
   const canEnableLocalApi = !!config.host && !!enablementToken;
+
+  const previewMessage = useMemo(() => {
+    if (config.device_type === "note") {
+      return [
+        "   WELCOME TO  ",
+        "  FIESTABOARD! ",
+        "",
+      ].join("\n");
+    }
+    const colorCodes = [64, 65, 63, 68];
+    const colorRow = Array.from({ length: 22 }, (_, i) => `{${colorCodes[i % colorCodes.length]}}`).join("");
+    return [
+      colorRow,
+      "",
+      "      WELCOME TO      ",
+      "     FIESTABOARD!     ",
+      "",
+      colorRow,
+    ].join("\n");
+  }, [config.device_type]);
 
   return (
     <div className="space-y-6">
@@ -529,6 +550,17 @@ export function StepBoardSetup({
               )}
             />
           </div>
+        </div>
+
+        {/* Live board preview */}
+        <div className="space-y-2 pt-3">
+          <Label className="text-sm font-medium text-muted-foreground">Preview</Label>
+          <BoardDisplay
+            message={previewMessage}
+            size="sm"
+            boardType={config.board_color}
+            deviceType={config.device_type}
+          />
         </div>
       </div>
     </div>

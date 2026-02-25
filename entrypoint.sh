@@ -34,5 +34,10 @@ if [ -S /var/run/docker.sock ]; then
     usermod -aG "$DOCKER_GROUP" appuser 2>/dev/null || true
 fi
 
+# Fix ownership of bind-mounted web directory for dev mode
+if [ -d /app/web/src ]; then
+    chown -R appuser:appuser /app/web/.next 2>/dev/null || true
+fi
+
 # Drop to the unprivileged application user and exec the CMD
 exec gosu appuser "$@"
