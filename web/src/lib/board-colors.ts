@@ -5,7 +5,7 @@
  * All UI components should use these colors for consistency between
  * the preview display and status indicators.
  *
- * Reference: docs/reference/COLOR_GUIDE.md
+ * Reference: https://fiestaboard.app/docs/reference/color-guide
  *
  * Color Codes:
  * - 63: Red    - Alerts, hot temperatures, errors

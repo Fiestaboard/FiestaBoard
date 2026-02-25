@@ -1,32 +1,26 @@
 {
-  "name": "Vestaboard Display Service",
-  "image": "mcr.microsoft.com/devcontainers/python:3.10",
+  "name": "FiestaBoard",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" }
   },
-  "postCreateCommand": "pip install -r requirements.txt",
+  "postCreateCommand": "cp env.example .env && echo 'Run: docker-compose -f docker-compose.dev.yml up --build'",
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
-        "ms-python.vscode-pylance"
+        "ms-python.vscode-pylance",
+        "ms-vscode.docker"
       ]
     }
   },
-  "forwardPorts": [8000, 8080],
+  "forwardPorts": [4420],
   "portsAttributes": {
-    "8000": {
-      "label": "API Server",
-      "onAutoForward": "notify"
-    },
-    "8080": {
-      "label": "Web UI",
+    "4420": {
+      "label": "FiestaBoard (Web UI + API)",
       "onAutoForward": "notify"
     }
-  },
-  "remoteEnv": {
-    "VB_READ_WRITE_KEY": "${localEnv:VB_READ_WRITE_KEY}",
-    "WEATHER_API_KEY": "${localEnv:WEATHER_API_KEY}"
   }
 }
 
