@@ -179,7 +179,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       {/* Aurora background */}
       <div className="absolute inset-0">
         <Aurora
-          colorStops={["#3A29FF", "#F222FF", "#FF7C20"]}
+          colorStops={["#FFD600", "#FF3D00", "#AA00FF"]}
           blend={0.5}
           amplitude={1.0}
           speed={0.5}
@@ -187,10 +187,10 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       </div>
       
       {/* Content container */}
-      <div className="relative h-full flex flex-col">
-        {/* Header */}
-        <header className="flex-shrink-0 px-4 sm:px-6 pt-6 sm:pt-10 pb-4">
-          <div className="max-w-lg mx-auto text-center">
+      <div className="relative h-full flex items-start justify-center overflow-y-auto py-6 sm:py-10 px-4 sm:px-6">
+        <div className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
+          {/* Header */}
+          <header className="text-center pb-4">
             <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-4 overflow-hidden">
               <Image
                 src="/icons/icon-96x96.png"
@@ -206,12 +206,10 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             <p className="text-muted-foreground mt-2 text-sm sm:text-base">
               Let&apos;s get you set up in just a few steps
             </p>
-          </div>
-        </header>
+          </header>
 
-        {/* Progress indicator */}
-        <div className="flex-shrink-0 px-4 sm:px-6 pb-4">
-          <div className="max-w-lg mx-auto">
+          {/* Progress indicator */}
+          <div className="pb-4">
             <div className="flex items-center gap-2">
               {[1, 2, 3].map((step) => (
                 <div
@@ -231,59 +229,54 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               <span>Finish</span>
             </div>
           </div>
-        </div>
 
-        {/* Main content area - scrollable */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6">
-          <div className="max-w-lg mx-auto pb-6">
-            {/* Step header */}
-            <div className="mb-6">
-              <h2 className="text-xl sm:text-2xl font-semibold">
-                {stepTitles[currentStep - 1]}
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                {stepDescriptions[currentStep - 1]}
-              </p>
+          {/* Step header */}
+          <div className="mb-6">
+            <h2 className="text-xl sm:text-2xl font-semibold">
+              {stepTitles[currentStep - 1]}
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              {stepDescriptions[currentStep - 1]}
+            </p>
+          </div>
+
+          {/* Step content */}
+          {renderStep()}
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-border/50">
+            <div>
+              {currentStep > 1 && (
+                <Button 
+                  variant="ghost" 
+                  onClick={handleBack} 
+                  disabled={isLoading}
+                  size="lg"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+              )}
             </div>
 
-            {/* Step content */}
-            {renderStep()}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                Step {currentStep} of {TOTAL_STEPS}
+              </span>
 
-            {/* Navigation - inline with content */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-border/50">
-              <div>
-                {currentStep > 1 && (
-                  <Button 
-                    variant="ghost" 
-                    onClick={handleBack} 
-                    disabled={isLoading}
-                    size="lg"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Back
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">
-                  Step {currentStep} of {TOTAL_STEPS}
-                </span>
-
-                {currentStep < TOTAL_STEPS && (
-                  <Button 
-                    onClick={handleNext} 
-                    disabled={!canProceed || isLoading}
-                    size="lg"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                )}
-              </div>
+              {currentStep < TOTAL_STEPS && (
+                <Button 
+                  onClick={handleNext} 
+                  disabled={!canProceed || isLoading}
+                  size="lg"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
             </div>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );
