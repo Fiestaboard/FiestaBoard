@@ -14,6 +14,7 @@ import {
   Star,
   Wifi
 } from "lucide-react";
+import DecryptedText from "@/components/ui/react-bits/decrypted-text";
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -132,7 +133,15 @@ export function StepWelcome({
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2">
           <PartyPopper className="h-8 w-8 text-primary" />
         </div>
-        <h3 className="text-xl font-semibold">Setup Complete!</h3>
+        <h3 className="text-xl font-semibold">
+          <DecryptedText
+            text="Setup Complete!"
+            speed={60}
+            sequential
+            animateOn="view"
+            revealDirection="start"
+          />
+        </h3>
         <p className="text-muted-foreground">
           Your FiestaBoard is ready to shine
         </p>

@@ -8,6 +8,7 @@ import { useWizard } from "@/components/wizard-provider";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Puzzle, Wand2 } from "lucide-react";
+import BlurText from "@/components/ui/react-bits/blur-text";
 
 export default function SettingsPage() {
   const { triggerWizard } = useWizard();
@@ -17,7 +18,7 @@ export default function SettingsPage() {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
         <div className="mb-4 sm:mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Settings
+            <BlurText text="Settings" delay={150} />
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Configure your FiestaBoard service

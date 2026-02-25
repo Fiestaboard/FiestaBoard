@@ -321,6 +321,10 @@ import {
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import BlurText from "@/components/ui/react-bits/blur-text";
+import CountUp from "@/components/ui/react-bits/count-up";
+import SpotlightCard from "@/components/ui/react-bits/spotlight-card";
+import ShinyText from "@/components/ui/react-bits/shiny-text";
 
 /**
  * Comprehensive icon mapping from Lucide icon names to components.
@@ -888,9 +892,10 @@ interface PluginCardProps {
   onToggle: (pluginId: string, enabled: boolean) => void;
   isToggling: boolean;
   onConfigUpdate: () => void;
+  index?: number;
 }
 
-function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCardProps) {
+function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }: PluginCardProps) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -981,10 +986,17 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
   const Icon = getPluginIcon(plugin.icon);
   
   return (
-    <Card className={cn(
-      "transition-all duration-200 hover:shadow-md",
-      plugin.enabled ? "border-primary/50" : "opacity-75"
-    )}>
+    <SpotlightCard
+      className="rounded-xl animate-card-fade-in"
+      spotlightColor={plugin.enabled ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.08)"}
+      style={{ animationDelay: `${index * 150}ms` }}
+    >
+    <Card
+      className={cn(
+        "transition-all duration-200 hover:shadow-md",
+        plugin.enabled ? "border-primary/50" : "opacity-75"
+      )}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1026,7 +1038,7 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
               plugin.configured ? (
                 <Badge variant="default" className="text-xs gap-1">
                   <CheckCircle className="h-3 w-3" />
-                  Configured
+                  <ShinyText text="Configured" speed={4} className="text-xs" />
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="text-xs gap-1">
@@ -1213,6 +1225,7 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate }: PluginCard
         </div>
       </CardContent>
     </Card>
+    </SpotlightCard>
   );
 }
 
@@ -1324,7 +1337,7 @@ export default function IntegrationsPage() {
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
             <Puzzle className="h-7 w-7 text-primary" />
-            Integrations
+            <BlurText text="Integrations" delay={150} />
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Enable and configure data source plugins for your FiestaBoard
@@ -1348,11 +1361,11 @@ export default function IntegrationsPage() {
             <>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Total:</span>
-                <Badge variant="outline">{data.total}</Badge>
+                <Badge variant="outline"><CountUp to={data.total} duration={1} /></Badge>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Enabled:</span>
-                <Badge variant="default">{data.enabled_count}</Badge>
+                <Badge variant="default"><CountUp to={data.enabled_count} duration={1} /></Badge>
               </div>
             </>
           ) : null}
@@ -1376,29 +1389,36 @@ export default function IntegrationsPage() {
           </Card>
         ) : (
           <div className="space-y-8">
-            {Object.entries(groupedPlugins || {})
-              .sort(([a], [b]) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b))
-              .map(([category, plugins]) => (
-              <section key={category}>
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  {CATEGORY_LABELS[category] || category}
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {plugins.length}
-                  </Badge>
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {plugins.map((plugin) => (
-                    <PluginCard
-                      key={plugin.id}
-                      plugin={plugin}
-                      onToggle={handleToggle}
-                      isToggling={toggleMutation.isPending}
-                      onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+            {(() => {
+              let globalIndex = 0;
+              return Object.entries(groupedPlugins || {})
+                .sort(([a], [b]) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b))
+                .map(([category, plugins]) => (
+                <section key={category}>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    {CATEGORY_LABELS[category] || category}
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {plugins.length}
+                    </Badge>
+                  </h2>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {plugins.map((plugin) => {
+                      const cardIndex = globalIndex++;
+                      return (
+                        <PluginCard
+                          key={plugin.id}
+                          plugin={plugin}
+                          onToggle={handleToggle}
+                          isToggling={toggleMutation.isPending}
+                          onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                          index={cardIndex}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              ));
+            })()}
           </div>
         )}
       </div>
