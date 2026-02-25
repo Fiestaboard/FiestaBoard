@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import type { SilenceStatus } from "@/lib/api";
 import { api } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
+import ShinyText from "@/components/ui/react-bits/shiny-text";
 
 // Parse a line into tokens (same logic as BoardDisplay)
 type Token = { type: "char"; value: string } | { type: "color"; code: string };
@@ -328,7 +329,7 @@ export function ActivePageDisplay() {
               {scheduleEnabled ? (
                 <>
                   <Calendar className="h-3 w-3 mr-1" />
-                  Schedule Mode
+                  <ShinyText text="Schedule Mode" speed={4} className="text-xs" />
                 </>
               ) : (
                 "Manual Mode"

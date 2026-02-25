@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 import { WizardProvider } from "@/components/wizard-provider";
 import { InstallPrompt } from "@/components/install-prompt";
+import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -54,7 +55,9 @@ export default function RootLayout({
           <WizardProvider>
             <NavigationSidebar />
             <main className="min-h-screen pt-14 lg:pt-0 lg:pl-64 overflow-x-hidden w-full max-w-full">
-              {children}
+              <PageFadeWrapper>
+                {children}
+              </PageFadeWrapper>
             </main>
             <Toaster />
             <InstallPrompt />
