@@ -287,6 +287,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       setLineAlignments(alignments);
       setLineWrapEnabled(wrapStates);
       setTemplateLines(contents);
+      setLineCount(contents.length);
       // Initialize debounced state immediately when loading
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
@@ -303,11 +304,13 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
             const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
             
             if (draftAge < maxAge) {
+              const restoredLines = draft.templateLines || ["", "", "", "", "", ""];
               setName(draft.name || "");
-              setTemplateLines(draft.templateLines || ["", "", "", "", "", ""]);
+              setTemplateLines(restoredLines);
               setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
-              setDebouncedTemplateLines(draft.templateLines || ["", "", "", "", "", ""]);
+              setLineCount(restoredLines.length);
+              setDebouncedTemplateLines(restoredLines);
               setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
               setDraftRestored(true);

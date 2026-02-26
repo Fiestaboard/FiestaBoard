@@ -100,10 +100,8 @@ export function serializeTemplateSimple(doc: JSONContent, maxLines = 6): string 
     }
   }
   
-  // Push final line
-  if (currentLine || lines.length < maxLines) {
-    lines.push(currentLine);
-  }
+  // Always push the final line (even if empty) to preserve line count
+  lines.push(currentLine);
   
   // Pad to at least maxLines (but don't truncate if over)
   while (lines.length < maxLines) {

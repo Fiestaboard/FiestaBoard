@@ -53,7 +53,7 @@ describe('LineNavigation Extension (Enter key)', () => {
           paragraph: true,
           hardBreak: true,
         }),
-        LineNavigation.configure({ maxLines }),
+        LineNavigation,
       ],
       content: parseTemplateSimple(template, maxLines),
     });
@@ -163,7 +163,7 @@ describe('3-line mode (Note device)', () => {
           paragraph: true,
           hardBreak: true,
         }),
-        LineNavigation.configure({ maxLines: 3 }),
+        LineNavigation,
       ],
       content: parseTemplateSimple(template, 3),
     });

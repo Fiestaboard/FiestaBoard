@@ -157,7 +157,7 @@ export function TipTapTemplateEditor({
       FillSpaceNode,
       SymbolNode,
       WrappedTextNode,
-      LineNavigation.configure({ maxLines: boardLines }),
+      LineNavigation,
       // UppercaseText, // Disabled - using CSS + serialization instead
       // LineConstraints, // Disabled - handling in handleKeyDown and serialization instead
     ],

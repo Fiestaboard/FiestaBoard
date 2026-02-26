@@ -10,18 +10,8 @@
  */
 import { Extension } from '@tiptap/core';
 
-export interface LineNavigationOptions {
-  maxLines: number;
-}
-
-export const LineNavigation = Extension.create<LineNavigationOptions>({
+export const LineNavigation = Extension.create({
   name: 'lineNavigation',
-
-  addOptions() {
-    return {
-      maxLines: 6,
-    };
-  },
 
   addKeyboardShortcuts() {
     return {
