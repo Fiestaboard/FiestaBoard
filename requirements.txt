@@ -9,10 +9,6 @@ pytz>=2024.2
 fastapi>=0.125.0
 uvicorn[standard]>=0.34.0
 pydantic>=2.10.0
-
-# Testing dependencies
-pytest>=8.0.0
-pytest-cov>=6.0.0
 httpx>=0.28.0
 
 # Stock market data
