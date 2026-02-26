@@ -52,12 +52,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "20"
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Install UI dependencies
         working-directory: web
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: Install Playwright browsers
         working-directory: web

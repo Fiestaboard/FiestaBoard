@@ -12,9 +12,6 @@ jobs:
   label:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
       - name: Auto-label PR based on conventional commits
         uses: actions/github-script@v8
         with:
