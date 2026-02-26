@@ -4,7 +4,7 @@ Test the production build locally by stopping dev containers, building productio
 2. docker-compose -f docker-compose.prod.yml build --no-cache
 3. docker-compose -f docker-compose.prod.yml up -d
 
-This builds and runs the production images locally for testing before deploying to your NAS. The UI will be available at http://localhost:4420 (note: different port than dev mode's 3000).
+This builds and runs the production images locally for testing before deploying to your NAS. The UI will be available at http://localhost:4420.
 
 After completion, show the user:
 - How to access the UI (http://localhost:4420)

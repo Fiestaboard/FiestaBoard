@@ -5,7 +5,6 @@ Use this before publishing the repo or cutting a release to avoid leaking secret
 ## 1. Ensure no secrets are committed
 
 - [ ] **`.env`** – Must not be tracked. Run: `git check-ignore -v .env` (should show `.gitignore`).
-- [ ] **`config.json`** – Must not exist in repo root; only `config.example.json` is tracked.
 - [ ] **`data/`** – Must not be committed except optional seed content. Run: `git ls-files data/` and confirm no `data/config.json`, `data/settings.json`, or any file containing API keys/tokens. If you use `!data/pages.json`, ensure that file contains only non-personal seed/default pages.
 - [ ] **API_KEYS.md** – Listed in `.gitignore`; do not commit if it contains real keys.
 

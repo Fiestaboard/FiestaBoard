@@ -1,4 +1,4 @@
-Run a comprehensive macOS setup to ensure all prerequisites are installed for the Vesta project. Execute the following steps in sequence:
+Run a comprehensive macOS setup to ensure all prerequisites are installed for FiestaBoard. Execute the following steps in sequence:
 
 ## Step 1: Check for Homebrew
 
@@ -55,23 +55,11 @@ Run: `ls -la .env 2>/dev/null || echo "NOT_FOUND"`
   ```
   cp env.example .env
   ```
-  Tell the user: "Created .env from env.example. Please edit .env and add your API keys and configuration values."
+  Tell the user: "Created .env from env.example. Please edit .env and add your board API key (BOARD_LOCAL_API_KEY or BOARD_READ_WRITE_KEY) before starting."
 
 - If .env exists, inform the user it's already configured.
 
-## Step 7: Check for config.json
-
-Run: `ls -la config.json 2>/dev/null || echo "NOT_FOUND"`
-
-- If config.json is NOT found, copy the example:
-  ```
-  cp config.example.json config.json
-  ```
-  Tell the user: "Created config.json from config.example.json. Please edit config.json to configure your Vestaboard and other settings."
-
-- If config.json exists, inform the user it's already configured.
-
-## Step 8: Verify Project Structure
+## Step 7: Verify Data Directory
 
 Run: `ls -la data/ 2>/dev/null || echo "NOT_FOUND"`
 
@@ -79,17 +67,16 @@ Run: `ls -la data/ 2>/dev/null || echo "NOT_FOUND"`
   ```
   mkdir -p data
   ```
+  Tell the user: "Created data/ directory. FiestaBoard will store its configuration here automatically."
+
+- If data directory exists, inform the user it's already present.
 
 ## Summary
 
 After all steps complete, provide a summary:
 - ✅ or ❌ for each component (Homebrew, Docker, Docker running, docker-compose)
-- Status of .env and config.json files
+- Status of .env file
 - Next steps: Tell the user to run `/start` to launch the development environment
 
 If any critical component is missing or failed, clearly indicate what needs to be fixed before proceeding.
-
-
-
-
 

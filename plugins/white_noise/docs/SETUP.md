@@ -142,10 +142,6 @@ To find your ideal "sane defaults":
 - Decrease the board refresh interval
 - Note: Faster refresh = more frequent tile changes = more sound
 
-## Detailed Tuning Guide
-
-For comprehensive guidance on finding your ideal settings, including example configurations and systematic testing approaches, see the [Tuning Guide](./TUNING_GUIDE.md).
-
 ## Support
 
 For issues or questions about the White Noise plugin, please open an issue on the [FiestaBoard GitHub repository](https://github.com/FiestaBoard/FiestaBoard/issues).
