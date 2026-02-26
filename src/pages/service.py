@@ -241,11 +241,12 @@ class PageService:
     
     # Rendering
     
-    def render_page(self, page: Page) -> DisplayResult:
+    def render_page(self, page: Page, context: Optional[Dict] = None) -> DisplayResult:
         """Render a page to formatted text.
         
         Args:
             page: The page to render
+            context: Optional pre-built template context to avoid redundant plugin fetches
             
         Returns:
             DisplayResult with formatted text
@@ -255,7 +256,7 @@ class PageService:
         elif page.type == "composite":
             return self._render_composite(page)
         elif page.type == "template":
-            return self._render_template(page)
+            return self._render_template(page, context=context)
         else:
             return DisplayResult(
                 display_type="page",
@@ -334,7 +335,7 @@ class PageService:
             available=True
         )
     
-    def _render_template(self, page: Page) -> DisplayResult:
+    def _render_template(self, page: Page, context: Optional[Dict] = None) -> DisplayResult:
         """Render a template page with variable substitution.
         
         Uses the template engine to:
@@ -342,6 +343,10 @@ class PageService:
         - Process {color} markers
         - Process {symbol} shortcuts
         - Apply filters like |pad:3 or |upper
+        
+        Args:
+            page: The page to render
+            context: Optional pre-built template context to avoid redundant plugin fetches
         """
         if not page.template:
             return DisplayResult(
@@ -358,7 +363,7 @@ class PageService:
             # Render the template lines with variable substitution
             # The template engine already handles tile-aware truncation in render_lines()
             # via _truncate_to_tiles() - color codes like {63} count as 1 tile each
-            formatted = template_engine.render_lines(page.template)
+            formatted = template_engine.render_lines(page.template, context=context)
             
             # Note: We do NOT truncate/pad by character count here because:
             # - Color codes like {63} are 4 characters but represent 1 tile
@@ -418,6 +423,78 @@ class PageService:
         )
         
         return result
+    
+    def preview_pages_batch(self, page_ids: List[str], force_refresh: bool = False,
+                            active_page_id: Optional[str] = None) -> Dict[str, Optional[DisplayResult]]:
+        """Preview multiple pages, building template context once for efficiency.
+        
+        When rendering multiple template pages, the template context (plugin data)
+        is fetched once and shared across all page renders, avoiding redundant
+        plugin data fetches.
+        
+        Args:
+            page_ids: List of page IDs to preview
+            force_refresh: If True, bypass cache for all pages
+            active_page_id: If set, always force refresh for this page
+            
+        Returns:
+            Dict mapping page_id to DisplayResult (or None if page not found)
+        """
+        results: Dict[str, Optional[DisplayResult]] = {}
+        pages_to_render: List[Tuple[str, Page]] = []
+        
+        # First pass: check cache, collect pages that need rendering
+        for page_id in page_ids:
+            page = self.get_page(page_id)
+            if not page:
+                results[page_id] = None
+                continue
+            
+            should_force = force_refresh or (page_id == active_page_id)
+            
+            if not should_force:
+                cached = self._preview_cache.get(page_id)
+                if cached and cached.is_valid(page):
+                    logger.debug(f"Using cached preview for page {page_id}")
+                    results[page_id] = cached.result
+                    continue
+            
+            pages_to_render.append((page_id, page))
+        
+        # Build shared template context once if any template pages need rendering
+        shared_context = None
+        has_template_pages = any(p.type == "template" for _, p in pages_to_render)
+        if has_template_pages:
+            try:
+                template_engine = get_template_engine()
+                shared_context = template_engine._build_context()
+            except Exception as e:
+                logger.error(f"Failed to build shared template context: {e}")
+        
+        # Second pass: render pages that missed cache
+        for page_id, page in pages_to_render:
+            try:
+                result = self.render_page(page, context=shared_context)
+                
+                # Cache the result
+                self._preview_cache[page_id] = CachedPreview(
+                    result=result,
+                    page_updated_at=page.updated_at,
+                    cached_at=time.time()
+                )
+                
+                results[page_id] = result
+            except Exception as e:
+                logger.error(f"Error rendering page {page_id}: {e}")
+                results[page_id] = DisplayResult(
+                    display_type="page",
+                    formatted="",
+                    raw={"page_id": page_id},
+                    available=False,
+                    error=str(e)
+                )
+        
+        return results
     
     def _invalidate_cache(self, page_id: Optional[str] = None) -> None:
         """Invalidate preview cache.

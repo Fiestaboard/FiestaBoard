@@ -123,6 +123,9 @@ def mock_page_service():
         preview_result.error = None
         ps.preview_page.return_value = preview_result
 
+        # Batch preview returns a dict mapping page_id to DisplayResult
+        ps.preview_pages_batch.return_value = {"page1": preview_result}
+
         ps.get_cache_stats.return_value = {"size": 0, "cached_pages": [], "ttl_seconds": 30}
         ps._invalidate_cache.return_value = None
 
@@ -909,14 +912,19 @@ class TestPagesEndpoints:
         assert response.status_code == 400
 
     def test_preview_pages_batch_page_not_found(self, client, mock_page_service, mock_settings_service):
-        mock_page_service.preview_page.return_value = None
+        mock_page_service.preview_pages_batch.return_value = {"gone": None}
         response = client.post("/pages/preview/batch", json={"page_ids": ["gone"]})
         assert response.status_code == 200
         data = response.json()
         assert data["previews"]["gone"]["available"] is False
 
     def test_preview_pages_batch_exception(self, client, mock_page_service, mock_settings_service):
-        mock_page_service.preview_page.side_effect = Exception("Boom")
+        error_result = Mock()
+        error_result.available = False
+        error_result.error = "Boom"
+        error_result.formatted = ""
+        error_result.raw = {}
+        mock_page_service.preview_pages_batch.return_value = {"page1": error_result}
         response = client.post("/pages/preview/batch", json={"page_ids": ["page1"]})
         assert response.status_code == 200
         data = response.json()
