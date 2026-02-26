@@ -85,7 +85,7 @@ test.describe("Setup Wizard", () => {
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Step 3: You're All Set — finish
-    await expect(page.getByText("Setup Complete!")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Setup Complete!" })).toBeVisible();
 
     // Click through to the dashboard (could be either label)
     const dashboardButton = page.getByRole("button", {
