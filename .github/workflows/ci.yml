@@ -175,7 +175,7 @@ jobs:
       run: |
         python scripts/run_plugin_tests.py --verbose
         # Combine per-plugin coverage data and generate XML for Codecov
-        coverage combine .coverage.* || true
+        coverage combine || true
         coverage xml -o coverage-plugins.xml || true
       env:
         BOARD_READ_WRITE_KEY: test_key
