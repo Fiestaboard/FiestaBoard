@@ -146,9 +146,9 @@ export const AllSizes = () => (
     <Button size="sm">Small</Button>
     <Button size="default">Default</Button>
     <Button size="lg">Large</Button>
-    <Button size="icon"><Plus className="h-4 w-4" /></Button>
-    <Button size="icon-sm"><Plus className="h-4 w-4" /></Button>
-    <Button size="icon-lg"><Plus className="h-4 w-4" /></Button>
+    <Button size="icon" aria-label="Add"><Plus className="h-4 w-4" /></Button>
+    <Button size="icon-sm" aria-label="Add"><Plus className="h-4 w-4" /></Button>
+    <Button size="icon-lg" aria-label="Add"><Plus className="h-4 w-4" /></Button>
   </div>
 );
 
@@ -161,13 +161,13 @@ export const DestructiveWithIcon = () => (
 
 export const IconButtons = () => (
   <div className="flex items-center gap-4">
-    <Button variant="outline" size="icon">
+    <Button variant="outline" size="icon" aria-label="Next">
       <ChevronRight className="h-4 w-4" />
     </Button>
-    <Button variant="ghost" size="icon">
+    <Button variant="ghost" size="icon" aria-label="Email">
       <Mail className="h-4 w-4" />
     </Button>
-    <Button variant="secondary" size="icon">
+    <Button variant="secondary" size="icon" aria-label="Add">
       <Plus className="h-4 w-4" />
     </Button>
   </div>

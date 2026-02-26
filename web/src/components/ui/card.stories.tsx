@@ -97,7 +97,7 @@ export const MultipleCards = () => (
     <Card>
       <CardHeader>
         <CardTitle>Today</CardTitle>
-        <CardDescription>Overview of today&apos;s activity</CardDescription>
+        <CardDescription>Overview of today's activity</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-2xl font-bold">12</p>

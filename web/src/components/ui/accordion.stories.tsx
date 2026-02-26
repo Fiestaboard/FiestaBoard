@@ -40,7 +40,7 @@ export const Default: Story = {
         <AccordionItem value="item-3">
           <AccordionTrigger>Is it animated?</AccordionTrigger>
           <AccordionContent>
-            Yes. It&apos;s animated by default with smooth transitions.
+            Yes. It's animated by default with smooth transitions.
           </AccordionContent>
         </AccordionItem>
       </>
