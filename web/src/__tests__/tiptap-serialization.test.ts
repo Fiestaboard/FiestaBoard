@@ -381,11 +381,11 @@ describe('Simple serialization – 3-line mode (Note)', () => {
       expect(hardBreaks).toHaveLength(2);
     });
 
-    it('truncates input beyond 3 lines', () => {
+    it('preserves input beyond 3 lines (no truncation)', () => {
       const doc = parseTemplateSimple('A\nB\nC\nD\nE', 3);
       const para = doc.content![0];
       const hardBreaks = para.content!.filter(n => n.type === 'hardBreak');
-      expect(hardBreaks).toHaveLength(2);
+      expect(hardBreaks).toHaveLength(4); // 5 lines = 4 hardBreaks
     });
 
     it('empty string still has 2 hardBreaks', () => {
