@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/docker-image.tar.gz
-          key: docker-image-${{ hashFiles('Dockerfile', 'requirements.txt', 'src/**', 'web/**', 'plugins/**', 'tests/**', 'nginx.conf', 'supervisord.conf', 'supervisord-dev.conf', 'entrypoint.sh') }}
+          key: docker-image-test-${{ hashFiles('Dockerfile', 'requirements.txt', 'src/**', 'web/**', 'plugins/**', 'tests/**', 'nginx.conf', 'supervisord.conf', 'supervisord-dev.conf', 'entrypoint.sh') }}
 
       - name: Load cached Docker image
         if: steps.docker-cache.outputs.cache-hit == 'true'
@@ -41,7 +41,7 @@ jobs:
         if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build production image (same as prod for E2E)
+      - name: Build test image
         if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/build-push-action@v6
         with:
@@ -50,8 +50,10 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:integration
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=dev
+          cache-from: type=gha,scope=build-test
+          cache-to: type=gha,mode=max,scope=build-test
 
       - name: Save Docker image for caching
         if: steps.docker-cache.outputs.cache-hit != 'true'
