@@ -246,10 +246,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      # Cache Docker image by content hash + build environment (test vs prod).
+      # - Cache key includes 'test' prefix to separate from production builds
+      # - Both e2e and integration workflows share this cache (same key, same VERSION=dev)
+      # - Production builds (release.yml) use different VERSION arg, so they get separate caches
+      - name: Cache Docker image
+        id: docker-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-image.tar.gz
+          key: docker-image-test-${{ hashFiles('Dockerfile', 'requirements.txt', 'src/**', 'web/**', 'plugins/**', 'tests/**', 'nginx.conf', 'supervisord.conf', 'supervisord-dev.conf', 'entrypoint.sh') }}
+
+      - name: Load cached Docker image
+        if: steps.docker-cache.outputs.cache-hit == 'true'
+        run: |
+          docker load -i /tmp/docker-image.tar.gz
+          docker tag fiestaboard:cached fiestaboard:e2e
+          echo "✅ Loaded cached Docker image (skipped rebuild)"
+
       - name: Set up Docker Buildx
+        if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build production image (same as prod for E2E)
+      - name: Build test image
+        if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -257,8 +277,16 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:e2e
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=dev
+          cache-from: type=gha,scope=build-test
+          cache-to: type=gha,mode=max,scope=build-test
+
+      - name: Save Docker image for caching
+        if: steps.docker-cache.outputs.cache-hit != 'true'
+        run: |
+          docker tag fiestaboard:e2e fiestaboard:cached
+          docker save fiestaboard:cached | gzip > /tmp/docker-image.tar.gz
 
       - name: Set up Python
         uses: actions/setup-python@v6
