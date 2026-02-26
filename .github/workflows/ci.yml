@@ -256,7 +256,7 @@ jobs:
       - name: Load cached Docker image
         if: steps.docker-cache.outputs.cache-hit == 'true'
         run: |
-          docker load < /tmp/docker-image.tar.gz
+          docker load -i /tmp/docker-image.tar.gz
           docker tag fiestaboard:cached fiestaboard:e2e
           echo "✅ Loaded cached Docker image (skipped rebuild)"
 
