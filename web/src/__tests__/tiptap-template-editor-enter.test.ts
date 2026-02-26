@@ -2,17 +2,12 @@
  * Tests for TipTapTemplateEditor Enter key behavior
  *
  * The rich editor uses a single paragraph with hardBreak nodes for line breaks.
- * parseTemplateSimple always creates exactly 6 lines (5 hardBreaks).
+ * parseTemplateSimple creates at least N lines (padding), but no longer truncates.
  *
- * Enter behaviour:
- *   - If < 6 lines: inserts a hardBreak (new line, content shifts down)
- *   - If = 6 lines: navigates to the next line (wraps at end)
+ * Enter always inserts a hardBreak (line splitting). Users are free to exceed
+ * the board line limit; validation is handled externally via onLineCountChange.
+ *
  * Shift+Enter is always blocked.
- *
- * These tests mirror the editor setup in TipTapTemplateEditor.tsx:
- *   - StarterKit with paragraph: true, hardBreak: true
- *   - LineNavigation extension for Enter handling
- *   - Content from parseTemplateSimple (single paragraph with hardBreaks)
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { Editor } from '@tiptap/core';
@@ -34,22 +29,10 @@ function countHardBreaks(editor: Editor): number {
   return count;
 }
 
-/** Get all hardBreak positions */
-function getHardBreakPositions(editor: Editor): number[] {
-  const positions: number[] = [];
-  editor.state.doc.descendants((node, pos) => {
-    if (node.type.name === 'hardBreak') {
-      positions.push(pos);
-    }
-  });
-  return positions;
-}
-
 describe('LineNavigation Extension (Enter key)', () => {
   let editor: Editor;
 
-  /** Create an editor matching the real TipTapTemplateEditor config */
-  function createEditor(template: string): Editor {
+  function createEditor(template: string, maxLines = 6): Editor {
     return new Editor({
       extensions: [
         StarterKit.configure({
@@ -70,9 +53,9 @@ describe('LineNavigation Extension (Enter key)', () => {
           paragraph: true,
           hardBreak: true,
         }),
-        LineNavigation,
+        LineNavigation.configure({ maxLines }),
       ],
-      content: parseTemplateSimple(template),
+      content: parseTemplateSimple(template, maxLines),
     });
   }
 
@@ -82,12 +65,8 @@ describe('LineNavigation Extension (Enter key)', () => {
 
   // ── Document structure ────────────────────────────────────────────
 
-  it('parseTemplateSimple always creates exactly 5 hardBreaks (6 lines)', () => {
+  it('parseTemplateSimple pads to 6 lines (5 hardBreaks) for short content', () => {
     editor = createEditor('Hello');
-    expect(countHardBreaks(editor)).toBe(5);
-
-    editor.destroy();
-    editor = createEditor('A\nB\nC\nD\nE\nF');
     expect(countHardBreaks(editor)).toBe(5);
 
     editor.destroy();
@@ -95,116 +74,38 @@ describe('LineNavigation Extension (Enter key)', () => {
     expect(countHardBreaks(editor)).toBe(5);
   });
 
-  // ── goToNextLine command (always navigates, never inserts) ────────
-
-  it('should move cursor past the next hardBreak on goToNextLine', () => {
-    editor = createEditor('LINE1\nLINE2\nLINE3\n\n\n');
-
-    editor.commands.setTextSelection(2);
-    const breakPositions = getHardBreakPositions(editor);
-
-    editor.commands.goToNextLine();
-
-    const newPos = editor.state.selection.from;
-    expect(newPos).toBe(breakPositions[0] + 1);
-  });
-
-  it('should advance through lines on consecutive goToNextLine calls', () => {
+  it('parseTemplateSimple creates exactly 5 hardBreaks for 6-line content', () => {
     editor = createEditor('A\nB\nC\nD\nE\nF');
-    const breakPositions = getHardBreakPositions(editor);
-
-    editor.commands.setTextSelection(2);
-
-    for (let i = 0; i < 5; i++) {
-      editor.commands.goToNextLine();
-      const cursorPos = editor.state.selection.from;
-      expect(cursorPos).toBe(breakPositions[i] + 1);
-    }
+    expect(countHardBreaks(editor)).toBe(5);
   });
 
-  it('should wrap from last line back to first line', () => {
-    editor = createEditor('A\nB\nC\nD\nE\nF');
-    const breakPositions = getHardBreakPositions(editor);
-
-    const lastBreak = breakPositions[breakPositions.length - 1];
-    editor.commands.setTextSelection(lastBreak + 1);
-
-    editor.commands.goToNextLine();
-
-    const newPos = editor.state.selection.from;
-    expect(newPos).toBe(2);
+  it('parseTemplateSimple preserves lines beyond maxLines (no truncation)', () => {
+    editor = createEditor('A\nB\nC\nD\nE\nF\nG\nH');
+    // 8 lines = 7 hardBreaks
+    expect(countHardBreaks(editor)).toBe(7);
   });
 
-  it('goToNextLine should NOT change the number of hardBreaks', () => {
-    editor = createEditor('LINE1\nLINE2\n\n\n\n');
-    const breaksBefore = countHardBreaks(editor);
+  // ── Enter key always inserts a hardBreak ──────────────────────────
 
-    editor.commands.setTextSelection(2);
-    editor.commands.goToNextLine();
-
-    expect(countHardBreaks(editor)).toBe(breaksBefore);
-  });
-
-  it('goToNextLine should NOT change the serialized content', () => {
-    editor = createEditor('AAA\nBBB\nCCC\n\n\n');
-    const serializedBefore = serializeTemplateSimple(editor.getJSON());
-
-    editor.commands.setTextSelection(2);
-    editor.commands.goToNextLine();
-
-    expect(serializeTemplateSimple(editor.getJSON())).toBe(serializedBefore);
-  });
-
-  it('goToNextLine should navigate even from the middle of text', () => {
-    editor = createEditor('HELLO\nWORLD\n\n\n\n');
-    const breakPositions = getHardBreakPositions(editor);
-
-    editor.commands.setTextSelection(4);
-    editor.commands.goToNextLine();
-
-    const newPos = editor.state.selection.from;
-    expect(newPos).toBe(breakPositions[0] + 1);
-  });
-
-  // ── Enter key at 6 lines: navigates (does not insert) ────────────
-
-  it('at 6 lines, Enter should navigate not insert', () => {
+  it('Enter inserts a hardBreak even when at maxLines', () => {
     editor = createEditor('A\nB\nC\nD\nE\nF');
     expect(countHardBreaks(editor)).toBe(5);
 
-    editor.commands.setTextSelection(2);
-
-    // Simulate Enter via the keyboard shortcut path
-    editor.commands.goToNextLine();
-
-    // Still 5 hardBreaks — no insertion
-    expect(countHardBreaks(editor)).toBe(5);
-  });
-
-  // ── Enter key at < 6 lines: inserts a hardBreak ──────────────────
-
-  it('at fewer than 6 lines, setHardBreak should add a line', () => {
-    // Start with 3 lines of content (parseTemplateSimple pads to 6)
-    editor = createEditor('AA\nBB\nCC\n\n\n');
-    expect(countHardBreaks(editor)).toBe(5);
-
-    // Simulate user deleting a blank line to get < 6 lines.
-    // Remove the last hardBreak+ZWS to drop from 6 → 5 lines.
-    const breakPositions = getHardBreakPositions(editor);
-    const lastBreak = breakPositions[breakPositions.length - 1];
-    // Delete from just before the last hardBreak to end of content
-    const docEnd = editor.state.doc.content.size;
-    editor.commands.setTextSelection({ from: lastBreak, to: docEnd - 1 });
-    editor.commands.deleteSelection();
-
-    const breaksAfterDelete = countHardBreaks(editor);
-    expect(breaksAfterDelete).toBeLessThan(5);
-
-    // Now Enter should insert a hardBreak
     editor.commands.setTextSelection(2);
     editor.commands.setHardBreak();
 
-    expect(countHardBreaks(editor)).toBe(breaksAfterDelete + 1);
+    // Now 6 hardBreaks (7 lines) — no cap
+    expect(countHardBreaks(editor)).toBe(6);
+  });
+
+  it('Enter inserts a hardBreak below maxLines', () => {
+    editor = createEditor('AA\nBB\n\n\n\n');
+    expect(countHardBreaks(editor)).toBe(5);
+
+    editor.commands.setTextSelection(2);
+    editor.commands.setHardBreak();
+
+    expect(countHardBreaks(editor)).toBe(6);
   });
 
   // ── Schema sanity ─────────────────────────────────────────────────
@@ -212,6 +113,25 @@ describe('LineNavigation Extension (Enter key)', () => {
   it('should have hardBreak in the schema', () => {
     editor = createEditor('');
     expect(editor.state.schema.nodes.hardBreak).toBeDefined();
+  });
+
+  // ── Serialization ─────────────────────────────────────────────────
+
+  it('serializeTemplateSimple preserves lines beyond maxLines', () => {
+    editor = createEditor('A\nB\nC\nD\nE\nF\nG');
+    const serialized = serializeTemplateSimple(editor.getJSON(), 6);
+    const lines = serialized.split('\n');
+    expect(lines.length).toBeGreaterThanOrEqual(7);
+    expect(lines[0]).toBe('A');
+    expect(lines[6]).toBe('G');
+  });
+
+  it('serializeTemplateSimple pads to at least maxLines', () => {
+    editor = createEditor('HELLO');
+    const serialized = serializeTemplateSimple(editor.getJSON(), 6);
+    const lines = serialized.split('\n');
+    expect(lines.length).toBeGreaterThanOrEqual(6);
+    expect(lines[0]).toBe('HELLO');
   });
 });
 
@@ -255,7 +175,7 @@ describe('3-line mode (Note device)', () => {
 
   // ── parseTemplateSimple with maxLines=3 ─────────────────────────
 
-  it('parseTemplateSimple(_, 3) creates exactly 2 hardBreaks', () => {
+  it('parseTemplateSimple(_, 3) creates exactly 2 hardBreaks for 3-line content', () => {
     editor = createNoteEditor('A\nB\nC');
     expect(countHardBreaks(editor)).toBe(2);
   });
@@ -265,17 +185,18 @@ describe('3-line mode (Note device)', () => {
     expect(countHardBreaks(editor)).toBe(2);
   });
 
-  it('parseTemplateSimple(_, 3) truncates beyond 3 lines', () => {
+  it('parseTemplateSimple(_, 3) preserves lines beyond 3 (no truncation)', () => {
     editor = createNoteEditor('A\nB\nC\nD\nE');
-    expect(countHardBreaks(editor)).toBe(2);
+    // 5 lines = 4 hardBreaks (no longer truncated to 3)
+    expect(countHardBreaks(editor)).toBe(4);
   });
 
   // ── serializeTemplateSimple with maxLines=3 ─────────────────────
 
-  it('serializeTemplateSimple(_, 3) produces exactly 3 lines', () => {
+  it('serializeTemplateSimple(_, 3) pads to at least 3 lines', () => {
     editor = createNoteEditor('HELLO\nWORLD\n');
     const lines = serializeTemplateSimple(editor.getJSON(), 3).split('\n');
-    expect(lines).toHaveLength(3);
+    expect(lines.length).toBeGreaterThanOrEqual(3);
     expect(lines[0]).toBe('HELLO');
     expect(lines[1]).toBe('WORLD');
     expect(lines[2]).toBe('');
@@ -286,52 +207,22 @@ describe('3-line mode (Note device)', () => {
     editor = createNoteEditor(original);
     const serialized = serializeTemplateSimple(editor.getJSON(), 3);
     const lines = serialized.split('\n');
-    expect(lines).toHaveLength(3);
+    expect(lines.length).toBeGreaterThanOrEqual(3);
     expect(lines[0]).toBe('HELLO');
     expect(lines[1]).toBe('WORLD');
     expect(lines[2]).toBe('THREE');
   });
 
-  // ── LineNavigation with maxLines=3 ──────────────────────────────
+  // ── Enter always inserts in 3-line mode too ─────────────────────
 
-  it('at 3 lines, goToNextLine navigates (no insertion)', () => {
+  it('Enter inserts a hardBreak even at 3 lines', () => {
     editor = createNoteEditor('A\nB\nC');
     expect(countHardBreaks(editor)).toBe(2);
-
-    editor.commands.setTextSelection(2);
-    editor.commands.goToNextLine();
-
-    expect(countHardBreaks(editor)).toBe(2);
-  });
-
-  it('at fewer than 3 lines, setHardBreak adds a line', () => {
-    editor = createNoteEditor('A\nB\nC');
-    expect(countHardBreaks(editor)).toBe(2);
-
-    // Delete last hardBreak + trailing content to drop to 2 lines
-    const breakPositions = getHardBreakPositions(editor);
-    const lastBreak = breakPositions[breakPositions.length - 1];
-    const docEnd = editor.state.doc.content.size;
-    editor.commands.setTextSelection({ from: lastBreak, to: docEnd - 1 });
-    editor.commands.deleteSelection();
-
-    expect(countHardBreaks(editor)).toBe(1);
 
     editor.commands.setTextSelection(2);
     editor.commands.setHardBreak();
 
-    expect(countHardBreaks(editor)).toBe(2);
-  });
-
-  it('goToNextLine wraps from line 3 back to line 1', () => {
-    editor = createNoteEditor('X\nY\nZ');
-    const breakPositions = getHardBreakPositions(editor);
-
-    const lastBreak = breakPositions[breakPositions.length - 1];
-    editor.commands.setTextSelection(lastBreak + 1);
-
-    editor.commands.goToNextLine();
-
-    expect(editor.state.selection.from).toBe(2);
+    // Now 3 hardBreaks (4 lines)
+    expect(countHardBreaks(editor)).toBe(3);
   });
 });

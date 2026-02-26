@@ -17,9 +17,10 @@ const CURSOR_ANCHOR_CHAR = '\u200B';
 /**
  * Simplified parser - treats template as single block with line breaks.
  * @param maxLines  Number of lines for this device (6 for Flagship, 3 for Note).
+ *                  Used only for padding (ensures at least maxLines lines).
  */
 export function parseTemplateSimple(template: string, maxLines = 6): JSONContent {
-  const lines = template.split('\n').slice(0, maxLines);
+  const lines = template.split('\n');
   
   // Build a single paragraph with content and hardBreaks between lines
   const content: JSONContent[] = [];
@@ -104,12 +105,12 @@ export function serializeTemplateSimple(doc: JSONContent, maxLines = 6): string 
     lines.push(currentLine);
   }
   
-  // Ensure exactly maxLines lines
+  // Pad to at least maxLines (but don't truncate if over)
   while (lines.length < maxLines) {
     lines.push('');
   }
   
-  return lines.slice(0, maxLines).join('\n');
+  return lines.join('\n');
 }
 
 /**

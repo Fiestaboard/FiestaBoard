@@ -177,6 +177,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">("rich");
+  const [lineCount, setLineCount] = useState(numLines);
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
@@ -855,22 +856,23 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       }).join('\n');
                     })()}
                     onChange={(newValue) => {
-                      // Skip parsing if we're manually updating wrap (to prevent state overwrite)
                       if (isUpdatingWrap.current) {
                         return;
                       }
                       
-                      // Parse the plain text back into lines and strip any alignment prefixes
-                      const lines = newValue.split('\n').slice(0, numLines);
+                      const lines = newValue.split('\n');
                       const newLines: string[] = [];
                       
-                      for (let i = 0; i < numLines; i++) {
-                        // Strip any alignment prefixes that might have been typed
+                      for (let i = 0; i < lines.length; i++) {
                         const { content } = extractAlignment(lines[i] || '');
                         newLines.push(content);
                       }
                       
                       setTemplateLines(newLines);
+                      setLineCount(newLines.length);
+                    }}
+                    onLineCountChange={(count) => {
+                      setLineCount(count);
                     }}
                     lineAlignments={lineAlignments}
                     lineWrapEnabled={lineWrapEnabled}
@@ -896,13 +898,12 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                   <PlainTextEditor
                     value={getTemplateWithAlignments().join('\n')}
                     onChange={(newValue) => {
-                      // Parse raw text back into template lines and alignments
                       const lines = newValue.split('\n');
                       const newContents: string[] = [];
                       const newAlignments: LineAlignment[] = [];
                       const newWrapStates: boolean[] = [];
                       
-                      for (let i = 0; i < numLines; i++) {
+                      for (let i = 0; i < lines.length; i++) {
                         const line = lines[i] || "";
                         const { alignment, wrapEnabled, content } = extractAlignment(line);
                         newAlignments.push(alignment);
@@ -913,11 +914,25 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       setTemplateLines(newContents);
                       setLineAlignments(newAlignments);
                       setLineWrapEnabled(newWrapStates);
+                      setLineCount(lines.length);
                     }}
                     placeholder="Type your template text with alignment prefixes like {center}, {right}, {wrap}"
+                    boardLines={numLines}
+                    boardWidth={dims.cols}
                   />
                 </TabsContent>
               </Tabs>
+
+              {/* Line count validation warning */}
+              {lineCount > numLines && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                  <span className="font-medium shrink-0">Warning:</span>
+                  <span>
+                    Template has {lineCount} lines but the board only displays {numLines}.
+                    Lines beyond {numLines} will be ignored.
+                  </span>
+                </div>
+              )}
 
               {/* Live preview */}
               <div className="mt-4">

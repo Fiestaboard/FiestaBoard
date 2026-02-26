@@ -7,7 +7,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 // No longer using custom paragraph extension
 import { VariableNode } from './extensions/variable-node';
@@ -96,6 +96,7 @@ interface TipTapTemplateEditorProps {
   showToolbar?: boolean; // Show toolbar at top (default: true)
   boardWidth?: number; // Characters per line (default: 22 for flagship)
   boardLines?: number; // Total lines (default: 6 for flagship)
+  onLineCountChange?: (lineCount: number) => void; // Reports current line count for validation
 }
 
 /**
@@ -115,6 +116,7 @@ export function TipTapTemplateEditor({
   showToolbar = true,
   boardWidth = BOARD_WIDTH,
   boardLines = BOARD_LINES,
+  onLineCountChange,
 }: TipTapTemplateEditorProps) {
   // Use device-aware defaults when props not provided
   const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
@@ -126,6 +128,8 @@ export function TipTapTemplateEditor({
   const editorRef = useRef<any>(null);
   // Track drag state to handle moves properly
   const dragStateRef = useRef<{ from: number; to: number } | null>(null);
+  // Track line count for validation display
+  const [editorLineCount, setEditorLineCount] = useState(boardLines);
   
   const editor = useEditor({
     immediatelyRender: false,
@@ -479,6 +483,12 @@ export function TipTapTemplateEditor({
       const doc = editor.getJSON();
       const templateString = serializeTemplateSimple(doc, boardLines);
       onChange(templateString);
+
+      const lineCount = templateString.split('\n').length;
+      setEditorLineCount(lineCount);
+      if (onLineCountChange) {
+        onLineCountChange(lineCount);
+      }
     },
     onFocus: () => {
       onFocus?.();
@@ -724,6 +734,8 @@ export function TipTapTemplateEditor({
     ? effectiveWrapEnabled[currentLineIndex] || false
     : false;
 
+  const isOverLineLimit = editorLineCount > boardLines;
+
   return (
     <div className={cn('relative', className)}>
       {/* Toolbar */}
@@ -745,15 +757,24 @@ export function TipTapTemplateEditor({
       <div className="flex-1">
         <div className={cn(
           "border bg-background relative rounded-md",
-          showToolbar ? "rounded-t-none" : ""
+          showToolbar ? "rounded-t-none" : "",
+          isOverLineLimit && "border-amber-500"
         )} style={{ 
           padding: '0.75rem', 
-          overflow: 'hidden',
           minHeight: `${boardLines * 1.5 + 1.5}rem`,
         }}>
-          <div className="relative" style={{ height: `${boardLines * 1.5}rem` }}>
+          <div className="relative" style={{ minHeight: `${boardLines * 1.5}rem` }}>
             <EditorContent editor={editor} />
           </div>
+        </div>
+
+        {/* Line counter */}
+        <div className={cn(
+          "mt-1 text-xs",
+          isOverLineLimit ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
+        )}>
+          {editorLineCount} / {boardLines} lines
+          {isOverLineLimit && ` — exceeds the ${boardLines}-line board limit`}
         </div>
 
         {/* Alignment controls - only show if toolbar is hidden */}
@@ -818,7 +839,7 @@ export function TipTapTemplateEditor({
           padding: 0;
           width: 100%;
           max-width: 100%;
-          overflow: hidden;
+          overflow: visible;
           outline: none;
         }
         
