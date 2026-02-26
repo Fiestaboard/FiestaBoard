@@ -52,7 +52,6 @@ import {
 } from "@/components/ui/select";
 import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays } from "lucide-react";
 import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern } from "@/lib/api";
-import BlurText from "@/components/ui/react-bits/blur-text";
 import { toast } from "sonner";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
 
@@ -312,7 +311,7 @@ export default function SchedulePage() {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-6xl">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight"><BlurText text="Schedule" delay={150} /></h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Schedule</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Automate page rotation based on time and day
           </p>
@@ -356,7 +355,7 @@ export default function SchedulePage() {
         )}
 
         {/* Schedule Mode Toggle */}
-        <Card className="mb-6">
+        <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -431,7 +430,7 @@ export default function SchedulePage() {
         )}
 
         {/* Default Page */}
-        <Card className="mb-6">
+        <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
           <CardHeader>
             <CardTitle className="text-lg">Default Page</CardTitle>
             <CardDescription>
@@ -492,7 +491,7 @@ export default function SchedulePage() {
             onAdd={handleAdd}
           />
         ) : (
-          <Card className="mb-6">
+          <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "300ms" }}>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <CardTitle className="text-lg">Schedule Calendar</CardTitle>

@@ -8,8 +8,6 @@ import { useWizard } from "@/components/wizard-provider";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Puzzle, Wand2 } from "lucide-react";
-import BlurText from "@/components/ui/react-bits/blur-text";
-
 export default function SettingsPage() {
   const { triggerWizard } = useWizard();
 
@@ -18,7 +16,7 @@ export default function SettingsPage() {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
         <div className="mb-4 sm:mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            <BlurText text="Settings" delay={150} />
+            Settings
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Configure your FiestaBoard service
@@ -27,22 +25,24 @@ export default function SettingsPage() {
 
         <div className="space-y-6 sm:space-y-8 max-w-4xl">
           {/* Update alert banner */}
-          <SystemUpdate />
+          <div className="animate-card-fade-in" style={{ animationDelay: "0ms" }}>
+            <SystemUpdate />
+          </div>
 
           {/* General Settings & Service Control */}
-          <section>
+          <section className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">General Settings</h2>
             <GeneralSettings />
           </section>
 
           {/* Boards */}
-          <section>
+          <section className="animate-card-fade-in" style={{ animationDelay: "300ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Boards</h2>
             <DisplaySettings />
           </section>
 
           {/* Integrations Link */}
-          <section>
+          <section className="animate-card-fade-in" style={{ animationDelay: "450ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Data Sources</h2>
             <p className="text-sm text-muted-foreground mb-4">
               Enable and configure data source plugins for your board display.
@@ -56,13 +56,13 @@ export default function SettingsPage() {
           </section>
 
           {/* Debug Tools */}
-          <section className="pt-4 border-t">
+          <section className="pt-4 border-t animate-card-fade-in" style={{ animationDelay: "600ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Debug</h2>
             <DebugSettings />
           </section>
 
           {/* Setup Wizard - at the bottom */}
-          <section className="pt-4 border-t">
+          <section className="pt-4 border-t animate-card-fade-in" style={{ animationDelay: "750ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Setup Wizard</h2>
             <p className="text-sm text-muted-foreground mb-4">
               Re-run the setup wizard to reconfigure your board connection and basic settings.

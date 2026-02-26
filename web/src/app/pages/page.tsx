@@ -8,7 +8,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useBoardSettings } from "@/hooks/use-board";
-import BlurText from "@/components/ui/react-bits/blur-text";
 import type { DeviceType } from "@/lib/api";
 
 export default function PagesPage() {
@@ -38,7 +37,7 @@ export default function PagesPage() {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
         <div className="mb-4 sm:mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            <BlurText text="Pages" delay={150} />
+            Pages
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Create and manage content for your board
@@ -46,7 +45,7 @@ export default function PagesPage() {
         </div>
 
         {/* Page Grid */}
-        <Card>
+        <Card className="animate-card-fade-in">
           <CardHeader className="pb-3 px-4 sm:px-6">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base sm:text-lg">
