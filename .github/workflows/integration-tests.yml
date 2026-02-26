@@ -23,6 +23,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      # Cache Docker image by content hash + build environment (test vs prod).
+      # - Cache key includes 'test' prefix to separate from production builds
+      # - Both e2e and integration workflows share this cache (same key, same VERSION=dev)
+      # - Production builds (release.yml) use different VERSION arg, so they get separate caches
       - name: Cache Docker image
         id: docker-cache
         uses: actions/cache@v4
