@@ -181,7 +181,7 @@ describe("ActivePageDisplay", () => {
       expect(screen.getByText("Select Page")).toBeInTheDocument();
     });
 
-    // Wait for sheet content and page grid to load (320ms animation + data fetch)
+    // Wait for sheet content and page grid to load (520ms animation + data fetch)
     await waitFor(() => {
       const page2 = screen.queryByText("Custom Template");
       expect(page2).toBeInTheDocument();

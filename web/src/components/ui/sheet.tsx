@@ -25,7 +25,7 @@ const SheetOverlay = React.forwardRef<
       className
     )}
     style={{
-      animation: "sheet-overlay-in 200ms ease-out",
+      animation: "sheet-overlay-in 300ms ease-out",
     }}
     {...props}
     ref={ref}
@@ -61,15 +61,15 @@ const SheetContent = React.forwardRef<
   const getAnimation = (side: string) => {
     switch (side) {
       case "right":
-        return "sheet-slide-in-right 300ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-right 500ms cubic-bezier(0.16, 1, 0.3, 1)";
       case "left":
-        return "sheet-slide-in-left 300ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-left 500ms cubic-bezier(0.16, 1, 0.3, 1)";
       case "top":
-        return "sheet-slide-in-top 300ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-top 500ms cubic-bezier(0.16, 1, 0.3, 1)";
       case "bottom":
-        return "sheet-slide-in-bottom 300ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-bottom 500ms cubic-bezier(0.16, 1, 0.3, 1)";
       default:
-        return "sheet-slide-in-right 300ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-right 500ms cubic-bezier(0.16, 1, 0.3, 1)";
     }
   };
 
