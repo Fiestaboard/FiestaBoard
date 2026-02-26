@@ -572,7 +572,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
       page.getByRole("heading", { name: "Add Data Sources" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(page.getByText("Setup Complete!")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Setup Complete!" })).toBeVisible();
 
     await page
       .getByRole("button", { name: /Go to Dashboard|Skip/ })
