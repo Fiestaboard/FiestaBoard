@@ -61,15 +61,15 @@ const SheetContent = React.forwardRef<
   const getAnimation = (side: string) => {
     switch (side) {
       case "right":
-        return "sheet-slide-in-right 500ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-right 400ms cubic-bezier(0.25, 0.1, 0.25, 1)";
       case "left":
-        return "sheet-slide-in-left 500ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-left 400ms cubic-bezier(0.25, 0.1, 0.25, 1)";
       case "top":
-        return "sheet-slide-in-top 500ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-top 400ms cubic-bezier(0.25, 0.1, 0.25, 1)";
       case "bottom":
-        return "sheet-slide-in-bottom 500ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-bottom 400ms cubic-bezier(0.25, 0.1, 0.25, 1)";
       default:
-        return "sheet-slide-in-right 500ms cubic-bezier(0.16, 1, 0.3, 1)";
+        return "sheet-slide-in-right 400ms cubic-bezier(0.25, 0.1, 0.25, 1)";
     }
   };
 

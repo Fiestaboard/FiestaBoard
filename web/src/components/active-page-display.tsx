@@ -122,10 +122,10 @@ export function ActivePageDisplay() {
   // Handle showing content after animation completes
   useEffect(() => {
     if (isSheetOpen) {
-      // Wait for slide animation to complete (500ms) before revealing content
+      // Wait for slide animation to complete (400ms) before revealing content
       const timer = setTimeout(() => {
         setShowSheetContent(true);
-      }, 520); // Slightly after animation (500ms + buffer)
+      }, 420); // Slightly after animation (400ms + buffer)
       return () => clearTimeout(timer);
     } else {
       // Hide immediately when closing

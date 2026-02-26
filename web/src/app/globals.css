@@ -552,44 +552,36 @@
 
 @keyframes sheet-slide-in-right {
   from {
-    opacity: 0;
     transform: translate3d(100%, 0, 0);
   }
   to {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes sheet-slide-in-left {
   from {
-    opacity: 0;
     transform: translate3d(-100%, 0, 0);
   }
   to {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes sheet-slide-in-top {
   from {
-    opacity: 0;
     transform: translate3d(0, -100%, 0);
   }
   to {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes sheet-slide-in-bottom {
   from {
-    opacity: 0;
     transform: translate3d(0, 100%, 0);
   }
   to {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 }
