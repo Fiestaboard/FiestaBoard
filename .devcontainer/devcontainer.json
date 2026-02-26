@@ -1,25 +1,44 @@
 {
   "name": "FiestaBoard",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" }
+  "build": {
+    "context": "..",
+    "dockerfile": ".devcontainer/Dockerfile"
   },
-  "postCreateCommand": "cp env.example .env && echo 'Run: docker-compose -f docker-compose.dev.yml up --build'",
+
+  // Mount workspace at /app so existing configs (supervisord, nginx) work as-is
+  "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached",
+  "workspaceFolder": "/app",
+
+  // Lifecycle commands
+  "postCreateCommand": ".devcontainer/post-create.sh",
+  "postStartCommand": "mkdir -p data/logs && supervisord -c supervisord-dev.conf",
+
+  // Port forwarding
+  "forwardPorts": [3000, 8000, 3001],
+  "portsAttributes": {
+    "3000": { "label": "FiestaBoard App", "onAutoForward": "notify" },
+    "8000": { "label": "API Server", "onAutoForward": "silent" },
+    "3001": { "label": "Next.js Dev", "onAutoForward": "silent" }
+  },
+
+  // VS Code / Codespaces customizations
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
-        "ms-python.vscode-pylance",
-        "ms-vscode.docker"
-      ]
-    }
-  },
-  "forwardPorts": [4420],
-  "portsAttributes": {
-    "4420": {
-      "label": "FiestaBoard (Web UI + API)",
-      "onAutoForward": "notify"
+        "ms-python.black-formatter",
+        "charliermarsh.ruff",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true
+        }
+      }
     }
   }
 }
