@@ -321,7 +321,6 @@ import {
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import BlurText from "@/components/ui/react-bits/blur-text";
 import CountUp from "@/components/ui/react-bits/count-up";
 import SpotlightCard from "@/components/ui/react-bits/spotlight-card";
 import ShinyText from "@/components/ui/react-bits/shiny-text";
@@ -1337,7 +1336,7 @@ export default function IntegrationsPage() {
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
             <Puzzle className="h-7 w-7 text-primary" />
-            <BlurText text="Integrations" delay={150} />
+            Integrations
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Enable and configure data source plugins for your FiestaBoard
