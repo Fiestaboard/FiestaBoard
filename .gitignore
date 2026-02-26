@@ -64,7 +64,6 @@ Thumbs.db
 config/config.yaml
 !config/config.yaml.example
 config.json
-!config.example.json
 
 # Data directory (user-specific data, contains secrets)
 data/

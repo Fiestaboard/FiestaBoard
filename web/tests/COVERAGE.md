@@ -139,8 +139,8 @@ board. In Docker, containers talk to each other by service name
 (`fiestaboard-mock-board`). In CI, everything runs on `localhost` (the default).
 
 Playwright's `reuseExistingServer: true` means it will use the already-running
-Docker services on ports 3000 (UI), 8000 (API), and 7000 (mock board) without
-trying to start new processes.
+Docker services (internally on ports 3000/8000, exposed via 4420 on host, plus mock board on 7000)
+without trying to start new processes.
 
 **Run a specific test file:**
 
@@ -162,10 +162,11 @@ enters the merge queue. No action needed.
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Playwright  │────▶│  Next.js UI  │────▶│   FastAPI    │────▶│  Mock Board  │
-│  (browser)   │     │  (port 3000) │     │  (port 8000) │     │  (port 7000) │
-└─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+┌─────────────┐     ┌──────────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Playwright  │────▶│  Next.js UI      │────▶│   FastAPI    │────▶│  Mock Board  │
+│  (browser)   │     │  (internal:3000) │     │  (internal:  │     │  (port 7000) │
+│              │     │  (host:4420)     │     │   8000)      │     │              │
+└─────────────┘     └──────────────────┘     └──────────────┘     └──────────────┘
                                                                      ▲
                     API-only tests hit the FastAPI server directly ───┘
 ```
