@@ -151,7 +151,7 @@ ports:
   - "9090:3000"   # use a different host port
 ```
 
-Only the host port (left of the colon) changes. The container-side port stays `3000` because that's where nginx listens internally. See the [Port Configuration](./DOCKER_SETUP.md#port-configuration) section for details.
+Only the host port (left of the colon) changes. The container-side port stays `3000` because that's where nginx listens internally.
 
 ### Container Won't Start
 
