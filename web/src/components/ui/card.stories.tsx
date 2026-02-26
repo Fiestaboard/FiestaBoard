@@ -116,3 +116,71 @@ export const MultipleCards = () => (
     </Card>
   </div>
 );
+
+export const AllLayouts = () => (
+  <div className="space-y-6 max-w-4xl">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic Card</CardTitle>
+          <CardDescription>Header with title and description</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">Simple content area</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>With Footer</CardTitle>
+          <CardDescription>Includes footer with actions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">Content with footer below</p>
+        </CardContent>
+        <CardFooter>
+          <Button size="sm" className="w-full">Action</Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>With Action</CardTitle>
+          <CardDescription>Header with inline action button</CardDescription>
+          <CardAction>
+            <Button variant="outline" size="sm">Edit</Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">Content area</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-sm">Card with content only (no header)</p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary">
+        <CardHeader>
+          <CardTitle>Highlighted Card</CardTitle>
+          <CardDescription>Custom border color</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">Primary border styling</p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive bg-destructive/5">
+        <CardHeader>
+          <CardTitle>Alert Card</CardTitle>
+          <CardDescription>Styled for attention</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">Custom styling for alerts</p>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);

@@ -87,3 +87,42 @@ export const DefaultOpen = () => (
     </AccordionItem>
   </Accordion>
 );
+
+export const AllTypes = () => (
+  <div className="space-y-8">
+    <div className="space-y-2">
+      <h3 className="text-sm font-medium">Single (collapsible)</h3>
+      <Accordion type="single" collapsible className="w-[450px]">
+        <AccordionItem value="item-1">
+          <AccordionTrigger>Section 1</AccordionTrigger>
+          <AccordionContent>Only one section can be open at a time.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="item-2">
+          <AccordionTrigger>Section 2</AccordionTrigger>
+          <AccordionContent>Opening this closes the other section.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="item-3">
+          <AccordionTrigger>Section 3</AccordionTrigger>
+          <AccordionContent>Try clicking between sections.</AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+    <div className="space-y-2">
+      <h3 className="text-sm font-medium">Multiple</h3>
+      <Accordion type="multiple" className="w-[450px]">
+        <AccordionItem value="item-1">
+          <AccordionTrigger>Section 1</AccordionTrigger>
+          <AccordionContent>Multiple sections can be open simultaneously.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="item-2">
+          <AccordionTrigger>Section 2</AccordionTrigger>
+          <AccordionContent>This one can stay open while opening others.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="item-3">
+          <AccordionTrigger>Section 3</AccordionTrigger>
+          <AccordionContent>Try opening all three sections.</AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  </div>
+);

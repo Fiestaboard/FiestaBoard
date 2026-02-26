@@ -70,3 +70,34 @@ export const FormExample = () => (
     </div>
   </div>
 );
+
+export const AllStates = () => (
+  <div className="space-y-6">
+    <div>
+      <h3 className="text-sm font-medium mb-3">Interactive States</h3>
+      <div className="flex flex-wrap gap-6">
+        <div className="flex items-center gap-2">
+          <Switch id="unchecked" />
+          <Label htmlFor="unchecked">Unchecked</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch id="checked" defaultChecked />
+          <Label htmlFor="checked">Checked</Label>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3 className="text-sm font-medium mb-3">Disabled States</h3>
+      <div className="flex flex-wrap gap-6">
+        <div className="flex items-center gap-2">
+          <Switch id="disabled-unchecked" disabled />
+          <Label htmlFor="disabled-unchecked">Disabled Unchecked</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch id="disabled-checked" disabled defaultChecked />
+          <Label htmlFor="disabled-checked">Disabled Checked</Label>
+        </div>
+      </div>
+    </div>
+  </div>
+);
