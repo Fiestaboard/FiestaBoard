@@ -2,7 +2,7 @@
   "name": "FiestaBoard",
   "build": {
     "context": "..",
-    "dockerfile": "Dockerfile"
+    "dockerfile": ".devcontainer/Dockerfile"
   },
 
   // Mount workspace at /app so existing configs (supervisord, nginx) work as-is
