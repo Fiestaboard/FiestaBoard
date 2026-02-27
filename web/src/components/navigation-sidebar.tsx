@@ -64,31 +64,31 @@ export function NavigationSidebar() {
     <>
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-[100] border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex items-center px-3 h-14 gap-3">
+        <div className="flex items-center px-4 h-14">
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 flex-shrink-0"
+            className="h-9 w-9 flex-shrink-0 -ml-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           >
             {mobileMenuOpen ? (
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             ) : (
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" />
             )}
           </Button>
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
             <Image
               src="/icons/favicon-32x32.png"
               alt="FiestaBoard"
-              width={28}
-              height={28}
+              width={32}
+              height={32}
               className="flex-shrink-0"
             />
-            <h1 className="text-base font-semibold tracking-tight whitespace-nowrap truncate">FiestaBoard</h1>
-            <ServiceStatus />
+            <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap truncate">FiestaBoard</h1>
           </div>
+          <ServiceStatus className="ml-3" />
         </div>
       </header>
 
