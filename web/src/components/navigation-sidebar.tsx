@@ -73,9 +73,9 @@ export function NavigationSidebar() {
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           >
             {mobileMenuOpen ? (
-              <X className="h-6 w-6" />
+              <X className="h-6 w-6 text-foreground" />
             ) : (
-              <Menu className="h-6 w-6" />
+              <Menu className="h-6 w-6 text-foreground" />
             )}
           </Button>
           <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
@@ -88,7 +88,9 @@ export function NavigationSidebar() {
             />
             <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap truncate">FiestaBoard</h1>
           </div>
-          <ServiceStatus className="ml-3" />
+          <div className="ml-3">
+            <ServiceStatus />
+          </div>
         </div>
       </header>
 
