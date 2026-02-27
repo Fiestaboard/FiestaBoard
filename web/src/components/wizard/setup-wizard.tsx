@@ -264,6 +264,17 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                 Step {currentStep} of {TOTAL_STEPS}
               </span>
 
+              {currentStep === 1 && !canProceed && (
+                <Button
+                  variant="ghost"
+                  onClick={handleComplete}
+                  disabled={isLoading}
+                  size="lg"
+                >
+                  Skip for now
+                </Button>
+              )}
+
               {currentStep < TOTAL_STEPS && (
                 <Button 
                   onClick={handleNext} 

@@ -1,8 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ActivePageDisplay } from "@/components/active-page-display";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Info } from "lucide-react";
+import { getSetupStatus } from "@/lib/setup-detection";
+import { useWizard } from "@/components/wizard-provider";
 
 export default function Home() {
+  const [boardNotConfigured, setBoardNotConfigured] = useState(false);
+  const { triggerWizard } = useWizard();
+
+  useEffect(() => {
+    getSetupStatus()
+      .then((status) => {
+        if (status && !status.valid) {
+          setBoardNotConfigured(true);
+        }
+      })
+      .catch(() => {
+        // Silently ignore - getSetupStatus already logs errors
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
@@ -14,6 +35,23 @@ export default function Home() {
             Monitor your board display and system activity
           </p>
         </div>
+
+        {boardNotConfigured && (
+          <div className="mb-4 sm:mb-6">
+            <Alert className="border-blue-500/50 bg-blue-500/10">
+              <Info className="h-4 w-4 text-blue-500" />
+              <AlertTitle>No board configured</AlertTitle>
+              <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span>
+                  Your board is not set up yet. Connect your board to start displaying content.
+                </span>
+                <Button variant="outline" size="sm" onClick={triggerWizard} className="w-fit">
+                  Run Setup Wizard
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
 
         <div className="animate-card-fade-in">
           <ActivePageDisplay />
