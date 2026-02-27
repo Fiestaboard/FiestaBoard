@@ -13,11 +13,15 @@ export default function Home() {
   const { triggerWizard } = useWizard();
 
   useEffect(() => {
-    getSetupStatus().then((status) => {
-      if (status && !status.valid) {
-        setBoardNotConfigured(true);
-      }
-    });
+    getSetupStatus()
+      .then((status) => {
+        if (status && !status.valid) {
+          setBoardNotConfigured(true);
+        }
+      })
+      .catch(() => {
+        // Silently ignore - getSetupStatus already logs errors
+      });
   }, []);
 
   return (
