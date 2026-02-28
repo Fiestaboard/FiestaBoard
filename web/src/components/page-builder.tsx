@@ -680,6 +680,10 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
     const hasContent = templateLines.some(line => line.trim().length > 0);
     if (!hasContent) {
+      if (liveAbortRef.current) {
+        liveAbortRef.current.abort();
+        liveAbortRef.current = null;
+      }
       setPreview(null);
       lastLiveSentPreview.current = null;
       return;
@@ -727,6 +731,10 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     return () => {
       if (liveDebounceRef.current) {
         clearTimeout(liveDebounceRef.current);
+      }
+      if (liveAbortRef.current) {
+        liveAbortRef.current.abort();
+        liveAbortRef.current = null;
       }
     };
   }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId]);
