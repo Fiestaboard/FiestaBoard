@@ -170,11 +170,6 @@ export function ActivePageDisplay() {
     queryFn: api.getCarousels,
     staleTime: 5 * 60 * 1000,
   });
-
-  const activeCarousel = useMemo(() => {
-    if (!activePageId || !isCarouselId(activePageId)) return null;
-    return carouselsData?.carousels?.find((c: Carousel) => c.id === activePageId) || null;
-  }, [activePageId, carouselsData]);
   
   // Set active page mutation
   const setActivePageMutation = useSetActivePage();
@@ -183,6 +178,11 @@ export function ActivePageDisplay() {
   const activePageId = scheduleEnabled 
     ? (activeScheduleData?.page_id || null)
     : (activePageData?.page_id || null);
+
+  const activeCarousel = useMemo(() => {
+    if (!activePageId || !isCarouselId(activePageId)) return null;
+    return carouselsData?.carousels?.find((c: Carousel) => c.id === activePageId) || null;
+  }, [activePageId, carouselsData]);
   
   // Defer activePageId updates to reduce priority of non-urgent re-renders
   // This makes clicking feel more responsive
