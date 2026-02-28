@@ -78,12 +78,12 @@ test.describe("API – Settings", () => {
     const res = await fetch(`${API}/settings/polling`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ interval_seconds: 30 }),
+      body: JSON.stringify({ interval_seconds: 15 }),
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data.status).toBe("success");
-    expect(data.settings.interval_seconds).toBe(30);
+    expect(data.settings.interval_seconds).toBe(15);
   });
 
   test("rejects invalid polling interval", async () => {

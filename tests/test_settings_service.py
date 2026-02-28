@@ -118,13 +118,13 @@ class TestPollingSettings:
         ps = PollingSettings.from_dict({"interval_seconds": 0})
         assert ps.interval_seconds == 10
 
-    def test_from_dict_empty_defaults_to_30(self):
+    def test_from_dict_empty_defaults_to_15(self):
         ps = PollingSettings.from_dict({})
-        assert ps.interval_seconds == 30
+        assert ps.interval_seconds == 15
 
     def test_to_dict(self):
-        ps = PollingSettings(interval_seconds=30)
-        assert ps.to_dict() == {"interval_seconds": 30}
+        ps = PollingSettings(interval_seconds=15)
+        assert ps.to_dict() == {"interval_seconds": 15}
 
 
 # ==================== BoardSettings ====================
