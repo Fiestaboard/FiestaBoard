@@ -263,7 +263,7 @@ const CarouselButton = memo(function CarouselButton({
         <GalleryHorizontalEnd className={iconClassName} />
         <span className={nameClassName}>{carousel.name}</span>
         <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
-          {carousel.page_ids.length} pages
+          {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
         </Badge>
       </div>
       <div className="text-xs text-muted-foreground truncate">

@@ -219,7 +219,7 @@ describe("PagePickerDialog - Carousel Integration", () => {
     );
 
     expect(screen.getByText("2 pages")).toBeInTheDocument();
-    expect(screen.getByText("1 pages")).toBeInTheDocument();
+    expect(screen.getByText("1 page")).toBeInTheDocument();
   });
 
   it("renders with allowNone and carousels", () => {

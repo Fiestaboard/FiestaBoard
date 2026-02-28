@@ -350,7 +350,7 @@ class DisplayService:
         self.check_and_send_active_page(dev_mode=False)
         
         logger.info("Service started, waiting for scheduled updates...")
-        _next_carousel_check: float = 0
+        _next_carousel_check: float = time.time()
         try:
             while self.running:
                 schedule.run_pending()

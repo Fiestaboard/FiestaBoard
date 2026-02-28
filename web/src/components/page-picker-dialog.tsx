@@ -63,7 +63,7 @@ export function PagePickerDialog({
                 <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">{carousel.name}</span>
                 <Badge variant="secondary" className="text-[10px]">
-                  {carousel.page_ids.length} pages
+                  {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
                 </Badge>
               </div>
               {selectedPageId === carousel.id && (
