@@ -444,4 +444,78 @@ describe("PageGridSelector", () => {
       expect(screen.getByText("Page 1")).toBeInTheDocument();
     });
   });
+
+  it("renders carousel buttons when carousels exist", async () => {
+    vi.mocked(api.getCarousels).mockResolvedValue({
+      carousels: [
+        {
+          id: "carousel:c1",
+          name: "My Carousel",
+          page_ids: ["page-1", "page-2"],
+          interval_seconds: 30,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+        {
+          id: "carousel:c2",
+          name: "Single Carousel",
+          page_ids: ["page-3"],
+          interval_seconds: 60,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+      ],
+      total: 2,
+    });
+
+    const onSelectPage = vi.fn();
+
+    render(
+      <PageGridSelector
+        activePageId={null}
+        onSelectPage={onSelectPage}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("My Carousel")).toBeInTheDocument();
+      expect(screen.getByText("Single Carousel")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("CAROUSELS")).toBeInTheDocument();
+    expect(screen.getByText("2 pages")).toBeInTheDocument();
+    expect(screen.getByText("1 page")).toBeInTheDocument();
+  });
+
+  it("highlights active carousel and handles click", async () => {
+    vi.mocked(api.getCarousels).mockResolvedValue({
+      carousels: [
+        {
+          id: "carousel:c1",
+          name: "Active Carousel",
+          page_ids: ["page-1", "page-2"],
+          interval_seconds: 30,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+      ],
+      total: 1,
+    });
+
+    const onSelectPage = vi.fn();
+
+    render(
+      <PageGridSelector
+        activePageId="carousel:c1"
+        onSelectPage={onSelectPage}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      const button = screen.getByText("Active Carousel").closest("button");
+      expect(button).toHaveClass("border-primary");
+    });
+
+    screen.getByText("Active Carousel").closest("button")!.click();
+    expect(onSelectPage).toHaveBeenCalledWith("carousel:c1");
+  });
 });
