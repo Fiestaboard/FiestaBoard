@@ -23,6 +23,7 @@ services:
       - web-dev-node-modules:/app/web/node_modules
       - ./start-dev.sh:/app/start-dev.sh:ro
       - ./supervisord-dev.conf:/app/supervisord-dev.conf:ro
+      - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro
     command: ["/bin/sh", "/app/start-dev.sh"]
     logging:
       driver: "json-file"

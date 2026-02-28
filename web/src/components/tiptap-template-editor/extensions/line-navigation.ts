@@ -7,16 +7,22 @@
  * the board limit, but doesn't prevent typing).
  *
  * Shift+Enter is blocked to prevent accidental double-breaks.
+ *
+ * Uses priority 1000 so our Enter handler runs before the default Keymap's
+ * splitBlock, which would create new paragraphs instead of inserting hardBreaks.
  */
 import { Extension } from '@tiptap/core';
 
 export const LineNavigation = Extension.create({
   name: 'lineNavigation',
 
+  priority: 1000,
+
   addKeyboardShortcuts() {
     return {
       'Enter': () => {
-        return this.editor.commands.setHardBreak();
+        this.editor.commands.setHardBreak();
+        return true;
       },
 
       'Shift-Enter': () => true,

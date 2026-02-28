@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,20 +9,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 
-// Lazy load TipTapTemplateEditor to reduce initial bundle size
-const TipTapTemplateEditor = dynamic(
-  () => import("@/components/tiptap-template-editor/TipTapTemplateEditor").then(mod => ({ default: mod.TipTapTemplateEditor })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
-    ),
-  }
-);
+// Direct import – bypasses next/dynamic chunk caching issues in dev mode.
+// TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
+import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -177,7 +165,10 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">("rich");
-  const [lineCount, setLineCount] = useState(numLines);
+
+  // Derive line count from templateLines — single source of truth avoids
+  // desync when switching between Rich and Plain Text editors.
+  const lineCount = templateLines.length;
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
@@ -287,7 +278,6 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       setLineAlignments(alignments);
       setLineWrapEnabled(wrapStates);
       setTemplateLines(contents);
-      setLineCount(contents.length);
       // Initialize debounced state immediately when loading
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
@@ -309,7 +299,6 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
               setTemplateLines(restoredLines);
               setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
-              setLineCount(restoredLines.length);
               setDebouncedTemplateLines(restoredLines);
               setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
@@ -872,10 +861,6 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       }
                       
                       setTemplateLines(newLines);
-                      setLineCount(newLines.length);
-                    }}
-                    onLineCountChange={(count) => {
-                      setLineCount(count);
                     }}
                     lineAlignments={lineAlignments}
                     lineWrapEnabled={lineWrapEnabled}
@@ -917,7 +902,6 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       setTemplateLines(newContents);
                       setLineAlignments(newAlignments);
                       setLineWrapEnabled(newWrapStates);
-                      setLineCount(lines.length);
                     }}
                     placeholder="Type your template text with alignment prefixes like {center}, {right}, {wrap}"
                     boardLines={numLines}

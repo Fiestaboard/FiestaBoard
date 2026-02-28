@@ -4,7 +4,7 @@
  */
 
 import { JSONContent } from '@tiptap/react';
-import { BOARD_COLORS, SYMBOL_CHARS, FILL_SPACE_VAR, FILL_SPACE_REPEAT_VAR } from './constants';
+import { BOARD_COLORS, FILL_SPACE_VAR, FILL_SPACE_REPEAT_VAR } from './constants';
 
 /**
  * Zero-width space (U+200B) inserted at the start and end of each line so
@@ -135,9 +135,6 @@ function serializeNodeContent(node: JSONContent): string {
       }
       return `{{fill_space}}`;
     
-    case 'symbol':
-      return `{${node.attrs?.name}}`;
-    
     case 'wrappedText':
       return `{{${node.attrs?.text}|wrap}}`;
     
@@ -146,123 +143,8 @@ function serializeNodeContent(node: JSONContent): string {
   }
 }
 
-/**
- * Parse a template string into TipTap JSON document
- */
-export function parseTemplate(template: string): JSONContent {
-  const lines = template.split('\n').slice(0, 6); // Max 6 lines
-  
-  // Pad to exactly 6 lines
-  while (lines.length < 6) {
-    lines.push('');
-  }
-
-  const content: JSONContent[] = lines.map(line => {
-    const { alignment, wrapEnabled, content: lineContent } = extractAlignment(line);
-    
-    return {
-      type: 'templateParagraph',
-      attrs: { alignment, wrapEnabled },
-      content: lineContent ? parseLineContent(lineContent) : [],
-    };
-  });
-
-  return {
-    type: 'doc',
-    content,
-  };
-}
-
-/**
- * Serialize TipTap document back to template string
- */
-export function serializeTemplate(doc: JSONContent): string {
-  if (!doc.content || doc.content.length === 0) {
-    return '\n\n\n\n\n'; // 6 empty lines
-  }
-
-  const lines = doc.content.slice(0, 6).map(node => {
-    if (node.type !== 'templateParagraph') {
-      return '';
-    }
-
-    const alignment = node.attrs?.alignment || 'left';
-    const wrapEnabled = node.attrs?.wrapEnabled || false;
-    const content = serializeLineContent(node.content || []);
-    
-    return applyAlignment(alignment, wrapEnabled, content);
-  });
-
-  // Ensure exactly 6 lines
-  while (lines.length < 6) {
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Extract alignment and wrap directives from line
- */
-function extractAlignment(line: string): { alignment: string; wrapEnabled: boolean; content: string } {
-  let remaining = line;
-  let alignment = 'left';
-  let wrapEnabled = false;
-  
-  // Extract wrap prefix
-  if (remaining.startsWith('{wrap}')) {
-    wrapEnabled = true;
-    remaining = remaining.slice(6);
-  }
-  
-  // Extract alignment prefix (can come after wrap)
-  if (remaining.startsWith('{center}')) {
-    alignment = 'center';
-    remaining = remaining.slice(8);
-  } else if (remaining.startsWith('{right}')) {
-    alignment = 'right';
-    remaining = remaining.slice(7);
-  } else if (remaining.startsWith('{left}')) {
-    alignment = 'left';
-    remaining = remaining.slice(6);
-  }
-  
-  return { alignment, wrapEnabled, content: remaining };
-}
-
-/**
- * Apply alignment and wrap prefixes to content
- */
-function applyAlignment(alignment: string, wrapEnabled: boolean, content: string): string {
-  const prefixes: string[] = [];
-  
-  // Add wrap prefix first (preserve even for empty lines)
-  if (wrapEnabled) {
-    prefixes.push('{wrap}');
-  }
-  
-  // Add alignment prefix (only for non-left alignment)
-  switch (alignment) {
-    case 'center':
-      prefixes.push('{center}');
-      break;
-    case 'right':
-      prefixes.push('{right}');
-      break;
-    // left is default, no prefix needed
-  }
-  
-  // If no prefixes and no content, return empty string
-  // Otherwise return prefixes + content (even if content is empty)
-  if (prefixes.length === 0 && !content) {
-    return '';
-  }
-  
-  return prefixes.join('') + content;
-}
-
 /** Node types that are inline atoms (cursor can't sit inside them). */
-const ATOM_NODE_TYPES = new Set(['variable', 'colorTile', 'fillSpace', 'symbol']);
+const ATOM_NODE_TYPES = new Set(['variable', 'colorTile', 'fillSpace']);
 
 /**
  * Parse line content into TipTap nodes
@@ -356,18 +238,13 @@ export function parseLineContent(text: string): JSONContent[] {
         continue;
       }
       
-      // Check if it's a symbol
-      if (tokenName in SYMBOL_CHARS) {
-        nodes.push({
-          type: 'symbol',
-          attrs: {
-            symbol: tokenName,
-            character: SYMBOL_CHARS[tokenName],
-          },
-        });
-        remaining = remaining.slice(singleMatch[0].length);
-        continue;
-      }
+      // Unmatched {token} (e.g. {sun}) - treat as plain text
+      nodes.push({
+        type: 'text',
+        text: singleMatch[0],
+      });
+      remaining = remaining.slice(singleMatch[0].length);
+      continue;
     }
 
     // Plain text - collect until next special token
@@ -409,50 +286,6 @@ export function parseLineContent(text: string): JSONContent[] {
     result.push(node);
   }
   return result;
-}
-
-/**
- * Serialize line content back to string
- */
-function serializeLineContent(nodes: JSONContent[]): string {
-  return nodes.map(node => {
-    switch (node.type) {
-      case 'text':
-        return node.text || '';
-      
-      case 'variable':
-        const { pluginId, field, filters } = node.attrs || {};
-        let varStr = `{{${pluginId}.${field}`;
-        if (filters && filters.length > 0) {
-          varStr += '|' + filters.map((f: { name: string; arg?: string }) => 
-            f.arg ? `${f.name}:${f.arg}` : f.name
-          ).join('|');
-        }
-        varStr += '}}';
-        return varStr;
-      
-      case 'colorTile':
-        // Use double bracket syntax for colors to match user input: {{red}}
-        return `{{${node.attrs?.color || 'red'}}}`;
-      
-      case 'fillSpace':
-        // Check if it has repeatChar attribute (fill_space_repeat)
-        if (node.attrs?.repeatChar) {
-          return `{{${FILL_SPACE_REPEAT_VAR}:${node.attrs.repeatChar}}}`;
-        }
-        return `{{${FILL_SPACE_VAR}}}`;
-      
-      case 'symbol':
-        return `{${node.attrs?.symbol || 'sun'}}`;
-      
-      case 'wrappedText':
-        // Serialize wrapped text as plain text (wrap is handled at render time)
-        return node.attrs?.text || '';
-      
-      default:
-        return '';
-    }
-  }).join('');
 }
 
 /**

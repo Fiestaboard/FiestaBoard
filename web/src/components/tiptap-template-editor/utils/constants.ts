@@ -32,24 +32,6 @@ export const BOARD_COLORS = {
 
 export type BoardColorName = keyof typeof BOARD_COLORS;
 
-// Symbol shortcuts to actual FiestaBoard characters
-// Based on SYMBOL_CHARS from src/templates/engine.py
-export const SYMBOL_CHARS: Record<string, string> = {
-  sun: "*",
-  star: "*",
-  cloud: "O",
-  rain: "/",
-  snow: "*",
-  storm: "!",
-  fog: "-",
-  partly: "%",
-  heart: "<3",
-  check: "+",
-  x: "X",
-};
-
-export type SymbolName = keyof typeof SYMBOL_CHARS;
-
 // Board dimensions (default flagship)
 export const BOARD_WIDTH = 22; // characters per line
 export const BOARD_LINES = 6; // total lines
