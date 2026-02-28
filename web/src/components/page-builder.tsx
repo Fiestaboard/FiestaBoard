@@ -559,7 +559,14 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   // Auto-preview when debounced template lines or alignments change (debounced)
   // Skipped when live mode is on — the live fast path handles preview updates directly.
   useEffect(() => {
-    if (liveOutputEnabled) return;
+    if (liveOutputEnabled) {
+      needsRePreview.current = false;
+      if (previewMutation.isPending) {
+        shouldIgnoreNextResponse.current = true;
+        previewMutation.reset();
+      }
+      return;
+    }
 
     console.log('[Preview] useEffect triggered');
     console.log('[Preview] debouncedTemplateLines:', debouncedTemplateLines);
