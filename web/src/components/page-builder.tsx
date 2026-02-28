@@ -269,7 +269,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       const alignments: LineAlignment[] = [];
       const wrapStates: boolean[] = [];
       const contents: string[] = [];
-      for (let i = 0; i < existingNumLines; i++) {
+      for (let i = 0; i < rawLines.length; i++) {
         const { alignment, wrapEnabled, content } = extractAlignment(rawLines[i] || "");
         alignments.push(alignment);
         wrapStates.push(wrapEnabled);
@@ -862,19 +862,19 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       
                       setTemplateLines(newLines);
 
-                      if (newLines.length > lineAlignments.length) {
-                        const extended = [...lineAlignments];
-                        while (extended.length < newLines.length) {
-                          extended.push("left");
+                      if (newLines.length !== lineAlignments.length) {
+                        const updated = lineAlignments.slice(0, newLines.length);
+                        while (updated.length < newLines.length) {
+                          updated.push("left");
                         }
-                        setLineAlignments(extended);
+                        setLineAlignments(updated);
                       }
-                      if (newLines.length > lineWrapEnabled.length) {
-                        const extended = [...lineWrapEnabled];
-                        while (extended.length < newLines.length) {
-                          extended.push(false);
+                      if (newLines.length !== lineWrapEnabled.length) {
+                        const updated = lineWrapEnabled.slice(0, newLines.length);
+                        while (updated.length < newLines.length) {
+                          updated.push(false);
                         }
-                        setLineWrapEnabled(extended);
+                        setLineWrapEnabled(updated);
                       }
                     }}
                     lineAlignments={lineAlignments}
