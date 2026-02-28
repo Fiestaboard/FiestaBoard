@@ -25,7 +25,7 @@ export function GeneralSettings() {
   const [silenceEnabled, setSilenceEnabled] = useState(false);
   const [silenceStartTime, setSilenceStartTime] = useState("20:00");
   const [silenceEndTime, setSilenceEndTime] = useState("07:00");
-  const [pollingInterval, setPollingInterval] = useState(30);
+  const [pollingInterval, setPollingInterval] = useState(15);
 
   // Fetch all settings in one request
   const { data: allSettings, isLoading: isLoadingSettings } = useQuery({
