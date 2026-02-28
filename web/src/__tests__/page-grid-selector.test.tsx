@@ -11,7 +11,10 @@ vi.mock("@/lib/api", () => ({
     getPages: vi.fn(),
     getBoardSettings: vi.fn(),
     previewPagesBatch: vi.fn(),
+    getCarousels: vi.fn(),
   },
+  isCarouselId: (id: string) => id?.startsWith("carousel:"),
+  CAROUSEL_ID_PREFIX: "carousel:",
 }));
 
 // Mock localStorage
@@ -115,6 +118,11 @@ describe("PageGridSelector", () => {
       board_type: "black",
       boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
       devices: ["flagship"],
+    });
+
+    vi.mocked(api.getCarousels).mockResolvedValue({
+      carousels: [],
+      total: 0,
     });
 
     vi.mocked(api.previewPagesBatch).mockResolvedValue(mockBatchPreviewResponse);
@@ -419,6 +427,21 @@ describe("PageGridSelector", () => {
 
     await waitFor(() => {
       expect(screen.getByText("CHOOSE A PAGE")).toBeInTheDocument();
+    });
+  });
+
+  it("accepts showCarousels prop", async () => {
+    render(
+      <PageGridSelector
+        activePageId={null}
+        onSelectPage={vi.fn()}
+        showCarousels={false}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Page 1")).toBeInTheDocument();
     });
   });
 });

@@ -21,7 +21,7 @@ def make_carousel_id() -> str:
 
 def is_carousel_id(ref_id: str) -> bool:
     """Check whether an ID string refers to a carousel."""
-    return ref_id.startswith(CAROUSEL_ID_PREFIX)
+    return bool(ref_id) and ref_id.startswith(CAROUSEL_ID_PREFIX)
 
 
 def extract_carousel_uuid(carousel_id: str) -> str:
