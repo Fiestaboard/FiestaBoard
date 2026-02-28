@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 logger = logging.getLogger(__name__)
 
@@ -140,8 +140,8 @@ class SecretsManager:
         Returns:
             Fernet encryption instance
         """
-        # Use PBKDF2 to derive a 32-byte key from the master key
-        kdf = PBKDF2(
+        # Use PBKDF2HMAC to derive a 32-byte key from the master key
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=b"fiestaboard_salt_v1",  # Static salt for consistency
