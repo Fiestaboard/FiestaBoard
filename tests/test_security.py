@@ -422,62 +422,95 @@ class TestSpotifyOAuthProvider:
         assert tokens.access_token == "new_access_456"
         assert tokens.expires_in == 3600
     
-    @patch('src.security.secrets_manager.get_secrets_manager')
-    def test_store_tokens(self, mock_get_secrets):
+    def test_store_tokens(self):
         """Test storing OAuth tokens."""
-        mock_secrets = Mock()
-        mock_get_secrets.return_value = mock_secrets
-        
-        provider = SpotifyOAuthProvider()
-        tokens = OAuthTokens(
-            access_token="access_123",
-            refresh_token="refresh_456",
-            expires_in=3600,
-            scope="test_scope"
-        )
-        
-        provider.store_tokens("default", tokens)
-        
-        # Verify secrets were stored
-        assert mock_secrets.set_secret.call_count == 4  # access, refresh, expires_at, scope
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secrets_file = Path(tmpdir) / "secrets.enc"
+            master_key = Fernet.generate_key().decode('utf-8')
+            
+            with patch('src.security.secrets_manager.DEFAULT_SECRETS_FILE', secrets_file):
+                reset_secrets_manager()
+                
+                provider = SpotifyOAuthProvider()
+                tokens = OAuthTokens(
+                    access_token="access_123",
+                    refresh_token="refresh_456",
+                    expires_in=3600,
+                    scope="test_scope"
+                )
+                
+                with patch('src.security.secrets_manager.get_secrets_manager') as mock_get_secrets:
+                    mock_secrets = SecretsManager(secrets_file=secrets_file, master_key=master_key)
+                    mock_get_secrets.return_value = mock_secrets
+                    
+                    provider.store_tokens("default", tokens)
+                    
+                    # Verify tokens were stored
+                    assert mock_secrets.get_secret("spotify:default", "access_token") == "access_123"
+                    assert mock_secrets.get_secret("spotify:default", "refresh_token") == "refresh_456"
+                
+                reset_secrets_manager()
     
-    @patch('src.security.secrets_manager.get_secrets_manager')
-    def test_get_access_token_valid(self, mock_get_secrets):
+    def test_get_access_token_valid(self):
         """Test getting a valid access token."""
-        mock_secrets = Mock()
-        mock_secrets.get_secret.side_effect = lambda ns, key: {
-            "access_token": "valid_token",
-            "expires_at": str(time.time() + 3600)  # Expires in 1 hour
-        }.get(key)
-        mock_get_secrets.return_value = mock_secrets
-        
-        provider = SpotifyOAuthProvider()
-        token = provider.get_access_token("default")
-        
-        assert token == "valid_token"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secrets_file = Path(tmpdir) / "secrets.enc"
+            master_key = Fernet.generate_key().decode('utf-8')
+            
+            with patch('src.security.secrets_manager.DEFAULT_SECRETS_FILE', secrets_file):
+                reset_secrets_manager()
+                
+                mock_secrets = SecretsManager(secrets_file=secrets_file, master_key=master_key)
+                mock_secrets.set_secret("spotify:default", "access_token", "valid_token")
+                mock_secrets.set_secret("spotify:default", "expires_at", str(time.time() + 3600))
+                
+                with patch('src.security.secrets_manager.get_secrets_manager', return_value=mock_secrets):
+                    provider = SpotifyOAuthProvider()
+                    token = provider.get_access_token("default")
+                    
+                    assert token == "valid_token"
+                
+                reset_secrets_manager()
     
-    @patch('src.security.secrets_manager.get_secrets_manager')
-    def test_get_access_token_not_found(self, mock_get_secrets):
+    def test_get_access_token_not_found(self):
         """Test getting access token when none stored."""
-        mock_secrets = Mock()
-        mock_secrets.get_secret.return_value = None
-        mock_get_secrets.return_value = mock_secrets
-        
-        provider = SpotifyOAuthProvider()
-        token = provider.get_access_token("default")
-        
-        assert token is None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secrets_file = Path(tmpdir) / "secrets.enc"
+            master_key = Fernet.generate_key().decode('utf-8')
+            
+            with patch('src.security.secrets_manager.DEFAULT_SECRETS_FILE', secrets_file):
+                reset_secrets_manager()
+                
+                mock_secrets = SecretsManager(secrets_file=secrets_file, master_key=master_key)
+                
+                with patch('src.security.secrets_manager.get_secrets_manager', return_value=mock_secrets):
+                    provider = SpotifyOAuthProvider()
+                    token = provider.get_access_token("default")
+                    
+                    assert token is None
+                
+                reset_secrets_manager()
     
-    @patch('src.security.secrets_manager.get_secrets_manager')
-    def test_clear_tokens(self, mock_get_secrets):
+    def test_clear_tokens(self):
         """Test clearing stored tokens."""
-        mock_secrets = Mock()
-        mock_get_secrets.return_value = mock_secrets
-        
-        provider = SpotifyOAuthProvider()
-        provider.clear_tokens("default")
-        
-        mock_secrets.delete_secret.assert_called_once_with("spotify:default")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            secrets_file = Path(tmpdir) / "secrets.enc"
+            master_key = Fernet.generate_key().decode('utf-8')
+            
+            with patch('src.security.secrets_manager.DEFAULT_SECRETS_FILE', secrets_file):
+                reset_secrets_manager()
+                
+                mock_secrets = SecretsManager(secrets_file=secrets_file, master_key=master_key)
+                mock_secrets.set_secret("spotify:default", "access_token", "token")
+                
+                with patch('src.security.secrets_manager.get_secrets_manager', return_value=mock_secrets):
+                    provider = SpotifyOAuthProvider()
+                    provider.clear_tokens("default")
+                    
+                    # Verify namespace was cleared
+                    assert mock_secrets.get_secret("spotify:default", "access_token") is None
+                
+                reset_secrets_manager()
 
 
 class TestOAuthProviderRegistry:
