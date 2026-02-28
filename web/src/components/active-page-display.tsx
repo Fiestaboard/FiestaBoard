@@ -209,12 +209,13 @@ export function ActivePageDisplay() {
     if (!activeCarousel) return;
     const interval = setInterval(() => {
       setCurrentCarouselPageId(computeCarouselPageId(activeCarousel));
-    }, activeCarousel.interval_seconds * 1000);
+    }, 1000);
     return () => clearInterval(interval);
   }, [activeCarousel, computeCarouselPageId]);
 
-  // The actual page to preview: either the direct page or the carousel's current page
-  const previewPageId = activeCarousel ? currentCarouselPageId : activePageId;
+  // The actual page to preview: either the direct page or the carousel's current page.
+  // Guard against passing a raw carousel ID to the preview endpoint while carousels are loading.
+  const previewPageId = activeCarousel ? currentCarouselPageId : (isCarouselId(activePageId) ? null : activePageId);
 
   // Fetch preview of active page (or carousel's current page)
   const { 
