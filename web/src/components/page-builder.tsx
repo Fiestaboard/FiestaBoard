@@ -197,8 +197,6 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       const pageName = existingPage.name;
       setName(pageName);
       
-      const existingDims = DEVICE_DIMENSIONS[existingPage.device_type || "flagship"] || DEVICE_DIMENSIONS.flagship;
-      const existingNumLines = existingDims.rows;
       const rawLines = existingPage.template || emptyLines();
       const meta = existingPage.line_metadata;
 
@@ -763,19 +761,43 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       const lines = newValue.split('\n');
                       setTemplateLines(lines);
 
-                      if (lines.length !== lineAlignments.length) {
-                        const updated = lineAlignments.slice(0, lines.length);
-                        while (updated.length < lines.length) {
-                          updated.push("left");
+                      const oldLen = templateLines.length;
+                      const newLen = lines.length;
+                      if (newLen !== oldLen) {
+                        let prefixMatch = 0;
+                        while (prefixMatch < Math.min(newLen, oldLen) && lines[prefixMatch] === templateLines[prefixMatch]) {
+                          prefixMatch++;
                         }
-                        setLineAlignments(updated);
-                      }
-                      if (lines.length !== lineWrapEnabled.length) {
-                        const updated = lineWrapEnabled.slice(0, lines.length);
-                        while (updated.length < lines.length) {
-                          updated.push(false);
+                        let suffixMatch = 0;
+                        while (suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
+                               lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]) {
+                          suffixMatch++;
                         }
-                        setLineWrapEnabled(updated);
+
+                        const updatedAlignments = [...lineAlignments];
+                        const updatedWrap = [...lineWrapEnabled];
+
+                        if (newLen < oldLen) {
+                          const deleteCount = oldLen - newLen;
+                          const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
+                          updatedAlignments.splice(deleteStart, deleteCount);
+                          updatedWrap.splice(deleteStart, deleteCount);
+                        } else {
+                          const insertCount = newLen - oldLen;
+                          const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
+                          for (let i = 0; i < insertCount; i++) {
+                            updatedAlignments.splice(insertStart + i, 0, "left");
+                            updatedWrap.splice(insertStart + i, 0, false);
+                          }
+                        }
+
+                        while (updatedAlignments.length < newLen) updatedAlignments.push("left");
+                        while (updatedWrap.length < newLen) updatedWrap.push(false);
+                        updatedAlignments.length = newLen;
+                        updatedWrap.length = newLen;
+
+                        setLineAlignments(updatedAlignments);
+                        setLineWrapEnabled(updatedWrap);
                       }
                     }}
                     lineAlignments={lineAlignments}
