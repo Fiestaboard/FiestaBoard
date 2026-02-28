@@ -16,7 +16,7 @@ References:
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from src.mqtt.config import MQTTConfig
@@ -298,14 +298,7 @@ def build_all_discovery_messages(
     for entity in ENTITY_DEFINITIONS:
         # Inject dynamic page list into active_page entity
         if entity.object_id == "active_page" and page_names is not None:
-            entity = EntityDefinition(
-                entity_type=entity.entity_type,
-                object_id=entity.object_id,
-                name=entity.name,
-                icon=entity.icon,
-                has_command=entity.has_command,
-                options=page_names,
-            )
+            entity = replace(entity, options=page_names)
 
         topic = build_discovery_topic(config, entity)
         payload = build_discovery_payload(config, entity, device_info)

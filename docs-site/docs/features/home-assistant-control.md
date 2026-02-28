@@ -175,7 +175,7 @@ title: FiestaBoard
 entities:
   - entity: binary_sensor.fiestaboard_service_status
   - entity: sensor.fiestaboard_current_page
-  - entity: sensor.fiestaboard_message
+  - entity: sensor.fiestaboard_board_message
   - entity: switch.fiestaboard_schedule
   - entity: select.fiestaboard_active_page
 ```

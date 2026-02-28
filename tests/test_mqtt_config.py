@@ -270,3 +270,24 @@ class TestMQTTConfigFromEnv:
         """Empty MQTT_USERNAME should become None."""
         config = MQTTConfig.from_env({"MQTT_USERNAME": ""})
         assert config.username is None
+
+    def test_from_env_none_enabled_value(self):
+        """Explicit None for MQTT_ENABLED should not crash."""
+        config = MQTTConfig.from_env({"MQTT_ENABLED": None})
+        assert config.enabled is False
+
+    def test_from_env_none_broker_port_uses_default(self):
+        """Explicit None for MQTT_BROKER_PORT should use default."""
+        config = MQTTConfig.from_env({"MQTT_BROKER_PORT": None})
+        assert config.broker_port == DEFAULT_BROKER_PORT
+
+    def test_from_dict_string_port_converted(self):
+        """String broker_port in dict should be converted to int."""
+        config = MQTTConfig.from_dict({"broker_port": "8883"})
+        assert config.broker_port == 8883
+        assert isinstance(config.broker_port, int)
+
+    def test_from_dict_invalid_port_uses_default(self):
+        """Invalid broker_port string in dict should fall back to default."""
+        config = MQTTConfig.from_dict({"broker_port": "not_a_number"})
+        assert config.broker_port == DEFAULT_BROKER_PORT

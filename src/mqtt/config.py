@@ -86,10 +86,16 @@ class MQTTConfig:
         Returns:
             MQTTConfig instance with validated defaults for missing fields.
         """
+        port = data.get("broker_port", DEFAULT_BROKER_PORT)
+        try:
+            port = int(port)
+        except (ValueError, TypeError):
+            port = DEFAULT_BROKER_PORT
+
         return cls(
             enabled=data.get("enabled", False),
             broker_host=data.get("broker_host", DEFAULT_BROKER_HOST),
-            broker_port=data.get("broker_port", DEFAULT_BROKER_PORT),
+            broker_port=port,
             username=data.get("username"),
             password=data.get("password"),
             discovery_prefix=data.get("discovery_prefix", DEFAULT_DISCOVERY_PREFIX),
@@ -107,19 +113,20 @@ class MQTTConfig:
         Returns:
             MQTTConfig instance.
         """
-        port_str = env.get("MQTT_BROKER_PORT", str(DEFAULT_BROKER_PORT))
+        port_str = env.get("MQTT_BROKER_PORT") or str(DEFAULT_BROKER_PORT)
         try:
             port = int(port_str)
         except (ValueError, TypeError):
             port = DEFAULT_BROKER_PORT
 
+        enabled_str = env.get("MQTT_ENABLED") or "false"
         return cls(
-            enabled=env.get("MQTT_ENABLED", "false").lower() in ("true", "1", "yes"),
-            broker_host=env.get("MQTT_BROKER_HOST", DEFAULT_BROKER_HOST),
+            enabled=enabled_str.lower() in ("true", "1", "yes"),
+            broker_host=env.get("MQTT_BROKER_HOST") or DEFAULT_BROKER_HOST,
             broker_port=port,
             username=env.get("MQTT_USERNAME") or None,
             password=env.get("MQTT_PASSWORD") or None,
-            discovery_prefix=env.get("MQTT_DISCOVERY_PREFIX", DEFAULT_DISCOVERY_PREFIX),
-            base_topic=env.get("MQTT_BASE_TOPIC", DEFAULT_BASE_TOPIC),
-            instance_id=env.get("MQTT_INSTANCE_ID", DEFAULT_INSTANCE_ID),
+            discovery_prefix=env.get("MQTT_DISCOVERY_PREFIX") or DEFAULT_DISCOVERY_PREFIX,
+            base_topic=env.get("MQTT_BASE_TOPIC") or DEFAULT_BASE_TOPIC,
+            instance_id=env.get("MQTT_INSTANCE_ID") or DEFAULT_INSTANCE_ID,
         )
