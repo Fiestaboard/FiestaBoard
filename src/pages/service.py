@@ -358,7 +358,8 @@ class PageService:
             # Render the template lines with variable substitution
             # The template engine already handles tile-aware truncation in render_lines()
             # via _truncate_to_tiles() - color codes like {63} count as 1 tile each
-            formatted = template_engine.render_lines(page.template)
+            meta = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
+            formatted = template_engine.render_lines(page.template, line_metadata=meta)
             
             # Note: We do NOT truncate/pad by character count here because:
             # - Color codes like {63} are 4 characters but represent 1 tile

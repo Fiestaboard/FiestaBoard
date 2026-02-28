@@ -358,6 +358,36 @@ class TestAlignment:
         assert output_lines[0].endswith("TEST")
         assert len(output_lines[0]) == 22
 
+    def test_render_lines_with_line_metadata_center(self, engine):
+        """Test render_lines reads alignment from line_metadata."""
+        lines = ["TEST"]
+        metadata = [{"alignment": "center", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata)
+        output_lines = result.split('\n')
+        assert output_lines[0].strip() == "TEST"
+        assert len(output_lines[0]) == 22
+        left_pad = len(output_lines[0]) - len(output_lines[0].lstrip())
+        right_pad = len(output_lines[0]) - len(output_lines[0].rstrip())
+        assert abs(left_pad - right_pad) <= 1
+
+    def test_render_lines_with_line_metadata_right(self, engine):
+        """Test render_lines reads right alignment from line_metadata."""
+        lines = ["TEST"]
+        metadata = [{"alignment": "right", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata)
+        output_lines = result.split('\n')
+        assert output_lines[0].endswith("TEST")
+        assert len(output_lines[0]) == 22
+
+    def test_render_lines_metadata_overrides_prefix(self, engine):
+        """When line_metadata is provided, inline prefixes are NOT parsed."""
+        lines = ["{center}TEST"]
+        metadata = [{"alignment": "left", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata)
+        output_lines = result.split('\n')
+        # The {center} prefix is treated as literal content (left-aligned)
+        assert output_lines[0].startswith("{center}TEST")
+
 
 class TestFillSpace:
     """Tests for {{fill_space}} variable."""
