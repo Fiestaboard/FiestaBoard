@@ -2454,24 +2454,32 @@ async def set_active_page(request: dict):
     service = get_service()
     
     page_id = request.get("page_id")
-    
-    # Validate page exists if not clearing
+    carousel_service = get_carousel_service()
+
+    # Validate page or carousel exists if not clearing
     page = None
+    render_page_id = page_id
     if page_id is not None:
-        page = page_service.get_page(page_id)
-        if not page:
-            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    
-    # Set the active page
+        if is_carousel_id(page_id):
+            carousel = carousel_service.get_carousel(page_id)
+            if not carousel:
+                raise HTTPException(status_code=404, detail=f"Carousel not found: {page_id}")
+            render_page_id = carousel_service.resolve_page_id(page_id)
+            if render_page_id:
+                page = page_service.get_page(render_page_id)
+        else:
+            page = page_service.get_page(page_id)
+            if not page:
+                raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+
+    # Set the active page (stores the carousel ID or page ID as-is)
     settings_service.set_active_page_id(page_id)
     
     # Immediately send to board if a page is set
     sent_to_board = False
-    if page_id and page and service and service.vb_client and not _dev_mode:
-        # Force fresh render when setting active page
-        result = page_service.preview_page(page_id, force_refresh=True)
+    if render_page_id and page and service and service.vb_client and not _dev_mode:
+        result = page_service.preview_page(render_page_id, force_refresh=True)
         if result and result.available:
-            # Use page-level transitions if set, otherwise fall back to system defaults
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
