@@ -111,6 +111,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const lastLiveSentPreview = useRef<string | null>(null);
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const liveOutputEnabledRef = useRef(false);
+  const liveAbortRef = useRef<AbortController | null>(null);
+  const liveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -555,7 +557,10 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   });
 
   // Auto-preview when debounced template lines or alignments change (debounced)
+  // Skipped when live mode is on — the live fast path handles preview updates directly.
   useEffect(() => {
+    if (liveOutputEnabled) return;
+
     console.log('[Preview] useEffect triggered');
     console.log('[Preview] debouncedTemplateLines:', debouncedTemplateLines);
     console.log('[Preview] previewMutation.isPending:', previewMutation.isPending);
@@ -582,7 +587,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     // Clear the ignore flag when we have content again
     shouldIgnoreNextResponse.current = false;
 
-    // Debounce the preview (500ms after debounced state stabilizes)
+    // Debounce the preview (200ms after debounced state stabilizes)
     const timeoutId = setTimeout(() => {
       console.log('[Preview] Debounce timeout fired');
       // Double-check content again after debounce (in case it was cleared during debounce)
@@ -622,7 +627,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         transitionTimeoutRef.current = null;
       }
     };
-  }, [debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled]);
+  }, [debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, liveOutputEnabled]);
 
   // Live output mutation - sends rendered preview to the board
   const liveSendMutation = useMutation({
@@ -641,7 +646,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     },
   });
 
-  // Send to board when preview changes and live mode is on
+  // Legacy live send path — only used as fallback when fast path hasn't handled the update.
+  // The fast path sets lastLiveSentPreview to match preview, so this is effectively a no-op
+  // when live mode is active. Kept for safety if the fast path request fails.
   useEffect(() => {
     if (!liveOutputEnabled || !preview || preview === lastLiveSentPreview.current) {
       return;
@@ -654,6 +661,75 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       liveSendMutation.mutate(preview);
     }
   }, [preview, liveOutputEnabled]);
+
+  // Live edit fast path: single 100ms debounce → single API call → preview + board update.
+  // Bypasses the normal double-debounce (150ms + 200ms) and double API call chain.
+  // Uses IMMEDIATE state (not debounced) and AbortController to cancel stale requests.
+  useEffect(() => {
+    if (!liveOutputEnabled) {
+      if (liveDebounceRef.current) {
+        clearTimeout(liveDebounceRef.current);
+        liveDebounceRef.current = null;
+      }
+      if (liveAbortRef.current) {
+        liveAbortRef.current.abort();
+        liveAbortRef.current = null;
+      }
+      return;
+    }
+
+    const hasContent = templateLines.some(line => line.trim().length > 0);
+    if (!hasContent) {
+      setPreview(null);
+      lastLiveSentPreview.current = null;
+      return;
+    }
+
+    if (liveDebounceRef.current) {
+      clearTimeout(liveDebounceRef.current);
+    }
+
+    liveDebounceRef.current = setTimeout(async () => {
+      if (liveAbortRef.current) {
+        liveAbortRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      liveAbortRef.current = controller;
+
+      try {
+        const template = templateLines.map((content, i) =>
+          applyAlignment(lineAlignments[i], lineWrapEnabled[i], content)
+        );
+
+        const data = await api.renderTemplateLive(
+          template,
+          selectedBoardId || undefined,
+          undefined,
+          controller.signal
+        );
+
+        if (controller.signal.aborted) return;
+
+        setPreview(data.rendered);
+        if (data.rendered) {
+          setLastPreview(data.rendered);
+        }
+        lastLiveSentPreview.current = data.rendered;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        console.error('[LiveFastPath] Error:', error);
+      }
+    }, 100);
+
+    return () => {
+      if (liveDebounceRef.current) {
+        clearTimeout(liveDebounceRef.current);
+      }
+    };
+  }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId]);
 
   // Initialize selected board to first board when settings load
   useEffect(() => {
