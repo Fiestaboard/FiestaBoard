@@ -90,12 +90,47 @@ class SpotifyPlugin(PluginBase):
             or os.getenv("SPOTIFY_REFRESH_TOKEN", "").strip()
         )
 
+    def _get_access_token_oauth(self) -> Optional[str]:
+        """Get access token from OAuth provider (new secure system).
+        
+        Returns:
+            Access token string, or None if not available via OAuth.
+        """
+        try:
+            from src.security.oauth_providers import get_oauth_provider
+            
+            provider = get_oauth_provider("spotify")
+            if not provider:
+                return None
+            
+            # TODO: Support board_id when multi-board is implemented
+            board_id = "default"
+            
+            # OAuth provider handles token refresh automatically
+            return provider.get_access_token(board_id)
+        
+        except Exception as e:
+            logger.debug(f"OAuth provider not available: {e}")
+            return None
+
     def _refresh_access_token(self) -> Optional[str]:
         """Refresh the OAuth access token using the refresh token.
+        
+        Tries OAuth provider first (new secure system), falls back to
+        manual refresh token flow (legacy) for backward compatibility.
 
         Returns:
             Access token string, or None if refresh failed.
         """
+        # Try new OAuth system first
+        oauth_token = self._get_access_token_oauth()
+        if oauth_token:
+            logger.debug("Using access token from OAuth provider")
+            return oauth_token
+        
+        # Fall back to legacy manual token refresh
+        logger.debug("Falling back to legacy manual token refresh")
+        
         # Check if current token is still valid
         if (
             self._access_token

@@ -4227,6 +4227,189 @@ async def get_plugin_errors():
     }
 
 
+# ============================================================================
+# OAuth Endpoints
+# ============================================================================
+
+@app.get("/oauth/{provider}/authorize")
+async def oauth_authorize(
+    provider: str,
+    board_id: str = Query("default", description="Board ID for multi-board support")
+):
+    """
+    Start OAuth authorization flow for a provider.
+    
+    Redirects the user to the provider's authorization page.
+    """
+    from .security.oauth_providers import get_oauth_provider
+    import secrets as crypto_secrets
+    
+    oauth_provider = get_oauth_provider(provider)
+    if not oauth_provider:
+        raise HTTPException(
+            status_code=404,
+            detail=f"OAuth provider not found: {provider}"
+        )
+    
+    # Generate CSRF state token
+    state = crypto_secrets.token_urlsafe(32)
+    
+    # Store state in memory (TODO: use Redis or database for production)
+    # For now, encode board_id in state
+    state_with_board = f"{board_id}:{state}"
+    
+    try:
+        auth_url = oauth_provider.get_authorization_url(board_id, state_with_board)
+        
+        # Redirect to provider's authorization page
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=auth_url)
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/oauth/{provider}/callback")
+async def oauth_callback(
+    provider: str,
+    code: str = Query(..., description="Authorization code from provider"),
+    state: str = Query(..., description="CSRF state token"),
+    error: Optional[str] = Query(None, description="Error from provider")
+):
+    """
+    Handle OAuth callback from provider.
+    
+    Exchanges the authorization code for access/refresh tokens.
+    """
+    from .security.oauth_providers import get_oauth_provider
+    
+    if error:
+        logger.error(f"OAuth error from {provider}: {error}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"OAuth authorization failed: {error}"
+        )
+    
+    oauth_provider = get_oauth_provider(provider)
+    if not oauth_provider:
+        raise HTTPException(
+            status_code=404,
+            detail=f"OAuth provider not found: {provider}"
+        )
+    
+    # Extract board_id from state
+    try:
+        board_id, state_token = state.split(":", 1)
+    except ValueError:
+        board_id = "default"
+        state_token = state
+    
+    # TODO: Validate state token against stored value
+    
+    try:
+        # Exchange code for tokens
+        tokens = oauth_provider.exchange_code_for_tokens(board_id, code)
+        
+        # Store tokens securely
+        oauth_provider.store_tokens(board_id, tokens)
+        
+        logger.info(f"OAuth authorization successful for {provider}:{board_id}")
+        
+        # Redirect to success page
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"/?oauth_success={provider}")
+    
+    except ValueError as e:
+        logger.error(f"OAuth token exchange failed for {provider}: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to exchange authorization code: {str(e)}"
+        )
+
+
+@app.get("/oauth/{provider}/status")
+async def oauth_status(
+    provider: str,
+    board_id: str = Query("default", description="Board ID for multi-board support")
+):
+    """
+    Check OAuth authorization status for a provider.
+    
+    Returns whether the provider is connected and has valid tokens.
+    """
+    from .security.oauth_providers import get_oauth_provider
+    
+    oauth_provider = get_oauth_provider(provider)
+    if not oauth_provider:
+        raise HTTPException(
+            status_code=404,
+            detail=f"OAuth provider not found: {provider}"
+        )
+    
+    # Check if we have a refresh token
+    refresh_token = oauth_provider.get_refresh_token(board_id)
+    connected = refresh_token is not None
+    
+    # Try to get a valid access token
+    access_token = oauth_provider.get_access_token(board_id) if connected else None
+    
+    return {
+        "provider": provider,
+        "board_id": board_id,
+        "connected": connected,
+        "has_valid_token": access_token is not None
+    }
+
+
+@app.delete("/oauth/{provider}")
+async def oauth_disconnect(
+    provider: str,
+    board_id: str = Query("default", description="Board ID for multi-board support")
+):
+    """
+    Disconnect OAuth provider by clearing stored tokens.
+    """
+    from .security.oauth_providers import get_oauth_provider
+    
+    oauth_provider = get_oauth_provider(provider)
+    if not oauth_provider:
+        raise HTTPException(
+            status_code=404,
+            detail=f"OAuth provider not found: {provider}"
+        )
+    
+    oauth_provider.clear_tokens(board_id)
+    
+    logger.info(f"Disconnected OAuth provider {provider}:{board_id}")
+    
+    return {
+        "provider": provider,
+        "board_id": board_id,
+        "status": "disconnected"
+    }
+
+
+@app.get("/oauth/providers")
+async def list_oauth_providers():
+    """
+    List all available OAuth providers.
+    """
+    from .security.oauth_providers import list_oauth_providers, get_oauth_provider
+    
+    provider_ids = list_oauth_providers()
+    providers = []
+    
+    for provider_id in provider_ids:
+        provider = get_oauth_provider(provider_id)
+        if provider:
+            providers.append({
+                "id": provider.provider_id,
+                "name": provider.provider_name
+            })
+    
+    return {"providers": providers}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
