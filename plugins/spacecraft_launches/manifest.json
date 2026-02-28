@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Track upcoming spacecraft launch countdowns and statuses",
   "author": "FiestaBoard Team",
-  "repository": "https://github.com/Fiestaboard/FiestaBoard",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
   "icon": "rocket",
   "category": "data",
