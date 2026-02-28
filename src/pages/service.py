@@ -132,6 +132,7 @@ class PageService:
             display_type=data.display_type,
             rows=data.rows,
             template=data.template,
+            line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
             created_at=datetime.utcnow()
         )

@@ -58,21 +58,15 @@ def _migrate_v0_to_v1(pages_data: List[dict]) -> int:
 
         metadata: List[dict] = []
         clean_lines: List[str] = []
-        needs_migration = False
 
         for line in template:
             alignment, wrap_enabled, content = _extract_alignment_from_line(line)
             metadata.append({"alignment": alignment, "wrap": wrap_enabled})
             clean_lines.append(content)
-            if alignment != "left" or wrap_enabled:
-                needs_migration = True
 
         page_data["template"] = clean_lines
         page_data["line_metadata"] = metadata
-        if needs_migration:
-            migrated_count += 1
-        else:
-            migrated_count += 1  # still counts — we're adding metadata even for all-default
+        migrated_count += 1
 
     return migrated_count
 

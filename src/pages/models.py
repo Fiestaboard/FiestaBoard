@@ -121,8 +121,6 @@ class Page(BaseModel):
         elif self.type == "template":
             if not self.template or len(self.template) == 0:
                 errors.append("Template page requires template content")
-            elif len(self.template) > dims.rows:
-                errors.append(f"Template cannot have more than {dims.rows} lines for {self.device_type}")
         
         return errors
     
