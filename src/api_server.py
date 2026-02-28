@@ -4227,6 +4227,71 @@ async def get_plugin_errors():
     }
 
 
+# =============================================================================
+# Generic Data Plugin — Test Fetch
+# =============================================================================
+
+@app.post("/generic-data/test-fetch")
+async def generic_data_test_fetch(request: dict):
+    """Fetch a URL and return the parsed response structure for mapping preview.
+
+    Reuses the same parsing logic as the generic_data plugin so the preview
+    matches real behaviour.  Response body is capped at 1 MB.
+    """
+    import requests as req
+    from xml.etree import ElementTree
+
+    url = (request.get("url") or "").strip()
+    fmt = request.get("format", "json")
+    method = request.get("method", "GET")
+    headers_list = request.get("headers", [])
+    body = request.get("body")
+
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
+
+    headers: dict = {
+        "Accept": "application/json" if fmt == "json" else "application/xml",
+    }
+    for h in headers_list:
+        n = (h.get("name") or "").strip()
+        v = (h.get("value") or "").strip()
+        if n and v:
+            headers[n] = v
+
+    try:
+        kwargs: dict = {"headers": headers, "timeout": 15}
+        if method == "POST" and body:
+            kwargs["data"] = body
+
+        resp = req.request(method, url, **kwargs)
+        resp.raise_for_status()
+
+        if len(resp.content) > 1_048_576:
+            raise HTTPException(status_code=400, detail="Response too large (exceeds 1 MB)")
+
+        if fmt == "xml":
+            from plugins.generic_data import _xml_to_dict
+            root = ElementTree.fromstring(resp.text)
+            parsed = _xml_to_dict(root)
+        else:
+            parsed = resp.json()
+
+        return {"ok": True, "data": parsed}
+    except HTTPException:
+        raise
+    except req.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Request timed out")
+    except req.exceptions.ConnectionError:
+        raise HTTPException(status_code=502, detail="Connection error — check the URL")
+    except req.exceptions.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"HTTP error: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

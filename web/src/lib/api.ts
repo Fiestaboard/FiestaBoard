@@ -1060,6 +1060,19 @@ export const api = {
   getPluginErrors: () =>
     fetchApi<PluginErrorsResponse>("/plugins/errors"),
 
+  // Generic Data helper
+  genericDataTestFetch: (request: {
+    url: string;
+    format?: string;
+    method?: string;
+    headers?: { name: string; value: string }[];
+    body?: string;
+  }) =>
+    fetchApi<{ ok: boolean; data: unknown }>("/generic-data/test-fetch", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+
   // Setup wizard endpoints
   validateSetup: () => fetchApi<ConfigValidationResponse>("/config/validate"),
   

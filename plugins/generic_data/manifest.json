@@ -64,6 +64,7 @@
         "type": "array",
         "title": "Variable Mappings",
         "description": "Map response fields to template variables (for single-feed mode)",
+        "ui:widget": "generic-data-mapping-helper",
         "items": {
           "type": "object",
           "properties": {
