@@ -41,6 +41,8 @@ The OAuth system provides:
 
 ### Environment Variables
 
+#### Production Setup (Recommended)
+
 Set the master encryption key in your environment:
 
 ```bash
@@ -57,9 +59,23 @@ environment:
   - FIESTABOARD_MASTER_KEY=your-secure-key-here
 ```
 
-### For Development
+#### Quick Start / Development (Optional)
 
-If no master key is provided, a random key will be generated on startup. **This means tokens will not persist across container restarts!**
+**No master key required!** If you don't set `FIESTABOARD_MASTER_KEY`:
+- ✅ OAuth system works immediately - no setup needed
+- ✅ Great for testing and demos
+- ⚠️ Tokens don't persist across restarts - you'll need to reconnect OAuth after restarting FiestaBoard
+- 📝 System logs a warning on startup
+
+**When to set the master key:**
+- You're deploying to production
+- You want OAuth connections to survive restarts
+- You're migrating to a new server (same key = same tokens)
+
+**When you don't need it:**
+- Quick testing or demo
+- Development environment with frequent rebuilds
+- You're okay reconnecting OAuth occasionally
 
 ## Adding a New OAuth Provider
 
