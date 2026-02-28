@@ -264,7 +264,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                 Step {currentStep} of {TOTAL_STEPS}
               </span>
 
-              {currentStep === 1 && !canProceed && (
+              {currentStep === 1 && (
                 <Button
                   variant="ghost"
                   onClick={handleComplete}

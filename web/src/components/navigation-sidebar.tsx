@@ -64,8 +64,23 @@ export function NavigationSidebar() {
     <>
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-[100] border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center px-4 h-14">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 flex-shrink-0 -ml-2"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+          >
+            {mobileMenuOpen ? (
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </Button>
+          <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
             <Image
               src="/icons/favicon-32x32.png"
               alt="FiestaBoard"
@@ -74,21 +89,10 @@ export function NavigationSidebar() {
               className="flex-shrink-0"
             />
             <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap truncate">FiestaBoard</h1>
+          </div>
+          <div className="ml-3">
             <ServiceStatus />
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 flex-shrink-0 ml-2"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-          >
-            {mobileMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </Button>
         </div>
       </header>
 
