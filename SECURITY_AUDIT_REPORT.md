@@ -1,214 +1,177 @@
-# Security Audit Report — Merged PRs #310–#325
+# Security Audit Report — Merged Pull Requests
 
 **Audit Date:** 2026-02-28
-**Auditor:** Automated Security Review (Cloud Agent)
-**Scope:** PRs 325, 324, 323, 321, 320, 319, 318, 317, 316, 315, 314, 313, 312, 311, 310
+**PRs Reviewed:** 309, 308, 307, 306, 305, 304, 303, 302, 301, 300, 299, 297, 296, 295, 294
+**Auditor:** Automated Security Audit (Cloud Agent)
 
 ---
 
-## PR-by-PR Analysis
+## Per-PR Analysis
 
-### PR #325 — chore: increase test coverage to 80% across platform, plugins, and UI
-**Security Issues Found:** Yes (1 issue)
+### PR #309 — Fix release workflow race condition on concurrent merges to main
+**Files:** `.github/workflows/release.yml`
+**Security Issues Found:** No
+
+Added concurrency group to prevent parallel release runs, git push retry loop (3 attempts), and a `git fetch/checkout -B` to sync with latest main before version bump. No secrets exposed, no injection vectors.
+
+---
+
+### PR #308 — Use brand palette for calendar event colors with dark/light mode support
+**Files:** `web/src/lib/schedule-calendar.ts`, `web/src/styles/calendar.css`
+**Security Issues Found:** No
+
+Replaces dynamic HSL color generation with CSS custom properties. Pure UI/styling change with no security implications.
+
+---
+
+### PR #307 — Replace schedule entry modal with Sheet tray component
+**Files:** `web/src/app/schedule/page.tsx`, `.github/workflows/ci.yml`
+**Security Issues Found:** No
+
+Swaps a custom modal for a Radix `Sheet` component (slide-out tray). Also increases E2E health-check timeout from 30 to 60 seconds. No security implications.
+
+---
+
+### PR #306 — Fix nav sidebar active state on sub-routes
+**Files:** `web/src/components/navigation-sidebar.tsx`, `web/src/__tests__/navigation-sidebar.test.tsx`, `Dockerfile`, `nginx.conf`, `supervisord.conf`, `supervisord-dev.conf`, `web/package-lock.json`, `plugins/santa_tracker/manifest.json`
+**Security Issues Found:** No
+
+- Navigation active-state logic changed to support sub-routes (prefix matching).
+- Dockerfile reorders steps to fix ownership issues (non-root user creation moved after file copy).
+- `nginx.conf` adds `client_body_temp_path` and `proxy_temp_path` for the non-root appuser — improves container security by avoiding permission errors.
+- Supervisord logs moved from `/tmp` and `/dev/stdout` to `/app/data/logs/` — no security concern, standard log management.
+- Typo fix in santa_tracker manifest URL (case correction in GitHub org name).
+
+---
+
+### PR #305 — docs: comprehensive visual documentation overhaul with 45+ screenshots
+**Files:** Multiple docs-site markdown/TypeScript files, new Playwright E2E test for screenshot generation
+**Security Issues Found:** No
+
+Adds comprehensive documentation pages for all plugins and a Playwright-based screenshot automation suite. Test data uses generic/fictional content (e.g., "SAN FRANCISCO", template variable placeholders). No hardcoded secrets, real personal information, or API keys.
+
+---
+
+### PR #304 — Remove Docker sock restart/upgrade, redesign update alert as inline banner
+**Files:** `src/api_server.py`, `src/system/docker_manager.py` (deleted), `web/src/app/settings/page.tsx`, `web/src/components/settings/system-update.tsx`, `web/src/lib/api.ts`, tests
+**Security Issues Found:** Yes — 1 finding (positive security improvement)
+
+| # | Severity | Type | Description |
+|---|----------|------|-------------|
+| 1 | **Info (Positive)** | Attack Surface Reduction | **Removed dangerous Docker socket endpoints.** The `/system/restart` and `/system/upgrade` POST endpoints were deleted along with the entire `docker_manager.py` module. These endpoints allowed restarting containers and pulling new images via the Docker socket — a significant privilege escalation vector if the API is accessible on the network. Their removal is a **security improvement**. |
+
+The update check is now a read-only info banner with an external link to the release page. No more write operations against the Docker daemon from the API.
+
+---
+
+### PR #303 — Replace ARM runner with Docker Buildx + QEMU for multi-platform builds
+**Files:** `.github/workflows/release.yml`
+**Security Issues Found:** No
+
+CI/CD pipeline change only: replaces native ARM runner with QEMU-based cross-compilation. No secrets handling changes.
+
+---
+
+### PR #302 — Fix entrypoint failing with "operation not permitted" when container runs as non-root
+**Files:** `entrypoint.sh`
+**Security Issues Found:** No
+
+Adds an early-exit check: if the container is already running as a non-root user (`id -u != 0`), the entrypoint skips all privilege-related operations and directly executes the CMD. This is a **security-positive** change that respects non-root container configurations (Docker rootless, `--user`, Kubernetes securityContext).
+
+---
+
+### PR #301 — Use native ARM runner for arm64 Docker build
+**Files:** `.github/workflows/release.yml`
+**Security Issues Found:** No
+
+CI/CD change only: replaces QEMU emulation with a native `ubuntu-latest-arm` runner for arm64 builds. No security impact.
+
+---
+
+### PR #300 — Fix Docker socket permission denied on container restart
+**Files:** `Dockerfile`, `entrypoint.sh` (new)
+**Security Issues Found:** Yes — 1 finding
 
 | # | Severity | Type | File | Description |
 |---|----------|------|------|-------------|
-| 1 | **Low** | Docker Security — Running as root (`chown -R`) | `plugins/home_assistant/__init__.py` (line removal) | The PR removes a dead-code `if not data: return None` guard in `get_formatted_display()`. After removal, if `_cache` is set to an empty dict `{}`, the code proceeds to call `.get("entities", {})` on it, which is safe but changes the previous defensive behavior. This is a **code quality** note rather than a direct vulnerability, but could surface unexpected behavior if cache state is malformed. |
+| 1 | **Low** | Docker Security — Container Runs as Root | `Dockerfile` (lines ~111-113), `entrypoint.sh` | The container's `ENTRYPOINT` now runs as **root** to fix Docker socket permissions, then drops to `appuser` via `gosu`. Previously, the Dockerfile used `USER appuser` directly. While `gosu` privilege-dropping is a well-established pattern, running the entrypoint as root increases the attack surface if the entrypoint script has vulnerabilities. **Mitigated by:** PR #302 adds an early exit for non-root invocation, and PR #304 later removes the Docker socket dependency entirely. |
 
-> **Overall:** This PR is predominantly test code. All API keys used in tests are clearly mock/test values (`"test_key"`, `"test_token"`, `"k"`). No real credentials, no injection risks, no unsafe operations. The CI change to use `codecov/codecov-action@v5` with `${{ secrets.CODECOV_TOKEN }}` is properly handled via GitHub Secrets. The `--fail-under=80` coverage gate is a positive security practice.
-
-**Verdict:** No significant security issues found.
+**Note:** The `gosu` binary is added as a dependency. gosu is the recommended tool for this pattern (preferred over `su` or `sudo` in containers).
 
 ---
 
-### PR #324 — Add staggered card fade-in animation to integrations page
+### PR #299 — Remove white glow from pixel art feature icons
+**Files:** Binary image files only (`docs-site/static/img/features/*.png`)
 **Security Issues Found:** No
 
-> This PR adds UI animation components (BlurText, CountUp, SpotlightCard, ShinyText, FadeContent, DecryptedText, PageFadeWrapper). All are purely client-side React components with no network calls, no `eval()`, no `dangerouslySetInnerHTML`, no external data injection points. The `DecryptedText` component does string character randomization but uses no unsafe APIs.
-
-**Verdict:** No security issues found.
+Image asset changes only.
 
 ---
 
-### PR #323 — Add Aurora WebGL background to setup wizard
-**Security Issues Found:** No
+### PR #297 — Live vestaboard output
+**Files:** `src/api_server.py`, `web/src/components/page-builder.tsx`, `web/src/lib/api.ts`, `tests/test_live_output.py`, `web/src/__tests__/live-output.test.tsx`, `web/src/__tests__/mocks/handlers.ts`
+**Security Issues Found:** Yes — 2 findings
 
-> Adds an `ogl` (WebGL) dependency and Aurora shader component for visual effects. The WebGL shaders are hardcoded GLSL strings with no user input interpolation. The `docker-compose.dev.yml` changes add volume mounts and `WATCHPACK_POLLING=true` for dev hot-reload — standard development practices. The `start-dev.sh` runs `npm install` inside the container, which is expected for dev mode. The `entrypoint.sh` change adds `chown -R appuser:appuser /app/web/.next` for dev mode bind mounts — this runs as root in the entrypoint before dropping to appuser, which is the standard gosu pattern and is acceptable.
+| # | Severity | Type | File & Line | Description |
+|---|----------|------|-------------|-------------|
+| 1 | **Medium** | Exposed Sensitive Endpoint Without Auth | `src/api_server.py`, `POST /templates/render/live` | New endpoint that **renders a template AND sends it directly to the physical board**. Like all other endpoints in this API, it has **no authentication or authorization**. This endpoint is particularly sensitive because it uses `force=True` when calling `client.send_characters()`, **bypassing deduplication/throttle safeguards**. Any network-adjacent attacker can send arbitrary content to the board without limits. While the lack of auth is consistent with the rest of the API (which is designed for LAN use), the `force=True` flag and the ability to write to the board make this endpoint higher-risk than read-only endpoints. |
+| 2 | **Low** | Missing Server-Side Rate Limiting | `src/api_server.py`, `POST /templates/render/live` | The live output endpoint has no server-side rate limiting. The only throttle is a client-side 5-minute inactivity timeout in the React component. A malicious client can bypass this and spam the endpoint, causing excessive writes to the physical board. |
 
-**Verdict:** No security issues found.
-
----
-
-### PR #321 — Fix CI badge showing failing due to concurrency cancellation on main
-**Security Issues Found:** No
-
-> Single-line change: `ci-${{ github.event.pull_request.number || github.ref }}` → `ci-${{ github.event.pull_request.number || github.sha }}`. This changes the CI concurrency group key from branch ref to commit SHA for non-PR builds. No security implications — both values are GitHub-provided context variables, not user-controlled inputs susceptible to script injection.
-
-**Verdict:** No security issues found.
+**Positive notes:**
+- The `board_id` parameter is validated against the configured boards list (cannot target arbitrary boards).
+- Template rendering goes through the existing template engine (no new injection vectors).
+- Client-side has a 5-minute auto-timeout that disables live mode on inactivity.
 
 ---
 
-### PR #320 — Show current time indicator line in schedule calendar
+### PR #296 — Replace homepage emoji icons with branded pixel art
+**Files:** `docs-site/src/components/HomepageFeatures/index.tsx`, `docs-site/src/components/HomepageFeatures/styles.module.css`, binary image files
 **Security Issues Found:** No
 
-> CSS-only changes to `calendar.css` showing a red time indicator line. No JavaScript, no API changes, no data handling. Version bump in `package-lock.json`.
-
-**Verdict:** No security issues found.
+Replaces emoji strings with `<img>` tags referencing local PNG files. Image sources are static paths (e.g., `/img/features/plugin-architecture.png`), not user-controlled. No XSS or injection risk.
 
 ---
 
-### PR #319 — Enable dimming overlay on integration configuration tray
+### PR #295 — User onboarding documentation
+**Files:** `DOCKERHUB_README.md`, `README.md`, `docs/setup/BEGINNERS_GUIDE.md`, `docs/setup/CLOUD_API_SETUP.md`
 **Security Issues Found:** No
 
-> Single-line change removing `modal={false}` from a Sheet component, restoring default modal behavior with a dimming overlay. No security implications.
-
-**Verdict:** No security issues found.
+Documentation rewrite for onboarding. No code changes, no secrets. Discord invite link (`discord.gg/wc9dDfte`) is intentionally public. Placeholder API key references use descriptive strings like `your-read-write-key-here`.
 
 ---
 
-### PR #318 — docs: add screenshot references to plugin SETUP.md files
+### PR #294 — Parallelize multi-arch Docker image builds in release workflow
+**Files:** `.github/workflows/release.yml`
 **Security Issues Found:** No
 
-> Adds markdown image references (`![Description](./image.png)`) to various plugin SETUP.md files. All image paths are relative within plugin `docs/` directories. No external URLs, no script injection vectors.
-
-**Verdict:** No security issues found.
-
----
-
-### PR #317 — Fix weekly schedule calendar: Saturday midnight rollover wraps to Sunday
-**Security Issues Found:** No
-
-> Client-side schedule calendar logic improvements. Adds Saturday-to-Sunday midnight rollover handling. The `schedule-event.tsx` change accesses `resource.originalSchedule.start_time` and `resource.originalSchedule.end_time` to display original time ranges — these are schedule data from the app's own API, not user-controlled HTML injection vectors. Uses `date-fns` `format()` for time formatting, which is safe.
-
-**Verdict:** No security issues found.
-
----
-
-### PR #316 — Fix 100+ factual errors across all documentation
-**Security Issues Found:** No
-
-> Massive documentation-only PR correcting outdated information: API endpoint paths (`/plugins` → `/api/plugins`), button labels, plugin counts, variable names, environment variable names, and instructions. No code logic changes. No credentials or sensitive data exposed. All example values use placeholders (`your_google_key`, `your_ha_token`, etc.).
-
-**Verdict:** No security issues found.
-
----
-
-### PR #315 — Split midnight-rollover schedule events at day boundary
-**Security Issues Found:** No
-
-> Client-side calendar logic to split midnight-spanning schedule events into evening and morning parts. Adds `isMidnightSplit` and `splitPart` metadata to calendar events. The `schedule-calendar-view.tsx` properly constrains drag behavior for split events (disabling drag, constraining resize boundaries). No server-side changes, no API modifications, no injection risks.
-
-**Verdict:** No security issues found.
-
----
-
-### PR #314 — Sort pages alphabetically at the API layer
-**Security Issues Found:** No
-
-> Changes `pages.sort(key=lambda p: p.created_at)` to `pages.sort(key=lambda p: p.name.lower())` in `src/pages/storage.py`. This is a simple sort order change on in-memory data. The `.lower()` call is safe on Python strings. No injection risk, no path traversal, no auth changes.
-
-**Verdict:** No security issues found.
-
----
-
-### PR #313 — Fix schedule calendar events not rendering when spanning midnight
-**Security Issues Found:** No
-
-> Initial implementation of midnight rollover handling in `schedule-calendar.ts` using `date-fns` `addDays()`. Adds new test file `schedule-calendar.test.ts`. Pure client-side date arithmetic logic. No security concerns.
-
-**Verdict:** No security issues found.
-
----
-
-### PR #312 — Speed up live edit preview and restore board on exit
-**Security Issues Found:** No
-
-> Reduces debounce timers from 300ms/500ms to 150ms/200ms for faster live preview. Adds `forceRefresh()` API call on component unmount to restore board display. The `api.forceRefresh()` calls `fetchApi("/force-refresh", { method: "POST" })` — this is an internal API call to the app's own backend with no user-supplied parameters, so no injection risk. The `liveOutputEnabledRef` pattern using `useRef` + `useEffect` cleanup is a standard React pattern.
-
-**Verdict:** No security issues found.
-
----
-
-### PR #311 — Fix ARM64 build hanging: correct runner label ubuntu-24.04-arm
-**Security Issues Found:** No
-
-> Single-line change: `runner: ubuntu-24.04-arm64` → `runner: ubuntu-24.04-arm` in the GitHub Actions workflow. Corrects a runner label. No security implications.
-
-**Verdict:** No security issues found.
-
----
-
-### PR #310 — Replace QEMU-emulated ARM builds with native ARM runners
-**Security Issues Found:** No
-
-> Restructures the release workflow from a single multi-platform build to a matrix strategy with per-platform native runners. Removes QEMU emulation. Adds a `merge` job to create multi-platform manifest. Docker Hub credentials (`DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`) are properly accessed via `${{ secrets.* }}` — no hardcoded credentials. The `printf 'fiestaboard/fiestaboard@sha256:%s ' *` pattern in the manifest merge step uses digest filenames from the build step, not user input. The workflow structure follows Docker's recommended multi-platform build pattern.
-
-**Verdict:** No security issues found.
+CI/CD pipeline refactoring: splits single build into parallel per-platform builds with digest-based manifest assembly. Docker Hub credentials are properly referenced via `${{ secrets.DOCKERHUB_USERNAME }}` and `${{ secrets.DOCKERHUB_TOKEN }}`. No secret leakage.
 
 ---
 
 ## Summary of All Findings
 
+| PR | Severity | Type | Description |
+|----|----------|------|-------------|
+| **#297** | **Medium** | Exposed Sensitive Endpoint Without Auth | `POST /templates/render/live` sends content to the physical board with `force=True`, has no authentication, and is accessible to anyone on the network. |
+| **#297** | **Low** | Missing Server-Side Rate Limiting | `/templates/render/live` has no server-side rate limit; only client-side 5-minute inactivity timeout. |
+| **#300** | **Low** | Docker Security — Root Entrypoint | Container entrypoint runs as root before dropping privileges via gosu. Mitigated by PR #302 (non-root bypass) and PR #304 (Docker socket removal). |
+| **#304** | **Info (Positive)** | Attack Surface Reduction | Removed Docker socket-based `/system/restart` and `/system/upgrade` endpoints — significant security improvement. |
+
+### Pre-Existing Issues (Not Introduced by These PRs)
+
+| Severity | Type | Location | Description |
+|----------|------|----------|-------------|
+| **Medium** | CORS Misconfiguration | `src/api_server.py` line 268 | `allow_origins=["*"]` allows any origin to make API requests. Comment says "In production, restrict this to your UI domain" but no mechanism enforces this. |
+| **Medium** | No API Authentication | `src/api_server.py` (all endpoints) | The entire API has no authentication mechanism. All endpoints (including board writes, configuration changes, and debug tools) are accessible to anyone who can reach the server. This is by design for LAN-only deployments but poses risk if the server is exposed to the internet. |
+
 ### Statistics
+
 - **Total PRs reviewed:** 15
-- **PRs with security issues:** 0
-- **Total security issues found:** 0
-
-### Detailed Summary
-
-| PR | Title | Issues |
-|----|-------|--------|
-| #325 | Increase test coverage to 80% | No security issues found |
-| #324 | Staggered card fade-in animation | No security issues found |
-| #323 | Aurora WebGL background | No security issues found |
-| #321 | Fix CI badge concurrency | No security issues found |
-| #320 | Current time indicator in calendar | No security issues found |
-| #319 | Dimming overlay on config tray | No security issues found |
-| #318 | Screenshot references in SETUP.md | No security issues found |
-| #317 | Saturday midnight rollover fix | No security issues found |
-| #316 | Fix 100+ documentation errors | No security issues found |
-| #315 | Split midnight-rollover events | No security issues found |
-| #314 | Sort pages alphabetically | No security issues found |
-| #313 | Fix midnight-spanning events | No security issues found |
-| #312 | Speed up live edit + restore board | No security issues found |
-| #311 | Fix ARM64 runner label | No security issues found |
-| #310 | Native ARM runners | No security issues found |
-
-### Security Checklist Results
-
-| Check | Result |
-|-------|--------|
-| Hardcoded secrets/API keys/tokens | ✅ None found — all test values use mock/placeholder keys |
-| Sensitive personal information | ✅ None found — coordinates use well-known landmarks (SF: 37.7749, -122.4194) |
-| SQL injection | ✅ N/A — no SQL queries in any diff |
-| Cross-site scripting (XSS) | ✅ None found — no `dangerouslySetInnerHTML`, no raw HTML injection |
-| Command injection | ✅ None found — no `exec()`, `eval()`, or shell command construction with user input |
-| Path traversal | ✅ None found |
-| Insecure deserialization | ✅ None found |
-| Authentication/authorization bypass | ✅ None found — no auth logic changes |
-| Exposed sensitive endpoints | ✅ None found |
-| Insecure cryptographic practices | ✅ N/A — no crypto operations |
-| SSRF vulnerabilities | ✅ None found |
-| Unsafe file operations | ✅ None found |
-| Docker security issues | ✅ Acceptable — entrypoint uses gosu pattern correctly |
-| CI/CD pipeline security | ✅ Secrets properly handled via `${{ secrets.* }}` |
-| Dependency vulnerabilities | ✅ No known vulnerable dependencies added |
-| CORS misconfigurations | ✅ None found |
-| Unsafe eval() usage | ✅ None found |
-| Information disclosure in errors | ✅ None found |
-| Insecure direct object references | ✅ None found |
-| Missing input validation | ✅ None found — validation logic preserved or improved |
-
-### Overall Assessment
-
-**Risk Level: LOW**
-
-All 15 PRs reviewed are clean from a security perspective. The changes consist of:
-- Test coverage improvements with properly mocked credentials
-- UI animation/visual enhancements (client-side only)
-- Documentation corrections
-- Calendar/scheduling logic fixes (client-side)
-- CI/CD workflow improvements
-- Build infrastructure changes
-
-No actionable security vulnerabilities were identified across any of the reviewed pull requests.
+- **PRs with new security findings:** 2 (PR #297, PR #300)
+- **PRs with security improvements:** 2 (PR #302, PR #304)
+- **PRs with no security issues:** 11
+- **Critical findings:** 0
+- **High findings:** 0
+- **Medium findings:** 1 (new), 2 (pre-existing)
+- **Low findings:** 2
+- **Info findings:** 1 (positive)
