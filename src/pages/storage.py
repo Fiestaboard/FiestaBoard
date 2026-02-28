@@ -6,38 +6,17 @@ Includes schema versioning and automatic migration on startup.
 
 import json
 import logging
-import re
 import shutil
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 from datetime import datetime
 
 from .models import LineMetadata, Page
+from ..text_utils import extract_alignment_from_line as _extract_alignment_from_line
 
 logger = logging.getLogger(__name__)
 
 CURRENT_SCHEMA_VERSION = 1
-
-ALIGNMENT_PREFIX_RE = re.compile(r'^\{(left|center|right)\}', re.IGNORECASE)
-
-
-def _extract_alignment_from_line(line: str) -> Tuple[str, bool, str]:
-    """Extract alignment and wrap prefixes from a legacy template line.
-
-    Returns (alignment, wrap_enabled, content).
-    """
-    remaining = line
-    wrap_enabled = False
-
-    if remaining.startswith('{wrap}'):
-        wrap_enabled = True
-        remaining = remaining[6:]
-
-    m = ALIGNMENT_PREFIX_RE.match(remaining)
-    if m:
-        return (m.group(1).lower(), wrap_enabled, remaining[m.end():])
-
-    return ('left', wrap_enabled, remaining)
 
 
 def _migrate_v0_to_v1(pages_data: List[dict]) -> int:

@@ -31,6 +31,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
 from ..plugins import get_plugin_registry
+from ..text_utils import extract_alignment_from_line
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,6 @@ SYMBOL_CHARS = {
 VAR_PATTERN = re.compile(r'\{\{([^}]+)\}\}')  # {{source.field}} or {{source.field|filter}}
 COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}\}', re.IGNORECASE)
 SYMBOL_PATTERN = re.compile(r'\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}', re.IGNORECASE)
-ALIGNMENT_PATTERN = re.compile(r'^\{(left|center|right)\}', re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r'\{\{fill_space\}\}', re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r'\{\{fill_space_repeat:(.+?)\}\}', re.IGNORECASE)
 
@@ -1132,31 +1132,9 @@ class TemplateEngine:
     def _extract_alignment(self, line: str) -> tuple:
         """Extract alignment and wrap directives from a line.
         
-        Args:
-            line: Template line that may start with {wrap}, {left}, {center}, or {right}
-            
-        Returns:
-            Tuple of (alignment, wrap_enabled, content) where:
-            - alignment is 'left', 'center', or 'right'
-            - wrap_enabled is True if {wrap} prefix is present
-            - content is the remaining line content
+        Delegates to the shared ``extract_alignment_from_line`` utility.
         """
-        remaining = line
-        wrap_enabled = False
-        
-        # Extract {wrap} prefix first
-        if remaining.startswith('{wrap}'):
-            wrap_enabled = True
-            remaining = remaining[6:]
-        
-        # Extract alignment prefix (can come after wrap)
-        match = ALIGNMENT_PATTERN.match(remaining)
-        if match:
-            alignment = match.group(1).lower()
-            content = remaining[match.end():]
-            return (alignment, wrap_enabled, content)
-        
-        return ('left', wrap_enabled, remaining)
+        return extract_alignment_from_line(line)
     
     def _apply_alignment(self, text: str, alignment: str, width: int = 22) -> str:
         """Apply alignment to rendered text.

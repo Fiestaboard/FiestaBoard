@@ -321,21 +321,51 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     return () => clearTimeout(timer);
   }, [templateLines]);
 
-  const buildLineMetadata = (): LineMetadata[] => {
-    return templateLines.map((_, i) => ({
-      alignment: lineAlignments[i] || "left",
-      wrap: lineWrapEnabled[i] || false,
-    }));
+  /**
+   * Parse inline {wrap} and {left}/{center}/{right} prefixes from template
+   * lines, strip them from content, and merge with the UI alignment/wrap
+   * state.  Inline prefixes (used in the plain-text editor) take precedence.
+   */
+  const processLinesWithPrefixes = (
+    lines: string[],
+    alignments: LineAlignment[],
+    wraps: boolean[],
+  ): { cleanedLines: string[]; metadata: LineMetadata[] } => {
+    const ALIGN_RE = /^\{(left|center|right)\}/i;
+    const cleanedLines: string[] = [];
+    const metadata: LineMetadata[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+      let alignment: LineAlignment = alignments[i] || "left";
+      let wrap = wraps[i] || false;
+
+      if (line.startsWith("{wrap}")) {
+        wrap = true;
+        line = line.substring(6);
+      }
+
+      const m = line.match(ALIGN_RE);
+      if (m) {
+        alignment = m[1].toLowerCase() as LineAlignment;
+        line = line.substring(m[0].length);
+      }
+
+      cleanedLines.push(line);
+      metadata.push({ alignment, wrap });
+    }
+
+    return { cleanedLines, metadata };
   };
 
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const metadata = buildLineMetadata();
+      const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
         const payload: PageUpdate = {
           name,
-          template: templateLines,
+          template: cleanedLines,
           line_metadata: metadata,
         };
         return api.updatePage(pageId, payload);
@@ -344,7 +374,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
           name,
           type: "template" as PageType,
           device_type: deviceType,
-          template: templateLines,
+          template: cleanedLines,
           line_metadata: metadata,
         };
         return api.createPage(payload);
@@ -431,20 +461,12 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     },
   });
 
-  const buildDebouncedLineMetadata = (): LineMetadata[] => {
-    return debouncedTemplateLines.map((_, i) => ({
-      alignment: debouncedLineAlignments[i] || "left",
-      wrap: debouncedLineWrapEnabled[i] || false,
-    }));
-  };
-
   // Preview mutation
   const previewMutation = useMutation({
     mutationFn: async () => {
-      const template = debouncedTemplateLines;
-      const metadata = buildDebouncedLineMetadata();
+      const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
 
-      const hasContent = template.some(line => line.trim().length > 0);
+      const hasContent = cleanedLines.some(line => line.trim().length > 0);
       
       if (!hasContent) {
         return { 
@@ -454,7 +476,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         };
       }
       
-      return api.renderTemplate(template, metadata);
+      return api.renderTemplate(cleanedLines, metadata);
     },
     onSuccess: (data) => {
       console.log('[Preview] onSuccess called');
@@ -605,8 +627,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   // Live output mutation - sends rendered preview to the board
   const liveSendMutation = useMutation({
     mutationFn: async (rendered: string) => {
-      const metadata = buildDebouncedLineMetadata();
-      return api.renderTemplateLive(debouncedTemplateLines, selectedBoardId || undefined, metadata);
+      const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
+      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata);
     },
     onSuccess: (data) => {
       if (data.sent_to_board) {
