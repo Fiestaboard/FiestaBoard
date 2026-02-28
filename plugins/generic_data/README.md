@@ -2,7 +2,7 @@
 
 ![Generic Data Display](./docs/generic-data-display.png)
 
-Fetch data from any URL (JSON or XML) and map fields to template variables — no custom plugin needed.
+Fetch data from any URL (JSON or XML) and map fields to template variables — no custom plugin needed. Supports **multiple feeds** so you can pull data from several APIs at once.
 
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
 
@@ -14,6 +14,10 @@ The Generic Data plugin lets you pull data from any HTTP endpoint and map respon
 - Self-hosted services (Home Assistant REST sensors, Node-RED endpoints)
 - Static JSON files hosted on a web server
 - RSS/Atom feeds served as XML
+
+### Multiple Feeds
+
+Need data from more than one API? Use the **feeds** array to configure multiple data sources in a single plugin. Each feed has its own URL, format, headers, and mappings. All variables end up in the same `generic_data.*` namespace — just make sure variable names are unique across feeds.
 
 ## Template Variables
 
@@ -28,10 +32,10 @@ For example, if you configure a mapping with variable name `temperature` and pat
 ### Built-in Variables
 
 ```
-{{generic_data.raw_response}}   # First 22 characters of the raw response (for debugging)
+{{generic_data.feed_count}}   # Number of configured feeds
 ```
 
-## Quick Start
+## Quick Start — Single Feed
 
 1. Enable the plugin in the FiestaBoard settings
 2. Enter the URL of your data source
@@ -40,6 +44,23 @@ For example, if you configure a mapping with variable name `temperature` and pat
    - **Data Path**: Dot-notation path to the value in the response (e.g., `current.temp_f`)
    - **Default**: Fallback value if the path isn't found (optional)
 4. Create a page template using your mapped variables
+
+## Quick Start — Multiple Feeds
+
+1. Enable the plugin
+2. In the **Data Feeds** section, add a feed for each API:
+   - Set the URL, format, and any authentication headers
+   - Add mappings with unique variable names
+3. Reference variables from all feeds in your templates
+
+Example with two feeds:
+
+```
+{center}DASHBOARD
+TEMP: {{generic_data.temperature}}°F
+COMMUTE: {{generic_data.commute_time}}
+BIKES: {{generic_data.bikes_available}}
+```
 
 ## Path Syntax
 
@@ -101,7 +122,7 @@ The XML is converted to a nested dict structure, so paths work the same way:
 
 ## Example Templates
 
-### Weather Station
+### Weather Station (single feed)
 
 ```
 {center}WEATHER STATION
@@ -111,16 +132,19 @@ HUMIDITY: {{generic_data.humidity}}%
 WIND: {{generic_data.wind_speed}} MPH
 ```
 
-### IoT Sensor
+### Multi-Source Dashboard (multiple feeds)
 
 ```
-{center}SENSOR READINGS
-TEMP: {{generic_data.temp}}
-HUMIDITY: {{generic_data.humidity}}
-PRESSURE: {{generic_data.pressure}}
+{center}HOME DASHBOARD
+TEMP: {{generic_data.temperature}}F
+COMMUTE: {{generic_data.commute_time}}
+BIKES: {{generic_data.bikes_available}}
+AIR: AQI {{generic_data.aqi}}
 ```
 
 ## Configuration
+
+### Single-Feed Mode
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
@@ -132,6 +156,28 @@ PRESSURE: {{generic_data.pressure}}
 | body | string | | Request body for POST requests |
 | mappings | array | *(required)* | Variable mappings (see above) |
 | refresh_seconds | integer | 300 | How often to fetch new data (minimum 30s) |
+
+### Multi-Feed Mode
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| enabled | boolean | false | Enable/disable the plugin |
+| feeds | array | | Array of feed objects (up to 10) |
+| refresh_seconds | integer | 300 | Shared refresh interval (minimum 30s) |
+
+Each feed object:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| name | string | No | Label for this feed |
+| url | string | Yes | URL to fetch data from |
+| format | string | No | `json` (default) or `xml` |
+| method | string | No | `GET` (default) or `POST` |
+| headers | array | No | Custom HTTP headers |
+| body | string | No | Request body for POST |
+| mappings | array | Yes | Variable mappings |
+
+When `feeds` is set, the top-level `url`/`mappings` fields are ignored.
 
 ### Authentication
 
@@ -150,13 +196,15 @@ Or for API key authentication:
 ## Features
 
 - **Any URL**: Fetch data from any HTTP/HTTPS endpoint
+- **Multiple Feeds**: Pull from up to 10 different APIs at once
 - **JSON & XML**: Parse both JSON and XML responses
 - **Dot-notation Paths**: Simple path syntax to extract values
 - **Array Support**: Access items by index (e.g., `items[0].name`)
 - **Default Values**: Fallback values when paths don't match
-- **Custom Headers**: Add authentication and custom headers
+- **Custom Headers**: Add authentication and custom headers per feed
 - **POST Support**: Send request bodies for POST endpoints
-- **Size Limit**: Responses limited to 1 MB for safety
+- **Partial Failure**: If one feed fails, data from the others is still available
+- **Size Limit**: Responses limited to 1 MB each for safety
 - **No Dependencies**: Uses only the `requests` library (already included)
 
 ## Author

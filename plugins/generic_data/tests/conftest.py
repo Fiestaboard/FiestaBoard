@@ -30,7 +30,7 @@ def sample_manifest():
 
 @pytest.fixture
 def sample_config():
-    """Sample configuration for testing."""
+    """Sample single-feed configuration for testing."""
     return {
         "enabled": True,
         "url": "https://api.example.com/data",
@@ -79,3 +79,44 @@ def sample_xml_response():
         "</location>"
         "</weather>"
     )
+
+
+@pytest.fixture
+def multi_feed_config():
+    """Sample multi-feed configuration for testing."""
+    return {
+        "enabled": True,
+        "feeds": [
+            {
+                "name": "Weather",
+                "url": "https://api.example.com/weather",
+                "format": "json",
+                "mappings": [
+                    {"variable": "temperature", "path": "current.temp_f", "default": "N/A"},
+                    {"variable": "condition", "path": "current.condition.text", "default": "Unknown"},
+                ],
+            },
+            {
+                "name": "Traffic",
+                "url": "https://api.example.com/traffic",
+                "format": "json",
+                "mappings": [
+                    {"variable": "commute_time", "path": "route.duration", "default": "??"},
+                    {"variable": "traffic_status", "path": "route.status", "default": "unknown"},
+                ],
+            },
+        ],
+        "refresh_seconds": 300,
+    }
+
+
+@pytest.fixture
+def traffic_json_response():
+    """Sample traffic API response for testing."""
+    return {
+        "route": {
+            "duration": "25 min",
+            "status": "moderate",
+            "distance": "12 mi",
+        },
+    }

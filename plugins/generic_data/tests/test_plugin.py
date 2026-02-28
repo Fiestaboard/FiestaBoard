@@ -9,7 +9,14 @@ from unittest.mock import patch, MagicMock, Mock
 
 import pytest
 
-from plugins.generic_data import GenericDataPlugin, _resolve_path, _xml_to_dict, MAX_RESPONSE_BYTES
+from plugins.generic_data import (
+    GenericDataPlugin,
+    _resolve_path,
+    _xml_to_dict,
+    _build_feeds,
+    MAX_RESPONSE_BYTES,
+    MAX_FEEDS,
+)
 from src.plugins.base import PluginResult
 
 
@@ -98,45 +105,88 @@ class TestXmlToDict:
 
 
 # ---------------------------------------------------------------------------
-# GenericDataPlugin tests
+# _build_feeds unit tests
+# ---------------------------------------------------------------------------
+
+class TestBuildFeeds:
+    """Tests for feed normalisation."""
+
+    def test_single_feed_from_top_level(self):
+        config = {
+            "url": "https://example.com/data",
+            "format": "json",
+            "mappings": [{"variable": "x", "path": "y"}],
+        }
+        feeds = _build_feeds(config)
+        assert len(feeds) == 1
+        assert feeds[0]["url"] == "https://example.com/data"
+
+    @patch.dict("os.environ", {"GENERIC_DATA_URL": "https://env.example.com/data"})
+    def test_single_feed_from_env(self):
+        config = {"mappings": [{"variable": "x", "path": "y"}]}
+        feeds = _build_feeds(config)
+        assert len(feeds) == 1
+        assert feeds[0]["url"] == "https://env.example.com/data"
+
+    def test_multi_feed(self):
+        config = {
+            "feeds": [
+                {"url": "https://a.com", "mappings": [{"variable": "a", "path": "x"}]},
+                {"url": "https://b.com", "mappings": [{"variable": "b", "path": "y"}]},
+            ]
+        }
+        feeds = _build_feeds(config)
+        assert len(feeds) == 2
+
+    @patch.dict("os.environ", {"GENERIC_DATA_URL": ""})
+    def test_empty_config_returns_empty(self):
+        feeds = _build_feeds({})
+        assert feeds == []
+
+    def test_feeds_takes_precedence_over_top_level(self):
+        config = {
+            "url": "https://ignored.com",
+            "mappings": [{"variable": "ignored", "path": "x"}],
+            "feeds": [
+                {"url": "https://used.com", "mappings": [{"variable": "a", "path": "y"}]},
+            ],
+        }
+        feeds = _build_feeds(config)
+        assert len(feeds) == 1
+        assert feeds[0]["url"] == "https://used.com"
+
+
+# ---------------------------------------------------------------------------
+# GenericDataPlugin — single-feed tests (backward compatibility)
 # ---------------------------------------------------------------------------
 
 class TestGenericDataPlugin:
-    """Test suite for GenericDataPlugin."""
+    """Test suite for GenericDataPlugin — single-feed mode."""
 
     def test_plugin_id(self, sample_manifest):
-        """Test plugin ID matches directory name and manifest."""
         plugin = GenericDataPlugin(sample_manifest)
         assert plugin.plugin_id == "generic_data"
 
     def test_validate_config_valid(self, sample_manifest, sample_config):
-        """Test config validation with valid config."""
         plugin = GenericDataPlugin(sample_manifest)
         errors = plugin.validate_config(sample_config)
         assert len(errors) == 0
 
     @patch.dict("os.environ", {"GENERIC_DATA_URL": ""})
     def test_validate_config_missing_url(self, sample_manifest):
-        """Test config validation detects missing URL."""
         plugin = GenericDataPlugin(sample_manifest)
-        config = {
-            "mappings": [{"variable": "x", "path": "y"}],
-        }
+        config = {"mappings": [{"variable": "x", "path": "y"}]}
         errors = plugin.validate_config(config)
         assert any("url" in e.lower() for e in errors)
 
     @patch.dict("os.environ", {"GENERIC_DATA_URL": "https://env.example.com/data"})
     def test_validate_config_url_from_env(self, sample_manifest):
-        """Test that URL can come from GENERIC_DATA_URL env var."""
         plugin = GenericDataPlugin(sample_manifest)
-        config = {
-            "mappings": [{"variable": "x", "path": "y"}],
-        }
+        config = {"mappings": [{"variable": "x", "path": "y"}]}
         errors = plugin.validate_config(config)
         assert not any("url" in e.lower() for e in errors)
 
     def test_validate_config_invalid_url(self, sample_manifest):
-        """Test config validation detects invalid URL scheme."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "ftp://bad.com/data",
@@ -146,14 +196,12 @@ class TestGenericDataPlugin:
         assert any("http" in e.lower() for e in errors)
 
     def test_validate_config_missing_mappings(self, sample_manifest):
-        """Test config validation detects empty mappings."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {"url": "https://example.com/data", "mappings": []}
         errors = plugin.validate_config(config)
         assert any("mapping" in e.lower() for e in errors)
 
     def test_validate_config_invalid_variable_name(self, sample_manifest):
-        """Test config validation catches bad variable names."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
@@ -163,7 +211,6 @@ class TestGenericDataPlugin:
         assert any("lowercase" in e.lower() for e in errors)
 
     def test_validate_config_duplicate_variable(self, sample_manifest):
-        """Test config validation catches duplicate variable names."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
@@ -176,17 +223,15 @@ class TestGenericDataPlugin:
         assert any("duplicate" in e.lower() for e in errors)
 
     def test_validate_config_missing_mapping_fields(self, sample_manifest):
-        """Test config validation catches empty mapping fields."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
             "mappings": [{"variable": "", "path": ""}],
         }
         errors = plugin.validate_config(config)
-        assert len(errors) >= 2  # missing variable and path
+        assert len(errors) >= 2
 
     def test_validate_config_unsupported_format(self, sample_manifest):
-        """Test config validation catches unsupported formats."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
@@ -197,7 +242,6 @@ class TestGenericDataPlugin:
         assert any("format" in e.lower() for e in errors)
 
     def test_validate_config_unsupported_method(self, sample_manifest):
-        """Test config validation catches unsupported methods."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
@@ -208,7 +252,6 @@ class TestGenericDataPlugin:
         assert any("method" in e.lower() for e in errors)
 
     def test_validate_config_low_refresh(self, sample_manifest):
-        """Test config validation catches refresh interval too low."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
@@ -219,7 +262,6 @@ class TestGenericDataPlugin:
         assert any("refresh" in e.lower() for e in errors)
 
     def test_validate_config_header_missing_name(self, sample_manifest):
-        """Test config validation catches headers with missing name."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
@@ -230,7 +272,6 @@ class TestGenericDataPlugin:
         assert any("header" in e.lower() for e in errors)
 
     def test_validate_config_header_missing_value(self, sample_manifest):
-        """Test config validation catches headers with missing value."""
         plugin = GenericDataPlugin(sample_manifest)
         config = {
             "url": "https://example.com/data",
@@ -244,7 +285,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_json_success(
         self, mock_request, sample_manifest, sample_config, sample_json_response
     ):
-        """Test successful JSON data fetch with mappings."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -261,12 +301,12 @@ class TestGenericDataPlugin:
         assert result.data is not None
         assert result.data["temperature"] == "72"
         assert result.data["condition"] == "Sunny"
+        assert result.data["feed_count"] == "1"
 
     @patch("plugins.generic_data.requests.request")
     def test_fetch_data_with_default_value(
         self, mock_request, sample_manifest, sample_json_response
     ):
-        """Test that default values are used when path is not found."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -291,7 +331,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_array_path(
         self, mock_request, sample_manifest, sample_json_response
     ):
-        """Test fetching data using array index path."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -318,7 +357,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_xml_success(
         self, mock_request, sample_manifest, sample_xml_response
     ):
-        """Test successful XML data fetch with mappings."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = sample_xml_response.encode()
@@ -346,7 +384,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_url_from_env(
         self, mock_request, sample_manifest, sample_json_response
     ):
-        """Test fetch_data uses GENERIC_DATA_URL env var when url not in config."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -369,7 +406,6 @@ class TestGenericDataPlugin:
 
     @patch.dict("os.environ", {"GENERIC_DATA_URL": ""})
     def test_fetch_data_missing_url(self, sample_manifest):
-        """Test fetch_data when URL is not configured."""
         plugin = GenericDataPlugin(sample_manifest)
         plugin.config = {"mappings": [{"variable": "x", "path": "y"}]}
         result = plugin.fetch_data()
@@ -378,7 +414,6 @@ class TestGenericDataPlugin:
         assert "url" in result.error.lower()
 
     def test_fetch_data_no_mappings(self, sample_manifest):
-        """Test fetch_data when mappings are empty."""
         plugin = GenericDataPlugin(sample_manifest)
         plugin.config = {"url": "https://example.com/data", "mappings": []}
         result = plugin.fetch_data()
@@ -388,7 +423,6 @@ class TestGenericDataPlugin:
 
     @patch("plugins.generic_data.requests.request")
     def test_fetch_data_timeout(self, mock_request, sample_manifest, sample_config):
-        """Test fetch_data handles request timeout."""
         import requests as req
         mock_request.side_effect = req.exceptions.Timeout("timed out")
 
@@ -401,7 +435,6 @@ class TestGenericDataPlugin:
 
     @patch("plugins.generic_data.requests.request")
     def test_fetch_data_connection_error(self, mock_request, sample_manifest, sample_config):
-        """Test fetch_data handles connection error."""
         import requests as req
         mock_request.side_effect = req.exceptions.ConnectionError("refused")
 
@@ -414,7 +447,6 @@ class TestGenericDataPlugin:
 
     @patch("plugins.generic_data.requests.request")
     def test_fetch_data_http_error(self, mock_request, sample_manifest, sample_config):
-        """Test fetch_data handles HTTP error responses."""
         import requests as req
         mock_resp = Mock()
         mock_resp.raise_for_status.side_effect = req.exceptions.HTTPError("404 Not Found")
@@ -431,10 +463,9 @@ class TestGenericDataPlugin:
     def test_fetch_data_response_too_large(
         self, mock_request, sample_manifest, sample_config
     ):
-        """Test fetch_data rejects responses exceeding size limit."""
         mock_resp = Mock()
         mock_resp.status_code = 200
-        mock_resp.content = b'x' * (MAX_RESPONSE_BYTES + 1)  # Exceed size limit
+        mock_resp.content = b'x' * (MAX_RESPONSE_BYTES + 1)
         mock_resp.raise_for_status = Mock()
         mock_request.return_value = mock_resp
 
@@ -447,7 +478,6 @@ class TestGenericDataPlugin:
 
     @patch("plugins.generic_data.requests.request")
     def test_fetch_data_invalid_json(self, mock_request, sample_manifest, sample_config):
-        """Test fetch_data handles unparseable JSON."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'not json'
@@ -466,7 +496,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_formatted_lines(
         self, mock_request, sample_manifest, sample_config, sample_json_response
     ):
-        """Test fetch_data returns formatted lines for the board."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -485,7 +514,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_post_with_body(
         self, mock_request, sample_manifest, sample_json_response
     ):
-        """Test POST request with body."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -515,7 +543,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_custom_headers(
         self, mock_request, sample_manifest, sample_json_response
     ):
-        """Test that custom headers are sent with the request."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -544,7 +571,6 @@ class TestGenericDataPlugin:
     def test_fetch_data_all_manifest_variables(
         self, mock_request, sample_manifest, sample_config, sample_json_response
     ):
-        """Test fetch_data returns all expected variables from manifest."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'x' * 100
@@ -559,7 +585,6 @@ class TestGenericDataPlugin:
         assert result.available is True
         data = result.data
 
-        # The manifest declares "raw_json" as a simple variable
         manifest_path = Path(__file__).parent.parent / "manifest.json"
         with open(manifest_path) as f:
             manifest = json.load(f)
@@ -568,24 +593,225 @@ class TestGenericDataPlugin:
             assert var in data, f"Variable '{var}' declared in manifest but not in data"
 
     def test_get_formatted_display_no_config(self, sample_manifest):
-        """Test formatted display when not configured."""
         plugin = GenericDataPlugin(sample_manifest)
         plugin.config = {}
         lines = plugin.get_formatted_display()
         assert lines is None
 
     def test_cleanup(self, sample_manifest):
-        """Test cleanup runs without error."""
         plugin = GenericDataPlugin(sample_manifest)
-        plugin.cleanup()  # Should not raise
+        plugin.cleanup()
 
+
+# ---------------------------------------------------------------------------
+# Multi-feed tests
+# ---------------------------------------------------------------------------
+
+class TestMultiFeed:
+    """Tests for multi-feed configuration."""
+
+    def test_validate_multi_feed_valid(self, sample_manifest, multi_feed_config):
+        plugin = GenericDataPlugin(sample_manifest)
+        errors = plugin.validate_config(multi_feed_config)
+        assert len(errors) == 0
+
+    def test_validate_multi_feed_duplicate_vars_across_feeds(self, sample_manifest):
+        plugin = GenericDataPlugin(sample_manifest)
+        config = {
+            "feeds": [
+                {
+                    "url": "https://a.com",
+                    "mappings": [{"variable": "temp", "path": "a"}],
+                },
+                {
+                    "url": "https://b.com",
+                    "mappings": [{"variable": "temp", "path": "b"}],
+                },
+            ],
+        }
+        errors = plugin.validate_config(config)
+        assert any("duplicate" in e.lower() for e in errors)
+
+    def test_validate_multi_feed_missing_url(self, sample_manifest):
+        plugin = GenericDataPlugin(sample_manifest)
+        config = {
+            "feeds": [
+                {"url": "", "mappings": [{"variable": "x", "path": "y"}]},
+            ],
+        }
+        errors = plugin.validate_config(config)
+        assert any("url" in e.lower() for e in errors)
+
+    def test_validate_multi_feed_too_many(self, sample_manifest):
+        plugin = GenericDataPlugin(sample_manifest)
+        config = {
+            "feeds": [
+                {"url": f"https://example.com/{i}", "mappings": [{"variable": f"v{i}", "path": "x"}]}
+                for i in range(MAX_FEEDS + 1)
+            ],
+        }
+        errors = plugin.validate_config(config)
+        assert any("maximum" in e.lower() for e in errors)
+
+    def test_validate_empty_config(self, sample_manifest):
+        plugin = GenericDataPlugin(sample_manifest)
+        errors = plugin.validate_config({})
+        assert any("feed" in e.lower() for e in errors)
+
+    @patch("plugins.generic_data.requests.request")
+    def test_fetch_multi_feed_success(
+        self,
+        mock_request,
+        sample_manifest,
+        multi_feed_config,
+        sample_json_response,
+        traffic_json_response,
+    ):
+        """Both feeds succeed — variables from both appear in result."""
+        weather_resp = Mock()
+        weather_resp.status_code = 200
+        weather_resp.content = b'x' * 100
+        weather_resp.json.return_value = sample_json_response
+        weather_resp.raise_for_status = Mock()
+
+        traffic_resp = Mock()
+        traffic_resp.status_code = 200
+        traffic_resp.content = b'x' * 100
+        traffic_resp.json.return_value = traffic_json_response
+        traffic_resp.raise_for_status = Mock()
+
+        mock_request.side_effect = [weather_resp, traffic_resp]
+
+        plugin = GenericDataPlugin(sample_manifest)
+        plugin.config = multi_feed_config
+        result = plugin.fetch_data()
+
+        assert result.available is True
+        assert result.data["temperature"] == "72"
+        assert result.data["condition"] == "Sunny"
+        assert result.data["commute_time"] == "25 min"
+        assert result.data["traffic_status"] == "moderate"
+        assert result.data["feed_count"] == "2"
+        assert mock_request.call_count == 2
+
+    @patch("plugins.generic_data.requests.request")
+    def test_fetch_multi_feed_partial_failure(
+        self,
+        mock_request,
+        sample_manifest,
+        multi_feed_config,
+        sample_json_response,
+    ):
+        """One feed fails, the other succeeds — partial data returned."""
+        import requests as req
+
+        weather_resp = Mock()
+        weather_resp.status_code = 200
+        weather_resp.content = b'x' * 100
+        weather_resp.json.return_value = sample_json_response
+        weather_resp.raise_for_status = Mock()
+
+        mock_request.side_effect = [
+            weather_resp,
+            req.exceptions.Timeout("timed out"),
+        ]
+
+        plugin = GenericDataPlugin(sample_manifest)
+        plugin.config = multi_feed_config
+        result = plugin.fetch_data()
+
+        assert result.available is True
+        assert result.data["temperature"] == "72"
+        assert "commute_time" not in result.data
+
+    @patch("plugins.generic_data.requests.request")
+    def test_fetch_multi_feed_all_fail(
+        self, mock_request, sample_manifest, multi_feed_config
+    ):
+        """All feeds fail — result is unavailable."""
+        import requests as req
+
+        mock_request.side_effect = [
+            req.exceptions.ConnectionError("refused"),
+            req.exceptions.Timeout("timed out"),
+        ]
+
+        plugin = GenericDataPlugin(sample_manifest)
+        plugin.config = multi_feed_config
+        result = plugin.fetch_data()
+
+        assert result.available is False
+        assert "connection" in result.error.lower()
+
+    @patch("plugins.generic_data.requests.request")
+    def test_fetch_multi_feed_mixed_formats(
+        self, mock_request, sample_manifest, sample_xml_response
+    ):
+        """Feed 1 is JSON, feed 2 is XML — both parsed correctly."""
+        json_resp = Mock()
+        json_resp.status_code = 200
+        json_resp.content = b'x' * 100
+        json_resp.json.return_value = {"value": 42}
+        json_resp.raise_for_status = Mock()
+
+        xml_resp = Mock()
+        xml_resp.status_code = 200
+        xml_resp.content = sample_xml_response.encode()
+        xml_resp.text = sample_xml_response
+        xml_resp.raise_for_status = Mock()
+
+        mock_request.side_effect = [json_resp, xml_resp]
+
+        plugin = GenericDataPlugin(sample_manifest)
+        plugin.config = {
+            "feeds": [
+                {
+                    "url": "https://json.example.com",
+                    "format": "json",
+                    "mappings": [{"variable": "number", "path": "value"}],
+                },
+                {
+                    "url": "https://xml.example.com",
+                    "format": "xml",
+                    "mappings": [{"variable": "city", "path": "location.name"}],
+                },
+            ],
+        }
+        result = plugin.fetch_data()
+
+        assert result.available is True
+        assert result.data["number"] == "42"
+        assert result.data["city"] == "San Francisco"
+
+    def test_fetch_no_feeds(self, sample_manifest):
+        plugin = GenericDataPlugin(sample_manifest)
+        plugin.config = {}
+        result = plugin.fetch_data()
+        assert result.available is False
+        assert "feed" in result.error.lower()
+
+    def test_validate_multi_feed_error_prefix(self, sample_manifest):
+        """Multi-feed validation errors include feed number prefix."""
+        plugin = GenericDataPlugin(sample_manifest)
+        config = {
+            "feeds": [
+                {"url": "https://a.com", "mappings": [{"variable": "ok", "path": "x"}]},
+                {"url": "", "mappings": [{"variable": "y", "path": "z"}]},
+            ],
+        }
+        errors = plugin.validate_config(config)
+        assert any("feed 2" in e.lower() for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
 
 class TestPluginEdgeCases:
     """Tests for edge cases and error handling."""
 
     @patch("plugins.generic_data.requests.request")
     def test_empty_response_body(self, mock_request, sample_manifest):
-        """Test handling of empty response body."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'{}'
@@ -606,7 +832,6 @@ class TestPluginEdgeCases:
 
     @patch("plugins.generic_data.requests.request")
     def test_mapping_with_empty_variable_skipped(self, mock_request, sample_manifest):
-        """Test that mappings with empty variable/path are skipped."""
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.content = b'{"a": 1}'
@@ -631,7 +856,6 @@ class TestPluginEdgeCases:
 
     @patch("plugins.generic_data.requests.request")
     def test_unexpected_exception(self, mock_request, sample_manifest, sample_config):
-        """Test handling of unexpected exceptions."""
         mock_request.side_effect = RuntimeError("unexpected")
 
         plugin = GenericDataPlugin(sample_manifest)

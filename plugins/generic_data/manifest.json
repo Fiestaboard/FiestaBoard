@@ -1,8 +1,8 @@
 {
   "id": "generic_data",
   "name": "Generic Data",
-  "version": "1.0.0",
-  "description": "Fetch data from any URL (JSON or XML) and map fields to template variables",
+  "version": "1.1.0",
+  "description": "Fetch data from any URL (JSON or XML) and map fields to template variables — supports multiple feeds",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
@@ -20,7 +20,7 @@
       "url": {
         "type": "string",
         "title": "Data URL",
-        "description": "URL to fetch data from (must return JSON or XML)"
+        "description": "URL to fetch data from (for single-feed mode)"
       },
       "format": {
         "type": "string",
@@ -63,7 +63,7 @@
       "mappings": {
         "type": "array",
         "title": "Variable Mappings",
-        "description": "Map response fields to template variables using dot-notation paths (e.g., 'data.items[0].name')",
+        "description": "Map response fields to template variables (for single-feed mode)",
         "items": {
           "type": "object",
           "properties": {
@@ -75,7 +75,7 @@
             "path": {
               "type": "string",
               "title": "Data Path",
-              "description": "Dot-notation path to the value (e.g., 'current.temp_f' or 'items[0].name')"
+              "description": "Dot-notation path to the value (e.g., 'current.temp_f')"
             },
             "default": {
               "type": "string",
@@ -88,6 +88,78 @@
         },
         "default": []
       },
+      "feeds": {
+        "type": "array",
+        "title": "Data Feeds",
+        "description": "Multiple data sources — each with its own URL, format, and mappings. When set, the top-level URL/mappings are ignored.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "title": "Feed Name",
+              "description": "Label for this feed (e.g., 'Weather API')"
+            },
+            "url": {
+              "type": "string",
+              "title": "Data URL"
+            },
+            "format": {
+              "type": "string",
+              "title": "Response Format",
+              "enum": ["json", "xml"],
+              "default": "json"
+            },
+            "method": {
+              "type": "string",
+              "title": "HTTP Method",
+              "enum": ["GET", "POST"],
+              "default": "GET"
+            },
+            "headers": {
+              "type": "array",
+              "title": "Custom Headers",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "title": "Header Name" },
+                  "value": { "type": "string", "title": "Header Value" }
+                },
+                "required": ["name", "value"]
+              },
+              "default": []
+            },
+            "body": {
+              "type": "string",
+              "title": "Request Body"
+            },
+            "mappings": {
+              "type": "array",
+              "title": "Variable Mappings",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "variable": {
+                    "type": "string",
+                    "title": "Variable Name"
+                  },
+                  "path": {
+                    "type": "string",
+                    "title": "Data Path"
+                  },
+                  "default": {
+                    "type": "string",
+                    "title": "Default Value",
+                    "default": ""
+                  }
+                },
+                "required": ["variable", "path"]
+              }
+            }
+          },
+          "required": ["url", "mappings"]
+        }
+      },
       "refresh_seconds": {
         "type": "integer",
         "title": "Refresh Interval (seconds)",
@@ -95,24 +167,23 @@
         "default": 300,
         "minimum": 30
       }
-    },
-    "required": ["url", "mappings"]
+    }
   },
 
   "env_vars": [
     {
       "name": "GENERIC_DATA_URL",
       "required": false,
-      "description": "Data URL (can also be set in UI)"
+      "description": "Data URL for single-feed mode (can also be set in UI)"
     }
   ],
 
   "variables": {
-    "simple": ["raw_response"],
+    "simple": ["feed_count"],
     "dynamic": true
   },
 
   "max_lengths": {
-    "raw_response": 22
+    "feed_count": 2
   }
 }
