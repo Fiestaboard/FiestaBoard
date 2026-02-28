@@ -1,0 +1,118 @@
+{
+  "id": "generic_data",
+  "name": "Generic Data",
+  "version": "1.0.0",
+  "description": "Fetch data from any URL (JSON or XML) and map fields to template variables",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "database",
+  "category": "data",
+
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable Generic Data",
+        "default": false
+      },
+      "url": {
+        "type": "string",
+        "title": "Data URL",
+        "description": "URL to fetch data from (must return JSON or XML)"
+      },
+      "format": {
+        "type": "string",
+        "title": "Response Format",
+        "description": "Format of the response data",
+        "enum": ["json", "xml"],
+        "default": "json"
+      },
+      "method": {
+        "type": "string",
+        "title": "HTTP Method",
+        "enum": ["GET", "POST"],
+        "default": "GET"
+      },
+      "headers": {
+        "type": "array",
+        "title": "Custom Headers",
+        "description": "Optional HTTP headers (e.g., for authentication)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "title": "Header Name"
+            },
+            "value": {
+              "type": "string",
+              "title": "Header Value"
+            }
+          },
+          "required": ["name", "value"]
+        },
+        "default": []
+      },
+      "body": {
+        "type": "string",
+        "title": "Request Body",
+        "description": "Optional request body for POST requests"
+      },
+      "mappings": {
+        "type": "array",
+        "title": "Variable Mappings",
+        "description": "Map response fields to template variables using dot-notation paths (e.g., 'data.items[0].name')",
+        "items": {
+          "type": "object",
+          "properties": {
+            "variable": {
+              "type": "string",
+              "title": "Variable Name",
+              "description": "Name to use in templates (e.g., 'temperature')"
+            },
+            "path": {
+              "type": "string",
+              "title": "Data Path",
+              "description": "Dot-notation path to the value (e.g., 'current.temp_f' or 'items[0].name')"
+            },
+            "default": {
+              "type": "string",
+              "title": "Default Value",
+              "description": "Value to use if the path is not found",
+              "default": ""
+            }
+          },
+          "required": ["variable", "path"]
+        },
+        "default": []
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "How often to fetch new data",
+        "default": 300,
+        "minimum": 30
+      }
+    },
+    "required": ["url", "mappings"]
+  },
+
+  "env_vars": [
+    {
+      "name": "GENERIC_DATA_URL",
+      "required": false,
+      "description": "Data URL (can also be set in UI)"
+    }
+  ],
+
+  "variables": {
+    "simple": ["raw_json"],
+    "dynamic": true
+  },
+
+  "max_lengths": {
+    "raw_json": 22
+  }
+}
