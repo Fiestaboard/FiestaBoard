@@ -98,6 +98,7 @@ FiestaBoard has **23 built-in plugins** covering weather, finance, transit, spor
 | [Bay Wheels](./plugins/baywheels/README.md) | Bike availability at stations | No |
 | [Countdown](./plugins/countdown/README.md) | Time remaining until an event | No |
 | [Date & Time](./plugins/date_time/README.md) | Current date/time in many formats | No |
+| [Generic Data](./plugins/generic_data/README.md) | Custom data from any JSON/XML URL | No |
 | [Guest WiFi](./plugins/guest_wifi/README.md) | WiFi credentials for guests | No |
 | [Star Trek Quotes](./plugins/star_trek_quotes/README.md) | Quotes from TNG, Voyager, DS9 | No |
 | [Dad Jokes](./plugins/dad_jokes/README.md) | Random dad jokes | No |

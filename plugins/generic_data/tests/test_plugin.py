@@ -115,6 +115,7 @@ class TestGenericDataPlugin:
         errors = plugin.validate_config(sample_config)
         assert len(errors) == 0
 
+    @patch.dict("os.environ", {"GENERIC_DATA_URL": ""})
     def test_validate_config_missing_url(self, sample_manifest):
         """Test config validation detects missing URL."""
         plugin = GenericDataPlugin(sample_manifest)
@@ -123,6 +124,16 @@ class TestGenericDataPlugin:
         }
         errors = plugin.validate_config(config)
         assert any("url" in e.lower() for e in errors)
+
+    @patch.dict("os.environ", {"GENERIC_DATA_URL": "https://env.example.com/data"})
+    def test_validate_config_url_from_env(self, sample_manifest):
+        """Test that URL can come from GENERIC_DATA_URL env var."""
+        plugin = GenericDataPlugin(sample_manifest)
+        config = {
+            "mappings": [{"variable": "x", "path": "y"}],
+        }
+        errors = plugin.validate_config(config)
+        assert not any("url" in e.lower() for e in errors)
 
     def test_validate_config_invalid_url(self, sample_manifest):
         """Test config validation detects invalid URL scheme."""
@@ -214,6 +225,17 @@ class TestGenericDataPlugin:
             "url": "https://example.com/data",
             "mappings": [{"variable": "x", "path": "y"}],
             "headers": [{"name": "", "value": "v"}],
+        }
+        errors = plugin.validate_config(config)
+        assert any("header" in e.lower() for e in errors)
+
+    def test_validate_config_header_missing_value(self, sample_manifest):
+        """Test config validation catches headers with missing value."""
+        plugin = GenericDataPlugin(sample_manifest)
+        config = {
+            "url": "https://example.com/data",
+            "mappings": [{"variable": "x", "path": "y"}],
+            "headers": [{"name": "Authorization", "value": ""}],
         }
         errors = plugin.validate_config(config)
         assert any("header" in e.lower() for e in errors)
@@ -319,6 +341,33 @@ class TestGenericDataPlugin:
         assert result.data["temp"] == "72"
         assert result.data["city"] == "San Francisco"
 
+    @patch("plugins.generic_data.requests.request")
+    @patch.dict("os.environ", {"GENERIC_DATA_URL": "https://env.example.com/data"})
+    def test_fetch_data_url_from_env(
+        self, mock_request, sample_manifest, sample_json_response
+    ):
+        """Test fetch_data uses GENERIC_DATA_URL env var when url not in config."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.content = b'x' * 100
+        mock_resp.json.return_value = sample_json_response
+        mock_resp.raise_for_status = Mock()
+        mock_request.return_value = mock_resp
+
+        plugin = GenericDataPlugin(sample_manifest)
+        plugin.config = {
+            "format": "json",
+            "mappings": [
+                {"variable": "temp", "path": "current.temp_f"},
+            ],
+        }
+        result = plugin.fetch_data()
+
+        assert result.available is True
+        mock_request.assert_called_once()
+        assert mock_request.call_args[0][1] == "https://env.example.com/data"
+
+    @patch.dict("os.environ", {"GENERIC_DATA_URL": ""})
     def test_fetch_data_missing_url(self, sample_manifest):
         """Test fetch_data when URL is not configured."""
         plugin = GenericDataPlugin(sample_manifest)

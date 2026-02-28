@@ -1,5 +1,7 @@
 # Generic Data Plugin
 
+![Generic Data Display](./docs/generic-data-display.png)
+
 Fetch data from any URL (JSON or XML) and map fields to template variables — no custom plugin needed.
 
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions

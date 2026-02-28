@@ -23,6 +23,9 @@ MAX_RESPONSE_BYTES = 1_048_576
 # Request timeout in seconds
 REQUEST_TIMEOUT = 30
 
+# Board display width (characters per line)
+DISPLAY_WIDTH = 22
+
 
 def _resolve_path(data: Any, path: str) -> Any:
     """Resolve a dot-notation path against a data structure.
@@ -228,9 +231,8 @@ class GenericDataPlugin(PluginBase):
                 value = _resolve_path(parsed, path)
                 data[var_name] = str(value) if value is not None else default
 
-            # Include a truncated raw response for debugging
             raw = str(parsed)
-            data["raw_response"] = raw[:22] if len(raw) > 22 else raw
+            data["raw_response"] = raw[:DISPLAY_WIDTH] if len(raw) > DISPLAY_WIDTH else raw
 
             return PluginResult(
                 available=True,
@@ -286,14 +288,14 @@ class GenericDataPlugin(PluginBase):
         mappings: List[Dict[str, str]],
     ) -> List[str]:
         """Format mapped data for the 6-line board display."""
-        lines: List[str] = ["GENERIC DATA".center(22), ""]
+        lines: List[str] = ["GENERIC DATA".center(DISPLAY_WIDTH), ""]
 
-        for mapping in mappings[:4]:  # Show up to 4 mappings
+        for mapping in mappings[:4]:
             var = mapping.get("variable", "")
             value = data.get(var, "")
             label = var.replace("_", " ").upper()
             line = f"{label}: {value}"
-            lines.append(line[:22])
+            lines.append(line[:DISPLAY_WIDTH])
 
         # Pad to 6 lines
         while len(lines) < 6:
