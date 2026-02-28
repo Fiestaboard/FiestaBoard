@@ -3,12 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Calendar } from "lucide-react";
-import type { ScheduleEntry, Page } from "@/lib/api";
+import { Plus, Edit, Trash2, Calendar, GalleryHorizontalEnd } from "lucide-react";
+import type { ScheduleEntry, Page, Carousel } from "@/lib/api";
+import { isCarouselId } from "@/lib/api";
 
 interface ScheduleListViewProps {
   schedules: ScheduleEntry[];
   pages: Page[];
+  carousels?: Carousel[];
   onEdit: (schedule: ScheduleEntry) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
@@ -29,11 +31,16 @@ function formatDays(schedule: ScheduleEntry): string {
 export function ScheduleListView({
   schedules,
   pages,
+  carousels = [],
   onEdit,
   onDelete,
   onAdd,
 }: ScheduleListViewProps) {
   const getPageName = (pageId: string): string => {
+    if (isCarouselId(pageId)) {
+      const carousel = carousels.find((c) => c.id === pageId);
+      return carousel?.name || pageId;
+    }
     return pages.find((p) => p.id === pageId)?.name || pageId;
   };
 
@@ -66,6 +73,9 @@ export function ScheduleListView({
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
+                      {isCarouselId(schedule.page_id) && (
+                        <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      )}
                       <span className="font-medium">{pageName}</span>
                       {!schedule.enabled && (
                         <Badge variant="secondary">Disabled</Badge>

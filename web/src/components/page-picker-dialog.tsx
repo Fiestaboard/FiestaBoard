@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
+import { Check, GalleryHorizontalEnd } from "lucide-react";
+import type { Carousel } from "@/lib/api";
 
 interface Page {
   id: string;
@@ -12,17 +12,19 @@ interface Page {
 
 interface PagePickerDialogProps {
   pages: Page[];
+  carousels?: Carousel[];
   selectedPageId: string | null;
   onSelect: (pageId: string | null) => void;
   allowNone?: boolean;
 }
 
 /**
- * Simple page picker for selecting (not editing) pages.
- * Used for default page selection in schedule settings.
+ * Simple page/carousel picker for selecting (not editing) pages or carousels.
+ * Used for default page selection in schedule settings and schedule entry form.
  */
 export function PagePickerDialog({
   pages,
+  carousels = [],
   selectedPageId,
   onSelect,
   allowNone = false,
@@ -44,7 +46,38 @@ export function PagePickerDialog({
           )}
         </button>
       )}
-      
+
+      {/* Carousels */}
+      {carousels.length > 0 && (
+        <>
+          <div className="text-xs font-medium text-muted-foreground pt-2 pb-1">CAROUSELS</div>
+          {carousels.map((carousel) => (
+            <button
+              key={carousel.id}
+              onClick={() => onSelect(carousel.id)}
+              className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors ${
+                selectedPageId === carousel.id ? "border-primary bg-muted/50" : ""
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{carousel.name}</span>
+                <Badge variant="secondary" className="text-[10px]">
+                  {carousel.page_ids.length} pages
+                </Badge>
+              </div>
+              {selectedPageId === carousel.id && (
+                <Check className="h-4 w-4 text-primary" />
+              )}
+            </button>
+          ))}
+        </>
+      )}
+
+      {/* Pages */}
+      {carousels.length > 0 && (
+        <div className="text-xs font-medium text-muted-foreground pt-2 pb-1">PAGES</div>
+      )}
       {pages.map((page) => (
         <button
           key={page.id}

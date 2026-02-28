@@ -11,6 +11,7 @@ export const queryKeys = {
   pages: ["pages"] as const,
   pagePreview: (pageId: string) => ["pagePreview", pageId] as const,
   boardSettings: ["boardSettings"] as const,
+  carousels: ["carousels"] as const,
 };
 
 // Status query - refetches every 15 seconds
@@ -106,6 +107,16 @@ export function usePagePreview(pageId: string | null, options?: { enabled?: bool
     enabled: !!pageId && (options?.enabled !== false),
     retry: 1,
     refetchInterval: options?.refetchInterval,
+  });
+}
+
+// Carousels query
+export function useCarousels() {
+  return useQuery({
+    queryKey: queryKeys.carousels,
+    queryFn: api.getCarousels,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

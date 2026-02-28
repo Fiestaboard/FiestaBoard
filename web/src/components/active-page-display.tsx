@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import type { SilenceStatus } from "@/lib/api";
-import { api } from "@/lib/api";
+import type { SilenceStatus, Carousel } from "@/lib/api";
+import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import ShinyText from "@/components/ui/react-bits/shiny-text";
 
@@ -163,6 +163,18 @@ export function ActivePageDisplay() {
   
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
+
+  // Fetch carousels for name resolution
+  const { data: carouselsData } = useQuery({
+    queryKey: ["carousels"],
+    queryFn: api.getCarousels,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeCarousel = useMemo(() => {
+    if (!activePageId || !isCarouselId(activePageId)) return null;
+    return carouselsData?.carousels?.find((c: Carousel) => c.id === activePageId) || null;
+  }, [activePageId, carouselsData]);
   
   // Set active page mutation
   const setActivePageMutation = useSetActivePage();
@@ -179,12 +191,24 @@ export function ActivePageDisplay() {
   // Fetch all pages for default page selection and sheet display
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
   
-  // Fetch preview of active page
+  // For carousels, determine which page to preview based on current time
+  const currentCarouselPageId = useMemo(() => {
+    if (!activeCarousel) return null;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const idx = Math.floor(nowSec / activeCarousel.interval_seconds) % activeCarousel.page_ids.length;
+    return activeCarousel.page_ids[idx];
+  }, [activeCarousel]);
+
+  // The actual page to preview: either the direct page or the carousel's current page
+  const previewPageId = activeCarousel ? currentCarouselPageId : activePageId;
+
+  // Fetch preview of active page (or carousel's current page)
   const { 
     data: previewData, 
     isLoading: isLoadingPreview
-  } = usePagePreview(activePageId, { 
-    enabled: !!activePageId
+  } = usePagePreview(previewPageId, { 
+    enabled: !!previewPageId,
+    refetchInterval: activeCarousel ? activeCarousel.interval_seconds * 1000 : undefined,
   });
   
   // Default to first page if no active page is set (only in manual mode)
@@ -254,16 +278,22 @@ export function ActivePageDisplay() {
   
   // Get the active page for device type and name
   const activePage = useMemo(() => {
+    if (activeCarousel && currentCarouselPageId) {
+      return pages.find(p => p.id === currentCarouselPageId) || null;
+    }
     return pages.find(p => p.id === activePageId) || null;
-  }, [pages, activePageId]);
+  }, [pages, activePageId, activeCarousel, currentCarouselPageId]);
 
   // Get the active page name for display
   const activePageName = useMemo(() => {
     if (!activePageId && scheduleEnabled) {
       return "Schedule gap (no default page set)";
     }
+    if (activeCarousel) {
+      return activeCarousel.name;
+    }
     return activePage?.name || "No page selected";
-  }, [activePage, activePageId, scheduleEnabled]);
+  }, [activePage, activePageId, scheduleEnabled, activeCarousel]);
   
   // Get active page device type
   const activeDeviceType = (activePage?.device_type as "flagship" | "note") || "flagship";
@@ -335,6 +365,12 @@ export function ActivePageDisplay() {
                 "Manual Mode"
               )}
             </Badge>
+            {activeCarousel && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <GalleryHorizontalEnd className="h-3 w-3" />
+                Carousel
+              </Badge>
+            )}
             {silenceStatus?.active && (
               <div className="flex items-center gap-1.5">
                 <Moon className="h-3 w-3 text-info" aria-hidden="true" />

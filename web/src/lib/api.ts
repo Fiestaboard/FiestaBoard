@@ -475,6 +475,39 @@ export interface DefaultPageResponse {
   default_page_id: string | null;
 }
 
+// Carousel types
+export const CAROUSEL_ID_PREFIX = "carousel:";
+
+export function isCarouselId(id: string | null | undefined): boolean {
+  return !!id && id.startsWith(CAROUSEL_ID_PREFIX);
+}
+
+export interface Carousel {
+  id: string;
+  name: string;
+  page_ids: string[];
+  interval_seconds: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CarouselCreate {
+  name: string;
+  page_ids: string[];
+  interval_seconds?: number;
+}
+
+export interface CarouselUpdate {
+  name?: string;
+  page_ids?: string[];
+  interval_seconds?: number;
+}
+
+export interface CarouselsResponse {
+  carousels: Carousel[];
+  total: number;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: Record<string, unknown>;
@@ -855,6 +888,30 @@ export const api = {
         body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
       }
     ),
+
+  // Carousel endpoints
+  getCarousels: () =>
+    fetchApi<CarouselsResponse>("/carousels"),
+
+  createCarousel: (data: CarouselCreate) =>
+    fetchApi<{ status: string; carousel: Carousel }>("/carousels", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getCarousel: (carouselId: string) =>
+    fetchApi<Carousel>(`/carousels/${carouselId}`),
+
+  updateCarousel: (carouselId: string, data: CarouselUpdate) =>
+    fetchApi<{ status: string; carousel: Carousel }>(`/carousels/${carouselId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteCarousel: (carouselId: string) =>
+    fetchApi<{ status: string; message: string }>(`/carousels/${carouselId}`, {
+      method: "DELETE",
+    }),
 
   // Configuration endpoints
   getFullConfig: () => fetchApi<FullConfig>("/config/full"),
