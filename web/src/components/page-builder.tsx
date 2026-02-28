@@ -861,6 +861,21 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       }
                       
                       setTemplateLines(newLines);
+
+                      if (newLines.length > lineAlignments.length) {
+                        const extended = [...lineAlignments];
+                        while (extended.length < newLines.length) {
+                          extended.push("left");
+                        }
+                        setLineAlignments(extended);
+                      }
+                      if (newLines.length > lineWrapEnabled.length) {
+                        const extended = [...lineWrapEnabled];
+                        while (extended.length < newLines.length) {
+                          extended.push(false);
+                        }
+                        setLineWrapEnabled(extended);
+                      }
                     }}
                     lineAlignments={lineAlignments}
                     lineWrapEnabled={lineWrapEnabled}

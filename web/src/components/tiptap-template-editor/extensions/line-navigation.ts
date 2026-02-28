@@ -8,8 +8,11 @@
  *
  * Shift+Enter is blocked to prevent accidental double-breaks.
  *
- * Uses priority 1000 so our Enter handler runs before the default Keymap's
- * splitBlock, which would create new paragraphs instead of inserting hardBreaks.
+ * NOTE: In the full TipTapTemplateEditor, the editorProps `handleKeyDown`
+ * intercepts Enter/Shift-Enter before plugin keymaps run, so the shortcuts
+ * below are effectively redundant at runtime. They are retained so that
+ * unit tests (which instantiate a bare Editor with this extension but
+ * without editorProps) still get correct Enter-as-hardBreak behavior.
  */
 import { Extension } from '@tiptap/core';
 
