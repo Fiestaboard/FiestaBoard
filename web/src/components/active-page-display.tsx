@@ -191,13 +191,27 @@ export function ActivePageDisplay() {
   // Fetch all pages for default page selection and sheet display
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
   
-  // For carousels, determine which page to preview based on current time
-  const currentCarouselPageId = useMemo(() => {
-    if (!activeCarousel) return null;
+  // For carousels, determine which page to preview based on current time.
+  // Uses a timer so the preview cycles through pages at the carousel interval.
+  const computeCarouselPageId = useCallback((carousel: Carousel | null) => {
+    if (!carousel) return null;
     const nowSec = Math.floor(Date.now() / 1000);
-    const idx = Math.floor(nowSec / activeCarousel.interval_seconds) % activeCarousel.page_ids.length;
-    return activeCarousel.page_ids[idx];
-  }, [activeCarousel]);
+    const idx = Math.floor(nowSec / carousel.interval_seconds) % carousel.page_ids.length;
+    return carousel.page_ids[idx];
+  }, []);
+
+  const [currentCarouselPageId, setCurrentCarouselPageId] = useState<string | null>(() =>
+    computeCarouselPageId(activeCarousel)
+  );
+
+  useEffect(() => {
+    setCurrentCarouselPageId(computeCarouselPageId(activeCarousel));
+    if (!activeCarousel) return;
+    const interval = setInterval(() => {
+      setCurrentCarouselPageId(computeCarouselPageId(activeCarousel));
+    }, activeCarousel.interval_seconds * 1000);
+    return () => clearInterval(interval);
+  }, [activeCarousel, computeCarouselPageId]);
 
   // The actual page to preview: either the direct page or the carousel's current page
   const previewPageId = activeCarousel ? currentCarouselPageId : activePageId;

@@ -3404,9 +3404,14 @@ async def set_default_page(request: dict):
     page_id = request["page_id"]
     board_id = request.get("board_id")
     if page_id is not None:
-        page_service = get_page_service()
-        if not page_service.get_page(page_id):
-            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+        if is_carousel_id(page_id):
+            carousel_service = get_carousel_service()
+            if not carousel_service.get_carousel(page_id):
+                raise HTTPException(status_code=404, detail=f"Carousel not found: {page_id}")
+        else:
+            page_service = get_page_service()
+            if not page_service.get_page(page_id):
+                raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
     schedule_service = get_schedule_service()
     schedule_service.set_default_page(page_id, board_id=board_id)
     return {"status": "success", "default_page_id": page_id}

@@ -90,7 +90,6 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
 
     expect(screen.getByText("Select a page or carousel")).toBeInTheDocument();
   });
-});
 
   it("renders edit mode with existing schedule page", () => {
     const existingSchedule = {
@@ -141,6 +140,7 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
 
     expect(screen.getByText("Update Schedule")).toBeInTheDocument();
   });
+});
 
 // =============================================================================
 // PagePickerDialog with carousels

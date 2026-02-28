@@ -173,7 +173,6 @@ class DisplayService:
             # Resolve carousels: if the active ref is a carousel, determine
             # which underlying page should be shown right now.
             carousel_service = get_carousel_service()
-            carousel_ref_id = active_page_id  # keep original for cache key
             if is_carousel_id(active_page_id):
                 resolved = carousel_service.resolve_page_id(active_page_id)
                 if not resolved:
