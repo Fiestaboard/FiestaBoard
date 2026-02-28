@@ -26,7 +26,7 @@ For example, if you configure a mapping with variable name `temperature` and pat
 ### Built-in Variables
 
 ```
-{{generic_data.raw_json}}   # First 22 characters of the raw response (for debugging)
+{{generic_data.raw_response}}   # First 22 characters of the raw response (for debugging)
 ```
 
 ## Quick Start

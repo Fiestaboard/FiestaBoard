@@ -108,11 +108,11 @@
   ],
 
   "variables": {
-    "simple": ["raw_json"],
+    "simple": ["raw_response"],
     "dynamic": true
   },
 
   "max_lengths": {
-    "raw_json": 22
+    "raw_response": 22
   }
 }

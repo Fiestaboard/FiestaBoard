@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock, Mock
 
 import pytest
 
-from plugins.generic_data import GenericDataPlugin, _resolve_path, _xml_to_dict
+from plugins.generic_data import GenericDataPlugin, _resolve_path, _xml_to_dict, MAX_RESPONSE_BYTES
 from src.plugins.base import PluginResult
 
 
@@ -385,7 +385,7 @@ class TestGenericDataPlugin:
         """Test fetch_data rejects responses exceeding size limit."""
         mock_resp = Mock()
         mock_resp.status_code = 200
-        mock_resp.content = b'x' * (1_048_576 + 1)  # Exceed 1 MB limit
+        mock_resp.content = b'x' * (MAX_RESPONSE_BYTES + 1)  # Exceed size limit
         mock_resp.raise_for_status = Mock()
         mock_request.return_value = mock_resp
 

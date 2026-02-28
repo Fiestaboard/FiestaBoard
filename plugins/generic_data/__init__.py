@@ -228,9 +228,9 @@ class GenericDataPlugin(PluginBase):
                 value = _resolve_path(parsed, path)
                 data[var_name] = str(value) if value is not None else default
 
-            # Include a truncated raw_json for debugging
+            # Include a truncated raw response for debugging
             raw = str(parsed)
-            data["raw_json"] = raw[:22] if len(raw) > 22 else raw
+            data["raw_response"] = raw[:22] if len(raw) > 22 else raw
 
             return PluginResult(
                 available=True,

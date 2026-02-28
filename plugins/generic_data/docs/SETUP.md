@@ -72,4 +72,4 @@ STATUS: {{generic_data.status}}
 - **"Failed to parse response"**: Verify the URL returns valid JSON or XML and that the format setting matches.
 - **"Request timed out"**: The endpoint may be slow or unreachable. The timeout is 30 seconds.
 - **"Response too large"**: Responses are limited to 1 MB. Use a more specific API endpoint.
-- **Variable shows default value**: Check that your data path matches the actual response structure. Use `{{generic_data.raw_json}}` to see the beginning of the response.
+- **Variable shows default value**: Check that your data path matches the actual response structure. Use `{{generic_data.raw_response}}` to see the beginning of the response.
