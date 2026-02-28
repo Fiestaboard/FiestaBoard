@@ -1,175 +1,195 @@
-# Security Audit Report: Merged Pull Requests
+# Security Audit Report — Merged Pull Requests
 
-**Audit Date:** 2026-02-28
-**PRs Reviewed:** 276, 275, 274, 273, 272, 270, 269, 268, 267, 266, 265, 263, 262, 261, 260
-**Auditor:** Automated Security Review (Cloud Agent)
-
----
-
-## Per-PR Analysis
-
-### PR #276: Docs splash page emojis
-- **Files changed:** `docs-site/src/components/HomepageFeatures/index.tsx`, `docs-site/src/components/HomepageFeatures/styles.module.css`, `docs-site/src/pages/index.tsx`
-- **Summary:** Removes decorative emojis from the documentation site splash page and adjusts emoji font size in CSS.
-- **Security issues found:** No security issues found.
+**Date:** 2026-02-28
+**Scope:** PRs #136–#180 (30 merged pull requests)
+**Auditor:** Automated security review
 
 ---
 
-### PR #275: Remove decorative emojis and em dashes from docs
-- **Files changed:** `CONTRIBUTING.md`, `README.md`, multiple files under `docs/`, `plugins/traffic/README.md`, `docs/reference/COLOR_GUIDE.md`
-- **Summary:** Cosmetic cleanup replacing em dashes with hyphens/periods and removing decorative emojis from documentation files.
-- **Security issues found:** No security issues found.
+## Executive Summary
+
+**30 pull requests** were reviewed for security vulnerabilities across 20 categories including hardcoded secrets, injection flaws, SSRF, authentication issues, CI/CD pipeline security, and more.
+
+**No Critical or High severity issues were found.** A small number of Low/Info-level observations are documented below for awareness and potential hardening.
 
 ---
 
-### PR #274: Fix mobile sidebar: auto-expand Documentation dropdown
-- **Files changed:** `docs-site/docusaurus.config.ts`, new file `docs-site/src/theme/NavbarItem/DropdownNavbarItem/Mobile/index.tsx`, new file `docs-site/src/theme/NavbarItem/DropdownNavbarItem/Mobile/styles.module.css`
-- **Summary:** Swizzles the Docusaurus DropdownNavbarItem Mobile component to start expanded instead of collapsed. Changes the navbar from a `docSidebar` type to a `dropdown` with explicit doc items.
-- **Security issues found:** No security issues found.
+## Per-PR Review
+
+### PR #180 — chore(deps): bump the docker-dependencies group with 2 updates
+- Changes Docker base images: Python 3.11→3.14, Node 20→25
+- **No security issues found.** Using updated base images is generally positive for security patches.
+
+### PR #179 — Group Dependabot updates into single PRs per ecosystem
+- Adds Dependabot grouping configuration.
+- **No security issues found.**
+
+### PR #178 — Fix docs deployment and PR auto-label workflow failures
+- Switches docs deployment from `peaceiris/actions-gh-pages` with `personal_token` to native GitHub Pages (`actions/deploy-pages`). This is a **security improvement** — removes the need for a PAT.
+- Adds error handling to PR label workflow.
+- **No security issues found.**
+
+### PR #177 — Deploy docs to fiestaboard.github.io instead of current repo's GitHub Pages
+- Introduces cross-repo deployment using `personal_token: ${{ secrets.DEPLOY_TOKEN }}`. Properly stored as GitHub secret.
+- **No security issues found.** Secret is referenced correctly.
+
+### PR #176 — Reduce Dependabot frequency from daily to weekly
+- Configuration-only change.
+- **No security issues found.**
+
+### PR #175 — Auto-merge Dependabot PRs on passing checks
+- Auto-approves and merges patch/minor Dependabot PRs without human review.
+- Uses `${{ secrets.GITHUB_TOKEN }}` properly. `PR_URL` passed as env var (not direct interpolation), preventing script injection.
+- **Finding (Info — Supply Chain):** Auto-merging dependency updates without human review introduces supply chain risk. Mitigated by limiting to patch/minor only, using official `dependabot/fetch-metadata@v2`, and requiring CI checks to pass.
+
+### PR #162 — Add docs deployment workflow with manual trigger
+- Standard GitHub Pages deployment workflow with proper permissions.
+- **No security issues found.**
+
+### PR #161 — Configure Dependabot to run on a daily (nightly) schedule
+- Dependabot configuration only.
+- **No security issues found.**
+
+### PR #160 — Fix flaky UI test: replace setTimeout-based autofocus with autoFocus attr
+- Lock file changes only.
+- **No security issues found.**
+
+### PR #158 — chore(deps): bump qs from 6.14.1 to 6.14.2 in /docs-site
+- Dependency bump (lock file only). `qs` updates often include security fixes for prototype pollution.
+- **No security issues found.** This is a security improvement.
+
+### PR #157 — fix(release): use lowercase owner for GHCR image tags
+- **Finding (Low — CI/CD Script Injection):**
+  - **File:** `.github/workflows/release.yml`
+  - **Line:** `run: echo "owner_lower=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT`
+  - **Issue:** Direct interpolation of `${{ github.repository_owner }}` in a `run:` shell step. While `github.repository_owner` is a trusted GitHub context restricted to valid usernames (alphanumeric + hyphens), best practice is to pass it as an environment variable to prevent potential shell metacharacter injection from expression contexts.
+  - **Severity:** Low
+  - **Type:** CI/CD pipeline security
+  - **Recommendation:** Use `env:` block instead:
+    ```yaml
+    env:
+      OWNER: ${{ github.repository_owner }}
+    run: echo "owner_lower=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+    ```
+
+### PR #156 — Fix repo URL capitalization in visual_clock and last_fm manifests
+- URL fix and validation test addition.
+- **No security issues found.**
+
+### PR #155 — Add docs deploy workflow for fiestaboard.github.io
+- Uses `personal_token: ${{ secrets.RELEASE_PAT }}` for cross-repo deployment. Properly stored.
+- **No security issues found.**
+
+### PR #154 — chore: update repo references from roblesi to Fiestaboard org
+- URL and ownership reference updates.
+- **No security issues found.**
+
+### PR #153 — docs: add referral link with discount to README
+- Adds a Vestaboard referral link with code `vbref=ZDGYOT`.
+- **No security issues found.** Not a vulnerability; referral links are common in open-source projects.
+
+### PR #152 — Chore auto merge dependabot
+- Initial Dependabot auto-merge workflow. Requires human approval before merge.
+- **No security issues found.**
+
+### PR #151 — fix(disney_parks_times): abbreviations sort order, uppercase, settings sort
+- Plugin abbreviation logic changes and API response sorting.
+- **No security issues found.**
+
+### PR #150 — Docs README: wysiwyg editor and schedule + Disney Parks plugin
+- Adds Disney Parks Queue Times plugin with API proxy endpoints.
+- **Finding (Low — Unauthenticated Proxy Endpoints):**
+  - **File:** `src/api_server.py`
+  - **Endpoints:** `GET /queue-times/parks`, `GET /queue-times/parks/{park_id}/rides`
+  - **Issue:** These endpoints act as an unauthenticated proxy to `queue-times.com`. While the base URL is hardcoded (no SSRF) and `park_id` is validated as `int` (no path traversal), the lack of authentication or rate limiting means anyone with network access could use these endpoints to make requests to Queue-Times.com through the server.
+  - **Severity:** Low
+  - **Type:** Exposed sensitive endpoints without auth / Missing input validation
+  - **Mitigations already present:** Hardcoded base URL, integer type validation on `park_id`, 10-minute response cache (limits abuse), typical deployment is on local network.
+  - **Recommendation:** Consider adding basic rate limiting or ensuring these endpoints are only accessible from the local network.
+
+### PR #149 — feat(plugin): Disney Parks Queue Times from Queue-Times.com
+- Full Disney Parks plugin implementation (same endpoints as PR #150).
+- **Same finding as PR #150 above** (unauthenticated proxy endpoints).
+
+### PR #148 — chore(deps-dev): bump qs from 6.14.1 to 6.14.2 in /web
+- Dependency bump (lock file only).
+- **No security issues found.**
+
+### PR #147 — fix(weather): display UV index 0-11+ when API returns normalized 0-1 scale
+- Weather UV index normalization logic. Safe type handling.
+- **No security issues found.**
+
+### PR #146 — chore(deps): bump markdown-it from 14.1.0 to 14.1.1 in /web
+- Dependency bump (lock file only).
+- **No security issues found.**
+
+### PR #145 — Fix midnight rollover schedules and adjacent schedule overlap detection
+- Schedule validation and overlap detection logic changes.
+- **No security issues found.**
+
+### PR #144 — docs(wsdot): add plugin display screenshot
+- Binary image file addition only.
+- **No security issues found.**
+
+### PR #143 — feat(wsdot): WSDOT ferry plugin
+- New WSDOT Washington State Ferries plugin.
+- API access code handled properly: sourced from config or `WSDOT_API_ACCESS_CODE` env var, never hardcoded.
+- All API URLs hardcoded to official WSDOT endpoints — no SSRF risk.
+- `route_id` is integer validated — no path traversal.
+- Proper request timeouts (15s).
+- `api_access_code` field uses `"ui:widget": "password"` in manifest for UI masking.
+- **No security issues found.**
+
+### PR #141 — Docs contributing
+- CONTRIBUTING.md documentation. Includes security guidance.
+- **No security issues found.**
+
+### PR #140 — Add Docusaurus documentation site with marketing landing page
+- Static documentation site. No server-side code.
+- **No security issues found.**
+
+### PR #138 — Chore/gitignore and docs cleanup
+- **Security improvements found:**
+  - Added `client_id` and `client_secret` to `SENSITIVE_FIELDS` set in `config_manager.py` for masking in API responses.
+  - Added `.env.local` and `.env.*.local` to `.gitignore`.
+  - Created `SECURITY.md` with responsible disclosure guidance.
+  - Created `RELEASE_CHECKLIST.md` with pre-release security review steps.
+  - Removed `BULK_API_IMPLEMENTATION_SUMMARY.md` (temporary file cleanup).
+- **No security issues found.** This PR is purely a security/hygiene improvement.
+
+### PR #137 — Bump next from 16.1.4 to 16.1.6 in /web
+- Dependency bump (lock file only).
+- **No security issues found.**
+
+### PR #136 — Bump lodash-es from 4.17.22 to 4.17.23 in /web
+- Dependency bump (lock file only).
+- **No security issues found.**
 
 ---
 
-### PR #273: Improve docs and GitHub SEO
-- **Files changed:** `.github/FUNDING.yml`, `.github/ISSUE_TEMPLATE/bug_report.md`, `.github/ISSUE_TEMPLATE/feature_request.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `CODE_OF_CONDUCT.md`, `README.md`, `docs-site/docusaurus.config.ts`, `package.json`, `pyproject.toml`
-- **Summary:** Adds GitHub community files (issue templates, PR template, code of conduct, FUNDING.yml), SEO metadata (OpenGraph/Twitter images, structured data), and package.json/pyproject.toml metadata.
-- **Security issues found:** No security issues found.
+## Summary of All Findings
 
----
+| # | PR | Severity | Type | Description |
+|---|-----|----------|------|-------------|
+| 1 | #157 | Low | CI/CD Script Injection | Direct `${{ github.repository_owner }}` interpolation in shell `run:` step. Should use env var instead. |
+| 2 | #150, #149 | Low | Unauthenticated Proxy | `/queue-times/parks` and `/queue-times/parks/{park_id}/rides` endpoints act as unauthenticated proxy to external API. |
+| 3 | #175 | Info | Supply Chain Risk | Auto-merging Dependabot patch/minor PRs without human review. Common practice but increases supply chain attack surface. |
 
-### PR #272: feat: Stardate as standalone plugin
-- **Files changed:** `README.md`, new plugin directory `plugins/stardate/` with `__init__.py`, `manifest.json`, `README.md`, `docs/SETUP.md`, `docs/SCREENSHOT_NEEDED.md`, `tests/conftest.py`, `tests/test_plugin.py`
-- **Summary:** Adds a new Stardate plugin that calculates and displays the current TNG-era stardate. Uses `pytz` for timezone handling and `calendar` for leap year detection. No external API calls.
-- **Security issues found:** No security issues found.
+### Statistics
+- **Total PRs reviewed:** 30
+- **Critical findings:** 0
+- **High findings:** 0
+- **Medium findings:** 0
+- **Low findings:** 2
+- **Info findings:** 1
+- **Clean PRs:** 27
 
----
+### Security Improvements Noted
+- **PR #178:** Removed PAT-based deployment in favor of native GitHub Pages (reduced secret exposure)
+- **PR #138:** Added `client_id`/`client_secret` to sensitive field masking, added `.env.local` to `.gitignore`, created `SECURITY.md` and release checklist
+- **PR #158, #148, #146, #137, #136:** Dependency bumps that may include security fixes
 
-### PR #270: Remove bogus weather symbols from character codes docs
-- **Files changed:** `README.md`, `docs-site/docs/reference/character-codes.md`, deleted `docs/reference/CHARACTER_CODES.md`
-- **Summary:** Removes inaccurate weather symbol documentation from character codes reference. Consolidates docs to the docs-site version.
-- **Security issues found:** No security issues found.
-
----
-
-### PR #269: Add CODEOWNERS file
-- **Files changed:** `.github/CODEOWNERS`
-- **Summary:** Adds a single-line CODEOWNERS file assigning two GitHub users as default reviewers.
-- **Security issues found:** No security issues found.
-
----
-
-### PR #268: Tech Debt: Deprecate redundant API endpoints and add migration guide
-- **Files changed:** `docs/development/API_MIGRATION.md` (new), `docs/development/TECHNICAL_DEBT.md` (new), `src/api_server.py`
-- **Summary:** Adds deprecation headers (`Deprecation: true`, `Link` with successor-version) to legacy API endpoints (`/config/vestaboard`, `/displays/{type}/raw`). Adds migration guide and technical debt documentation.
-- **Note (functionality bug, not security):** The route decorators `@app.get("/config/board")` and `@app.put("/config/board")` were removed from the compatibility functions, which means those endpoints are no longer registered as HTTP routes. The functions exist but are unreachable. This is a functionality bug (the deprecation headers will never be served on those paths), not a security vulnerability.
-- **Security issues found:** No security issues found.
-
----
-
-### PR #267: Remove legacy *_ENABLED environment variables
-- **Files changed:** `env.example`, `src/config_manager.py`
-- **Summary:** Removes the `apply_bool` helper function and all `*_ENABLED` environment variable bindings from the config manager. Plugin enable/disable is now managed exclusively through the UI or `config.json`. Updates `env.example` comments accordingly.
-- **Security issues found:** No security issues found.
-
----
-
-### PR #266: Migrate `src/data_sources/` to `src/utils/`
-- **Files changed:** `.github/workflows/ci.yml`, multiple plugin test files, `plugins/muni/__init__.py`, `pyproject.toml`, `src/api_server.py`, all files under `src/data_sources/` renamed to `src/utils/`, `tests/test_logs.py`, `tests/test_transit_cache.py`
-- **Summary:** Renames the `src/data_sources/` directory to `src/utils/` and updates all import paths across the codebase (CI, API server, plugin code, and tests).
-- **Security issues found:** No security issues found.
-
----
-
-### PR #265: Rename `feature-settings` component folder to `settings`
-- **Files changed:** `web/package-lock.json`, `web/package.json`, `web/src/app/settings/page.tsx`, renamed `web/src/components/feature-settings/` to `web/src/components/settings/`
-- **Summary:** Renames the frontend component folder from `feature-settings` to `settings`. Also pins TypeScript to `5.9.3` and updates `package-lock.json`.
-- **Security issues found:** No security issues found.
-
----
-
-### PR #263: feat: per-board schedule with multi-board e2e
-- **Files changed:** `integration-tests/mock-board/server.py`, `src/api_server.py`, `web/tests/helpers.ts`, new file `web/tests/multi-board-schedule.spec.ts`
-- **Summary:** Extends the mock board server to support multiple ports for multi-board testing. Adds per-board schedule filtering via `board_id` query parameter. Adds E2E tests for multi-board scheduling scenarios.
-- **Security issues found:** No security issues found.
-- **Notes:** The mock board server binds to `0.0.0.0` which is expected for a test/integration mock. The `board_id` parameter is used for filtering in-memory data (not SQL), so no injection risk exists.
-
----
-
-### PR #262: Add OCI image metadata labels to Dockerfiles
-- **Files changed:** `Dockerfile.api`, `Dockerfile.ui`
-- **Summary:** Adds standard OCI image metadata labels (`org.opencontainers.image.*`) to both API and UI Dockerfiles for better container registry discoverability.
-- **Security issues found:** No security issues found.
-
----
-
-### PR #261: Remove registry buildcache images from release workflow
-- **Files changed:** `.github/workflows/release.yml`
-- **Summary:** Simplifies Docker build caching in the release workflow by removing `type=registry` cache entries and keeping only `type=gha` (GitHub Actions cache).
-- **Security issues found:** No security issues found.
-
----
-
-### PR #260: Docs: default getting started to GHCR image pull, not repo clone + build
-- **Files changed:** `README.md`, `docs/deployment/PI_BUILD_GUIDE.md`, `docs/setup/BEGINNERS_GUIDE.md`, `docs/setup/DOCKER_SETUP.md`
-- **Summary:** Rewrites getting-started documentation to default to pulling pre-built Docker images from GHCR instead of cloning the repo and building from source. Updates port references (8080 -> 4420, 8000 -> 6969), removes install wizard references, and adds explicit `docker-compose.yml` examples.
-- **Security issues found:** No security issues found.
-- **Notes:** All API keys in examples use appropriate placeholders (`your_local_api_key_here`, `your_read_write_key_here`). IP addresses used are generic private network addresses (`192.168.0.11`, `192.168.1.100`) serving as examples, not real personal information.
-
----
-
-## Summary
-
-| PR | Title | Security Issues |
-|----|-------|----------------|
-| #276 | Docs splash page emojis | None |
-| #275 | Remove decorative emojis and em dashes from docs | None |
-| #274 | Fix mobile sidebar: auto-expand Documentation dropdown | None |
-| #273 | Improve docs and GitHub SEO | None |
-| #272 | feat: Stardate as standalone plugin | None |
-| #270 | Remove bogus weather symbols from character codes docs | None |
-| #269 | Add CODEOWNERS file | None |
-| #268 | Tech Debt: Deprecate redundant API endpoints and add migration guide | None |
-| #267 | Remove legacy *_ENABLED environment variables | None |
-| #266 | Migrate `src/data_sources/` to `src/utils/` | None |
-| #265 | Rename `feature-settings` component folder to `settings` | None |
-| #263 | feat: per-board schedule with multi-board e2e | None |
-| #262 | Add OCI image metadata labels to Dockerfiles | None |
-| #261 | Remove registry buildcache images from release workflow | None |
-| #260 | Docs: default getting started to GHCR image pull, not repo clone + build | None |
-
-### Overall Assessment
-
-**No security vulnerabilities were found across the 15 reviewed pull requests.**
-
-The PRs in this batch are predominantly:
-- Documentation updates and cosmetic cleanup (PRs #276, #275, #274, #273, #270, #260)
-- Code refactoring/renaming with no logic changes (PRs #266, #265)
-- CI/CD and Docker metadata improvements (PRs #262, #261, #269)
-- New plugin with no external dependencies or API calls (PR #272)
-- Configuration simplification (PR #267)
-- API deprecation with documentation (PR #268)
-- Test infrastructure for multi-board support (PR #263)
-
-**One non-security bug was noted:** PR #268 accidentally removed route decorators from two endpoint functions (`get_board_config_compat` and `update_board_config_compat`), making them unreachable. This is a functionality issue, not a security vulnerability.
-
-### Checklist of Security Areas Reviewed
-
-- [x] Hardcoded secrets, API keys, tokens, passwords, or credentials
-- [x] Sensitive personal information (real addresses, phone numbers, SSNs, etc.)
-- [x] SQL injection vulnerabilities
-- [x] Cross-site scripting (XSS) vulnerabilities
-- [x] Command injection vulnerabilities
-- [x] Path traversal vulnerabilities
-- [x] Insecure deserialization
-- [x] Improper authentication/authorization
-- [x] Exposed sensitive endpoints without auth
-- [x] Insecure cryptographic practices
-- [x] SSRF (Server-Side Request Forgery) vulnerabilities
-- [x] Unsafe file operations
-- [x] Docker security issues (running as root, exposed secrets in images)
-- [x] CI/CD pipeline security issues (secret leakage, unsafe script injection)
-- [x] Dependency vulnerabilities
-- [x] CORS misconfigurations
-- [x] Unsafe use of eval() or similar dangerous functions
-- [x] Information disclosure in error messages
-- [x] Insecure direct object references
-- [x] Missing input validation/sanitization
+### Recommendations
+1. **PR #157:** Refactor the `run:` step to use an `env:` block for `github.repository_owner` interpolation.
+2. **PR #150/149:** Consider adding rate limiting or network-level access controls to the Queue-Times proxy endpoints.
+3. **PR #175:** Periodically review auto-merged dependency updates and consider enabling GitHub's dependency review action for additional supply chain protection.
