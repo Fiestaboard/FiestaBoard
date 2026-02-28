@@ -16,6 +16,8 @@ from .text_to_board import text_to_board_array, format_board_array_preview
 from .settings.service import get_settings_service
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
+from .carousels.service import get_carousel_service
+from .carousels.models import is_carousel_id
 
 # Configure logging
 logging.basicConfig(
@@ -167,7 +169,19 @@ class DisplayService:
             if not active_page_id:
                 logger.debug("No active page available (schedule gap with no default)")
                 return False
-            
+
+            # Resolve carousels: if the active ref is a carousel, determine
+            # which underlying page should be shown right now.
+            carousel_service = get_carousel_service()
+            carousel_ref_id = active_page_id  # keep original for cache key
+            if is_carousel_id(active_page_id):
+                resolved = carousel_service.resolve_page_id(active_page_id)
+                if not resolved:
+                    logger.warning(f"Carousel not found or empty: {active_page_id}")
+                    return False
+                logger.debug(f"Carousel {active_page_id} resolved to page {resolved}")
+                active_page_id = resolved
+
             # Get the page for transition settings
             page = page_service.get_page(active_page_id)
             if not page:
@@ -307,6 +321,16 @@ class DisplayService:
             logger.error(f"Error checking active page: {e}")
             return False
     
+    def _get_active_ref_id(self) -> Optional[str]:
+        """Return the raw active-page/carousel reference (before carousel resolution)."""
+        settings_service = get_settings_service()
+        if settings_service.is_schedule_enabled():
+            from .time_service import get_time_service
+            ts = get_time_service()
+            now = ts.get_current_time()
+            return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower())
+        return settings_service.get_active_page_id()
+
     def run(self):
         """Run the main service loop."""
         self.running = True
@@ -327,9 +351,24 @@ class DisplayService:
         self.check_and_send_active_page(dev_mode=False)
         
         logger.info("Service started, waiting for scheduled updates...")
+        _next_carousel_check: float = 0
         try:
             while self.running:
                 schedule.run_pending()
+                # When a carousel is active, poll at the carousel's interval
+                now = time.time()
+                if now >= _next_carousel_check:
+                    ref_id = self._get_active_ref_id()
+                    if ref_id and is_carousel_id(ref_id):
+                        carousel_service = get_carousel_service()
+                        secs = carousel_service.seconds_until_next_page(ref_id, now)
+                        if secs is not None:
+                            self.check_and_send_active_page(dev_mode=False)
+                            _next_carousel_check = now + max(1, secs)
+                        else:
+                            _next_carousel_check = now + polling_interval
+                    else:
+                        _next_carousel_check = now + polling_interval
                 time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")

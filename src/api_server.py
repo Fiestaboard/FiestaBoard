@@ -30,6 +30,8 @@ from .pages.service import get_page_service, DeleteResult
 from .pages.models import PageCreate, PageUpdate
 from .schedules.service import get_schedule_service
 from .schedules.models import ScheduleCreate, ScheduleUpdate
+from .carousels.service import get_carousel_service
+from .carousels.models import CarouselCreate, CarouselUpdate, is_carousel_id
 from .templates.engine import get_template_engine, reset_template_engine
 from .text_to_board import text_to_board_array
 from .devices import get_dimensions
@@ -3490,6 +3492,78 @@ async def delete_schedule(schedule_id: str):
         "status": "success",
         "message": f"Schedule {schedule_id} deleted"
     }
+
+
+# =============================================================================
+# Carousel Endpoints
+# =============================================================================
+
+@app.get("/carousels")
+async def list_carousels():
+    """List all carousels."""
+    carousel_service = get_carousel_service()
+    carousels = carousel_service.list_carousels()
+    return {
+        "carousels": [c.model_dump() for c in carousels],
+        "total": len(carousels),
+    }
+
+
+@app.post("/carousels")
+async def create_carousel(data: CarouselCreate):
+    """Create a new carousel."""
+    carousel_service = get_carousel_service()
+    page_service = get_page_service()
+
+    for pid in data.page_ids:
+        if not page_service.get_page(pid):
+            raise HTTPException(status_code=400, detail=f"Page not found: {pid}")
+
+    try:
+        carousel = carousel_service.create_carousel(data)
+        return {"status": "success", "carousel": carousel.model_dump()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/carousels/{carousel_id}")
+async def get_carousel(carousel_id: str):
+    """Get a carousel by ID."""
+    carousel_service = get_carousel_service()
+    carousel = carousel_service.get_carousel(carousel_id)
+    if not carousel:
+        raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
+    return carousel.model_dump()
+
+
+@app.put("/carousels/{carousel_id}")
+async def update_carousel(carousel_id: str, data: CarouselUpdate):
+    """Update an existing carousel."""
+    carousel_service = get_carousel_service()
+    page_service = get_page_service()
+
+    if data.page_ids is not None:
+        for pid in data.page_ids:
+            if not page_service.get_page(pid):
+                raise HTTPException(status_code=400, detail=f"Page not found: {pid}")
+
+    try:
+        carousel = carousel_service.update_carousel(carousel_id, data)
+        if not carousel:
+            raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
+        return {"status": "success", "carousel": carousel.model_dump()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/carousels/{carousel_id}")
+async def delete_carousel(carousel_id: str):
+    """Delete a carousel."""
+    carousel_service = get_carousel_service()
+    deleted = carousel_service.delete_carousel(carousel_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
+    return {"status": "success", "message": f"Carousel {carousel_id} deleted"}
 
 
 # =============================================================================
