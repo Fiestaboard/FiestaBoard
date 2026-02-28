@@ -102,6 +102,7 @@ FiestaBoard has **23 built-in plugins** covering weather, finance, transit, spor
 | [Star Trek Quotes](./plugins/star_trek_quotes/README.md) | Quotes from TNG, Voyager, DS9 | No |
 | [Dad Jokes](./plugins/dad_jokes/README.md) | Random dad jokes | No |
 | [Santa Tracker](./plugins/santa_tracker/README.md) | Track Santa's journey on Christmas | No |
+| [Spacecraft Launches](./plugins/spacecraft_launches/README.md) | Upcoming rocket launch countdowns | No |
 | [Stardate](./plugins/stardate/README.md) | Current TNG-era stardate | No |
 | [Sun Art](./plugins/sun_art/README.md) | Art pattern that follows the sun | No |
 | [Visual Clock](./plugins/visual_clock/README.md) | Large pixel-art style clock | No |
