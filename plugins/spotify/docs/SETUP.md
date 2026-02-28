@@ -8,7 +8,15 @@ This guide will help you set up the Spotify Now Playing plugin for FiestaBoard.
 
 - A Spotify account (free or Premium)
 - A Spotify Developer application (free)
-- A one-time OAuth authorization to obtain a refresh token
+
+## Setup Methods
+
+FiestaBoard supports **two ways** to connect to Spotify:
+
+1. **OAuth Flow (Recommended)** - Click a button in the UI to connect securely. Tokens are encrypted and stored safely.
+2. **Manual Refresh Token** - Copy/paste a refresh token manually (legacy method).
+
+Choose the method that works best for you below.
 
 ## Step 1: Create a Spotify Developer Application
 
@@ -24,11 +32,28 @@ This guide will help you set up the Spotify Now Playing plugin for FiestaBoard.
 6. On your app page, note the **Client ID**
 7. Click **Settings** then **View client secret** to get the **Client Secret**
 
-## Step 2: Obtain a Refresh Token
+## Step 2: Connect to Spotify
 
-You need to perform a one-time OAuth authorization to get a refresh token. The refresh token is long-lived and allows FiestaBoard to request new access tokens automatically.
+### Method A: OAuth Flow (Recommended - Secure & Easy)
 
-### Option A: Using the Authorization URL
+This method uses FiestaBoard's built-in OAuth system with encrypted token storage.
+
+1. Open FiestaBoard web interface
+2. Go to **Integrations**
+3. Find **Spotify Now Playing** and click to configure
+4. Enter your **Client ID** and **Client Secret** from Step 1
+5. Click the **"Connect to Spotify"** button
+6. You'll be redirected to Spotify's authorization page
+7. Click **Agree** to authorize FiestaBoard
+8. You'll be redirected back to FiestaBoard - you're connected!
+
+**Security:** Your tokens are encrypted and stored securely. No need to manually handle refresh tokens!
+
+### Method B: Manual Refresh Token (Legacy)
+
+If you prefer manual configuration, you can obtain a refresh token yourself.
+
+#### Using the Authorization URL
 
 1. Open a browser and navigate to the following URL (replace `YOUR_CLIENT_ID`):
 
@@ -53,28 +78,27 @@ You need to perform a one-time OAuth authorization to get a refresh token. The r
 
 6. The response will contain a `refresh_token` — save this value
 
-### Option B: Using a Helper Tool
+#### Using a Helper Tool
 
 There are third-party tools online that can help generate a Spotify refresh token. However, **we strongly recommend Option A above** (the manual process) as it keeps your credentials entirely under your control.
 
 > **⚠️ Security Warning**: Third-party token generators require your Spotify authorization code and may have access to your account. Only use tools you fully trust and understand. FiestaBoard does not endorse any third-party tool.
 
-## Step 3: Configure FiestaBoard
+## Step 3: Configure Settings
 
-### Option A: Via Web UI
+### Via Web UI
 
 1. Open FiestaBoard web interface
 2. Go to **Integrations**
 3. Find **Spotify Now Playing** and click to configure
-4. Enter your **Client ID**
-5. Enter your **Client Secret**
-6. Enter your **Refresh Token**
-7. Adjust refresh interval if desired (default: 30 seconds)
-8. Enable the plugin
+4. Adjust settings:
+   - **Refresh Interval**: How often to check for now playing updates (default: 30 seconds)
+   - **Show Album**: Include album name in formatted output
+5. Enable the plugin
 
-### Option B: Via Environment Variables
+### Via Environment Variables (Manual Method Only)
 
-Add to your `.env` file or Docker environment:
+If using the manual refresh token method, you can set credentials via environment:
 
 ```env
 SPOTIFY_CLIENT_ID=your_client_id_here
@@ -82,7 +106,7 @@ SPOTIFY_CLIENT_SECRET=your_client_secret_here
 SPOTIFY_REFRESH_TOKEN=your_refresh_token_here
 ```
 
-Then enable the plugin in the UI.
+**Note:** OAuth method stores credentials securely and encrypted - no environment variables needed!
 
 ## Step 4: Verify It's Working
 
