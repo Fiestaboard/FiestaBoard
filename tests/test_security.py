@@ -273,7 +273,7 @@ class TestSpotifyOAuthProvider:
         provider = SpotifyOAuthProvider()
         assert provider.provider_name == "Spotify"
     
-    @patch('src.security.oauth_providers.get_config_manager')
+    @patch('src.config_manager.get_config_manager')
     def test_get_config_with_credentials(self, mock_get_config_manager):
         """Test getting OAuth config when credentials are set."""
         mock_config_manager = Mock()
@@ -295,7 +295,7 @@ class TestSpotifyOAuthProvider:
         assert config.client_secret == "test_client_secret"
         assert config.scope == "user-read-currently-playing"
     
-    @patch('src.security.oauth_providers.get_config_manager')
+    @patch('src.config_manager.get_config_manager')
     def test_get_config_missing_credentials(self, mock_get_config_manager):
         """Test getting OAuth config when credentials are missing."""
         mock_config_manager = Mock()
@@ -307,7 +307,7 @@ class TestSpotifyOAuthProvider:
         
         assert config is None
     
-    @patch('src.security.oauth_providers.get_config_manager')
+    @patch('src.config_manager.get_config_manager')
     def test_get_authorization_url(self, mock_get_config_manager):
         """Test generating authorization URL."""
         mock_config_manager = Mock()
@@ -329,8 +329,8 @@ class TestSpotifyOAuthProvider:
         assert "state=state_123" in url
         assert "scope=user-read-currently-playing" in url
     
-    @patch('src.security.oauth_providers.get_config_manager')
-    @patch('src.security.oauth_providers.requests.post')
+    @patch('src.config_manager.get_config_manager')
+    @patch('requests.post')
     def test_exchange_code_for_tokens(self, mock_post, mock_get_config_manager):
         """Test exchanging authorization code for tokens."""
         mock_config_manager = Mock()
@@ -362,8 +362,8 @@ class TestSpotifyOAuthProvider:
         assert tokens.refresh_token == "refresh_456"
         assert tokens.expires_in == 3600
     
-    @patch('src.security.oauth_providers.get_config_manager')
-    @patch('src.security.oauth_providers.requests.post')
+    @patch('src.config_manager.get_config_manager')
+    @patch('requests.post')
     def test_exchange_code_failure(self, mock_post, mock_get_config_manager):
         """Test token exchange failure handling."""
         mock_config_manager = Mock()
@@ -387,9 +387,9 @@ class TestSpotifyOAuthProvider:
         with pytest.raises(ValueError, match="Token exchange failed"):
             provider.exchange_code_for_tokens("default", "bad_code")
     
-    @patch('src.security.oauth_providers.get_config_manager')
-    @patch('src.security.oauth_providers.get_secrets_manager')
-    @patch('src.security.oauth_providers.requests.post')
+    @patch('src.config_manager.get_config_manager')
+    @patch('src.security.secrets_manager.get_secrets_manager')
+    @patch('requests.post')
     def test_refresh_access_token(self, mock_post, mock_get_secrets, mock_get_config_manager):
         """Test refreshing access token."""
         mock_config_manager = Mock()
@@ -422,7 +422,7 @@ class TestSpotifyOAuthProvider:
         assert tokens.access_token == "new_access_456"
         assert tokens.expires_in == 3600
     
-    @patch('src.security.oauth_providers.get_secrets_manager')
+    @patch('src.security.secrets_manager.get_secrets_manager')
     def test_store_tokens(self, mock_get_secrets):
         """Test storing OAuth tokens."""
         mock_secrets = Mock()
@@ -441,7 +441,7 @@ class TestSpotifyOAuthProvider:
         # Verify secrets were stored
         assert mock_secrets.set_secret.call_count == 4  # access, refresh, expires_at, scope
     
-    @patch('src.security.oauth_providers.get_secrets_manager')
+    @patch('src.security.secrets_manager.get_secrets_manager')
     def test_get_access_token_valid(self, mock_get_secrets):
         """Test getting a valid access token."""
         mock_secrets = Mock()
@@ -456,7 +456,7 @@ class TestSpotifyOAuthProvider:
         
         assert token == "valid_token"
     
-    @patch('src.security.oauth_providers.get_secrets_manager')
+    @patch('src.security.secrets_manager.get_secrets_manager')
     def test_get_access_token_not_found(self, mock_get_secrets):
         """Test getting access token when none stored."""
         mock_secrets = Mock()
@@ -468,7 +468,7 @@ class TestSpotifyOAuthProvider:
         
         assert token is None
     
-    @patch('src.security.oauth_providers.get_secrets_manager')
+    @patch('src.security.secrets_manager.get_secrets_manager')
     def test_clear_tokens(self, mock_get_secrets):
         """Test clearing stored tokens."""
         mock_secrets = Mock()
