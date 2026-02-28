@@ -19,8 +19,9 @@ from ..settings.service import get_settings_service
 logger = logging.getLogger(__name__)
 
 
-# Cache TTL in seconds - previews are cached for 5 minutes
-PREVIEW_CACHE_TTL = 300
+# Cache TTL in seconds for non-polling preview requests (e.g. UI preview list).
+# The background polling loop bypasses this cache via force_refresh=True.
+PREVIEW_CACHE_TTL = 120
 
 
 # Default welcome page templates per device type
