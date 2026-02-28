@@ -3097,6 +3097,7 @@ async def preview_pages_batch(request: dict):
     Returns a dict mapping page_id to preview data (or error).
     Uses cached previews by default for fast responses.
     Active page is always rendered fresh regardless of force_refresh setting.
+    Template context (plugin data) is built once and shared across all page renders.
     """
     page_ids = request.get("page_ids", [])
     force_refresh = request.get("force_refresh", False)
@@ -3109,36 +3110,33 @@ async def preview_pages_batch(request: dict):
     active_page_id = settings_service.get_active_page_id()
     results = {}
     
+    # Use batch preview to build template context once for all pages
+    batch_results = page_service.preview_pages_batch(
+        page_ids,
+        force_refresh=force_refresh,
+        active_page_id=active_page_id,
+    )
+    
     for page_id in page_ids:
-        try:
-            # Always force refresh for the active page
-            should_force = force_refresh or (page_id == active_page_id)
-            result = page_service.preview_page(page_id, force_refresh=should_force)
-            
-            if result is None:
-                results[page_id] = {
-                    "error": "Page not found",
-                    "available": False
-                }
-            elif not result.available:
-                results[page_id] = {
-                    "error": result.error or "Page rendering failed",
-                    "available": False
-                }
-            else:
-                results[page_id] = {
-                    "page_id": page_id,
-                    "message": result.formatted,
-                    "lines": result.formatted.split('\n'),
-                    "display_type": result.display_type,
-                    "raw": result.raw,
-                    "available": True
-                }
-        except Exception as e:
-            logger.error(f"Error previewing page {page_id}: {str(e)}")
+        result = batch_results.get(page_id)
+        if result is None:
             results[page_id] = {
-                "error": str(e),
+                "error": "Page not found",
                 "available": False
+            }
+        elif not result.available:
+            results[page_id] = {
+                "error": result.error or "Page rendering failed",
+                "available": False
+            }
+        else:
+            results[page_id] = {
+                "page_id": page_id,
+                "message": result.formatted,
+                "lines": result.formatted.split('\n'),
+                "display_type": result.display_type,
+                "raw": result.raw,
+                "available": True
             }
     
     return {

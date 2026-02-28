@@ -734,6 +734,58 @@ class TestPageService:
         assert stats["cache_size"] == 2
         assert page1.id in stats["cached_pages"]
         assert page2.id in stats["cached_pages"]
+    
+    @patch('src.pages.service.get_template_engine')
+    def test_preview_pages_batch_shares_context(self, mock_get_engine, service):
+        """Test that batch preview builds template context only once."""
+        mock_engine = Mock()
+        mock_engine._build_context.return_value = {"weather": {"temp": 72}}
+        mock_engine.render_lines.return_value = "Hello World\n\n\n\n\n"
+        mock_get_engine.return_value = mock_engine
+        
+        # Create multiple template pages
+        page1 = service.create_page(PageCreate(name="Page 1", type="template", template=["Hello", "", "", "", "", ""]))
+        page2 = service.create_page(PageCreate(name="Page 2", type="template", template=["World", "", "", "", "", ""]))
+        page3 = service.create_page(PageCreate(name="Page 3", type="template", template=["Test", "", "", "", "", ""]))
+        
+        # Batch preview all three
+        results = service.preview_pages_batch([page1.id, page2.id, page3.id])
+        
+        assert len(results) == 3
+        assert all(r is not None and r.available for r in results.values())
+        
+        # Context should be built only once, not three times
+        assert mock_engine._build_context.call_count == 1
+        # But render_lines should be called three times (once per page)
+        assert mock_engine.render_lines.call_count == 3
+    
+    @patch('src.pages.service.get_template_engine')
+    def test_preview_pages_batch_uses_cache(self, mock_get_engine, service):
+        """Test that batch preview uses cache for already-cached pages."""
+        mock_engine = Mock()
+        mock_engine._build_context.return_value = {}
+        mock_engine.render_lines.return_value = "Rendered\n\n\n\n\n"
+        mock_get_engine.return_value = mock_engine
+        
+        page1 = service.create_page(PageCreate(name="Page 1", type="template", template=["Hello", "", "", "", "", ""]))
+        page2 = service.create_page(PageCreate(name="Page 2", type="template", template=["World", "", "", "", "", ""]))
+        
+        # Preview page1 first to populate cache
+        service.preview_pages_batch([page1.id])
+        assert mock_engine.render_lines.call_count == 1
+        
+        # Batch preview both - page1 should use cache, only page2 renders
+        mock_engine.render_lines.reset_mock()
+        mock_engine._build_context.reset_mock()
+        results = service.preview_pages_batch([page1.id, page2.id])
+        
+        assert len(results) == 2
+        assert mock_engine.render_lines.call_count == 1  # Only page2 rendered
+    
+    def test_preview_pages_batch_nonexistent_page(self, service):
+        """Test that batch preview handles nonexistent pages."""
+        results = service.preview_pages_batch(["nonexistent-id"])
+        assert results["nonexistent-id"] is None
 
 
 class TestPagesAPIEndpoints:

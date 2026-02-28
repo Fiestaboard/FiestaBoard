@@ -1,0 +1,96 @@
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="800" fill="#FFFFFF"/>
+  
+  <!-- Page Header -->
+  <rect x="0" y="0" width="1200" height="80" fill="#1F2937"/>
+  <text x="40" y="50" font-family="system-ui, sans-serif" font-size="28" fill="#FFFFFF" font-weight="bold">
+    FiestaBoard - Integrations
+  </text>
+  
+  <!-- Sidebar -->
+  <rect x="0" y="80" width="250" height="720" fill="#F3F4F6"/>
+  <text x="20" y="130" font-family="system-ui, sans-serif" font-size="16" fill="#6B7280">
+    Dashboard
+  </text>
+  <text x="20" y="170" font-family="system-ui, sans-serif" font-size="16" fill="#1F2937" font-weight="600">
+    Integrations
+  </text>
+  <text x="20" y="210" font-family="system-ui, sans-serif" font-size="16" fill="#6B7280">
+    Templates
+  </text>
+  <text x="20" y="250" font-family="system-ui, sans-serif" font-size="16" fill="#6B7280">
+    Settings
+  </text>
+  
+  <!-- Main Content Area -->
+  <text x="300" y="140" font-family="system-ui, sans-serif" font-size="32" fill="#1F2937" font-weight="bold">
+    Spacecraft Launches
+  </text>
+  
+  <!-- Plugin Card -->
+  <rect x="300" y="180" width="850" height="500" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2" rx="8"/>
+  
+  <!-- Plugin Description -->
+  <text x="330" y="230" font-family="system-ui, sans-serif" font-size="16" fill="#6B7280">
+    Track upcoming spacecraft launch countdowns and statuses. Displays launch
+  </text>
+  <text x="330" y="255" font-family="system-ui, sans-serif" font-size="16" fill="#6B7280">
+    date, time, mission name, status, and countdown. No API key required.
+  </text>
+  
+  <!-- Enable Toggle -->
+  <text x="330" y="310" font-family="system-ui, sans-serif" font-size="18" fill="#1F2937" font-weight="600">
+    Enabled
+  </text>
+  <rect x="1050" y="290" width="60" height="30" fill="#10B981" rx="15"/>
+  <circle cx="1095" cy="305" r="12" fill="#FFFFFF"/>
+  
+  <!-- Divider -->
+  <line x1="330" y1="340" x2="1120" y2="340" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Max Launches Setting -->
+  <text x="330" y="380" font-family="system-ui, sans-serif" font-size="16" fill="#1F2937" font-weight="600">
+    Max Launches
+  </text>
+  <text x="330" y="405" font-family="system-ui, sans-serif" font-size="14" fill="#6B7280">
+    Maximum number of launches to display (1-10)
+  </text>
+  <rect x="1020" y="365" width="90" height="40" fill="#F9FAFB" stroke="#D1D5DB" stroke-width="1" rx="4"/>
+  <text x="1065" y="392" font-family="monospace" font-size="18" fill="#1F2937" text-anchor="middle">
+    4
+  </text>
+  
+  <!-- Divider -->
+  <line x1="330" y1="430" x2="1120" y2="430" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Refresh Interval Setting -->
+  <text x="330" y="470" font-family="system-ui, sans-serif" font-size="16" fill="#1F2937" font-weight="600">
+    Refresh Interval
+  </text>
+  <text x="330" y="495" font-family="system-ui, sans-serif" font-size="14" fill="#6B7280">
+    Update interval in seconds (minimum 240)
+  </text>
+  <rect x="1020" y="455" width="90" height="40" fill="#F9FAFB" stroke="#D1D5DB" stroke-width="1" rx="4"/>
+  <text x="1065" y="482" font-family="monospace" font-size="18" fill="#1F2937" text-anchor="middle">
+    300
+  </text>
+  
+  <!-- Info Box -->
+  <rect x="330" y="530" width="780" height="80" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1" rx="4"/>
+  <text x="350" y="555" font-family="system-ui, sans-serif" font-size="14" fill="#1E40AF" font-weight="600">
+    9  Rate Limit Information
+  </text>
+  <text x="350" y="580" font-family="system-ui, sans-serif" font-size="13" fill="#1E40AF">
+    The API allows 15 requests per hour. Default 300 seconds (5 minutes) provides 12
+  </text>
+  <text x="350" y="598" font-family="system-ui, sans-serif" font-size="13" fill="#1E40AF">
+    requests/hour with a safe margin.
+  </text>
+  
+  <!-- Save Button -->
+  <rect x="1020" y="630" width="90" height="40" fill="#3B82F6" rx="4"/>
+  <text x="1065" y="657" font-family="system-ui, sans-serif" font-size="16" fill="#FFFFFF" text-anchor="middle" font-weight="600">
+    Save
+  </text>
+</svg>

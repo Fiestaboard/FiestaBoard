@@ -866,6 +866,16 @@ export const handlers = [
     });
   }),
 
+  // Config validation endpoint
+  http.get(`${API_BASE}/config/validate`, () => {
+    return HttpResponse.json({
+      valid: true,
+      is_first_run: false,
+      errors: [],
+      missing_fields: [],
+    });
+  }),
+
   // Version endpoint
   http.get(`${API_BASE}/version`, () => {
     return HttpResponse.json({
