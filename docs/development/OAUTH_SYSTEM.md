@@ -63,19 +63,24 @@ environment:
 
 **No master key required!** If you don't set `FIESTABOARD_MASTER_KEY`:
 - ✅ OAuth system works immediately - no setup needed
-- ✅ Great for testing and demos
-- ⚠️ Tokens don't persist across restarts - you'll need to reconnect OAuth after restarting FiestaBoard
-- 📝 System logs a warning on startup
+- ✅ **Auto-persists across restarts** - A key is automatically generated and saved to `/app/data/master.key`
+- ✅ OAuth tokens survive container restarts automatically
+- 📝 System logs: _"Generated and saved new master key... OAuth tokens will now persist across restarts"_
 
-**When to set the master key:**
-- You're deploying to production
-- You want OAuth connections to survive restarts
-- You're migrating to a new server (same key = same tokens)
+**Master Key Priority:**
+1. **`FIESTABOARD_MASTER_KEY` environment variable** (explicit override)
+2. **`/app/data/master.key` file** (auto-generated, persists with data volume)
+3. **Generate new** if neither exists (saved to file for future use)
+
+**When to set the master key explicitly:**
+- You want to use a specific key (e.g., for security compliance)
+- You're migrating to a new server and want to preserve existing tokens
+- You want to rotate the encryption key
 
 **When you don't need it:**
-- Quick testing or demo
-- Development environment with frequent rebuilds
-- You're okay reconnecting OAuth occasionally
+- Normal usage - the auto-generated key works perfectly
+- Local installations - auto-persistence handles restarts
+- Most production deployments - auto-persistence is reliable
 
 ## Adding a New OAuth Provider
 

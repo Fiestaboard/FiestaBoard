@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 # Default secrets storage location
 DEFAULT_SECRETS_FILE = Path("/app/data/secrets.enc")
 
+# Auto-generated master key storage location
+DEFAULT_MASTER_KEY_FILE = Path("/app/data/master.key")
+
 # Environment variable for master encryption key
 MASTER_KEY_ENV = "FIESTABOARD_MASTER_KEY"
 
@@ -54,17 +57,21 @@ class SecretsManager:
         self.secrets_file = secrets_file or DEFAULT_SECRETS_FILE
         self.secrets_file.parent.mkdir(parents=True, exist_ok=True)
         
-        # Get or generate master key
-        if master_key is None:
-            master_key = os.getenv(MASTER_KEY_ENV)
+        # Master key resolution order:
+        # 1. Explicit parameter (for testing)
+        # 2. Environment variable (user override)
+        # 3. Persistent file (auto-generated, survives restarts)
+        # 4. Generate new and save to file
         
-        if not master_key:
-            # Generate a random master key and warn
-            logger.warning(
-                f"No master key found in {MASTER_KEY_ENV} environment variable. "
-                f"Generating a random key. Secrets will not persist across container restarts!"
-            )
-            master_key = Fernet.generate_key().decode('utf-8')
+        if master_key is None:
+            # Check environment variable first
+            master_key = os.getenv(MASTER_KEY_ENV)
+            
+            if master_key:
+                logger.info(f"Using master key from {MASTER_KEY_ENV} environment variable")
+            else:
+                # Try to load from persistent file
+                master_key = self._load_or_generate_master_key()
         
         # Derive encryption key from master key using PBKDF2
         self._fernet = self._create_fernet(master_key)
@@ -75,6 +82,54 @@ class SecretsManager:
         
         # Load existing secrets from disk
         self._load_secrets()
+    
+    def _load_or_generate_master_key(self) -> str:
+        """Load master key from file or generate a new one.
+        
+        This allows the master key to persist across container restarts
+        without requiring the user to set an environment variable.
+        
+        Returns:
+            Master encryption key
+        """
+        master_key_file = DEFAULT_MASTER_KEY_FILE
+        
+        # Try to load existing key
+        if master_key_file.exists():
+            try:
+                master_key = master_key_file.read_text().strip()
+                if master_key:
+                    logger.info(
+                        f"Loaded master key from {master_key_file} "
+                        f"(OAuth tokens will persist across restarts)"
+                    )
+                    return master_key
+                else:
+                    logger.warning(f"Master key file {master_key_file} is empty, generating new key")
+            except Exception as e:
+                logger.warning(f"Failed to read master key from {master_key_file}: {e}")
+        
+        # Generate new key and save to file
+        master_key = Fernet.generate_key().decode('utf-8')
+        
+        try:
+            # Write atomically using a temp file
+            temp_file = master_key_file.with_suffix('.tmp')
+            temp_file.write_text(master_key)
+            temp_file.chmod(0o600)  # Restrict permissions to owner only
+            temp_file.replace(master_key_file)
+            
+            logger.info(
+                f"Generated and saved new master key to {master_key_file} "
+                f"(OAuth tokens will now persist across restarts)"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to save master key to {master_key_file}: {e}. "
+                f"Using in-memory key only - OAuth tokens will NOT persist across restarts!"
+            )
+        
+        return master_key
     
     def _create_fernet(self, master_key: str) -> Fernet:
         """Create a Fernet instance from master key.
