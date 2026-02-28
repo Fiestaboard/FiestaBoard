@@ -8,6 +8,7 @@
   "category": "entertainment",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
+  "oauth_provider": "spotify",
   "settings_schema": {
     "type": "object",
     "properties": {
