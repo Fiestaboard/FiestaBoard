@@ -78,10 +78,10 @@ omit = [
     "*/__pycache__/*",
     "*/_template/*",
     "*/conftest.py",
-    # Legacy code (documented in GitHub issues #58-61)
-    "src/utils/*",
-    "src/formatters/*",
-    "src/system/*",
+    # Archived / legacy packages (pre-2.0, pre-Docker migration)
+    "src/utils/*",       # Replaced by plugins/ architecture
+    "src/formatters/*",  # Replaced by src/templates/ engine
+    "src/system/*",      # Replaced by Docker-based infrastructure
     "src/main.py",
     "src/text_to_board.py",
     "src/plugins/testing.py",  # Test infrastructure

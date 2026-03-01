@@ -47,3 +47,27 @@ After the plugin architecture migration, plugin data should be retrieved via `/p
 ## Other Known Debt
 
 *This section will be updated as additional technical debt is identified.*
+
+---
+
+## Archived / Legacy Packages (Pre-2.0)
+
+The following Python packages predate the v2.0 migration to Docker and the plugin
+architecture. They are retained **only** for backward compatibility and are
+scheduled for removal in a future major release. Each package emits a
+`DeprecationWarning` on import.
+
+| Package | Replacement | Description |
+|---------|-------------|-------------|
+| `src/utils/` | `plugins/*` | Feature data-source utilities (weather, stocks, transit, etc.) migrated to the plugin system |
+| `src/formatters/` | `src/templates/` | Message formatting logic replaced by the template engine |
+| `src/system/` | Docker infrastructure | System management (mDNS, container control) replaced by Docker-based architecture |
+
+### Migration notes
+
+* **Data sources** — use the corresponding plugin under `plugins/` (e.g.
+  `plugins/weather/`, `plugins/stocks/`). See [Plugin Development](./PLUGIN_DEVELOPMENT.md).
+* **Message formatting** — the template engine in `src/templates/` now handles
+  all board rendering.
+* **Config migration** — `scripts/migrate_config_to_plugins.py` converts the
+  legacy `config.features.*` format to the current `config.plugins.*` format.
