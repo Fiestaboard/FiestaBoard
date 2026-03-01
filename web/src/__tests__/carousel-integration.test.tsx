@@ -147,7 +147,9 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
 // =============================================================================
 
 describe("PagePickerDialog - Carousel Integration", () => {
-  it("renders carousel section when carousels are provided", () => {
+  it("renders carousel section when carousels are provided", async () => {
+    const user = userEvent.setup();
+
     render(
       <PagePickerDialog
         pages={mockPages.map(p => ({ ...p, type: "template" }))}
@@ -157,8 +159,10 @@ describe("PagePickerDialog - Carousel Integration", () => {
       />
     );
 
-    expect(screen.getByText("CAROUSELS")).toBeInTheDocument();
-    expect(screen.getByText("PAGES")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Pages/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
     expect(screen.getByText("Morning Rotation")).toBeInTheDocument();
     expect(screen.getByText("Evening Rotation")).toBeInTheDocument();
   });
@@ -173,8 +177,8 @@ describe("PagePickerDialog - Carousel Integration", () => {
       />
     );
 
-    expect(screen.queryByText("CAROUSELS")).not.toBeInTheDocument();
-    expect(screen.queryByText("PAGES")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Carousels/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Pages/i })).not.toBeInTheDocument();
     expect(screen.getByText("Page One")).toBeInTheDocument();
   });
 
@@ -188,7 +192,10 @@ describe("PagePickerDialog - Carousel Integration", () => {
       />
     );
 
+    // When a carousel is selected, the carousels tab is default
     expect(screen.getByText("Morning Rotation")).toBeInTheDocument();
+    const button = screen.getByText("Morning Rotation").closest("button");
+    expect(button).toHaveClass("border-primary");
   });
 
   it("calls onSelect with carousel ID when carousel is clicked", async () => {
@@ -204,11 +211,14 @@ describe("PagePickerDialog - Carousel Integration", () => {
       />
     );
 
+    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
     await user.click(screen.getByText("Morning Rotation"));
     expect(onSelect).toHaveBeenCalledWith("carousel:c1");
   });
 
-  it("shows page count badge on carousel items", () => {
+  it("shows page count badge on carousel items", async () => {
+    const user = userEvent.setup();
+
     render(
       <PagePickerDialog
         pages={mockPages.map(p => ({ ...p, type: "template" }))}
@@ -218,6 +228,7 @@ describe("PagePickerDialog - Carousel Integration", () => {
       />
     );
 
+    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
     expect(screen.getByText("2 pages")).toBeInTheDocument();
     expect(screen.getByText("1 page")).toBeInTheDocument();
   });
@@ -234,8 +245,8 @@ describe("PagePickerDialog - Carousel Integration", () => {
     );
 
     expect(screen.getByText("None (no default)")).toBeInTheDocument();
-    expect(screen.getByText("CAROUSELS")).toBeInTheDocument();
-    expect(screen.getByText("PAGES")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Pages/i })).toBeInTheDocument();
   });
 
   it("renders without carousels prop (undefined)", () => {
@@ -247,7 +258,7 @@ describe("PagePickerDialog - Carousel Integration", () => {
       />
     );
 
-    expect(screen.queryByText("CAROUSELS")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Carousels/i })).not.toBeInTheDocument();
     expect(screen.getByText("Page One")).toBeInTheDocument();
   });
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { api } from "@/lib/api";
@@ -446,6 +447,8 @@ describe("PageGridSelector", () => {
   });
 
   it("renders carousel buttons when carousels exist", async () => {
+    const user = userEvent.setup();
+
     vi.mocked(api.getCarousels).mockResolvedValue({
       carousels: [
         {
@@ -476,11 +479,14 @@ describe("PageGridSelector", () => {
       { wrapper: TestWrapper }
     );
 
+    // Wait for tabs to appear then switch to Carousels tab
     await waitFor(() => {
-      expect(screen.getByText("My Carousel")).toBeInTheDocument();
-      expect(screen.getByText("Single Carousel")).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
     });
+    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
 
+    expect(screen.getByText("My Carousel")).toBeInTheDocument();
+    expect(screen.getByText("Single Carousel")).toBeInTheDocument();
     expect(screen.getByText("2 pages")).toBeInTheDocument();
     expect(screen.getByText("1 page")).toBeInTheDocument();
   });
