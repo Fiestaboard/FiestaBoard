@@ -136,9 +136,10 @@ test.describe("Navigation", () => {
     if (!hasVersion) {
       // Version might be in a collapsed section or only on desktop
       // Just verify via API
-      const res = await fetch(
-        `http://localhost:${process.env.API_PORT || "4420"}/api/version`,
-      );
+      const apiBase = process.env.BASE_URL
+        ? `${process.env.BASE_URL}/api`
+        : `http://localhost:${process.env.API_PORT || "4420"}/api`;
+      const res = await fetch(`${apiBase}/version`);
       expect(res.ok).toBe(true);
       const data = await res.json();
       expect(data).toHaveProperty("package_version");
