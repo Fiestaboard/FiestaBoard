@@ -460,6 +460,11 @@ export default function SchedulePage() {
                       {page.name}
                     </SelectItem>
                   ))}
+                  {carouselsData?.carousels?.map((carousel) => (
+                    <SelectItem key={carousel.id} value={carousel.id}>
+                      {carousel.name} (carousel)
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -554,39 +559,6 @@ export default function SchedulePage() {
             )}
           </SheetContent>
         </Sheet>
-
-        {/* Default Page Selector Dialog */}
-        {showDefaultPageSelector && pagesData && (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Set Default Page</CardTitle>
-                <CardDescription>
-                  This page will display during schedule gaps
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PagePickerDialog
-                  pages={pagesData.pages}
-                  carousels={carouselsData?.carousels}
-                  selectedPageId={defaultPageId || null}
-                  onSelect={(pageId) => {
-                    setDefaultPage.mutate(pageId);
-                  }}
-                  allowNone={true}
-                />
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowDefaultPageSelector(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deleteScheduleId} onOpenChange={() => setDeleteScheduleId(null)}>
