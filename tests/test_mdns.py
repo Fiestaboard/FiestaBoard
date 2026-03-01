@@ -18,7 +18,7 @@ class TestMDNSServiceInit:
     def test_default_port(self):
         from src.system.mdns import MDNSService
         svc = MDNSService()
-        assert svc.port == 3000
+        assert svc.port == 4420
 
     def test_custom_hostname(self):
         from src.system.mdns import MDNSService
@@ -55,7 +55,7 @@ class TestMDNSServiceLocalUrl:
     def test_default_url(self):
         from src.system.mdns import MDNSService
         svc = MDNSService()
-        assert svc.local_url == "http://fiestaboard.local:3000"
+        assert svc.local_url == "http://fiestaboard.local:4420"
 
     def test_port_80_omits_port(self):
         from src.system.mdns import MDNSService
@@ -79,7 +79,7 @@ class TestMDNSServiceLifecycle:
 
         with patch("zeroconf.Zeroconf", return_value=mock_zc), \
              patch("zeroconf.ServiceInfo", mock_si_cls):
-            svc = MDNSService(hostname="testboard", port=3000)
+            svc = MDNSService(hostname="testboard", port=4420)
             result = svc.start()
 
         assert result is True

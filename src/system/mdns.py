@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Default hostname advertised via mDNS (without the .local suffix)
 DEFAULT_MDNS_HOSTNAME = "fiestaboard"
-DEFAULT_SERVICE_PORT = 3000
+DEFAULT_SERVICE_PORT = 4420
 
 _mdns_service: Optional["MDNSService"] = None
 _mdns_lock = threading.Lock()
@@ -60,7 +60,7 @@ class MDNSService:
 
     @property
     def local_url(self) -> str:
-        """Return the friendly local URL (e.g. ``http://fiestaboard.local:3000``)."""
+        """Return the friendly local URL (e.g. ``http://fiestaboard.local:4420``)."""
         if self._port == 80:
             return f"http://{self._hostname}.local"
         return f"http://{self._hostname}.local:{self._port}"
