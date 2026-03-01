@@ -5,7 +5,7 @@ using TheSportsDB API.
 """
 
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import requests
 
@@ -108,7 +108,6 @@ class SportsScoresPlugin(PluginBase):
                 last_updated = self._cache.get("last_updated", "")
                 if last_updated:
                     try:
-                        from datetime import timezone
                         cache_time = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
                         age_seconds = (datetime.now(timezone.utc) - cache_time).total_seconds()
                         if age_seconds < refresh_seconds:
@@ -180,7 +179,7 @@ class SportsScoresPlugin(PluginBase):
                 # Aggregate
                 "sport_count": len(sports),
                 "game_count": len(all_games),
-                "last_updated": datetime.utcnow().isoformat() + "Z",
+                "last_updated": datetime.now(timezone.utc).isoformat(),
                 # Array of all games
                 "games": all_games,
             }

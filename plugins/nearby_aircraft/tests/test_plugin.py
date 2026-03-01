@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from plugins.nearby_aircraft import NearbyAircraftPlugin
 
@@ -889,7 +889,7 @@ class TestCaching:
         
         # Manually expire cache
         if plugin._cache:
-            plugin._cache["last_updated"] = (datetime.utcnow() - timedelta(seconds=120)).isoformat() + "Z"
+            plugin._cache["last_updated"] = (datetime.now(timezone.utc) - timedelta(seconds=120)).isoformat()
         
         # Second fetch (should fetch new data)
         result2 = plugin.fetch_data()
