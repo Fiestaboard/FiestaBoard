@@ -7,7 +7,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .models import ScheduleEntry, DEFAULT_BOARD_ID
 
@@ -177,7 +177,7 @@ class ScheduleStorage:
                 schedule_dict[key] = value
         
         # Update timestamp
-        schedule_dict["updated_at"] = datetime.utcnow()
+        schedule_dict["updated_at"] = datetime.now(timezone.utc)
         
         # Recreate schedule with updates
         updated_schedule = ScheduleEntry(**schedule_dict)

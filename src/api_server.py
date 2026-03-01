@@ -7,6 +7,7 @@ import time
 import os
 import json
 import requests
+from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 from collections import deque
 from datetime import datetime
@@ -255,11 +256,78 @@ class UpdateCheckResponse(BaseModel):
     is_production: bool
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    global _dev_mode, _service_thread, _shutting_down, _service, _service_running
+    # --- Startup ---
+    _shutting_down = False
+    logger.info("API server starting up...")
+    
+    # Set up file-based logging
+    _setup_file_logging()
+    
+    # Auto-enable dev mode in local development (when not in production)
+    # Check if we're in a development environment
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    if not is_production:
+        _dev_mode = True
+        logger.info("Dev mode auto-enabled for local development")
+    
+    # Initialize and auto-start the service
+    service = get_service()
+    if service:
+        # Try to auto-start, but don't fail if it doesn't work
+        # The service can be started manually later via the /start endpoint
+        try:
+            logger.info("Auto-starting background service...")
+            _service_thread = threading.Thread(target=run_service_background, daemon=True)
+            _service_thread.start()
+            time.sleep(0.5)  # Give it a moment to start
+            
+            # Check if it actually started
+            if _service_running:
+                logger.info("Background service auto-started successfully")
+            else:
+                logger.warning("Background service failed to start - likely due to configuration issues. Use the /start endpoint or UI to start it manually after fixing configuration.")
+        except Exception as e:
+            logger.error(f"Failed to auto-start background service: {e}", exc_info=True)
+            logger.warning("Service can be started manually via /start endpoint after configuration is fixed")
+    else:
+        logger.warning("Service instance could not be created - check logs for initialization errors")
+
+    # Start mDNS/Bonjour advertisement (fiestaboard.local)
+    try:
+        from .system.mdns import start_mdns
+        if start_mdns():
+            from .system.mdns import get_mdns_service
+            logger.info("Access FiestaBoard at %s", get_mdns_service().local_url)
+    except Exception as e:
+        logger.warning(f"mDNS service could not be started: {e}")
+
+    yield
+
+    # --- Shutdown ---
+    logger.info("API server shutting down...")
+    _shutting_down = True
+    _service_running = False
+    if _service:
+        _service.running = False
+
+    # Stop mDNS advertisement
+    try:
+        from .system.mdns import stop_mdns
+        stop_mdns()
+    except Exception:
+        pass
+
+
 # Create FastAPI app
 app = FastAPI(
     title="FiestaBoard Display API",
     description="REST API for controlling and monitoring the FiestaBoard Display Service",
-    version=__version__
+    version=__version__,
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -338,72 +406,6 @@ def run_service_background():
         time.sleep(restart_delay)
         restart_delay = min(restart_delay * 2, max_restart_delay)
 
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize service on startup."""
-    global _dev_mode, _service_thread, _shutting_down
-    _shutting_down = False
-    logger.info("API server starting up...")
-    
-    # Set up file-based logging
-    _setup_file_logging()
-    
-    # Auto-enable dev mode in local development (when not in production)
-    # Check if we're in a development environment
-    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-    if not is_production:
-        _dev_mode = True
-        logger.info("Dev mode auto-enabled for local development")
-    
-    # Initialize and auto-start the service
-    service = get_service()
-    if service:
-        # Try to auto-start, but don't fail if it doesn't work
-        # The service can be started manually later via the /start endpoint
-        try:
-            logger.info("Auto-starting background service...")
-            _service_thread = threading.Thread(target=run_service_background, daemon=True)
-            _service_thread.start()
-            time.sleep(0.5)  # Give it a moment to start
-            
-            # Check if it actually started
-            if _service_running:
-                logger.info("Background service auto-started successfully")
-            else:
-                logger.warning("Background service failed to start - likely due to configuration issues. Use the /start endpoint or UI to start it manually after fixing configuration.")
-        except Exception as e:
-            logger.error(f"Failed to auto-start background service: {e}", exc_info=True)
-            logger.warning("Service can be started manually via /start endpoint after configuration is fixed")
-    else:
-        logger.warning("Service instance could not be created - check logs for initialization errors")
-
-    # Start mDNS/Bonjour advertisement (fiestaboard.local)
-    try:
-        from .system.mdns import start_mdns
-        if start_mdns():
-            from .system.mdns import get_mdns_service
-            logger.info("Access FiestaBoard at %s", get_mdns_service().local_url)
-    except Exception as e:
-        logger.warning(f"mDNS service could not be started: {e}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
-    global _service, _service_running, _shutting_down
-    logger.info("API server shutting down...")
-    _shutting_down = True
-    _service_running = False
-    if _service:
-        _service.running = False
-
-    # Stop mDNS advertisement
-    try:
-        from .system.mdns import stop_mdns
-        stop_mdns()
-    except Exception:
-        pass
 
 
 @app.get("/", response_model=Dict[str, str])
@@ -2636,7 +2638,7 @@ async def get_all_settings():
         "polling": {
             "interval_seconds": polling.interval_seconds
         },
-        "transitions": transitions.to_dict(),
+        "transitions": {**transitions.to_dict(), "available_strategies": VALID_STRATEGIES},
         "output": output.to_dict(),
         "board": board.to_dict(),
         "status": {

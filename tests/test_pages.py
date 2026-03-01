@@ -4,7 +4,7 @@ import json
 import pytest
 import tempfile
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from src.pages.models import LineMetadata, Page, PageCreate, PageUpdate, RowConfig, PageType
@@ -386,7 +386,7 @@ class TestSchemaVersioning:
                                 "",
                             ],
                             "duration_seconds": 300,
-                            "created_at": datetime.utcnow().isoformat(),
+                            "created_at": datetime.now(timezone.utc).isoformat(),
                         }
                     ]
                 },
@@ -421,7 +421,7 @@ class TestSchemaVersioning:
                             "device_type": "flagship",
                             "template": ["{right}ABC", "", "", "", "", ""],
                             "duration_seconds": 300,
-                            "created_at": datetime.utcnow().isoformat(),
+                            "created_at": datetime.now(timezone.utc).isoformat(),
                         }
                     ]
                 },
@@ -454,7 +454,7 @@ class TestSchemaVersioning:
                                 {"alignment": "left", "wrap": False},
                             ],
                             "duration_seconds": 300,
-                            "created_at": datetime.utcnow().isoformat(),
+                            "created_at": datetime.now(timezone.utc).isoformat(),
                         }
                     ],
                 },

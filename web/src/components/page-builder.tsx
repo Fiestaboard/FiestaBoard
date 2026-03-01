@@ -152,8 +152,15 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     };
   }, [liveOutputEnabled, debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, disableLiveOutput]);
 
-  // Keep ref in sync with state so cleanup can access latest value
+  // Keep ref in sync with state so cleanup can access latest value.
+  // When live output transitions from enabled → disabled, immediately restore
+  // the board display so there is no delay returning to normal state.
   useEffect(() => {
+    if (liveOutputEnabledRef.current && !liveOutputEnabled) {
+      api.forceRefresh().catch(() => {
+        // Silently ignore errors during cleanup
+      });
+    }
     liveOutputEnabledRef.current = liveOutputEnabled;
   }, [liveOutputEnabled]);
 
