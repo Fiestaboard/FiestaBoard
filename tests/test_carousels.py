@@ -1,5 +1,6 @@
 """Tests for carousels module (models, storage, service, API)."""
 
+import math
 import pytest
 import tempfile
 import os
@@ -469,7 +470,7 @@ class TestCarouselService:
         assert service.seconds_until_next_page(created.id, now_unix=0.0) == interval
         # At midpoint
         mid = interval / 2.0
-        expected = interval - int(mid)
+        expected = math.ceil(interval - mid)
         secs = service.seconds_until_next_page(created.id, now_unix=mid)
         assert secs == expected
 
