@@ -243,6 +243,7 @@ jobs:
     name: Accessibility Tests
     runs-on:
       - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
+      - instance-size:large
     needs: detect-changes
     if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 15
@@ -290,21 +291,22 @@ jobs:
       run: npm run test-storybook:ci -- --url "http://localhost:6006?globals=theme:light"
 
   e2e-tests:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.shard }})
     runs-on:
       - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
+      - instance-size:large
     needs: detect-changes
     if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
-    timeout-minutes: 20
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # Cache Docker image by content hash + build environment (test vs prod).
-      # - Cache key includes 'test' prefix to separate from production builds
-      # - Both e2e and integration workflows share this cache (same key, same VERSION=dev)
-      # - Production builds (release.yml) use different VERSION arg, so they get separate caches
       - name: Cache Docker image
         id: docker-cache
         uses: actions/cache@v4
@@ -343,18 +345,6 @@ jobs:
           docker tag fiestaboard:e2e fiestaboard:cached
           docker save fiestaboard:cached | gzip > /tmp/docker-image.tar.gz
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -378,13 +368,11 @@ jobs:
 
       - name: Start mock Vestaboard API
         run: |
-          # Run mock board as a Docker container on the default bridge so
-          # both the FiestaBoard container and the runner can reach it via IP.
           docker run -d --name mock-board \
             -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
             -w /app \
             python:3.11-slim python server.py
-          sleep 3
+          sleep 2
           MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board)
           echo "Mock board IP: $MOCK_IP"
           echo "MOCK_BOARD_IP=$MOCK_IP" >> $GITHUB_ENV
@@ -395,8 +383,6 @@ jobs:
             -e PRODUCTION=false \
             fiestaboard:e2e
 
-          # Both containers are on the default bridge, so they can communicate
-          # via IP. The runner can also reach them via bridge IPs.
           CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-e2e)
           echo "Container IP: $CONTAINER_IP"
           echo "CONTAINER_URL=http://$CONTAINER_IP:3000" >> $GITHUB_ENV
@@ -428,9 +414,9 @@ jobs:
             exit 1
           fi
 
-      - name: Run E2E tests
+      - name: Run E2E tests (shard ${{ matrix.shard }}/2)
         working-directory: web
-        run: npx playwright test --reporter=github
+        run: npx playwright test --shard=${{ matrix.shard }}/2 --reporter=github
         env:
           CI: true
           BASE_URL: ${{ env.CONTAINER_URL }}
@@ -445,7 +431,7 @@ jobs:
         uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
-          name: playwright-results
+          name: playwright-results-shard-${{ matrix.shard }}
           path: web/playwright-test-results/
           retention-days: 7
 
