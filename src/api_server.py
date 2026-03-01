@@ -378,6 +378,15 @@ async def startup_event():
     else:
         logger.warning("Service instance could not be created - check logs for initialization errors")
 
+    # Start mDNS/Bonjour advertisement (fiestaboard.local)
+    try:
+        from .system.mdns import start_mdns
+        if start_mdns():
+            from .system.mdns import get_mdns_service
+            logger.info("Access FiestaBoard at %s", get_mdns_service().local_url)
+    except Exception as e:
+        logger.warning(f"mDNS service could not be started: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -388,6 +397,13 @@ async def shutdown_event():
     _service_running = False
     if _service:
         _service.running = False
+
+    # Stop mDNS advertisement
+    try:
+        from .system.mdns import stop_mdns
+        stop_mdns()
+    except Exception:
+        pass
 
 
 @app.get("/", response_model=Dict[str, str])

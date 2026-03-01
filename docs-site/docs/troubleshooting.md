@@ -111,6 +111,10 @@ docker-compose restart
 3. Try the health endpoint: `http://localhost:4420/api/health`
 4. Check the logs: `docker-compose logs -f fiestaboard`
 
+:::tip Accessing from another device?
+`localhost` only works on the machine running FiestaBoard. From other devices on the same network, use **http://fiestaboard.local:4420** (mDNS/Bonjour) or your server's IP address (e.g. `http://192.168.1.50:4420`).
+:::
+
 ### Changes not saving
 
 **Possible causes:**

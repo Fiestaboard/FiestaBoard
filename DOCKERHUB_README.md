@@ -49,6 +49,8 @@ docker-compose up -d
 
 Then open **http://localhost:4420** to connect your board and start the service.
 
+> **Accessing from other devices:** FiestaBoard advertises itself on your local network via mDNS/Bonjour. Open **http://fiestaboard.local:4420** from any device on the same network. If `.local` addresses don't work, use your server's IP instead (e.g. `http://192.168.1.50:4420`).
+
 ## What You Can Display
 
 FiestaBoard includes **23 built-in plugins**. Many work without any API key at all:

@@ -115,6 +115,15 @@ EOF
 sudo systemctl enable fiestaboard
 ```
 
+## Accessing From Other Devices
+
+Once FiestaBoard is running on your Pi, you can access it from any device on the same network:
+
+- **http://fiestaboard.local:4420** — works on most home networks via mDNS/Bonjour. No need to remember the Pi's IP address.
+- **http://&lt;pi-ip-address&gt;:4420** — use this if `.local` addresses don't work on your network. Find your Pi's IP with `hostname -I`.
+
+To change the advertised hostname, set `MDNS_HOSTNAME` in your `.env` file (default: `fiestaboard`, which becomes `fiestaboard.local`).
+
 ## Next Steps
 
 - [Production Deployment](/docs/deployment/production) - Production best practices

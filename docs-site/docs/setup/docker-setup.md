@@ -73,9 +73,18 @@ docker-compose -f docker-compose.hub.yml up -d
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| Web UI | http://localhost:4420 | Main application interface |
-| API | http://localhost:4420 | API access (via nginx proxy) |
+| Web UI | http://localhost:4420 | Main application interface (from the same machine) |
+| Web UI (network) | http://fiestaboard.local:4420 | Access from other devices via mDNS/Bonjour |
+| API | http://localhost:4420/api | API access (via nginx proxy) |
 | API Docs | http://localhost:4420/api/docs | Interactive FastAPI documentation |
+
+:::tip Accessing from other devices
+FiestaBoard registers itself on your local network using mDNS (also called Bonjour), so you can reach it at **http://fiestaboard.local:4420** from any device on the same network — phones, tablets, other computers, etc. This works on most home networks automatically.
+
+If `.local` addresses don't resolve on your network, use the server's IP address directly (e.g. `http://192.168.1.50:4420`).
+
+To change the advertised hostname, set `MDNS_HOSTNAME` in your `.env` file (default: `fiestaboard`, which becomes `fiestaboard.local`).
+:::
 
 ## Key API Endpoints
 
