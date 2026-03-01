@@ -235,7 +235,7 @@ export function DebugSettings() {
             <div className={`flex items-center gap-2 text-xs p-2 rounded ${
               testConnectionMutation.data.connected 
                 ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-destructive"
+                : "bg-destructive/10 text-foreground"
             }`}>
               {testConnectionMutation.data.connected ? (
                 <CheckCircle className="h-3 w-3" />
@@ -480,7 +480,7 @@ export function DebugSettings() {
 
         {/* Warning message if not configured */}
         {!isBoardConfigured && (
-          <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs">
+          <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 text-foreground text-xs">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <div>
               <div className="font-medium">Board not configured</div>

@@ -412,7 +412,7 @@ export function BoardSettings() {
 
         {/* Validation message */}
         {!isConfigValid && (
-          <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs">
+          <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-foreground text-xs">
             <AlertCircle className="h-4 w-4" />
             <span>
               {apiMode === "local"

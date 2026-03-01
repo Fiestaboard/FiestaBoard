@@ -271,7 +271,7 @@ function BoardConnectionForm({
 
       {/* Validation message */}
       {!isConfigured && (
-        <div className="flex items-center gap-1.5 p-1.5 rounded-md bg-destructive/10 text-destructive text-[10px]">
+        <div className="flex items-center gap-1.5 p-1.5 rounded-md bg-destructive/10 text-foreground text-[10px]">
           <AlertCircle className="h-3 w-3 flex-shrink-0" />
           <span>
             {apiMode === "local"
@@ -391,7 +391,7 @@ export function DisplaySettings() {
               <Collapsible
                 key={board.id}
                 className={`rounded-lg border overflow-hidden ${
-                  isEnabled ? "" : "opacity-80"
+                  isEnabled ? "" : "bg-muted/30"
                 }`}
               >
                 <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
