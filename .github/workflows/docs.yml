@@ -21,7 +21,8 @@ concurrency:
 jobs:
   build-and-deploy:
     name: Build & Deploy Docs
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout source repo
         uses: actions/checkout@v6

@@ -18,7 +18,8 @@ permissions:
 jobs:
   detect-changes:
     name: Detect Changed Paths
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     outputs:
       api: ${{ steps.filter.outputs.api }}
       ui: ${{ steps.filter.outputs.ui }}
@@ -62,7 +63,8 @@ jobs:
 
   test-platform:
     name: Platform Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 10
@@ -135,7 +137,8 @@ jobs:
 
   test-plugins:
     name: Plugin Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: needs.detect-changes.outputs.plugins == 'true' || needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 10
@@ -202,7 +205,8 @@ jobs:
 
   test-ui:
     name: UI Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 10
@@ -237,7 +241,8 @@ jobs:
 
   a11y-tests:
     name: Accessibility Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 15
@@ -286,7 +291,8 @@ jobs:
 
   e2e-tests:
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 20
@@ -422,7 +428,8 @@ jobs:
 
   build:
     name: Build Verification
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 5
@@ -457,7 +464,8 @@ jobs:
 
   build-docs:
     name: Build Docs
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: needs.detect-changes.outputs.docs == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 10

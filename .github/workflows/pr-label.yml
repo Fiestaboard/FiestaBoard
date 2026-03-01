@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   label:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Auto-label PR based on conventional commits
         uses: actions/github-script@v8

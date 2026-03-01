@@ -17,7 +17,8 @@ jobs:
   # Prevent loop: skip release when this run was triggered by our own version-bump push.
   guard:
     name: Skip if version-bump commit
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     outputs:
       skip: ${{ steps.check.outputs.skip }}
     steps:
@@ -36,7 +37,8 @@ jobs:
 
   prep:
     name: Prepare Release
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: [guard]
     if: needs.guard.outputs.skip != 'true'
     outputs:
@@ -155,7 +157,8 @@ jobs:
 
   build:
     name: Build (${{ matrix.platform }})
-    runs-on: ${{ matrix.runner }}
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: [prep]
     if: needs.prep.result == 'success'
     strategy:
@@ -163,10 +166,8 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
-            runner: ubuntu-latest
             arch: amd64
           - platform: linux/arm64
-            runner: ubuntu-24.04-arm
             arch: arm64
     steps:
       - name: Checkout code
@@ -212,7 +213,8 @@ jobs:
 
   merge:
     name: Merge Multi-Platform Image
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: [prep, build]
     steps:
       - name: Download digests
@@ -241,7 +243,8 @@ jobs:
 
   release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: [prep, merge]
     if: always() && needs.prep.result == 'success'
     steps:
@@ -330,7 +333,8 @@ jobs:
 
   dockerhub-description:
     name: Update Docker Hub Description
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: [merge]
     if: needs.merge.result == 'success'
     steps:
@@ -349,7 +353,8 @@ jobs:
 
   revert-on-failure:
     name: Revert on Build Failure
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: [prep, merge]
     if: failure() && needs.merge.result == 'failure'
     steps:
