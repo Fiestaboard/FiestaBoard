@@ -376,23 +376,28 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps chromium
 
+      - name: Create test network
+        run: docker network create e2e-net
+
       - name: Start mock Vestaboard API
         run: |
-          python integration-tests/mock-board/server.py &
-          sleep 2
-          echo "Mock board started on port 7000"
+          # Run mock board as a Docker container on the shared network so
+          # the FiestaBoard container can reach it directly.
+          docker run -d --name mock-board --network e2e-net \
+            -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
+            -w /app \
+            python:3.11-slim python server.py
+          sleep 3
+          MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board)
+          echo "Mock board IP: $MOCK_IP"
+          echo "MOCK_BOARD_IP=$MOCK_IP" >> $GITHUB_ENV
 
       - name: Start FiestaBoard container (unified app, same as prod)
         run: |
-          # Start without board config so API reports first-run and setup wizard appears in E2E
-          docker run -d --name fiestaboard-e2e \
-            --add-host=host.docker.internal:host-gateway \
+          docker run -d --name fiestaboard-e2e --network e2e-net \
             -e PRODUCTION=false \
             fiestaboard:e2e
 
-          # Use container bridge IP directly instead of port forwarding.
-          # On CodeBuild the runner is inside a container, so -p port mapping
-          # publishes to the Docker host, not to the runner's localhost.
           CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-e2e)
           echo "Container IP: $CONTAINER_IP"
           echo "CONTAINER_URL=http://$CONTAINER_IP:3000" >> $GITHUB_ENV
@@ -430,11 +435,14 @@ jobs:
         env:
           CI: true
           BASE_URL: ${{ env.CONTAINER_URL }}
-          MOCK_BOARD_HOST: host.docker.internal
+          MOCK_BOARD_HOST: ${{ env.MOCK_BOARD_IP }}
+          MOCK_BOARD_URL: http://${{ env.MOCK_BOARD_IP }}:7000
 
-      - name: Stop FiestaBoard container
+      - name: Stop containers
         if: always()
-        run: docker rm -f fiestaboard-e2e 2>/dev/null || true
+        run: |
+          docker rm -f fiestaboard-e2e mock-board 2>/dev/null || true
+          docker network rm e2e-net 2>/dev/null || true
 
       - name: Upload test results
         uses: actions/upload-artifact@v6

@@ -14,7 +14,9 @@ import { test, expect, type Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 
-const API_URL = "http://localhost:4420/api";
+const API_URL = process.env.BASE_URL
+  ? `${process.env.BASE_URL}/api`
+  : "http://localhost:4420/api";
 const BOARD_HOST = process.env.MOCK_BOARD_HOST || "fiestaboard-mock-board";
 
 const DOCS_IMG = path.resolve(__dirname, "../../docs-site/static/img");
