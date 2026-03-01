@@ -50,6 +50,15 @@ export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>
     await use();
   }, { scope: "worker", auto: true }],
 
+  baseURL: async ({}, use, workerInfo) => {
+    if (_workerUrls.length > 0) {
+      const idx = workerInfo.workerIndex % _workerUrls.length;
+      await use(_workerUrls[idx]);
+    } else {
+      await use(process.env.BASE_URL || "http://localhost:4420");
+    }
+  },
+
   // eslint-disable-next-line no-empty-pattern
   resetBackend: [async ({}, use) => {
     await resetMockBoard();

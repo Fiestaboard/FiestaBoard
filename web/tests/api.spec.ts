@@ -9,7 +9,7 @@
  */
 import { test, expect, configureBoard, API_URL } from "./helpers";
 
-const API = API_URL;
+function API() { return API_URL; }
 
 // Ensure the board is configured before each API test
 test.beforeEach(async () => {
@@ -22,7 +22,7 @@ test.beforeEach(async () => {
 
 test.describe("API – Version & Config", () => {
   test("returns version information", async () => {
-    const res = await fetch(`${API}/version`);
+    const res = await fetch(`${API()}/version`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("package_version");
@@ -31,7 +31,7 @@ test.describe("API – Version & Config", () => {
   });
 
   test("returns configuration summary", async () => {
-    const res = await fetch(`${API}/config`);
+    const res = await fetch(`${API()}/config`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     // Config summary is an object with board / general keys
@@ -45,7 +45,7 @@ test.describe("API – Version & Config", () => {
 
 test.describe("API – Settings", () => {
   test("returns all settings", async () => {
-    const res = await fetch(`${API}/settings/all`);
+    const res = await fetch(`${API()}/settings/all`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("polling");
@@ -56,7 +56,7 @@ test.describe("API – Settings", () => {
   });
 
   test("can update output target", async () => {
-    const res = await fetch(`${API}/settings/output`, {
+    const res = await fetch(`${API()}/settings/output`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ target: "ui" }),
@@ -67,7 +67,7 @@ test.describe("API – Settings", () => {
     expect(data.settings.target).toBe("ui");
 
     // Reset to default
-    await fetch(`${API}/settings/output`, {
+    await fetch(`${API()}/settings/output`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ target: "board" }),
@@ -75,7 +75,7 @@ test.describe("API – Settings", () => {
   });
 
   test("can update polling interval", async () => {
-    const res = await fetch(`${API}/settings/polling`, {
+    const res = await fetch(`${API()}/settings/polling`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ interval_seconds: 15 }),
@@ -87,7 +87,7 @@ test.describe("API – Settings", () => {
   });
 
   test("rejects invalid polling interval", async () => {
-    const res = await fetch(`${API}/settings/polling`, {
+    const res = await fetch(`${API()}/settings/polling`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ interval_seconds: 1 }),
@@ -103,7 +103,7 @@ test.describe("API – Settings", () => {
 
 test.describe("API – Pages", () => {
   test("can list pages", async () => {
-    const res = await fetch(`${API}/pages`);
+    const res = await fetch(`${API()}/pages`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("pages");
@@ -113,7 +113,7 @@ test.describe("API – Pages", () => {
 
   test("can create and delete a page", async () => {
     // Create
-    const createRes = await fetch(`${API}/pages`, {
+    const createRes = await fetch(`${API()}/pages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -129,7 +129,7 @@ test.describe("API – Pages", () => {
     expect(pageId).toBeTruthy();
 
     // Delete
-    const deleteRes = await fetch(`${API}/pages/${pageId}`, {
+    const deleteRes = await fetch(`${API()}/pages/${pageId}`, {
       method: "DELETE",
     });
     expect(deleteRes.ok).toBe(true);
@@ -144,7 +144,7 @@ test.describe("API – Pages", () => {
 
 test.describe("API – Schedules", () => {
   test("can list schedules", async () => {
-    const res = await fetch(`${API}/schedules`);
+    const res = await fetch(`${API()}/schedules`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("schedules");
@@ -154,7 +154,7 @@ test.describe("API – Schedules", () => {
 
   test("can create and delete a schedule", async () => {
     // Ensure at least one page exists to reference
-    const pagesRes = await fetch(`${API}/pages`);
+    const pagesRes = await fetch(`${API()}/pages`);
     const pagesData = await pagesRes.json();
     let pageId: string;
 
@@ -162,7 +162,7 @@ test.describe("API – Schedules", () => {
       pageId = pagesData.pages[0].id;
     } else {
       // Create a temporary page
-      const createPageRes = await fetch(`${API}/pages`, {
+      const createPageRes = await fetch(`${API()}/pages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -176,7 +176,7 @@ test.describe("API – Schedules", () => {
     }
 
     // Create a schedule
-    const createRes = await fetch(`${API}/schedules`, {
+    const createRes = await fetch(`${API()}/schedules`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -192,7 +192,7 @@ test.describe("API – Schedules", () => {
     expect(scheduleId).toBeTruthy();
 
     // Delete the schedule
-    const deleteRes = await fetch(`${API}/schedules/${scheduleId}`, {
+    const deleteRes = await fetch(`${API()}/schedules/${scheduleId}`, {
       method: "DELETE",
     });
     expect(deleteRes.ok).toBe(true);
@@ -207,7 +207,7 @@ test.describe("API – Schedules", () => {
 
 test.describe("API – Plugins", () => {
   test("can list plugins", async () => {
-    const res = await fetch(`${API}/plugins`);
+    const res = await fetch(`${API()}/plugins`);
     // Plugins endpoint may return 503 if plugin system is not available
     if (res.ok) {
       const data = await res.json();
@@ -227,7 +227,7 @@ test.describe("API – Plugins", () => {
 
 test.describe("API – Templates", () => {
   test("returns template variables", async () => {
-    const res = await fetch(`${API}/templates/variables`);
+    const res = await fetch(`${API()}/templates/variables`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("variables");
@@ -237,7 +237,7 @@ test.describe("API – Templates", () => {
   });
 
   test("validates a correct template", async () => {
-    const res = await fetch(`${API}/templates/validate`, {
+    const res = await fetch(`${API()}/templates/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -257,7 +257,7 @@ test.describe("API – Templates", () => {
 
 test.describe("API – Displays", () => {
   test("can list displays", async () => {
-    const res = await fetch(`${API}/displays`);
+    const res = await fetch(`${API()}/displays`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("displays");
@@ -273,14 +273,14 @@ test.describe("API – Displays", () => {
 test.describe("API – Dev Mode", () => {
   test("can get and set dev mode", async () => {
     // Get current state
-    const getRes = await fetch(`${API}/dev-mode`);
+    const getRes = await fetch(`${API()}/dev-mode`);
     expect(getRes.ok).toBe(true);
     const initial = await getRes.json();
     expect(initial).toHaveProperty("dev_mode");
     const originalMode = initial.dev_mode;
 
     // Toggle on
-    const onRes = await fetch(`${API}/dev-mode`, {
+    const onRes = await fetch(`${API()}/dev-mode`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dev_mode: true }),
@@ -290,7 +290,7 @@ test.describe("API – Dev Mode", () => {
     expect(onData.dev_mode).toBe(true);
 
     // Toggle off
-    const offRes = await fetch(`${API}/dev-mode`, {
+    const offRes = await fetch(`${API()}/dev-mode`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dev_mode: false }),
@@ -300,7 +300,7 @@ test.describe("API – Dev Mode", () => {
     expect(offData.dev_mode).toBe(false);
 
     // Restore original state so subsequent tests aren't affected
-    await fetch(`${API}/dev-mode`, {
+    await fetch(`${API()}/dev-mode`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dev_mode: originalMode }),
@@ -314,7 +314,7 @@ test.describe("API – Dev Mode", () => {
 
 test.describe("API – Debug", () => {
   test("can test board connection", async () => {
-    const res = await fetch(`${API}/debug/test-connection`, {
+    const res = await fetch(`${API()}/debug/test-connection`, {
       method: "POST",
     });
     // Connection may or may not succeed depending on board config state
@@ -327,7 +327,7 @@ test.describe("API – Debug", () => {
   });
 
   test("returns system information", async () => {
-    const res = await fetch(`${API}/debug/system-info`);
+    const res = await fetch(`${API()}/debug/system-info`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("version");
@@ -337,14 +337,14 @@ test.describe("API – Debug", () => {
   });
 
   test("can blank the board", async () => {
-    const res = await fetch(`${API}/debug/blank`, { method: "POST" });
+    const res = await fetch(`${API()}/debug/blank`, { method: "POST" });
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("status");
   });
 
   test("returns cache status", async () => {
-    const res = await fetch(`${API}/debug/cache-status`);
+    const res = await fetch(`${API()}/debug/cache-status`);
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("status");
@@ -352,7 +352,7 @@ test.describe("API – Debug", () => {
   });
 
   test("can clear message cache", async () => {
-    const res = await fetch(`${API}/debug/clear-cache`, { method: "POST" });
+    const res = await fetch(`${API()}/debug/clear-cache`, { method: "POST" });
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(data).toHaveProperty("status");
