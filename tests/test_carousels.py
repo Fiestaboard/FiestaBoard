@@ -123,6 +123,66 @@ class TestCarouselModels:
         result2 = c.current_page_id(12345.0)
         assert result1 == result2
 
+    # --- Interval Timing Accuracy --------------------------------------------
+
+    def test_transition_exactly_at_boundary(self):
+        """Page changes exactly at the interval boundary, not before or after."""
+        c = Carousel(name="Boundary", page_ids=["a", "b", "c"], interval_seconds=10)
+        # Just before the boundary: still on the previous page
+        assert c.current_page_id(9.999) == "a"
+        # Exactly at the boundary: transitions to next page
+        assert c.current_page_id(10.0) == "b"
+        # Just after the boundary
+        assert c.current_page_id(10.001) == "b"
+
+    def test_each_page_gets_exact_interval(self):
+        """Every page is displayed for exactly interval_seconds."""
+        c = Carousel(name="Exact", page_ids=["a", "b", "c"], interval_seconds=15)
+        for page_idx in range(3):
+            start = page_idx * 15
+            end = (page_idx + 1) * 15
+            expected = c.page_ids[page_idx]
+            # Page is shown at the start of its interval
+            assert c.current_page_id(float(start)) == expected
+            # Page is shown just before its interval ends
+            assert c.current_page_id(end - 0.001) == expected
+            # Page transitions away exactly at end
+            assert c.current_page_id(float(end)) != expected
+
+    def test_full_cycle_returns_to_first_page(self):
+        """After one full cycle, the carousel returns to the first page."""
+        pages = ["p1", "p2", "p3", "p4"]
+        c = Carousel(name="FullCycle", page_ids=pages, interval_seconds=20)
+        cycle_duration = 20 * len(pages)  # 80 seconds
+        assert c.current_page_id(0.0) == "p1"
+        assert c.current_page_id(float(cycle_duration)) == "p1"
+
+    def test_timing_across_many_cycles(self):
+        """Interval timing remains accurate over many cycles."""
+        c = Carousel(name="LongRun", page_ids=["a", "b"], interval_seconds=10)
+        for cycle in range(100):
+            offset = cycle * 20  # full cycle = 20s
+            assert c.current_page_id(float(offset)) == "a"
+            assert c.current_page_id(float(offset + 10)) == "b"
+
+    @pytest.mark.parametrize("interval", [5, 10, 30, 60, 300, 3600])
+    def test_various_interval_values(self, interval):
+        """Transitions are accurate for various allowed interval_seconds values."""
+        c = Carousel(name="Param", page_ids=["x", "y"], interval_seconds=interval)
+        assert c.current_page_id(0.0) == "x"
+        assert c.current_page_id(float(interval) - 0.001) == "x"
+        assert c.current_page_id(float(interval)) == "y"
+        assert c.current_page_id(float(2 * interval) - 0.001) == "y"
+        assert c.current_page_id(float(2 * interval)) == "x"
+
+    def test_mid_interval_stays_on_same_page(self):
+        """Querying at any point within an interval returns the same page."""
+        c = Carousel(name="Mid", page_ids=["a", "b", "c"], interval_seconds=30)
+        # All queries within the first 30-second window should return "a"
+        for offset_ms in range(0, 30000, 500):
+            ts = offset_ms / 1000.0
+            assert c.current_page_id(ts) == "a", f"Expected 'a' at t={ts}"
+
     # --- Request Models ------------------------------------------------------
 
     def test_carousel_create_model(self):
@@ -348,6 +408,85 @@ class TestCarouselService:
         )
         secs = service.seconds_until_next_page(created.id, now_unix=3.0)
         assert secs == 7  # 10 - 3 = 7
+
+    # --- Interval Timing Accuracy (Service) ----------------------------------
+
+    def test_seconds_until_next_page_fractional_timestamp(self, service):
+        """Fractional timestamps produce correct ceiling of remaining seconds."""
+        created = service.create_carousel(
+            CarouselCreate(name="Frac", page_ids=["a", "b"], interval_seconds=10)
+        )
+        # At t=3.5, remaining is 6.5s -> should ceil to 7
+        assert service.seconds_until_next_page(created.id, now_unix=3.5) == 7
+        # At t=3.9, remaining is 6.1s -> should ceil to 7
+        assert service.seconds_until_next_page(created.id, now_unix=3.9) == 7
+        # At t=4.0, remaining is exactly 6.0s -> 6
+        assert service.seconds_until_next_page(created.id, now_unix=4.0) == 6
+
+    def test_seconds_until_next_page_at_boundary(self, service):
+        """At exact interval boundary, a full interval remains."""
+        created = service.create_carousel(
+            CarouselCreate(name="Boundary", page_ids=["a", "b"], interval_seconds=10)
+        )
+        # At exactly t=10 (boundary), the next page is at t=20: 10 seconds away
+        assert service.seconds_until_next_page(created.id, now_unix=10.0) == 10
+
+    def test_seconds_until_next_page_just_before_boundary(self, service):
+        """Just before a transition, minimum of 1 second is returned."""
+        created = service.create_carousel(
+            CarouselCreate(name="JustBefore", page_ids=["a", "b"], interval_seconds=10)
+        )
+        # At t=9.999, remaining is 0.001s -> ceil to 1, max(1,1) = 1
+        assert service.seconds_until_next_page(created.id, now_unix=9.999) == 1
+
+    def test_seconds_until_next_page_never_zero(self, service):
+        """seconds_until_next_page never returns 0 due to max(1, ...) guard."""
+        created = service.create_carousel(
+            CarouselCreate(name="NonZero", page_ids=["a", "b"], interval_seconds=10)
+        )
+        for ts in [0.0, 5.0, 9.9, 9.999, 10.0, 15.5]:
+            secs = service.seconds_until_next_page(created.id, now_unix=ts)
+            assert secs >= 1, f"Expected >= 1 at t={ts}, got {secs}"
+
+    def test_seconds_until_next_page_decreases_within_interval(self, service):
+        """Remaining seconds monotonically decreases within a single interval."""
+        created = service.create_carousel(
+            CarouselCreate(name="Monotonic", page_ids=["a", "b"], interval_seconds=10)
+        )
+        prev = service.seconds_until_next_page(created.id, now_unix=0.0)
+        for t in range(1, 10):
+            curr = service.seconds_until_next_page(created.id, now_unix=float(t))
+            assert curr <= prev, f"Expected {curr} <= {prev} at t={t}"
+            prev = curr
+
+    @pytest.mark.parametrize("interval", [5, 10, 30, 60, 300])
+    def test_seconds_until_next_page_various_intervals(self, service, interval):
+        """seconds_until_next_page is consistent for various interval values."""
+        created = service.create_carousel(
+            CarouselCreate(name=f"Int{interval}", page_ids=["a", "b"], interval_seconds=interval)
+        )
+        # At start of interval, full interval remains
+        assert service.seconds_until_next_page(created.id, now_unix=0.0) == interval
+        # At midpoint
+        mid = interval / 2.0
+        expected = interval - int(mid)
+        secs = service.seconds_until_next_page(created.id, now_unix=mid)
+        assert secs == expected
+
+    def test_resolve_page_changes_after_interval(self, service):
+        """resolve_page_id returns different pages after interval_seconds elapses."""
+        created = service.create_carousel(
+            CarouselCreate(name="Resolve", page_ids=["a", "b", "c"], interval_seconds=10)
+        )
+        page_at_0 = service.resolve_page_id(created.id, now_unix=0.0)
+        page_at_10 = service.resolve_page_id(created.id, now_unix=10.0)
+        page_at_20 = service.resolve_page_id(created.id, now_unix=20.0)
+        assert page_at_0 == "a"
+        assert page_at_10 == "b"
+        assert page_at_20 == "c"
+        # Same page within an interval
+        assert service.resolve_page_id(created.id, now_unix=5.0) == "a"
+        assert service.resolve_page_id(created.id, now_unix=9.999) == "a"
 
 
 # =============================================================================

@@ -1,6 +1,7 @@
 """Carousel service for CRUD operations and rotation logic."""
 
 import logging
+import math
 import time
 from typing import List, Optional
 from datetime import datetime
@@ -74,7 +75,7 @@ class CarouselService:
 
         ts = now_unix if now_unix is not None else time.time()
         elapsed = ts % carousel.interval_seconds
-        return max(1, int(carousel.interval_seconds - elapsed))
+        return max(1, math.ceil(carousel.interval_seconds - elapsed))
 
 
 _carousel_service: Optional[CarouselService] = None
