@@ -8,9 +8,8 @@ import { defineConfig, devices } from "@playwright/test";
  * to http://localhost:4420 (start the dev container first:
  *   docker-compose -f docker-compose.dev.yml up -d).
  *
- * CI runs 2 workers for inter-file parallelism (tests within a file
- * stay sequential). Screenshot generation tests are excluded in CI
- * since they're for docs, not functional validation.
+ * Screenshot generation tests are excluded in CI since they're for
+ * docs, not functional validation.
  */
 export default defineConfig({
   testDir: "./tests",
@@ -19,7 +18,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: process.env.CI ? 2 : 1,
+  workers: 1,
   reporter: process.env.CI ? "github" : "list",
   timeout: 30_000,
   globalSetup: "./tests/global-setup.ts",
