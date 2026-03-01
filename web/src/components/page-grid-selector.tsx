@@ -647,6 +647,11 @@ export function PageGridSelector({
 
   return (
     <div>
+      {label && (
+        <label className="text-xs font-medium text-muted-foreground mb-3 block">
+          {label}
+        </label>
+      )}
       <Tabs defaultValue={defaultTab}>
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">

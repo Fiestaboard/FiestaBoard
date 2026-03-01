@@ -125,6 +125,7 @@ export default function PagesPage() {
                       label="SELECT FLAGSHIP PAGE TO EDIT"
                       deviceTypeFilter="flagship"
                       viewMode={viewMode}
+                      showCarousels={false}
                     />
                   </TabsContent>
                 )}
@@ -136,6 +137,7 @@ export default function PagesPage() {
                       label="SELECT NOTE PAGE TO EDIT"
                       deviceTypeFilter="note"
                       viewMode={viewMode}
+                      showCarousels={false}
                     />
                   </TabsContent>
                 )}
@@ -147,6 +149,7 @@ export default function PagesPage() {
                 label="SELECT PAGE TO EDIT"
                 deviceTypeFilter={configuredDevices[0] as DeviceType}
                 viewMode={viewMode}
+                showCarousels={false}
               />
             )}
           </CardContent>
