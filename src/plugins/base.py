@@ -169,17 +169,45 @@ class PluginBase(ABC):
         return properties.get("refresh_seconds")
 
     @property
+    def min_refresh_seconds(self) -> Optional[int]:
+        """Get the hard rate-limit floor from the manifest.
+        
+        This is the absolute minimum refresh interval enforced at runtime,
+        regardless of user configuration.  Plugin developers set this via
+        the top-level ``min_refresh_seconds`` field in manifest.json.
+        Falls back to settings_schema ``minimum`` if the explicit field
+        is absent.  Returns None when the plugin has no refresh_seconds.
+        """
+        refresh_schema = self._get_refresh_schema()
+        if refresh_schema is None:
+            return None
+        explicit = self._manifest.get("min_refresh_seconds")
+        if explicit is not None:
+            return int(explicit)
+        return refresh_schema.get("minimum", MIN_REFRESH_SECONDS)
+
+    @property
     def refresh_seconds(self) -> Optional[int]:
         """Get the effective refresh interval in seconds.
         
         Returns the configured value, falling back to the manifest default.
+        The value is clamped to never go below ``min_refresh_seconds`` --
+        even if the stored config contains a lower number.
         Returns None if the plugin's manifest does not define refresh_seconds.
         """
         refresh_schema = self._get_refresh_schema()
         if refresh_schema is None:
             return None
         default = refresh_schema.get("default", DEFAULT_REFRESH_SECONDS)
-        return self._config.get("refresh_seconds", default)
+        value = self._config.get("refresh_seconds", default)
+        floor = self.min_refresh_seconds
+        if floor is not None and isinstance(value, (int, float)) and value < floor:
+            logger.warning(
+                f"Plugin {self.plugin_id}: refresh_seconds {value} is below "
+                f"hard minimum {floor}, clamping"
+            )
+            return floor
+        return value
 
     def get_data(self) -> PluginResult:
         """Get plugin data with automatic caching based on refresh_seconds.
@@ -219,7 +247,11 @@ class PluginBase(ABC):
         self._last_fetch_time = None
 
     def _validate_refresh_seconds(self, config: Dict[str, Any]) -> List[str]:
-        """Validate refresh_seconds against the manifest schema bounds."""
+        """Validate refresh_seconds against the manifest schema bounds.
+        
+        Uses the hard floor from ``min_refresh_seconds`` (which considers
+        the top-level manifest field first, then the schema minimum).
+        """
         errors: List[str] = []
         refresh_schema = self._get_refresh_schema()
 
@@ -227,14 +259,14 @@ class PluginBase(ABC):
             return errors
 
         value = config["refresh_seconds"]
-        minimum = refresh_schema.get("minimum", MIN_REFRESH_SECONDS)
+        floor = self.min_refresh_seconds or MIN_REFRESH_SECONDS
         maximum = refresh_schema.get("maximum", MAX_REFRESH_SECONDS)
 
         if not isinstance(value, (int, float)):
             errors.append("Refresh interval must be a number")
-        elif value < minimum:
+        elif value < floor:
             errors.append(
-                f"Refresh interval must be at least {minimum} seconds"
+                f"Refresh interval must be at least {floor} seconds"
             )
         elif value > maximum:
             errors.append(

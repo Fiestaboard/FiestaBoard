@@ -19,6 +19,7 @@ MANIFEST_WITH_REFRESH = {
     "id": "test_plugin",
     "name": "Test Plugin",
     "version": "1.0.0",
+    "min_refresh_seconds": 30,
     "settings_schema": {
         "type": "object",
         "properties": {
@@ -27,6 +28,24 @@ MANIFEST_WITH_REFRESH = {
                 "default": 120,
                 "minimum": 30,
                 "maximum": 600,
+            }
+        },
+    },
+}
+
+MANIFEST_WITH_HIGH_FLOOR = {
+    "id": "test_plugin",
+    "name": "Test Plugin",
+    "version": "1.0.0",
+    "min_refresh_seconds": 240,
+    "settings_schema": {
+        "type": "object",
+        "properties": {
+            "refresh_seconds": {
+                "type": "integer",
+                "default": 300,
+                "minimum": 240,
+                "maximum": 3600,
             }
         },
     },
@@ -355,3 +374,113 @@ class TestValidateRefreshSeconds:
     def test_float_value_accepted(self):
         plugin = ConcretePlugin(MANIFEST_WITH_REFRESH)
         assert plugin._validate_refresh_seconds({"refresh_seconds": 120.0}) == []
+
+    def test_uses_explicit_min_refresh_seconds_as_floor(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        errors = plugin._validate_refresh_seconds({"refresh_seconds": 100})
+        assert len(errors) == 1
+        assert "at least 240 seconds" in errors[0]
+
+    def test_accepts_value_at_explicit_floor(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        assert plugin._validate_refresh_seconds({"refresh_seconds": 240}) == []
+
+
+# --- min_refresh_seconds property ---
+
+
+class TestMinRefreshSecondsProperty:
+    def test_returns_explicit_manifest_value(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        assert plugin.min_refresh_seconds == 240
+
+    def test_falls_back_to_schema_minimum(self):
+        manifest = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "settings_schema": {
+                "type": "object",
+                "properties": {
+                    "refresh_seconds": {"type": "integer", "minimum": 60}
+                },
+            },
+        }
+        plugin = ConcretePlugin(manifest)
+        assert plugin.min_refresh_seconds == 60
+
+    def test_falls_back_to_global_minimum(self):
+        manifest = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "settings_schema": {
+                "type": "object",
+                "properties": {
+                    "refresh_seconds": {"type": "integer"}
+                },
+            },
+        }
+        plugin = ConcretePlugin(manifest)
+        assert plugin.min_refresh_seconds == MIN_REFRESH_SECONDS
+
+    def test_returns_none_without_refresh_schema(self):
+        plugin = ConcretePlugin(MANIFEST_WITHOUT_REFRESH)
+        assert plugin.min_refresh_seconds is None
+
+    def test_explicit_overrides_schema_minimum(self):
+        manifest = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "min_refresh_seconds": 120,
+            "settings_schema": {
+                "type": "object",
+                "properties": {
+                    "refresh_seconds": {"type": "integer", "minimum": 60}
+                },
+            },
+        }
+        plugin = ConcretePlugin(manifest)
+        assert plugin.min_refresh_seconds == 120
+
+
+# --- runtime clamping ---
+
+
+class TestRuntimeClamping:
+    def test_clamps_below_floor(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        plugin._config = {"refresh_seconds": 10}
+        assert plugin.refresh_seconds == 240
+
+    def test_does_not_clamp_valid_value(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        plugin._config = {"refresh_seconds": 300}
+        assert plugin.refresh_seconds == 300
+
+    def test_clamps_at_boundary(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        plugin._config = {"refresh_seconds": 239}
+        assert plugin.refresh_seconds == 240
+
+    def test_exact_floor_not_clamped(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        plugin._config = {"refresh_seconds": 240}
+        assert plugin.refresh_seconds == 240
+
+    def test_clamping_prevents_fast_polling(self):
+        """Even if config bypasses validation, runtime enforces the floor."""
+        plugin = ConcretePlugin(MANIFEST_WITH_HIGH_FLOOR)
+        plugin._config = {"refresh_seconds": 1}
+
+        plugin.get_data()
+        assert plugin.fetch_call_count == 1
+
+        plugin.get_data()
+        assert plugin.fetch_call_count == 1
+
+    def test_no_clamping_without_floor(self):
+        plugin = ConcretePlugin(MANIFEST_WITHOUT_REFRESH)
+        plugin._config = {"refresh_seconds": 1}
+        assert plugin.refresh_seconds is None
