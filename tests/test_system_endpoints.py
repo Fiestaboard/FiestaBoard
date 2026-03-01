@@ -30,7 +30,7 @@ class TestUpdateCheck:
         assert data["update_available"] is True
         assert data["latest_version"] == "99.0.0"
         assert data["current_version"] is not None
-        assert data["package_url"] == "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
+        assert data["package_url"] == "https://github.com/Fiestaboard/FiestaBoard/releases/latest"
 
     def test_up_to_date(self, client):
         """Test when current version matches latest."""
