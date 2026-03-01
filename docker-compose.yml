@@ -10,8 +10,14 @@ services:
     environment:
       - PRODUCTION=true
     restart: unless-stopped
+    # --- Networking ---
+    # Option A (default): Bridge networking with port mapping
     ports:
       - "4420:3000"
+    # Option B: Host networking – required for mDNS / Bonjour support
+    #           (allows access via http://fiestaboard.local:3000).
+    #           Uncomment the line below and remove/comment the 'ports' block.
+    # network_mode: host
     volumes:
       # Persist data (including config) to local filesystem
       - ./data:/app/data
