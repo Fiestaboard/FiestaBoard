@@ -842,6 +842,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       size="icon" 
                       className="h-9 w-9" 
                       onClick={onClose}
+                      aria-label="Close"
                     >
                       <X className="h-4 w-4" />
                     </Button>
