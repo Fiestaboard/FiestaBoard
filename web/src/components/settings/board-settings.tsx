@@ -104,11 +104,8 @@ export function BoardSettings() {
       const result = await api.scanForBoards();
       setDiscoveredBoards(result.boards);
       setScanStatus("done");
-      if (result.boards.length === 1) {
-        handleChange("host", result.boards[0].ip);
-        toast.success(`Found board at ${result.boards[0].ip}`);
-      } else if (result.boards.length > 1) {
-        toast.info(`Found ${result.boards.length} boards on your network`);
+      if (result.boards.length >= 1) {
+        toast.info(`Found ${result.boards.length} ${result.boards.length === 1 ? "board" : "boards"} on your network`);
       } else {
         toast.info("No boards found on your network");
       }
@@ -261,10 +258,10 @@ export function BoardSettings() {
             </div>
 
             {/* Scan results */}
-            {scanStatus === "done" && discoveredBoards.length > 1 && (
+            {scanStatus === "done" && discoveredBoards.length >= 1 && (
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">
-                  Found {discoveredBoards.length} boards:
+                  Found {discoveredBoards.length} {discoveredBoards.length === 1 ? "board" : "boards"} — select one:
                 </label>
                 <div className="space-y-1">
                   {discoveredBoards.map((board) => (
@@ -273,8 +270,6 @@ export function BoardSettings() {
                       type="button"
                       onClick={() => {
                         handleChange("host", board.ip);
-                        setScanStatus("idle");
-                        setDiscoveredBoards([]);
                       }}
                       className={`w-full flex items-center justify-between p-2 rounded-md border text-xs transition-colors text-left ${
                         formData.host === board.ip

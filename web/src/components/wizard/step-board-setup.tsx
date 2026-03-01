@@ -90,14 +90,6 @@ export function StepBoardSetup({
       const result = await api.scanForBoards();
       setDiscoveredBoards(result.boards);
       setScanStatus("done");
-      if (result.boards.length === 1) {
-        onConfigChange({
-          ...config,
-          host: result.boards[0].ip,
-          connectionVerified: false,
-        });
-        setTestStatus("idle");
-      }
     } catch {
       setScanStatus("error");
     }
@@ -110,8 +102,6 @@ export function StepBoardSetup({
       connectionVerified: false,
     });
     setTestStatus("idle");
-    setScanStatus("idle");
-    setDiscoveredBoards([]);
   };
 
   const handleEnableLocalApi = async () => {
@@ -373,9 +363,11 @@ export function StepBoardSetup({
               <span>No boards found. Enter the IP address manually.</span>
             </div>
           )}
-          {scanStatus === "done" && discoveredBoards.length > 1 && (
+          {scanStatus === "done" && discoveredBoards.length >= 1 && (
             <div className="space-y-2">
-              <Label className="text-sm">Found {discoveredBoards.length} boards — select one:</Label>
+              <Label className="text-sm">
+                Found {discoveredBoards.length} {discoveredBoards.length === 1 ? "board" : "boards"} — select one:
+              </Label>
               <div className="space-y-1.5">
                 {discoveredBoards.map((board) => (
                   <button
