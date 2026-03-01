@@ -76,14 +76,7 @@ class TestMDNSServiceLifecycle:
 
         mock_zc = MagicMock()
         mock_si_cls = MagicMock()
-        mock_si_instance = MagicMock()
-        mock_si_cls.return_value = mock_si_instance
 
-        with patch("src.system.mdns.Zeroconf", mock_zc.__class__) if False else \
-             patch.dict("sys.modules", {}):
-            pass  # setup context
-
-        # Patch at import location inside the method
         with patch("zeroconf.Zeroconf", return_value=mock_zc), \
              patch("zeroconf.ServiceInfo", mock_si_cls):
             svc = MDNSService(hostname="testboard", port=3000)
