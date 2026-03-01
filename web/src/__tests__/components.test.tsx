@@ -37,8 +37,35 @@ describe("ServiceStatus", () => {
     render(<ServiceStatus />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      // ServiceStatus uses aria-label for the status indicator
       expect(screen.getByLabelText("Service status: Running")).toBeInTheDocument();
+    });
+  });
+
+  it("shows disconnected status on API error", async () => {
+    server.use(
+      http.get(`${API_BASE}/status`, () =>
+        new HttpResponse(null, { status: 500 })
+      )
+    );
+
+    render(<ServiceStatus />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Service status: Disconnected")).toBeInTheDocument();
+    }, { timeout: 5000 });
+  });
+
+  it("shows stopped status when service is not running", async () => {
+    server.use(
+      http.get(`${API_BASE}/status`, () =>
+        HttpResponse.json({ running: false, initialized: true, config_summary: {} })
+      )
+    );
+
+    render(<ServiceStatus />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Service status: Stopped")).toBeInTheDocument();
     });
   });
 });
