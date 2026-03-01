@@ -5,6 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { api, HomeAssistantEntity } from "@/lib/api";
 
@@ -19,7 +28,6 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
   const [selectedAttribute, setSelectedAttribute] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Fetch entities from Home Assistant
   const { data: entitiesData, isLoading } = useQuery({
     queryKey: ["home-assistant-entities"],
     queryFn: () => api.getHomeAssistantEntities(),
@@ -28,31 +36,23 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
   
   const handleInsert = () => {
     if (selectedEntity && selectedAttribute) {
-      // Convert entity_id dots to underscores for template syntax
-      // e.g., sensor.temperature -> sensor_temperature
       const entityIdForTemplate = selectedEntity.entity_id.replace(/\./g, '_');
       const variable = `{{home_assistant.${entityIdForTemplate}.${selectedAttribute}}}`;
       onSelect(variable);
-      onClose();
-      // Reset state
-      setSelectedEntity(null);
-      setSelectedAttribute("");
+      handleClose();
     }
   };
   
   const handleClose = () => {
     onClose();
-    // Reset state
     setSelectedEntity(null);
     setSelectedAttribute("");
   };
   
-  // Get available attributes for selected entity
   const availableAttributes = selectedEntity
     ? ["state", ...Object.keys(selectedEntity.attributes).sort()]
     : [];
   
-  // Filter entities based on search
   const filteredEntities = entitiesData?.entities.filter((entity) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -62,22 +62,22 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
     );
   }) || [];
   
-  if (!open) return null;
-  
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col m-4">
-        <div className="px-4 py-3 border-b">
-          <h2 className="text-base font-semibold">Select Home Assistant Entity</h2>
-        </div>
+    <AlertDialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
+      <AlertDialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Select Home Assistant Entity</AlertDialogTitle>
+          <AlertDialogDescription className="sr-only">
+            Search and select a Home Assistant entity and attribute to insert
+          </AlertDialogDescription>
+        </AlertDialogHeader>
         
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-sm text-muted-foreground">Loading entities...</div>
           </div>
         ) : (
-          <div className="space-y-3 p-4 flex-1 overflow-y-auto">
-            {/* Entity Selector - Searchable List */}
+          <div className="space-y-3 flex-1 overflow-y-auto">
             {!selectedEntity ? (
               <div className="space-y-2">
                 <Input
@@ -115,7 +115,6 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
               </div>
             ) : (
               <>
-                {/* Selected Entity Display */}
                 <div className="space-y-1.5">
                   <div className="px-2 py-1.5 bg-muted rounded flex items-center justify-between gap-2">
                     <span className="font-mono text-sm flex-1 truncate">{selectedEntity.entity_id}</span>
@@ -134,7 +133,6 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                   </div>
                 </div>
                 
-                {/* Attribute Selector */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground px-1">Select Attribute</label>
                   <ScrollArea className="h-[250px] border rounded-md">
@@ -173,7 +171,6 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
               </>
             )}
             
-            {/* Preview */}
             {selectedEntity && selectedAttribute && (
               <div className="px-2 py-1.5 bg-muted rounded space-y-1">
                 <code className="text-xs font-mono block">
@@ -191,8 +188,8 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
           </div>
         )}
         
-        <div className="flex justify-end gap-2 px-4 py-3 border-t">
-          <Button variant="outline" onClick={handleClose} size="sm">Cancel</Button>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
           <Button 
             onClick={handleInsert} 
             disabled={!selectedEntity || !selectedAttribute || isLoading}
@@ -200,9 +197,9 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
           >
             Insert
           </Button>
-        </div>
-      </div>
-    </div>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

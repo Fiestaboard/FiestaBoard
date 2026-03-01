@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowUpCircle,
@@ -32,8 +33,9 @@ export function SystemUpdate() {
   }
 
   return (
-    <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
-      <ArrowUpCircle className="h-4 w-4 text-amber-500" />
+    <TooltipProvider>
+    <Alert className="border-warning/50 bg-warning/10">
+      <ArrowUpCircle className="h-4 w-4 text-warning" />
       <AlertDescription className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium"><ShinyText text="Update Available" speed={3} /></span>
@@ -55,19 +57,26 @@ export function SystemUpdate() {
               View Release
             </a>
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ["update-check"] });
-            }}
-            title="Check for updates"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ["update-check"] });
+                }}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Check for updates</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </AlertDescription>
     </Alert>
+    </TooltipProvider>
   );
 }

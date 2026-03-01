@@ -25,8 +25,8 @@ export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
       className={cn(
         'inline-block align-middle rounded-md px-2 py-0.5 text-xs font-medium cursor-grab',
         'border transition-all duration-150',
-        'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300',
-        'hover:bg-amber-500/20',
+        'bg-warning/15 border-warning/30 text-warning',
+        'hover:bg-warning/20',
         'active:cursor-grabbing',
         'max-h-[1.2rem] h-auto',
         'mr-0.5', // Small space after the tag

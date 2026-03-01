@@ -113,14 +113,17 @@ export function NavigationSidebar() {
           "transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
           mobileMenuOpen ? "translate-y-0" : "-translate-y-full"
         )}
+        role="dialog"
+        aria-modal={mobileMenuOpen}
+        aria-label="Navigation menu"
+        aria-hidden={!mobileMenuOpen}
         style={{
-          // Force GPU acceleration and prevent flash
           willChange: 'transform',
           backfaceVisibility: 'hidden',
           transform: mobileMenuOpen ? 'translate3d(0, 0, 0)' : 'translate3d(0, -100%, 0)',
         }}
       >
-        <nav className="space-y-1 px-3 py-4">
+        <nav aria-label="Mobile navigation" className="space-y-1 px-3 py-4">
           {navigation.map((item) => {
             const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
@@ -168,7 +171,7 @@ export function NavigationSidebar() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-3 py-4">
+          <nav aria-label="Main navigation" className="flex-1 space-y-1 px-3 py-4">
             {navigation.map((item) => {
               const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
               const Icon = item.icon;
