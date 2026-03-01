@@ -36,8 +36,7 @@ export function PagePickerDialog({
 
   const noneOption = allowNone && (
     <button
-      role="option"
-      aria-selected={selectedPageId === null}
+      aria-pressed={selectedPageId === null}
       onClick={() => onSelect(null)}
       className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selectedPageId === null ? "border-primary bg-muted/50" : ""
