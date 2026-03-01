@@ -245,7 +245,7 @@ const config: Config = {
           title: 'Support',
           items: [
             {
-              label: 'Buy a Vestaboard',
+              label: 'Buy a Vestaboard ($200 off)',
               href: 'https://fiestaboard.app/buyavestaboard',
             },
             {
