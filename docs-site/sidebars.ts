@@ -82,6 +82,7 @@ const sidebars: SidebarsConfig = {
         'reference/environment-variables',
         'reference/character-codes',
         'reference/color-guide',
+        'reference/accessibility',
       ],
     },
     {
