@@ -68,7 +68,7 @@
     "eslint-config-next": "16.1.6",
     "jsdom": "^28.1.0",
     "msw": "^2.12.10",
-    "@storybook/test-runner": "^0.22.0",
+    "@storybook/test-runner": "^0.24.2",
     "axe-playwright": "^2.1.0",
     "storybook": "^10.1.11",
     "tailwindcss": "^4",
