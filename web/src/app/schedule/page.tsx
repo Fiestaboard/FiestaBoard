@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -27,7 +26,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
-import { PagePickerDialog } from "@/components/page-picker-dialog";
 import { ScheduleListView } from "./components";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 
@@ -58,6 +56,7 @@ import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar
 type ViewMode = "list" | "calendar";
 
 const SCHEDULE_VIEW_MODE_KEY = "schedule-view-mode";
+const NO_DEFAULT_PAGE = "__none__";
 
 export default function SchedulePage() {
   const queryClient = useQueryClient();
@@ -80,7 +79,6 @@ export default function SchedulePage() {
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
-  const [showDefaultPageSelector, setShowDefaultPageSelector] = useState(false);
   const { data: boardSettings } = useBoardSettings();
   const boards = boardSettings?.boards ?? [];
   const [selectedBoardId, setSelectedBoardId] = useState<string | "">("");
@@ -195,7 +193,6 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
       toast.success("Default page updated");
-      setShowDefaultPageSelector(false);
     },
     onError: () => {
       toast.error("Failed to set default page");
@@ -438,22 +435,26 @@ export default function SchedulePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                {defaultPageId ? (
-                  <Badge variant="secondary">{getPageName(defaultPageId)}</Badge>
-                ) : (
-                  <span className="text-muted-foreground">No default page set</span>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowDefaultPageSelector(true)}
+            {pagesData && (
+              <Select
+                value={defaultPageId || NO_DEFAULT_PAGE}
+                onValueChange={(value) => {
+                  setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value);
+                }}
               >
-                Change
-              </Button>
-            </div>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a default page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_DEFAULT_PAGE}>None (no default)</SelectItem>
+                  {pagesData.pages.map((page) => (
+                    <SelectItem key={page.id} value={page.id}>
+                      {page.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </CardContent>
         </Card>
 
@@ -542,31 +543,6 @@ export default function SchedulePage() {
             )}
           </SheetContent>
         </Sheet>
-
-        {/* Default Page Selector Dialog */}
-        <AlertDialog open={showDefaultPageSelector && !!pagesData} onOpenChange={(isOpen) => { if (!isOpen) setShowDefaultPageSelector(false); }}>
-          <AlertDialogContent className="max-w-md">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Set Default Page</AlertDialogTitle>
-              <AlertDialogDescription>
-                This page will display during schedule gaps
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {pagesData && (
-              <PagePickerDialog
-                pages={pagesData.pages}
-                selectedPageId={defaultPageId || null}
-                onSelect={(pageId) => {
-                  setDefaultPage.mutate(pageId);
-                }}
-                allowNone={true}
-              />
-            )}
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deleteScheduleId} onOpenChange={() => setDeleteScheduleId(null)}>
