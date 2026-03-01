@@ -43,11 +43,15 @@ class DadJokesPlugin(PluginBase):
         errors = []
 
         refresh_seconds = config.get("refresh_seconds", DEFAULT_REFRESH_SECONDS)
-        if not isinstance(refresh_seconds, int) or refresh_seconds < MIN_REFRESH_SECONDS:
+        if not isinstance(refresh_seconds, int):
             errors.append(
                 f"Refresh interval must be at least {MIN_REFRESH_SECONDS} seconds"
             )
-        if isinstance(refresh_seconds, int) and refresh_seconds > MAX_REFRESH_SECONDS:
+        elif refresh_seconds < MIN_REFRESH_SECONDS:
+            errors.append(
+                f"Refresh interval must be at least {MIN_REFRESH_SECONDS} seconds"
+            )
+        elif refresh_seconds > MAX_REFRESH_SECONDS:
             errors.append(
                 f"Refresh interval must not exceed {MAX_REFRESH_SECONDS} seconds"
             )
