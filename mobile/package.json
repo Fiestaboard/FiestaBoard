@@ -2,5 +2,33 @@
   "name": "mobile",
   "version": "1.0.0",
   "private": true,
-  "main": "expo-router/entry"
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "prebuild": "expo prebuild",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fiestaboard/shared": "workspace:*",
+    "@tanstack/react-query": "^5.90.21",
+    "date-fns": "^4.1.0",
+    "expo": "~52.0.0",
+    "expo-haptics": "~14.0.0",
+    "expo-router": "~4.0.0",
+    "expo-secure-store": "~14.0.0",
+    "expo-status-bar": "~2.0.0",
+    "expo-symbols": "~0.2.0",
+    "lucide-react-native": "^0.475.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-big-calendar": "^4.19.0",
+    "react-native-safe-area-context": "~4.14.0",
+    "react-native-screens": "~4.5.0",
+    "react-native-svg": "~15.11.0"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.0",
+    "typescript": "~5.8.3"
+  }
 }

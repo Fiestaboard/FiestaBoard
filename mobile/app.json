@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "FiestaBoard",
+    "slug": "fiestaboard",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "fiestaboard",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fiestaboard.mobile",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "FiestaBoard discovers your board server on the local network.",
+        "NSBonjourServices": ["_http._tcp"]
+      }
+    },
+    "android": {
+      "package": "com.fiestaboard.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f5a623"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
