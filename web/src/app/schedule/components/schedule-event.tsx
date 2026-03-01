@@ -56,34 +56,34 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
     <div
       className="schedule-event-content h-full w-full overflow-hidden rounded px-1.5 py-1"
       style={{
-        backgroundColor: resource.enabled ? scheduleColorLight : "hsl(var(--muted))",
-        borderLeft: `2px solid ${resource.enabled ? scheduleColor : "hsl(var(--muted-foreground) / 0.5)"}`,
+        backgroundColor: resource.enabled ? scheduleColorLight : "var(--muted)",
+        borderLeft: `2px solid ${resource.enabled ? scheduleColor : "color-mix(in oklch, var(--muted-foreground) 50%, transparent)"}`,
         opacity: resource.enabled ? 1 : 0.5,
       }}
     >
       <div className="flex flex-col gap-0">
         <div
           className="font-medium text-[10px] leading-tight truncate"
-          style={{ color: resource.enabled ? scheduleColor : "hsl(var(--muted-foreground))" }}
+          style={{ color: resource.enabled ? scheduleColor : "var(--muted-foreground)" }}
         >
           {event.title}
         </div>
         <span 
-          className="text-[9px] font-medium truncate opacity-80"
-          style={{ color: resource.enabled ? scheduleColor : "hsl(var(--muted-foreground))" }}
+          className="text-[9px] font-medium truncate"
+          style={{ color: resource.enabled ? scheduleColor : "var(--muted-foreground)" }}
         >
           {timeRange}
         </span>
         {!resource.enabled && (
           <Badge
             variant="secondary"
-            className="w-fit text-[8px] px-1 py-0 h-3 opacity-70"
+            className="w-fit text-[10px] px-1 py-0 h-3.5"
           >
             Off
           </Badge>
         )}
         {resource.dayPattern !== "all" && (
-          <span className="text-[8px] text-muted-foreground/70 truncate">
+          <span className="text-[10px] text-muted-foreground truncate">
             {dayPatternDisplay}
           </span>
         )}

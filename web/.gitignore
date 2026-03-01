@@ -46,6 +46,9 @@ next-env.d.ts
 /public/workbox-*.js
 /public/workbox-*.js.map
 
+# Storybook
+/storybook-static
+
 # Playwright
 /test-results/
 /playwright-test-results/

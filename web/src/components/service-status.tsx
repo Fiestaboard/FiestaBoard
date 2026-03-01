@@ -22,20 +22,28 @@ export function ServiceStatus() {
     ? "Running" 
     : "Stopped";
 
-  const statusColor = isError || !data
-    ? "bg-fiesta-red shadow-[0_0_6px_rgba(235,64,52,0.5)] animate-pulse"
+  const statusClass = isError || !data
+    ? "bg-board-red animate-pulse"
     : data.running
-    ? "bg-fiesta-green shadow-[0_0_6px_rgba(126,211,33,0.5)]"
-    : "bg-gray-400";
+    ? "bg-board-green"
+    : "bg-muted-foreground";
+
+  const glowStyle = isError || !data
+    ? { boxShadow: "0 0 6px color-mix(in oklch, var(--color-board-red) 50%, transparent)" }
+    : data.running
+    ? { boxShadow: "0 0 6px color-mix(in oklch, var(--color-board-green) 50%, transparent)" }
+    : undefined;
 
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            className={`h-3 w-3 rounded-full ${statusColor} transition-all cursor-default`}
-            aria-label={statusText}
-          />
+            className="relative h-6 w-6 flex items-center justify-center cursor-default rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Service status: ${statusText}`}
+          >
+            <span className={`h-3 w-3 rounded-full ${statusClass} transition-all`} style={glowStyle} />
+          </button>
         </TooltipTrigger>
         <TooltipContent>
           <p>{statusText}</p>

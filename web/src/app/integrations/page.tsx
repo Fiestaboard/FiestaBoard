@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
   SheetContent,
@@ -593,14 +594,14 @@ function getPluginIcon(iconName?: string): LucideIcon {
 
 // Color display helpers - using board's official colors
 const COLOR_DISPLAY: Record<FiestaboardColorName, { bg: string; text: string; hex: string }> = {
-  red: { bg: "bg-fiesta-red", text: "text-white", hex: FIESTABOARD_COLORS.red },
-  orange: { bg: "bg-fiesta-orange", text: "text-white", hex: FIESTABOARD_COLORS.orange },
-  yellow: { bg: "bg-fiesta-yellow", text: "text-black", hex: FIESTABOARD_COLORS.yellow },
-  green: { bg: "bg-fiesta-green", text: "text-white", hex: FIESTABOARD_COLORS.green },
-  blue: { bg: "bg-fiesta-blue", text: "text-white", hex: FIESTABOARD_COLORS.blue },
-  violet: { bg: "bg-fiesta-violet", text: "text-white", hex: FIESTABOARD_COLORS.violet },
-  white: { bg: "bg-fiesta-white border", text: "text-black", hex: FIESTABOARD_COLORS.white },
-  black: { bg: "bg-fiesta-black", text: "text-white", hex: FIESTABOARD_COLORS.black },
+  red: { bg: "bg-board-red", text: "text-board-white", hex: FIESTABOARD_COLORS.red },
+  orange: { bg: "bg-board-orange", text: "text-board-black", hex: FIESTABOARD_COLORS.orange },
+  yellow: { bg: "bg-board-yellow", text: "text-board-black", hex: FIESTABOARD_COLORS.yellow },
+  green: { bg: "bg-board-green", text: "text-board-black", hex: FIESTABOARD_COLORS.green },
+  blue: { bg: "bg-board-blue", text: "text-board-white", hex: FIESTABOARD_COLORS.blue },
+  violet: { bg: "bg-board-violet", text: "text-board-white", hex: FIESTABOARD_COLORS.violet },
+  white: { bg: "bg-board-white border", text: "text-board-black", hex: FIESTABOARD_COLORS.white },
+  black: { bg: "bg-board-black", text: "text-board-white", hex: FIESTABOARD_COLORS.black },
 };
 
 // Available conditions for color rules
@@ -694,6 +695,7 @@ function ColorRulesEditor({
   const fieldNames = Object.keys(colorRules);
 
   return (
+    <TooltipProvider>
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium text-muted-foreground">
@@ -754,26 +756,32 @@ function ColorRulesEditor({
                       className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
                     >
                       {copiedVar === `${fieldName}_color` ? (
-                        <Check className="h-3 w-3 text-emerald-500" />
+                        <Check className="h-3 w-3 text-success" />
                       ) : (
                         <Copy className="h-3 w-3" />
                       )}
                       <code className="font-mono text-[10px]">{fieldName}_color</code>
                     </button>
-                    <button
-                      onClick={() => handleDeleteField(fieldName)}
-                      className="p-1 text-destructive hover:bg-destructive/10 rounded"
-                      title="Delete all rules for this field"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleDeleteField(fieldName)}
+                          className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete all rules for this field</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
 
                 {/* Rules */}
                 <div className="divide-y">
                   {rules.map((rule, idx) => {
-                    const colorStyle = COLOR_DISPLAY[rule.color as FiestaboardColorName] || { bg: "bg-gray-500", text: "text-white", hex: "#6b7280" };
+                    const colorStyle = COLOR_DISPLAY[rule.color as FiestaboardColorName] || { bg: "bg-muted", text: "text-muted-foreground", hex: "#6b7280" };
                     return (
                       <div key={idx} className="px-3 py-2 flex items-center gap-2 text-xs">
                         {/* Reorder buttons */}
@@ -781,14 +789,14 @@ function ColorRulesEditor({
                           <button
                             onClick={() => handleMoveRule(fieldName, idx, "up")}
                             disabled={idx === 0}
-                            className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
+                            className="p-0.5 hover:bg-muted rounded disabled:opacity-50"
                           >
                             <ArrowUp className="h-3 w-3" />
                           </button>
                           <button
                             onClick={() => handleMoveRule(fieldName, idx, "down")}
                             disabled={idx === rules.length - 1}
-                            className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
+                            className="p-0.5 hover:bg-muted rounded disabled:opacity-50"
                           >
                             <ArrowDown className="h-3 w-3" />
                           </button>
@@ -799,7 +807,7 @@ function ColorRulesEditor({
                           value={rule.color}
                           onChange={(e) => handleUpdateRule(fieldName, idx, { color: e.target.value })}
                           className="h-7 px-2 rounded border text-xs font-medium"
-                          style={{ backgroundColor: colorStyle.hex, color: colorStyle.text === "text-black" ? "#000" : "#fff" }}
+                          style={{ backgroundColor: colorStyle.hex, color: colorStyle.text === "text-board-black" ? "#000" : "#fff" }}
                         >
                           {AVAILABLE_COLORS.map((color) => (
                             <option key={color} value={color} className="bg-background text-foreground">
@@ -871,6 +879,7 @@ function ColorRulesEditor({
         Rules are evaluated in order (first match wins). Use <code className="bg-muted px-1 rounded">{`{{${pluginId}.field_color}}`}</code> for just the color tile.
       </p>
     </div>
+    </TooltipProvider>
   );
 }
 
@@ -1121,9 +1130,9 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
                                           {plugin.id}.{variable.name}
                                         </code>
                                         {copiedVar === variable.name ? (
-                                          <Check className="h-3 w-3 text-emerald-500" />
+                                          <Check className="h-3 w-3 text-success" />
                                         ) : (
-                                          <Copy className="h-3 w-3 text-muted-foreground opacity-50" />
+                                          <Copy className="h-3 w-3 text-muted-foreground" />
                                         )}
                                       </div>
                                     </td>

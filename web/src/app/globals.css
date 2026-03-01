@@ -25,6 +25,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -45,6 +46,23 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
 
+  /* Status/intent semantic colors */
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  /* Tag/badge accent colors */
+  --color-tag-variable: var(--tag-variable);
+  --color-tag-variable-foreground: var(--tag-variable-foreground);
+  --color-tag-success: var(--tag-success);
+  --color-tag-success-foreground: var(--tag-success-foreground);
+
+  /* Overlay */
+  --color-overlay: var(--overlay);
+
   /* Board Official Colors - use these for all status/tile colors */
   --color-board-red: #eb4034;
   --color-board-orange: #f5a623;
@@ -54,6 +72,17 @@
   --color-board-violet: #9b59b6;
   --color-board-white: #ffffff;
   --color-board-black: #1a1a1a;
+
+  /* Board hardware surface colors (independent of UI theme) */
+  --color-board-surface-light: #fafafa;
+  --color-board-surface-dark: #0d0d0d;
+  --color-board-text-on-light: #0d0d0d;
+  --color-board-text-on-dark: #f0f0e8;
+  --color-board-bezel-light: #f8f8f8;
+  --color-board-bezel-dark: #050505;
+  --color-board-bezel-border-light: #d8d8d8;
+  --color-board-bezel-border-dark: #1a1a1a;
+
   /* Backward compatibility aliases */
   --color-fiesta-red: var(--color-board-red);
   --color-fiesta-orange: var(--color-board-orange);
@@ -78,26 +107,38 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.41 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --destructive: oklch(0.43 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.66 0 0);
+  --input: oklch(0.66 0 0);
+  --ring: oklch(0.55 0 0);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.65 0.189 84.429);
+  --chart-5: oklch(0.65 0.188 70.08);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-border: oklch(0.66 0 0);
+  --sidebar-ring: oklch(0.55 0 0);
+  --info: oklch(0.45 0.15 250);
+  --info-foreground: oklch(0.985 0 0);
+  --success: oklch(0.40 0.16 150);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.45 0.16 70);
+  --warning-foreground: oklch(0.985 0 0);
+  --tag-variable: oklch(0.45 0.2 280);
+  --tag-variable-foreground: oklch(0.35 0.1 280);
+  --tag-success: oklch(0.45 0.2 160);
+  --tag-success-foreground: oklch(0.35 0.1 160);
+  --overlay: oklch(0 0 0 / 80%);
 }
 
 .dark {
@@ -112,14 +153,15 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(0.83 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
+  --destructive: oklch(0.80 0.191 22.216);
+  --destructive-foreground: oklch(0.15 0 0);
+  --border: oklch(1 0 0 / 18%);
+  --input: oklch(1 0 0 / 22%);
+  --ring: oklch(0.62 0 0);
+  --chart-1: oklch(0.55 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
@@ -130,13 +172,24 @@
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-border: oklch(1 0 0 / 18%);
+  --sidebar-ring: oklch(0.62 0 0);
+  --info: oklch(0.75 0.18 250);
+  --info-foreground: oklch(0.15 0 0);
+  --success: oklch(0.68 0.18 145);
+  --success-foreground: oklch(0.15 0 0);
+  --warning: oklch(0.78 0.14 75);
+  --warning-foreground: oklch(0.15 0 0);
+  --tag-variable: oklch(0.65 0.15 280);
+  --tag-variable-foreground: oklch(0.85 0.08 280);
+  --tag-success: oklch(0.65 0.15 160);
+  --tag-success-foreground: oklch(0.85 0.08 160);
+  --overlay: oklch(0 0 0 / 80%);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   html {
     /* Reserve space for scrollbar to prevent layout shift */

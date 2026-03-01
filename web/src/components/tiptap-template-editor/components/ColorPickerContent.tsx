@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ColorPickerContentProps {
   onInsert: (colorValue: string) => void;
@@ -143,6 +144,7 @@ export function ColorPickerContent({ onInsert }: ColorPickerContentProps) {
   }, [highlightedIndex]);
 
   return (
+    <TooltipProvider>
     <div 
       ref={containerRef}
       className="p-2"
@@ -158,8 +160,9 @@ export function ColorPickerContent({ onInsert }: ColorPickerContentProps) {
           const isHighlighted = highlightedIndex === index;
 
           return (
+            <Tooltip key={colorName}>
+              <TooltipTrigger asChild>
             <button
-              key={colorName}
               ref={(el) => {
                 buttonRefs.current[index] = el;
               }}
@@ -174,15 +177,20 @@ export function ColorPickerContent({ onInsert }: ColorPickerContentProps) {
                 colorInfo.needsDarkText ? "text-black/80" : "text-white/90"
               )}
               aria-label={`${colorName} color`}
-              title={colorName}
               role="option"
               aria-selected={isHighlighted}
             >
               {colorName}
             </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{colorName}</p>
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
     </div>
+    </TooltipProvider>
   );
 }

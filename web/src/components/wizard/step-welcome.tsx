@@ -153,7 +153,7 @@ export function StepWelcome({
         
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-success" />
             <span>
               My Board ({boardConfig.device_type === "flagship" ? "Flagship" : "Note"}) connected via {boardConfig.api_mode === "cloud" ? "Cloud" : "Local"} API
               {boardConfig.api_mode === "local" && ` (${boardConfig.host})`}
@@ -164,7 +164,7 @@ export function StepWelcome({
             <>
               {enabledPlugins.map(({ name, icon: Icon }) => (
                 <div key={name} className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <CheckCircle className="h-4 w-4 text-success" />
                   <span>{name} enabled</span>
                 </div>
               ))}
@@ -192,7 +192,7 @@ export function StepWelcome({
             size="lg"
             className={cn(
               "w-full transition-all",
-              sendStatus === "success" && "bg-green-500 hover:bg-green-600"
+              sendStatus === "success" && "bg-success hover:bg-success/90"
             )}
           >
             {sendStatus === "sending" ? (
@@ -220,7 +220,7 @@ export function StepWelcome({
             className={cn(
               "flex items-start gap-2 p-3 rounded-lg text-sm",
               sendStatus === "success" 
-                ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                ? "bg-success/10 text-success"
                 : "bg-destructive/10 text-destructive"
             )}
           >

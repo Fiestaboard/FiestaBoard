@@ -185,6 +185,10 @@ export function TimezonePicker({
         <Input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          aria-label="Timezone"
           value={searchQuery}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
@@ -204,6 +208,7 @@ export function TimezonePicker({
           onClick={() => setIsOpen(!isOpen)}
           disabled={disabled}
           tabIndex={-1}
+          aria-label="Toggle timezone list"
         >
           <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
         </Button>
@@ -212,6 +217,8 @@ export function TimezonePicker({
       {isOpen && filteredTimezones.length > 0 && (
         <div 
           ref={listRef}
+          role="listbox"
+          aria-label="Timezone options"
           className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
         >
           {filteredTimezones.slice(0, 50).map((timezone, index) => {

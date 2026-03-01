@@ -1,0 +1,44 @@
+Title,Component,Story,WCAG Rule,WCAG Level,Impact,Category,Status,Fix Description,Nodes
+Update icon not keyboard focusable,VersionDisplay,,2.1.1 Keyboard,A,critical,Keyboard / Focus,Done,Wrapped ArrowUpCircle SVG in a button with aria-label,
+Update icon fails color contrast,VersionDisplay,,1.4.3 Contrast,AA,moderate,Color Contrast,Done,Changed amber-500 to amber-700/amber-400 for dark mode,
+Placeholder button has no accessible name,ThemeToggle,,"4.1.2 Name, Role, Value",A,serious,ARIA / Names,Done,Added aria-label and disabled to placeholder button,
+Day selector uses visual-only radio buttons,DaySelector,,"4.1.2 Name, Role, Value",A,serious,ARIA / Names,Done,"Added role=radiogroup, role=radio, aria-checked",
+Day selector has nested interactive controls,DaySelector,,"4.1.2 Name, Role, Value",A,serious,Markup / Semantics,Done,Moved checkboxes out of parent button into sibling div,
+Nav landmarks not labeled,NavigationSidebar,,1.3.1 Info and Relationships,A,serious,Markup / Semantics,Done,Added aria-label to both nav elements,
+Mobile menu has no ARIA attributes,NavigationSidebar,,"4.1.2 Name, Role, Value",A,moderate,ARIA / Names,Done,"Added role=dialog, aria-modal, aria-label, aria-hidden",
+Page selection state not communicated,PagePickerDialog,,"4.1.2 Name, Role, Value",A,serious,ARIA / Names,Done,"Added role=listbox/option, aria-selected, focus-visible styles",
+Board display has no text alternative,BoardDisplay,,1.1.1 Non-text Content,A,serious,ARIA / Names,Done,"Added role=img with descriptive aria-label, aria-hidden on inner grid",
+Page grid buttons lack selection state,PageGridSelector,,"4.1.2 Name, Role, Value",A,moderate,ARIA / Names,Done,Added aria-pressed to page buttons,
+Silence mode text fails contrast,ActivePageDisplay,,1.4.3 Contrast,AA,moderate,Color Contrast,Done,Changed blue-500 to blue-600/blue-400 for dark mode,
+Status dot too small for touch target,ServiceStatus,,2.5.8 Target Size,AA,minor,Keyboard / Focus,Done,Increased hit area to 24px while keeping 12px visual dot,
+CardTitle renders as div not heading,Card,,1.3.1 Info and Relationships,A,moderate,Markup / Semantics,Done,Changed CardTitle from div to h3 element,
+Scroll area viewport not keyboard accessible,ScrollArea,,2.1.1 Keyboard,A,serious,Keyboard / Focus,Done,Added tabIndex=0 and focus-visible styles to viewport,
+Timezone picker dropdown button has no name,TimezonePicker,,"4.1.2 Name, Role, Value",A,serious,ARIA / Names,Done,"Added aria-label, role=combobox, aria-expanded",
+Storybook stories lack main landmark,Storybook Preview,,landmark-one-main,Best Practice,moderate,Markup / Semantics,Done,Changed preview decorator wrapper from div to main,
+Mobile menu needs focus trap,NavigationSidebar,,2.1.2 No Keyboard Trap,A,serious,Keyboard / Focus,Not started,Need to implement focus trapping and focus restore on mobile menu open/close,
+Add stories for TipTap editor components,TipTapTemplateEditor,,Story Coverage,N/A,moderate,Story Coverage,Not started,"Complex component with toolbar, node views - needs stories for a11y scanning",
+Add stories for wizard components,SetupWizard,,Story Coverage,N/A,moderate,Story Coverage,Not started,Wizard steps need stories for a11y scanning,
+Add stories for plugin-settings components,PluginSettings,,Story Coverage,N/A,moderate,Story Coverage,Not started,Plugin settings form needs stories for a11y scanning,
+Form elements must have labels in UI,UI,ui-input--file,label,A,critical,ARIA / Names,Done,Fixed: Ensure every form element has a label,1
+Buttons must have discernible text in UI,UI,ui-select--default,button-name,A,critical,ARIA / Names,Done,Fixed: Ensure buttons have discernible text,1
+Buttons must have discernible text in Design System,Design System,design-system-inventory--all-components,button-name,A,critical,ARIA / Names,Done,Fixed: Ensure buttons have discernible text,1
+Elements must meet minimum color contrast ratio thresholds in Components,Components,components-boarddisplay--loading-transition,color-contrast,AA,serious,Color Contrast,Done,Fixed: Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds,3
+Elements must meet minimum color contrast ratio thresholds in UI,UI,ui-react-bits-fadecontent--with-delay,color-contrast,AA,serious,Color Contrast,Done,Fixed: Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds,2
+Interactive controls must not be nested in Forms,Forms,forms-dayselector--custom-selection,nested-interactive,A,serious,Markup / Semantics,Done,Fixed: Ensure interactive controls are not nested as they are not always announced by screen readers or can cause focus problems for assistive technologies,1
+Scrollable region must have keyboard access in UI,UI,ui-scrollarea--vertical,scrollable-region-focusable,A,serious,Keyboard / Focus,Done,Fixed: Ensure elements that have scrollable content are accessible by keyboard,1
+Document should have one main landmark in Layout,Layout,layout-activepagedisplay--manual-mode,landmark-one-main,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure the document has a main landmark,1
+Document should have one main landmark in Components,Components,components-boarddisplay--default,landmark-one-main,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure the document has a main landmark,1
+Document should have one main landmark in Forms,Forms,forms-dayselector--all-days,landmark-one-main,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure the document has a main landmark,1
+Document should have one main landmark in UI,UI,ui-accordion--default,landmark-one-main,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure the document has a main landmark,1
+Document should have one main landmark in Design System,Design System,design-system-inventory--all-components,landmark-one-main,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure the document has a main landmark,1
+Page should contain a level-one heading in Layout,Layout,layout-activepagedisplay--manual-mode,page-has-heading-one,Best Practice,moderate,Markup / Semantics,Done,"Fixed: Ensure that the page, or at least one of its frames contains a level-one heading",1
+Page should contain a level-one heading in Components,Components,components-boarddisplay--default,page-has-heading-one,Best Practice,moderate,Markup / Semantics,Done,"Fixed: Ensure that the page, or at least one of its frames contains a level-one heading",1
+Page should contain a level-one heading in Forms,Forms,forms-dayselector--all-days,page-has-heading-one,Best Practice,moderate,Markup / Semantics,Done,"Fixed: Ensure that the page, or at least one of its frames contains a level-one heading",1
+Page should contain a level-one heading in UI,UI,ui-accordion--default,page-has-heading-one,Best Practice,moderate,Markup / Semantics,Done,"Fixed: Ensure that the page, or at least one of its frames contains a level-one heading",1
+Page should contain a level-one heading in Design System,Design System,design-system-inventory--compact-showcase,page-has-heading-one,Best Practice,moderate,Markup / Semantics,Done,"Fixed: Ensure that the page, or at least one of its frames contains a level-one heading",1
+All page content should be contained by landmarks in Layout,Layout,layout-activepagedisplay--manual-mode,region,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure all page content is contained by landmarks,47
+All page content should be contained by landmarks in Components,Components,components-boarddisplay--default,region,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure all page content is contained by landmarks,30
+All page content should be contained by landmarks in Forms,Forms,forms-dayselector--all-days,region,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure all page content is contained by landmarks,1
+All page content should be contained by landmarks in UI,UI,ui-accordion--all-types,region,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure all page content is contained by landmarks,2
+All page content should be contained by landmarks in Design System,Design System,design-system-inventory--all-components,region,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure all page content is contained by landmarks,23
+Heading levels should only increase by one in Design System,Design System,design-system-inventory--all-components,heading-order,Best Practice,moderate,Markup / Semantics,Done,Fixed: Ensure the order of headings is semantically correct,1

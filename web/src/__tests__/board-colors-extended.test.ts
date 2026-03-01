@@ -135,11 +135,11 @@ describe("board-colors extended", () => {
 
     it("COLOR_DISPLAY white has border class", () => {
       expect(COLOR_DISPLAY.white.bg).toContain("border");
-      expect(COLOR_DISPLAY.white.text).toBe("text-black");
+      expect(COLOR_DISPLAY.white.text).toBe("text-board-black");
     });
 
     it("COLOR_DISPLAY yellow has black text for contrast", () => {
-      expect(COLOR_DISPLAY.yellow.text).toBe("text-black");
+      expect(COLOR_DISPLAY.yellow.text).toBe("text-board-black");
     });
   });
 });

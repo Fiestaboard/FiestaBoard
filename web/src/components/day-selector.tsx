@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { DayPattern } from "@/lib/api";
@@ -56,13 +55,15 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <Label>Days</Label>
+    <fieldset className={cn("space-y-3 border-none p-0 m-0", className)}>
+      <legend className="text-sm font-medium leading-none">Days</legend>
       
       {/* Pattern Radio Buttons */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2" role="radiogroup" aria-label="Day pattern">
         <button
           type="button"
+          role="radio"
+          aria-checked={value === "all"}
           onClick={() => handlePatternChange("all")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
@@ -99,6 +100,8 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
 
         <button
           type="button"
+          role="radio"
+          aria-checked={value === "weekdays"}
           onClick={() => handlePatternChange("weekdays")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
@@ -135,6 +138,8 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
 
         <button
           type="button"
+          role="radio"
+          aria-checked={value === "weekends"}
           onClick={() => handlePatternChange("weekends")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
@@ -171,57 +176,61 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
 
         <button
           type="button"
+          role="radio"
+          aria-checked={value === "custom"}
           onClick={() => handlePatternChange("custom")}
           className={cn(
-            "flex flex-col gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
+            "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
             value === "custom"
               ? "border-primary bg-primary/5 text-primary"
-              : "border-border hover:bg-accent"
+              : "border-border hover:bg-accent",
+            value === "custom" && "rounded-b-none border-b-0"
           )}
         >
-          <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                "h-4 w-4 rounded-full border-2 flex items-center justify-center",
-                value === "custom"
-                  ? "border-primary"
-                  : "border-muted-foreground"
-              )}
-            >
-              {value === "custom" && (
-                <div className="h-2 w-2 rounded-full bg-primary" />
-              )}
-            </div>
-            <span className="text-sm font-medium">Custom Days</span>
+          <div
+            className={cn(
+              "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+              value === "custom"
+                ? "border-primary"
+                : "border-muted-foreground"
+            )}
+          >
+            {value === "custom" && (
+              <div className="h-2 w-2 rounded-full bg-primary" />
+            )}
           </div>
-
-          {/* Custom Day Checkboxes - prevent nested buttons by using labels with checkboxes */}
-          {value === "custom" && (
-            <div className="ml-6 flex flex-wrap gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
-              {ALL_DAYS.map((day) => (
-                <label
-                  key={day}
-                  className={cn(
-                    "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5",
-                    selectedCustomDays.includes(day)
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background hover:bg-accent"
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCustomDays.includes(day)}
-                    onChange={() => handleCustomDayToggle(day)}
-                    className="sr-only"
-                    aria-label={day.charAt(0).toUpperCase() + day.slice(1)}
-                  />
-                  {DAY_LABELS[day]}
-                </label>
-              ))}
-            </div>
-          )}
+          <span className="text-sm font-medium">Custom Days</span>
         </button>
+
+        {value === "custom" && (
+          <div
+            className="ml-6 flex flex-wrap gap-2 px-4 pb-3 pt-2 border border-t-0 border-primary bg-primary/5 rounded-b-lg"
+            role="group"
+            aria-label="Select custom days"
+          >
+            {ALL_DAYS.map((day) => (
+              <label
+                key={day}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5",
+                  selectedCustomDays.includes(day)
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background hover:bg-accent"
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedCustomDays.includes(day)}
+                  onChange={() => handleCustomDayToggle(day)}
+                  className="sr-only"
+                  aria-label={day.charAt(0).toUpperCase() + day.slice(1)}
+                />
+                {DAY_LABELS[day]}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </fieldset>
   );
 }

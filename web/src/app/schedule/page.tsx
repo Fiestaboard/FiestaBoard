@@ -379,12 +379,12 @@ export default function SchedulePage() {
         {scheduleEnabled && (hasOverlaps || hasGaps) && (
           <Alert 
             variant={hasOverlaps ? "destructive" : "default"} 
-            className={`mb-6 ${hasGaps && !hasOverlaps && defaultPageId ? "border-blue-500/50 bg-blue-500/10" : ""}`}
+            className={`mb-6 ${hasGaps && !hasOverlaps && defaultPageId ? "border-info/50 bg-info/10" : ""}`}
           >
             {hasOverlaps ? (
               <AlertCircle className="h-4 w-4" />
             ) : hasGaps && defaultPageId ? (
-              <CheckCircle2 className="h-4 w-4 text-blue-500" />
+              <CheckCircle2 className="h-4 w-4 text-info" />
             ) : (
               <AlertTriangle className="h-4 w-4" />
             )}
@@ -402,7 +402,7 @@ export default function SchedulePage() {
                   <div>
                     {validation?.gaps?.length || 0} time gap(s) in schedule.{" "}
                     {defaultPageId ? (
-                      <span className="text-blue-600 dark:text-blue-400">
+                      <span className="text-info">
                         Default page &quot;{getPageName(defaultPageId)}&quot; will be shown.
                       </span>
                     ) : (
@@ -544,36 +544,29 @@ export default function SchedulePage() {
         </Sheet>
 
         {/* Default Page Selector Dialog */}
-        {showDefaultPageSelector && pagesData && (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Set Default Page</CardTitle>
-                <CardDescription>
-                  This page will display during schedule gaps
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PagePickerDialog
-                  pages={pagesData.pages}
-                  selectedPageId={defaultPageId || null}
-                  onSelect={(pageId) => {
-                    setDefaultPage.mutate(pageId);
-                  }}
-                  allowNone={true}
-                />
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowDefaultPageSelector(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <AlertDialog open={showDefaultPageSelector && !!pagesData} onOpenChange={(isOpen) => { if (!isOpen) setShowDefaultPageSelector(false); }}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Set Default Page</AlertDialogTitle>
+              <AlertDialogDescription>
+                This page will display during schedule gaps
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {pagesData && (
+              <PagePickerDialog
+                pages={pagesData.pages}
+                selectedPageId={defaultPageId || null}
+                onSelect={(pageId) => {
+                  setDefaultPage.mutate(pageId);
+                }}
+                allowNone={true}
+              />
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deleteScheduleId} onOpenChange={() => setDeleteScheduleId(null)}>
