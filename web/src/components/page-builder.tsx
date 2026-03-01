@@ -709,14 +709,14 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       liveAbortRef.current = controller;
 
       try {
-        const template = templateLines.map((content, i) =>
-          applyAlignment(lineAlignments[i], lineWrapEnabled[i], content)
+        const { cleanedLines, metadata } = processLinesWithPrefixes(
+          templateLines, lineAlignments, lineWrapEnabled
         );
 
         const data = await api.renderTemplateLive(
-          template,
+          cleanedLines,
           selectedBoardId || undefined,
-          undefined,
+          metadata,
           controller.signal
         );
 
