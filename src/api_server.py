@@ -449,7 +449,7 @@ async def version():
 # System Management Endpoints
 # =============================================================================
 
-GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
+GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/releases/latest"
 GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
 DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
 
