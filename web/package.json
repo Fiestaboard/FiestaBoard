@@ -12,6 +12,8 @@
     "test:coverage": "node suppress-warnings.mjs vitest run --coverage",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
+    "test-storybook": "test-storybook",
+    "test-storybook:ci": "test-storybook --ci",
     "analyze": "ANALYZE=true next build",
     "test:integration": "npx playwright test"
   },
@@ -66,6 +68,8 @@
     "eslint-config-next": "16.1.6",
     "jsdom": "^28.1.0",
     "msw": "^2.12.10",
+    "@storybook/test-runner": "^0.22.0",
+    "axe-playwright": "^2.1.0",
     "storybook": "^10.1.11",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",

@@ -38,8 +38,8 @@ export default function Home() {
 
         {boardNotConfigured && (
           <div className="mb-4 sm:mb-6">
-            <Alert className="border-blue-500/50 bg-blue-500/10">
-              <Info className="h-4 w-4 text-blue-500" />
+            <Alert className="border-info/50 bg-info/10">
+              <Info className="h-4 w-4 text-info" />
               <AlertTitle>No board configured</AlertTitle>
               <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <span>

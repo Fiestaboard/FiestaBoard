@@ -123,7 +123,7 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
         </div>
 
         {/* Custom String */}
-        <div className="pt-2 border-t border-border/50">
+        <div className="pt-2 border-t border-border">
           <div className="text-xs text-muted-foreground mb-1.5">Or custom pattern:</div>
           <form onSubmit={handleCustomCharSubmit} className="flex gap-1.5">
             <input

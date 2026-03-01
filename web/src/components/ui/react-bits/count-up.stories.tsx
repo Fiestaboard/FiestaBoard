@@ -117,14 +117,14 @@ export const MultipleCounters = () => (
       <div className="text-sm text-muted-foreground mt-2">Total Users</div>
     </div>
     <div>
-      <div className="text-4xl font-bold text-green-500">
+      <div className="text-4xl font-bold text-success">
         <CountUp to={98.7} from={0} duration={2} />
         <span>%</span>
       </div>
       <div className="text-sm text-muted-foreground mt-2">Success Rate</div>
     </div>
     <div>
-      <div className="text-4xl font-bold text-blue-500">
+      <div className="text-4xl font-bold text-info">
         <CountUp to={42} from={0} duration={2} />
       </div>
       <div className="text-sm text-muted-foreground mt-2">Active Projects</div>

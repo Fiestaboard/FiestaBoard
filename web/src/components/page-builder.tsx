@@ -859,8 +859,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
             <ScrollArea className="flex-1 min-h-0 space-y-4">
             {/* Draft restored notification */}
             {draftRestored && (
-              <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
+              <Alert className="bg-info/10 border-info/20">
+                <AlertDescription className="text-sm">
                   Draft restored from your previous session. Your work has been automatically saved.
                 </AlertDescription>
               </Alert>
@@ -971,7 +971,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
               {/* Line count validation warning */}
               {lineCount > numLines && (
-                <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
                   <span className="font-medium shrink-0">Warning:</span>
                   <span>
                     Template has {lineCount} lines but the board only displays {numLines}.
@@ -989,19 +989,19 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     <button
                       onClick={() => setPreviewBoardColor("black")}
                       aria-label="Preview as black board"
-                      className={`h-5 w-5 rounded-full border-2 bg-[#0d0d0d] transition-colors ${
+                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors ${
                         effectiveBoardColor === "black"
                           ? "border-primary ring-1 ring-primary/30"
-                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                          : "border-border hover:border-muted-foreground"
                       }`}
                     />
                     <button
                       onClick={() => setPreviewBoardColor("white")}
                       aria-label="Preview as white board"
-                      className={`h-5 w-5 rounded-full border-2 bg-[#fafafa] transition-colors ${
+                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors ${
                         effectiveBoardColor === "white"
                           ? "border-primary ring-1 ring-primary/30"
-                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                          : "border-border hover:border-muted-foreground"
                       }`}
                     />
                   </div>
@@ -1117,7 +1117,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       htmlFor="live-output-toggle"
                       className="flex items-center gap-1.5 text-xs sm:text-sm font-medium cursor-pointer select-none"
                     >
-                      <Radio className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-red-500 animate-pulse" : "text-muted-foreground"}`} />
+                      <Radio className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-destructive animate-pulse" : "text-muted-foreground"}`} />
                       Live Output
                     </label>
                     {liveSendMutation.isPending && (

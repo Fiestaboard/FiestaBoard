@@ -18,9 +18,9 @@ const badgeVariants = cva(
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         variable:
-          "bg-indigo-500/15 border-indigo-500/30 text-indigo-700 dark:text-indigo-300 font-mono [a&]:hover:bg-indigo-500/25",
+          "bg-tag-variable/15 border-tag-variable/30 text-tag-variable-foreground font-mono [a&]:hover:bg-tag-variable/25",
         success:
-          "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 font-mono [a&]:hover:bg-emerald-500/25",
+          "bg-tag-success/15 border-tag-success/40 text-tag-success-foreground font-mono [a&]:hover:bg-tag-success/25",
       },
     },
     defaultVariants: {

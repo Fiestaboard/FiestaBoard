@@ -53,6 +53,7 @@ export const Password: Story = {
 export const File: Story = {
   args: {
     type: "file",
+    "aria-label": "Upload file",
   },
 };
 
@@ -68,6 +69,7 @@ export const WithValue: Story = {
   args: {
     type: "text",
     defaultValue: "Pre-filled value",
+    "aria-label": "Example input",
   },
 };
 
@@ -80,14 +82,14 @@ export const WithLabel = () => (
 
 export const AllTypes = () => (
   <div className="flex flex-col gap-4 w-80">
-    <Input type="text" placeholder="Text input" />
-    <Input type="email" placeholder="Email input" />
-    <Input type="password" placeholder="Password input" />
-    <Input type="number" placeholder="Number input" />
-    <Input type="search" placeholder="Search input" />
-    <Input type="url" placeholder="URL input" />
-    <Input type="tel" placeholder="Telephone input" />
-    <Input type="file" />
-    <Input type="text" placeholder="Disabled input" disabled />
+    <Input type="text" placeholder="Text input" aria-label="Text" />
+    <Input type="email" placeholder="Email input" aria-label="Email" />
+    <Input type="password" placeholder="Password input" aria-label="Password" />
+    <Input type="number" placeholder="Number input" aria-label="Number" />
+    <Input type="search" placeholder="Search input" aria-label="Search" />
+    <Input type="url" placeholder="URL input" aria-label="URL" />
+    <Input type="tel" placeholder="Telephone input" aria-label="Telephone" />
+    <Input type="file" aria-label="File upload" />
+    <Input type="text" placeholder="Disabled input" aria-label="Disabled" disabled />
   </div>
 );

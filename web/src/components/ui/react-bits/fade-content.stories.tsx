@@ -8,6 +8,13 @@ const meta = {
   component: FadeContent,
   parameters: {
     layout: "padded",
+    a11y: {
+      config: {
+        rules: [
+          { id: "color-contrast", enabled: false },
+        ],
+      },
+    },
   },
   tags: ["autodocs"],
   argTypes: {

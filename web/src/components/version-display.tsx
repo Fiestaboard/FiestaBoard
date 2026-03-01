@@ -38,7 +38,13 @@ export function VersionDisplay() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <ArrowUpCircle className="h-3.5 w-3.5 text-amber-500" />
+              <button
+                type="button"
+                aria-label={`Update available: v${updateCheck.latest_version}`}
+                className="inline-flex items-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ArrowUpCircle className="h-3.5 w-3.5 text-warning" />
+              </button>
             </TooltipTrigger>
             <TooltipContent>
               <p>Update available: v{updateCheck.latest_version}</p>

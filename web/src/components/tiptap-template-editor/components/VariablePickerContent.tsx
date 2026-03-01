@@ -44,7 +44,7 @@ function VariablePill({
     <Badge
       variant="variable"
       asChild
-      className="px-2.5 py-1 cursor-pointer hover:bg-indigo-500/25"
+      className="px-2.5 py-1 cursor-pointer hover:bg-tag-variable/25"
     >
       <button type="button" onClick={onInsert}>
         {label}

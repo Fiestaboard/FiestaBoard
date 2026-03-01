@@ -46,7 +46,7 @@ export const WithIconButton = () => (
   <TooltipProvider>
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button variant="outline" size="icon" aria-label="Add new item">
           <Plus className="h-4 w-4" />
         </Button>
       </TooltipTrigger>

@@ -36,7 +36,7 @@ export function FillSpaceNodeView({ node, deleteNode }: FillSpaceNodeViewProps) 
         <TooltipTrigger asChild>
           <Badge
             variant="success"
-            className="group inline-flex flex-nowrap items-center px-1.5 py-0 border-dashed cursor-grab hover:bg-emerald-500/25 mr-0.5 transition-all duration-150"
+            className="group inline-flex flex-nowrap items-center px-1.5 py-0 border-dashed cursor-grab hover:bg-tag-success/25 mr-0.5 transition-all duration-150"
           >
         <span className="font-mono text-[11px] leading-none">
           fill_space{hasRepeatChar && `_repeat:${repeatChar}`}

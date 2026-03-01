@@ -89,8 +89,9 @@ const PageButtonPreview = memo(function PageButtonPreview({
   // This prevents lag when all displays try to load at once
   if (isLoading && !preview) {
     return (
-      <div className="w-full flex items-center justify-center py-4">
-        <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+      <div className="w-full flex items-center justify-center py-4" role="status">
+        <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" aria-hidden="true" />
+        <span className="sr-only">Loading preview</span>
       </div>
     );
   }
@@ -172,6 +173,7 @@ const PageButton = memo(function PageButton({
       disabled={isPending}
       className={buttonClassName}
       type="button"
+      aria-pressed={isActive}
     >
       {/* Page info header */}
       <div className="flex items-center gap-2 min-w-0">
@@ -332,11 +334,11 @@ export function PageGridSelector({
   
   if (isLoadingPages) {
     return (
-      <div>
+      <div aria-busy="true">
         {label && (
-          <label className="text-xs font-medium text-muted-foreground mb-3 block">
+          <span className="text-xs font-medium text-muted-foreground mb-3 block">
             {label}
-          </label>
+          </span>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Skeleton className="h-32 w-full" />
@@ -364,11 +366,11 @@ export function PageGridSelector({
   return (
     <div>
       {label && (
-        <label className="text-xs font-medium text-muted-foreground mb-3 block">
+        <span className="text-xs font-medium text-muted-foreground mb-3 block">
           {label}
-        </label>
+        </span>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label={label || "Page selection"}>
         {pages.map((page) => (
           <PageButton
             key={page.id}

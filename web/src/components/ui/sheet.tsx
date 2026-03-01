@@ -21,7 +21,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     className={cn(
-      "fixed inset-0 z-[110] bg-black/80",
+      "fixed inset-0 z-[110] bg-overlay",
       className
     )}
     style={{

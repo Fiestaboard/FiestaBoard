@@ -54,7 +54,7 @@ export function PlainTextEditor({
         placeholder={placeholder}
         className={cn(
           "font-mono resize-none overflow-y-auto",
-          isOverLimit && "border-amber-500 focus-visible:ring-amber-500"
+          isOverLimit && "border-warning focus-visible:ring-warning"
         )}
         rows={boardLines}
         style={{
@@ -66,7 +66,7 @@ export function PlainTextEditor({
       {/* Line counter */}
       <div className={cn(
         "mt-1 text-xs",
-        isOverLimit ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
+        isOverLimit ? "text-warning font-medium" : "text-muted-foreground"
       )}>
         {lineCount} / {boardLines} lines
         {isOverLimit && ` — exceeds the ${boardLines}-line board limit`}

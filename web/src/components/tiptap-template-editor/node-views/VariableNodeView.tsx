@@ -35,7 +35,7 @@ export function VariableNodeView({ node, deleteNode }: VariableNodeViewProps) {
       <TooltipProvider>
       <Badge
         variant="variable"
-        className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-grab hover:bg-indigo-500/20 active:cursor-grabbing mr-0.5 transition-all duration-150"
+        className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-grab hover:bg-tag-variable/20 active:cursor-grabbing mr-0.5 transition-all duration-150"
       >
         <span className="font-mono text-[11px] leading-none">
           {pluginId}.{field}
@@ -46,7 +46,7 @@ export function VariableNodeView({ node, deleteNode }: VariableNodeViewProps) {
             {filters.map((filter, idx) => (
               <Tooltip key={idx}>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center px-1 rounded text-[10px] bg-indigo-500/20 leading-none">
+                  <span className="inline-flex items-center px-1 rounded text-[10px] bg-tag-variable/20 leading-none">
                     {filter.name}
                     {filter.arg && `:${filter.arg}`}
                   </span>
@@ -62,7 +62,7 @@ export function VariableNodeView({ node, deleteNode }: VariableNodeViewProps) {
         {maxLength && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="hidden group-hover:inline text-[10px] opacity-50 leading-none">
+              <span className="hidden group-hover:inline text-[10px] leading-none">
                 ~{maxLength}
               </span>
             </TooltipTrigger>

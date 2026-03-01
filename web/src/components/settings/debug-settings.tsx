@@ -234,8 +234,8 @@ export function DebugSettings() {
           {testConnectionMutation.data && (
             <div className={`flex items-center gap-2 text-xs p-2 rounded ${
               testConnectionMutation.data.connected 
-                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                : "bg-red-500/10 text-red-600 dark:text-red-400"
+                ? "bg-success/10 text-success"
+                : "bg-destructive/10 text-destructive"
             }`}>
               {testConnectionMutation.data.connected ? (
                 <CheckCircle className="h-3 w-3" />
@@ -414,12 +414,12 @@ export function DebugSettings() {
                     <div className="flex items-center gap-1">
                       {systemInfo.service_running ? (
                         <>
-                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          <div className="h-2 w-2 rounded-full bg-success" />
                           <span>Running</span>
                         </>
                       ) : (
                         <>
-                          <div className="h-2 w-2 rounded-full bg-red-500" />
+                          <div className="h-2 w-2 rounded-full bg-destructive" />
                           <span>Stopped</span>
                         </>
                       )}
@@ -438,8 +438,8 @@ export function DebugSettings() {
                           <div className={`h-2 w-2 rounded-full ${
                             systemInfo.cache_status.has_cached_text || 
                             systemInfo.cache_status.has_cached_characters 
-                              ? "bg-blue-500" 
-                              : "bg-gray-400"
+                              ? "bg-info" 
+                              : "bg-muted-foreground"
                           }`} />
                           <span>
                             {systemInfo.cache_status.has_cached_text 

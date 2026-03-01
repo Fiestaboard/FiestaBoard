@@ -1,13 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ActivePageDisplay } from "./active-page-display";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Page, PagesResponse, PagePreviewResponse, SilenceStatus } from "@/lib/api";
+import type { Page, PagesResponse, SilenceStatus } from "@/lib/api";
 
 const meta = {
   title: "Layout/ActivePageDisplay",
   component: ActivePageDisplay,
   parameters: {
     layout: "padded",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/",
+      },
+    },
   },
   tags: ["autodocs"],
 } satisfies Meta<typeof ActivePageDisplay>;
@@ -19,23 +25,24 @@ const mockPages: Page[] = [
   {
     id: "page-1",
     name: "Weather Dashboard",
+    type: "template",
     device_type: "flagship",
+    duration_seconds: 30,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
   {
     id: "page-2",
     name: "Transit Times",
+    type: "template",
     device_type: "flagship",
+    duration_seconds: 30,
     created_at: "2024-01-02T00:00:00Z",
     updated_at: "2024-01-02T00:00:00Z",
   },
 ];
 
-const mockPreview: PagePreviewResponse = {
-  available: true,
-  message: "{63}WEATHER{/63}\n{64}72°F SUNNY{/64}\n \nHIGH: 75°F\nLOW: 65°F\nHUMIDITY: 60%",
-};
+const mockPreviewMessage = "{63}WEATHER{/63}\n{64}72°F SUNNY{/64}\n \nHIGH: 75°F\nLOW: 65°F\nHUMIDITY: 60%";
 
 const createQueryClient = (
   activePageId: string | null,
@@ -52,7 +59,7 @@ const createQueryClient = (
   });
   
   client.setQueryData(["pages"], { pages: mockPages } as PagesResponse);
-  client.setQueryData(["active-page"], { page_id: activePageId });
+  client.setQueryData(["activePage"], { page_id: activePageId });
   client.setQueryData(["schedules", "default"], { 
     enabled: scheduleEnabled,
     schedules: [],
@@ -66,16 +73,27 @@ const createQueryClient = (
   }
   
   if (activePageId) {
-    client.setQueryData(["pagePreview", activePageId], mockPreview);
+    client.setQueryData(["pagePreview", activePageId], {
+      page_id: activePageId,
+      message: mockPreviewMessage,
+      lines: mockPreviewMessage.split("\n"),
+      display_type: "template",
+      raw: {},
+    });
   }
   
   client.setQueryData(["silenceStatus"], {
+    enabled: true,
     active: silenceActive,
-    until: silenceActive ? "2024-01-01T08:00:00Z" : null,
+    start_time_utc: "2024-01-01T00:00:00Z",
+    end_time_utc: "2024-01-01T08:00:00Z",
+    current_time_utc: "2024-01-01T04:00:00Z",
+    next_change_utc: "2024-01-01T08:00:00Z",
   } as SilenceStatus);
   
-  client.setQueryData(["board-settings"], {
-    board_color: "black",
+  client.setQueryData(["boardSettings"], {
+    board_type: "black",
+    boards: [],
     devices: ["flagship"],
   });
   
@@ -137,9 +155,10 @@ export const ScheduleGap: Story = {
         default_page_id: null,
       });
       client.setQueryData(["schedules", "active"], null);
-      client.setQueryData(["active-page"], { page_id: null });
-      client.setQueryData(["board-settings"], {
-        board_color: "black",
+      client.setQueryData(["activePage"], { page_id: null });
+      client.setQueryData(["boardSettings"], {
+        board_type: "black",
+        boards: [],
         devices: ["flagship"],
       });
       

@@ -272,6 +272,7 @@ export function BoardSettings() {
                         type="button"
                         variant="outline"
                         size="sm"
+                        aria-label={showSecrets.local_api_key ? "Hide API key" : "Show API key"}
                         onClick={() =>
                           setShowSecrets((prev) => ({
                             ...prev,
@@ -315,6 +316,7 @@ export function BoardSettings() {
                       type="button"
                       variant="outline"
                       size="sm"
+                      aria-label={showSecrets.enablement_token ? "Hide token" : "Show token"}
                       onClick={() =>
                         setShowSecrets((prev) => ({
                           ...prev,
@@ -380,6 +382,7 @@ export function BoardSettings() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    aria-label={showSecrets.cloud_key ? "Hide cloud key" : "Show cloud key"}
                     onClick={() =>
                       setShowSecrets((prev) => ({
                         ...prev,

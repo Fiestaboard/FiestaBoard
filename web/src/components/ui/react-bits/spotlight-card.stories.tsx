@@ -63,7 +63,7 @@ export const GreenSpotlight: Story = {
   args: {
     spotlightColor: "rgba(34, 197, 94, 0.2)",
     children: (
-      <Card className="w-80 border-green-500/50">
+      <Card className="w-80 border-success">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Active Plugin</CardTitle>

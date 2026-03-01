@@ -120,7 +120,7 @@ export function ConfigDisplay() {
                   enabled
                     ? "bg-primary/10 border-primary/30 hover:bg-primary/15"
                     : "bg-muted/50 border-transparent hover:bg-muted/70"
-                } ${overridden ? "ring-2 ring-offset-1 ring-amber-500/50" : ""}`}
+                } ${overridden ? "ring-2 ring-offset-1 ring-warning/50" : ""}`}
               >
                 <Icon
                   className={`h-4 w-4 shrink-0 transition-colors ${

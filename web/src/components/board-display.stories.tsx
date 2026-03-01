@@ -208,17 +208,17 @@ FIESTABOARD
         disabled={isLoading}
         className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
           isLoading
-            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
+            ? 'bg-muted text-muted-foreground cursor-not-allowed'
+            : 'bg-primary text-primary-foreground hover:bg-primary/90'
         }`}
       >
         {isLoading ? 'Loading...' : 'Reset'}
       </button>
       
-      <div className="text-sm text-gray-600 text-center max-w-md">
+      <div className="text-sm text-muted-foreground text-center max-w-md">
         <p className="font-semibold mb-2">Loading Transition Demo</p>
         <p>Watch the tiles flip continuously in loading state, then continue cycling until each lands on its target.</p>
-        <p className="mt-2 text-blue-600">Click "Reset" to replay the animation</p>
+        <p className="mt-2 text-info">Click "Reset" to replay the animation</p>
       </div>
     </div>
   );
@@ -264,18 +264,18 @@ HAVE A GREAT DAY!`;
         disabled={isLoading}
         className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
           isLoading
-            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
+            ? 'bg-muted text-muted-foreground cursor-not-allowed'
+            : 'bg-primary text-primary-foreground hover:bg-primary/90'
         }`}
       >
         {isLoading ? 'Loading...' : 'Change Message'}
       </button>
       
-      <div className="text-sm text-gray-600 text-center max-w-md">
+      <div className="text-sm text-muted-foreground text-center max-w-md">
         <p className="font-semibold mb-2">Message Transition Demo</p>
         <p>Click the button to start loading. During loading, actual tiles cycle through characters (like real FiestaBoard).</p>
         <p className="mt-2">After 6 seconds, the message changes and tiles continue rotating until each reaches its target character.</p>
-        <p className="mt-2 text-blue-600">Uses real CharTiles, not legacy FlipTiles</p>
+        <p className="mt-2 text-info">Uses real CharTiles, not legacy FlipTiles</p>
       </div>
     </div>
   );
@@ -326,17 +326,17 @@ export const LoadingToLoadedTransition = () => {
         disabled={isLoading}
         className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
           isLoading
-            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
+            ? 'bg-muted text-muted-foreground cursor-not-allowed'
+            : 'bg-primary text-primary-foreground hover:bg-primary/90'
         }`}
       >
         {isLoading ? 'Loading...' : 'Reset'}
       </button>
       
-      <div className="text-sm text-gray-600 text-center max-w-md">
+      <div className="text-sm text-muted-foreground text-center max-w-md">
         <p className="font-semibold mb-2">Loading → Loaded Transition</p>
         <p>Watch tiles cycle during loading, then continue cycling until each individually reaches its target.</p>
-        <p className="mt-2 text-blue-600">Tiles should stop one by one, not all at once</p>
+        <p className="mt-2 text-info">Tiles should stop one by one, not all at once</p>
       </div>
     </div>
   );

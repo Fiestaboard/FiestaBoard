@@ -213,7 +213,7 @@ export function StepBoardSetup({
               "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
               config.api_mode === "cloud"
                 ? "border-primary bg-primary/5"
-                : "border-muted hover:border-muted-foreground/30"
+                : "border-muted hover:border-border"
             )}
           >
             <Cloud className={cn(
@@ -233,7 +233,7 @@ export function StepBoardSetup({
               "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
               config.api_mode === "local"
                 ? "border-primary bg-primary/5"
-                : "border-muted hover:border-muted-foreground/30"
+                : "border-muted hover:border-border"
             )}
           >
             <Wifi className={cn(
@@ -319,7 +319,7 @@ export function StepBoardSetup({
                   "flex items-center justify-center gap-2 p-2.5 rounded-md border text-sm transition-all",
                   localKeyMode === "api_key"
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-muted hover:border-muted-foreground/30 text-muted-foreground"
+                    : "border-muted hover:border-border text-muted-foreground"
                 )}
               >
                 <Key className="h-4 w-4" />
@@ -332,7 +332,7 @@ export function StepBoardSetup({
                   "flex items-center justify-center gap-2 p-2.5 rounded-md border text-sm transition-all",
                   localKeyMode === "enablement_token"
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-muted hover:border-muted-foreground/30 text-muted-foreground"
+                    : "border-muted hover:border-border text-muted-foreground"
                 )}
               >
                 <KeyRound className="h-4 w-4" />
@@ -416,7 +416,7 @@ export function StepBoardSetup({
                   </>
                 ) : enablementStatus === "success" ? (
                   <>
-                    <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                    <CheckCircle className="h-4 w-4 mr-2 text-success" />
                     API Key Retrieved!
                   </>
                 ) : (
@@ -430,7 +430,7 @@ export function StepBoardSetup({
                   className={cn(
                     "flex items-start gap-2 p-3 rounded-lg text-sm",
                     enablementStatus === "success" 
-                      ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                      ? "bg-success/10 text-success"
                       : "bg-destructive/10 text-destructive"
                   )}
                 >
@@ -462,7 +462,7 @@ export function StepBoardSetup({
             </>
           ) : testStatus === "success" ? (
             <>
-              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+              <CheckCircle className="h-4 w-4 mr-2 text-success" />
               Connected! Test Again
             </>
           ) : (
@@ -476,7 +476,7 @@ export function StepBoardSetup({
             className={cn(
               "flex items-start gap-2 p-3 rounded-lg text-sm",
               testStatus === "success" 
-                ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                ? "bg-success/10 text-success"
                 : "bg-destructive/10 text-destructive"
             )}
           >
@@ -502,7 +502,7 @@ export function StepBoardSetup({
                 "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
                 config.device_type === "flagship"
                   ? "border-primary bg-primary/5"
-                  : "border-muted hover:border-muted-foreground/30"
+                  : "border-muted hover:border-border"
               )}
             >
               <span className="font-medium text-sm">Flagship</span>
@@ -515,7 +515,7 @@ export function StepBoardSetup({
                 "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
                 config.device_type === "note"
                   ? "border-primary bg-primary/5"
-                  : "border-muted hover:border-muted-foreground/30"
+                  : "border-muted hover:border-border"
               )}
             >
               <span className="font-medium text-sm">Note</span>
@@ -532,10 +532,10 @@ export function StepBoardSetup({
               onClick={() => onConfigChange({ ...config, board_color: "black" })}
               aria-label="Black"
               className={cn(
-                "h-8 w-8 rounded-full border-2 bg-[#0d0d0d] transition-colors",
+                "h-8 w-8 rounded-full border-2 bg-board-surface-dark transition-colors",
                 config.board_color === "black"
                   ? "border-primary ring-2 ring-primary/30"
-                  : "border-muted-foreground/30 hover:border-muted-foreground"
+                  : "border-border hover:border-muted-foreground"
               )}
             />
             <button
@@ -543,10 +543,10 @@ export function StepBoardSetup({
               onClick={() => onConfigChange({ ...config, board_color: "white" })}
               aria-label="White"
               className={cn(
-                "h-8 w-8 rounded-full border-2 bg-[#fafafa] transition-colors",
+                "h-8 w-8 rounded-full border-2 bg-board-surface-light transition-colors",
                 config.board_color === "white"
                   ? "border-primary ring-2 ring-primary/30"
-                  : "border-muted-foreground/30 hover:border-muted-foreground"
+                  : "border-border hover:border-muted-foreground"
               )}
             />
           </div>

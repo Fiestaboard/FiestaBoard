@@ -244,7 +244,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           {renderStep()}
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-border/50">
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
             <div>
               {currentStep > 1 && (
                 <Button 

@@ -251,8 +251,8 @@ const CharTile = memo(function CharTile({
   
   // White board inverts character text colors
   const isWhiteBoard = boardType === "white";
-  const tileBg = isWhiteBoard ? "#fafafa" : "#0d0d0d";
-  const textColor = isWhiteBoard ? "#0d0d0d" : "#f0f0e8";
+  const tileBg = isWhiteBoard ? "var(--color-board-surface-light)" : "var(--color-board-surface-dark)";
+  const textColor = isWhiteBoard ? "var(--color-board-text-on-light)" : "var(--color-board-text-on-dark)";
   
   // Get target character index
   const targetChar = getCharFromToken(token);
@@ -898,13 +898,8 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
   
   // Memoize grid calculation to avoid recalculating on every render
   const grid = useMemo(() => {
-    console.log('[BoardDisplay] message:', message, 'type:', typeof message, 'isLoading:', isLoading, 'deviceType:', deviceType);
-    // Convert null to empty string to show blank grid
-    // This ensures we always have a grid (even if blank) and use the new tile transitions
     const messageForGrid = message ?? "";
-    const result = messageToGrid(messageForGrid, dims.rows, dims.cols, deviceType);
-    console.log('[BoardDisplay] grid created:', result !== null, 'grid rows:', result?.length);
-    return result;
+    return messageToGrid(messageForGrid, dims.rows, dims.cols, deviceType);
   }, [message, dims.rows, dims.cols, deviceType]);
   
   // Increased padding for more pronounced bezel - more vertical space to match real board
@@ -923,8 +918,8 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
 
   // White board has light bezel and border
   const isWhiteBoard = boardType === "white";
-  const bezelBg = isWhiteBoard ? "#f8f8f8" : "#050505";
-  const borderColor = isWhiteBoard ? "#d8d8d8" : "#1a1a1a";
+  const bezelBg = isWhiteBoard ? "var(--color-board-bezel-light)" : "var(--color-board-bezel-dark)";
+  const borderColor = isWhiteBoard ? "var(--color-board-bezel-border-light)" : "var(--color-board-bezel-border-dark)";
   
   // Enhanced shadow for depth
   const boxShadow = isWhiteBoard
@@ -952,9 +947,17 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
     ? "rounded-lg border-[3px]" // Small previews stay fixed
     : "rounded-lg sm:rounded-xl border-[3px] sm:border-[4px] lg:border-[5px]"; // md/lg are responsive
 
+  const boardText = useMemo(() => {
+    if (isLoading) return "Loading board display";
+    if (!message) return "Empty board display";
+    return `Board display: ${message.replace(/\{[^}]*\}/g, "").replace(/\n/g, " ").trim()}`;
+  }, [message, isLoading]);
+
   return (
     <div className={`w-full flex justify-center`}>
       <div 
+        role="img"
+        aria-label={boardText}
         className={`${borderClasses} ${className} max-w-full`}
         style={{ 
           backgroundColor: bezelBg,
@@ -966,10 +969,11 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
         {/* Inner bezel border */}
         <div 
           className={`${paddingClasses[size]} relative`}
+          aria-hidden="true"
           style={{
             background: isWhiteBoard
-              ? 'linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%)'
-              : 'linear-gradient(135deg, #0a0a0a 0%, #000000 100%)'
+              ? 'linear-gradient(135deg, var(--color-board-surface-light) 0%, var(--color-board-bezel-border-light) 100%)'
+              : 'linear-gradient(135deg, var(--color-board-surface-dark) 0%, var(--color-board-black) 100%)'
           }}
         >
           <div 

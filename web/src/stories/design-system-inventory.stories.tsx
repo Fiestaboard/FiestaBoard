@@ -211,7 +211,7 @@ export const AllComponents = () => (
         <div className="max-w-xs space-y-2">
           <Label>Choose an option</Label>
           <Select defaultValue="option1">
-            <SelectTrigger>
+            <SelectTrigger aria-label="Example option">
               <SelectValue placeholder="Select..." />
             </SelectTrigger>
             <SelectContent>
@@ -468,7 +468,7 @@ export const InteractiveComponents = () => (
           <div className="space-y-2">
             <Label>Select dropdown</Label>
             <Select>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Dropdown selection">
                 <SelectValue placeholder="Choose..." />
               </SelectTrigger>
               <SelectContent>

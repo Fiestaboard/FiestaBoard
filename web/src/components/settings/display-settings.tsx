@@ -390,8 +390,8 @@ export function DisplaySettings() {
             return (
               <Collapsible
                 key={board.id}
-                className={`rounded-lg border overflow-hidden transition-opacity ${
-                  isEnabled ? "" : "opacity-50"
+                className={`rounded-lg border overflow-hidden ${
+                  isEnabled ? "" : "opacity-80"
                 }`}
               >
                 <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
@@ -408,7 +408,7 @@ export function DisplaySettings() {
                       <span>•</span>
                       <div
                         className="h-3 w-3 rounded border"
-                        style={{ backgroundColor: board.board_color === "white" ? "#fafafa" : "#0d0d0d" }}
+                        style={{ backgroundColor: board.board_color === "white" ? "var(--color-board-surface-light)" : "var(--color-board-surface-dark)" }}
                       />
                       {!isEnabled && (
                         <>
@@ -493,19 +493,19 @@ export function DisplaySettings() {
                           <button
                             onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
                             aria-label="Black"
-                            className={`h-6 w-6 rounded-full border-2 bg-[#0d0d0d] transition-colors ${
+                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors ${
                               board.board_color === "black"
                                 ? "border-primary ring-2 ring-primary/30"
-                                : "border-muted-foreground/30 hover:border-muted-foreground"
+                                : "border-border hover:border-muted-foreground"
                             }`}
                           />
                           <button
                             onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
                             aria-label="White"
-                            className={`h-6 w-6 rounded-full border-2 bg-[#fafafa] transition-colors ${
+                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors ${
                               board.board_color === "white"
                                 ? "border-primary ring-2 ring-primary/30"
-                                : "border-muted-foreground/30 hover:border-muted-foreground"
+                                : "border-border hover:border-muted-foreground"
                             }`}
                           />
                         </div>

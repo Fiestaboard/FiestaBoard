@@ -379,12 +379,12 @@ export default function SchedulePage() {
         {scheduleEnabled && (hasOverlaps || hasGaps) && (
           <Alert 
             variant={hasOverlaps ? "destructive" : "default"} 
-            className={`mb-6 ${hasGaps && !hasOverlaps && defaultPageId ? "border-blue-500/50 bg-blue-500/10" : ""}`}
+            className={`mb-6 ${hasGaps && !hasOverlaps && defaultPageId ? "border-info/50 bg-info/10" : ""}`}
           >
             {hasOverlaps ? (
               <AlertCircle className="h-4 w-4" />
             ) : hasGaps && defaultPageId ? (
-              <CheckCircle2 className="h-4 w-4 text-blue-500" />
+              <CheckCircle2 className="h-4 w-4 text-info" />
             ) : (
               <AlertTriangle className="h-4 w-4" />
             )}
@@ -402,7 +402,7 @@ export default function SchedulePage() {
                   <div>
                     {validation?.gaps?.length || 0} time gap(s) in schedule.{" "}
                     {defaultPageId ? (
-                      <span className="text-blue-600 dark:text-blue-400">
+                      <span className="text-info">
                         Default page &quot;{getPageName(defaultPageId)}&quot; will be shown.
                       </span>
                     ) : (

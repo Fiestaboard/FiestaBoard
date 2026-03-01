@@ -34,8 +34,8 @@ export function SystemUpdate() {
 
   return (
     <TooltipProvider>
-    <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
-      <ArrowUpCircle className="h-4 w-4 text-amber-500" />
+    <Alert className="border-warning/50 bg-warning/10">
+      <ArrowUpCircle className="h-4 w-4 text-warning" />
       <AlertDescription className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium"><ShinyText text="Update Available" speed={3} /></span>

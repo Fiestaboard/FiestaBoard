@@ -80,14 +80,14 @@ export const AVAILABLE_COLORS: BoardColorName[] = [
 
 // Color display configuration for UI elements (backgrounds, text colors)
 export const COLOR_DISPLAY: Record<BoardColorName, { bg: string; text: string }> = {
-  red: { bg: `bg-[${BOARD_COLORS.red}]`, text: "text-white" },
-  orange: { bg: `bg-[${BOARD_COLORS.orange}]`, text: "text-white" },
-  yellow: { bg: `bg-[${BOARD_COLORS.yellow}]`, text: "text-black" },
-  green: { bg: `bg-[${BOARD_COLORS.green}]`, text: "text-white" },
-  blue: { bg: `bg-[${BOARD_COLORS.blue}]`, text: "text-white" },
-  violet: { bg: `bg-[${BOARD_COLORS.violet}]`, text: "text-white" },
-  white: { bg: "bg-white border", text: "text-black" },
-  black: { bg: `bg-[${BOARD_COLORS.black}]`, text: "text-white" },
+  red: { bg: "bg-board-red", text: "text-board-black" },
+  orange: { bg: "bg-board-orange", text: "text-board-black" },
+  yellow: { bg: "bg-board-yellow", text: "text-board-black" },
+  green: { bg: "bg-board-green", text: "text-board-black" },
+  blue: { bg: "bg-board-blue", text: "text-board-black" },
+  violet: { bg: "bg-board-violet", text: "text-board-white" },
+  white: { bg: "bg-board-white border", text: "text-board-black" },
+  black: { bg: "bg-board-black", text: "text-board-white" },
 };
 
 // Helper function to get color by name or code

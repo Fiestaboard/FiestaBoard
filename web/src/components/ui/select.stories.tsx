@@ -26,7 +26,7 @@ export const Default: Story = {
   args: {
     children: (
       <>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-[180px]" aria-label="Fruit">
           <SelectValue placeholder="Select a fruit" />
         </SelectTrigger>
         <SelectContent>
@@ -43,7 +43,7 @@ export const Default: Story = {
 
 export const WithGroups = () => (
   <Select>
-    <SelectTrigger className="w-[280px]">
+    <SelectTrigger className="w-[280px]" aria-label="Timezone">
       <SelectValue placeholder="Select a timezone" />
     </SelectTrigger>
     <SelectContent>
@@ -67,7 +67,7 @@ export const WithGroups = () => (
 
 export const Disabled = () => (
   <Select disabled>
-    <SelectTrigger className="w-[180px]">
+    <SelectTrigger className="w-[180px]" aria-label="Disabled option">
       <SelectValue placeholder="Disabled" />
     </SelectTrigger>
     <SelectContent>
@@ -78,7 +78,7 @@ export const Disabled = () => (
 
 export const WithDefaultValue = () => (
   <Select defaultValue="banana">
-    <SelectTrigger className="w-[180px]">
+    <SelectTrigger className="w-[180px]" aria-label="Fruit">
       <SelectValue />
     </SelectTrigger>
     <SelectContent>
@@ -94,7 +94,7 @@ export const AllStates = () => (
     <div>
       <h3 className="text-sm font-medium mb-3">Default State</h3>
       <Select>
-        <SelectTrigger>
+        <SelectTrigger aria-label="Default option">
           <SelectValue placeholder="Select an option..." />
         </SelectTrigger>
         <SelectContent>
@@ -107,7 +107,7 @@ export const AllStates = () => (
     <div>
       <h3 className="text-sm font-medium mb-3">With Value Selected</h3>
       <Select defaultValue="2">
-        <SelectTrigger>
+        <SelectTrigger aria-label="Selected option">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -120,7 +120,7 @@ export const AllStates = () => (
     <div>
       <h3 className="text-sm font-medium mb-3">Disabled</h3>
       <Select disabled>
-        <SelectTrigger>
+        <SelectTrigger aria-label="Disabled option">
           <SelectValue placeholder="Disabled select" />
         </SelectTrigger>
         <SelectContent>
@@ -131,7 +131,7 @@ export const AllStates = () => (
     <div>
       <h3 className="text-sm font-medium mb-3">With Groups</h3>
       <Select defaultValue="pst">
-        <SelectTrigger>
+        <SelectTrigger aria-label="Timezone">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

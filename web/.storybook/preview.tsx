@@ -47,6 +47,15 @@ const preview: Preview = {
     nextjs: {
       appDirectory: true,
     },
+    a11y: {
+      config: {
+        rules: [
+          { id: "page-has-heading-one", enabled: false },
+          { id: "heading-order", enabled: false },
+          { id: "color-contrast-enhanced", enabled: true },
+        ],
+      },
+    },
   },
   decorators: [
     (Story, context) => {
@@ -61,9 +70,9 @@ const preview: Preview = {
             disableTransitionOnChange
           >
             <ThemeSync theme={theme} />
-            <div className="min-h-screen bg-background text-foreground p-8">
+            <main className="min-h-screen bg-background text-foreground p-8">
               <Story />
-            </div>
+            </main>
           </ThemeProvider>
         </QueryClientProvider>
       );

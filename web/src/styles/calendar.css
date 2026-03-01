@@ -10,46 +10,46 @@
 
 /* ===== Container & General ===== */
 .schedule-calendar-container {
-  --rbc-border-color: hsl(var(--border));
-  --rbc-grid-line: rgba(128, 128, 128, 0.15);
-  --rbc-grid-line-hour: rgba(128, 128, 128, 0.3);
-  --rbc-bg-color: hsl(var(--background));
-  --rbc-text-color: hsl(var(--foreground));
-  --rbc-muted-color: hsl(var(--muted-foreground));
-  --rbc-primary-color: hsl(var(--primary));
+  --rbc-border-color: var(--border);
+  --rbc-grid-line: color-mix(in oklch, currentColor 15%, transparent);
+  --rbc-grid-line-hour: color-mix(in oklch, currentColor 30%, transparent);
+  --rbc-bg-color: var(--background);
+  --rbc-text-color: var(--foreground);
+  --rbc-muted-color: var(--muted-foreground);
+  --rbc-primary-color: var(--primary);
 
-  /* Brand-based schedule event colors - Light mode */
-  --schedule-color-0: #2e6eaa; /* Blue  (from brand #4a90d9) */
-  --schedule-bg-0: rgba(74, 144, 217, 0.12);
-  --schedule-color-1: #4e8c14; /* Green (from brand #7ed321) */
-  --schedule-bg-1: rgba(126, 211, 33, 0.12);
-  --schedule-color-2: #b07d10; /* Orange (from brand #f5a623) */
-  --schedule-bg-2: rgba(245, 166, 35, 0.12);
-  --schedule-color-3: #c93028; /* Red   (from brand #eb4034) */
-  --schedule-bg-3: rgba(235, 64, 52, 0.10);
-  --schedule-color-4: #7c3fa0; /* Violet (from brand #9b59b6) */
-  --schedule-bg-4: rgba(155, 89, 182, 0.12);
-  --schedule-color-5: #8a7a00; /* Yellow (from brand #f8e71c) */
-  --schedule-bg-5: rgba(248, 231, 28, 0.14);
+  /* Schedule event colors derived from board palette - Light mode */
+  --schedule-color-0: color-mix(in oklch, var(--color-board-blue), black 35%);
+  --schedule-bg-0: color-mix(in oklch, var(--color-board-blue) 12%, transparent);
+  --schedule-color-1: color-mix(in oklch, var(--color-board-green), black 35%);
+  --schedule-bg-1: color-mix(in oklch, var(--color-board-green) 12%, transparent);
+  --schedule-color-2: color-mix(in oklch, var(--color-board-orange), black 35%);
+  --schedule-bg-2: color-mix(in oklch, var(--color-board-orange) 12%, transparent);
+  --schedule-color-3: color-mix(in oklch, var(--color-board-red), black 35%);
+  --schedule-bg-3: color-mix(in oklch, var(--color-board-red) 10%, transparent);
+  --schedule-color-4: color-mix(in oklch, var(--color-board-violet), black 35%);
+  --schedule-bg-4: color-mix(in oklch, var(--color-board-violet) 12%, transparent);
+  --schedule-color-5: color-mix(in oklch, var(--color-board-yellow), black 45%);
+  --schedule-bg-5: color-mix(in oklch, var(--color-board-yellow) 14%, transparent);
   
   /* Full height - no scrolling */
   width: 100%;
 }
 
-/* Brand-based schedule event colors - Dark mode */
+/* Schedule event colors derived from board palette - Dark mode */
 .dark .schedule-calendar-container {
-  --schedule-color-0: #7ab3ea; /* Blue  */
-  --schedule-bg-0: rgba(74, 144, 217, 0.18);
-  --schedule-color-1: #9ee554; /* Green */
-  --schedule-bg-1: rgba(126, 211, 33, 0.16);
-  --schedule-color-2: #f8c35a; /* Orange */
-  --schedule-bg-2: rgba(245, 166, 35, 0.16);
-  --schedule-color-3: #f07068; /* Red   */
-  --schedule-bg-3: rgba(235, 64, 52, 0.16);
-  --schedule-color-4: #bb84d4; /* Violet */
-  --schedule-bg-4: rgba(155, 89, 182, 0.18);
-  --schedule-color-5: #f2e64e; /* Yellow */
-  --schedule-bg-5: rgba(248, 231, 28, 0.14);
+  --schedule-color-0: color-mix(in oklch, var(--color-board-blue), white 40%);
+  --schedule-bg-0: color-mix(in oklch, var(--color-board-blue) 18%, transparent);
+  --schedule-color-1: color-mix(in oklch, var(--color-board-green), white 40%);
+  --schedule-bg-1: color-mix(in oklch, var(--color-board-green) 16%, transparent);
+  --schedule-color-2: color-mix(in oklch, var(--color-board-orange), white 40%);
+  --schedule-bg-2: color-mix(in oklch, var(--color-board-orange) 16%, transparent);
+  --schedule-color-3: color-mix(in oklch, var(--color-board-red), white 40%);
+  --schedule-bg-3: color-mix(in oklch, var(--color-board-red) 16%, transparent);
+  --schedule-color-4: color-mix(in oklch, var(--color-board-violet), white 40%);
+  --schedule-bg-4: color-mix(in oklch, var(--color-board-violet) 18%, transparent);
+  --schedule-color-5: color-mix(in oklch, var(--color-board-yellow), white 20%);
+  --schedule-bg-5: color-mix(in oklch, var(--color-board-yellow) 14%, transparent);
 }
 
 .schedule-calendar-container .rbc-calendar {
@@ -163,13 +163,13 @@
 }
 
 .schedule-calendar-container .rbc-day-slot .rbc-time-slot:hover {
-  background-color: hsl(var(--primary) / 0.05);
+  background-color: color-mix(in oklch, var(--primary) 5%, transparent);
 }
 
 /* Selection box when dragging to create */
 .schedule-calendar-container .rbc-slot-selection {
-  background-color: hsl(var(--primary) / 0.15);
-  border: 2px dashed hsl(var(--primary) / 0.5);
+  background-color: color-mix(in oklch, var(--primary) 15%, transparent);
+  border: 2px dashed color-mix(in oklch, var(--primary) 50%, transparent);
   border-radius: 0.375rem;
   display: flex;
   align-items: center;
@@ -180,7 +180,7 @@
   content: '+ New Schedule';
   font-size: 0.65rem;
   font-weight: 500;
-  color: hsl(var(--primary));
+  color: var(--primary);
   opacity: 0.8;
 }
 
@@ -190,7 +190,7 @@
 
 /* ===== Today Indicator (subtle since this is a template) ===== */
 .schedule-calendar-container .rbc-today {
-  background-color: hsl(var(--primary) / 0.02);
+  background-color: color-mix(in oklch, var(--primary) 2%, transparent);
 }
 
 .schedule-calendar-container .rbc-header.rbc-today {
@@ -228,7 +228,7 @@
 
 .schedule-calendar-container .rbc-event:hover {
   transform: scale(1.01);
-  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
+  box-shadow: 0 2px 8px color-mix(in oklch, var(--foreground) 8%, transparent);
 }
 
 .schedule-calendar-container .rbc-event:focus {
@@ -251,8 +251,8 @@
 }
 
 .schedule-event-conflict .schedule-event-content {
-  border: 2px solid hsl(var(--destructive)) !important;
-  background-color: hsl(var(--destructive) / 0.1) !important;
+  border: 2px solid var(--destructive) !important;
+  background-color: color-mix(in oklch, var(--destructive) 10%, transparent) !important;
 }
 
 .schedule-event-disabled .schedule-event-content {
@@ -272,7 +272,7 @@
 
 /* ===== Overlapping Events ===== */
 .schedule-calendar-container .rbc-event-overlaps {
-  box-shadow: -1px 1px 5px hsl(var(--foreground) / 0.05);
+  box-shadow: -1px 1px 5px color-mix(in oklch, var(--foreground) 5%, transparent);
 }
 
 /* ===== Drag and Drop Styles ===== */
@@ -315,7 +315,7 @@
   content: '';
   width: 24px;
   height: 3px;
-  background: hsl(var(--foreground) / 0.25);
+  background: color-mix(in oklch, var(--foreground) 25%, transparent);
   border-radius: 2px;
   opacity: 0;
   transition: opacity 0.15s ease, background 0.15s ease;
@@ -326,7 +326,7 @@
 }
 
 .schedule-calendar-container .rbc-addons-dnd .rbc-addons-dnd-resize-ns-anchor:hover::after {
-  background: hsl(var(--primary));
+  background: var(--primary);
   opacity: 1;
 }
 
@@ -343,7 +343,7 @@
 }
 
 .schedule-calendar-container .rbc-addons-dnd-resizing .rbc-addons-dnd-resize-ns-anchor::after {
-  background: hsl(var(--primary));
+  background: var(--primary);
   opacity: 1;
 }
 
@@ -511,6 +511,6 @@
 
   /* Make selection more visible on touch */
   .schedule-calendar-container .rbc-slot-selection {
-    background-color: hsl(var(--primary) / 0.2);
+    background-color: color-mix(in oklch, var(--primary) 20%, transparent);
   }
 }
