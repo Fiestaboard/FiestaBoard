@@ -39,12 +39,6 @@ export function calculateLineLength(lineContent: JSONContent[]): number {
         tileCount += 0;
         break;
 
-      case 'symbol':
-        // Symbols count as their actual character length
-        const char = node.attrs?.character || '*';
-        tileCount += char.length; // heart = "<3" = 3 chars!
-        break;
-
       default:
         break;
     }
@@ -69,41 +63,3 @@ export function getOverflowAmount(lineContent: JSONContent[]): number {
   return Math.max(0, length - BOARD_WIDTH);
 }
 
-/**
- * Calculate metrics for all lines
- */
-export interface LineMetrics {
-  length: number;
-  maxLength: number;
-  overflow: boolean;
-  overflowAmount: number;
-  fillPercentage: number;
-}
-
-export function calculateAllLineMetrics(doc: JSONContent): LineMetrics[] {
-  if (!doc.content || doc.content.length === 0) {
-    return Array(6).fill({
-      length: 0,
-      maxLength: BOARD_WIDTH,
-      overflow: false,
-      overflowAmount: 0,
-      fillPercentage: 0,
-    });
-  }
-
-  return doc.content.slice(0, 6).map(line => {
-    const content = line.content || [];
-    const length = calculateLineLength(content);
-    const overflow = length > BOARD_WIDTH;
-    const overflowAmount = Math.max(0, length - BOARD_WIDTH);
-    const fillPercentage = Math.min(100, (length / BOARD_WIDTH) * 100);
-
-    return {
-      length,
-      maxLength: BOARD_WIDTH,
-      overflow,
-      overflowAmount,
-      fillPercentage,
-    };
-  });
-}

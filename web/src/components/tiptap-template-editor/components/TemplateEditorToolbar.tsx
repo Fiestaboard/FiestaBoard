@@ -15,7 +15,7 @@ import { ColorPickerContent } from './ColorPickerContent';
 import { FormattingPickerContent } from './FormattingPickerContent';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { LineAlignment } from '../extensions/template-paragraph';
+import type { LineAlignment } from '../TipTapTemplateEditor';
 import { useState, useEffect, useCallback } from 'react';
 
 interface TemplateEditorToolbarProps {
