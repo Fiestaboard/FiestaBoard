@@ -88,7 +88,6 @@ Once connected, FiestaBoard appears as a device with these controls and sensors:
 | **Schedule** | Switch | Turn the FiestaBoard schedule on/off |
 | **Display Service** | Switch | Start/stop the FiestaBoard display service |
 | **Active Page** | Select | Choose which page to display (dynamically populated from your pages) |
-| **Output Target** | Select | Route output to Board, UI, or Both |
 | **Transition Style** | Select | Board transition animation (column, reverse-column, edges-to-center, row, diagonal, random) |
 | **Send Message** | Text | Send a text message to the board (up to 132 characters) |
 | **Refresh Display** | Button | Force a display refresh |
@@ -187,7 +186,6 @@ entities:
   - entity: switch.fiestaboard_schedule
   - entity: switch.fiestaboard_display_service
   - entity: select.fiestaboard_active_page
-  - entity: select.fiestaboard_output_target
   - entity: select.fiestaboard_transition_style
   - entity: number.fiestaboard_refresh_interval
 ```

@@ -91,14 +91,6 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
     ),
     EntityDefinition(
         entity_type="select",
-        object_id="output_target",
-        name="Output Target",
-        icon="mdi:monitor-speaker",
-        has_command=True,
-        options=["Board", "UI", "Both"],
-    ),
-    EntityDefinition(
-        entity_type="select",
         object_id="transition_style",
         name="Transition Style",
         icon="mdi:transition",

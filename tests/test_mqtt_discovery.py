@@ -47,8 +47,8 @@ class TestEntityDefinitions:
     """Tests for the entity definition registry."""
 
     def test_entity_count(self):
-        """FiestaBoard should expose 15 entities to HA."""
-        assert len(ENTITY_DEFINITIONS) == 15
+        """FiestaBoard should expose 14 entities to HA."""
+        assert len(ENTITY_DEFINITIONS) == 14
 
     def test_all_entity_types_valid(self):
         """All entity types must be valid HA entity types."""
@@ -85,12 +85,11 @@ class TestEntityDefinitions:
         assert "display_service" in switch_ids
 
     def test_select_entities(self):
-        """Should have exactly 3 select entities."""
+        """Should have exactly 2 select entities."""
         selects = [e for e in ENTITY_DEFINITIONS if e.entity_type == "select"]
-        assert len(selects) == 3
+        assert len(selects) == 2
         select_ids = {e.object_id for e in selects}
         assert "active_page" in select_ids
-        assert "output_target" in select_ids
         assert "transition_style" in select_ids
 
     def test_sensor_entities(self):
@@ -327,12 +326,12 @@ class TestDiscoveryPayloads:
     def test_select_payload_has_options(self, mqtt_config, device_info):
         """Select payloads must include options list."""
         entity = EntityDefinition(
-            entity_type="select", object_id="output_target",
-            name="Output Target", icon="mdi:monitor-speaker",
-            has_command=True, options=["Board", "UI", "Both"],
+            entity_type="select", object_id="transition_style",
+            name="Transition Style", icon="mdi:transition",
+            has_command=True, options=["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"],
         )
         payload = build_discovery_payload(mqtt_config, entity, device_info)
-        assert payload["options"] == ["Board", "UI", "Both"]
+        assert payload["options"] == ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
     def test_text_payload_has_length_limits(self, mqtt_config, device_info):
         """Text payloads must include min/max length."""
