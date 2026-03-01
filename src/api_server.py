@@ -2636,7 +2636,7 @@ async def get_all_settings():
         "polling": {
             "interval_seconds": polling.interval_seconds
         },
-        "transitions": transitions.to_dict(),
+        "transitions": {**transitions.to_dict(), "available_strategies": VALID_STRATEGIES},
         "output": output.to_dict(),
         "board": board.to_dict(),
         "status": {

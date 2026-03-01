@@ -1,6 +1,7 @@
 "use client";
 
 import { DisplaySettings } from "@/components/settings/display-settings";
+import { TransitionSettings } from "@/components/settings/transition-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
 import { SystemUpdate } from "@/components/settings/system-update";
 import { GeneralSettings } from "@/components/general-settings";
@@ -39,6 +40,11 @@ export default function SettingsPage() {
           <section className="animate-card-fade-in" style={{ animationDelay: "300ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Boards</h2>
             <DisplaySettings />
+          </section>
+
+          {/* Board Transitions */}
+          <section className="animate-card-fade-in" style={{ animationDelay: "375ms" }}>
+            <TransitionSettings />
           </section>
 
           {/* Integrations Link */}
