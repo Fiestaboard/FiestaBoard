@@ -16,6 +16,14 @@
         "type": "boolean",
         "title": "Enable Dad Jokes",
         "default": false
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "How often to fetch a new dad joke",
+        "default": 300,
+        "minimum": 30,
+        "maximum": 3600
       }
     }
   },
@@ -26,6 +34,12 @@
       "required": false,
       "description": "Enable dad jokes feature",
       "default": "false"
+    },
+    {
+      "name": "DAD_JOKES_REFRESH_SECONDS",
+      "required": false,
+      "description": "Refresh interval in seconds",
+      "default": "300"
     }
   ],
 

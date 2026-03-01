@@ -4,6 +4,7 @@ Displays random dad jokes from the icanhazdadjoke API.
 """
 
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 import logging
 import requests
 
@@ -13,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 API_URL = "https://icanhazdadjoke.com/"
 USER_AGENT = "FiestaBoard (https://github.com/FiestaBoard/FiestaBoard)"
+
+MIN_REFRESH_SECONDS = 30
+MAX_REFRESH_SECONDS = 3600
+DEFAULT_REFRESH_SECONDS = 300
 
 
 class DadJokesPlugin(PluginBase):
@@ -25,14 +30,45 @@ class DadJokesPlugin(PluginBase):
     def __init__(self, manifest: Dict[str, Any]):
         """Initialize the Dad Jokes plugin."""
         super().__init__(manifest)
+        self._cache: Optional[Dict[str, Any]] = None
+        self._last_fetch: Optional[datetime] = None
 
     @property
     def plugin_id(self) -> str:
         """Return plugin identifier."""
         return "dad_jokes"
 
+    def validate_config(self, config: Dict[str, Any]) -> List[str]:
+        """Validate dad jokes configuration."""
+        errors = []
+
+        refresh_seconds = config.get("refresh_seconds", DEFAULT_REFRESH_SECONDS)
+        if not isinstance(refresh_seconds, int) or refresh_seconds < MIN_REFRESH_SECONDS:
+            errors.append(
+                f"Refresh interval must be at least {MIN_REFRESH_SECONDS} seconds"
+            )
+        if isinstance(refresh_seconds, int) and refresh_seconds > MAX_REFRESH_SECONDS:
+            errors.append(
+                f"Refresh interval must not exceed {MAX_REFRESH_SECONDS} seconds"
+            )
+
+        return errors
+
     def fetch_data(self) -> PluginResult:
         """Fetch a random dad joke from the icanhazdadjoke API."""
+        refresh_seconds = self.config.get(
+            "refresh_seconds", DEFAULT_REFRESH_SECONDS
+        )
+
+        # Return cached data if still fresh
+        if self._cache and self._last_fetch:
+            age_seconds = (datetime.now() - self._last_fetch).total_seconds()
+            if age_seconds < refresh_seconds:
+                logger.debug(
+                    f"Using cached dad joke (age: {age_seconds:.0f}s < {refresh_seconds}s)"
+                )
+                return PluginResult(available=True, data=self._cache)
+
         try:
             response = requests.get(
                 API_URL,
@@ -56,6 +92,9 @@ class DadJokesPlugin(PluginBase):
             data = {
                 "joke": joke_text,
             }
+
+            self._cache = data
+            self._last_fetch = datetime.now()
 
             return PluginResult(
                 available=True,

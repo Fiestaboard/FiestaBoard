@@ -195,3 +195,95 @@ class TestDadJokesPlugin:
         """Test plugin initializes correctly."""
         assert plugin.plugin_id == "dad_jokes"
         assert plugin.manifest is not None
+
+    def test_validate_config_valid(self, plugin):
+        """Test validate_config accepts valid configuration."""
+        errors = plugin.validate_config({"refresh_seconds": 300})
+        assert errors == []
+
+    def test_validate_config_minimum_boundary(self, plugin):
+        """Test validate_config accepts the minimum refresh interval."""
+        errors = plugin.validate_config({"refresh_seconds": 30})
+        assert errors == []
+
+    def test_validate_config_maximum_boundary(self, plugin):
+        """Test validate_config accepts the maximum refresh interval."""
+        errors = plugin.validate_config({"refresh_seconds": 3600})
+        assert errors == []
+
+    def test_validate_config_below_minimum(self, plugin):
+        """Test validate_config rejects refresh interval below minimum."""
+        errors = plugin.validate_config({"refresh_seconds": 10})
+        assert len(errors) == 1
+        assert "at least 30 seconds" in errors[0]
+
+    def test_validate_config_above_maximum(self, plugin):
+        """Test validate_config rejects refresh interval above maximum."""
+        errors = plugin.validate_config({"refresh_seconds": 7200})
+        assert len(errors) == 1
+        assert "must not exceed 3600 seconds" in errors[0]
+
+    def test_validate_config_non_integer(self, plugin):
+        """Test validate_config rejects non-integer refresh interval."""
+        errors = plugin.validate_config({"refresh_seconds": "fast"})
+        assert len(errors) >= 1
+        assert "at least 30 seconds" in errors[0]
+
+    def test_validate_config_default_when_missing(self, plugin):
+        """Test validate_config uses default when refresh_seconds is missing."""
+        errors = plugin.validate_config({})
+        assert errors == []
+
+    @patch("plugins.dad_jokes.requests.get")
+    def test_fetch_data_caches_result(self, mock_get, plugin):
+        """Test fetch_data caches results and reuses them within refresh interval."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "id": "abc123",
+            "joke": "Cached joke",
+            "status": 200,
+        }
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+
+        plugin.config = {"refresh_seconds": 300}
+
+        # First call fetches from API
+        result1 = plugin.fetch_data()
+        assert result1.available is True
+        assert result1.data["joke"] == "Cached joke"
+        assert mock_get.call_count == 1
+
+        # Second call should use cache
+        result2 = plugin.fetch_data()
+        assert result2.available is True
+        assert result2.data["joke"] == "Cached joke"
+        assert mock_get.call_count == 1  # Still 1, no new API call
+
+    @patch("plugins.dad_jokes.requests.get")
+    def test_fetch_data_refreshes_after_expiry(self, mock_get, plugin):
+        """Test fetch_data fetches new data after cache expires."""
+        from datetime import timedelta
+
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "id": "abc123",
+            "joke": "Fresh joke",
+            "status": 200,
+        }
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+
+        plugin.config = {"refresh_seconds": 60}
+
+        # First call
+        plugin.fetch_data()
+        assert mock_get.call_count == 1
+
+        # Simulate cache expiry by backdating _last_fetch
+        from datetime import datetime
+        plugin._last_fetch = datetime.now() - timedelta(seconds=120)
+
+        # Second call should fetch again
+        plugin.fetch_data()
+        assert mock_get.call_count == 2
