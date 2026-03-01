@@ -387,23 +387,40 @@ jobs:
           # Start without board config so API reports first-run and setup wizard appears in E2E
           docker run -d --name fiestaboard-e2e \
             --add-host=host.docker.internal:host-gateway \
-            -p 4420:3000 \
             -e PRODUCTION=false \
             fiestaboard:e2e
-          echo "Waiting for app on port 4420..."
+
+          # Use container bridge IP directly instead of port forwarding.
+          # On CodeBuild the runner is inside a container, so -p port mapping
+          # publishes to the Docker host, not to the runner's localhost.
+          CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-e2e)
+          echo "Container IP: $CONTAINER_IP"
+          echo "CONTAINER_URL=http://$CONTAINER_IP:3000" >> $GITHUB_ENV
+
+          echo "Waiting for app at $CONTAINER_IP:3000..."
           READY=false
           for i in $(seq 1 60); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4420/api/health | grep -q 200; then
-              echo "App ready"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://$CONTAINER_IP:3000/api/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "App ready (attempt $i)"
               READY=true
               break
+            fi
+            if [ "$((i % 10))" = "0" ]; then
+              echo "  Still waiting... (attempt $i, last status: $STATUS)"
             fi
             sleep 1
           done
           if [ "$READY" != "true" ]; then
             echo "❌ App failed to become ready after 60 seconds"
-            echo "Container logs:"
+            echo "Last status code: $STATUS"
+            echo "=== Container logs ==="
             docker logs fiestaboard-e2e
+            echo "=== API logs ==="
+            docker exec fiestaboard-e2e cat /app/data/logs/api.log 2>/dev/null || echo "(no api logs)"
+            docker exec fiestaboard-e2e cat /app/data/logs/api-error.log 2>/dev/null || echo "(no api error logs)"
+            echo "=== Nginx logs ==="
+            docker exec fiestaboard-e2e cat /app/data/logs/nginx-error.log 2>/dev/null || echo "(no nginx error logs)"
             exit 1
           fi
 
@@ -412,6 +429,7 @@ jobs:
         run: npx playwright test --reporter=github
         env:
           CI: true
+          BASE_URL: ${{ env.CONTAINER_URL }}
           MOCK_BOARD_HOST: host.docker.internal
 
       - name: Stop FiestaBoard container

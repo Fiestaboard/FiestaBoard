@@ -109,16 +109,21 @@ jobs:
         run: |
           docker run -d --name fiestaboard-integration \
             --add-host=host.docker.internal:host-gateway \
-            -p 4420:3000 \
             -e BOARD_API_MODE=local \
             -e BOARD_HOST=host.docker.internal \
             -e BOARD_LOCAL_API_KEY=test_key \
             -e PRODUCTION=false \
             fiestaboard:integration
-          echo "Waiting for app on port 4420..."
-          for i in $(seq 1 30); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4420/api/health | grep -q 200; then
-              echo "App ready"
+
+          # Use container bridge IP directly (see ci.yml for rationale)
+          CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-integration)
+          echo "Container IP: $CONTAINER_IP"
+          echo "CONTAINER_URL=http://$CONTAINER_IP:3000" >> $GITHUB_ENV
+
+          echo "Waiting for app at $CONTAINER_IP:3000..."
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w "%{http_code}" "http://$CONTAINER_IP:3000/api/health" 2>/dev/null | grep -q 200; then
+              echo "App ready (attempt $i)"
               break
             fi
             sleep 1
@@ -129,6 +134,7 @@ jobs:
         run: npx playwright test --reporter=github
         env:
           CI: true
+          BASE_URL: ${{ env.CONTAINER_URL }}
 
       - name: Stop FiestaBoard container
         if: always()
