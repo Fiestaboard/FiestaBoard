@@ -24,6 +24,8 @@ jobs:
       ui: ${{ steps.filter.outputs.ui }}
       plugins: ${{ steps.filter.outputs.plugins }}
       shared: ${{ steps.filter.outputs.shared }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+      packages: ${{ steps.filter.outputs.packages }}
       docs: ${{ steps.filter.outputs.docs }}
     steps:
       - name: Checkout code
@@ -57,6 +59,10 @@ jobs:
               - '.github/workflows/**'
               - 'package.json'
               - 'scripts/version-sync.js'
+            mobile:
+              - 'mobile/**'
+            packages:
+              - 'packages/**'
             docs:
               - 'docs-site/**'
 
@@ -204,26 +210,28 @@ jobs:
     name: UI Tests
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
+    if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.packages == 'true'
     timeout-minutes: 10
     
     steps:
     - uses: actions/checkout@v6
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
     
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
         node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: web/package-lock.json
-    
-    - name: Install UI dependencies
-      working-directory: web
-      run: npm ci
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
     
     - name: Run UI tests with coverage
-      working-directory: web
-      run: npm run test:coverage
+      run: pnpm --filter web test:coverage
 
     - name: Upload UI coverage
       uses: codecov/codecov-action@v5
@@ -235,6 +243,37 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  test-mobile:
+    name: Mobile & Shared Package Tests
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.mobile == 'true' || needs.detect-changes.outputs.packages == 'true' || needs.detect-changes.outputs.shared == 'true'
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Typecheck shared package
+      run: pnpm --filter @fiestaboard/shared typecheck
+
+    - name: Typecheck mobile app
+      run: pnpm --filter mobile typecheck
+      continue-on-error: true
+
   a11y-tests:
     name: Accessibility Tests
     runs-on: ubuntu-latest
@@ -245,16 +284,19 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
         node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: web/package-lock.json
+        cache: 'pnpm'
 
     - name: Install dependencies
-      working-directory: web
-      run: npm ci
+      run: pnpm install --frozen-lockfile
 
     - name: Cache Playwright browsers
       uses: actions/cache@v4
@@ -268,7 +310,7 @@ jobs:
 
     - name: Build Storybook
       working-directory: web
-      run: npm run build-storybook -- --quiet
+      run: pnpm run build-storybook -- --quiet
 
     - name: Start Storybook static server
       working-directory: web
@@ -278,11 +320,11 @@ jobs:
 
     - name: Run Storybook a11y tests (dark theme)
       working-directory: web
-      run: npm run test-storybook:ci -- --url http://localhost:6006
+      run: pnpm run test-storybook:ci -- --url http://localhost:6006
 
     - name: Run Storybook a11y tests (light theme)
       working-directory: web
-      run: npm run test-storybook:ci -- --url "http://localhost:6006?globals=theme:light"
+      run: pnpm run test-storybook:ci -- --url "http://localhost:6006?globals=theme:light"
 
   e2e-tests:
     name: E2E Tests
@@ -349,22 +391,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "20"
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+          cache: 'pnpm'
 
       - name: Install UI dependencies
-        working-directory: web
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browsers
         working-directory: web

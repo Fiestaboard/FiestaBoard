@@ -249,11 +249,17 @@ FiestaBoard/
 ├── plugins/          # Plugin-based data sources (weather, stocks, etc.)
 ├── src/              # Platform core (API server, display service, plugin system)
 ├── web/              # Next.js web UI
+├── mobile/           # React Native iOS app (Expo)
+├── packages/shared/  # Shared code between web and mobile
 ├── docs/             # Development documentation
 ├── docs-site/        # Documentation website (fiestaboard.app)
 ├── Dockerfile        # Unified container (API + Web UI + nginx)
 └── docker-compose.yml
 ```
+
+### Mobile App
+
+FiestaBoard includes a React Native iOS companion app built with Expo. It connects to your FiestaBoard server over the local network and provides native iOS controls for managing your board. See [mobile/README.md](./mobile/README.md) for setup instructions.
 
 
 ## Accessibility
