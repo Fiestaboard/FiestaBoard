@@ -51,7 +51,7 @@ export function ToolbarDropdown({ label, icon, children, className, onClose }: T
                 "flex items-center justify-center p-1.5 rounded-md",
                 "hover:bg-muted/50 transition-colors",
                 "border border-transparent",
-                isOpen && "bg-muted/70 border-border/50",
+                isOpen && "bg-muted/70 border-border",
                 className
               )}
               aria-expanded={isOpen}

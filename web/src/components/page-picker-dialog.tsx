@@ -28,17 +28,19 @@ export function PagePickerDialog({
   allowNone = false,
 }: PagePickerDialogProps) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" role="listbox" aria-label="Page selection">
       {allowNone && (
         <button
+          role="option"
+          aria-selected={selectedPageId === null}
           onClick={() => onSelect(null)}
-          className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors ${
+          className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             selectedPageId === null ? "border-primary bg-muted/50" : ""
           }`}
         >
           <span className="text-sm font-medium">None (no default)</span>
           {selectedPageId === null && (
-            <Check className="h-4 w-4 text-primary" />
+            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
           )}
         </button>
       )}
@@ -46,8 +48,10 @@ export function PagePickerDialog({
       {pages.map((page) => (
         <button
           key={page.id}
+          role="option"
+          aria-selected={selectedPageId === page.id}
           onClick={() => onSelect(page.id)}
-          className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors ${
+          className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             selectedPageId === page.id ? "border-primary bg-muted/50" : ""
           }`}
         >
@@ -60,7 +64,7 @@ export function PagePickerDialog({
             )}
           </div>
           {selectedPageId === page.id && (
-            <Check className="h-4 w-4 text-primary" />
+            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
           )}
         </button>
       ))}

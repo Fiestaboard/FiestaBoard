@@ -23,6 +23,7 @@ import { TextSelection } from '@tiptap/pm/state';
 import { AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 export type LineAlignment = 'left' | 'center' | 'right';
 import { TemplateEditorToolbar } from './components/TemplateEditorToolbar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
  * Serialize a TipTap slice to template string format
@@ -860,7 +861,7 @@ export function TipTapTemplateEditor({
         <div className={cn(
           "border bg-background relative rounded-md",
           showToolbar ? "rounded-t-none" : "",
-          isOverLineLimit && "border-amber-500"
+          isOverLineLimit && "border-warning"
         )} style={{ 
           padding: '0.75rem', 
           minHeight: `${boardLines * 1.5 + 1.5}rem`,
@@ -873,7 +874,7 @@ export function TipTapTemplateEditor({
         {/* Line counter */}
         <div className={cn(
           "mt-1 text-xs",
-          isOverLineLimit ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
+          isOverLineLimit ? "text-warning font-medium" : "text-muted-foreground"
         )}>
           {editorLineCount} / {boardLines} lines
           {isOverLineLimit && ` — exceeds the ${boardLines}-line board limit`}
@@ -881,55 +882,75 @@ export function TipTapTemplateEditor({
 
         {/* Alignment controls - only show if toolbar is hidden */}
         {!showToolbar && showAlignmentControls && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-muted-foreground">Alignment:</span>
-              <div className="flex rounded-md border overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => handleAlignmentClick('left')}
-                  className={cn(
-                    'px-3 py-1.5 text-xs transition-colors',
-                    currentAlignment === 'left'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted text-muted-foreground'
-                  )}
-                  title="Align left"
-                >
-                  <AlignLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAlignmentClick('center')}
-                  className={cn(
-                    'px-3 py-1.5 text-xs border-x transition-colors',
-                    currentAlignment === 'center'
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'hover:bg-muted text-muted-foreground'
-                  )}
-                  title="Align center"
-                >
-                  <AlignCenter className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAlignmentClick('right')}
-                  className={cn(
-                    'px-3 py-1.5 text-xs transition-colors',
-                    currentAlignment === 'right'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted text-muted-foreground'
-                  )}
-                  title="Align right"
-                >
-                  <AlignRight className="w-4 h-4" />
-                </button>
-              </div>
+            <TooltipProvider>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-muted-foreground">Alignment:</span>
+                <div className="flex rounded-md border overflow-hidden">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => handleAlignmentClick('left')}
+                        className={cn(
+                          'px-3 py-1.5 text-xs transition-colors',
+                          currentAlignment === 'left'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted text-muted-foreground'
+                        )}
+                      >
+                        <AlignLeft className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Align left</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => handleAlignmentClick('center')}
+                        className={cn(
+                          'px-3 py-1.5 text-xs border-x transition-colors',
+                          currentAlignment === 'center'
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'hover:bg-muted text-muted-foreground'
+                        )}
+                      >
+                        <AlignCenter className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Align center</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => handleAlignmentClick('right')}
+                        className={cn(
+                          'px-3 py-1.5 text-xs transition-colors',
+                          currentAlignment === 'right'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted text-muted-foreground'
+                        )}
+                      >
+                        <AlignRight className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Align right</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               {currentLineIndex !== null && (
                 <span className="text-xs text-muted-foreground">
                   (Line {currentLineIndex + 1})
                 </span>
               )}
             </div>
+            </TooltipProvider>
           )}
       </div>
 
@@ -948,7 +969,7 @@ export function TipTapTemplateEditor({
         /* Placeholder for first empty line only - textarea-like */
         .ProseMirror[data-placeholder] > p:first-child:empty::before {
           content: attr(data-placeholder);
-          color: hsl(var(--muted-foreground));
+          color: var(--muted-foreground);
           pointer-events: none;
           position: absolute;
         }
@@ -993,7 +1014,7 @@ export function TipTapTemplateEditor({
         
         /* Cursor styling */
         .ProseMirror {
-          caret-color: hsl(var(--primary));
+          caret-color: var(--primary);
         }
         
         .ProseMirror:focus {
@@ -1077,7 +1098,7 @@ export function TipTapTemplateEditor({
            variables, fill-space).  onSelectionUpdate adds this
            class to any atom node DOM element inside the selection range. */
         .ProseMirror .selected-inline {
-          outline: 2px solid hsl(var(--primary));
+          outline: 2px solid var(--primary);
           outline-offset: 1px;
           border-radius: 3px;
         }

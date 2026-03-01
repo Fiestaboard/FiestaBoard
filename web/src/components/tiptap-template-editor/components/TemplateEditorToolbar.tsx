@@ -170,7 +170,7 @@ export function TemplateEditorToolbar({
         )}
       >
         {/* Undo/Redo Controls */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border/50 overflow-hidden bg-background">
+        <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -181,8 +181,8 @@ export function TemplateEditorToolbar({
                   "px-2 py-1.5 transition-colors",
                   canUndo
                     ? "hover:bg-muted/50"
-                    : "opacity-40 cursor-not-allowed",
-                  "border-r border-border/50"
+                    : "opacity-60 cursor-not-allowed",
+                  "border-r border-border"
                 )}
                 aria-label="Undo"
               >
@@ -204,7 +204,7 @@ export function TemplateEditorToolbar({
                   "px-2 py-1.5 transition-colors",
                   canRedo
                     ? "hover:bg-muted/50"
-                    : "opacity-40 cursor-not-allowed"
+                    : "opacity-60 cursor-not-allowed"
                 )}
                 aria-label="Redo"
               >
@@ -221,7 +221,7 @@ export function TemplateEditorToolbar({
         <div className="h-6 w-px bg-border mx-1" />
 
         {/* Cut/Copy/Paste Controls */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border/50 overflow-hidden bg-background">
+        <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -232,8 +232,8 @@ export function TemplateEditorToolbar({
                   "px-2 py-1.5 transition-colors",
                   hasSelection
                     ? "hover:bg-muted/50"
-                    : "opacity-40 cursor-not-allowed",
-                  "border-r border-border/50"
+                    : "opacity-60 cursor-not-allowed",
+                  "border-r border-border"
                 )}
                 aria-label="Cut"
               >
@@ -255,8 +255,8 @@ export function TemplateEditorToolbar({
                   "px-2 py-1.5 transition-colors",
                   hasSelection
                     ? "hover:bg-muted/50"
-                    : "opacity-40 cursor-not-allowed",
-                  "border-r border-border/50"
+                    : "opacity-60 cursor-not-allowed",
+                  "border-r border-border"
                 )}
                 aria-label="Copy"
               >
@@ -278,7 +278,7 @@ export function TemplateEditorToolbar({
                   "px-2 py-1.5 transition-colors",
                   hasClipboardContent
                     ? "hover:bg-muted/50"
-                    : "opacity-40 cursor-not-allowed"
+                    : "opacity-60 cursor-not-allowed"
                 )}
                 aria-label="Paste"
               >
@@ -317,7 +317,7 @@ export function TemplateEditorToolbar({
                 disabled
                 className={cn(
                   "flex items-center justify-center p-1.5 rounded-md",
-                  "text-muted-foreground cursor-not-allowed opacity-40",
+                  "text-muted-foreground cursor-not-allowed opacity-60",
                   "border border-transparent"
                 )}
                 aria-label="Variables (no variables available)"
@@ -376,7 +376,7 @@ export function TemplateEditorToolbar({
                 "flex items-center justify-center p-1.5 rounded-md",
                 "hover:bg-muted/50 transition-colors",
                 "border border-transparent",
-                currentWrapEnabled && "bg-muted/70 border-border/50"
+                currentWrapEnabled && "bg-muted/70 border-border"
               )}
               aria-label="Toggle wrap for current line"
             >
@@ -394,7 +394,7 @@ export function TemplateEditorToolbar({
         )}
 
         {/* Alignment Controls */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border/50 overflow-hidden bg-background">
+        <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -414,7 +414,7 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={() => handleAlignmentClick('center')}
-                className="px-2 py-1.5 border-x border-border/50 transition-colors hover:bg-muted/50"
+                className="px-2 py-1.5 border-x border-border transition-colors hover:bg-muted/50"
                 aria-label="Align center"
               >
                 <AlignCenter className="w-4 h-4" />

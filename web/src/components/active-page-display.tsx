@@ -337,8 +337,8 @@ export function ActivePageDisplay() {
             </Badge>
             {silenceStatus?.active && (
               <div className="flex items-center gap-1.5">
-                <Moon className="h-3 w-3 text-blue-500" />
-                <span className="text-blue-500">Silence mode active</span>
+                <Moon className="h-3 w-3 text-info" aria-hidden="true" />
+                <span className="text-info">Silence mode active</span>
               </div>
             )}
           </div>
@@ -347,13 +347,13 @@ export function ActivePageDisplay() {
         <CardContent className="space-y-4">
           {/* Schedule gap warning */}
           {scheduleEnabled && !activePageId && (
-            <Alert variant="default" className="border-yellow-500/50 bg-yellow-500/10">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <Alert variant="default" className="border-warning/50 bg-warning/10">
+              <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="text-sm">
                 No page scheduled for current time. Set a default page in{" "}
                 <button
                   onClick={() => router.push("/schedule")}
-                  className="underline font-medium hover:text-primary"
+                  className="underline font-medium hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 >
                   Schedule settings
                 </button>

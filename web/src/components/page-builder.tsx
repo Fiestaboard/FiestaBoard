@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { PlainTextEditor } from "@/components/plain-text-editor";
@@ -45,6 +46,7 @@ import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineA
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 
@@ -782,32 +784,47 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                 <Wand2 className="h-4 w-4" />
                 {pageId ? "Edit Page" : "Create Page"}
               </CardTitle>
+              <TooltipProvider>
               <div className="flex items-center gap-1">
                 {/* Save button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  onClick={() => saveMutation.mutate()}
-                  disabled={!name.trim() || saveMutation.isPending}
-                  title={saveMutation.isPending ? "Saving..." : "Save Page"}
-                >
-                  <Save className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => saveMutation.mutate()}
+                      disabled={!name.trim() || saveMutation.isPending}
+                      aria-label="Save Page"
+                      title="Save Page"
+                    >
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{saveMutation.isPending ? "Saving..." : "Save Page"}</p>
+                  </TooltipContent>
+                </Tooltip>
                 
                 {/* Delete button - only show when editing */}
                 {pageId && (
                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        title="Delete Page"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Page</p>
+                      </TooltipContent>
+                    </Tooltip>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Page</AlertDialogTitle>
@@ -827,24 +844,33 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-9 w-9" 
-                  onClick={onClose}
-                  title="Close"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9" 
+                      onClick={onClose}
+                      aria-label="Close"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Close</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
+              </TooltipProvider>
             </div>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-1 min-h-0 space-y-4 overflow-y-auto overflow-x-hidden px-3 sm:px-4 md:px-6 pt-2">
+          <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
+            <ScrollArea className="flex-1 min-h-0 space-y-4">
             {/* Draft restored notification */}
             {draftRestored && (
-              <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
+              <Alert className="bg-info/10 border-info/20">
+                <AlertDescription className="text-sm">
                   Draft restored from your previous session. Your work has been automatically saved.
                 </AlertDescription>
               </Alert>
@@ -955,7 +981,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
               {/* Line count validation warning */}
               {lineCount > numLines && (
-                <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
                   <span className="font-medium shrink-0">Warning:</span>
                   <span>
                     Template has {lineCount} lines but the board only displays {numLines}.
@@ -973,19 +999,19 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     <button
                       onClick={() => setPreviewBoardColor("black")}
                       aria-label="Preview as black board"
-                      className={`h-5 w-5 rounded-full border-2 bg-[#0d0d0d] transition-colors ${
+                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors ${
                         effectiveBoardColor === "black"
                           ? "border-primary ring-1 ring-primary/30"
-                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                          : "border-border hover:border-muted-foreground"
                       }`}
                     />
                     <button
                       onClick={() => setPreviewBoardColor("white")}
                       aria-label="Preview as white board"
-                      className={`h-5 w-5 rounded-full border-2 bg-[#fafafa] transition-colors ${
+                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors ${
                         effectiveBoardColor === "white"
                           ? "border-primary ring-1 ring-primary/30"
-                          : "border-muted-foreground/30 hover:border-muted-foreground"
+                          : "border-border hover:border-muted-foreground"
                       }`}
                     />
                   </div>
@@ -1101,7 +1127,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       htmlFor="live-output-toggle"
                       className="flex items-center gap-1.5 text-xs sm:text-sm font-medium cursor-pointer select-none"
                     >
-                      <Radio className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-red-500 animate-pulse" : "text-muted-foreground"}`} />
+                      <Radio className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-destructive animate-pulse" : "text-muted-foreground"}`} />
                       Live Output
                     </label>
                     {liveSendMutation.isPending && (
@@ -1130,6 +1156,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
               </div>
 
             </div>
+            </ScrollArea>
           </CardContent>
         </Card>
 
