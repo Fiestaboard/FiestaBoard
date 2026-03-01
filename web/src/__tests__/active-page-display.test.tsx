@@ -160,6 +160,33 @@ describe("ActivePageDisplay", () => {
     });
   });
 
+  it("shows Carousel badge when active page is a carousel", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({ page_id: "carousel:test-carousel-id" })
+      ),
+      http.get(`${API_BASE}/carousels`, () =>
+        HttpResponse.json({
+          carousels: [{
+            id: "carousel:test-carousel-id",
+            name: "Test Carousel",
+            page_ids: ["page-1"],
+            interval_seconds: 30,
+            created_at: "2025-01-01T00:00:00Z",
+          }],
+          total: 1,
+        })
+      )
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Carousel")).toBeInTheDocument();
+      expect(screen.getByText("Carousel")).toBeInTheDocument();
+    });
+  });
+
   it("handles set active page error", async () => {
     const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
     server.use(

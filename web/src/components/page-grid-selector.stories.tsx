@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { PageGridSelector } from "./page-grid-selector";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Page, PagesResponse, PagePreviewBatchResponse } from "@/lib/api";
+import type { Page, PagesResponse, PagePreviewBatchResponse, Carousel, CarouselsResponse } from "@/lib/api";
 
 const meta = {
   title: "Layout/PageGridSelector",
@@ -85,7 +85,24 @@ const mockPreviews: PagePreviewBatchResponse = {
   },
 };
 
-const createQueryClient = (pages: Page[], activePageId?: string) => {
+const mockCarousels: Carousel[] = [
+  {
+    id: "carousel:abc-123",
+    name: "Morning Rotation",
+    page_ids: ["page-1", "page-2", "page-3"],
+    interval_seconds: 30,
+    created_at: "2024-02-01T00:00:00Z",
+  },
+  {
+    id: "carousel:def-456",
+    name: "Evening Loop",
+    page_ids: ["page-3", "page-4"],
+    interval_seconds: 60,
+    created_at: "2024-02-02T00:00:00Z",
+  },
+];
+
+const createQueryClient = (pages: Page[], activePageId?: string, carousels?: Carousel[]) => {
   const client = new QueryClient({
     defaultOptions: {
       queries: {
@@ -101,6 +118,9 @@ const createQueryClient = (pages: Page[], activePageId?: string) => {
     board_color: "black",
     devices: ["flagship"],
   });
+  if (carousels) {
+    client.setQueryData(["carousels"], { carousels, total: carousels.length } as CarouselsResponse);
+  }
   
   return client;
 };
@@ -228,4 +248,60 @@ export const ManyPages = () => {
       </div>
     </QueryClientProvider>
   );
+};
+
+export const WithCarousels: Story = {
+  args: {
+    activePageId: "page-1",
+    onSelectPage: (pageId: string) => console.log("Selected:", pageId),
+    showActiveIndicator: true,
+    showCarousels: true,
+    label: "SELECT PAGE",
+  },
+  decorators: [
+    (Story, context) => (
+      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCarousels)}>
+        <div className="max-w-4xl">
+          <Story />
+        </div>
+      </QueryClientProvider>
+    ),
+  ],
+};
+
+export const WithActiveCarousel: Story = {
+  args: {
+    activePageId: "carousel:abc-123",
+    onSelectPage: (pageId: string) => console.log("Selected:", pageId),
+    showActiveIndicator: true,
+    showCarousels: true,
+    label: "SELECT PAGE",
+  },
+  decorators: [
+    (Story, context) => (
+      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCarousels)}>
+        <div className="max-w-4xl">
+          <Story />
+        </div>
+      </QueryClientProvider>
+    ),
+  ],
+};
+
+export const CarouselsHidden: Story = {
+  args: {
+    activePageId: "page-1",
+    onSelectPage: (pageId: string) => console.log("Selected:", pageId),
+    showCarousels: false,
+    label: "PAGES ONLY",
+  },
+  decorators: [
+    (Story, context) => (
+      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCarousels)}>
+        <div className="max-w-4xl">
+          <Story />
+        </div>
+      </QueryClientProvider>
+    ),
+  ],
 };

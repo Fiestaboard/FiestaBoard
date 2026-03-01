@@ -540,6 +540,26 @@ export const handlers = [
     });
   }),
 
+  http.post(`${API_BASE}/pages/preview/batch`, async ({ request }) => {
+    const body = await request.json() as { page_ids: string[] };
+    const previews: Record<string, object> = {};
+    for (const pid of body.page_ids || []) {
+      previews[pid] = {
+        page_id: pid,
+        message: "Preview content",
+        lines: ["Preview content"],
+        display_type: "single",
+        raw: {},
+        available: true,
+      };
+    }
+    return HttpResponse.json({
+      previews,
+      total: body.page_ids?.length || 0,
+      successful: body.page_ids?.length || 0,
+    });
+  }),
+
   http.post(`${API_BASE}/pages/:id/send`, ({ params }) => {
     const { id } = params;
     return HttpResponse.json({
@@ -811,6 +831,14 @@ export const handlers = [
   // Silence status endpoint
   http.get(`${API_BASE}/silence-status`, () => {
     return HttpResponse.json(mockSilenceStatus);
+  }),
+
+  // Carousel endpoints
+  http.get(`${API_BASE}/carousels`, () => {
+    return HttpResponse.json({
+      carousels: [],
+      total: 0,
+    });
   }),
 
   // Schedule endpoints (for active-page-display)

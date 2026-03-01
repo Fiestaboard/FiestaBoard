@@ -15,7 +15,7 @@ import {
 import { enUS } from "date-fns/locale/en-US";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ScheduleEntry, Page, Overlap } from "@/lib/api";
+import type { ScheduleEntry, Page, Overlap, Carousel } from "@/lib/api";
 import {
   schedulesToCalendarEvents,
   extractTimeFromDate,
@@ -48,6 +48,7 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 interface ScheduleCalendarViewProps {
   schedules: ScheduleEntry[];
   pages: Page[];
+  carousels?: Carousel[];
   overlaps?: Overlap[];
   onEventClick: (schedule: ScheduleEntry) => void;
   onSlotSelect: (start: Date, end: Date) => void;
@@ -57,6 +58,7 @@ interface ScheduleCalendarViewProps {
 export function ScheduleCalendarView({
   schedules,
   pages,
+  carousels = [],
   overlaps = [],
   onEventClick,
   onSlotSelect,
@@ -91,8 +93,8 @@ export function ScheduleCalendarView({
 
   // Transform schedules to calendar events
   const events = useMemo(
-    () => schedulesToCalendarEvents(schedules, weekStart, pages),
-    [schedules, weekStart, pages]
+    () => schedulesToCalendarEvents(schedules, weekStart, pages, carousels),
+    [schedules, weekStart, pages, carousels]
   );
 
 

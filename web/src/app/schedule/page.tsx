@@ -49,9 +49,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays } from "lucide-react";
-import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern } from "@/lib/api";
+import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern, isCarouselId } from "@/lib/api";
 import { toast } from "sonner";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
+import { queryKeys as boardQueryKeys, useCarousels } from "@/hooks/use-board";
 
 type ViewMode = "list" | "calendar";
 
@@ -109,6 +110,9 @@ export default function SchedulePage() {
     queryKey: ["pages"],
     queryFn: api.getPages,
   });
+
+  // Fetch carousels for form
+  const { data: carouselsData } = useCarousels();
 
   // Fetch validation (scoped by board)
   const { data: validation } = useQuery({
@@ -262,6 +266,10 @@ export default function SchedulePage() {
   );
 
   const getPageName = (pageId: string): string => {
+    if (isCarouselId(pageId)) {
+      const carousel = carouselsData?.carousels?.find((c) => c.id === pageId);
+      return carousel ? `${carousel.name} (carousel)` : pageId;
+    }
     return pagesData?.pages.find((p) => p.id === pageId)?.name || pageId;
   };
 
@@ -452,6 +460,11 @@ export default function SchedulePage() {
                       {page.name}
                     </SelectItem>
                   ))}
+                  {carouselsData?.carousels?.map((carousel) => (
+                    <SelectItem key={carousel.id} value={carousel.id}>
+                      {carousel.name} (carousel)
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -487,6 +500,7 @@ export default function SchedulePage() {
           <ScheduleListView
             schedules={schedules}
             pages={pages}
+            carousels={carouselsData?.carousels}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onAdd={handleAdd}
@@ -506,6 +520,7 @@ export default function SchedulePage() {
               <ScheduleCalendarView
                 schedules={schedules}
                 pages={pages}
+                carousels={carouselsData?.carousels}
                 overlaps={validation?.overlaps}
                 onEventClick={handleEventClick}
                 onSlotSelect={handleSlotSelect}
@@ -528,6 +543,7 @@ export default function SchedulePage() {
               <ScheduleEntryForm
                 schedule={editingSchedule || undefined}
                 pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
+                carousels={carouselsData?.carousels}
                 onSubmit={handleSubmit}
                 onCancel={handleCloseForm}
                 onDelete={editingSchedule ? () => {
