@@ -3,8 +3,33 @@
 <head>
   <meta charset="utf-8" />
   <title>Buy a Vestaboard — FiestaBoard Referral</title>
-  <meta http-equiv="refresh" content="0; url=https://web.vestaboard.com/referral?vbref=ZDGYOT" />
+  <!-- Fallback redirect for users with JavaScript disabled -->
+  <meta http-equiv="refresh" content="2; url=https://web.vestaboard.com/referral?vbref=ZDGYOT" />
   <link rel="canonical" href="https://web.vestaboard.com/referral?vbref=ZDGYOT" />
+
+  <!-- Google Analytics (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5D2S6D6PNC"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5D2S6D6PNC', {
+      page_path: '/buyavestaboard',
+      transport_type: 'beacon'
+    });
+    var redirectTimeout = setTimeout(function() {
+      window.location.href = 'https://web.vestaboard.com/referral?vbref=ZDGYOT';
+    }, 1000);
+    gtag('event', 'referral_redirect', {
+      event_category: 'referral',
+      event_label: 'buyavestaboard',
+      transport_type: 'beacon',
+      event_callback: function() {
+        clearTimeout(redirectTimeout);
+        window.location.href = 'https://web.vestaboard.com/referral?vbref=ZDGYOT';
+      }
+    });
+  </script>
 </head>
 <body>
   <p>Redirecting to <a href="https://web.vestaboard.com/referral?vbref=ZDGYOT">Vestaboard</a>&hellip;</p>
