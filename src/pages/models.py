@@ -16,6 +16,18 @@ from ..devices import DeviceType, get_dimensions, DEFAULT_DEVICE_TYPE
 
 PageType = Literal["single", "composite", "template"]
 
+LineAlignment = Literal["left", "center", "right"]
+
+
+class LineMetadata(BaseModel):
+    """Per-line formatting metadata for template pages.
+
+    Stores alignment and wrap settings that were previously encoded as
+    inline prefixes ({center}, {wrap}, etc.) in the template strings.
+    """
+    alignment: LineAlignment = "left"
+    wrap: bool = False
+
 
 class RowConfig(BaseModel):
     """Configuration for a single row in a composite page.
@@ -51,10 +63,13 @@ class Page(BaseModel):
     # For composite pages: row configuration
     rows: Optional[List[RowConfig]] = None
     
-    # For template pages: lines of template text
+    # For template pages: lines of template text (pure content, no alignment prefixes)
     # Templates can include {{variable}} syntax for dynamic data
     # and {color} syntax for board colors
     template: Optional[List[str]] = None
+
+    # Per-line formatting metadata (alignment, wrap) for template pages
+    line_metadata: Optional[List[LineMetadata]] = None
     
     # Rotation settings
     duration_seconds: int = Field(default=300, ge=10, le=3600)  # 10s to 1h
@@ -106,8 +121,6 @@ class Page(BaseModel):
         elif self.type == "template":
             if not self.template or len(self.template) == 0:
                 errors.append("Template page requires template content")
-            elif len(self.template) > dims.rows:
-                errors.append(f"Template cannot have more than {dims.rows} lines for {self.device_type}")
         
         return errors
     
@@ -124,6 +137,7 @@ class PageCreate(BaseModel):
     display_type: Optional[str] = None
     rows: Optional[List[RowConfig]] = None
     template: Optional[List[str]] = None
+    line_metadata: Optional[List[LineMetadata]] = None
     duration_seconds: int = Field(default=300, ge=10, le=3600)
     # Transition settings (per-page override)
     transition_strategy: Optional[str] = None
@@ -137,6 +151,7 @@ class PageUpdate(BaseModel):
     display_type: Optional[str] = None
     rows: Optional[List[RowConfig]] = None
     template: Optional[List[str]] = None
+    line_metadata: Optional[List[LineMetadata]] = None
     duration_seconds: Optional[int] = Field(default=None, ge=10, le=3600)
     # Transition settings (per-page override, use ... sentinel to leave unchanged)
     transition_strategy: Optional[str] = None

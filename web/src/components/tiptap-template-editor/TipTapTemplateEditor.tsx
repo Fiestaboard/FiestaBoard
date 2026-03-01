@@ -7,20 +7,17 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-// No longer using custom paragraph extension
+import { SingleParagraphDoc } from './extensions/single-paragraph-doc';
 import { VariableNode } from './extensions/variable-node';
 import { ColorTileNode } from './extensions/color-tile-node';
 import { FillSpaceNode } from './extensions/fill-space-node';
-import { SymbolNode } from './extensions/symbol-node';
 import { WrappedTextNode } from './extensions/wrapped-text-node';
-import { UppercaseText } from './extensions/uppercase-text';
-import { LineConstraints } from './extensions/line-constraints';
 import { LineNavigation } from './extensions/line-navigation';
+import { TrailingNewline } from './extensions/trailing-newline';
 import { parseTemplateSimple, serializeTemplateSimple, parseLineContent } from './utils/serialization';
 import { BOARD_LINES, BOARD_WIDTH } from './utils/constants';
-import { calculateLineLength } from './utils/length-calculator';
 import { Slice } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
@@ -63,8 +60,6 @@ function serializeSliceToTemplate(slice: Slice | null | undefined): string {
           } else {
             text += `{{fill_space}}`;
           }
-        } else if (node.type.name === 'symbol') {
-          text += `{${node.attrs?.name || ''}}`;
         } else if (node.type.name === 'wrappedText') {
           text += `{{${node.attrs?.text || ''}|wrap}}`;
         } else if (node.type.name === 'hardBreak') {
@@ -96,6 +91,7 @@ interface TipTapTemplateEditorProps {
   showToolbar?: boolean; // Show toolbar at top (default: true)
   boardWidth?: number; // Characters per line (default: 22 for flagship)
   boardLines?: number; // Total lines (default: 6 for flagship)
+  onLineCountChange?: (lineCount: number) => void; // Reports current line count for validation
 }
 
 /**
@@ -115,6 +111,7 @@ export function TipTapTemplateEditor({
   showToolbar = true,
   boardWidth = BOARD_WIDTH,
   boardLines = BOARD_LINES,
+  onLineCountChange,
 }: TipTapTemplateEditorProps) {
   // Use device-aware defaults when props not provided
   const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
@@ -126,10 +123,13 @@ export function TipTapTemplateEditor({
   const editorRef = useRef<any>(null);
   // Track drag state to handle moves properly
   const dragStateRef = useRef<{ from: number; to: number } | null>(null);
+  // Track line count for validation display
+  const [editorLineCount, setEditorLineCount] = useState(() => (value || '').split('\n').length);
   
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
+      SingleParagraphDoc,
       StarterKit.configure({
         heading: false,
         blockquote: false,
@@ -143,19 +143,17 @@ export function TipTapTemplateEditor({
         italic: false,
         strike: false,
         history: true,
-        document: true,
+        document: false, // Using SingleParagraphDoc instead to prevent splitBlock
         text: true,
-        paragraph: true, // Use standard paragraphs
-        hardBreak: true, // Enable hard breaks (Shift+Enter for line breaks within paragraph)
+        paragraph: true,
+        hardBreak: true,
       }),
       VariableNode,
       ColorTileNode,
       FillSpaceNode,
-      SymbolNode,
       WrappedTextNode,
-      LineNavigation.configure({ maxLines: boardLines }),
-      // UppercaseText, // Disabled - using CSS + serialization instead
-      // LineConstraints, // Disabled - handling in handleKeyDown and serialization instead
+      LineNavigation,
+      TrailingNewline,
     ],
     content: parseTemplateSimple(value || '', boardLines),
     editorProps: {
@@ -178,9 +176,105 @@ export function TipTapTemplateEditor({
         'aria-multiline': 'true',
       },
       handleKeyDown: (view, event) => {
-        // Handle undo/redo shortcuts explicitly
-        // Undo: Ctrl+Z (Windows/Linux) or Cmd+Z (macOS)
-        // Redo: Ctrl+Shift+Z, Ctrl+Y (Windows/Linux) or Cmd+Shift+Z, Cmd+Y (macOS)
+        // Enter: insert a hardBreak directly via ProseMirror's view.
+        // This runs BEFORE any plugin keymap, so it's the most reliable
+        // place to intercept Enter and prevent splitBlock from firing.
+        if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault();
+          if (event.shiftKey) return true; // block Shift-Enter
+          const hardBreakType = view.state.schema.nodes.hardBreak;
+          if (hardBreakType) {
+            view.dispatch(
+              view.state.tr.replaceSelectionWith(hardBreakType.create()).scrollIntoView()
+            );
+          }
+          return true;
+        }
+
+        // Backspace / Delete: skip over invisible ZWS (zero-width space)
+        // cursor-anchors so they feel transparent. At line boundaries this
+        // collapses [trailing ZWS] + <hardBreak> + [leading ZWS] into a
+        // single keystroke merge. Also prevents the TrailingNewline plugin
+        // from endlessly re-adding ZWS when backspacing an empty last line.
+        const ZWS = '\u200B';
+        const OBJ = '\ufffc'; // ProseMirror placeholder for atom nodes
+
+        if (event.key === 'Backspace' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+          const { state } = view;
+          const { selection } = state;
+          if (!selection.empty) return false;
+
+          const pos = selection.$from.pos;
+          const pStart = selection.$from.start();
+          if (pos <= pStart) return false;
+
+          if (state.doc.textBetween(pos - 1, pos, undefined, OBJ) !== ZWS) return false;
+
+          let from = pos - 1;
+          while (from > pStart && state.doc.textBetween(from - 1, from, undefined, OBJ) === ZWS) from--;
+
+          const $from = state.doc.resolve(from);
+          const nb = $from.nodeBefore;
+
+          if (nb?.type.name === 'hardBreak') {
+            from -= nb.nodeSize;
+            while (from > pStart && state.doc.textBetween(from - 1, from, undefined, OBJ) === ZWS) from--;
+            let to = pos;
+            const pEnd = selection.$from.end();
+            while (to < pEnd && state.doc.textBetween(to, to + 1, undefined, OBJ) === ZWS) to++;
+            view.dispatch(state.tr.delete(from, to).scrollIntoView());
+            return true;
+          }
+
+          if (from <= pStart) return true;
+
+          if (nb?.isAtom) {
+            view.dispatch(state.tr.delete(from - nb.nodeSize, pos).scrollIntoView());
+            return true;
+          }
+
+          view.dispatch(state.tr.delete(from - 1, pos).scrollIntoView());
+          return true;
+        }
+
+        if (event.key === 'Delete' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+          const { state } = view;
+          const { selection } = state;
+          if (!selection.empty) return false;
+
+          const pos = selection.$from.pos;
+          const pEnd = selection.$from.end();
+          if (pos >= pEnd) return false;
+
+          if (state.doc.textBetween(pos, pos + 1, undefined, OBJ) !== ZWS) return false;
+
+          let to = pos + 1;
+          while (to < pEnd && state.doc.textBetween(to, to + 1, undefined, OBJ) === ZWS) to++;
+
+          const $to = state.doc.resolve(to);
+          const na = $to.nodeAfter;
+
+          if (na?.type.name === 'hardBreak') {
+            to += na.nodeSize;
+            while (to < pEnd && state.doc.textBetween(to, to + 1, undefined, OBJ) === ZWS) to++;
+            let from2 = pos;
+            const pStart = selection.$from.start();
+            while (from2 > pStart && state.doc.textBetween(from2 - 1, from2, undefined, OBJ) === ZWS) from2--;
+            view.dispatch(state.tr.delete(from2, to).scrollIntoView());
+            return true;
+          }
+
+          if (to >= pEnd) return true;
+
+          if (na?.isAtom) {
+            view.dispatch(state.tr.delete(pos, to + na.nodeSize).scrollIntoView());
+            return true;
+          }
+
+          view.dispatch(state.tr.delete(pos, to + 1).scrollIntoView());
+          return true;
+        }
+
         const key = event.key.toLowerCase();
         const isMod = event.ctrlKey || event.metaKey;
         
@@ -232,8 +326,6 @@ export function TipTapTemplateEditor({
             return false;
           }
         
-        // Enter is handled by the LineNavigation extension (not here).
-        
         // Handle Cut (Ctrl/Cmd + X) - copy to clipboard and delete
         if ((event.ctrlKey || event.metaKey) && event.key === 'x') {
           if (selection && !selection.empty) {
@@ -266,9 +358,6 @@ export function TipTapTemplateEditor({
         //   return false;
         // }
         
-          // Let all other keys work naturally - no blocking or manual conversion
-          // UppercaseText extension will handle lowercase conversion via validation
-          // Character limits will be handled via validation in onUpdate
           return false;
         } catch (error) {
           console.warn('Error in handleKeyDown:', error);
@@ -326,7 +415,6 @@ export function TipTapTemplateEditor({
                 if (!node || (node.type.name !== 'variable' && 
                              node.type.name !== 'colorTile' && 
                              node.type.name !== 'fillSpace' && 
-                             node.type.name !== 'symbol' && 
                              node.type.name !== 'wrappedText')) {
                   // Try the node before
                   node = $pos.nodeBefore;
@@ -338,7 +426,6 @@ export function TipTapTemplateEditor({
                 if (node && (node.type.name === 'variable' || 
                              node.type.name === 'colorTile' || 
                              node.type.name === 'fillSpace' || 
-                             node.type.name === 'symbol' || 
                              node.type.name === 'wrappedText')) {
                   // Store drag state for handleDrop
                   dragStateRef.current = { from: nodePos, to: nodePos + node.nodeSize };
@@ -478,7 +565,22 @@ export function TipTapTemplateEditor({
       }
       const doc = editor.getJSON();
       const templateString = serializeTemplateSimple(doc, boardLines);
+      const lineCount = templateString.split('\n').length;
       onChange(templateString);
+
+      setEditorLineCount(lineCount);
+      if (onLineCountChange) {
+        onLineCountChange(lineCount);
+      }
+    },
+    onCreate: ({ editor }) => {
+      const doc = editor.getJSON();
+      const templateString = serializeTemplateSimple(doc, boardLines);
+      const lineCount = templateString.split('\n').length;
+      setEditorLineCount(lineCount);
+      if (onLineCountChange) {
+        onLineCountChange(lineCount);
+      }
     },
     onFocus: () => {
       onFocus?.();
@@ -589,9 +691,13 @@ export function TipTapTemplateEditor({
     };
   }, [editor]);
 
-  // Update editor content when value changes externally
   useEffect(() => {
-    if (editor && editor.state) {
+    if (!editor || editor.isDestroyed) return;
+
+    // Only sync content when the editor is NOT focused (e.g. tab switch,
+    // draft restore). Skipping while focused prevents setContent from
+    // clobbering the cursor during active typing.
+    if (!editor.isFocused) {
       const currentSerialized = serializeTemplateSimple(editor.getJSON(), boardLines);
       if (value !== currentSerialized) {
         editor.commands.setContent(parseTemplateSimple(value || '', boardLines), false, {
@@ -599,7 +705,13 @@ export function TipTapTemplateEditor({
         });
       }
     }
-  }, [value, editor]);
+
+    const lineCount = (value || '').split('\n').length;
+    setEditorLineCount(lineCount);
+    if (onLineCountChange) {
+      onLineCountChange(lineCount);
+    }
+  }, [value, editor, boardLines]);
 
   // No need to enforce paragraph count - we use line breaks now
 
@@ -724,6 +836,8 @@ export function TipTapTemplateEditor({
     ? effectiveWrapEnabled[currentLineIndex] || false
     : false;
 
+  const isOverLineLimit = editorLineCount > boardLines;
+
   return (
     <div className={cn('relative', className)}>
       {/* Toolbar */}
@@ -745,15 +859,24 @@ export function TipTapTemplateEditor({
       <div className="flex-1">
         <div className={cn(
           "border bg-background relative rounded-md",
-          showToolbar ? "rounded-t-none" : ""
+          showToolbar ? "rounded-t-none" : "",
+          isOverLineLimit && "border-amber-500"
         )} style={{ 
           padding: '0.75rem', 
-          overflow: 'hidden',
           minHeight: `${boardLines * 1.5 + 1.5}rem`,
         }}>
-          <div className="relative" style={{ height: `${boardLines * 1.5}rem` }}>
+          <div className="relative" style={{ minHeight: `${boardLines * 1.5}rem` }}>
             <EditorContent editor={editor} />
           </div>
+        </div>
+
+        {/* Line counter */}
+        <div className={cn(
+          "mt-1 text-xs",
+          isOverLineLimit ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
+        )}>
+          {editorLineCount} / {boardLines} lines
+          {isOverLineLimit && ` — exceeds the ${boardLines}-line board limit`}
         </div>
 
         {/* Alignment controls - only show if toolbar is hidden */}
@@ -818,7 +941,7 @@ export function TipTapTemplateEditor({
           padding: 0;
           width: 100%;
           max-width: 100%;
-          overflow: hidden;
+          overflow: visible;
           outline: none;
         }
         
@@ -880,7 +1003,6 @@ export function TipTapTemplateEditor({
         /* Inline nodes - keep them truly inline, no wrapping */
         .ProseMirror [data-type="variable"],
         .ProseMirror [data-type="color-tile"],
-        .ProseMirror [data-type="symbol"],
         .ProseMirror [data-type="fill-space"],
         .ProseMirror [data-type="wrapped-text"] {
           display: inline-block !important;
@@ -903,7 +1025,6 @@ export function TipTapTemplateEditor({
         /* All inline nodes must not exceed line height */
         .ProseMirror [data-type="variable"],
         .ProseMirror [data-type="color-tile"],
-        .ProseMirror [data-type="symbol"],
         .ProseMirror [data-type="fill-space"],
         .ProseMirror [data-type="wrapped-text"] {
           max-height: 1.4rem !important;
@@ -921,7 +1042,6 @@ export function TipTapTemplateEditor({
         /* Don't transform node views (they handle their own display) */
         .ProseMirror [data-type="variable"],
         .ProseMirror [data-type="color-tile"],
-        .ProseMirror [data-type="symbol"],
         .ProseMirror [data-type="fill-space"],
         .ProseMirror [data-type="wrapped-text"] {
           text-transform: none;
@@ -954,7 +1074,7 @@ export function TipTapTemplateEditor({
         }
         
         /* Range-selection highlight for inline atom nodes (color tiles,
-           variables, symbols, fill-space).  onSelectionUpdate adds this
+           variables, fill-space).  onSelectionUpdate adds this
            class to any atom node DOM element inside the selection range. */
         .ProseMirror .selected-inline {
           outline: 2px solid hsl(var(--primary));

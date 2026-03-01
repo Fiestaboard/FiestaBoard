@@ -42,7 +42,7 @@ export function insertTemplateContent(
   // For atomic nodes, we need to move cursor past the node
   let insertedSize = 0;
   nodes.forEach((node: any) => {
-    // Atomic nodes (color tiles, variables, symbols, etc.) take 1 position
+    // Atomic nodes (color tiles, variables, etc.) take 1 position
     insertedSize += 1;
   });
   

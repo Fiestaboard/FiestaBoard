@@ -159,6 +159,13 @@ export interface RowConfig {
   target_row: number;
 }
 
+export type LineAlignment = "left" | "center" | "right";
+
+export interface LineMetadata {
+  alignment: LineAlignment;
+  wrap: boolean;
+}
+
 export interface Page {
   id: string;
   name: string;
@@ -167,6 +174,7 @@ export interface Page {
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
+  line_metadata?: LineMetadata[];
   duration_seconds: number;
   // Transition settings (per-page override)
   transition_strategy?: string | null;
@@ -183,6 +191,7 @@ export interface PageCreate {
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
+  line_metadata?: LineMetadata[];
   duration_seconds?: number;
   // Transition settings (per-page override)
   transition_strategy?: string | null;
@@ -195,6 +204,7 @@ export interface PageUpdate {
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
+  line_metadata?: LineMetadata[];
   duration_seconds?: number;
   // Transition settings (per-page override)
   transition_strategy?: string | null;
@@ -765,15 +775,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ template }),
     }),
-  renderTemplate: (template: string | string[]) =>
+  renderTemplate: (template: string | string[], lineMetadata?: LineMetadata[]) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
-      body: JSON.stringify({ template }),
+      body: JSON.stringify({ template, ...(lineMetadata && { line_metadata: lineMetadata }) }),
     }),
-  renderTemplateLive: (template: string | string[], boardId?: string) =>
+  renderTemplateLive: (template: string | string[], boardId?: string, lineMetadata?: LineMetadata[]) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
-      body: JSON.stringify({ template, ...(boardId && { board_id: boardId }) }),
+      body: JSON.stringify({ template, ...(boardId && { board_id: boardId }), ...(lineMetadata && { line_metadata: lineMetadata }) }),
     }),
   forceRefresh: () =>
     fetchApi<{ status: string; message: string }>("/force-refresh", {
