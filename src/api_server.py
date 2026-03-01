@@ -1102,6 +1102,11 @@ class EnablementTokenRequest(BaseModel):
     enablement_token: str
 
 
+class BoardScanRequest(BaseModel):
+    """Request model for network board scanning."""
+    timeout: Optional[float] = 4.0
+
+
 @app.post("/config/board/enable-local-api")
 async def enable_local_api(request: EnablementTokenRequest):
     """
@@ -1201,6 +1206,30 @@ async def enable_local_api(request: EnablementTokenRequest):
             "message": f"Failed to enable local API: {str(e)}",
             "error": str(e)
         }
+
+
+@app.post("/config/board/scan")
+async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
+    """
+    Scan the local network for Vestaboard devices.
+
+    Uses mDNS service browsing and subnet port probing (port 7000) to
+    discover boards automatically so users don't have to enter an IP.
+
+    Optional body:
+    {
+        "timeout": 4.0  // scan duration in seconds (default 4, max 15)
+    }
+
+    Returns:
+        boards: list of discovered devices with ip, port, hostname, source
+    """
+    from src.system.mdns import scan_for_boards as _scan
+
+    timeout = min(max(float(request.timeout or 4.0), 1.0), 15.0)
+
+    boards = _scan(timeout=timeout)
+    return {"boards": boards}
 
 
 @app.get("/config/general")
