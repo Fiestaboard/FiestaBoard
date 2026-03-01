@@ -97,6 +97,14 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         has_command=True,
         options=["Board", "UI", "Both"],
     ),
+    EntityDefinition(
+        entity_type="select",
+        object_id="transition_style",
+        name="Transition Style",
+        icon="mdi:transition",
+        has_command=True,
+        options=["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"],
+    ),
     # Sensors
     EntityDefinition(
         entity_type="sensor",
@@ -123,12 +131,31 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         name="Silence Mode",
         icon="mdi:volume-off",
     ),
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="version",
+        name="Version",
+        icon="mdi:tag",
+    ),
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="page_count",
+        name="Page Count",
+        icon="mdi:file-multiple",
+    ),
     # Buttons
     EntityDefinition(
         entity_type="button",
         object_id="refresh_display",
         name="Refresh Display",
         icon="mdi:refresh",
+        has_command=True,
+    ),
+    EntityDefinition(
+        entity_type="button",
+        object_id="blank_board",
+        name="Blank Board",
+        icon="mdi:card-outline",
         has_command=True,
     ),
     # Text

@@ -47,8 +47,8 @@ class TestEntityDefinitions:
     """Tests for the entity definition registry."""
 
     def test_entity_count(self):
-        """FiestaBoard should expose 11 entities to HA."""
-        assert len(ENTITY_DEFINITIONS) == 11
+        """FiestaBoard should expose 15 entities to HA."""
+        assert len(ENTITY_DEFINITIONS) == 15
 
     def test_all_entity_types_valid(self):
         """All entity types must be valid HA entity types."""
@@ -85,19 +85,22 @@ class TestEntityDefinitions:
         assert "display_service" in switch_ids
 
     def test_select_entities(self):
-        """Should have exactly 2 select entities."""
+        """Should have exactly 3 select entities."""
         selects = [e for e in ENTITY_DEFINITIONS if e.entity_type == "select"]
-        assert len(selects) == 2
+        assert len(selects) == 3
         select_ids = {e.object_id for e in selects}
         assert "active_page" in select_ids
         assert "output_target" in select_ids
+        assert "transition_style" in select_ids
 
     def test_sensor_entities(self):
-        """Should have sensor entities for current page and message."""
+        """Should have sensor entities for current page, message, version, and page count."""
         sensors = [e for e in ENTITY_DEFINITIONS if e.entity_type == "sensor"]
         sensor_ids = {e.object_id for e in sensors}
         assert "current_page" in sensor_ids
         assert "current_message" in sensor_ids
+        assert "version" in sensor_ids
+        assert "page_count" in sensor_ids
 
     def test_binary_sensor_entities(self):
         """Should have binary sensor entities for status and silence."""
@@ -107,10 +110,12 @@ class TestEntityDefinitions:
         assert "silence_mode" in binary_ids
 
     def test_button_entities(self):
-        """Should have button entity for refresh."""
+        """Should have button entities for refresh and blank board."""
         buttons = [e for e in ENTITY_DEFINITIONS if e.entity_type == "button"]
-        assert len(buttons) == 1
-        assert buttons[0].object_id == "refresh_display"
+        assert len(buttons) == 2
+        button_ids = {e.object_id for e in buttons}
+        assert "refresh_display" in button_ids
+        assert "blank_board" in button_ids
 
     def test_text_entities(self):
         """Should have text entity for sending messages."""
@@ -145,6 +150,37 @@ class TestEntityDefinitions:
         for entity in ENTITY_DEFINITIONS:
             if not entity.has_command:
                 assert entity.object_id in readonly
+
+    def test_blank_board_entity(self):
+        """Blank board button should exist and be controllable."""
+        blank = [e for e in ENTITY_DEFINITIONS if e.object_id == "blank_board"]
+        assert len(blank) == 1
+        assert blank[0].entity_type == "button"
+        assert blank[0].has_command is True
+
+    def test_version_sensor(self):
+        """Version sensor should be read-only."""
+        version = [e for e in ENTITY_DEFINITIONS if e.object_id == "version"]
+        assert len(version) == 1
+        assert version[0].entity_type == "sensor"
+        assert version[0].has_command is False
+
+    def test_page_count_sensor(self):
+        """Page count sensor should be read-only."""
+        page_count = [e for e in ENTITY_DEFINITIONS if e.object_id == "page_count"]
+        assert len(page_count) == 1
+        assert page_count[0].entity_type == "sensor"
+        assert page_count[0].has_command is False
+
+    def test_transition_style_entity(self):
+        """Transition style select should have valid animation options."""
+        transition = [e for e in ENTITY_DEFINITIONS if e.object_id == "transition_style"]
+        assert len(transition) == 1
+        assert transition[0].entity_type == "select"
+        assert transition[0].has_command is True
+        assert "column" in transition[0].options
+        assert "random" in transition[0].options
+        assert len(transition[0].options) == 6
 
 
 class TestDeviceInfo:

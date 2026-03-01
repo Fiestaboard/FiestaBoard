@@ -15,7 +15,9 @@ This feature lets Home Assistant **automatically discover** your FiestaBoard and
 - Turn the schedule on/off from HA
 - Switch active pages from HA automations
 - Send messages to the board when events happen (doorbell, weather alerts, etc.)
-- See board status on your HA dashboard
+- Blank the board or refresh the display remotely
+- Change the transition animation style
+- See board status, current page, version, and page count on your HA dashboard
 - Start/stop the display service remotely
 
 **No installation needed on the Home Assistant side.** FiestaBoard uses [MQTT Discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) — the same protocol used by Zigbee2MQTT, Tasmota, and ESPHome — so your board appears automatically in HA.
@@ -85,10 +87,12 @@ Once connected, FiestaBoard appears as a device with these controls and sensors:
 |--------|------|-------------|
 | **Schedule** | Switch | Turn the FiestaBoard schedule on/off |
 | **Display Service** | Switch | Start/stop the FiestaBoard display service |
-| **Active Page** | Select | Choose which page to display |
+| **Active Page** | Select | Choose which page to display (dynamically populated from your pages) |
 | **Output Target** | Select | Route output to Board, UI, or Both |
-| **Send Message** | Text | Send a text message to the board |
+| **Transition Style** | Select | Board transition animation (column, reverse-column, edges-to-center, row, diagonal, random) |
+| **Send Message** | Text | Send a text message to the board (up to 132 characters) |
 | **Refresh Display** | Button | Force a display refresh |
+| **Blank Board** | Button | Clear the board display (all blank) |
 | **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds) |
 
 ### Sensors (read-only status from FiestaBoard)
@@ -99,6 +103,8 @@ Once connected, FiestaBoard appears as a device with these controls and sensors:
 | **Service Status** | Binary Sensor | Whether FiestaBoard is running |
 | **Board Message** | Sensor | Summary of what's currently on the board |
 | **Silence Mode** | Binary Sensor | Whether silence/quiet hours are active |
+| **Version** | Sensor | FiestaBoard software version |
+| **Page Count** | Sensor | Number of pages configured |
 
 ## Automation Examples
 
@@ -141,20 +147,20 @@ automation:
           option: "Weather Dashboard"
 ```
 
-### Turn Off Board at Bedtime
+### Blank the Board at Bedtime
 
-Stop the display service at night to save energy:
+Clear the board at night and restart in the morning:
 
 ```yaml
 automation:
-  - alias: "Turn Off Board at Bedtime"
+  - alias: "Blank Board at Bedtime"
     trigger:
       - platform: time
         at: "22:00:00"
     action:
-      - service: switch.turn_off
+      - service: button.press
         target:
-          entity_id: switch.fiestaboard_display_service
+          entity_id: button.fiestaboard_blank_board
   - alias: "Turn On Board in Morning"
     trigger:
       - platform: time
@@ -167,7 +173,7 @@ automation:
 
 ### Display on HA Dashboard
 
-Add FiestaBoard status to your HA dashboard:
+Add FiestaBoard status and controls to your HA dashboard:
 
 ```yaml
 type: entities
@@ -176,8 +182,14 @@ entities:
   - entity: binary_sensor.fiestaboard_service_status
   - entity: sensor.fiestaboard_current_page
   - entity: sensor.fiestaboard_board_message
+  - entity: sensor.fiestaboard_version
+  - entity: sensor.fiestaboard_page_count
   - entity: switch.fiestaboard_schedule
+  - entity: switch.fiestaboard_display_service
   - entity: select.fiestaboard_active_page
+  - entity: select.fiestaboard_output_target
+  - entity: select.fiestaboard_transition_style
+  - entity: number.fiestaboard_refresh_interval
 ```
 
 ## Configuration Reference
