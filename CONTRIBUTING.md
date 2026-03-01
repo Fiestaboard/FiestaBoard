@@ -113,6 +113,7 @@ If the repo is set to “Squash and merge” on GitHub, the maintainer can squas
 - **No secrets**: Never commit `.env`, API keys, or real credentials. Use `env.example` and placeholders in docs.
 - **Privacy**: Do not use real personal data (addresses, coordinates, phone numbers, etc.) in code, tests, or docs. Use generic examples (e.g. `example@example.com`, well-known public coordinates).
 - **Python**: The project uses pylint (see `.pylintrc`) and expects platform tests to pass. New platform code should be covered by tests.
+- **Accessibility**: FiestaBoard aims to meet [WCAG 2.2 Level AAA](https://www.w3.org/TR/WCAG22/). All UI changes should maintain or improve accessibility — use semantic HTML, provide text alternatives for images, ensure sufficient color contrast, and support keyboard navigation. See the [Accessibility reference](https://fiestaboard.app/docs/reference/accessibility) for details.
 - **Temporary files**: Do not leave temporary markdown or implementation notes in the repo root. Put lasting docs in `docs/` or the right plugin/docs folder.
 
 ---
