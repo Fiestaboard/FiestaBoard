@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useCallback, useMemo, useState, memo } from "react";
+import { useEffect, useCallback, useMemo, useState, useRef, memo } from "react";
 import { usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LayoutTemplate, Loader2, Clock } from "lucide-react";
-import { BoardDisplay } from "@/components/board-display";
+import { StaticBoardDisplay } from "@/components/static-board-display";
 import type { Page, PagePreviewResponse, PagePreviewBatchResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -72,8 +72,8 @@ function isCacheValid(cached: CachedPreviewData | undefined, pageUpdatedAt: stri
   return cached.pageUpdatedAt === pageUpdatedAt;
 }
 
-// Mini preview component for each page button - receives preview data from parent
-// Memoized to prevent unnecessary re-renders when parent updates
+// Mini preview component for each page button - uses StaticBoardDisplay
+// (zero hooks per tile) and defers rendering until the card enters the viewport.
 const PageButtonPreview = memo(function PageButtonPreview({ 
   preview,
   isLoading,
@@ -85,11 +85,24 @@ const PageButtonPreview = memo(function PageButtonPreview({
   boardType?: "black" | "white" | null;
   deviceType?: "flagship" | "note";
 }) {
-  // Show simple spinner when loading instead of BoardDisplay loading animation
-  // This prevents lag when all displays try to load at once
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { setIsVisible(true); return; }
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
+      { rootMargin: "200px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   if (isLoading && !preview) {
     return (
-      <div className="w-full flex items-center justify-center py-4" role="status">
+      <div ref={ref} className="w-full flex items-center justify-center py-4" role="status">
         <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" aria-hidden="true" />
         <span className="sr-only">Loading preview</span>
       </div>
@@ -98,23 +111,26 @@ const PageButtonPreview = memo(function PageButtonPreview({
 
   return (
     <div 
+      ref={ref}
       className="w-full hover-stable overflow-hidden -mr-3"
       style={{
         maskImage: 'linear-gradient(to right, black 60%, transparent 100%)',
         WebkitMaskImage: 'linear-gradient(to right, black 60%, transparent 100%)'
       }}
     >
-      <BoardDisplay 
-        message={preview?.message || null} 
-        isLoading={false}
-        size="sm"
-        boardType={boardType ?? "black"}
-        deviceType={deviceType}
-      />
+      {isVisible ? (
+        <StaticBoardDisplay
+          message={preview?.message || null}
+          size="sm"
+          boardType={boardType ?? "black"}
+          deviceType={deviceType}
+        />
+      ) : (
+        <div className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
+      )}
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if preview, loading state, or deviceType changes
   return prevProps.preview === nextProps.preview && 
          prevProps.isLoading === nextProps.isLoading &&
          prevProps.boardType === nextProps.boardType &&
