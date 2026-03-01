@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ActivePageDisplay } from "./active-page-display";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Page, PagesResponse, SilenceStatus } from "@/lib/api";
+import type { Page, PagesResponse, SilenceStatus, Carousel, CarouselsResponse } from "@/lib/api";
 
 const meta = {
   title: "Layout/ActivePageDisplay",
@@ -44,10 +44,21 @@ const mockPages: Page[] = [
 
 const mockPreviewMessage = "{63}WEATHER{/63}\n{64}72°F SUNNY{/64}\n \nHIGH: 75°F\nLOW: 65°F\nHUMIDITY: 60%";
 
+const mockCarousels: Carousel[] = [
+  {
+    id: "carousel:abc-123",
+    name: "Morning Rotation",
+    page_ids: ["page-1", "page-2"],
+    interval_seconds: 30,
+    created_at: "2024-02-01T00:00:00Z",
+  },
+];
+
 const createQueryClient = (
   activePageId: string | null,
   scheduleEnabled: boolean = false,
-  silenceActive: boolean = false
+  silenceActive: boolean = false,
+  carousels?: Carousel[],
 ) => {
   const client = new QueryClient({
     defaultOptions: {
@@ -81,6 +92,19 @@ const createQueryClient = (
       raw: {},
     });
   }
+
+  // Seed preview data for all pages so carousel rotation has something to show
+  for (const page of mockPages) {
+    if (!client.getQueryData(["pagePreview", page.id])) {
+      client.setQueryData(["pagePreview", page.id], {
+        page_id: page.id,
+        message: mockPreviewMessage,
+        lines: mockPreviewMessage.split("\n"),
+        display_type: "template",
+        raw: {},
+      });
+    }
+  }
   
   client.setQueryData(["silenceStatus"], {
     enabled: true,
@@ -96,6 +120,11 @@ const createQueryClient = (
     boards: [],
     devices: ["flagship"],
   });
+
+  client.setQueryData(["carousels"], {
+    carousels: carousels ?? [],
+    total: carousels?.length ?? 0,
+  } as CarouselsResponse);
   
   return client;
 };
@@ -195,3 +224,27 @@ export const InDashboard = () => (
     </div>
   </QueryClientProvider>
 );
+
+export const CarouselActive: Story = {
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={createQueryClient("carousel:abc-123", false, false, mockCarousels)}>
+        <div className="max-w-4xl">
+          <Story />
+        </div>
+      </QueryClientProvider>
+    ),
+  ],
+};
+
+export const CarouselActiveScheduled: Story = {
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={createQueryClient("carousel:abc-123", true, false, mockCarousels)}>
+        <div className="max-w-4xl">
+          <Story />
+        </div>
+      </QueryClientProvider>
+    ),
+  ],
+};
