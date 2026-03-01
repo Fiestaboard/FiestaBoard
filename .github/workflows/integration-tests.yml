@@ -99,12 +99,9 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps chromium
 
-      - name: Create test network
-        run: docker network create integration-net
-
       - name: Start mock Vestaboard API
         run: |
-          docker run -d --name mock-board --network integration-net \
+          docker run -d --name mock-board \
             -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
             -w /app \
             python:3.11-slim python server.py
@@ -115,7 +112,7 @@ jobs:
 
       - name: Start FiestaBoard container (unified app, same as prod)
         run: |
-          docker run -d --name fiestaboard-integration --network integration-net \
+          docker run -d --name fiestaboard-integration \
             -e BOARD_API_MODE=local \
             -e BOARD_HOST=${{ env.MOCK_BOARD_IP }} \
             -e BOARD_LOCAL_API_KEY=test_key \
@@ -128,7 +125,7 @@ jobs:
 
           echo "Waiting for app at $CONTAINER_IP:3000..."
           for i in $(seq 1 60); do
-            if curl -s -o /dev/null -w "%{http_code}" "http://$CONTAINER_IP:3000/api/health" 2>/dev/null | grep -q 200; then
+            if curl -s -m 5 -o /dev/null -w "%{http_code}" "http://$CONTAINER_IP:3000/api/health" 2>/dev/null | grep -q 200; then
               echo "App ready (attempt $i)"
               break
             fi
@@ -145,9 +142,7 @@ jobs:
 
       - name: Stop containers
         if: always()
-        run: |
-          docker rm -f fiestaboard-integration mock-board 2>/dev/null || true
-          docker network rm integration-net 2>/dev/null || true
+        run: docker rm -f fiestaboard-integration mock-board 2>/dev/null || true
 
       - name: Upload test results
         uses: actions/upload-artifact@v6
