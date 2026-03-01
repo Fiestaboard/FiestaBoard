@@ -159,7 +159,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://discord.gg/wc9dDfte',
+          href: 'https://discord.gg/ujasGntNhQ',
           label: 'Discord',
           position: 'right',
         },
@@ -220,7 +220,7 @@ const config: Config = {
             },
             {
               label: 'Discord',
-              href: 'https://discord.gg/wc9dDfte',
+              href: 'https://discord.gg/ujasGntNhQ',
             },
             {
               label: 'GitHub',
