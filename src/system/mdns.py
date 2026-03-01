@@ -274,10 +274,11 @@ def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
 
     # -- Phase 2: subnet port probe ------------------------------------------
     try:
+        from concurrent.futures import ThreadPoolExecutor
+
         local_ip = _get_local_ip()
         if local_ip and local_ip != "127.0.0.1":
             prefix = ".".join(local_ip.split(".")[:3])
-            threads: List[threading.Thread] = []
             probe_results: List[str] = []
             probe_lock = threading.Lock()
 
@@ -286,16 +287,14 @@ def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
                     with probe_lock:
                         probe_results.append(ip)
 
-            for i in range(1, 255):
-                ip = f"{prefix}.{i}"
-                if ip == local_ip or ip in seen_ips:
-                    continue
-                t = threading.Thread(target=_check, args=(ip,), daemon=True)
-                threads.append(t)
-                t.start()
+            candidates = [
+                f"{prefix}.{i}"
+                for i in range(1, 255)
+                if f"{prefix}.{i}" != local_ip and f"{prefix}.{i}" not in seen_ips
+            ]
 
-            for t in threads:
-                t.join(timeout=2.0)
+            with ThreadPoolExecutor(max_workers=50) as pool:
+                pool.map(_check, candidates)
 
             for ip in probe_results:
                 if ip not in seen_ips:

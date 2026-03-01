@@ -1105,7 +1105,7 @@ export const api = {
   scanForBoards: (timeout?: number) =>
     fetchApi<BoardScanResponse>("/config/board/scan", {
       method: "POST",
-      body: JSON.stringify(timeout != null ? { timeout } : {}),
+      body: JSON.stringify({ timeout: timeout ?? 4.0 }),
     }),
 
   // Debug endpoints
