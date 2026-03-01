@@ -1,0 +1,36 @@
+# E2E Test: Tab navigation
+# Verifies all 5 tabs are accessible and render their content
+
+appId: com.fiestaboard.mobile
+---
+- launchApp
+
+# Start on Dashboard
+- assertVisible: "Dashboard"
+
+# Navigate to Pages tab
+- tapOn: "Pages"
+- assertVisible:
+    id: "pages-screen"
+
+# Navigate to Schedule tab
+- tapOn: "Schedule"
+- assertVisible: "Schedule Enabled"
+
+# Navigate to Integrations tab
+- tapOn: "Integrations"
+- assertVisible:
+    id: "plugins-list"
+
+# Navigate to Settings tab
+- tapOn: "Settings"
+- assertVisible:
+    id: "settings-screen"
+- assertVisible: "SERVER"
+- assertVisible: "GENERAL"
+- assertVisible: "ABOUT"
+
+# Navigate back to Dashboard
+- tapOn: "Dashboard"
+- assertVisible:
+    id: "dashboard-screen"

@@ -1,0 +1,33 @@
+# E2E Test: Integrations (plugin management)
+# Tests viewing plugins and opening plugin config
+
+appId: com.fiestaboard.mobile
+---
+- launchApp
+
+# Go to Integrations tab
+- tapOn: "Integrations"
+- assertVisible:
+    id: "plugins-list"
+
+# Plugin categories should be visible (section headers)
+# At minimum, plugins without API keys should appear
+- runFlow:
+    when:
+      visible: "Date & Time"
+    commands:
+      # Tap a plugin to open config
+      - tapOn: "Date & Time"
+      - assertVisible: "Plugin Settings"
+      - assertVisible: "Enabled"
+      # Go back
+      - tapOn: "Back"
+
+- runFlow:
+    when:
+      visible: "Weather"
+    commands:
+      - tapOn: "Weather"
+      - assertVisible: "Plugin Settings"
+      - assertVisible: "Configuration"
+      - tapOn: "Back"

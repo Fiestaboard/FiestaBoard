@@ -161,6 +161,7 @@ export default function ScheduleScreen() {
             value={isEnabled}
             onValueChange={(v) => toggleMutation.mutate(v)}
             trackColor={{ true: colors.primary }}
+            testID="schedule-toggle"
           />
         </View>
       </View>
@@ -170,6 +171,7 @@ export default function ScheduleScreen() {
         <TouchableOpacity
           style={[styles.viewToggleButton, viewMode === 'calendar' && { backgroundColor: colors.primary }]}
           onPress={() => setViewMode('calendar')}
+          testID="view-calendar"
         >
           <CalendarDays size={16} color={viewMode === 'calendar' ? '#fff' : theme.textSecondary} />
           <Text style={[styles.viewToggleText, { color: viewMode === 'calendar' ? '#fff' : theme.textSecondary }]}>Calendar</Text>
@@ -177,6 +179,7 @@ export default function ScheduleScreen() {
         <TouchableOpacity
           style={[styles.viewToggleButton, viewMode === 'list' && { backgroundColor: colors.primary }]}
           onPress={() => setViewMode('list')}
+          testID="view-list"
         >
           <List size={16} color={viewMode === 'list' ? '#fff' : theme.textSecondary} />
           <Text style={[styles.viewToggleText, { color: viewMode === 'list' ? '#fff' : theme.textSecondary }]}>List</Text>

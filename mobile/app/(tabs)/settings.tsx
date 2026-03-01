@@ -57,7 +57,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content} testID="settings-screen">
       <SettingsSection title="SERVER">
         <SettingsRow label="Server URL" value={serverUrl || 'Not configured'} />
         <SettingsRow

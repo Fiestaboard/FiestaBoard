@@ -1,0 +1,27 @@
+# E2E Test: Dashboard screen
+# Verifies the dashboard displays board preview, status, and active page
+
+appId: com.fiestaboard.mobile
+---
+- launchApp
+
+# Dashboard tab should be visible and active
+- assertVisible: "Dashboard"
+- assertVisible:
+    id: "dashboard-screen"
+
+# Board preview should render
+- assertVisible:
+    id: "dashboard-board-preview"
+
+# Active page section should be visible
+- assertVisible:
+    id: "dashboard-active-page"
+- assertVisible: "Active Page"
+
+# Service status indicator should be present
+- assertVisible: "Current Display"
+
+# Pull to refresh
+- scroll:
+    direction: DOWN

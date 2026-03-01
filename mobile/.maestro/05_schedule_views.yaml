@@ -1,0 +1,27 @@
+# E2E Test: Schedule screen views
+# Tests toggling between calendar and list views
+
+appId: com.fiestaboard.mobile
+---
+- launchApp
+
+# Go to Schedule tab
+- tapOn: "Schedule"
+
+# Schedule toggle should be visible
+- assertVisible: "Schedule Enabled"
+- assertVisible:
+    id: "schedule-toggle"
+
+# Calendar view should be shown by default
+- assertVisible:
+    id: "view-calendar"
+
+# Switch to list view
+- tapOn:
+    id: "view-list"
+- assertVisible: "Schedule Entries"
+
+# Switch back to calendar view
+- tapOn:
+    id: "view-calendar"

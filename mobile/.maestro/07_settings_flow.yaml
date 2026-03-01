@@ -1,0 +1,30 @@
+# E2E Test: Settings screen
+# Tests settings sections and server connection info
+
+appId: com.fiestaboard.mobile
+---
+- launchApp
+
+# Go to Settings tab
+- tapOn: "Settings"
+- assertVisible:
+    id: "settings-screen"
+
+# Server section
+- assertVisible: "SERVER"
+- assertVisible: "Server URL"
+- assertVisible: "Connection"
+
+# General section
+- assertVisible: "GENERAL"
+- assertVisible: "Timezone"
+- assertVisible: "Refresh Interval"
+
+# Service section
+- assertVisible: "SERVICE"
+- assertVisible: "Dev Mode"
+
+# About section
+- assertVisible: "ABOUT"
+- assertVisible: "App Version"
+- assertVisible: "Server Version"

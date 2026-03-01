@@ -1,0 +1,32 @@
+# E2E Test: Pages flow
+# Tests viewing pages, opening a page detail, and navigating back
+
+appId: com.fiestaboard.mobile
+---
+- launchApp
+
+# Go to Pages tab
+- tapOn: "Pages"
+- assertVisible:
+    id: "pages-screen"
+- assertVisible:
+    id: "pages-list"
+
+# If there are pages, tap the first one to open detail
+- runFlow:
+    when:
+      visible: "flagship"
+    commands:
+      # Tap first page card (it should have a name visible)
+      - tapOn:
+          id: "pages-list"
+          index: 0
+          childOf: true
+      # Page detail should show
+      - assertVisible: "Page Detail"
+      - assertVisible:
+          id: "board-preview"
+      # Action buttons should be visible
+      - assertVisible: "Send to Board"
+      # Go back
+      - tapOn: "Back"

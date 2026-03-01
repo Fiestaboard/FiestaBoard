@@ -41,9 +41,10 @@ export default function DashboardScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      testID="dashboard-screen"
     >
       {/* Board Preview */}
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+      <View style={[styles.card, { backgroundColor: theme.surface }]} testID="dashboard-board-preview">
         <View style={styles.cardHeader}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>Current Display</Text>
           <StatusIndicator status={isRunning ? 'running' : 'stopped'} label={isRunning ? 'Running' : 'Stopped'} />
@@ -60,6 +61,7 @@ export default function DashboardScreen() {
         style={[styles.card, { backgroundColor: theme.surface }]}
         onPress={() => router.push('/pages')}
         activeOpacity={0.7}
+        testID="dashboard-active-page"
       >
         <Text style={[styles.cardTitle, { color: theme.text }]}>Active Page</Text>
         <Text style={[styles.pageTitle, { color: theme.text }]}>{activePage?.name || 'No page selected'}</Text>

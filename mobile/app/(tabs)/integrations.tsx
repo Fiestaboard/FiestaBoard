@@ -42,6 +42,7 @@ export default function IntegrationsScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
       sections={sections}
+      testID="plugins-list"
       keyExtractor={(item) => item.id}
       renderSectionHeader={({ section: { title } }) => (
         <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>{title}</Text>

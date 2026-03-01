@@ -1,0 +1,11 @@
+# Maestro E2E test configuration for FiestaBoard mobile app
+#
+# Prerequisites:
+#   1. Install Maestro: curl -Ls "https://get.maestro.mobile.dev" | bash
+#   2. Build the app: cd mobile && npx expo prebuild && npx expo run:ios
+#   3. Run tests: maestro test mobile/.maestro/
+#
+# For Expo Go development:
+#   maestro test mobile/.maestro/ --env APP_ID=host.exp.Exponent
+
+appId: com.fiestaboard.mobile

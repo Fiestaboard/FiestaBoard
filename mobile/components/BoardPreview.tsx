@@ -87,7 +87,7 @@ export function BoardPreview({ content, deviceType = 'flagship', boardColor = 'b
   const cellBg = isWhiteBoard ? '#f5f5f5' : '#111111';
 
   return (
-    <View style={[styles.board, { backgroundColor: bgColor, padding: boardPadding, borderRadius: compact ? 6 : 10 }]}>
+    <View style={[styles.board, { backgroundColor: bgColor, padding: boardPadding, borderRadius: compact ? 6 : 10 }]} testID="board-preview">
       {lines.map((row, rowIdx) => (
         <View key={rowIdx} style={[styles.row, { gap }]}>
           {row.map((token, colIdx) => {

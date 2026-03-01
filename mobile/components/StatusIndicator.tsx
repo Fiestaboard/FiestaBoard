@@ -20,7 +20,7 @@ export function StatusIndicator({ status, label, size = 10 }: StatusIndicatorPro
   }[status];
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={`status-${status}`}>
       <View style={[styles.dot, { width: size, height: size, borderRadius: size / 2, backgroundColor: dotColor }]} />
       {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
     </View>

@@ -1,0 +1,26 @@
+# E2E Test: Connect to FiestaBoard server
+# Tests the server connection flow on first launch
+
+appId: com.fiestaboard.mobile
+---
+- launchApp:
+    clearState: true
+
+# Should show the connect screen on first launch
+- assertVisible: "Connect to FiestaBoard"
+- assertVisible: "Enter the URL of your FiestaBoard server"
+
+# Enter a server URL
+- tapOn:
+    id: "server-url-input"
+- clearInput
+- inputText: ${SERVER_URL:-http://localhost:4420}
+
+# Tap connect
+- tapOn:
+    id: "connect-button"
+
+# Wait for connection test
+- extendedWaitUntil:
+    visible: "Dashboard"
+    timeout: 10000

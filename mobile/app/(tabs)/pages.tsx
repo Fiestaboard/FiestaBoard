@@ -64,10 +64,11 @@ export default function PagesScreen() {
   ), [activePageId, boardColor, router]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]} testID="pages-screen">
       <FlatList
         data={pages}
         renderItem={renderPage}
+        testID="pages-list"
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={styles.row}

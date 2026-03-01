@@ -61,12 +61,14 @@ export default function ConnectScreen() {
             keyboardType="url"
             returnKeyType="go"
             onSubmitEditing={handleConnect}
+            testID="server-url-input"
           />
-          {error && <Text style={[styles.error, { color: theme.destructive }]}>{error}</Text>}
+          {error && <Text style={[styles.error, { color: theme.destructive }]} testID="connect-error">{error}</Text>}
 
           <TouchableOpacity
             style={[styles.button, { backgroundColor: colors.primary, opacity: testing ? 0.7 : 1 }]}
             onPress={handleConnect}
+            testID="connect-button"
             disabled={testing}
             activeOpacity={0.8}
           >
