@@ -243,7 +243,6 @@ jobs:
     name: Accessibility Tests
     runs-on:
       - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
-      - instance-size:large
     needs: detect-changes
     if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
     timeout-minutes: 15
