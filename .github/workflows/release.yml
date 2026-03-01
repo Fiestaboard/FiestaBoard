@@ -275,10 +275,18 @@ jobs:
               console.log(`Tag ${tagName} may already exist: ${error.message}`);
             }
             
-            // Get commits since last release
-            let releaseNotes = `## What's Changed\n\n`;
+            // Generate release notes using GitHub's API (uses .github/release.yml for categories)
+            let releaseNotes = '';
             
             try {
+              const notesParams = {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tagName,
+                target_commitish: releaseSha
+              };
+              
+              // Find previous tag for comparison
               const { data: releases } = await github.rest.repos.listReleases({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -286,23 +294,14 @@ jobs:
               });
               
               if (releases.length > 0) {
-                const lastRelease = releases[0];
-                const { data: comparison } = await github.rest.repos.compareCommits({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  base: lastRelease.tag_name,
-                  head: releaseSha
-                });
-                
-                releaseNotes += comparison.commits
-                  .map(commit => `- ${commit.commit.message.split('\n')[0]} (${commit.sha.substring(0, 7)})`)
-                  .join('\n');
-              } else {
-                releaseNotes += 'Initial release';
+                notesParams.previous_tag_name = releases[0].tag_name;
               }
+              
+              const { data: generated } = await github.rest.repos.generateReleaseNotes(notesParams);
+              releaseNotes = generated.body;
             } catch (error) {
-              console.log('Could not generate comparison, using default notes');
-              releaseNotes += 'See commit history for changes.';
+              console.log(`Could not auto-generate release notes: ${error.message}`);
+              releaseNotes = `## What's Changed\n\nSee [commit history](https://github.com/${context.repo.owner}/${context.repo.repo}/commits/${tagName}) for changes.`;
             }
             
             releaseNotes += `\n\n## Docker Images\n\n`;
