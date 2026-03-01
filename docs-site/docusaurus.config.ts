@@ -240,6 +240,10 @@ const config: Config = {
           title: 'Support',
           items: [
             {
+              label: 'Buy a Vestaboard',
+              href: 'https://web.vestaboard.com/referral?vbref=ZDGYOT',
+            },
+            {
               label: 'Buy Me a Coffee',
               href: 'https://www.buymeacoffee.com/fiestaboard',
             },
