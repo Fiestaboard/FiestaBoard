@@ -1,8 +1,10 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Check, GalleryHorizontalEnd } from "lucide-react";
+import { Check, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Carousel } from "@/lib/api";
+import { isCarouselId } from "@/lib/api";
 
 interface Page {
   id: string;
@@ -29,55 +31,27 @@ export function PagePickerDialog({
   onSelect,
   allowNone = false,
 }: PagePickerDialogProps) {
-  return (
-    <div className="space-y-2" role="listbox" aria-label="Page selection">
-      {allowNone && (
-        <button
-          role="option"
-          aria-selected={selectedPageId === null}
-          onClick={() => onSelect(null)}
-          className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            selectedPageId === null ? "border-primary bg-muted/50" : ""
-          }`}
-        >
-          <span className="text-sm font-medium">None (no default)</span>
-          {selectedPageId === null && (
-            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
-          )}
-        </button>
-      )}
+  const hasCarousels = carousels.length > 0;
+  const defaultTab = selectedPageId && isCarouselId(selectedPageId) ? "carousels" : "pages";
 
-      {/* Carousels */}
-      {carousels.length > 0 && (
-        <>
-          <div className="text-xs font-medium text-muted-foreground pt-2 pb-1">CAROUSELS</div>
-          {carousels.map((carousel) => (
-            <button
-              key={carousel.id}
-              onClick={() => onSelect(carousel.id)}
-              className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors ${
-                selectedPageId === carousel.id ? "border-primary bg-muted/50" : ""
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{carousel.name}</span>
-                <Badge variant="secondary" className="text-[10px]">
-                  {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
-                </Badge>
-              </div>
-              {selectedPageId === carousel.id && (
-                <Check className="h-4 w-4 text-primary" />
-              )}
-            </button>
-          ))}
-        </>
+  const noneOption = allowNone && (
+    <button
+      role="option"
+      aria-selected={selectedPageId === null}
+      onClick={() => onSelect(null)}
+      className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        selectedPageId === null ? "border-primary bg-muted/50" : ""
+      }`}
+    >
+      <span className="text-sm font-medium">None (no default)</span>
+      {selectedPageId === null && (
+        <Check className="h-4 w-4 text-primary" aria-hidden="true" />
       )}
+    </button>
+  );
 
-      {/* Pages */}
-      {carousels.length > 0 && (
-        <div className="text-xs font-medium text-muted-foreground pt-2 pb-1">PAGES</div>
-      )}
+  const pagesList = (
+    <div className="space-y-2" role="listbox" aria-label="Pages">
       {pages.map((page) => (
         <button
           key={page.id}
@@ -101,6 +75,66 @@ export function PagePickerDialog({
           )}
         </button>
       ))}
+    </div>
+  );
+
+  const carouselsList = (
+    <div className="space-y-2" role="listbox" aria-label="Carousels">
+      {carousels.map((carousel) => (
+        <button
+          key={carousel.id}
+          role="option"
+          aria-selected={selectedPageId === carousel.id}
+          onClick={() => onSelect(carousel.id)}
+          className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            selectedPageId === carousel.id ? "border-primary bg-muted/50" : ""
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{carousel.name}</span>
+            <Badge variant="secondary" className="text-[10px]">
+              {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
+            </Badge>
+          </div>
+          {selectedPageId === carousel.id && (
+            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+          )}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (!hasCarousels) {
+    return (
+      <div className="space-y-2">
+        {noneOption}
+        {pagesList}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {noneOption}
+      <Tabs defaultValue={defaultTab}>
+        <TabsList className="w-full">
+          <TabsTrigger value="pages" className="flex-1 gap-1.5">
+            <LayoutTemplate className="h-4 w-4" />
+            Pages ({pages.length})
+          </TabsTrigger>
+          <TabsTrigger value="carousels" className="flex-1 gap-1.5">
+            <GalleryHorizontalEnd className="h-4 w-4" />
+            Carousels ({carousels.length})
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="pages">
+          {pagesList}
+        </TabsContent>
+        <TabsContent value="carousels">
+          {carouselsList}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

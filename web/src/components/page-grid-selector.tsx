@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { LayoutTemplate, Loader2, GalleryHorizontalEnd } from "lucide-react";
 import { BoardDisplay } from "@/components/board-display";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Page, PagePreviewResponse, PagePreviewBatchResponse, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 
@@ -212,21 +213,31 @@ const PageButton = memo(function PageButton({
          prevProps.boardType === nextProps.boardType;
 });
 
-// Carousel button component
+const MAX_STACK_CARDS = 5;
+const STACK_OFFSET_X = 18;
+const STACK_OFFSET_Y = 10;
+
+// Carousel button component with cascading stack of board previews
 const CarouselButton = memo(function CarouselButton({
   carousel,
   pages,
+  previews,
+  loadingPreviews,
   isActive,
   isPending,
   onSelect,
   showActiveIndicator = true,
+  boardType = "black",
 }: {
   carousel: Carousel;
   pages: Page[];
+  previews: Record<string, PagePreviewResponse>;
+  loadingPreviews: boolean;
   isActive: boolean;
   isPending: boolean;
   onSelect: (carouselId: string) => void;
   showActiveIndicator?: boolean;
+  boardType?: "black" | "white" | null;
 }) {
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -248,9 +259,11 @@ const CarouselButton = memo(function CarouselButton({
     ? "text-sm font-medium truncate text-foreground"
     : "text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
 
-  const pageNames = carousel.page_ids
-    .map((pid) => pages.find((p) => p.id === pid)?.name || pid.slice(0, 8))
-    .join(" → ");
+  const stackPages = carousel.page_ids.slice(0, MAX_STACK_CARDS).map((pid) => {
+    const page = pages.find((p) => p.id === pid);
+    return { pageId: pid, page, preview: previews[pid] || null };
+  });
+  const count = stackPages.length;
 
   return (
     <button
@@ -266,14 +279,58 @@ const CarouselButton = memo(function CarouselButton({
           {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
         </Badge>
       </div>
-      <div className="text-xs text-muted-foreground truncate">
-        {pageNames}
+
+      {/* Cascading stack of board previews */}
+      <div className="relative h-[160px] w-full overflow-hidden hover-stable">
+        {loadingPreviews && stackPages.every((sp) => !sp.preview) ? (
+          <div className="flex items-center justify-center h-full" role="status">
+            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" aria-hidden="true" />
+            <span className="sr-only">Loading previews</span>
+          </div>
+        ) : (
+          <div className="absolute inset-0">
+            {stackPages.map(({ pageId, page, preview }, idx) => {
+              const deviceType = (page?.device_type as "flagship" | "note") || "flagship";
+              return (
+                <div
+                  key={pageId}
+                  className="absolute"
+                  style={{
+                    transform: `translate(${idx * STACK_OFFSET_X}px, ${idx * STACK_OFFSET_Y}px)`,
+                    transformOrigin: "top left",
+                    zIndex: count - idx,
+                    opacity: Math.max(0.4, 1 - idx * 0.15),
+                    filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.35))",
+                  }}
+                >
+                  <BoardDisplay
+                    message={preview?.message || null}
+                    isLoading={false}
+                    size="sm"
+                    boardType={boardType ?? "black"}
+                    deviceType={deviceType}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
       {showActiveIndicator && isActive && (
         <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-primary rounded-full" />
       )}
     </button>
   );
+}, (prevProps, nextProps) => {
+  return prevProps.carousel.id === nextProps.carousel.id &&
+         prevProps.isActive === nextProps.isActive &&
+         prevProps.isPending === nextProps.isPending &&
+         prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
+         prevProps.boardType === nextProps.boardType &&
+         prevProps.previews === nextProps.previews &&
+         prevProps.loadingPreviews === nextProps.loadingPreviews &&
+         prevProps.carousel.updated_at === nextProps.carousel.updated_at;
 });
 
 export interface PageGridSelectorProps {
@@ -436,54 +493,78 @@ export function PageGridSelector({
   }
   
   const showCarouselItems = showCarousels && carousels.length > 0;
+  const defaultTab = activePageId && isCarouselId(activePageId) ? "carousels" : "pages";
+
+  const pagesGrid = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Pages">
+      {pages.map((page) => (
+        <PageButton
+          key={page.id}
+          page={page}
+          preview={previews[page.id] || null}
+          isLoadingPreview={loadingPreviews}
+          isActive={page.id === activePageId}
+          isPending={isPending}
+          onSelect={onSelectPage}
+          showActiveIndicator={showActiveIndicator}
+          boardType={getEffectiveBoardColor(boardSettings)}
+        />
+      ))}
+    </div>
+  );
+
+  const carouselsGrid = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Carousels">
+      {carousels.map((carousel) => (
+        <CarouselButton
+          key={carousel.id}
+          carousel={carousel}
+          pages={allPages}
+          previews={previews}
+          loadingPreviews={loadingPreviews}
+          isActive={carousel.id === activePageId}
+          isPending={isPending}
+          onSelect={onSelectPage}
+          showActiveIndicator={showActiveIndicator}
+          boardType={getEffectiveBoardColor(boardSettings)}
+        />
+      ))}
+    </div>
+  );
+
+  if (!showCarouselItems) {
+    return (
+      <div>
+        {label && (
+          <label className="text-xs font-medium text-muted-foreground mb-3 block">
+            {label}
+          </label>
+        )}
+        {pagesGrid}
+      </div>
+    );
+  }
 
   return (
     <div>
-      {/* Carousels section */}
-      {showCarouselItems && (
-        <>
-          {label && (
-            <label className="text-xs font-medium text-muted-foreground mb-3 block">
-              CAROUSELS
-            </label>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            {carousels.map((carousel) => (
-              <CarouselButton
-                key={carousel.id}
-                carousel={carousel}
-                pages={allPages}
-                isActive={carousel.id === activePageId}
-                isPending={isPending}
-                onSelect={onSelectPage}
-                showActiveIndicator={showActiveIndicator}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Pages section */}
-      {label && (
-        <label className="text-xs font-medium text-muted-foreground mb-3 block">
-          {showCarouselItems ? "PAGES" : label}
-        </label>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label={label || "Page selection"}>
-        {pages.map((page) => (
-          <PageButton
-            key={page.id}
-            page={page}
-            preview={previews[page.id] || null}
-            isLoadingPreview={loadingPreviews}
-            isActive={page.id === activePageId}
-            isPending={isPending}
-            onSelect={onSelectPage}
-            showActiveIndicator={showActiveIndicator}
-            boardType={getEffectiveBoardColor(boardSettings)}
-          />
-        ))}
-      </div>
+      <Tabs defaultValue={defaultTab}>
+        <TabsList className="w-full">
+          <TabsTrigger value="pages" className="flex-1 gap-1.5">
+            <LayoutTemplate className="h-4 w-4" />
+            Pages ({pages.length})
+          </TabsTrigger>
+          <TabsTrigger value="carousels" className="flex-1 gap-1.5">
+            <GalleryHorizontalEnd className="h-4 w-4" />
+            Carousels ({carousels.length})
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="pages">
+          {pagesGrid}
+        </TabsContent>
+        <TabsContent value="carousels">
+          {carouselsGrid}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
