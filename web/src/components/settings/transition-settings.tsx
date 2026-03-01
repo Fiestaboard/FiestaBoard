@@ -113,14 +113,22 @@ export function TransitionSettings() {
   };
 
   const handleStepIntervalChange = (value: string) => {
-    const num = parseInt(value, 10);
-    setStepIntervalMs(isNaN(num) ? "" : num);
+    if (value === "") {
+      setStepIntervalMs("");
+    } else {
+      const num = parseInt(value, 10);
+      setStepIntervalMs(isNaN(num) ? "" : num);
+    }
     setHasChanges(true);
   };
 
   const handleStepSizeChange = (value: string) => {
-    const num = parseInt(value, 10);
-    setStepSize(isNaN(num) ? "" : num);
+    if (value === "") {
+      setStepSize("");
+    } else {
+      const num = parseInt(value, 10);
+      setStepSize(isNaN(num) ? "" : num);
+    }
     setHasChanges(true);
   };
 

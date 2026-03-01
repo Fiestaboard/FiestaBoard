@@ -43,12 +43,12 @@ export default function SettingsPage() {
           </section>
 
           {/* Board Transitions */}
-          <section className="animate-card-fade-in" style={{ animationDelay: "375ms" }}>
+          <section className="animate-card-fade-in" style={{ animationDelay: "400ms" }}>
             <TransitionSettings />
           </section>
 
           {/* Integrations Link */}
-          <section className="animate-card-fade-in" style={{ animationDelay: "450ms" }}>
+          <section className="animate-card-fade-in" style={{ animationDelay: "500ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Data Sources</h2>
             <p className="text-sm text-muted-foreground mb-4">
               Enable and configure data source plugins for your board display.
@@ -62,13 +62,13 @@ export default function SettingsPage() {
           </section>
 
           {/* Debug Tools */}
-          <section className="pt-4 border-t animate-card-fade-in" style={{ animationDelay: "600ms" }}>
+          <section className="pt-4 border-t animate-card-fade-in" style={{ animationDelay: "650ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Debug</h2>
             <DebugSettings />
           </section>
 
           {/* Setup Wizard - at the bottom */}
-          <section className="pt-4 border-t animate-card-fade-in" style={{ animationDelay: "750ms" }}>
+          <section className="pt-4 border-t animate-card-fade-in" style={{ animationDelay: "800ms" }}>
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Setup Wizard</h2>
             <p className="text-sm text-muted-foreground mb-4">
               Re-run the setup wizard to reconfigure your board connection and basic settings.
