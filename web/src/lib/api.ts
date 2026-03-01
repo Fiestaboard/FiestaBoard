@@ -571,6 +571,17 @@ export interface EnableLocalApiResponse {
   error?: string;
 }
 
+export interface DiscoveredBoard {
+  ip: string;
+  port: number;
+  hostname: string;
+  source: "mdns" | "port_scan";
+}
+
+export interface BoardScanResponse {
+  boards: DiscoveredBoard[];
+}
+
 // Logs types
 // Plugin system types
 export interface PluginInfo {
@@ -1128,6 +1139,19 @@ export const api = {
   getPluginErrors: () =>
     fetchApi<PluginErrorsResponse>("/plugins/errors"),
 
+  // Generic Data helper
+  genericDataTestFetch: (request: {
+    url: string;
+    format?: string;
+    method?: string;
+    headers?: { name: string; value: string }[];
+    body?: string;
+  }) =>
+    fetchApi<{ ok: boolean; data: unknown }>("/generic-data/test-fetch", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+
   // Setup wizard endpoints
   validateSetup: () => fetchApi<ConfigValidationResponse>("/config/validate"),
   
@@ -1146,6 +1170,12 @@ export const api = {
     fetchApi<EnableLocalApiResponse>("/config/board/enable-local-api", {
       method: "POST",
       body: JSON.stringify(request),
+    }),
+
+  scanForBoards: (timeout?: number) =>
+    fetchApi<BoardScanResponse>("/config/board/scan", {
+      method: "POST",
+      body: JSON.stringify({ timeout: timeout ?? 4.0 }),
     }),
 
   // Debug endpoints

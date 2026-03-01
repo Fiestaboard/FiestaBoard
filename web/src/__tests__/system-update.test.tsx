@@ -33,7 +33,7 @@ describe("SystemUpdate", () => {
           current_version: "2.0.1",
           latest_version: "2.0.1",
           update_available: false,
-          package_url: "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard",
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
           error: null,
           is_production: true,
         });
@@ -56,7 +56,7 @@ describe("SystemUpdate", () => {
           current_version: "2.0.1",
           latest_version: "2.0.2",
           update_available: true,
-          package_url: "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard",
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
           error: null,
           is_production: true,
         });
@@ -102,7 +102,7 @@ describe("SystemUpdate", () => {
           current_version: "2.0.1",
           latest_version: "2.0.1",
           update_available: false,
-          package_url: "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard",
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
           error: null,
           is_production: false,
         });

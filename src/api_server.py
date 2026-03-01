@@ -7,6 +7,7 @@ import time
 import os
 import json
 import requests
+from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 from collections import deque
 from datetime import datetime
@@ -257,11 +258,78 @@ class UpdateCheckResponse(BaseModel):
     is_production: bool
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    global _dev_mode, _service_thread, _shutting_down, _service, _service_running
+    # --- Startup ---
+    _shutting_down = False
+    logger.info("API server starting up...")
+    
+    # Set up file-based logging
+    _setup_file_logging()
+    
+    # Auto-enable dev mode in local development (when not in production)
+    # Check if we're in a development environment
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    if not is_production:
+        _dev_mode = True
+        logger.info("Dev mode auto-enabled for local development")
+    
+    # Initialize and auto-start the service
+    service = get_service()
+    if service:
+        # Try to auto-start, but don't fail if it doesn't work
+        # The service can be started manually later via the /start endpoint
+        try:
+            logger.info("Auto-starting background service...")
+            _service_thread = threading.Thread(target=run_service_background, daemon=True)
+            _service_thread.start()
+            time.sleep(0.5)  # Give it a moment to start
+            
+            # Check if it actually started
+            if _service_running:
+                logger.info("Background service auto-started successfully")
+            else:
+                logger.warning("Background service failed to start - likely due to configuration issues. Use the /start endpoint or UI to start it manually after fixing configuration.")
+        except Exception as e:
+            logger.error(f"Failed to auto-start background service: {e}", exc_info=True)
+            logger.warning("Service can be started manually via /start endpoint after configuration is fixed")
+    else:
+        logger.warning("Service instance could not be created - check logs for initialization errors")
+
+    # Start mDNS/Bonjour advertisement (fiestaboard.local)
+    try:
+        from .system.mdns import start_mdns
+        if start_mdns():
+            from .system.mdns import get_mdns_service
+            logger.info("Access FiestaBoard at %s", get_mdns_service().local_url)
+    except Exception as e:
+        logger.warning(f"mDNS service could not be started: {e}")
+
+    yield
+
+    # --- Shutdown ---
+    logger.info("API server shutting down...")
+    _shutting_down = True
+    _service_running = False
+    if _service:
+        _service.running = False
+
+    # Stop mDNS advertisement
+    try:
+        from .system.mdns import stop_mdns
+        stop_mdns()
+    except Exception:
+        pass
+
+
 # Create FastAPI app
 app = FastAPI(
     title="FiestaBoard Display API",
     description="REST API for controlling and monitoring the FiestaBoard Display Service",
-    version=__version__
+    version=__version__,
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -341,72 +409,6 @@ def run_service_background():
         restart_delay = min(restart_delay * 2, max_restart_delay)
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize service on startup."""
-    global _dev_mode, _service_thread, _shutting_down
-    _shutting_down = False
-    logger.info("API server starting up...")
-    
-    # Set up file-based logging
-    _setup_file_logging()
-    
-    # Auto-enable dev mode in local development (when not in production)
-    # Check if we're in a development environment
-    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-    if not is_production:
-        _dev_mode = True
-        logger.info("Dev mode auto-enabled for local development")
-    
-    # Initialize and auto-start the service
-    service = get_service()
-    if service:
-        # Try to auto-start, but don't fail if it doesn't work
-        # The service can be started manually later via the /start endpoint
-        try:
-            logger.info("Auto-starting background service...")
-            _service_thread = threading.Thread(target=run_service_background, daemon=True)
-            _service_thread.start()
-            time.sleep(0.5)  # Give it a moment to start
-            
-            # Check if it actually started
-            if _service_running:
-                logger.info("Background service auto-started successfully")
-            else:
-                logger.warning("Background service failed to start - likely due to configuration issues. Use the /start endpoint or UI to start it manually after fixing configuration.")
-        except Exception as e:
-            logger.error(f"Failed to auto-start background service: {e}", exc_info=True)
-            logger.warning("Service can be started manually via /start endpoint after configuration is fixed")
-    else:
-        logger.warning("Service instance could not be created - check logs for initialization errors")
-
-    # Start mDNS/Bonjour advertisement (fiestaboard.local)
-    try:
-        from .system.mdns import start_mdns
-        if start_mdns():
-            from .system.mdns import get_mdns_service
-            logger.info("Access FiestaBoard at %s", get_mdns_service().local_url)
-    except Exception as e:
-        logger.warning(f"mDNS service could not be started: {e}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
-    global _service, _service_running, _shutting_down
-    logger.info("API server shutting down...")
-    _shutting_down = True
-    _service_running = False
-    if _service:
-        _service.running = False
-
-    # Stop mDNS advertisement
-    try:
-        from .system.mdns import stop_mdns
-        stop_mdns()
-    except Exception:
-        pass
-
 
 @app.get("/", response_model=Dict[str, str])
 async def root():
@@ -449,7 +451,7 @@ async def version():
 # System Management Endpoints
 # =============================================================================
 
-GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/pkgs/container/fiestaboard"
+GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/releases/latest"
 GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
 DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
 
@@ -1102,6 +1104,11 @@ class EnablementTokenRequest(BaseModel):
     enablement_token: str
 
 
+class BoardScanRequest(BaseModel):
+    """Request model for network board scanning."""
+    timeout: Optional[float] = 4.0
+
+
 @app.post("/config/board/enable-local-api")
 async def enable_local_api(request: EnablementTokenRequest):
     """
@@ -1201,6 +1208,30 @@ async def enable_local_api(request: EnablementTokenRequest):
             "message": f"Failed to enable local API: {str(e)}",
             "error": str(e)
         }
+
+
+@app.post("/config/board/scan")
+async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
+    """
+    Scan the local network for Vestaboard devices.
+
+    Uses mDNS service browsing and subnet port probing (port 7000) to
+    discover boards automatically so users don't have to enter an IP.
+
+    Optional body:
+    {
+        "timeout": 4.0  // scan duration in seconds (default 4, max 15)
+    }
+
+    Returns:
+        boards: list of discovered devices with ip, port, hostname, source
+    """
+    from src.system.mdns import scan_for_boards as _scan
+
+    timeout = min(max(float(request.timeout or 4.0), 1.0), 15.0)
+
+    boards = _scan(timeout=timeout)
+    return {"boards": boards}
 
 
 @app.get("/config/general")
@@ -2646,7 +2677,7 @@ async def get_all_settings():
         "polling": {
             "interval_seconds": polling.interval_seconds
         },
-        "transitions": transitions.to_dict(),
+        "transitions": {**transitions.to_dict(), "available_strategies": VALID_STRATEGIES},
         "output": output.to_dict(),
         "board": board.to_dict(),
         "status": {
@@ -4329,6 +4360,71 @@ async def get_plugin_errors():
         "errors": registry.get_load_errors(),
         "plugin_system_enabled": True
     }
+
+
+# =============================================================================
+# Generic Data Plugin — Test Fetch
+# =============================================================================
+
+@app.post("/generic-data/test-fetch")
+async def generic_data_test_fetch(request: dict):
+    """Fetch a URL and return the parsed response structure for mapping preview.
+
+    Reuses the same parsing logic as the generic_data plugin so the preview
+    matches real behaviour.  Response body is capped at 1 MB.
+    """
+    import requests as req
+    from xml.etree import ElementTree
+
+    url = (request.get("url") or "").strip()
+    fmt = request.get("format", "json")
+    method = request.get("method", "GET")
+    headers_list = request.get("headers", [])
+    body = request.get("body")
+
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
+
+    headers: dict = {
+        "Accept": "application/json" if fmt == "json" else "application/xml",
+    }
+    for h in headers_list:
+        n = (h.get("name") or "").strip()
+        v = (h.get("value") or "").strip()
+        if n and v:
+            headers[n] = v
+
+    try:
+        kwargs: dict = {"headers": headers, "timeout": 15}
+        if method == "POST" and body:
+            kwargs["data"] = body
+
+        resp = req.request(method, url, **kwargs)
+        resp.raise_for_status()
+
+        if len(resp.content) > 1_048_576:
+            raise HTTPException(status_code=400, detail="Response too large (exceeds 1 MB)")
+
+        if fmt == "xml":
+            from plugins.generic_data import _xml_to_dict
+            root = ElementTree.fromstring(resp.text)
+            parsed = _xml_to_dict(root)
+        else:
+            parsed = resp.json()
+
+        return {"ok": True, "data": parsed}
+    except HTTPException:
+        raise
+    except req.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Request timed out")
+    except req.exceptions.ConnectionError:
+        raise HTTPException(status_code=502, detail="Connection error — check the URL")
+    except req.exceptions.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"HTTP error: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

@@ -169,6 +169,23 @@ function messageToGrid(message: string, rows: number = ROWS, cols: number = COLS
   return grid;
 }
 
+// Shared CSS keyframes — injected once into the document head instead of
+// being duplicated inside every CharTile render (~132 per board).
+let keyframesInjected = false;
+function ensureKeyframesInjected() {
+  if (keyframesInjected || typeof document === "undefined") return;
+  keyframesInjected = true;
+  const style = document.createElement("style");
+  style.setAttribute("data-board-keyframes", "");
+  style.textContent = `
+    @keyframes flapRotate { 0% { transform: rotateX(0deg); } 100% { transform: rotateX(180deg); } }
+    @keyframes flapShadow { 0% { opacity: 0; } 25% { opacity: 0.3; } 50% { opacity: 0.8; } 75% { opacity: 0.3; } 100% { opacity: 0; } }
+    @keyframes flapShadowLight { 0% { opacity: 0; } 25% { opacity: 0.05; } 50% { opacity: 0.15; } 75% { opacity: 0.05; } 100% { opacity: 0; } }
+    @keyframes castShadow { 0% { opacity: 0; } 50% { opacity: 0.4; } 100% { opacity: 0; } }
+  `;
+  document.head.appendChild(style);
+}
+
 // Memoized grid row component to prevent row-level re-renders
 const GridRow = memo(function GridRow({ 
   row, 
@@ -565,67 +582,11 @@ const CharTile = memo(function CharTile({
   const currentChar = BOARD_CHARS[currentCharIndex];
   // Next character is simply the next one in sequence (cycling forward)
   const nextChar = BOARD_CHARS[(currentCharIndex + 1) % BOARD_CHARS.length];
+
+  ensureKeyframesInjected();
   
   return (
     <>
-      <style>{`
-        @keyframes flapRotate {
-          0% {
-            transform: rotateX(0deg);
-          }
-          100% {
-            transform: rotateX(180deg);
-          }
-        }
-        
-        @keyframes flapShadow {
-          0% {
-            opacity: 0;
-          }
-          25% {
-            opacity: 0.3;
-          }
-          50% {
-            opacity: 0.8;
-          }
-          75% {
-            opacity: 0.3;
-          }
-          100% {
-            opacity: 0;
-          }
-        }
-        
-        @keyframes flapShadowLight {
-          0% {
-            opacity: 0;
-          }
-          25% {
-            opacity: 0.05;
-          }
-          50% {
-            opacity: 0.15;
-          }
-          75% {
-            opacity: 0.05;
-          }
-          100% {
-            opacity: 0;
-          }
-        }
-        
-        @keyframes castShadow {
-          0% {
-            opacity: 0;
-          }
-          50% {
-            opacity: 0.4;
-          }
-          100% {
-            opacity: 0;
-          }
-        }
-      `}</style>
       <div 
         className={`relative ${sizeClasses[size]} rounded-[3px] overflow-hidden`}
         data-testid={`char-tile-${rowIdx}-${colIdx}`}

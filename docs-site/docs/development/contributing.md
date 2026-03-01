@@ -46,6 +46,7 @@ The development environment provides:
 - **TypeScript/JavaScript**: Follow ESLint rules
 - **Docker-first**: All features should work in Docker
 - **No secrets**: Never commit API keys or sensitive data
+- **Accessibility**: FiestaBoard aims for [WCAG 2.2 Level AAA](/docs/reference/accessibility). Use semantic HTML, provide alt text, ensure sufficient color contrast, and support keyboard navigation.
 
 ### Running Tests
 

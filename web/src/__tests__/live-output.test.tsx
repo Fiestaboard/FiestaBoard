@@ -184,6 +184,37 @@ describe("Live Output Mode", () => {
     });
   });
 
+  it("calls forceRefresh immediately when live output is toggled off", async () => {
+    const user = userEvent.setup();
+    render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+
+    // Turn on live output
+    await user.click(toggle);
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "checked");
+    });
+
+    vi.mocked(api.forceRefresh).mockClear();
+
+    // Turn off live output
+    await user.click(toggle);
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "unchecked");
+    });
+
+    // forceRefresh should be called immediately to restore normal board state
+    expect(vi.mocked(api.forceRefresh)).toHaveBeenCalled();
+  });
+
   it("does not show board selector when only one board is configured", async () => {
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
 
@@ -439,6 +470,39 @@ describe("Live Output - Auto-timeout", () => {
 
     // Should still be enabled
     expect(toggle).toHaveAttribute("data-state", "checked");
+  });
+
+  it("calls forceRefresh when auto-timeout disables live mode", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { act } = await import("@testing-library/react");
+
+    render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "checked");
+    });
+
+    vi.mocked(api.forceRefresh).mockClear();
+
+    // Advance past the 5-minute timeout
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 100);
+    });
+
+    expect(toggle).toHaveAttribute("data-state", "unchecked");
+    // forceRefresh should be called to restore normal board state
+    expect(vi.mocked(api.forceRefresh)).toHaveBeenCalled();
   });
 });
 

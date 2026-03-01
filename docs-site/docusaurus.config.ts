@@ -25,7 +25,12 @@ const config: Config = {
   projectName: 'fiestaboard.github.io',
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang.
@@ -240,7 +245,7 @@ const config: Config = {
           title: 'Support',
           items: [
             {
-              label: 'Buy a Vestaboard',
+              label: 'Buy a Vestaboard ($200 off)',
               href: 'https://fiestaboard.app/buyavestaboard',
             },
             {

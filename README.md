@@ -100,6 +100,7 @@ FiestaBoard has **23 built-in plugins** covering weather, finance, transit, spor
 | [Bay Wheels](./plugins/baywheels/README.md) | Bike availability at stations | No |
 | [Countdown](./plugins/countdown/README.md) | Time remaining until an event | No |
 | [Date & Time](./plugins/date_time/README.md) | Current date/time in many formats | No |
+| [Generic Data](./plugins/generic_data/README.md) | Custom data from any JSON/XML URL | No |
 | [Guest WiFi](./plugins/guest_wifi/README.md) | WiFi credentials for guests | No |
 | [Star Trek Quotes](./plugins/star_trek_quotes/README.md) | Quotes from TNG, Voyager, DS9 | No |
 | [Dad Jokes](./plugins/dad_jokes/README.md) | Random dad jokes | No |
@@ -255,6 +256,12 @@ FiestaBoard/
 └── docker-compose.yml
 ```
 
+
+## Accessibility
+
+FiestaBoard aims to meet [WCAG 2.2 Level AAA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/ujasGntNhQ).
+
+---
 
 ## Sponsors
 
