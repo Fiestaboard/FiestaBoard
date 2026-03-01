@@ -60,7 +60,17 @@ jobs:
             echo "No changes to deploy."
           else
             git commit -m "docs: deploy from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
-            git push origin main
+            max_attempts=3
+            for attempt in $(seq 1 $max_attempts); do
+              if git push origin main; then
+                break
+              elif [ "$attempt" -eq "$max_attempts" ]; then
+                echo "Push failed after $max_attempts attempts"
+                exit 1
+              fi
+              echo "Push attempt $attempt failed, retrying in 10s..."
+              sleep 10
+            done
           fi
         env:
           DEPLOY_TOKEN: ${{ secrets.RELEASE_PAT }}
