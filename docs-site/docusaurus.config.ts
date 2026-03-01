@@ -241,7 +241,7 @@ const config: Config = {
           items: [
             {
               label: 'Buy a Vestaboard',
-              href: 'https://web.vestaboard.com/referral?vbref=ZDGYOT',
+              href: 'https://fiestaboard.app/buyavestaboard',
             },
             {
               label: 'Buy Me a Coffee',

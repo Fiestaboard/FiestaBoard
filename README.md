@@ -256,7 +256,7 @@ FiestaBoard/
 
 ## Sponsors
 
-- [Vestaboard](https://web.vestaboard.com/referral?vbref=ZDGYOT) — Get $200 off a Vestaboard. Using this referral link helps support FiestaBoard at no extra cost to you.
+- [Vestaboard](https://fiestaboard.app/buyavestaboard) — Get $200 off a Vestaboard. Using this referral link helps support FiestaBoard at no extra cost to you.
 
 ## Support the Project
 
