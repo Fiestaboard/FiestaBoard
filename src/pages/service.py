@@ -6,7 +6,7 @@ Provides high-level operations on pages including preview and send.
 import logging
 import time
 from typing import List, Optional, Tuple, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from .models import Page, PageCreate, PageUpdate, RowConfig
@@ -135,7 +135,7 @@ class PageService:
             template=data.template,
             line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         
         return self.storage.create(page)
@@ -237,7 +237,7 @@ class PageService:
             type="template",
             template=DEFAULT_PAGE_TEMPLATE,
             duration_seconds=300,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         return self.storage.create(page)
     
