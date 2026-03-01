@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Monitor, Eye, EyeOff, AlertCircle, Check, Key, KeyRound, Loader2 } from "lucide-react";
+import { Monitor, Eye, EyeOff, AlertCircle, Check, Key, KeyRound, Loader2, Search } from "lucide-react";
 import { api, BoardConfig } from "@/lib/api";
+import type { DiscoveredBoard } from "@/lib/api";
 
 type LocalKeyMode = "api_key" | "enablement_token";
 
@@ -21,6 +22,8 @@ export function BoardSettings() {
   const [localKeyMode, setLocalKeyMode] = useState<LocalKeyMode>("api_key");
   const [enablementToken, setEnablementToken] = useState("");
   const [isEnabling, setIsEnabling] = useState(false);
+  const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "done" | "error">("idle");
+  const [discoveredBoards, setDiscoveredBoards] = useState<DiscoveredBoard[]>([]);
 
   // Fetch current config
   const { data: configData, isLoading } = useQuery({
@@ -90,6 +93,28 @@ export function BoardSettings() {
       toast.error(error instanceof Error ? error.message : "Failed to enable local API");
     } finally {
       setIsEnabling(false);
+    }
+  };
+
+  // Handle scanning for boards on the network
+  const handleScanForBoards = async () => {
+    setScanStatus("scanning");
+    setDiscoveredBoards([]);
+    try {
+      const result = await api.scanForBoards();
+      setDiscoveredBoards(result.boards);
+      setScanStatus("done");
+      if (result.boards.length === 1) {
+        handleChange("host", result.boards[0].ip);
+        toast.success(`Found board at ${result.boards[0].ip}`);
+      } else if (result.boards.length > 1) {
+        toast.info(`Found ${result.boards.length} boards on your network`);
+      } else {
+        toast.info("No boards found on your network");
+      }
+    } catch {
+      setScanStatus("error");
+      toast.error("Network scan failed");
     }
   };
 
@@ -206,17 +231,66 @@ export function BoardSettings() {
               <label className="text-xs font-medium">
                 Board Host <span className="text-destructive">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.host ?? ""}
-                onChange={(e) => handleChange("host", e.target.value)}
-                placeholder="192.168.1.100"
-                className="w-full h-9 px-3 text-sm rounded-md border bg-background font-mono"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={formData.host ?? ""}
+                  onChange={(e) => handleChange("host", e.target.value)}
+                  placeholder="192.168.1.100"
+                  className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleScanForBoards}
+                  disabled={scanStatus === "scanning"}
+                  className="h-9 w-9 p-0"
+                  title="Scan network for boards"
+                >
+                  {scanStatus === "scanning" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Search className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
                 IP address or hostname of your board
               </p>
             </div>
+
+            {/* Scan results */}
+            {scanStatus === "done" && discoveredBoards.length > 1 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">
+                  Found {discoveredBoards.length} boards:
+                </label>
+                <div className="space-y-1">
+                  {discoveredBoards.map((board) => (
+                    <button
+                      key={board.ip}
+                      type="button"
+                      onClick={() => {
+                        handleChange("host", board.ip);
+                        setScanStatus("idle");
+                        setDiscoveredBoards([]);
+                      }}
+                      className={`w-full flex items-center justify-between p-2 rounded-md border text-xs transition-colors text-left ${
+                        formData.host === board.ip
+                          ? "border-primary bg-primary/10"
+                          : "border-muted hover:border-primary/50"
+                      }`}
+                    >
+                      <span className="font-mono">{board.ip}</span>
+                      {board.hostname && (
+                        <span className="text-muted-foreground">{board.hostname}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Local Key Mode Toggle */}
             <div className="space-y-1.5">

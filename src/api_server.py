@@ -1203,6 +1203,32 @@ async def enable_local_api(request: EnablementTokenRequest):
         }
 
 
+@app.post("/config/board/scan")
+async def scan_for_boards(request: dict = None):
+    """
+    Scan the local network for Vestaboard devices.
+
+    Uses mDNS service browsing and subnet port probing (port 7000) to
+    discover boards automatically so users don't have to enter an IP.
+
+    Optional body:
+    {
+        "timeout": 4.0  // scan duration in seconds (default 4, max 15)
+    }
+
+    Returns:
+        boards: list of discovered devices with ip, port, hostname, source
+    """
+    from src.system.mdns import scan_for_boards as _scan
+
+    timeout = 4.0
+    if request and isinstance(request.get("timeout"), (int, float)):
+        timeout = min(max(float(request["timeout"]), 1.0), 15.0)
+
+    boards = _scan(timeout=timeout)
+    return {"boards": boards}
+
+
 @app.get("/config/general")
 async def get_general_config():
     """Get general configuration (timezone, refresh interval, etc.)."""

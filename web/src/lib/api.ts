@@ -538,6 +538,17 @@ export interface EnableLocalApiResponse {
   error?: string;
 }
 
+export interface DiscoveredBoard {
+  ip: string;
+  port: number;
+  hostname: string;
+  source: "mdns" | "port_scan";
+}
+
+export interface BoardScanResponse {
+  boards: DiscoveredBoard[];
+}
+
 // Logs types
 // Plugin system types
 export interface PluginInfo {
@@ -1089,6 +1100,12 @@ export const api = {
     fetchApi<EnableLocalApiResponse>("/config/board/enable-local-api", {
       method: "POST",
       body: JSON.stringify(request),
+    }),
+
+  scanForBoards: (timeout?: number) =>
+    fetchApi<BoardScanResponse>("/config/board/scan", {
+      method: "POST",
+      body: JSON.stringify(timeout != null ? { timeout } : {}),
     }),
 
   // Debug endpoints
