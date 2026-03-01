@@ -1,13 +1,19 @@
 """Tests for pages module (models, storage, service, API)."""
 
+import json
 import pytest
 import tempfile
 import os
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from src.pages.models import Page, PageCreate, PageUpdate, RowConfig, PageType
-from src.pages.storage import PageStorage
+from src.pages.models import LineMetadata, Page, PageCreate, PageUpdate, RowConfig, PageType
+from src.pages.storage import (
+    CURRENT_SCHEMA_VERSION,
+    PageStorage,
+    _extract_alignment_from_line,
+    _migrate_v0_to_v1,
+)
 from src.pages.service import PageService, DeleteResult
 from src.displays.service import DisplayResult
 
@@ -221,6 +227,244 @@ class TestPageStorage:
         
         assert retrieved is not None
         assert retrieved.name == "Persistent"
+
+
+class TestLineMetadataModel:
+    """Tests for LineMetadata model."""
+
+    def test_default_values(self):
+        meta = LineMetadata()
+        assert meta.alignment == "left"
+        assert meta.wrap is False
+
+    def test_explicit_values(self):
+        meta = LineMetadata(alignment="center", wrap=True)
+        assert meta.alignment == "center"
+        assert meta.wrap is True
+
+    def test_round_trip(self):
+        meta = LineMetadata(alignment="right", wrap=True)
+        dumped = meta.model_dump()
+        restored = LineMetadata(**dumped)
+        assert restored.alignment == "right"
+        assert restored.wrap is True
+
+    def test_page_with_line_metadata(self):
+        page = Page(
+            name="Test",
+            type="template",
+            template=["HELLO", "WORLD", "", "", "", ""],
+            line_metadata=[
+                LineMetadata(alignment="center", wrap=False),
+                LineMetadata(alignment="right", wrap=True),
+                LineMetadata(),
+                LineMetadata(),
+                LineMetadata(),
+                LineMetadata(),
+            ],
+        )
+        assert page.is_valid()
+        assert page.line_metadata[0].alignment == "center"
+        assert page.line_metadata[1].wrap is True
+
+
+class TestExtractAlignmentFromLine:
+    """Tests for the storage-level prefix extractor used by migration."""
+
+    def test_no_prefix(self):
+        align, wrap, content = _extract_alignment_from_line("Hello")
+        assert align == "left"
+        assert wrap is False
+        assert content == "Hello"
+
+    def test_center(self):
+        align, wrap, content = _extract_alignment_from_line("{center}Hello")
+        assert align == "center"
+        assert content == "Hello"
+
+    def test_wrap_and_right(self):
+        align, wrap, content = _extract_alignment_from_line("{wrap}{right}Hello")
+        assert align == "right"
+        assert wrap is True
+        assert content == "Hello"
+
+    def test_wrap_only(self):
+        align, wrap, content = _extract_alignment_from_line("{wrap}Hello")
+        assert align == "left"
+        assert wrap is True
+        assert content == "Hello"
+
+    def test_case_insensitive(self):
+        align, wrap, content = _extract_alignment_from_line("{CENTER}Hello")
+        assert align == "center"
+        assert content == "Hello"
+
+
+class TestMigrateV0ToV1:
+    """Tests for v0->v1 migration logic."""
+
+    def test_template_page_gets_metadata(self):
+        pages = [
+            {
+                "id": "1",
+                "type": "template",
+                "template": ["{center}HELLO", "{wrap}{right}WORLD", "PLAIN"],
+            }
+        ]
+        count = _migrate_v0_to_v1(pages)
+        assert count == 1
+        assert pages[0]["template"] == ["HELLO", "WORLD", "PLAIN"]
+        assert pages[0]["line_metadata"] == [
+            {"alignment": "center", "wrap": False},
+            {"alignment": "right", "wrap": True},
+            {"alignment": "left", "wrap": False},
+        ]
+
+    def test_non_template_page_skipped(self):
+        pages = [{"id": "1", "type": "single", "display_type": "weather"}]
+        count = _migrate_v0_to_v1(pages)
+        assert count == 0
+        assert "line_metadata" not in pages[0]
+
+    def test_already_migrated_skipped(self):
+        pages = [
+            {
+                "id": "1",
+                "type": "template",
+                "template": ["HELLO"],
+                "line_metadata": [{"alignment": "left", "wrap": False}],
+            }
+        ]
+        count = _migrate_v0_to_v1(pages)
+        assert count == 0
+
+    def test_empty_template(self):
+        pages = [{"id": "1", "type": "template", "template": []}]
+        count = _migrate_v0_to_v1(pages)
+        assert count == 0
+
+
+class TestSchemaVersioning:
+    """Tests for PageStorage schema versioning and migration."""
+
+    @pytest.fixture
+    def temp_storage_file(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            yield f.name
+        os.unlink(f.name)
+        backup = f.name + ".v0_backup"
+        if os.path.exists(backup):
+            os.unlink(backup)
+
+    def test_new_file_gets_schema_version(self, temp_storage_file):
+        """A fresh storage file written by _save() should contain schema_version."""
+        storage = PageStorage(storage_file=temp_storage_file)
+        page = Page(name="Test", type="single", display_type="weather")
+        storage.create(page)
+
+        with open(temp_storage_file) as f:
+            data = json.load(f)
+        assert data["schema_version"] == CURRENT_SCHEMA_VERSION
+
+    def test_v0_file_is_migrated(self, temp_storage_file):
+        """A v0 file (no schema_version) gets migrated on load."""
+        with open(temp_storage_file, "w") as f:
+            json.dump(
+                {
+                    "pages": [
+                        {
+                            "id": "p1",
+                            "name": "My Page",
+                            "type": "template",
+                            "device_type": "flagship",
+                            "template": [
+                                "{center}HELLO",
+                                "{wrap}WORLD",
+                                "",
+                                "",
+                                "",
+                                "",
+                            ],
+                            "duration_seconds": 300,
+                            "created_at": datetime.utcnow().isoformat(),
+                        }
+                    ]
+                },
+                f,
+            )
+
+        storage = PageStorage(storage_file=temp_storage_file)
+        page = storage.get("p1")
+        assert page is not None
+        assert page.template == ["HELLO", "WORLD", "", "", "", ""]
+        assert page.line_metadata is not None
+        assert page.line_metadata[0].alignment == "center"
+        assert page.line_metadata[0].wrap is False
+        assert page.line_metadata[1].alignment == "left"
+        assert page.line_metadata[1].wrap is True
+
+        # File should now contain schema_version
+        with open(temp_storage_file) as f:
+            data = json.load(f)
+        assert data["schema_version"] == CURRENT_SCHEMA_VERSION
+
+    def test_v0_backup_created(self, temp_storage_file):
+        """Migration creates a .v0_backup file."""
+        with open(temp_storage_file, "w") as f:
+            json.dump(
+                {
+                    "pages": [
+                        {
+                            "id": "p1",
+                            "name": "My Page",
+                            "type": "template",
+                            "device_type": "flagship",
+                            "template": ["{right}ABC", "", "", "", "", ""],
+                            "duration_seconds": 300,
+                            "created_at": datetime.utcnow().isoformat(),
+                        }
+                    ]
+                },
+                f,
+            )
+
+        PageStorage(storage_file=temp_storage_file)
+        backup_path = temp_storage_file + ".v0_backup"
+        assert os.path.exists(backup_path)
+
+    def test_already_current_version_no_migration(self, temp_storage_file):
+        """A file at CURRENT_SCHEMA_VERSION should not be migrated."""
+        with open(temp_storage_file, "w") as f:
+            json.dump(
+                {
+                    "schema_version": CURRENT_SCHEMA_VERSION,
+                    "pages": [
+                        {
+                            "id": "p1",
+                            "name": "My Page",
+                            "type": "template",
+                            "device_type": "flagship",
+                            "template": ["HELLO", "", "", "", "", ""],
+                            "line_metadata": [
+                                {"alignment": "center", "wrap": False},
+                                {"alignment": "left", "wrap": False},
+                                {"alignment": "left", "wrap": False},
+                                {"alignment": "left", "wrap": False},
+                                {"alignment": "left", "wrap": False},
+                                {"alignment": "left", "wrap": False},
+                            ],
+                            "duration_seconds": 300,
+                            "created_at": datetime.utcnow().isoformat(),
+                        }
+                    ],
+                },
+                f,
+            )
+
+        storage = PageStorage(storage_file=temp_storage_file)
+        page = storage.get("p1")
+        assert page.template == ["HELLO", "", "", "", "", ""]
+        assert page.line_metadata[0].alignment == "center"
 
 
 class TestPageService:

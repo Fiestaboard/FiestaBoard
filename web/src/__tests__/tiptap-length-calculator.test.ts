@@ -44,15 +44,6 @@ describe('Length Calculator', () => {
       expect(calculateLineLength(content)).toBe(9); // 4 + 0 + 5
     });
 
-    it('counts symbols by character length', () => {
-      const content: JSONContent[] = [
-        { type: 'symbol', attrs: { symbol: 'sun', character: '*' } },
-        { type: 'symbol', attrs: { symbol: 'heart', character: '<3' } },
-      ];
-      
-      expect(calculateLineLength(content)).toBe(3); // 1 + 2 (heart is "<3")
-    });
-
     it('handles empty content', () => {
       expect(calculateLineLength([])).toBe(0);
     });

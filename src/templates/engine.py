@@ -31,6 +31,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
 from ..plugins import get_plugin_registry
+from ..text_utils import extract_alignment_from_line
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,6 @@ SYMBOL_CHARS = {
 VAR_PATTERN = re.compile(r'\{\{([^}]+)\}\}')  # {{source.field}} or {{source.field|filter}}
 COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}\}', re.IGNORECASE)
 SYMBOL_PATTERN = re.compile(r'\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}', re.IGNORECASE)
-ALIGNMENT_PATTERN = re.compile(r'^\{(left|center|right)\}', re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r'\{\{fill_space\}\}', re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r'\{\{fill_space_repeat:(.+?)\}\}', re.IGNORECASE)
 
@@ -251,17 +251,26 @@ class TemplateEngine:
         
         return "".join(result)
     
-    def render_lines(self, template_lines: List[str], context: Optional[Dict[str, Any]] = None) -> str:
+    def render_lines(
+        self,
+        template_lines: List[str],
+        context: Optional[Dict[str, Any]] = None,
+        line_metadata: Optional[List[dict]] = None,
+    ) -> str:
         """Render a list of template lines (for template pages).
         
         Handles:
         - The special |wrap filter which allows content to flow across multiple lines
-        - Alignment directives {left}, {center}, {right}
+        - Alignment via line_metadata (preferred) or legacy inline prefixes
         - The {{fill_space}} variable for flexible spacing
         
         Args:
-            template_lines: List of up to 6 template lines
+            template_lines: List of up to 6 template lines (pure content when
+                line_metadata is provided; may contain legacy prefixes otherwise)
             context: Optional pre-fetched context
+            line_metadata: Optional per-line metadata dicts with 'alignment' and
+                'wrap' keys.  When provided, template_lines are treated as pure
+                content (no prefix parsing).
             
         Returns:
             Rendered string with newlines
@@ -273,72 +282,71 @@ class TemplateEngine:
         lines = list(template_lines[:6])
         while len(lines) < 6:
             lines.append("")
+
+        # Build per-line alignment/wrap arrays from metadata or legacy parsing
+        alignments: List[str] = []
+        wraps: List[bool] = []
+        contents: List[str] = []
+
+        for i, line in enumerate(lines):
+            if line_metadata and i < len(line_metadata):
+                meta = line_metadata[i]
+                alignments.append(meta.get("alignment", "left") if isinstance(meta, dict) else getattr(meta, "alignment", "left"))
+                wraps.append(meta.get("wrap", False) if isinstance(meta, dict) else getattr(meta, "wrap", False))
+                contents.append(line)
+            else:
+                alignment, wrap_enabled, content = self._extract_alignment(line)
+                alignments.append(alignment)
+                wraps.append(wrap_enabled)
+                contents.append(content)
         
         # Process lines, handling |wrap specially
         rendered = [""] * 6
         skip_until = -1  # Track lines filled by wrap overflow
         
-        for i, line in enumerate(lines):
+        for i in range(6):
             if i <= skip_until:
-                # This line was filled by wrap overflow, already set
                 continue
+
+            alignment = alignments[i]
+            wrap_enabled = wraps[i]
+            content = contents[i]
             
-            # Extract alignment and wrap directives
-            alignment, wrap_enabled, content = self._extract_alignment(line)
-            
-            # Check if wrap is enabled (either via {wrap} prefix or |wrap filter for backward compatibility)
             has_wrap = wrap_enabled or '|wrap}}' in content or '|wrap|' in content
             
             if has_wrap:
-                # Calculate wrap capacity: count empty lines from current line to line 6
-                # This ensures we don't truncate content at the bottom
                 empty_count = 0
-                for j in range(i, 6):  # Start from current line (i) to line 6
+                for j in range(i, 6):
                     if j == i:
-                        # Current line counts as 1 line for wrap
                         empty_count = 1
                     else:
-                        # Check if line is empty (after extracting alignment and wrap)
-                        _, _, line_content = self._extract_alignment(lines[j])
-                        if line_content.strip() == "":
+                        if contents[j].strip() == "":
                             empty_count += 1
                         else:
-                            break  # Stop at first non-empty line
+                            break
                 
-                # Render the wrap content, respecting capacity
                 wrapped_lines = self._render_with_wrap(content, context, max_lines=empty_count)
                 
-                # Fill in the lines with alignment
                 for k, wrapped_line in enumerate(wrapped_lines):
                     if i + k < 6:
-                        # Process fill_space first
                         processed = self._process_fill_space(wrapped_line, width=22)
-                        # Then apply alignment
                         rendered[i + k] = self._apply_alignment(processed, alignment, width=22)
                 
                 skip_until = i + len(wrapped_lines) - 1
             else:
-                # Normal rendering
                 rendered_line = self.render(content, context)
                 
-                # Check if the rendered line contains newlines (from multi-line variables)
                 if '\n' in rendered_line:
-                    # Split into multiple lines and fill subsequent output lines
                     split_lines = rendered_line.split('\n')
                     for line_idx, split_line in enumerate(split_lines):
                         if i + line_idx >= 6:
-                            break  # Don't exceed 6 lines
-                        # Process fill_space first
+                            break
                         processed_line = self._process_fill_space(split_line, width=22)
-                        # Apply alignment (this also truncates if needed)
                         rendered[i + line_idx] = self._apply_alignment(processed_line, alignment, width=22)
-                    # Mark subsequent lines as filled (skip them in future iterations)
                     if len(split_lines) > 1:
                         skip_until = min(i + len(split_lines) - 1, 5)
                 else:
-                    # Process fill_space first
                     rendered_line = self._process_fill_space(rendered_line, width=22)
-                    # Apply alignment (this also truncates if needed)
                     rendered[i] = self._apply_alignment(rendered_line, alignment, width=22)
         
         return '\n'.join(rendered)
@@ -1124,31 +1132,9 @@ class TemplateEngine:
     def _extract_alignment(self, line: str) -> tuple:
         """Extract alignment and wrap directives from a line.
         
-        Args:
-            line: Template line that may start with {wrap}, {left}, {center}, or {right}
-            
-        Returns:
-            Tuple of (alignment, wrap_enabled, content) where:
-            - alignment is 'left', 'center', or 'right'
-            - wrap_enabled is True if {wrap} prefix is present
-            - content is the remaining line content
+        Delegates to the shared ``extract_alignment_from_line`` utility.
         """
-        remaining = line
-        wrap_enabled = False
-        
-        # Extract {wrap} prefix first
-        if remaining.startswith('{wrap}'):
-            wrap_enabled = True
-            remaining = remaining[6:]
-        
-        # Extract alignment prefix (can come after wrap)
-        match = ALIGNMENT_PATTERN.match(remaining)
-        if match:
-            alignment = match.group(1).lower()
-            content = remaining[match.end():]
-            return (alignment, wrap_enabled, content)
-        
-        return ('left', wrap_enabled, remaining)
+        return extract_alignment_from_line(line)
     
     def _apply_alignment(self, text: str, alignment: str, width: int = 22) -> str:
         """Apply alignment to rendered text.

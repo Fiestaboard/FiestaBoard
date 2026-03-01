@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,20 +9,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 
-// Lazy load TipTapTemplateEditor to reduce initial bundle size
-const TipTapTemplateEditor = dynamic(
-  () => import("@/components/tiptap-template-editor/TipTapTemplateEditor").then(mod => ({ default: mod.TipTapTemplateEditor })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
-    ),
-  }
-);
+// Direct import – bypasses next/dynamic chunk caching issues in dev mode.
+// TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
+import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -53,75 +41,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance } from "@/lib/api";
+import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineAlignment, LineMetadata } from "@/lib/api";
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
-
-// Alignment type for template lines
-type LineAlignment = "left" | "center" | "right";
-
-// Extract alignment prefix from a template line
-function extractAlignment(line: string): { alignment: LineAlignment; wrapEnabled: boolean; content: string } {
-  let remaining = line;
-  let alignment: LineAlignment = "left";
-  let wrapEnabled = false;
-  
-  // Extract wrap prefix
-  if (remaining.startsWith("{wrap}")) {
-    wrapEnabled = true;
-    remaining = remaining.slice(6);
-  }
-  
-  // Extract alignment prefix (can come after wrap)
-  if (remaining.startsWith("{center}")) {
-    alignment = "center";
-    remaining = remaining.slice(8);
-  } else if (remaining.startsWith("{right}")) {
-    alignment = "right";
-    remaining = remaining.slice(7);
-  } else if (remaining.startsWith("{left}")) {
-    alignment = "left";
-    remaining = remaining.slice(6);
-  }
-  
-  return { alignment, wrapEnabled, content: remaining };
-}
-
-// Apply alignment and wrap prefixes to content
-function applyAlignment(alignment: LineAlignment, wrapEnabled: boolean, content: string): string {
-  // Remove any existing prefixes first
-  let cleanContent = content;
-  if (cleanContent.startsWith("{wrap}")) cleanContent = cleanContent.slice(6);
-  if (cleanContent.startsWith("{center}")) cleanContent = cleanContent.slice(8);
-  else if (cleanContent.startsWith("{right}")) cleanContent = cleanContent.slice(7);
-  else if (cleanContent.startsWith("{left}")) cleanContent = cleanContent.slice(6);
-  
-  // Don't add prefixes to empty lines - they need to stay empty for wrap to work
-  if (cleanContent === "") {
-    return "";
-  }
-  
-  const prefixes: string[] = [];
-  
-  // Add wrap prefix first
-  if (wrapEnabled) {
-    prefixes.push("{wrap}");
-  }
-  
-  // Add alignment prefix
-  switch (alignment) {
-    case "center":
-      prefixes.push("{center}");
-      break;
-    case "right":
-      prefixes.push("{right}");
-      break;
-    // left is default, no prefix needed
-  }
-  
-  return prefixes.join("") + cleanContent;
-}
 
 
 
@@ -177,6 +100,10 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">("rich");
+
+  // Derive line count from templateLines — single source of truth avoids
+  // desync when switching between Rich and Plain Text editors.
+  const lineCount = templateLines.length;
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
@@ -270,18 +197,21 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       const pageName = existingPage.name;
       setName(pageName);
       
-      const existingDims = DEVICE_DIMENSIONS[existingPage.device_type || "flagship"] || DEVICE_DIMENSIONS.flagship;
-      const existingNumLines = existingDims.rows;
       const rawLines = existingPage.template || emptyLines();
-      // Extract alignments, wrap state, and clean content from stored lines
+      const meta = existingPage.line_metadata;
+
       const alignments: LineAlignment[] = [];
       const wrapStates: boolean[] = [];
       const contents: string[] = [];
-      for (let i = 0; i < existingNumLines; i++) {
-        const { alignment, wrapEnabled, content } = extractAlignment(rawLines[i] || "");
-        alignments.push(alignment);
-        wrapStates.push(wrapEnabled);
-        contents.push(content);
+      for (let i = 0; i < rawLines.length; i++) {
+        contents.push(rawLines[i] || "");
+        if (meta && i < meta.length) {
+          alignments.push(meta[i].alignment);
+          wrapStates.push(meta[i].wrap);
+        } else {
+          alignments.push("left");
+          wrapStates.push(false);
+        }
       }
       setLineAlignments(alignments);
       setLineWrapEnabled(wrapStates);
@@ -302,11 +232,12 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
             const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
             
             if (draftAge < maxAge) {
+              const restoredLines = draft.templateLines || ["", "", "", "", "", ""];
               setName(draft.name || "");
-              setTemplateLines(draft.templateLines || ["", "", "", "", "", ""]);
+              setTemplateLines(restoredLines);
               setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
-              setDebouncedTemplateLines(draft.templateLines || ["", "", "", "", "", ""]);
+              setDebouncedTemplateLines(restoredLines);
               setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
               setDraftRestored(true);
@@ -390,29 +321,61 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     return () => clearTimeout(timer);
   }, [templateLines]);
 
-  // Build template lines with alignment and wrap prefixes applied
-  const getTemplateWithAlignments = (): string[] => {
-    return templateLines.map((content, i) => applyAlignment(lineAlignments[i], lineWrapEnabled[i], content));
+  /**
+   * Parse inline {wrap} and {left}/{center}/{right} prefixes from template
+   * lines, strip them from content, and merge with the UI alignment/wrap
+   * state.  Inline prefixes (used in the plain-text editor) take precedence.
+   */
+  const processLinesWithPrefixes = (
+    lines: string[],
+    alignments: LineAlignment[],
+    wraps: boolean[],
+  ): { cleanedLines: string[]; metadata: LineMetadata[] } => {
+    const ALIGN_RE = /^\{(left|center|right)\}/i;
+    const cleanedLines: string[] = [];
+    const metadata: LineMetadata[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+      let alignment: LineAlignment = alignments[i] || "left";
+      let wrap = wraps[i] || false;
+
+      if (line.startsWith("{wrap}")) {
+        wrap = true;
+        line = line.substring(6);
+      }
+
+      const m = line.match(ALIGN_RE);
+      if (m) {
+        alignment = m[1].toLowerCase() as LineAlignment;
+        line = line.substring(m[0].length);
+      }
+
+      cleanedLines.push(line);
+      metadata.push({ alignment, wrap });
+    }
+
+    return { cleanedLines, metadata };
   };
 
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const linesWithAlignments = getTemplateWithAlignments();
+      const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
-        // Update existing page
         const payload: PageUpdate = {
           name,
-          template: linesWithAlignments,
+          template: cleanedLines,
+          line_metadata: metadata,
         };
         return api.updatePage(pageId, payload);
       } else {
-        // Create new page
         const payload: PageCreate = {
           name,
           type: "template" as PageType,
           device_type: deviceType,
-          template: linesWithAlignments,
+          template: cleanedLines,
+          line_metadata: metadata,
         };
         return api.createPage(payload);
       }
@@ -498,57 +461,22 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     },
   });
 
-  // Build template lines with alignment prefixes applied (using debounced state for preview)
-  const getDebouncedTemplateWithAlignments = (): string[] => {
-    return debouncedTemplateLines.map((content, i) => applyAlignment(debouncedLineAlignments[i], debouncedLineWrapEnabled[i], content));
-  };
-
   // Preview mutation
   const previewMutation = useMutation({
     mutationFn: async () => {
-      const template = getDebouncedTemplateWithAlignments();
-      console.log('[Preview] mutationFn called');
-      console.log('[Preview] Template lines (raw):', debouncedTemplateLines);
-      console.log('[Preview] Template with alignments:', template);
-      console.log('[Preview] Wrap states:', debouncedLineWrapEnabled);
-      
-      // Validate template has content before sending to API
-      // Check if all lines are empty (after removing alignment prefixes and trimming)
-      const hasContent = template.some(line => {
-        // Remove alignment/wrap prefixes to check actual content
-        let content = line;
-        // Remove wrap prefix first
-        if (content.startsWith("{wrap}")) {
-          content = content.slice(6);
-        }
-        // Remove alignment prefix
-        if (content.startsWith("{center}")) {
-          content = content.slice(8);
-        } else if (content.startsWith("{right}")) {
-          content = content.slice(7);
-        } else if (content.startsWith("{left}")) {
-          content = content.slice(6);
-        }
-        // Now check if there's actual content (not just whitespace)
-        const hasLineContent = content.trim().length > 0;
-        console.log(`[Preview] Line "${line}" -> content "${content}" -> hasContent: ${hasLineContent}`);
-        return hasLineContent;
-      });
-      
-      console.log('[Preview] Has content check result:', hasContent);
+      const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
+
+      const hasContent = cleanedLines.some(line => line.trim().length > 0);
       
       if (!hasContent) {
-        // Return empty response immediately without API call
-        console.log('[Preview] Template is empty, returning empty response immediately');
         return { 
-          rendered: "\n".repeat(5), // 6 empty lines (5 newlines)
+          rendered: "\n".repeat(5),
           lines: ["", "", "", "", "", ""], 
           line_count: 6 
         };
       }
       
-      console.log('[Preview] Calling API with template');
-      return api.renderTemplate(template);
+      return api.renderTemplate(cleanedLines, metadata);
     },
     onSuccess: (data) => {
       console.log('[Preview] onSuccess called');
@@ -699,8 +627,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   // Live output mutation - sends rendered preview to the board
   const liveSendMutation = useMutation({
     mutationFn: async (rendered: string) => {
-      const template = getDebouncedTemplateWithAlignments();
-      return api.renderTemplateLive(template, selectedBoardId || undefined);
+      const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
+      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata);
     },
     onSuccess: (data) => {
       if (data.sent_to_board) {
@@ -847,30 +775,52 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                 <TabsContent value="rich" className="mt-4">
                   {/* Template editor with device-specific dimensions */}
                   <TipTapTemplateEditor
-                    value={(() => {
-                      // Always ensure clean content without alignment prefixes for rich editor
-                      return templateLines.map(line => {
-                        const { content } = extractAlignment(line);
-                        return content;
-                      }).join('\n');
-                    })()}
+                    value={templateLines.join('\n')}
                     onChange={(newValue) => {
-                      // Skip parsing if we're manually updating wrap (to prevent state overwrite)
                       if (isUpdatingWrap.current) {
                         return;
                       }
-                      
-                      // Parse the plain text back into lines and strip any alignment prefixes
-                      const lines = newValue.split('\n').slice(0, numLines);
-                      const newLines: string[] = [];
-                      
-                      for (let i = 0; i < numLines; i++) {
-                        // Strip any alignment prefixes that might have been typed
-                        const { content } = extractAlignment(lines[i] || '');
-                        newLines.push(content);
+                      const lines = newValue.split('\n');
+                      setTemplateLines(lines);
+
+                      const oldLen = templateLines.length;
+                      const newLen = lines.length;
+                      if (newLen !== oldLen) {
+                        let prefixMatch = 0;
+                        while (prefixMatch < Math.min(newLen, oldLen) && lines[prefixMatch] === templateLines[prefixMatch]) {
+                          prefixMatch++;
+                        }
+                        let suffixMatch = 0;
+                        while (suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
+                               lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]) {
+                          suffixMatch++;
+                        }
+
+                        const updatedAlignments = [...lineAlignments];
+                        const updatedWrap = [...lineWrapEnabled];
+
+                        if (newLen < oldLen) {
+                          const deleteCount = oldLen - newLen;
+                          const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
+                          updatedAlignments.splice(deleteStart, deleteCount);
+                          updatedWrap.splice(deleteStart, deleteCount);
+                        } else {
+                          const insertCount = newLen - oldLen;
+                          const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
+                          for (let i = 0; i < insertCount; i++) {
+                            updatedAlignments.splice(insertStart + i, 0, "left");
+                            updatedWrap.splice(insertStart + i, 0, false);
+                          }
+                        }
+
+                        while (updatedAlignments.length < newLen) updatedAlignments.push("left");
+                        while (updatedWrap.length < newLen) updatedWrap.push(false);
+                        updatedAlignments.length = newLen;
+                        updatedWrap.length = newLen;
+
+                        setLineAlignments(updatedAlignments);
+                        setLineWrapEnabled(updatedWrap);
                       }
-                      
-                      setTemplateLines(newLines);
                     }}
                     lineAlignments={lineAlignments}
                     lineWrapEnabled={lineWrapEnabled}
@@ -894,30 +844,27 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                 
                 <TabsContent value="plain" className="mt-4">
                   <PlainTextEditor
-                    value={getTemplateWithAlignments().join('\n')}
+                    value={templateLines.join('\n')}
                     onChange={(newValue) => {
-                      // Parse raw text back into template lines and alignments
-                      const lines = newValue.split('\n');
-                      const newContents: string[] = [];
-                      const newAlignments: LineAlignment[] = [];
-                      const newWrapStates: boolean[] = [];
-                      
-                      for (let i = 0; i < numLines; i++) {
-                        const line = lines[i] || "";
-                        const { alignment, wrapEnabled, content } = extractAlignment(line);
-                        newAlignments.push(alignment);
-                        newWrapStates.push(wrapEnabled);
-                        newContents.push(content);
-                      }
-                      
-                      setTemplateLines(newContents);
-                      setLineAlignments(newAlignments);
-                      setLineWrapEnabled(newWrapStates);
+                      setTemplateLines(newValue.split('\n'));
                     }}
-                    placeholder="Type your template text with alignment prefixes like {center}, {right}, {wrap}"
+                    placeholder="Type your template text using {{variable}} syntax for dynamic data"
+                    boardLines={numLines}
+                    boardWidth={dims.cols}
                   />
                 </TabsContent>
               </Tabs>
+
+              {/* Line count validation warning */}
+              {lineCount > numLines && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                  <span className="font-medium shrink-0">Warning:</span>
+                  <span>
+                    Template has {lineCount} lines but the board only displays {numLines}.
+                    Lines beyond {numLines} will be ignored.
+                  </span>
+                </div>
+              )}
 
               {/* Live preview */}
               <div className="mt-4">
