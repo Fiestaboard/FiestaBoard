@@ -4,13 +4,13 @@
 [![CI](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml/badge.svg)](https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/docker-fiestaboard-blue?logo=docker)](https://hub.docker.com/r/fiestaboard/fiestaboard)
 [![Documentation](https://img.shields.io/badge/docs-fiestaboard.app-orange)](https://fiestaboard.app)
-[![Discord](https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white)](https://discord.gg/wc9dDfte)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white)](https://discord.gg/ujasGntNhQ)
 
 **FiestaBoard is an open-source server that lets you control what appears on your split-flap display.** If you already own a split-flap display (like a Vestaboard), FiestaBoard gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board.
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/wc9dDfte)**
+**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/ujasGntNhQ)**
 
 ---
 
@@ -211,7 +211,7 @@ Then go to **http://localhost:4420** — the service starts automatically once t
 ### Still stuck?
 
 - Check the full [Troubleshooting Guide](https://fiestaboard.app/docs/troubleshooting)
-- Ask in [Discord](https://discord.gg/wc9dDfte)
+- Ask in [Discord](https://discord.gg/ujasGntNhQ)
 - [Open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) on GitHub
 
 ---
