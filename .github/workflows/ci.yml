@@ -282,7 +282,7 @@ jobs:
 
     - name: Run Storybook a11y tests (light theme)
       working-directory: web
-      run: npm run test-storybook:ci -- --url http://localhost:6006 --globals "theme:light"
+      run: npm run test-storybook:ci -- --url "http://localhost:6006?globals=theme:light"
 
   e2e-tests:
     name: E2E Tests
