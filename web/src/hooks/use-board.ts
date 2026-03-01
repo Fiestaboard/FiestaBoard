@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { api } from "@/lib/api";
 
 // Query keys for cache management
@@ -117,6 +118,27 @@ export function useBoardSettings() {
     retry: 1,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
+}
+
+/**
+ * Prefetch pages and board settings into the React Query cache.
+ * Call on hover/focus of the "Pages" nav link so data is ready when the
+ * user navigates, eliminating the loading waterfall on first visit.
+ */
+export function usePrefetchPagesData() {
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.pages,
+      queryFn: api.getPages,
+      staleTime: 5 * 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.boardSettings,
+      queryFn: api.getBoardSettings,
+      staleTime: 5 * 60 * 1000,
+    });
+  }, [queryClient]);
 }
 
 /**

@@ -10,6 +10,7 @@ import { ServiceStatus } from "@/components/service-status";
 import { VersionDisplay } from "@/components/version-display";
 import { Button } from "@/components/ui/button";
 import { ViewTransitionLink } from "@/components/view-transition-link";
+import { usePrefetchPagesData } from "@/hooks/use-board";
 
 const navigation = [
   {
@@ -42,6 +43,7 @@ const navigation = [
 export function NavigationSidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const prefetchPages = usePrefetchPagesData();
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -127,12 +129,15 @@ export function NavigationSidebar() {
           {navigation.map((item) => {
             const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
+            const prefetchHandler = item.href === "/pages" ? prefetchPages : undefined;
 
             return (
               <ViewTransitionLink
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
+                onMouseEnter={prefetchHandler}
+                onFocus={prefetchHandler}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
                   isActive
@@ -175,11 +180,14 @@ export function NavigationSidebar() {
             {navigation.map((item) => {
               const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
               const Icon = item.icon;
+              const prefetchHandler = item.href === "/pages" ? prefetchPages : undefined;
 
               return (
                 <ViewTransitionLink
                   key={item.href}
                   href={item.href}
+                  onMouseEnter={prefetchHandler}
+                  onFocus={prefetchHandler}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
                     isActive

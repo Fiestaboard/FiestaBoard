@@ -421,4 +421,100 @@ describe("PageGridSelector", () => {
       expect(screen.getByText("CHOOSE A PAGE")).toBeInTheDocument();
     });
   });
+
+  describe("list view mode", () => {
+    it("renders page names in list view without calling previewPagesBatch", async () => {
+      render(
+        <PageGridSelector
+          activePageId={null}
+          onSelectPage={vi.fn()}
+          viewMode="list"
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Page 1")).toBeInTheDocument();
+        expect(screen.getByText("Page 2")).toBeInTheDocument();
+        expect(screen.getByText("Page 3")).toBeInTheDocument();
+      });
+
+      // In list mode, batch previews should not be fetched
+      expect(api.previewPagesBatch).not.toHaveBeenCalled();
+    });
+
+    it("calls onSelectPage when a list item is clicked", async () => {
+      const onSelectPage = vi.fn();
+
+      render(
+        <PageGridSelector
+          activePageId={null}
+          onSelectPage={onSelectPage}
+          viewMode="list"
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        screen.getByText("Page 1").click();
+      });
+
+      expect(onSelectPage).toHaveBeenCalledWith("page-1");
+    });
+
+    it("highlights active page in list view", async () => {
+      render(
+        <PageGridSelector
+          activePageId="page-2"
+          onSelectPage={vi.fn()}
+          viewMode="list"
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        const button = screen.getByText("Page 2").closest("button");
+        expect(button).toHaveClass("border-primary");
+      });
+    });
+
+    it("shows list skeleton when loading in list mode", async () => {
+      // Make getPages return a pending promise to keep loading state
+      vi.mocked(api.getPages).mockReturnValue(new Promise(() => {}));
+
+      const { container } = render(
+        <PageGridSelector
+          activePageId={null}
+          onSelectPage={vi.fn()}
+          viewMode="list"
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      // Should show loading skeletons in list layout (flex column, not grid)
+      await waitFor(() => {
+        const busyElement = container.querySelector('[aria-busy="true"]');
+        expect(busyElement).toBeInTheDocument();
+      });
+    });
+
+    it("disables list items when isPending is true", async () => {
+      render(
+        <PageGridSelector
+          activePageId={null}
+          onSelectPage={vi.fn()}
+          isPending={true}
+          viewMode="list"
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        const button1 = screen.getByText("Page 1").closest("button");
+        const button2 = screen.getByText("Page 2").closest("button");
+        expect(button1).toBeDisabled();
+        expect(button2).toBeDisabled();
+      });
+    });
+  });
 });

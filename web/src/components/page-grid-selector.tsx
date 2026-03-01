@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useCallback, useMemo, useState, memo } from "react";
+import { useEffect, useCallback, useMemo, useState, useRef, memo } from "react";
 import { usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LayoutTemplate, Loader2 } from "lucide-react";
-import { BoardDisplay } from "@/components/board-display";
+import { LayoutTemplate, Loader2, Clock } from "lucide-react";
+import { StaticBoardDisplay } from "@/components/static-board-display";
 import type { Page, PagePreviewResponse, PagePreviewBatchResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -72,8 +72,8 @@ function isCacheValid(cached: CachedPreviewData | undefined, pageUpdatedAt: stri
   return cached.pageUpdatedAt === pageUpdatedAt;
 }
 
-// Mini preview component for each page button - receives preview data from parent
-// Memoized to prevent unnecessary re-renders when parent updates
+// Mini preview component for each page button - uses StaticBoardDisplay
+// (zero hooks per tile) and defers rendering until the card enters the viewport.
 const PageButtonPreview = memo(function PageButtonPreview({ 
   preview,
   isLoading,
@@ -85,11 +85,24 @@ const PageButtonPreview = memo(function PageButtonPreview({
   boardType?: "black" | "white" | null;
   deviceType?: "flagship" | "note";
 }) {
-  // Show simple spinner when loading instead of BoardDisplay loading animation
-  // This prevents lag when all displays try to load at once
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { setIsVisible(true); return; }
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
+      { rootMargin: "200px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   if (isLoading && !preview) {
     return (
-      <div className="w-full flex items-center justify-center py-4" role="status">
+      <div ref={ref} className="w-full flex items-center justify-center py-4" role="status">
         <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" aria-hidden="true" />
         <span className="sr-only">Loading preview</span>
       </div>
@@ -98,23 +111,26 @@ const PageButtonPreview = memo(function PageButtonPreview({
 
   return (
     <div 
+      ref={ref}
       className="w-full hover-stable overflow-hidden -mr-3"
       style={{
         maskImage: 'linear-gradient(to right, black 60%, transparent 100%)',
         WebkitMaskImage: 'linear-gradient(to right, black 60%, transparent 100%)'
       }}
     >
-      <BoardDisplay 
-        message={preview?.message || null} 
-        isLoading={false}
-        size="sm"
-        boardType={boardType ?? "black"}
-        deviceType={deviceType}
-      />
+      {isVisible ? (
+        <StaticBoardDisplay
+          message={preview?.message || null}
+          size="sm"
+          boardType={boardType ?? "black"}
+          deviceType={deviceType}
+        />
+      ) : (
+        <div className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
+      )}
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if preview, loading state, or deviceType changes
   return prevProps.preview === nextProps.preview && 
          prevProps.isLoading === nextProps.isLoading &&
          prevProps.boardType === nextProps.boardType &&
@@ -211,6 +227,77 @@ const PageButton = memo(function PageButton({
          prevProps.boardType === nextProps.boardType;
 });
 
+// Lightweight list item for list view mode - no BoardDisplay preview
+const PageListItem = memo(function PageListItem({
+  page,
+  isActive,
+  isPending,
+  onSelect,
+}: {
+  page: Page;
+  isActive: boolean;
+  isPending: boolean;
+  onSelect: (pageId: string) => void;
+}) {
+  const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!isPending) {
+      onSelect(page.id);
+    }
+  }, [page.id, isPending, onSelect]);
+
+  const formattedDate = useMemo(() => {
+    if (!page.updated_at) return null;
+    try {
+      return new Date(page.updated_at).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return null;
+    }
+  }, [page.updated_at]);
+
+  const buttonClassName = isActive
+    ? "group flex items-center gap-3 w-full p-3 rounded-lg border-2 border-primary bg-primary/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left"
+    : "group flex items-center gap-3 w-full p-3 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left";
+
+  const iconClassName = isActive
+    ? "h-4 w-4 shrink-0 text-primary"
+    : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
+
+  const nameClassName = isActive
+    ? "text-sm font-medium truncate text-foreground"
+    : "text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isPending}
+      className={buttonClassName}
+      type="button"
+      aria-pressed={isActive}
+    >
+      <LayoutTemplate className={iconClassName} />
+      <span className={nameClassName}>{page.name}</span>
+      {formattedDate && (
+        <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+          <Clock className="h-3 w-3" />
+          {formattedDate}
+        </span>
+      )}
+    </button>
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.page.id === nextProps.page.id &&
+         prevProps.isActive === nextProps.isActive &&
+         prevProps.isPending === nextProps.isPending &&
+         prevProps.page.updated_at === nextProps.page.updated_at;
+});
+
+export type ViewMode = "grid" | "list";
+
 export interface PageGridSelectorProps {
   /** The currently active/selected page ID (for highlighting) */
   activePageId?: string | null;
@@ -224,6 +311,8 @@ export interface PageGridSelectorProps {
   label?: string;
   /** Filter pages by device type */
   deviceTypeFilter?: "flagship" | "note";
+  /** View mode: "grid" shows previews, "list" shows compact list */
+  viewMode?: ViewMode;
 }
 
 export function PageGridSelector({
@@ -233,6 +322,7 @@ export function PageGridSelector({
   showActiveIndicator = true,
   label = "SELECT PAGE",
   deviceTypeFilter,
+  viewMode = "grid",
 }: PageGridSelectorProps) {
   // Fetch all pages
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
@@ -251,9 +341,9 @@ export function PageGridSelector({
   const [previews, setPreviews] = useState<Record<string, PagePreviewResponse>>({});
   const [loadingPreviews, setLoadingPreviews] = useState(true);
   
-  // Fetch batch previews when pages change
+  // Fetch batch previews when pages change (only in grid mode)
   useEffect(() => {
-    if (pages.length === 0) {
+    if (viewMode === "list" || pages.length === 0) {
       setLoadingPreviews(false);
       return;
     }
@@ -330,7 +420,7 @@ export function PageGridSelector({
     } else {
       setLoadingPreviews(false);
     }
-  }, [pages]);
+  }, [pages, viewMode]);
   
   if (isLoadingPages) {
     return (
@@ -340,12 +430,21 @@ export function PageGridSelector({
             {label}
           </span>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
+        {viewMode === "list" ? (
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        )}
       </div>
     );
   }
@@ -370,21 +469,35 @@ export function PageGridSelector({
           {label}
         </span>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label={label || "Page selection"}>
-        {pages.map((page) => (
-          <PageButton
-            key={page.id}
-            page={page}
-            preview={previews[page.id] || null}
-            isLoadingPreview={loadingPreviews}
-            isActive={page.id === activePageId}
-            isPending={isPending}
-            onSelect={onSelectPage}
-            showActiveIndicator={showActiveIndicator}
-            boardType={getEffectiveBoardColor(boardSettings)}
-          />
-        ))}
-      </div>
+      {viewMode === "list" ? (
+        <div className="flex flex-col gap-2" role="group" aria-label={label || "Page selection"}>
+          {pages.map((page) => (
+            <PageListItem
+              key={page.id}
+              page={page}
+              isActive={page.id === activePageId}
+              isPending={isPending}
+              onSelect={onSelectPage}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label={label || "Page selection"}>
+          {pages.map((page) => (
+            <PageButton
+              key={page.id}
+              page={page}
+              preview={previews[page.id] || null}
+              isLoadingPreview={loadingPreviews}
+              isActive={page.id === activePageId}
+              isPending={isPending}
+              onSelect={onSelectPage}
+              showActiveIndicator={showActiveIndicator}
+              boardType={getEffectiveBoardColor(boardSettings)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
