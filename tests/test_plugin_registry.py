@@ -31,7 +31,9 @@ def mock_plugin():
     plugin = MagicMock(spec=PluginBase)
     plugin.plugin_id = "test_plugin"
     plugin.validate_config.return_value = []
+    plugin._validate_refresh_seconds.return_value = []
     plugin.fetch_data.return_value = PluginResult(available=True, data={"key": "value"})
+    plugin.get_data.return_value = PluginResult(available=True, data={"key": "value"})
     plugin.enabled = False
     plugin.config = {}
     return plugin
@@ -334,7 +336,7 @@ def test_fetch_plugin_data_handles_exception(registry, mock_loader, mock_plugin,
     """fetch_plugin_data handles plugin fetch exceptions."""
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
-    mock_plugin.fetch_data.side_effect = ValueError("fetch failed")
+    mock_plugin.get_data.side_effect = ValueError("fetch failed")
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()
@@ -525,7 +527,7 @@ def test_build_template_context_skips_unavailable(registry, mock_loader, mock_pl
     """build_template_context skips plugins that return unavailable."""
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
-    mock_plugin.fetch_data.return_value = PluginResult(available=False, error="failed")
+    mock_plugin.get_data.return_value = PluginResult(available=False, error="failed")
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()

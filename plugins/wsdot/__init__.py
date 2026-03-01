@@ -447,9 +447,6 @@ class WsdotPlugin(PluginBase):
         for i, r in enumerate(routes):
             if not isinstance(r, dict) or r.get("route_id") is None:
                 errors.append(f"Route {i + 1} must have a route_id")
-        refresh = config.get("refresh_seconds", 120)
-        if refresh < 60:
-            errors.append("Refresh interval must be at least 60 seconds")
         return errors
 
     def fetch_data(self) -> PluginResult:

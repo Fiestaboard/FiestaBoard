@@ -4,10 +4,30 @@ import pytest
 from unittest.mock import patch, Mock
 import json
 from pathlib import Path
+from datetime import datetime, timedelta
 
 from plugins.dad_jokes import DadJokesPlugin
 from src.plugins.base import PluginResult
 from src.plugins.testing import PluginTestCase, create_mock_response
+
+
+MANIFEST_WITH_REFRESH = {
+    "id": "dad_jokes",
+    "name": "Dad Jokes",
+    "version": "1.0.0",
+    "settings_schema": {
+        "type": "object",
+        "properties": {
+            "enabled": {"type": "boolean", "default": False},
+            "refresh_seconds": {
+                "type": "integer",
+                "default": 300,
+                "minimum": 30,
+                "maximum": 3600,
+            },
+        },
+    },
+}
 
 
 class TestDadJokesPlugin:
@@ -15,13 +35,17 @@ class TestDadJokesPlugin:
 
     @pytest.fixture
     def plugin(self):
-        """Create a plugin instance."""
-        manifest = {
+        """Create a plugin instance with full manifest (including settings_schema)."""
+        return DadJokesPlugin(MANIFEST_WITH_REFRESH)
+
+    @pytest.fixture
+    def plugin_bare(self):
+        """Create a plugin instance with minimal manifest (no settings_schema)."""
+        return DadJokesPlugin({
             "id": "dad_jokes",
             "name": "Dad Jokes",
             "version": "1.0.0",
-        }
-        return DadJokesPlugin(manifest)
+        })
 
     def test_plugin_id(self, plugin):
         """Test plugin ID matches the directory name."""
@@ -64,7 +88,6 @@ class TestDadJokesPlugin:
         assert result.available is True
         assert "joke" in result.data
 
-        # Validate against manifest variables
         manifest_path = Path(__file__).parent.parent / "manifest.json"
         with open(manifest_path) as f:
             manifest = json.load(f)
@@ -165,10 +188,8 @@ class TestDadJokesPlugin:
         assert lines is not None
         assert len(lines) == 6
         assert all(isinstance(line, str) for line in lines)
-        # The joke text should appear in the non-empty lines
         content = " ".join(line for line in lines if line)
         assert "scientists" in content
-        # Each line should fit within 22 characters
         for line in lines:
             assert len(line) <= 22
 
@@ -196,47 +217,56 @@ class TestDadJokesPlugin:
         assert plugin.plugin_id == "dad_jokes"
         assert plugin.manifest is not None
 
-    def test_validate_config_valid(self, plugin):
-        """Test validate_config accepts valid configuration."""
-        errors = plugin.validate_config({"refresh_seconds": 300})
+    # --- Base class refresh_seconds validation (via _validate_refresh_seconds) ---
+
+    def test_validate_refresh_valid(self, plugin):
+        """Test base validation accepts valid refresh_seconds."""
+        errors = plugin._validate_refresh_seconds({"refresh_seconds": 300})
         assert errors == []
 
-    def test_validate_config_minimum_boundary(self, plugin):
-        """Test validate_config accepts the minimum refresh interval."""
-        errors = plugin.validate_config({"refresh_seconds": 30})
+    def test_validate_refresh_minimum_boundary(self, plugin):
+        """Test base validation accepts the minimum refresh interval."""
+        errors = plugin._validate_refresh_seconds({"refresh_seconds": 30})
         assert errors == []
 
-    def test_validate_config_maximum_boundary(self, plugin):
-        """Test validate_config accepts the maximum refresh interval."""
-        errors = plugin.validate_config({"refresh_seconds": 3600})
+    def test_validate_refresh_maximum_boundary(self, plugin):
+        """Test base validation accepts the maximum refresh interval."""
+        errors = plugin._validate_refresh_seconds({"refresh_seconds": 3600})
         assert errors == []
 
-    def test_validate_config_below_minimum(self, plugin):
-        """Test validate_config rejects refresh interval below minimum."""
-        errors = plugin.validate_config({"refresh_seconds": 10})
+    def test_validate_refresh_below_minimum(self, plugin):
+        """Test base validation rejects refresh interval below minimum."""
+        errors = plugin._validate_refresh_seconds({"refresh_seconds": 10})
         assert len(errors) == 1
         assert "at least 30 seconds" in errors[0]
 
-    def test_validate_config_above_maximum(self, plugin):
-        """Test validate_config rejects refresh interval above maximum."""
-        errors = plugin.validate_config({"refresh_seconds": 7200})
+    def test_validate_refresh_above_maximum(self, plugin):
+        """Test base validation rejects refresh interval above maximum."""
+        errors = plugin._validate_refresh_seconds({"refresh_seconds": 7200})
         assert len(errors) == 1
         assert "must not exceed 3600 seconds" in errors[0]
 
-    def test_validate_config_non_integer(self, plugin):
-        """Test validate_config rejects non-integer refresh interval."""
-        errors = plugin.validate_config({"refresh_seconds": "fast"})
-        assert len(errors) >= 1
-        assert "at least 30 seconds" in errors[0]
+    def test_validate_refresh_non_integer(self, plugin):
+        """Test base validation rejects non-integer refresh interval."""
+        errors = plugin._validate_refresh_seconds({"refresh_seconds": "fast"})
+        assert len(errors) == 1
+        assert "must be a number" in errors[0]
 
-    def test_validate_config_default_when_missing(self, plugin):
-        """Test validate_config uses default when refresh_seconds is missing."""
-        errors = plugin.validate_config({})
+    def test_validate_refresh_missing_key(self, plugin):
+        """Test base validation passes when refresh_seconds key is absent."""
+        errors = plugin._validate_refresh_seconds({})
         assert errors == []
 
+    def test_validate_refresh_no_schema(self, plugin_bare):
+        """Test base validation passes when manifest has no refresh_seconds schema."""
+        errors = plugin_bare._validate_refresh_seconds({"refresh_seconds": 5})
+        assert errors == []
+
+    # --- Base class caching via get_data() ---
+
     @patch("plugins.dad_jokes.requests.get")
-    def test_fetch_data_caches_result(self, mock_get, plugin):
-        """Test fetch_data caches results and reuses them within refresh interval."""
+    def test_get_data_caches_result(self, mock_get, plugin):
+        """Test get_data caches results and reuses them within refresh interval."""
         mock_response = Mock()
         mock_response.json.return_value = {
             "id": "abc123",
@@ -246,25 +276,21 @@ class TestDadJokesPlugin:
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
-        plugin.config = {"refresh_seconds": 300}
+        plugin._config = {"refresh_seconds": 300}
 
-        # First call fetches from API
-        result1 = plugin.fetch_data()
+        result1 = plugin.get_data()
         assert result1.available is True
         assert result1.data["joke"] == "Cached joke"
         assert mock_get.call_count == 1
 
-        # Second call should use cache
-        result2 = plugin.fetch_data()
+        result2 = plugin.get_data()
         assert result2.available is True
         assert result2.data["joke"] == "Cached joke"
-        assert mock_get.call_count == 1  # Still 1, no new API call
+        assert mock_get.call_count == 1
 
     @patch("plugins.dad_jokes.requests.get")
-    def test_fetch_data_refreshes_after_expiry(self, mock_get, plugin):
-        """Test fetch_data fetches new data after cache expires."""
-        from datetime import timedelta
-
+    def test_get_data_refreshes_after_expiry(self, mock_get, plugin):
+        """Test get_data fetches new data after cache expires."""
         mock_response = Mock()
         mock_response.json.return_value = {
             "id": "abc123",
@@ -274,16 +300,64 @@ class TestDadJokesPlugin:
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
-        plugin.config = {"refresh_seconds": 60}
+        plugin._config = {"refresh_seconds": 60}
 
-        # First call
-        plugin.fetch_data()
+        plugin.get_data()
         assert mock_get.call_count == 1
 
-        # Simulate cache expiry by backdating _last_fetch
-        from datetime import datetime
-        plugin._last_fetch = datetime.now() - timedelta(seconds=120)
+        plugin._last_fetch_time = datetime.now() - timedelta(seconds=120)
 
-        # Second call should fetch again
-        plugin.fetch_data()
+        plugin.get_data()
         assert mock_get.call_count == 2
+
+    @patch("plugins.dad_jokes.requests.get")
+    def test_get_data_no_cache_without_schema(self, mock_get, plugin_bare):
+        """Test get_data always fetches fresh when manifest has no refresh_seconds."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "id": "abc123",
+            "joke": "Always fresh",
+            "status": 200,
+        }
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+
+        plugin_bare.get_data()
+        plugin_bare.get_data()
+        assert mock_get.call_count == 2
+
+    @patch("plugins.dad_jokes.requests.get")
+    def test_clear_cache_forces_refetch(self, mock_get, plugin):
+        """Test clear_cache forces a fresh fetch on next get_data call."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "id": "abc123",
+            "joke": "Joke",
+            "status": 200,
+        }
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+
+        plugin._config = {"refresh_seconds": 300}
+
+        plugin.get_data()
+        assert mock_get.call_count == 1
+
+        plugin.clear_cache()
+
+        plugin.get_data()
+        assert mock_get.call_count == 2
+
+    def test_refresh_seconds_property(self, plugin):
+        """Test refresh_seconds returns configured value or manifest default."""
+        assert plugin.refresh_seconds == 300
+
+        plugin._config = {"refresh_seconds": 120}
+        assert plugin.refresh_seconds == 120
+
+    def test_refresh_seconds_none_without_schema(self, plugin_bare):
+        """Test refresh_seconds returns None without manifest schema."""
+        assert plugin_bare.refresh_seconds is None
+
+
+Plugin = DadJokesPlugin

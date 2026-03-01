@@ -34,12 +34,6 @@
       "required": false,
       "description": "Enable dad jokes feature",
       "default": "false"
-    },
-    {
-      "name": "DAD_JOKES_REFRESH_SECONDS",
-      "required": false,
-      "description": "Refresh interval in seconds",
-      "default": "300"
     }
   ],
 
