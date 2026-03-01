@@ -16,7 +16,7 @@ import {
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { cn } from "@/lib/utils";
 import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
-import { Plus, Trash2, Eye, EyeOff, MapPin, Loader2 } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, MapPin, Loader2, ChevronRight, ChevronDown, Zap, Copy, Check } from "lucide-react";
 
 // JSON Schema types (simplified for our use case)
 interface SchemaProperty {
@@ -669,6 +669,361 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
   );
 }
 
+// ---------------------------------------------------------------------------
+// Generic Data — interactive mapping helper
+// ---------------------------------------------------------------------------
+
+interface JsonTreeNodeProps {
+  data: unknown;
+  path: string;
+  onSelect: (path: string, value: unknown) => void;
+  defaultExpanded?: boolean;
+}
+
+function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTreeNodeProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelect(path, data);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  if (data === null || data === undefined) {
+    return (
+      <span className="text-muted-foreground italic text-xs">null</span>
+    );
+  }
+
+  if (typeof data === "object" && !Array.isArray(data)) {
+    const entries = Object.entries(data as Record<string, unknown>);
+    return (
+      <div className="ml-1">
+        <button
+          type="button"
+          className="flex items-center gap-1 text-xs hover:bg-muted/60 rounded px-1 py-0.5 -ml-1 w-full text-left"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+          <span className="text-muted-foreground">{`{${entries.length}}`}</span>
+        </button>
+        {expanded && (
+          <div className="ml-3 border-l border-border pl-2 space-y-0.5">
+            {entries.map(([key, val]) => {
+              const childPath = path ? `${path}.${key}` : key;
+              const isLeaf = val === null || val === undefined || typeof val !== "object";
+              return (
+                <div key={key} className="flex items-start gap-1">
+                  <span className="text-xs font-medium text-blue-600 dark:text-blue-400 shrink-0 pt-0.5">{key}:</span>
+                  {isLeaf ? (
+                    <div className="flex items-center gap-1 group min-w-0">
+                      <span className="text-xs truncate">{String(val ?? "null")}</span>
+                      <button
+                        type="button"
+                        onClick={handleCopy.bind(null, { stopPropagation: () => {} } as React.MouseEvent)}
+                        onClickCapture={(e) => {
+                          e.stopPropagation();
+                          onSelect(childPath, val);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 1500);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-muted"
+                        title={`Use path: ${childPath}`}
+                      >
+                        {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+                      </button>
+                    </div>
+                  ) : (
+                    <JsonTreeNode data={val} path={childPath} onSelect={onSelect} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (Array.isArray(data)) {
+    return (
+      <div className="ml-1">
+        <button
+          type="button"
+          className="flex items-center gap-1 text-xs hover:bg-muted/60 rounded px-1 py-0.5 -ml-1 w-full text-left"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+          <span className="text-muted-foreground">{`[${data.length}]`}</span>
+        </button>
+        {expanded && (
+          <div className="ml-3 border-l border-border pl-2 space-y-0.5">
+            {data.map((item, idx) => {
+              const childPath = path ? `${path}[${idx}]` : `[${idx}]`;
+              const isLeaf = item === null || item === undefined || typeof item !== "object";
+              return (
+                <div key={idx} className="flex items-start gap-1">
+                  <span className="text-xs font-medium text-purple-600 dark:text-purple-400 shrink-0 pt-0.5">[{idx}]:</span>
+                  {isLeaf ? (
+                    <div className="flex items-center gap-1 group min-w-0">
+                      <span className="text-xs truncate">{String(item ?? "null")}</span>
+                      <button
+                        type="button"
+                        onClickCapture={(e) => {
+                          e.stopPropagation();
+                          onSelect(childPath, item);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-muted"
+                        title={`Use path: ${childPath}`}
+                      >
+                        <Copy className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </div>
+                  ) : (
+                    <JsonTreeNode data={item} path={childPath} onSelect={onSelect} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <span className="text-xs">{String(data)}</span>;
+}
+
+interface MappingEntry {
+  variable?: string;
+  path?: string;
+  default?: string;
+}
+
+interface GenericDataMappingHelperProps extends FieldProps {
+  allValues: Record<string, unknown>;
+}
+
+function GenericDataMappingHelper({ name, property, value, onChange, disabled, allValues }: GenericDataMappingHelperProps) {
+  const [previewData, setPreviewData] = useState<unknown>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const mappings = (Array.isArray(value) ? value : []) as MappingEntry[];
+
+  const handleFetchPreview = async () => {
+    const url = (allValues.url as string) || "";
+    if (!url) {
+      toast.error("Enter a Data URL first, then click Test & Preview");
+      return;
+    }
+
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewData(null);
+    try {
+      const result = await api.genericDataTestFetch({
+        url,
+        format: (allValues.format as string) || "json",
+        method: (allValues.method as string) || "GET",
+        headers: (allValues.headers as { name: string; value: string }[]) || [],
+        body: (allValues.body as string) || undefined,
+      });
+      setPreviewData(result.data);
+      toast.success("Data fetched — browse the response below and click values to create mappings");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setPreviewError(msg);
+      toast.error(`Fetch failed: ${msg}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handlePathSelect = (path: string, _val: unknown) => {
+    const varName = path.split(".").pop()?.replace(/\[\d+\]/g, "") || "value";
+    const sanitised = varName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "") || "value";
+    const existing = new Set(mappings.map((m) => m.variable));
+    let finalVar = sanitised;
+    let counter = 2;
+    while (existing.has(finalVar)) {
+      finalVar = `${sanitised}_${counter++}`;
+    }
+    const newMappings = [...mappings, { variable: finalVar, path, default: "" }];
+    onChange(newMappings);
+    toast.success(`Added mapping: ${finalVar} ← ${path}`);
+  };
+
+  const handleAdd = () => {
+    onChange([...mappings, { variable: "", path: "", default: "" }]);
+  };
+
+  const handleRemove = (index: number) => {
+    onChange(mappings.filter((_, i) => i !== index));
+  };
+
+  const handleItemChange = (index: number, key: string, val: string) => {
+    const next = [...mappings];
+    next[index] = { ...next[index], [key]: val };
+    onChange(next);
+  };
+
+  const resolvePreview = (path: string): string | null => {
+    if (!previewData || !path) return null;
+    try {
+      const segments = path.split(".");
+      let current: unknown = previewData;
+      for (const segment of segments) {
+        if (current === null || current === undefined) return null;
+        const match = segment.match(/^([^\[]*)\[(\d+)\]$/);
+        if (match) {
+          const [, key, idxStr] = match;
+          if (key && typeof current === "object" && !Array.isArray(current)) {
+            current = (current as Record<string, unknown>)[key];
+          }
+          if (Array.isArray(current)) {
+            current = current[parseInt(idxStr, 10)];
+          } else {
+            return null;
+          }
+        } else {
+          if (typeof current === "object" && !Array.isArray(current) && current !== null) {
+            current = (current as Record<string, unknown>)[segment];
+          } else {
+            return null;
+          }
+        }
+      }
+      return current !== null && current !== undefined ? String(current) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Test & Preview button */}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleFetchPreview}
+          disabled={disabled || previewLoading}
+          className="gap-1.5"
+        >
+          {previewLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Zap className="h-4 w-4" />
+          )}
+          Test &amp; Preview
+        </Button>
+        <p className="text-xs text-muted-foreground self-center">
+          Fetch the URL and browse the response to build mappings
+        </p>
+      </div>
+
+      {/* Preview error */}
+      {previewError && (
+        <div className="text-xs text-destructive bg-destructive/10 rounded-md p-2">
+          {previewError}
+        </div>
+      )}
+
+      {/* Response tree browser */}
+      {previewData && (
+        <div className="border rounded-lg p-3 bg-muted/20 max-h-64 overflow-auto">
+          <div className="text-xs font-medium text-muted-foreground mb-2">
+            Response — click a value to add it as a mapping
+          </div>
+          <JsonTreeNode data={previewData} path="" onSelect={handlePathSelect} defaultExpanded={true} />
+        </div>
+      )}
+
+      {/* Mapping rows */}
+      {mappings.map((mapping, index) => {
+        const preview = resolvePreview(mapping.path || "");
+        return (
+          <div key={index} className="flex gap-2">
+            <div className="flex-1 grid gap-2 p-3 border rounded-lg bg-muted/30">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1">
+                  <Label className="text-xs">Variable Name</Label>
+                  <Input
+                    value={mapping.variable || ""}
+                    onChange={(e) => handleItemChange(index, "variable", e.target.value)}
+                    placeholder="e.g. temperature"
+                    disabled={disabled}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-xs">Data Path</Label>
+                  <Input
+                    value={mapping.path || ""}
+                    onChange={(e) => handleItemChange(index, "path", e.target.value)}
+                    placeholder="e.g. current.temp_f"
+                    disabled={disabled}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1">
+                  <Label className="text-xs">Default Value</Label>
+                  <Input
+                    value={mapping.default || ""}
+                    onChange={(e) => handleItemChange(index, "default", e.target.value)}
+                    placeholder="fallback if path not found"
+                    disabled={disabled}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                {preview !== null && (
+                  <div className="grid gap-1">
+                    <Label className="text-xs text-green-600 dark:text-green-400">Preview</Label>
+                    <div className="h-8 flex items-center text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 rounded-md px-2 truncate border border-green-200 dark:border-green-800">
+                      {preview}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use in templates: <code className="bg-muted px-1 rounded">{"{{"}generic_data.{mapping.variable || "..."}{"}}"}</code>
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => handleRemove(index)}
+              disabled={disabled}
+              className="h-9 w-9 text-destructive hover:text-destructive self-start mt-3"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      })}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleAdd}
+        disabled={disabled}
+        className="w-full"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add mapping
+      </Button>
+    </div>
+  );
+}
+
 interface ArrayFieldProps extends FieldProps {
   itemSchema: SchemaProperty;
 }
@@ -780,9 +1135,10 @@ interface FormFieldProps extends FieldProps {
   onLocationRequest?: (lat: number, lon: number) => void;
   showLocationButton?: boolean;
   isLocationLoading?: boolean;
+  allValues?: Record<string, unknown>;
 }
 
-function FormField({ name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading }: FormFieldProps) {
+function FormField({ name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading, allValues }: FormFieldProps) {
   switch (property.type) {
     case "string":
       return (
@@ -822,6 +1178,19 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
         />
       );
     case "array":
+      if (property["ui:widget"] === "generic-data-mapping-helper" && property.items) {
+        return (
+          <GenericDataMappingHelper
+            name={name}
+            property={property}
+            value={value}
+            onChange={onChange}
+            required={required}
+            disabled={disabled}
+            allValues={allValues || {}}
+          />
+        );
+      }
       if (property["ui:widget"] === "wsdot-route-picker" && property.items) {
         return (
           <WsdotRoutePicker
@@ -976,6 +1345,7 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
               onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
               showLocationButton={showLocationButton}
               isLocationLoading={false}
+              allValues={values}
             />
             {property.description && (
               <p className="text-xs text-muted-foreground">{property.description}</p>
