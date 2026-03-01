@@ -159,6 +159,7 @@ jobs:
     name: Build (${{ matrix.platform }})
     runs-on:
       - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
+      - ${{ matrix.image }}
     needs: [prep]
     if: needs.prep.result == 'success'
     strategy:
@@ -167,8 +168,10 @@ jobs:
         include:
           - platform: linux/amd64
             arch: amd64
+            image: image:linux-x86-3.0
           - platform: linux/arm64
             arch: arm64
+            image: image:arm-3.0
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
