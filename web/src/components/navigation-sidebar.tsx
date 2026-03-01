@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Home, FileText, Settings, Calendar, Menu, X, Puzzle } from "lucide-react";
+import { Home, FileText, Settings, Calendar, Menu, X, Puzzle, GalleryHorizontalEnd } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ServiceStatus } from "@/components/service-status";
@@ -22,6 +22,11 @@ const navigation = [
     name: "Pages",
     href: "/pages",
     icon: FileText,
+  },
+  {
+    name: "Carousels",
+    href: "/carousels",
+    icon: GalleryHorizontalEnd,
   },
   {
     name: "Schedule",

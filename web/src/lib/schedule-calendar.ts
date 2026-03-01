@@ -13,7 +13,8 @@ import {
   getDay,
   isSameDay,
 } from "date-fns";
-import type { ScheduleEntry, Page } from "./api";
+import type { ScheduleEntry, Page, Carousel } from "./api";
+import { isCarouselId } from "./api";
 
 /**
  * Calendar event type for react-big-calendar
@@ -96,7 +97,11 @@ function getApplicableDays(schedule: ScheduleEntry): number[] {
 /**
  * Get page name by ID from pages array
  */
-function getPageName(pageId: string, pages: Page[]): string {
+function getPageName(pageId: string, pages: Page[], carousels?: Carousel[]): string {
+  if (isCarouselId(pageId) && carousels) {
+    const carousel = carousels.find((c) => c.id === pageId);
+    return carousel ? `${carousel.name}` : pageId;
+  }
   const page = pages.find((p) => p.id === pageId);
   return page?.name || pageId;
 }
@@ -107,7 +112,8 @@ function getPageName(pageId: string, pages: Page[]): string {
 export function scheduleToCalendarEvents(
   schedule: ScheduleEntry,
   weekStart: Date,
-  pages: Page[]
+  pages: Page[],
+  carousels?: Carousel[]
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const applicableDays = getApplicableDays(schedule);
@@ -116,7 +122,7 @@ export function scheduleToCalendarEvents(
 
   const startTime = parseTime(schedule.start_time);
   const endTime = parseTime(schedule.end_time);
-  const pageName = getPageName(schedule.page_id, pages);
+  const pageName = getPageName(schedule.page_id, pages, carousels);
 
   const isMidnightRollover =
     endTime.hours < startTime.hours ||
@@ -213,12 +219,13 @@ export function scheduleToCalendarEvents(
 export function schedulesToCalendarEvents(
   schedules: ScheduleEntry[],
   weekStart: Date,
-  pages: Page[]
+  pages: Page[],
+  carousels?: Carousel[]
 ): CalendarEvent[] {
   const allEvents: CalendarEvent[] = [];
 
   for (const schedule of schedules) {
-    const events = scheduleToCalendarEvents(schedule, weekStart, pages);
+    const events = scheduleToCalendarEvents(schedule, weekStart, pages, carousels);
     allEvents.push(...events);
   }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { api } from "@/lib/api";
@@ -11,7 +12,10 @@ vi.mock("@/lib/api", () => ({
     getPages: vi.fn(),
     getBoardSettings: vi.fn(),
     previewPagesBatch: vi.fn(),
+    getCarousels: vi.fn(),
   },
+  isCarouselId: (id: string) => id?.startsWith("carousel:"),
+  CAROUSEL_ID_PREFIX: "carousel:",
 }));
 
 // Mock localStorage
@@ -115,6 +119,11 @@ describe("PageGridSelector", () => {
       board_type: "black",
       boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
       devices: ["flagship"],
+    });
+
+    vi.mocked(api.getCarousels).mockResolvedValue({
+      carousels: [],
+      total: 0,
     });
 
     vi.mocked(api.previewPagesBatch).mockResolvedValue(mockBatchPreviewResponse);
@@ -422,6 +431,99 @@ describe("PageGridSelector", () => {
     });
   });
 
+  it("accepts showCarousels prop", async () => {
+    render(
+      <PageGridSelector
+        activePageId={null}
+        onSelectPage={vi.fn()}
+        showCarousels={false}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Page 1")).toBeInTheDocument();
+    });
+  });
+
+  it("renders carousel buttons when carousels exist", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(api.getCarousels).mockResolvedValue({
+      carousels: [
+        {
+          id: "carousel:c1",
+          name: "My Carousel",
+          page_ids: ["page-1", "page-2"],
+          interval_seconds: 30,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+        {
+          id: "carousel:c2",
+          name: "Single Carousel",
+          page_ids: ["page-3"],
+          interval_seconds: 60,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+      ],
+      total: 2,
+    });
+
+    const onSelectPage = vi.fn();
+
+    render(
+      <PageGridSelector
+        activePageId={null}
+        onSelectPage={onSelectPage}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Wait for tabs to appear then switch to Carousels tab
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
+
+    expect(screen.getByText("My Carousel")).toBeInTheDocument();
+    expect(screen.getByText("Single Carousel")).toBeInTheDocument();
+    expect(screen.getByText("2 pages")).toBeInTheDocument();
+    expect(screen.getByText("1 page")).toBeInTheDocument();
+  });
+
+  it("highlights active carousel and handles click", async () => {
+    vi.mocked(api.getCarousels).mockResolvedValue({
+      carousels: [
+        {
+          id: "carousel:c1",
+          name: "Active Carousel",
+          page_ids: ["page-1", "page-2"],
+          interval_seconds: 30,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+      ],
+      total: 1,
+    });
+
+    const onSelectPage = vi.fn();
+
+    render(
+      <PageGridSelector
+        activePageId="carousel:c1"
+        onSelectPage={onSelectPage}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      const button = screen.getByText("Active Carousel").closest("button");
+      expect(button).toHaveClass("border-primary");
+    });
+
+    screen.getByText("Active Carousel").closest("button")!.click();
+    expect(onSelectPage).toHaveBeenCalledWith("carousel:c1");
+  });
+
   describe("list view mode", () => {
     it("renders page names in list view without calling previewPagesBatch", async () => {
       render(
@@ -479,7 +581,6 @@ describe("PageGridSelector", () => {
     });
 
     it("shows list skeleton when loading in list mode", async () => {
-      // Make getPages return a pending promise to keep loading state
       vi.mocked(api.getPages).mockReturnValue(new Promise(() => {}));
 
       const { container } = render(
@@ -491,7 +592,6 @@ describe("PageGridSelector", () => {
         { wrapper: TestWrapper }
       );
 
-      // Should show loading skeletons in list layout (flex column, not grid)
       await waitFor(() => {
         const busyElement = container.querySelector('[aria-busy="true"]');
         expect(busyElement).toBeInTheDocument();

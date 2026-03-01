@@ -8,16 +8,16 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DaySelector } from "@/components/day-selector";
-import { AlertCircle, Loader2, Trash2 } from "lucide-react";
-import type { ScheduleEntry, ScheduleCreate, ScheduleUpdate, DayPattern } from "@/lib/api";
+import { AlertCircle, Loader2, Trash2, GalleryHorizontalEnd } from "lucide-react";
+import type { ScheduleEntry, ScheduleCreate, ScheduleUpdate, DayPattern, Carousel } from "@/lib/api";
 
 interface ScheduleEntryFormProps {
   schedule?: ScheduleEntry;
   pages: Array<{ id: string; name: string }>;
+  carousels?: Carousel[];
   onSubmit: (data: ScheduleCreate | ScheduleUpdate) => Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
-  // Optional prefill values (used when creating from calendar slot selection)
   prefillStartTime?: string;
   prefillEndTime?: string;
   prefillDayPattern?: DayPattern;
@@ -42,6 +42,7 @@ const TIME_OPTIONS = generateTimeOptions();
 export function ScheduleEntryForm({
   schedule,
   pages,
+  carousels = [],
   onSubmit,
   onCancel,
   onDelete,
@@ -145,14 +146,28 @@ export function ScheduleEntryForm({
         </Alert>
       )}
       
-      {/* Page Selection */}
+      {/* Page / Carousel Selection */}
       <div className="space-y-2">
-        <Label htmlFor="page">Page</Label>
+        <Label htmlFor="page">Page or Carousel</Label>
         <Select value={pageId} onValueChange={setPageId}>
           <SelectTrigger id="page">
-            <SelectValue placeholder="Select a page" />
+            <SelectValue placeholder="Select a page or carousel" />
           </SelectTrigger>
           <SelectContent>
+            {carousels.length > 0 && (
+              <>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Carousels</div>
+                {carousels.map((carousel) => (
+                  <SelectItem key={carousel.id} value={carousel.id}>
+                    <span className="flex items-center gap-2">
+                      <GalleryHorizontalEnd className="h-3.5 w-3.5" />
+                      {carousel.name}
+                    </span>
+                  </SelectItem>
+                ))}
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pages</div>
+              </>
+            )}
             {pages.map((page) => (
               <SelectItem key={page.id} value={page.id}>
                 {page.name}

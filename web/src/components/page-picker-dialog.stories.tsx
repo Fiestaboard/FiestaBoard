@@ -11,6 +11,7 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import type { Carousel } from "@/lib/api";
 
 const meta = {
   title: "Forms/PagePickerDialog",
@@ -118,6 +119,53 @@ export const Interactive = () => {
       />
     </div>
   );
+};
+
+const mockCarousels: Carousel[] = [
+  {
+    id: "carousel:abc-123",
+    name: "Morning Rotation",
+    page_ids: ["page-1", "page-2", "page-3"],
+    interval_seconds: 30,
+    created_at: "2024-02-01T00:00:00Z",
+  },
+  {
+    id: "carousel:def-456",
+    name: "Evening Loop",
+    page_ids: ["page-3", "page-4"],
+    interval_seconds: 60,
+    created_at: "2024-02-02T00:00:00Z",
+  },
+];
+
+export const WithCarousels: Story = {
+  args: {
+    pages: mockPages,
+    carousels: mockCarousels,
+    selectedPageId: "page-1",
+    onSelect: (pageId: string | null) => console.log("Selected:", pageId),
+    allowNone: false,
+  },
+};
+
+export const WithSelectedCarousel: Story = {
+  args: {
+    pages: mockPages,
+    carousels: mockCarousels,
+    selectedPageId: "carousel:abc-123",
+    onSelect: (pageId: string | null) => console.log("Selected:", pageId),
+    allowNone: false,
+  },
+};
+
+export const WithCarouselsAndNone: Story = {
+  args: {
+    pages: mockPages,
+    carousels: mockCarousels,
+    selectedPageId: null,
+    onSelect: (pageId: string | null) => console.log("Selected:", pageId),
+    allowNone: true,
+  },
 };
 
 export const InDialog = () => {
