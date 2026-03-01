@@ -29,9 +29,14 @@
   "scripts": {
     "dev": "docker-compose -f docker-compose.dev.yml up",
     "dev:build": "docker-compose -f docker-compose.dev.yml up --build",
-    "build:web": "cd web && npm run build",
-    "start:web": "cd web && npm run start",
-    "test:web": "cd web && npm run test:run",
-    "lint:web": "cd web && npm run lint"
+    "dev:mobile": "pnpm --filter mobile start",
+    "build:web": "pnpm --filter web build",
+    "start:web": "pnpm --filter web start",
+    "test": "pnpm -r test",
+    "test:web": "pnpm --filter web test:run",
+    "test:mobile": "pnpm --filter mobile test",
+    "test:shared": "pnpm --filter @fiestaboard/shared test",
+    "lint:web": "pnpm --filter web lint",
+    "typecheck": "pnpm -r typecheck"
   }
 }

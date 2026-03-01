@@ -79,3 +79,15 @@ docs-site/node_modules/
 docs-site/build/
 docs-site/.docusaurus/
 docs-site/.cache-loader/
+
+# pnpm
+node_modules/
+.pnpm-store/
+
+# Mobile (Expo / React Native)
+mobile/.expo/
+mobile/ios/
+mobile/android/
+mobile/dist/
+*.ipa
+*.apk
