@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
   // Run as a server (not static export)
   // Runtime API URL configuration - no build-time env vars needed
   
+  // Transpile shared workspace package
+  transpilePackages: ['@fiestaboard/shared'],
+  
   // Enable standalone output for optimized Docker builds
   // This bundles only production dependencies and necessary files
   output: 'standalone',
