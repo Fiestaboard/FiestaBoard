@@ -174,8 +174,9 @@ class DisplayService:
                 logger.warning(f"Active page not found: {active_page_id}")
                 return False
             
-            # Render the page
-            result = page_service.preview_page(active_page_id)
+            # Render the page with fresh data — force_refresh bypasses the preview
+            # cache so template variables (weather, time, stocks, etc.) are current.
+            result = page_service.preview_page(active_page_id, force_refresh=True)
             if not result or not result.available:
                 logger.warning(f"Failed to render active page: {active_page_id}")
                 return False

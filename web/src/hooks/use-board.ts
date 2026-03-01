@@ -13,12 +13,12 @@ export const queryKeys = {
   boardSettings: ["boardSettings"] as const,
 };
 
-// Status query - refetches every 30 seconds to reduce load
+// Status query - refetches every 15 seconds
 export function useStatus() {
   return useQuery({
     queryKey: queryKeys.status,
     queryFn: api.getStatus,
-    refetchInterval: 30000, // Reduced from 5s to 30s
+    refetchInterval: 15000,
     retry: 1,
   });
 }

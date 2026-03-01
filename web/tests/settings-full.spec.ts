@@ -65,7 +65,7 @@ test.describe("Settings – Full Coverage", () => {
     await fetch(`${API_URL}/settings/polling`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ interval_seconds: 30 }),
+      body: JSON.stringify({ interval_seconds: 15 }),
     });
   });
 
