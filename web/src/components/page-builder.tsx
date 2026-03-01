@@ -788,6 +788,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       className="h-9 w-9"
                       onClick={() => saveMutation.mutate()}
                       disabled={!name.trim() || saveMutation.isPending}
+                      aria-label="Save Page"
                     >
                       <Save className="h-4 w-4" />
                     </Button>
