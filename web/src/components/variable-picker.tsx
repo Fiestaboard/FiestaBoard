@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { api } from "@/lib/api";
 import { ChevronDown, Bike, TrainFront, Car, Home, TrendingUp, Trophy, Plane } from "lucide-react";
 import { toast } from "sonner";
@@ -31,7 +33,6 @@ interface VariablePickerProps {
   showSymbols?: boolean;
 }
 
-// Collapsible section component
 function CollapsibleSection({
   title,
   defaultOpen = true,
@@ -44,12 +45,8 @@ function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="border-b border-border/50 last:border-b-0">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border-b border-border/50 last:border-b-0">
+      <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
         <span className="capitalize">{title.replace(/_/g, " ")}</span>
         <ChevronDown
           className={cn(
@@ -57,16 +54,11 @@ function CollapsibleSection({
             isOpen && "rotate-180"
           )}
         />
-      </button>
-      <div
-        className={cn(
-          "overflow-y-auto transition-all duration-200",
-          isOpen ? "max-h-[600px] pb-3" : "max-h-0"
-        )}
-      >
+      </CollapsibleTrigger>
+      <CollapsibleContent className="overflow-y-auto pb-3">
         {children}
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -83,19 +75,15 @@ function VariablePill({
   onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
 }) {
   return (
-    <button
-      type="button"
-      draggable
-      onDragStart={onDragStart}
-      onClick={onInsert}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-mono",
-        "bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300",
-        "hover:bg-indigo-500/25 cursor-grab active:cursor-grabbing transition-colors"
-      )}
+    <Badge
+      variant="variable"
+      asChild
+      className="px-2.5 py-1 cursor-grab active:cursor-grabbing hover:bg-indigo-500/25"
     >
-      {label}
-    </button>
+      <button type="button" draggable onDragStart={onDragStart} onClick={onInsert}>
+        {label}
+      </button>
+    </Badge>
   );
 }
 
@@ -289,7 +277,7 @@ export function VariablePicker({
                           <Bike className="h-3 w-3" />
                           Stations ({deferredBaywheelsData.stations.length})
                         </p>
-                        <div className="max-h-[400px] overflow-y-auto pr-1">
+                        <ScrollArea className="max-h-[400px] pr-1">
                           <Accordion type="single" collapsible className="w-full">
                             {deferredBaywheelsData.stations.map((station, index) => (
                             <AccordionItem key={station.station_id} value={`station-${index}`} className="border-b-0">
@@ -328,7 +316,7 @@ export function VariablePicker({
                             </AccordionItem>
                           ))}
                           </Accordion>
-                        </div>
+                        </ScrollArea>
                       </div>
                     </div>
                   </CollapsibleSection>
@@ -393,7 +381,7 @@ export function VariablePicker({
                           Stops {deferredMuniData?.stops ? `(${deferredMuniData.stops.length})` : "(None configured)"}
                         </p>
                         {deferredMuniData?.stops && deferredMuniData.stops.length > 0 ? (
-                          <div className="max-h-[400px] overflow-y-auto pr-1">
+                          <ScrollArea className="max-h-[400px] pr-1">
                             <Accordion type="single" collapsible className="w-full">
                               {deferredMuniData.stops.map((stop: any, index: number) => (
                               <AccordionItem key={stop.stop_code || index} value={`stop-${index}`} className="border-b-0">
@@ -502,7 +490,7 @@ export function VariablePicker({
                               </AccordionItem>
                             ))}
                             </Accordion>
-                          </div>
+                          </ScrollArea>
                         ) : (
                           <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
                             <p className="mb-2">Configure stops in Settings to see indexed variables here.</p>
@@ -548,7 +536,7 @@ export function VariablePicker({
                           Routes {deferredTrafficData?.routes ? `(${deferredTrafficData.routes.length})` : "(None configured)"}
                         </p>
                         {deferredTrafficData?.routes && deferredTrafficData.routes.length > 0 ? (
-                          <div className="max-h-[400px] overflow-y-auto pr-1">
+                          <ScrollArea className="max-h-[400px] pr-1">
                             <Accordion type="single" collapsible className="w-full">
                               {deferredTrafficData.routes.map((route: any, index: number) => (
                               <AccordionItem key={index} value={`route-${index}`} className="border-b-0">
@@ -587,7 +575,7 @@ export function VariablePicker({
                               </AccordionItem>
                             ))}
                             </Accordion>
-                          </div>
+                          </ScrollArea>
                         ) : (
                           <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
                             <p className="mb-2">Configure routes in Settings to see indexed variables here.</p>
@@ -703,7 +691,7 @@ export function VariablePicker({
                           Stocks {deferredStocksData?.stocks ? `(${deferredStocksData.stocks.length})` : "(None configured)"}
                         </p>
                         {deferredStocksData?.stocks && deferredStocksData.stocks.length > 0 ? (
-                          <div className="max-h-[400px] overflow-y-auto pr-1">
+                          <ScrollArea className="max-h-[400px] pr-1">
                             <Accordion type="single" collapsible className="w-full">
                               {deferredStocksData.stocks.map((stock: any, index: number) => (
                               <AccordionItem key={stock.symbol || index} value={`stock-${index}`} className="border-b-0">
@@ -742,7 +730,7 @@ export function VariablePicker({
                               </AccordionItem>
                             ))}
                             </Accordion>
-                          </div>
+                          </ScrollArea>
                         ) : (
                           <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
                             <p className="mb-2">Configure stock symbols in Settings to see indexed variables here.</p>
@@ -788,7 +776,7 @@ export function VariablePicker({
                           Games {deferredSportsScoresData?.games !== undefined ? `(${deferredSportsScoresData.games.length})` : "(None configured)"}
                         </p>
                         {deferredSportsScoresData?.games && deferredSportsScoresData.games.length > 0 ? (
-                          <div className="max-h-[400px] overflow-y-auto pr-1">
+                          <ScrollArea className="max-h-[400px] pr-1">
                             <Accordion type="single" collapsible className="w-full">
                               {deferredSportsScoresData.games.map((game: any, index: number) => (
                               <AccordionItem key={game.formatted || index} value={`game-${index}`} className="border-b-0">
@@ -827,7 +815,7 @@ export function VariablePicker({
                               </AccordionItem>
                             ))}
                             </Accordion>
-                          </div>
+                          </ScrollArea>
                         ) : (
                           <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
                             <p className="mb-2">Configure sports in Settings to see indexed variables here.</p>
@@ -873,7 +861,7 @@ export function VariablePicker({
                           Aircraft {deferredNearbyAircraftData?.aircraft ? `(${deferredNearbyAircraftData.aircraft.length})` : "(None detected)"}
                         </p>
                         {deferredNearbyAircraftData?.aircraft && deferredNearbyAircraftData.aircraft.length > 0 ? (
-                          <div className="max-h-[400px] overflow-y-auto pr-1">
+                          <ScrollArea className="max-h-[400px] pr-1">
                             <Accordion type="single" collapsible className="w-full">
                               {deferredNearbyAircraftData.aircraft.map((aircraft: any, index: number) => (
                               <AccordionItem key={aircraft.call_sign || aircraft.icao24 || index} value={`aircraft-${index}`} className="border-b-0">
@@ -912,7 +900,7 @@ export function VariablePicker({
                               </AccordionItem>
                             ))}
                             </Accordion>
-                          </div>
+                          </ScrollArea>
                         ) : (
                           <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
                             <p className="mb-2">Enable Nearby Aircraft in Settings and configure your location to see aircraft here.</p>

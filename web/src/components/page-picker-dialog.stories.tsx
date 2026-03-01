@@ -1,6 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { PagePickerDialog } from "./page-picker-dialog";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 const meta = {
   title: "Forms/PagePickerDialog",
@@ -114,27 +124,19 @@ export const InDialog = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(true);
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="px-4 py-2 rounded-md bg-primary text-primary-foreground"
-      >
-        Open Dialog
-      </button>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-background border rounded-lg shadow-lg">
-        <div className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Set Default Page</h2>
-            <p className="text-sm text-muted-foreground mt-1">
+    <>
+      {!isOpen && (
+        <Button onClick={() => setIsOpen(true)}>Open Dialog</Button>
+      )}
+      <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set Default Page</AlertDialogTitle>
+            <AlertDialogDescription>
               This page will display during schedule gaps
-            </p>
-          </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           
           <PagePickerDialog
             pages={mockPages}
@@ -143,25 +145,19 @@ export const InDialog = () => {
             allowNone={true}
           />
           
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              onClick={() => setIsOpen(false)}
-              className="px-4 py-2 rounded-md border text-sm font-medium"
-            >
-              Cancel
-            </button>
-            <button
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
               onClick={() => {
                 console.log("Saved:", selectedId);
                 setIsOpen(false);
               }}
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium"
             >
               Save
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

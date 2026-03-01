@@ -1,9 +1,9 @@
 import type { Preview } from "@storybook/nextjs";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider, useTheme } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import "../src/app/globals.css";
 
-// Create a client for Storybook
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -13,7 +13,30 @@ const queryClient = new QueryClient({
   },
 });
 
+function ThemeSync({ theme }: { theme: string }) {
+  const { setTheme } = useTheme();
+  useEffect(() => setTheme(theme), [theme, setTheme]);
+  return null;
+}
+
 const preview: Preview = {
+  globalTypes: {
+    theme: {
+      description: "Theme for components",
+      toolbar: {
+        title: "Theme",
+        icon: "paintbrush",
+        items: [
+          { value: "dark", icon: "moon", title: "Dark" },
+          { value: "light", icon: "sun", title: "Light" },
+        ],
+        dynamicTitle: true,
+      },
+    },
+  },
+  initialGlobals: {
+    theme: "dark",
+  },
   parameters: {
     controls: {
       matchers: {
@@ -21,35 +44,30 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
-    backgrounds: {
-      default: "dark",
-      values: [
-        {
-          name: "dark",
-          value: "#0a0a0a",
-        },
-        {
-          name: "light",
-          value: "#ffffff",
-        },
-      ],
+    nextjs: {
+      appDirectory: true,
     },
   },
   decorators: [
-    (Story) => (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <div className="min-h-screen bg-background text-foreground p-8">
-            <Story />
-          </div>
-        </ThemeProvider>
-      </QueryClientProvider>
-    ),
+    (Story, context) => {
+      const theme = context.globals.theme || "dark";
+      return (
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme={theme}
+            enableSystem={false}
+            forcedTheme={theme}
+            disableTransitionOnChange
+          >
+            <ThemeSync theme={theme} />
+            <div className="min-h-screen bg-background text-foreground p-8">
+              <Story />
+            </div>
+          </ThemeProvider>
+        </QueryClientProvider>
+      );
+    },
   ],
 };
 

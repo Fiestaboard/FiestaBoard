@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChevronsLeftRight, ChevronRight } from "lucide-react";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface FormattingOption {
   name: string;
@@ -76,6 +77,7 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
   // Show color + custom picker for fill_space_repeat
   if (showRepeatColorPicker) {
     return (
+      <TooltipProvider>
       <div className="p-2 min-w-[240px] max-w-[280px]">
         <button
           type="button"
@@ -96,8 +98,9 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
             if (!colorInfo) return null;
 
             return (
+              <Tooltip key={colorName}>
+                <TooltipTrigger asChild>
               <button
-                key={colorName}
                 type="button"
                 onClick={() => handleColorSelect(colorName)}
                 style={{ backgroundColor: colorInfo.bg }}
@@ -107,10 +110,14 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
                   colorInfo.needsDarkText ? "text-black/80" : "text-white/90"
                 )}
                 aria-label={`${colorName} color`}
-                title={colorName}
               >
                 {colorName}
               </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{colorName}</p>
+                </TooltipContent>
+              </Tooltip>
             );
           })}
         </div>
@@ -146,19 +153,22 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
           </form>
         </div>
       </div>
+      </TooltipProvider>
     );
   }
 
   // Show main formatting options
   return (
+    <TooltipProvider>
     <div className="p-1.5 min-w-[240px] max-w-[280px]">
       <div className="space-y-0.5">
         {options.map((option) => {
           const isRepeat = option.syntax.includes('fill_space_repeat');
           
           return (
+            <Tooltip key={option.syntax}>
+              <TooltipTrigger asChild>
             <button
-              key={option.syntax}
               type="button"
               onClick={() => handleOptionClick(option)}
               className={cn(
@@ -166,7 +176,6 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
                 "hover:bg-accent hover:text-accent-foreground transition-colors",
                 "flex items-center justify-between gap-2 group"
               )}
-              title={option.description}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <ChevronsLeftRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-accent-foreground flex-shrink-0" />
@@ -180,9 +189,15 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
                 </Badge>
               )}
             </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{option.description ?? option.name}</p>
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
     </div>
+    </TooltipProvider>
   );
 }

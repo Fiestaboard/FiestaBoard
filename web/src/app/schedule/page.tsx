@@ -544,36 +544,29 @@ export default function SchedulePage() {
         </Sheet>
 
         {/* Default Page Selector Dialog */}
-        {showDefaultPageSelector && pagesData && (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Set Default Page</CardTitle>
-                <CardDescription>
-                  This page will display during schedule gaps
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PagePickerDialog
-                  pages={pagesData.pages}
-                  selectedPageId={defaultPageId || null}
-                  onSelect={(pageId) => {
-                    setDefaultPage.mutate(pageId);
-                  }}
-                  allowNone={true}
-                />
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowDefaultPageSelector(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <AlertDialog open={showDefaultPageSelector && !!pagesData} onOpenChange={(isOpen) => { if (!isOpen) setShowDefaultPageSelector(false); }}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Set Default Page</AlertDialogTitle>
+              <AlertDialogDescription>
+                This page will display during schedule gaps
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {pagesData && (
+              <PagePickerDialog
+                pages={pagesData.pages}
+                selectedPageId={defaultPageId || null}
+                onSelect={(pageId) => {
+                  setDefaultPage.mutate(pageId);
+                }}
+                allowNone={true}
+              />
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deleteScheduleId} onOpenChange={() => setDeleteScheduleId(null)}>

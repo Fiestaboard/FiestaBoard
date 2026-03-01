@@ -7,6 +7,7 @@ import React from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { cn } from '@/lib/utils';
 import { FIESTABOARD_COLORS } from '@/lib/board-colors';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ColorTileNodeViewProps {
   node: {
@@ -33,6 +34,9 @@ export function ColorTileNodeView({ node, deleteNode }: ColorTileNodeViewProps) 
   `;
 
   return (
+    <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
     <NodeViewWrapper
       as="span"
       className={cn(
@@ -55,7 +59,6 @@ export function ColorTileNodeView({ node, deleteNode }: ColorTileNodeViewProps) 
         marginRight: '1px',
         whiteSpace: 'nowrap',
       }}
-      title={`${color} tile (code ${code}) - drag to move, backspace to delete`}
     >
       {/* Subtle split flip effect - horizontal line in middle */}
       <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
@@ -84,5 +87,11 @@ export function ColorTileNodeView({ node, deleteNode }: ColorTileNodeViewProps) 
         }}
       >{'\u2588'}</span>
     </NodeViewWrapper>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{color} tile (code {code}) - drag to move, backspace to delete</p>
+      </TooltipContent>
+    </Tooltip>
+    </TooltipProvider>
   );
 }

@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
   SheetContent,
@@ -694,6 +695,7 @@ function ColorRulesEditor({
   const fieldNames = Object.keys(colorRules);
 
   return (
+    <TooltipProvider>
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium text-muted-foreground">
@@ -760,13 +762,19 @@ function ColorRulesEditor({
                       )}
                       <code className="font-mono text-[10px]">{fieldName}_color</code>
                     </button>
-                    <button
-                      onClick={() => handleDeleteField(fieldName)}
-                      className="p-1 text-destructive hover:bg-destructive/10 rounded"
-                      title="Delete all rules for this field"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleDeleteField(fieldName)}
+                          className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete all rules for this field</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
 
@@ -871,6 +879,7 @@ function ColorRulesEditor({
         Rules are evaluated in order (first match wins). Use <code className="bg-muted px-1 rounded">{`{{${pluginId}.field_color}}`}</code> for just the color tile.
       </p>
     </div>
+    </TooltipProvider>
   );
 }
 

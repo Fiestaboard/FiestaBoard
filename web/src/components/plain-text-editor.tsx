@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 
 interface PlainTextEditorProps {
   value: string;
@@ -45,19 +46,15 @@ export function PlainTextEditor({
 
   return (
     <div className={cn("relative", className)}>
-      <textarea
+      <Textarea
         ref={textareaRef}
         value={value}
         onChange={handleChange}
         onFocus={onFocus}
         placeholder={placeholder}
         className={cn(
-          "w-full p-3 rounded-md border bg-background",
-          "font-mono text-sm resize-none",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          "placeholder:text-muted-foreground",
-          "overflow-y-auto",
-          isOverLimit && "border-amber-500 focus:ring-amber-500"
+          "font-mono resize-none overflow-y-auto",
+          isOverLimit && "border-amber-500 focus-visible:ring-amber-500"
         )}
         rows={boardLines}
         style={{

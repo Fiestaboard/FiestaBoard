@@ -41,17 +41,15 @@ function VariablePill({
   onInsert: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onInsert}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-mono",
-        "bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300",
-        "hover:bg-indigo-500/25 transition-colors cursor-pointer"
-      )}
+    <Badge
+      variant="variable"
+      asChild
+      className="px-2.5 py-1 cursor-pointer hover:bg-indigo-500/25"
     >
-      {label}
-    </button>
+      <button type="button" onClick={onInsert}>
+        {label}
+      </button>
+    </Badge>
   );
 }
 
@@ -267,7 +265,7 @@ function renderArraySection(
   }
 
   return (
-    <div className="max-h-[400px] overflow-y-auto pr-1">
+    <ScrollArea className="max-h-[400px] pr-1">
       <Accordion type="single" collapsible className="w-full">
         {filteredArrayData.map(({ item, index }) => {
           const itemLabel = item[labelField] || item.name || `Item ${index}`;
@@ -388,7 +386,7 @@ function renderArraySection(
           );
         })}
       </Accordion>
-    </div>
+    </ScrollArea>
   );
 }
 

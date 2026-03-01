@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import {
   Monitor, Smartphone, Plus, Trash2, ChevronDown, ChevronRight,
@@ -288,8 +289,6 @@ export function DisplaySettings() {
   const queryClient = useQueryClient();
   const { data: boardSettings, isLoading } = useBoardSettings();
   const [showTypePicker, setShowTypePicker] = useState(false);
-  const [expandedBoards, setExpandedBoards] = useState<string[]>([]);
-
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
     queryClient.invalidateQueries({ queryKey: ["all-settings"] });
@@ -330,14 +329,6 @@ export function DisplaySettings() {
   });
 
   const boards = boardSettings?.boards ?? [];
-
-  const toggleExpanded = (boardId: string) => {
-    setExpandedBoards((prev) =>
-      prev.includes(boardId)
-        ? prev.filter((id) => id !== boardId)
-        : [...prev, boardId]
-    );
-  };
 
   const handleAddBoard = (deviceType: DeviceType) => {
     addMutation.mutate({ device_type: deviceType });
@@ -387,7 +378,6 @@ export function DisplaySettings() {
       <CardContent className="space-y-4">
         <div className="space-y-3">
           {boards.map((board) => {
-            const isExpanded = expandedBoards.includes(board.id);
             const isEnabled = board.enabled !== false;
             const apiMode = board.api_mode ?? "local";
             const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
@@ -398,21 +388,16 @@ export function DisplaySettings() {
               (apiMode === "cloud" && hasCloudKey);
 
             return (
-              <div
+              <Collapsible
                 key={board.id}
                 className={`rounded-lg border overflow-hidden transition-opacity ${
                   isEnabled ? "" : "opacity-50"
                 }`}
               >
-                {/* Board header row */}
-                <button
-                  onClick={() => toggleExpanded(board.id)}
-                  className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors"
-                >
+                <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
                   <div className="flex-shrink-0 text-muted-foreground">
-                    {isExpanded
-                      ? <ChevronDown className="h-4 w-4" />
-                      : <ChevronRight className="h-4 w-4" />}
+                    <ChevronRight className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{board.name || "Unnamed Board"}</div>
@@ -446,10 +431,9 @@ export function DisplaySettings() {
                       </BadgeUI>
                     )}
                   </div>
-                </button>
+                </CollapsibleTrigger>
 
-                {/* Expanded details */}
-                {isExpanded && (
+                <CollapsibleContent>
                   <div className="border-t px-4 pb-4 pt-3 space-y-3">
                     {/* Name + Enabled row */}
                     <div className="flex items-center gap-3">
@@ -550,8 +534,8 @@ export function DisplaySettings() {
                       </Button>
                     </div>
                   </div>
-                )}
-              </div>
+                </CollapsibleContent>
+              </Collapsible>
             );
           })}
         </div>

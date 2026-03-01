@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -163,6 +164,7 @@ export function BoardSettings() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        <TooltipProvider>
         {/* API Mode */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium">Connection Mode</label>
@@ -264,26 +266,32 @@ export function BoardSettings() {
                     placeholder={hasLocalKey ? "••••••••••• (value set)" : "Enter your local API key"}
                     className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setShowSecrets((prev) => ({
-                        ...prev,
-                        local_api_key: !prev.local_api_key,
-                      }))
-                    }
-                    className="h-9 w-9 p-0"
-                    disabled={formData.local_api_key === "***"}
-                    title={formData.local_api_key === "***" ? "Cannot reveal server-stored values" : "Toggle visibility"}
-                  >
-                    {showSecrets.local_api_key ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setShowSecrets((prev) => ({
+                            ...prev,
+                            local_api_key: !prev.local_api_key,
+                          }))
+                        }
+                        className="h-9 w-9 p-0"
+                        disabled={formData.local_api_key === "***"}
+                      >
+                        {showSecrets.local_api_key ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{formData.local_api_key === "***" ? "Cannot reveal server-stored values" : "Toggle visibility"}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Email support@vestaboard.com to request your Local API Key
@@ -366,26 +374,32 @@ export function BoardSettings() {
                 placeholder={hasCloudKey ? "••••••••••• (value set)" : "Enter your R/W API key"}
                 className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setShowSecrets((prev) => ({
-                    ...prev,
-                    cloud_key: !prev.cloud_key,
-                  }))
-                }
-                className="h-9 w-9 p-0"
-                disabled={formData.cloud_key === "***"}
-                title={formData.cloud_key === "***" ? "Cannot reveal server-stored values" : "Toggle visibility"}
-              >
-                {showSecrets.cloud_key ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setShowSecrets((prev) => ({
+                        ...prev,
+                        cloud_key: !prev.cloud_key,
+                      }))
+                    }
+                    className="h-9 w-9 p-0"
+                    disabled={formData.cloud_key === "***"}
+                  >
+                    {showSecrets.cloud_key ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{formData.cloud_key === "***" ? "Cannot reveal server-stored values" : "Toggle visibility"}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <p className="text-xs text-muted-foreground">
               Found in your board app under Settings → Integrations → Read/Write API
@@ -412,6 +426,7 @@ export function BoardSettings() {
             <span>Saving...</span>
           </div>
         )}
+        </TooltipProvider>
       </CardContent>
     </Card>
   );

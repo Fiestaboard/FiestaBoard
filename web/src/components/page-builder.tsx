@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { PlainTextEditor } from "@/components/plain-text-editor";
@@ -45,6 +46,7 @@ import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineA
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 
@@ -775,32 +777,45 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                 <Wand2 className="h-4 w-4" />
                 {pageId ? "Edit Page" : "Create Page"}
               </CardTitle>
+              <TooltipProvider>
               <div className="flex items-center gap-1">
                 {/* Save button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  onClick={() => saveMutation.mutate()}
-                  disabled={!name.trim() || saveMutation.isPending}
-                  title={saveMutation.isPending ? "Saving..." : "Save Page"}
-                >
-                  <Save className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => saveMutation.mutate()}
+                      disabled={!name.trim() || saveMutation.isPending}
+                    >
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{saveMutation.isPending ? "Saving..." : "Save Page"}</p>
+                  </TooltipContent>
+                </Tooltip>
                 
                 {/* Delete button - only show when editing */}
                 {pageId && (
                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        title="Delete Page"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Page</p>
+                      </TooltipContent>
+                    </Tooltip>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Page</AlertDialogTitle>
@@ -820,20 +835,28 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-9 w-9" 
-                  onClick={onClose}
-                  title="Close"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9" 
+                      onClick={onClose}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Close</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
+              </TooltipProvider>
             </div>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-1 min-h-0 space-y-4 overflow-y-auto overflow-x-hidden px-3 sm:px-4 md:px-6 pt-2">
+          <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
+            <ScrollArea className="flex-1 min-h-0 space-y-4">
             {/* Draft restored notification */}
             {draftRestored && (
               <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
@@ -1123,6 +1146,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
               </div>
 
             </div>
+            </ScrollArea>
           </CardContent>
         </Card>
 
