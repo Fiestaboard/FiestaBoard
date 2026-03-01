@@ -78,14 +78,14 @@ class ActivePageSettings:
 @dataclass
 class PollingSettings:
     """Polling interval settings for board updates."""
-    interval_seconds: int = 60  # Default to 60 seconds (1 minute)
+    interval_seconds: int = 15  # Default to 15 seconds
     
     def to_dict(self) -> dict:
         return asdict(self)
     
     @classmethod
     def from_dict(cls, data: dict) -> "PollingSettings":
-        interval = data.get("interval_seconds", 60)
+        interval = data.get("interval_seconds", 15)
         # Ensure minimum of 10 seconds to avoid overloading
         if interval < 10:
             interval = 10

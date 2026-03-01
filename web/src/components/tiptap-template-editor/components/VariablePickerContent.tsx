@@ -438,7 +438,7 @@ export function VariablePickerContent({ onInsert }: VariablePickerContentProps) 
   const { data: pluginDisplayData } = useQuery({
     queryKey: ["plugin-displays-batch", pluginsWithArrays],
     queryFn: () => api.getDisplaysRawBatch(pluginsWithArrays),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
     enabled: pluginsWithArrays.length > 0,
   });
 

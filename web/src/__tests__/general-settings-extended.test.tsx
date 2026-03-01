@@ -69,8 +69,9 @@ describe("GeneralSettings extended", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const switches = screen.getAllByRole("switch");
-      expect(switches.length).toBeGreaterThan(0);
+      const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
+      expect(pollingInput).toBeInTheDocument();
+      expect(parseInt(pollingInput.value, 10)).toBe(300);
     });
 
     const silenceToggle = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "silence-enabled");

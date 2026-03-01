@@ -3611,7 +3611,7 @@ async def render_template(request: dict):
 
 
 @app.post("/templates/render/live")
-async def render_template_live(request: dict):
+def render_template_live(request: dict):
     """
     Render a template and send it to a board (live edit mode).
 

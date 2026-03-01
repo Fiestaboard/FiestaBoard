@@ -164,7 +164,7 @@ export function VariablePicker({
   const { data: pluginDisplayData } = useQuery({
     queryKey: ["plugin-displays-batch", enabledPlugins],
     queryFn: () => api.getDisplaysRawBatch(enabledPlugins),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
     enabled: enabledPlugins.length > 0,
   });
 
