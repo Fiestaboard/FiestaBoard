@@ -9,7 +9,7 @@ import logging
 import shutil
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .models import LineMetadata, Page
 from ..text_utils import extract_alignment_from_line as _extract_alignment_from_line
@@ -249,7 +249,7 @@ class PageStorage:
                 page_dict[key] = value
         
         # Update timestamp
-        page_dict["updated_at"] = datetime.utcnow()
+        page_dict["updated_at"] = datetime.now(timezone.utc)
         
         # Recreate page with updates
         updated_page = Page(**page_dict)

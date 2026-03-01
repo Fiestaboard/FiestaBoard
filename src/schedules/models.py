@@ -3,7 +3,7 @@
 Schedules allow automatic time-based page rotation with day-of-week patterns.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field, ConfigDict
 import uuid
@@ -40,7 +40,7 @@ class ScheduleEntry(BaseModel):
     enabled: bool = True
 
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
     
     model_config = ConfigDict()

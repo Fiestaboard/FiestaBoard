@@ -6,7 +6,7 @@ a user-defined radius.
 """
 
 from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import requests
 from math import radians, cos, sin, asin, sqrt
@@ -472,7 +472,7 @@ class NearbyAircraftPlugin(PluginBase):
                         "squawk": "----",
                         "formatted": "NO AIRCRAFT NEARBY",
                         "headers": "CALLSGN ALT GS SQWK",
-                        "last_updated": datetime.utcnow().isoformat() + "Z",
+                        "last_updated": datetime.now(timezone.utc).isoformat(),
                     }
                 )
             
@@ -512,7 +512,7 @@ class NearbyAircraftPlugin(PluginBase):
                         "squawk": "----",
                         "formatted": "NO AIRCRAFT NEARBY",
                         "headers": "CALLSGN ALT GS SQWK",
-                        "last_updated": datetime.utcnow().isoformat() + "Z",
+                        "last_updated": datetime.now(timezone.utc).isoformat(),
                     }
                 )
             
@@ -530,7 +530,7 @@ class NearbyAircraftPlugin(PluginBase):
                 "headers": aligned_headers,
                 # Aggregate
                 "aircraft_count": len(nearby_aircraft),
-                "last_updated": datetime.utcnow().isoformat() + "Z",
+                "last_updated": datetime.now(timezone.utc).isoformat(),
                 # Array of all aircraft
                 "aircraft": nearby_aircraft,
             }

@@ -6,7 +6,7 @@ Pages can be:
 - Template: Custom templated content with dynamic data
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field, ConfigDict
 import uuid
@@ -81,7 +81,7 @@ class Page(BaseModel):
     transition_step_size: Optional[int] = Field(default=None, ge=1)
     
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
     
     model_config = ConfigDict(
