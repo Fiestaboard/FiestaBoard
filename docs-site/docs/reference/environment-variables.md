@@ -93,6 +93,12 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 | `SILENCE_SCHEDULE_START_TIME` | Quiet hours start (HH:MM) | - |
 | `SILENCE_SCHEDULE_END_TIME` | Quiet hours end (HH:MM) | - |
 
+## Network / mDNS
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MDNS_HOSTNAME` | Hostname advertised via mDNS/Bonjour (without `.local` suffix). Devices on the same network can reach FiestaBoard at `http://<hostname>.local:4420`. Set to empty to disable mDNS. | `fiestaboard` |
+
 ## System Configuration
 
 | Variable | Description | Default |

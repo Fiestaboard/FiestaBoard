@@ -34,6 +34,10 @@ docker-compose -f docker-compose.hub.yml up -d
 
 Open **http://localhost:4420** in your browser. You'll see the FiestaBoard dashboard.
 
+:::tip Accessing from another device?
+FiestaBoard advertises itself on your local network via mDNS/Bonjour. From any device on the same network you can use **http://fiestaboard.local:4420**. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
+:::
+
 ## Option B: Install Wizard
 
 Clone the repository and run the install script. It checks prerequisites, starts the server, and opens the setup wizard in your browser:

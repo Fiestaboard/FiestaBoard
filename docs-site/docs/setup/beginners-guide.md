@@ -149,6 +149,10 @@ The wizard will:
 
 ![Dashboard with active page displayed on the board](/img/guides/dashboard-running.png)
 
+:::tip Accessing from a phone or another computer?
+FiestaBoard automatically advertises itself on your local network. Try **http://fiestaboard.local:4420** from any device on the same WiFi. If that doesn't work, use the IP address of the computer running FiestaBoard (e.g. `http://192.168.1.50:4420`).
+:::
+
 :::info Don't see anything?
 If the page doesn't load, wait 30 seconds and try again - the server may still be starting up. Make sure Docker Desktop is running (look for the whale icon in your system tray or menu bar).
 :::
