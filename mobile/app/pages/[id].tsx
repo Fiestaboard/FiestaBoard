@@ -1,15 +1,16 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, Alert } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useServerContext } from '../_layout';
 import { usePages, useActivePage, useSetActivePage, usePagePreview, useBoardSettings, getEffectiveBoardColor } from '../../hooks/use-board';
 import { BoardPreview } from '../../components/BoardPreview';
 import { colors, spacing, fontSize } from '../../lib/theme';
-import { Check, Send } from 'lucide-react-native';
+import { Check, Send, Pencil } from 'lucide-react-native';
 
 export default function PageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { api } = useServerContext();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? colors.dark : colors.light;
 
@@ -96,6 +97,15 @@ export default function PageDetailScreen() {
           >
             <Send size={18} color={colors.primary} />
             <Text style={[styles.actionText, { color: colors.primary }]}>Send to Board</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.surface }]}
+            onPress={() => router.push(`/pages/edit/${id}`)}
+            activeOpacity={0.8}
+          >
+            <Pencil size={18} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -67,6 +67,23 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="pages/edit/[id]"
+            options={{
+              headerShown: true,
+              headerTitle: 'Edit Page',
+              headerBackTitle: 'Cancel',
+            }}
+          />
+          <Stack.Screen
+            name="pages/new"
+            options={{
+              headerShown: true,
+              headerTitle: 'New Page',
+              headerBackTitle: 'Cancel',
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
             name="plugins/[id]"
             options={{
               headerShown: true,
