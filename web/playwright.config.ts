@@ -4,9 +4,9 @@ import { defineConfig, devices } from "@playwright/test";
  * Playwright configuration for FiestaBoard E2E tests.
  *
  * Tests run against the unified container (same as production).
- * CI sets BASE_URL to the container's bridge IP; locally it defaults
- * to http://localhost:4420 (start the dev container first:
- *   docker-compose -f docker-compose.dev.yml up -d).
+ * CI sets WORKER_URLS (comma-separated) for per-worker backend
+ * isolation, enabling parallel execution across 4 workers.
+ * Locally it defaults to http://localhost:4420 with 1 worker.
  *
  * Screenshot generation tests are excluded in CI since they're for
  * docs, not functional validation.
@@ -18,7 +18,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 1,
+  workers: process.env.CI ? 4 : 1,
   reporter: process.env.CI ? "github" : "list",
   timeout: 30_000,
   globalSetup: "./tests/global-setup.ts",

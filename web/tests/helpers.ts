@@ -4,28 +4,55 @@
  * Provides utilities to interact with the mock Vestaboard API
  * and reset state between tests.
  *
- * When running against Docker dev containers, set MOCK_BOARD_HOST to the
- * Docker service name (e.g. "fiestaboard-mock-board") so the API container
- * can reach the mock board.  In CI everything runs on localhost so the
- * default works as-is.
+ * Supports per-worker backend isolation for parallel execution.
+ * In CI, set WORKER_URLS / WORKER_MOCK_URLS / WORKER_MOCK_HOSTS as
+ * comma-separated lists (one entry per Playwright worker). Each worker
+ * gets its own FiestaBoard + mock board container so tests in different
+ * files can run in parallel without state interference.
  */
 import { test as base, expect } from "@playwright/test";
 
-export const API_URL = process.env.BASE_URL
+const _workerUrls = (process.env.WORKER_URLS || "").split(",").filter(Boolean);
+const _workerMockUrls = (process.env.WORKER_MOCK_URLS || "").split(",").filter(Boolean);
+const _workerMockHosts = (process.env.WORKER_MOCK_HOSTS || "").split(",").filter(Boolean);
+
+const DEFAULT_API_URL = process.env.BASE_URL
   ? `${process.env.BASE_URL}/api`
   : `http://localhost:${process.env.API_PORT || "4420"}/api`;
-export const MOCK_BOARD_PORT = parseInt(process.env.MOCK_BOARD_PORT || "7000", 10);
-export const MOCK_BOARD_URL = process.env.MOCK_BOARD_URL || `http://localhost:${MOCK_BOARD_PORT}`;
+const DEFAULT_MOCK_BOARD_PORT = parseInt(process.env.MOCK_BOARD_PORT || "7000", 10);
+const DEFAULT_MOCK_BOARD_URL = process.env.MOCK_BOARD_URL || `http://localhost:${DEFAULT_MOCK_BOARD_PORT}`;
+const DEFAULT_BOARD_HOST = process.env.MOCK_BOARD_HOST || "localhost";
+
+// eslint-disable-next-line import/no-mutable-exports
+export let API_URL = DEFAULT_API_URL;
+// eslint-disable-next-line import/no-mutable-exports
+export let MOCK_BOARD_URL = DEFAULT_MOCK_BOARD_URL;
+// eslint-disable-next-line import/no-mutable-exports
+export let BOARD_HOST = DEFAULT_BOARD_HOST;
+export const MOCK_BOARD_PORT = DEFAULT_MOCK_BOARD_PORT;
 /** Second mock board port for multi-board e2e (when mock started with PORTS=7000,7001). */
 export const MOCK_BOARD_PORT_2 = 7001;
 export const MOCK_BOARD_URL_2 = `http://localhost:${MOCK_BOARD_PORT_2}`;
-export const BOARD_HOST = process.env.MOCK_BOARD_HOST || "localhost";
 
-/** Extend Playwright's base test with per-test backend state cleanup. */
-export const test = base.extend<{ resetBackend: void }>({
+function _configureWorker(workerIndex: number) {
+  if (_workerUrls.length > 0) {
+    const idx = workerIndex % _workerUrls.length;
+    API_URL = `${_workerUrls[idx]}/api`;
+    MOCK_BOARD_URL = _workerMockUrls[idx] || DEFAULT_MOCK_BOARD_URL;
+    BOARD_HOST = _workerMockHosts[idx] || DEFAULT_BOARD_HOST;
+  }
+}
+
+/** Extend Playwright's base test with per-worker isolation and per-test cleanup. */
+export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>({
+  workerBackend: [async ({}, use, workerInfo) => {
+    _configureWorker(workerInfo.workerIndex);
+    await use();
+  }, { scope: "worker", auto: true }],
+
   // eslint-disable-next-line no-empty-pattern
   resetBackend: [async ({}, use) => {
-    await resetMockBoard(); // resets all ports when mock is multi-port
+    await resetMockBoard();
     await use();
   }, { auto: true }],
 });
