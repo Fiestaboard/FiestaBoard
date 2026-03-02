@@ -37,28 +37,41 @@ jobs:
         run: |
           set -euo pipefail
 
-          # --- Fetch all existing tags from Docker Hub (paginated) ---
+          # Helper: fetch all tags from a Docker Hub repository (paginated)
+          fetch_docker_tags() {
+            local REPO="$1"
+            local TAGS=""
+            local PAGE=1
+            while true; do
+              RESPONSE=$(curl -sS --fail-with-body "https://hub.docker.com/v2/repositories/${REPO}/tags?page_size=100&page=${PAGE}" 2>&1) || {
+                echo "Note: Docker Hub API request failed for ${REPO} (page $PAGE)." >&2
+                break
+              }
+              PAGE_TAGS=$(echo "$RESPONSE" | jq -r '.results[]?.name // empty' 2>/dev/null)
+              if [ -z "$PAGE_TAGS" ]; then
+                break
+              fi
+              TAGS="${TAGS}${PAGE_TAGS}"$'\n'
+              NEXT=$(echo "$RESPONSE" | jq -r '.next // empty')
+              if [ -z "$NEXT" ] || [ "$NEXT" = "null" ]; then
+                break
+              fi
+              PAGE=$((PAGE + 1))
+            done
+            echo "$TAGS"
+          }
+
+          # --- Fetch existing tags from Docker Hub repositories ---
           echo "::group::Fetching Docker Hub tags"
-          DOCKER_TAGS=""
-          PAGE=1
-          while true; do
-            RESPONSE=$(curl -sS --fail-with-body "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags?page_size=100&page=${PAGE}" 2>&1) || {
-              echo "Note: Docker Hub API request failed (page $PAGE). This may mean the repository has no tags yet."
-              break
-            }
-            PAGE_TAGS=$(echo "$RESPONSE" | jq -r '.results[]?.name // empty' 2>/dev/null)
-            if [ -z "$PAGE_TAGS" ]; then
-              break
-            fi
-            DOCKER_TAGS="${DOCKER_TAGS}${PAGE_TAGS}"$'\n'
-            NEXT=$(echo "$RESPONSE" | jq -r '.next // empty')
-            if [ -z "$NEXT" ] || [ "$NEXT" = "null" ]; then
-              break
-            fi
-            PAGE=$((PAGE + 1))
-          done
-          echo "Docker Hub tags:"
-          echo "$DOCKER_TAGS" | sort -V | grep -v '^$' || echo "(none)"
+
+          echo "--- fiestaboard/fiestaboard (v2.x unified) ---"
+          DOCKER_TAGS_UNIFIED=$(fetch_docker_tags "fiestaboard/fiestaboard")
+          echo "$DOCKER_TAGS_UNIFIED" | sort -V | grep -v '^$' || echo "(none)"
+
+          echo "--- fiestaboard/fiestaboard-api (v1.x API) ---"
+          DOCKER_TAGS_API=$(fetch_docker_tags "fiestaboard/fiestaboard-api")
+          echo "$DOCKER_TAGS_API" | sort -V | grep -v '^$' || echo "(none)"
+
           echo "::endgroup::"
 
           # --- Get all v1.x and v2.x git tags sorted by version ---
@@ -68,15 +81,27 @@ jobs:
           echo "::endgroup::"
 
           # --- Find versions in git but missing from Docker Hub ---
+          # v1.x used split images (fiestaboard-api + fiestaboard-ui)
+          # v2.x uses a unified image (fiestaboard)
           echo "::group::Comparing versions"
           MISSING=()
           for TAG in $GIT_TAGS; do
             VERSION="${TAG#v}"
-            if echo "$DOCKER_TAGS" | grep -qFx "$VERSION"; then
-              echo "OK:      $TAG ($VERSION exists on Docker Hub)"
+            MAJOR="${VERSION%%.*}"
+            if [ "$MAJOR" = "1" ]; then
+              if echo "$DOCKER_TAGS_API" | grep -qFx "$VERSION"; then
+                echo "OK:      $TAG ($VERSION exists on Docker Hub as fiestaboard-api)"
+              else
+                MISSING+=("$TAG")
+                echo "MISSING: $TAG ($VERSION not on Docker Hub)"
+              fi
             else
-              MISSING+=("$TAG")
-              echo "MISSING: $TAG ($VERSION not on Docker Hub)"
+              if echo "$DOCKER_TAGS_UNIFIED" | grep -qFx "$VERSION"; then
+                echo "OK:      $TAG ($VERSION exists on Docker Hub)"
+              else
+                MISSING+=("$TAG")
+                echo "MISSING: $TAG ($VERSION not on Docker Hub)"
+              fi
             fi
           done
           echo "::endgroup::"
@@ -106,7 +131,8 @@ jobs:
             echo "## Docker Hub Backfill Discovery"
             echo ""
             echo "- **Git tags (v1.x + v2.x):** $(echo "$GIT_TAGS" | wc -w)"
-            echo "- **Docker Hub tags:** $(echo "$DOCKER_TAGS" | grep -cv '^$' || echo 0)"
+            echo "- **Docker Hub tags (unified):** $(echo "$DOCKER_TAGS_UNIFIED" | grep -cv '^$' || echo 0)"
+            echo "- **Docker Hub tags (api):** $(echo "$DOCKER_TAGS_API" | grep -cv '^$' || echo 0)"
             echo "- **Missing versions:** $TOTAL"
             if [ ${#MISSING[@]} -gt 0 ]; then
               echo ""
@@ -146,6 +172,21 @@ jobs:
           VERSION="${{ matrix.version }}"
           echo "number=${VERSION#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Detect Dockerfile layout
+        id: layout
+        run: |
+          if [ -f "./Dockerfile" ]; then
+            echo "type=unified" >> "$GITHUB_OUTPUT"
+            echo "Detected unified Dockerfile (v2.x style)"
+          elif [ -f "./Dockerfile.api" ] && [ -f "./Dockerfile.ui" ]; then
+            echo "type=split" >> "$GITHUB_OUTPUT"
+            echo "Detected split Dockerfiles (v1.x style: Dockerfile.api + Dockerfile.ui)"
+          else
+            echo "::error::No recognized Dockerfile layout at ${{ matrix.version }}"
+            ls -la Dockerfile* 2>/dev/null || echo "No Dockerfile* files found"
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -155,8 +196,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push by digest
-        id: build
+      # --- Unified build (v2.x: single Dockerfile) ---
+
+      - name: Build and push unified image
+        if: steps.layout.outputs.type == 'unified'
+        id: build-unified
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -166,17 +210,77 @@ jobs:
             VERSION=${{ steps.ver.outputs.number }}
           outputs: type=image,name=fiestaboard/fiestaboard,push-by-digest=true,name-canonical=true,push=true
 
-      - name: Export digest
+      - name: Export unified digest
+        if: steps.layout.outputs.type == 'unified'
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
+          digest="${{ steps.build-unified.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
-      - name: Upload digest
+      - name: Upload unified digest
+        if: steps.layout.outputs.type == 'unified'
         uses: actions/upload-artifact@v6
         with:
           name: digests-${{ matrix.version }}-${{ matrix.arch }}
           path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+      # --- Split build (v1.x: Dockerfile.api + Dockerfile.ui) ---
+
+      - name: Build and push API image
+        if: steps.layout.outputs.type == 'split'
+        id: build-api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.api
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            VERSION=${{ steps.ver.outputs.number }}
+          outputs: type=image,name=fiestaboard/fiestaboard-api,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export API digest
+        if: steps.layout.outputs.type == 'split'
+        run: |
+          mkdir -p /tmp/digests-api
+          digest="${{ steps.build-api.outputs.digest }}"
+          touch "/tmp/digests-api/${digest#sha256:}"
+
+      - name: Upload API digest
+        if: steps.layout.outputs.type == 'split'
+        uses: actions/upload-artifact@v6
+        with:
+          name: digests-api-${{ matrix.version }}-${{ matrix.arch }}
+          path: /tmp/digests-api/*
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Build and push UI image
+        if: steps.layout.outputs.type == 'split'
+        id: build-ui
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.ui
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            VERSION=${{ steps.ver.outputs.number }}
+          outputs: type=image,name=fiestaboard/fiestaboard-ui,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export UI digest
+        if: steps.layout.outputs.type == 'split'
+        run: |
+          mkdir -p /tmp/digests-ui
+          digest="${{ steps.build-ui.outputs.digest }}"
+          touch "/tmp/digests-ui/${digest#sha256:}"
+
+      - name: Upload UI digest
+        if: steps.layout.outputs.type == 'split'
+        uses: actions/upload-artifact@v6
+        with:
+          name: digests-ui-${{ matrix.version }}-${{ matrix.arch }}
+          path: /tmp/digests-ui/*
           if-no-files-found: error
           retention-days: 1
 
@@ -195,13 +299,6 @@ jobs:
           VERSION="${{ matrix.version }}"
           echo "number=${VERSION#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Download digests
-        uses: actions/download-artifact@v7
-        with:
-          path: /tmp/digests
-          pattern: digests-${{ matrix.version }}-*
-          merge-multiple: true
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -211,9 +308,59 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
+      # --- Unified manifest (v2.x) ---
+
+      - name: Download unified digests
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ matrix.version }}-*
+          merge-multiple: true
+
+      - name: Create unified manifest
         run: |
-          docker buildx imagetools create \
-            -t fiestaboard/fiestaboard:${{ steps.ver.outputs.number }} \
-            $(printf 'fiestaboard/fiestaboard@sha256:%s ' *)
+          if [ -d /tmp/digests ] && [ "$(ls -A /tmp/digests 2>/dev/null)" ]; then
+            cd /tmp/digests
+            docker buildx imagetools create \
+              -t fiestaboard/fiestaboard:${{ steps.ver.outputs.number }} \
+              $(printf 'fiestaboard/fiestaboard@sha256:%s ' *)
+          fi
+
+      # --- API manifest (v1.x) ---
+
+      - name: Download API digests
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          path: /tmp/digests-api
+          pattern: digests-api-${{ matrix.version }}-*
+          merge-multiple: true
+
+      - name: Create API manifest
+        run: |
+          if [ -d /tmp/digests-api ] && [ "$(ls -A /tmp/digests-api 2>/dev/null)" ]; then
+            cd /tmp/digests-api
+            docker buildx imagetools create \
+              -t fiestaboard/fiestaboard-api:${{ steps.ver.outputs.number }} \
+              $(printf 'fiestaboard/fiestaboard-api@sha256:%s ' *)
+          fi
+
+      # --- UI manifest (v1.x) ---
+
+      - name: Download UI digests
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          path: /tmp/digests-ui
+          pattern: digests-ui-${{ matrix.version }}-*
+          merge-multiple: true
+
+      - name: Create UI manifest
+        run: |
+          if [ -d /tmp/digests-ui ] && [ "$(ls -A /tmp/digests-ui 2>/dev/null)" ]; then
+            cd /tmp/digests-ui
+            docker buildx imagetools create \
+              -t fiestaboard/fiestaboard-ui:${{ steps.ver.outputs.number }} \
+              $(printf 'fiestaboard/fiestaboard-ui@sha256:%s ' *)
+          fi
