@@ -9,7 +9,7 @@
  */
 import { test, expect, configureBoard, API_URL } from "./helpers";
 
-const API = API_URL;
+function API() { return API_URL; }
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
@@ -24,12 +24,12 @@ test.beforeEach(async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 async function ensurePage(): Promise<string> {
-  const pagesRes = await fetch(`${API}/pages`);
+  const pagesRes = await fetch(`${API()}/pages`);
   const pagesData = await pagesRes.json();
   if (pagesData.total > 0) {
     return pagesData.pages[0].id;
   }
-  const createRes = await fetch(`${API}/pages`, {
+  const createRes = await fetch(`${API()}/pages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -51,7 +51,7 @@ test.describe("Schedule CRUD", () => {
     const pageId = await ensurePage();
 
     // Create a schedule via API
-    const createRes = await fetch(`${API}/schedules`, {
+    const createRes = await fetch(`${API()}/schedules`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -80,7 +80,7 @@ test.describe("Schedule CRUD", () => {
     const pageId = await ensurePage();
 
     // Create a schedule via API
-    const createRes = await fetch(`${API}/schedules`, {
+    const createRes = await fetch(`${API()}/schedules`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -95,18 +95,18 @@ test.describe("Schedule CRUD", () => {
     const scheduleId = created.id;
 
     // Verify the schedule exists via API
-    const listBefore = await fetch(`${API}/schedules`);
+    const listBefore = await fetch(`${API()}/schedules`);
     const dataBefore = await listBefore.json();
     expect(dataBefore.schedules.some((s: { id: string }) => s.id === scheduleId)).toBe(true);
 
     // Delete via API
-    const deleteRes = await fetch(`${API}/schedules/${scheduleId}`, {
+    const deleteRes = await fetch(`${API()}/schedules/${scheduleId}`, {
       method: "DELETE",
     });
     expect(deleteRes.ok).toBe(true);
 
     // Verify the schedule no longer exists via API
-    const listAfter = await fetch(`${API}/schedules`);
+    const listAfter = await fetch(`${API()}/schedules`);
     const dataAfter = await listAfter.json();
     expect(dataAfter.schedules.some((s: { id: string }) => s.id === scheduleId)).toBe(false);
 
