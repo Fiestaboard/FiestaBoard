@@ -1,27 +1,31 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Playwright configuration for FiestaBoard integration tests.
+ * Playwright configuration for FiestaBoard E2E tests.
  *
- * Tests run against the unified container (same as production) on port 4420.
- * CI workflows build the Docker image, start the container + mock board,
- * then invoke Playwright. Locally, start the dev container first:
- *   docker-compose -f docker-compose.dev.yml up -d
+ * Tests run against the unified container (same as production).
+ * CI sets WORKER_URLS (comma-separated) for per-worker backend
+ * isolation, enabling parallel execution across 4 workers.
+ * Locally it defaults to http://localhost:4420 with 1 worker.
+ *
+ * Screenshot generation tests are excluded in CI since they're for
+ * docs, not functional validation.
  */
 export default defineConfig({
   testDir: "./tests",
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "playwright-test-results",
-  fullyParallel: false, // Run tests sequentially – they share backend state
+  testIgnore: process.env.CI ? ["**/generate-screenshots.spec.ts"] : [],
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  retries: 0,
+  workers: process.env.CI ? 4 : 1,
   reporter: process.env.CI ? "github" : "list",
-  timeout: 60_000,
+  timeout: 30_000,
   globalSetup: "./tests/global-setup.ts",
 
   use: {
-    baseURL: "http://localhost:4420",
-    trace: "on-first-retry",
+    baseURL: process.env.BASE_URL || "http://localhost:4420",
+    trace: "off",
     screenshot: "only-on-failure",
   },
 

@@ -23,30 +23,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # Cache Docker image by content hash + build environment (test vs prod).
-      # - Cache key includes 'test' prefix to separate from production builds
-      # - Both e2e and integration workflows share this cache (same key, same VERSION=dev)
-      # - Production builds (release.yml) use different VERSION arg, so they get separate caches
-      - name: Cache Docker image
-        id: docker-cache
-        uses: actions/cache@v4
-        with:
-          path: /tmp/docker-image.tar.gz
-          key: docker-image-test-${{ hashFiles('Dockerfile', 'requirements.txt', 'src/**', 'web/**', 'plugins/**', 'tests/**', 'nginx.conf', 'supervisord.conf', 'supervisord-dev.conf', 'entrypoint.sh') }}
-
-      - name: Load cached Docker image
-        if: steps.docker-cache.outputs.cache-hit == 'true'
-        run: |
-          docker load -i /tmp/docker-image.tar.gz
-          docker tag fiestaboard:cached fiestaboard:integration
-          echo "✅ Loaded cached Docker image (skipped rebuild)"
-
       - name: Set up Docker Buildx
-        if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build test image
-        if: steps.docker-cache.outputs.cache-hit != 'true'
+      - name: Build production image (same as prod for E2E)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -54,23 +34,14 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:integration
-          build-args: |
-            VERSION=dev
-          cache-from: type=gha,scope=build-test
-          cache-to: type=gha,mode=max,scope=build-test
-
-      - name: Save Docker image for caching
-        if: steps.docker-cache.outputs.cache-hit != 'true'
-        run: |
-          docker tag fiestaboard:integration fiestaboard:cached
-          docker save fiestaboard:cached | gzip > /tmp/docker-image.tar.gz
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: requirements.txt
 
       - name: Install Python dependencies
         run: |
@@ -81,18 +52,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "20"
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
 
       - name: Install UI dependencies
         working-directory: web
-        run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Install Playwright browsers
         working-directory: web

@@ -9,6 +9,7 @@ import {
   expect,
   configureBoard,
   suppressWizard,
+  API_URL,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -136,9 +137,7 @@ test.describe("Navigation", () => {
     if (!hasVersion) {
       // Version might be in a collapsed section or only on desktop
       // Just verify via API
-      const res = await fetch(
-        `http://localhost:${process.env.API_PORT || "4420"}/api/version`,
-      );
+      const res = await fetch(`${API_URL}/version`);
       expect(res.ok).toBe(true);
       const data = await res.json();
       expect(data).toHaveProperty("package_version");

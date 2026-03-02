@@ -1,5 +1,5 @@
-# Build docs in this repo (Fiestaboard/FiestaBoard) and force-push them to
-# the Fiestaboard/fiestaboard.github.io repo.
+# Build docs in this repo (Fiestaboard/FiestaBoard) and deploy them to
+# the Fiestaboard/fiestaboard.github.io repo as incremental commits.
 # That repo auto-publishes to https://fiestaboard.github.io since it is
 # the organization's GitHub Pages repo.
 name: Deploy Docs
@@ -41,7 +41,7 @@ jobs:
         working-directory: docs-site
         run: npm run build
 
-      # Force-push the built static site to fiestaboard.github.io.
+      # Push the built static site to fiestaboard.github.io as an incremental commit.
       # That repo serves from main automatically — no Pages config needed here.
       - name: Deploy to fiestaboard.github.io
         run: |
@@ -60,17 +60,7 @@ jobs:
             echo "No changes to deploy."
           else
             git commit -m "docs: deploy from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
-            max_attempts=3
-            for attempt in $(seq 1 $max_attempts); do
-              if git push --force origin main; then
-                break
-              elif [ "$attempt" -eq "$max_attempts" ]; then
-                echo "Push failed after $max_attempts attempts"
-                exit 1
-              fi
-              echo "Push attempt $attempt failed, retrying in 10s..."
-              sleep 10
-            done
+            git push origin main
           fi
         env:
           DEPLOY_TOKEN: ${{ secrets.RELEASE_PAT }}

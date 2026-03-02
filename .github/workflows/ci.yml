@@ -286,33 +286,88 @@ jobs:
 
   e2e-tests:
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
     needs: detect-changes
     if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # Cache Docker image by content hash + build environment (test vs prod).
-      # - Cache key includes 'test' prefix to separate from production builds
-      # - Both e2e and integration workflows share this cache (same key, same VERSION=dev)
-      # - Production builds (release.yml) use different VERSION arg, so they get separate caches
-      - name: Cache Docker image
+      # ── Cache restores ────────────────────────────────────────────
+      # Docker images cache includes both fiestaboard:e2e and python:3.11-slim
+      # so mock board containers start instantly without a network pull.
+      - name: Cache Docker images
         id: docker-cache
         uses: actions/cache@v4
         with:
-          path: /tmp/docker-image.tar.gz
-          key: docker-image-test-${{ hashFiles('Dockerfile', 'requirements.txt', 'src/**', 'web/**', 'plugins/**', 'tests/**', 'nginx.conf', 'supervisord.conf', 'supervisord-dev.conf', 'entrypoint.sh') }}
+          path: /tmp/docker-images.tar.gz
+          key: docker-images-e2e-${{ hashFiles('Dockerfile', 'requirements.txt', 'src/**', 'web/**', 'plugins/**', 'tests/**', 'nginx.conf', 'supervisord.conf', 'supervisord-dev.conf', 'entrypoint.sh') }}
 
-      - name: Load cached Docker image
-        if: steps.docker-cache.outputs.cache-hit == 'true'
+      # Cache node_modules directly so npm ci can be skipped entirely on hit.
+      - name: Cache node_modules
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: web/node_modules
+          key: e2e-node-modules-${{ hashFiles('web/package-lock.json') }}
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+
+      # ── Parallel setup ────────────────────────────────────────────
+      # Run Docker image load, npm ci, and Playwright install concurrently
+      # to overlap I/O-bound operations and cut ~30-60s from startup.
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Load images and install deps (parallel)
         run: |
-          docker load -i /tmp/docker-image.tar.gz
-          docker tag fiestaboard:cached fiestaboard:e2e
-          echo "✅ Loaded cached Docker image (skipped rebuild)"
+          # Docker image load in background (includes app + python:3.11-slim)
+          if [ -f /tmp/docker-images.tar.gz ]; then
+            (docker load -i /tmp/docker-images.tar.gz \
+              && docker tag fiestaboard:cached fiestaboard:e2e \
+              && echo "✅ Docker images loaded from cache") &
+            DOCKER_PID=$!
+          fi
 
+          # npm ci in background (skip entirely if node_modules cached)
+          if [ "${{ steps.node-cache.outputs.cache-hit }}" != "true" ]; then
+            (cd web && npm ci && echo "✅ npm ci complete") &
+            NPM_PID=$!
+          else
+            echo "✅ node_modules restored from cache"
+          fi
+
+          # Playwright system deps (always needed on fresh runner)
+          cd web
+          npx playwright install-deps chromium > /dev/null
+          echo "✅ Playwright system deps installed"
+
+          # Wait for npm before Playwright browser install (needs node_modules)
+          [ -n "${NPM_PID:-}" ] && { wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }; }
+
+          # Playwright browsers (skip download if cached)
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
+            npx playwright install chromium
+            echo "✅ Playwright browsers installed"
+          else
+            echo "✅ Playwright browsers restored from cache"
+          fi
+
+          # Wait for Docker load
+          [ -n "${DOCKER_PID:-}" ] && { wait $DOCKER_PID || { echo "❌ Docker image load failed"; exit 1; }; }
+          echo "✅ All parallel setup complete"
+
+      # ── Build Docker image (only on cache miss) ───────────────────
       - name: Set up Docker Buildx
         if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/setup-buildx-action@v3
@@ -331,86 +386,88 @@ jobs:
           cache-from: type=gha,scope=build-test
           cache-to: type=gha,mode=max,scope=build-test
 
-      - name: Save Docker image for caching
+      # Save both app image and python:3.11-slim into a single cache file
+      # so subsequent runs never need to pull the mock board base image.
+      - name: Save Docker images for caching
         if: steps.docker-cache.outputs.cache-hit != 'true'
         run: |
+          docker image inspect python:3.11-slim > /dev/null 2>&1 || docker pull python:3.11-slim
           docker tag fiestaboard:e2e fiestaboard:cached
-          docker save fiestaboard:cached | gzip > /tmp/docker-image.tar.gz
+          docker save fiestaboard:cached python:3.11-slim | gzip > /tmp/docker-images.tar.gz
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Install Python dependencies
+      # ── Start containers ──────────────────────────────────────────
+      - name: Start 4 mock board + FiestaBoard containers
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          WORKER_COUNT=4
+          WORKER_URLS=""
+          WORKER_MOCK_URLS=""
+          WORKER_MOCK_HOSTS=""
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+          for i in $(seq 0 $((WORKER_COUNT - 1))); do
+            docker run -d --name mock-board-$i \
+              -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
+              -w /app \
+              python:3.11-slim python server.py
 
-      - name: Install UI dependencies
-        working-directory: web
-        run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
-
-      - name: Install Playwright browsers
-        working-directory: web
-        run: npx playwright install --with-deps chromium
-
-      - name: Start mock Vestaboard API
-        run: |
-          python integration-tests/mock-board/server.py &
-          sleep 2
-          echo "Mock board started on port 7000"
-
-      - name: Start FiestaBoard container (unified app, same as prod)
-        run: |
-          # Start without board config so API reports first-run and setup wizard appears in E2E
-          docker run -d --name fiestaboard-e2e \
-            --add-host=host.docker.internal:host-gateway \
-            -p 4420:3000 \
-            -e PRODUCTION=false \
-            fiestaboard:e2e
-          echo "Waiting for app on port 4420..."
-          READY=false
-          for i in $(seq 1 60); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4420/api/health | grep -q 200; then
-              echo "App ready"
-              READY=true
-              break
-            fi
-            sleep 1
+            docker run -d --name fiestaboard-$i \
+              -e PRODUCTION=false \
+              fiestaboard:e2e
           done
-          if [ "$READY" != "true" ]; then
-            echo "❌ App failed to become ready after 60 seconds"
-            echo "Container logs:"
-            docker logs fiestaboard-e2e
-            exit 1
-          fi
 
+          for i in $(seq 0 $((WORKER_COUNT - 1))); do
+            FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-$i)
+            MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board-$i)
+
+            [ -n "$WORKER_URLS" ] && WORKER_URLS="$WORKER_URLS,"
+            [ -n "$WORKER_MOCK_URLS" ] && WORKER_MOCK_URLS="$WORKER_MOCK_URLS,"
+            [ -n "$WORKER_MOCK_HOSTS" ] && WORKER_MOCK_HOSTS="$WORKER_MOCK_HOSTS,"
+
+            WORKER_URLS="${WORKER_URLS}http://$FB_IP:3000"
+            WORKER_MOCK_URLS="${WORKER_MOCK_URLS}http://$MOCK_IP:7000"
+            WORKER_MOCK_HOSTS="${WORKER_MOCK_HOSTS}$MOCK_IP"
+
+            echo "Worker $i: FiestaBoard=$FB_IP, MockBoard=$MOCK_IP"
+          done
+
+          echo "WORKER_URLS=$WORKER_URLS" >> $GITHUB_ENV
+          echo "WORKER_MOCK_URLS=$WORKER_MOCK_URLS" >> $GITHUB_ENV
+          echo "WORKER_MOCK_HOSTS=$WORKER_MOCK_HOSTS" >> $GITHUB_ENV
+
+      - name: Wait for all containers to be ready
+        run: |
+          IFS=',' read -ra URLS <<< "$WORKER_URLS"
+          for url in "${URLS[@]}"; do
+            echo "Waiting for $url..."
+            for i in $(seq 1 60); do
+              STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$url/api/health" 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "  Ready (attempt $i)"
+                break
+              fi
+              if [ "$i" = "60" ]; then
+                echo "  ❌ Failed to become ready"
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+
+      # ── Run tests ─────────────────────────────────────────────────
       - name: Run E2E tests
         working-directory: web
         run: npx playwright test --reporter=github
         env:
           CI: true
-          MOCK_BOARD_HOST: host.docker.internal
+          WORKER_URLS: ${{ env.WORKER_URLS }}
+          WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
+          WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
 
-      - name: Stop FiestaBoard container
+      - name: Stop containers
         if: always()
-        run: docker rm -f fiestaboard-e2e 2>/dev/null || true
+        run: |
+          for i in 0 1 2 3; do
+            docker rm -f fiestaboard-$i mock-board-$i 2>/dev/null || true
+          done
 
       - name: Upload test results
         uses: actions/upload-artifact@v6
