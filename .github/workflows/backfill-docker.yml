@@ -21,10 +21,11 @@ permissions:
 
 jobs:
   discover:
-    name: Discover Missing Versions
+    name: Discover Missing Builds
     runs-on: ubuntu-latest
     outputs:
-      missing: ${{ steps.find-missing.outputs.missing }}
+      builds: ${{ steps.find-missing.outputs.builds }}
+      versions: ${{ steps.find-missing.outputs.versions }}
       count: ${{ steps.find-missing.outputs.count }}
     steps:
       - name: Checkout code
@@ -32,45 +33,59 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find missing Docker Hub versions
+      - name: Find missing Docker Hub versions and architectures
         id: find-missing
         run: |
           set -euo pipefail
 
-          # Helper: fetch all tags from a Docker Hub repository (paginated)
+          REQUIRED_ARCHES=("amd64" "arm64")
+
+          # Helper: fetch all tags with architecture info from Docker Hub (paginated)
+          # Returns a JSON array: [{"name":"1.0.0","arches":["amd64","arm64"]}, ...]
           fetch_docker_tags() {
             local REPO="$1"
-            local TAGS=""
+            local ALL_RESULTS="[]"
             local PAGE=1
             while true; do
               RESPONSE=$(curl -sS --fail-with-body "https://hub.docker.com/v2/repositories/${REPO}/tags?page_size=100&page=${PAGE}" 2>&1) || {
                 echo "Note: Docker Hub API request failed for ${REPO} (page $PAGE)." >&2
                 break
               }
-              PAGE_TAGS=$(echo "$RESPONSE" | jq -r '.results[]?.name // empty' 2>/dev/null)
-              if [ -z "$PAGE_TAGS" ]; then
+              PAGE_DATA=$(echo "$RESPONSE" | jq -c '[.results[]? | {name: .name, arches: ([.images[]? | select(.os == "linux") | .architecture] | unique)}]' 2>/dev/null)
+              if [ -z "$PAGE_DATA" ] || [ "$PAGE_DATA" = "[]" ] || [ "$PAGE_DATA" = "null" ]; then
                 break
               fi
-              TAGS="${TAGS}${PAGE_TAGS}"$'\n'
+              ALL_RESULTS=$(echo -e "${ALL_RESULTS}\n${PAGE_DATA}" | jq -sc 'add')
               NEXT=$(echo "$RESPONSE" | jq -r '.next // empty')
               if [ -z "$NEXT" ] || [ "$NEXT" = "null" ]; then
                 break
               fi
               PAGE=$((PAGE + 1))
             done
-            echo "$TAGS"
+            echo "$ALL_RESULTS"
           }
 
-          # --- Fetch existing tags from Docker Hub repositories ---
+          # Helper: get linux architectures for a specific version from fetched data
+          get_arches() {
+            local TAGS_JSON="$1"
+            local VERSION="$2"
+            echo "$TAGS_JSON" | jq -r --arg v "$VERSION" '.[] | select(.name == $v) | .arches[]' 2>/dev/null
+          }
+
+          # --- Fetch existing tags with architecture info from Docker Hub ---
           echo "::group::Fetching Docker Hub tags"
 
           echo "--- fiestaboard/fiestaboard (v2.x unified) ---"
-          DOCKER_TAGS_UNIFIED=$(fetch_docker_tags "fiestaboard/fiestaboard")
-          echo "$DOCKER_TAGS_UNIFIED" | sort -V | grep -v '^$' || echo "(none)"
+          DOCKER_UNIFIED=$(fetch_docker_tags "fiestaboard/fiestaboard")
+          echo "$DOCKER_UNIFIED" | jq -r '.[] | "\(.name): \(.arches | join(", "))"' 2>/dev/null | sort -V || echo "(none)"
 
           echo "--- fiestaboard/fiestaboard-api (v1.x API) ---"
-          DOCKER_TAGS_API=$(fetch_docker_tags "fiestaboard/fiestaboard-api")
-          echo "$DOCKER_TAGS_API" | sort -V | grep -v '^$' || echo "(none)"
+          DOCKER_API=$(fetch_docker_tags "fiestaboard/fiestaboard-api")
+          echo "$DOCKER_API" | jq -r '.[] | "\(.name): \(.arches | join(", "))"' 2>/dev/null | sort -V || echo "(none)"
+
+          echo "--- fiestaboard/fiestaboard-ui (v1.x UI) ---"
+          DOCKER_UI=$(fetch_docker_tags "fiestaboard/fiestaboard-ui")
+          echo "$DOCKER_UI" | jq -r '.[] | "\(.name): \(.arches | join(", "))"' 2>/dev/null | sort -V || echo "(none)"
 
           echo "::endgroup::"
 
@@ -80,64 +95,111 @@ jobs:
           echo "$GIT_TAGS"
           echo "::endgroup::"
 
-          # --- Find versions in git but missing from Docker Hub ---
+          # --- Find versions with missing architectures ---
           # v1.x used split images (fiestaboard-api + fiestaboard-ui)
           # v2.x uses a unified image (fiestaboard)
-          echo "::group::Comparing versions"
-          MISSING=()
+          echo "::group::Comparing versions and architectures"
+          BUILDS="[]"
+          VERSIONS=()
+          SUMMARY_LINES=()
+
           for TAG in $GIT_TAGS; do
             VERSION="${TAG#v}"
             MAJOR="${VERSION%%.*}"
+
+            MISSING_ARCHES=()
+
             if [ "$MAJOR" = "1" ]; then
-              if echo "$DOCKER_TAGS_API" | grep -qFx "$VERSION"; then
-                echo "OK:      $TAG ($VERSION exists on Docker Hub as fiestaboard-api)"
-              else
-                MISSING+=("$TAG")
-                echo "MISSING: $TAG ($VERSION not on Docker Hub)"
-              fi
+              # v1.x: check both API and UI repos — missing if either image lacks the arch
+              API_ARCHES=$(get_arches "$DOCKER_API" "$VERSION")
+              UI_ARCHES=$(get_arches "$DOCKER_UI" "$VERSION")
+              for ARCH in "${REQUIRED_ARCHES[@]}"; do
+                API_HAS=$(echo "$API_ARCHES" | grep -cFx "$ARCH" || true)
+                UI_HAS=$(echo "$UI_ARCHES" | grep -cFx "$ARCH" || true)
+                if [ "$API_HAS" -eq 0 ] || [ "$UI_HAS" -eq 0 ]; then
+                  MISSING_ARCHES+=("$ARCH")
+                fi
+              done
             else
-              if echo "$DOCKER_TAGS_UNIFIED" | grep -qFx "$VERSION"; then
-                echo "OK:      $TAG ($VERSION exists on Docker Hub)"
-              else
-                MISSING+=("$TAG")
-                echo "MISSING: $TAG ($VERSION not on Docker Hub)"
-              fi
+              # v2.x: check unified repo
+              EXISTING_ARCHES=$(get_arches "$DOCKER_UNIFIED" "$VERSION")
+              for ARCH in "${REQUIRED_ARCHES[@]}"; do
+                if ! echo "$EXISTING_ARCHES" | grep -qFx "$ARCH"; then
+                  MISSING_ARCHES+=("$ARCH")
+                fi
+              done
             fi
+
+            if [ ${#MISSING_ARCHES[@]} -eq 0 ]; then
+              echo "OK:      $TAG (all architectures present)"
+              continue
+            fi
+
+            if [ ${#MISSING_ARCHES[@]} -eq ${#REQUIRED_ARCHES[@]} ]; then
+              echo "MISSING: $TAG (not on Docker Hub)"
+              SUMMARY_LINES+=("- \`$TAG\` — **missing entirely**")
+            else
+              echo "PARTIAL: $TAG (missing: ${MISSING_ARCHES[*]})"
+              SUMMARY_LINES+=("- \`$TAG\` — missing: ${MISSING_ARCHES[*]}")
+            fi
+
+            VERSIONS+=("$TAG")
+
+            # Add build entries for each missing architecture
+            for ARCH in "${MISSING_ARCHES[@]}"; do
+              if [ "$ARCH" = "amd64" ]; then
+                RUNNER="ubuntu-latest"
+              else
+                RUNNER="ubuntu-24.04-arm"
+              fi
+              BUILDS=$(echo "$BUILDS" | jq -c --arg v "$TAG" --arg p "linux/$ARCH" --arg a "$ARCH" --arg r "$RUNNER" \
+                '. + [{"version": $v, "platform": $p, "arch": $a, "runner": $r}]')
+            done
           done
           echo "::endgroup::"
 
-          TOTAL=${#MISSING[@]}
-          echo "Total missing versions: $TOTAL"
+          BUILD_COUNT=$(echo "$BUILDS" | jq 'length')
+          VERSION_COUNT=${#VERSIONS[@]}
+          echo "Versions needing work: $VERSION_COUNT"
+          echo "Total builds needed: $BUILD_COUNT"
 
           # Apply max_versions limit if set
           MAX="${{ inputs.max_versions }}"
           MAX="${MAX:-0}"
-          if [ "$MAX" -gt 0 ] && [ "$TOTAL" -gt "$MAX" ]; then
-            MISSING=("${MISSING[@]:0:$MAX}")
-            echo "Limiting to first $MAX of $TOTAL missing versions"
+          if [ "$MAX" -gt 0 ] && [ "$VERSION_COUNT" -gt "$MAX" ]; then
+            KEEP_VERSIONS=("${VERSIONS[@]:0:$MAX}")
+            echo "Limiting to first $MAX of $VERSION_COUNT versions"
+            KEEP_JSON=$(printf '%s\n' "${KEEP_VERSIONS[@]}" | jq -R . | jq -sc .)
+            BUILDS=$(echo "$BUILDS" | jq -c --argjson keep "$KEEP_JSON" '[.[] | select(.version as $v | $keep | index($v))]')
+            VERSIONS=("${KEEP_VERSIONS[@]}")
+            VERSION_COUNT=${#VERSIONS[@]}
+            BUILD_COUNT=$(echo "$BUILDS" | jq 'length')
           fi
 
-          # Output as JSON array for the matrix strategy
-          if [ ${#MISSING[@]} -eq 0 ]; then
-            echo "missing=[]" >> "$GITHUB_OUTPUT"
+          # Output for matrix strategies
+          echo "builds=$BUILDS" >> "$GITHUB_OUTPUT"
+          if [ "$VERSION_COUNT" -eq 0 ]; then
+            echo "versions=[]" >> "$GITHUB_OUTPUT"
           else
-            JSON=$(printf '%s\n' "${MISSING[@]}" | jq -R . | jq -sc .)
-            echo "missing=$JSON" >> "$GITHUB_OUTPUT"
+            VERSIONS_JSON=$(printf '%s\n' "${VERSIONS[@]}" | jq -R . | jq -sc .)
+            echo "versions=$VERSIONS_JSON" >> "$GITHUB_OUTPUT"
           fi
-          echo "count=${#MISSING[@]}" >> "$GITHUB_OUTPUT"
+          echo "count=$BUILD_COUNT" >> "$GITHUB_OUTPUT"
 
           # --- Write job summary ---
           {
             echo "## Docker Hub Backfill Discovery"
             echo ""
             echo "- **Git tags (v1.x + v2.x):** $(echo "$GIT_TAGS" | wc -w)"
-            echo "- **Docker Hub tags (unified):** $(echo "$DOCKER_TAGS_UNIFIED" | grep -cv '^$' || echo 0)"
-            echo "- **Docker Hub tags (api):** $(echo "$DOCKER_TAGS_API" | grep -cv '^$' || echo 0)"
-            echo "- **Missing versions:** $TOTAL"
-            if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "- **Docker Hub tags (unified):** $(echo "$DOCKER_UNIFIED" | jq 'length')"
+            echo "- **Docker Hub tags (api):** $(echo "$DOCKER_API" | jq 'length')"
+            echo "- **Docker Hub tags (ui):** $(echo "$DOCKER_UI" | jq 'length')"
+            echo "- **Versions needing work:** $VERSION_COUNT"
+            echo "- **Total builds needed:** $BUILD_COUNT"
+            if [ ${#SUMMARY_LINES[@]} -gt 0 ]; then
               echo ""
               echo "### Versions to backfill"
-              printf -- '- \`%s\`\n' "${MISSING[@]}"
+              printf '%s\n' "${SUMMARY_LINES[@]}"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -149,17 +211,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ${{ fromJson(needs.discover.outputs.missing) }}
-        platform:
-          - linux/amd64
-          - linux/arm64
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-            arch: amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            arch: arm64
+        include: ${{ fromJson(needs.discover.outputs.builds) }}
     steps:
       - name: Checkout tag
         uses: actions/checkout@v6
@@ -291,13 +343,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ${{ fromJson(needs.discover.outputs.missing) }}
+        version: ${{ fromJson(needs.discover.outputs.versions) }}
     steps:
-      - name: Extract version number
+      - name: Extract version info
         id: ver
         run: |
           VERSION="${{ matrix.version }}"
           echo "number=${VERSION#v}" >> "$GITHUB_OUTPUT"
+          MAJOR="${VERSION#v}"
+          MAJOR="${MAJOR%%.*}"
+          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -308,59 +363,152 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # --- Unified manifest (v2.x) ---
+      # --- Download per-architecture artifacts ---
+      # Only artifacts for architectures we actually built will exist;
+      # continue-on-error lets us handle arches that were already on Docker Hub.
 
-      - name: Download unified digests
+      # Unified (v2.x)
+      - name: Download unified amd64 digest
+        if: steps.ver.outputs.major != '1'
         continue-on-error: true
         uses: actions/download-artifact@v7
         with:
-          path: /tmp/digests
-          pattern: digests-${{ matrix.version }}-*
-          merge-multiple: true
+          name: digests-${{ matrix.version }}-amd64
+          path: /tmp/digests-amd64
+
+      - name: Download unified arm64 digest
+        if: steps.ver.outputs.major != '1'
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: digests-${{ matrix.version }}-arm64
+          path: /tmp/digests-arm64
 
       - name: Create unified manifest
+        if: steps.ver.outputs.major != '1'
         run: |
-          if [ -d /tmp/digests ] && [ "$(ls -A /tmp/digests 2>/dev/null)" ]; then
-            cd /tmp/digests
+          VERSION="${{ steps.ver.outputs.number }}"
+          REPO="fiestaboard/fiestaboard"
+          SOURCES=""
+
+          # For each required architecture, use new build digest or existing Docker Hub digest
+          for ARCH in amd64 arm64; do
+            DIR="/tmp/digests-${ARCH}"
+            if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
+              HASH=$(ls "$DIR" | head -1)
+              SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
+              echo "NEW ${ARCH}: sha256:${HASH}"
+            else
+              # Architecture was not rebuilt — fetch existing digest from Docker Hub
+              DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+                jq -r --arg arch "$ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
+              if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
+                SOURCES="$SOURCES ${REPO}@${DIGEST}"
+                echo "EXISTING ${ARCH}: ${DIGEST}"
+              else
+                echo "WARNING: No digest available for ${ARCH}"
+              fi
+            fi
+          done
+
+          if [ -n "$SOURCES" ]; then
             docker buildx imagetools create \
-              -t fiestaboard/fiestaboard:${{ steps.ver.outputs.number }} \
-              $(printf 'fiestaboard/fiestaboard@sha256:%s ' *)
+              -t "${REPO}:${VERSION}" \
+              $SOURCES
           fi
 
-      # --- API manifest (v1.x) ---
-
-      - name: Download API digests
+      # Split API (v1.x)
+      - name: Download API amd64 digest
+        if: steps.ver.outputs.major == '1'
         continue-on-error: true
         uses: actions/download-artifact@v7
         with:
-          path: /tmp/digests-api
-          pattern: digests-api-${{ matrix.version }}-*
-          merge-multiple: true
+          name: digests-api-${{ matrix.version }}-amd64
+          path: /tmp/digests-api-amd64
+
+      - name: Download API arm64 digest
+        if: steps.ver.outputs.major == '1'
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: digests-api-${{ matrix.version }}-arm64
+          path: /tmp/digests-api-arm64
 
       - name: Create API manifest
+        if: steps.ver.outputs.major == '1'
         run: |
-          if [ -d /tmp/digests-api ] && [ "$(ls -A /tmp/digests-api 2>/dev/null)" ]; then
-            cd /tmp/digests-api
+          VERSION="${{ steps.ver.outputs.number }}"
+          REPO="fiestaboard/fiestaboard-api"
+          SOURCES=""
+
+          for ARCH in amd64 arm64; do
+            DIR="/tmp/digests-api-${ARCH}"
+            if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
+              HASH=$(ls "$DIR" | head -1)
+              SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
+              echo "NEW ${ARCH}: sha256:${HASH}"
+            else
+              DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+                jq -r --arg arch "$ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
+              if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
+                SOURCES="$SOURCES ${REPO}@${DIGEST}"
+                echo "EXISTING ${ARCH}: ${DIGEST}"
+              else
+                echo "WARNING: No digest available for ${ARCH}"
+              fi
+            fi
+          done
+
+          if [ -n "$SOURCES" ]; then
             docker buildx imagetools create \
-              -t fiestaboard/fiestaboard-api:${{ steps.ver.outputs.number }} \
-              $(printf 'fiestaboard/fiestaboard-api@sha256:%s ' *)
+              -t "${REPO}:${VERSION}" \
+              $SOURCES
           fi
 
-      # --- UI manifest (v1.x) ---
-
-      - name: Download UI digests
+      # Split UI (v1.x)
+      - name: Download UI amd64 digest
+        if: steps.ver.outputs.major == '1'
         continue-on-error: true
         uses: actions/download-artifact@v7
         with:
-          path: /tmp/digests-ui
-          pattern: digests-ui-${{ matrix.version }}-*
-          merge-multiple: true
+          name: digests-ui-${{ matrix.version }}-amd64
+          path: /tmp/digests-ui-amd64
+
+      - name: Download UI arm64 digest
+        if: steps.ver.outputs.major == '1'
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: digests-ui-${{ matrix.version }}-arm64
+          path: /tmp/digests-ui-arm64
 
       - name: Create UI manifest
+        if: steps.ver.outputs.major == '1'
         run: |
-          if [ -d /tmp/digests-ui ] && [ "$(ls -A /tmp/digests-ui 2>/dev/null)" ]; then
-            cd /tmp/digests-ui
+          VERSION="${{ steps.ver.outputs.number }}"
+          REPO="fiestaboard/fiestaboard-ui"
+          SOURCES=""
+
+          for ARCH in amd64 arm64; do
+            DIR="/tmp/digests-ui-${ARCH}"
+            if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
+              HASH=$(ls "$DIR" | head -1)
+              SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
+              echo "NEW ${ARCH}: sha256:${HASH}"
+            else
+              DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+                jq -r --arg arch "$ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
+              if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
+                SOURCES="$SOURCES ${REPO}@${DIGEST}"
+                echo "EXISTING ${ARCH}: ${DIGEST}"
+              else
+                echo "WARNING: No digest available for ${ARCH}"
+              fi
+            fi
+          done
+
+          if [ -n "$SOURCES" ]; then
             docker buildx imagetools create \
-              -t fiestaboard/fiestaboard-ui:${{ steps.ver.outputs.number }} \
-              $(printf 'fiestaboard/fiestaboard-ui@sha256:%s ' *)
+              -t "${REPO}:${VERSION}" \
+              $SOURCES
           fi
