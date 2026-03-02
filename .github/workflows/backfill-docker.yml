@@ -55,7 +55,7 @@ jobs:
               if [ -z "$PAGE_DATA" ] || [ "$PAGE_DATA" = "[]" ] || [ "$PAGE_DATA" = "null" ]; then
                 break
               fi
-              ALL_RESULTS=$(echo -e "${ALL_RESULTS}\n${PAGE_DATA}" | jq -sc 'add')
+              ALL_RESULTS=$(printf '%s\n%s' "$ALL_RESULTS" "$PAGE_DATA" | jq -sc 'add')
               NEXT=$(echo "$RESPONSE" | jq -r '.next // empty')
               if [ -z "$NEXT" ] || [ "$NEXT" = "null" ]; then
                 break
@@ -395,7 +395,7 @@ jobs:
           for ARCH in amd64 arm64; do
             DIR="/tmp/digests-${ARCH}"
             if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
-              HASH=$(ls "$DIR" | head -1)
+              for file in "$DIR"/*; do HASH=$(basename "$file"); break; done
               SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
               echo "NEW ${ARCH}: sha256:${HASH}"
             else
@@ -444,7 +444,7 @@ jobs:
           for ARCH in amd64 arm64; do
             DIR="/tmp/digests-api-${ARCH}"
             if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
-              HASH=$(ls "$DIR" | head -1)
+              for file in "$DIR"/*; do HASH=$(basename "$file"); break; done
               SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
               echo "NEW ${ARCH}: sha256:${HASH}"
             else
@@ -492,7 +492,7 @@ jobs:
           for ARCH in amd64 arm64; do
             DIR="/tmp/digests-ui-${ARCH}"
             if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
-              HASH=$(ls "$DIR" | head -1)
+              for file in "$DIR"/*; do HASH=$(basename "$file"); break; done
               SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
               echo "NEW ${ARCH}: sha256:${HASH}"
             else
