@@ -1,0 +1,161 @@
+name: Backfill Docker Hub
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only list missing versions without building'
+        type: boolean
+        default: false
+      max_versions:
+        description: 'Maximum number of versions to backfill (0 = all)'
+        type: number
+        default: 0
+
+concurrency:
+  group: backfill-docker
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: Discover Missing Versions
+    runs-on: ubuntu-latest
+    outputs:
+      missing: ${{ steps.find-missing.outputs.missing }}
+      count: ${{ steps.find-missing.outputs.count }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Find missing Docker Hub versions
+        id: find-missing
+        run: |
+          set -euo pipefail
+
+          # --- Fetch all existing tags from Docker Hub (paginated) ---
+          echo "::group::Fetching Docker Hub tags"
+          DOCKER_TAGS=""
+          PAGE=1
+          while true; do
+            RESPONSE=$(curl -sS --fail-with-body "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags?page_size=100&page=${PAGE}" 2>&1) || {
+              echo "Note: Docker Hub API request failed (page $PAGE). This may mean the repository has no tags yet."
+              break
+            }
+            PAGE_TAGS=$(echo "$RESPONSE" | jq -r '.results[]?.name // empty' 2>/dev/null)
+            if [ -z "$PAGE_TAGS" ]; then
+              break
+            fi
+            DOCKER_TAGS="${DOCKER_TAGS}${PAGE_TAGS}"$'\n'
+            NEXT=$(echo "$RESPONSE" | jq -r '.next // empty')
+            if [ -z "$NEXT" ] || [ "$NEXT" = "null" ]; then
+              break
+            fi
+            PAGE=$((PAGE + 1))
+          done
+          echo "Docker Hub tags:"
+          echo "$DOCKER_TAGS" | sort -V | grep -v '^$' || echo "(none)"
+          echo "::endgroup::"
+
+          # --- Get all v2.x git tags sorted by version ---
+          echo "::group::Git tags (v2.x)"
+          GIT_TAGS=$(git tag -l 'v2.*' | sort -V)
+          echo "$GIT_TAGS"
+          echo "::endgroup::"
+
+          # --- Find versions in git but missing from Docker Hub ---
+          echo "::group::Comparing versions"
+          MISSING=()
+          for TAG in $GIT_TAGS; do
+            VERSION="${TAG#v}"
+            if echo "$DOCKER_TAGS" | grep -qFx "$VERSION"; then
+              echo "OK:      $TAG ($VERSION exists on Docker Hub)"
+            else
+              MISSING+=("$TAG")
+              echo "MISSING: $TAG ($VERSION not on Docker Hub)"
+            fi
+          done
+          echo "::endgroup::"
+
+          TOTAL=${#MISSING[@]}
+          echo "Total missing versions: $TOTAL"
+
+          # Apply max_versions limit if set
+          MAX="${{ inputs.max_versions }}"
+          MAX="${MAX:-0}"
+          if [ "$MAX" -gt 0 ] && [ "$TOTAL" -gt "$MAX" ]; then
+            MISSING=("${MISSING[@]:0:$MAX}")
+            echo "Limiting to first $MAX of $TOTAL missing versions"
+          fi
+
+          # Output as JSON array for the matrix strategy
+          if [ ${#MISSING[@]} -eq 0 ]; then
+            echo "missing=[]" >> "$GITHUB_OUTPUT"
+          else
+            JSON=$(printf '%s\n' "${MISSING[@]}" | jq -R . | jq -sc .)
+            echo "missing=$JSON" >> "$GITHUB_OUTPUT"
+          fi
+          echo "count=${#MISSING[@]}" >> "$GITHUB_OUTPUT"
+
+          # --- Write job summary ---
+          {
+            echo "## Docker Hub Backfill Discovery"
+            echo ""
+            echo "- **Git tags (v2.x):** $(echo "$GIT_TAGS" | wc -w)"
+            echo "- **Docker Hub tags:** $(echo "$DOCKER_TAGS" | grep -cv '^$' || echo 0)"
+            echo "- **Missing versions:** $TOTAL"
+            if [ ${#MISSING[@]} -gt 0 ]; then
+              echo ""
+              echo "### Versions to backfill"
+              printf -- '- \`%s\`\n' "${MISSING[@]}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  backfill:
+    name: Build ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    needs: [discover]
+    if: ${{ needs.discover.outputs.count != '0' && !inputs.dry_run }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        version: ${{ fromJson(needs.discover.outputs.missing) }}
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.version }}
+
+      - name: Extract version number
+        id: ver
+        run: |
+          VERSION="${{ matrix.version }}"
+          echo "number=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            VERSION=${{ steps.ver.outputs.number }}
+          tags: fiestaboard/fiestaboard:${{ steps.ver.outputs.number }}
