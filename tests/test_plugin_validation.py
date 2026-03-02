@@ -388,7 +388,13 @@ class TestPluginRateLimits:
         )
 
     def test_plugins_with_refresh_seconds_have_floor(self):
-        """CI Test: Plugins declaring refresh_seconds should have min_refresh_seconds."""
+        """CI Test: Plugins declaring refresh_seconds should have a rate-limit floor.
+
+        A floor is satisfied by either an explicit top-level
+        ``min_refresh_seconds`` field or a ``minimum`` inside the
+        settings_schema ``refresh_seconds`` property (PluginBase falls
+        back to the schema minimum at runtime).
+        """
         plugins = get_plugin_directories()
         if not plugins:
             pytest.skip("No plugins found")
@@ -401,10 +407,16 @@ class TestPluginRateLimits:
             manifest = load_manifest(plugin_dir)
             schema = manifest.get("settings_schema", {})
             props = schema.get("properties", {})
-            if "refresh_seconds" in props and "min_refresh_seconds" not in manifest:
+            refresh_prop = props.get("refresh_seconds")
+            if refresh_prop is None:
+                continue
+            has_explicit = "min_refresh_seconds" in manifest
+            has_schema_min = "minimum" in refresh_prop
+            if not has_explicit and not has_schema_min:
                 missing.append(plugin_dir.name)
         assert not missing, (
-            "Plugins with refresh_seconds but no min_refresh_seconds:\n"
+            "Plugins with refresh_seconds but no rate-limit floor "
+            "(add min_refresh_seconds or a schema minimum):\n"
             + "\n".join(f"  - {m}" for m in missing)
         )
 
