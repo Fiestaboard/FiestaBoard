@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Upscale the master fiesta-icon.png to a high-resolution version (4000x4000px).
+Upscale the master fiesta-icon.png to a high-resolution version (4600x4600px).
 Uses Pillow's LANCZOS resampling for the best quality when upscaling.
+Targets 4600px so the icon remains above 4000px after any trimming.
 """
 
 import os
@@ -9,13 +10,13 @@ from pathlib import Path
 from PIL import Image
 
 # Configuration
-TARGET_SIZE = 4000
+TARGET_SIZE = 4600
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 MASTER_ICON = PROJECT_ROOT / "fiesta-icon.png"
-OUTPUT_FILE = PROJECT_ROOT / "fiesta-icon-4000.png"
+OUTPUT_FILE = PROJECT_ROOT / "fiesta-icon-4600.png"
 
 
 def upscale_icon():
