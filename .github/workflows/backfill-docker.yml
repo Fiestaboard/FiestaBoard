@@ -25,7 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       builds: ${{ steps.find-missing.outputs.builds }}
-      versions: ${{ steps.find-missing.outputs.versions }}
       count: ${{ steps.find-missing.outputs.count }}
     steps:
       - name: Checkout code
@@ -262,21 +261,39 @@ jobs:
             VERSION=${{ steps.ver.outputs.number }}
           outputs: type=image,name=fiestaboard/fiestaboard,push-by-digest=true,name-canonical=true,push=true
 
-      - name: Export unified digest
+      - name: Create/update unified manifest
         if: steps.layout.outputs.type == 'unified'
         run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build-unified.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
+          VERSION="${{ steps.ver.outputs.number }}"
+          REPO="fiestaboard/fiestaboard"
+          SOURCES=""
 
-      - name: Upload unified digest
-        if: steps.layout.outputs.type == 'unified'
-        uses: actions/upload-artifact@v6
-        with:
-          name: digests-${{ matrix.version }}-${{ matrix.arch }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
+          # Add the newly built digest
+          NEW_DIGEST="${{ steps.build-unified.outputs.digest }}"
+          SOURCES="${REPO}@${NEW_DIGEST}"
+          echo "NEW ${{ matrix.arch }}: ${NEW_DIGEST}"
+
+          # Check for the other architecture in an existing manifest on Docker Hub
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            OTHER_ARCH="arm64"
+          else
+            OTHER_ARCH="amd64"
+          fi
+
+          EXISTING_DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+            jq -r --arg arch "$OTHER_ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
+
+          if [ -n "$EXISTING_DIGEST" ] && [ "$EXISTING_DIGEST" != "null" ]; then
+            SOURCES="$SOURCES ${REPO}@${EXISTING_DIGEST}"
+            echo "EXISTING ${OTHER_ARCH}: ${EXISTING_DIGEST}"
+          else
+            echo "No existing ${OTHER_ARCH} digest found (will be picked up on next run)"
+          fi
+
+          docker buildx imagetools create \
+            -t "${REPO}:${VERSION}" \
+            $SOURCES
+          echo "✅ Published ${REPO}:${VERSION}"
 
       # --- Split build (v1.x: Dockerfile.api + Dockerfile.ui) ---
 
@@ -292,21 +309,39 @@ jobs:
             VERSION=${{ steps.ver.outputs.number }}
           outputs: type=image,name=fiestaboard/fiestaboard-api,push-by-digest=true,name-canonical=true,push=true
 
-      - name: Export API digest
+      - name: Create/update API manifest
         if: steps.layout.outputs.type == 'split'
         run: |
-          mkdir -p /tmp/digests-api
-          digest="${{ steps.build-api.outputs.digest }}"
-          touch "/tmp/digests-api/${digest#sha256:}"
+          VERSION="${{ steps.ver.outputs.number }}"
+          REPO="fiestaboard/fiestaboard-api"
+          SOURCES=""
 
-      - name: Upload API digest
-        if: steps.layout.outputs.type == 'split'
-        uses: actions/upload-artifact@v6
-        with:
-          name: digests-api-${{ matrix.version }}-${{ matrix.arch }}
-          path: /tmp/digests-api/*
-          if-no-files-found: error
-          retention-days: 1
+          # Add the newly built digest
+          NEW_DIGEST="${{ steps.build-api.outputs.digest }}"
+          SOURCES="${REPO}@${NEW_DIGEST}"
+          echo "NEW ${{ matrix.arch }}: ${NEW_DIGEST}"
+
+          # Check for the other architecture in an existing manifest on Docker Hub
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            OTHER_ARCH="arm64"
+          else
+            OTHER_ARCH="amd64"
+          fi
+
+          EXISTING_DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+            jq -r --arg arch "$OTHER_ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
+
+          if [ -n "$EXISTING_DIGEST" ] && [ "$EXISTING_DIGEST" != "null" ]; then
+            SOURCES="$SOURCES ${REPO}@${EXISTING_DIGEST}"
+            echo "EXISTING ${OTHER_ARCH}: ${EXISTING_DIGEST}"
+          else
+            echo "No existing ${OTHER_ARCH} digest found (will be picked up on next run)"
+          fi
+
+          docker buildx imagetools create \
+            -t "${REPO}:${VERSION}" \
+            $SOURCES
+          echo "✅ Published ${REPO}:${VERSION}"
 
       - name: Build and push UI image
         if: steps.layout.outputs.type == 'split'
@@ -320,195 +355,37 @@ jobs:
             VERSION=${{ steps.ver.outputs.number }}
           outputs: type=image,name=fiestaboard/fiestaboard-ui,push-by-digest=true,name-canonical=true,push=true
 
-      - name: Export UI digest
+      - name: Create/update UI manifest
         if: steps.layout.outputs.type == 'split'
-        run: |
-          mkdir -p /tmp/digests-ui
-          digest="${{ steps.build-ui.outputs.digest }}"
-          touch "/tmp/digests-ui/${digest#sha256:}"
-
-      - name: Upload UI digest
-        if: steps.layout.outputs.type == 'split'
-        uses: actions/upload-artifact@v6
-        with:
-          name: digests-ui-${{ matrix.version }}-${{ matrix.arch }}
-          path: /tmp/digests-ui/*
-          if-no-files-found: error
-          retention-days: 1
-
-  merge:
-    name: Merge ${{ matrix.version }}
-    runs-on: ubuntu-latest
-    needs: [discover, backfill]
-    strategy:
-      fail-fast: false
-      matrix:
-        version: ${{ fromJson(needs.discover.outputs.versions) }}
-    steps:
-      - name: Extract version info
-        id: ver
-        run: |
-          VERSION="${{ matrix.version }}"
-          echo "number=${VERSION#v}" >> "$GITHUB_OUTPUT"
-          MAJOR="${VERSION#v}"
-          MAJOR="${MAJOR%%.*}"
-          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # --- Download per-architecture artifacts ---
-      # Only artifacts for architectures we actually built will exist;
-      # continue-on-error lets us handle arches that were already on Docker Hub.
-
-      # Unified (v2.x)
-      - name: Download unified amd64 digest
-        if: steps.ver.outputs.major != '1'
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: digests-${{ matrix.version }}-amd64
-          path: /tmp/digests-amd64
-
-      - name: Download unified arm64 digest
-        if: steps.ver.outputs.major != '1'
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: digests-${{ matrix.version }}-arm64
-          path: /tmp/digests-arm64
-
-      - name: Create unified manifest
-        if: steps.ver.outputs.major != '1'
-        run: |
-          VERSION="${{ steps.ver.outputs.number }}"
-          REPO="fiestaboard/fiestaboard"
-          SOURCES=""
-
-          # For each required architecture, use new build digest or existing Docker Hub digest
-          for ARCH in amd64 arm64; do
-            DIR="/tmp/digests-${ARCH}"
-            if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
-              for file in "$DIR"/*; do HASH=$(basename "$file"); break; done
-              SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
-              echo "NEW ${ARCH}: sha256:${HASH}"
-            else
-              # Architecture was not rebuilt — fetch existing digest from Docker Hub
-              DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
-                jq -r --arg arch "$ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
-              if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
-                SOURCES="$SOURCES ${REPO}@${DIGEST}"
-                echo "EXISTING ${ARCH}: ${DIGEST}"
-              else
-                echo "WARNING: No digest available for ${ARCH}"
-              fi
-            fi
-          done
-
-          if [ -n "$SOURCES" ]; then
-            docker buildx imagetools create \
-              -t "${REPO}:${VERSION}" \
-              $SOURCES
-          fi
-
-      # Split API (v1.x)
-      - name: Download API amd64 digest
-        if: steps.ver.outputs.major == '1'
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: digests-api-${{ matrix.version }}-amd64
-          path: /tmp/digests-api-amd64
-
-      - name: Download API arm64 digest
-        if: steps.ver.outputs.major == '1'
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: digests-api-${{ matrix.version }}-arm64
-          path: /tmp/digests-api-arm64
-
-      - name: Create API manifest
-        if: steps.ver.outputs.major == '1'
-        run: |
-          VERSION="${{ steps.ver.outputs.number }}"
-          REPO="fiestaboard/fiestaboard-api"
-          SOURCES=""
-
-          for ARCH in amd64 arm64; do
-            DIR="/tmp/digests-api-${ARCH}"
-            if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
-              for file in "$DIR"/*; do HASH=$(basename "$file"); break; done
-              SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
-              echo "NEW ${ARCH}: sha256:${HASH}"
-            else
-              DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
-                jq -r --arg arch "$ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
-              if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
-                SOURCES="$SOURCES ${REPO}@${DIGEST}"
-                echo "EXISTING ${ARCH}: ${DIGEST}"
-              else
-                echo "WARNING: No digest available for ${ARCH}"
-              fi
-            fi
-          done
-
-          if [ -n "$SOURCES" ]; then
-            docker buildx imagetools create \
-              -t "${REPO}:${VERSION}" \
-              $SOURCES
-          fi
-
-      # Split UI (v1.x)
-      - name: Download UI amd64 digest
-        if: steps.ver.outputs.major == '1'
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: digests-ui-${{ matrix.version }}-amd64
-          path: /tmp/digests-ui-amd64
-
-      - name: Download UI arm64 digest
-        if: steps.ver.outputs.major == '1'
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: digests-ui-${{ matrix.version }}-arm64
-          path: /tmp/digests-ui-arm64
-
-      - name: Create UI manifest
-        if: steps.ver.outputs.major == '1'
         run: |
           VERSION="${{ steps.ver.outputs.number }}"
           REPO="fiestaboard/fiestaboard-ui"
           SOURCES=""
 
-          for ARCH in amd64 arm64; do
-            DIR="/tmp/digests-ui-${ARCH}"
-            if [ -d "$DIR" ] && [ "$(ls -A "$DIR" 2>/dev/null)" ]; then
-              for file in "$DIR"/*; do HASH=$(basename "$file"); break; done
-              SOURCES="$SOURCES ${REPO}@sha256:${HASH}"
-              echo "NEW ${ARCH}: sha256:${HASH}"
-            else
-              DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
-                jq -r --arg arch "$ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
-              if [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ]; then
-                SOURCES="$SOURCES ${REPO}@${DIGEST}"
-                echo "EXISTING ${ARCH}: ${DIGEST}"
-              else
-                echo "WARNING: No digest available for ${ARCH}"
-              fi
-            fi
-          done
+          # Add the newly built digest
+          NEW_DIGEST="${{ steps.build-ui.outputs.digest }}"
+          SOURCES="${REPO}@${NEW_DIGEST}"
+          echo "NEW ${{ matrix.arch }}: ${NEW_DIGEST}"
 
-          if [ -n "$SOURCES" ]; then
-            docker buildx imagetools create \
-              -t "${REPO}:${VERSION}" \
-              $SOURCES
+          # Check for the other architecture in an existing manifest on Docker Hub
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            OTHER_ARCH="arm64"
+          else
+            OTHER_ARCH="amd64"
           fi
+
+          EXISTING_DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+            jq -r --arg arch "$OTHER_ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
+
+          if [ -n "$EXISTING_DIGEST" ] && [ "$EXISTING_DIGEST" != "null" ]; then
+            SOURCES="$SOURCES ${REPO}@${EXISTING_DIGEST}"
+            echo "EXISTING ${OTHER_ARCH}: ${EXISTING_DIGEST}"
+          else
+            echo "No existing ${OTHER_ARCH} digest found (will be picked up on next run)"
+          fi
+
+          docker buildx imagetools create \
+            -t "${REPO}:${VERSION}" \
+            $SOURCES
+          echo "✅ Published ${REPO}:${VERSION}"
+
