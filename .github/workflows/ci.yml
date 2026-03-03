@@ -296,6 +296,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      # Authenticate with Docker Hub to raise pull rate limit from 100 to 200+
+      - name: Log in to Docker Hub
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       # ── Cache restores ────────────────────────────────────────────
       # Docker images cache includes both fiestaboard:e2e and python:3.11-slim
       # so mock board containers start instantly without a network pull.
