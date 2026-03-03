@@ -42,7 +42,7 @@ jobs:
           # Helper: curl with retry on 429 (rate limit) using exponential backoff.
           # Waits and retries instead of failing, since 429s always resolve eventually.
           curl_with_retry() {
-            local MAX_RETRIES=10
+            local MAX_RETRIES=20
             local RETRY_DELAY=15
             local attempt=0
             while true; do
@@ -284,7 +284,7 @@ jobs:
           # Retries on rate-limit or transient errors with exponential backoff.
           # Fails fast on permanent errors (auth, invalid args, etc.).
           retry_docker() {
-            local MAX_RETRIES=10 DELAY=15 attempt=0
+            local MAX_RETRIES=20 DELAY=15 attempt=0
             while true; do
               local OUTPUT
               OUTPUT=$("$@" 2>&1) && { echo "$OUTPUT"; return 0; }
