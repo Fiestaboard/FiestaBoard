@@ -10,7 +10,7 @@ on:
       max_versions:
         description: 'Maximum number of versions to backfill (0 = all)'
         type: number
-        default: 0
+        default: 5
 
 concurrency:
   group: backfill-docker
@@ -208,8 +208,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     needs: [discover]
     if: ${{ needs.discover.outputs.count != '0' && !inputs.dry_run }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
+      max-parallel: 4
       matrix:
         include: ${{ fromJson(needs.discover.outputs.builds) }}
     steps:
@@ -340,6 +342,7 @@ jobs:
     name: Merge ${{ matrix.version }}
     runs-on: ubuntu-latest
     needs: [discover, backfill]
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
