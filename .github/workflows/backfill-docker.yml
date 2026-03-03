@@ -39,6 +39,35 @@ jobs:
 
           REQUIRED_ARCHES=("amd64" "arm64")
 
+          # Helper: curl with retry on 429 (rate limit) using exponential backoff.
+          # Waits and retries instead of failing, since 429s always resolve eventually.
+          curl_with_retry() {
+            local MAX_RETRIES=20
+            local RETRY_DELAY=15
+            local attempt=0
+            while true; do
+              HTTP_CODE=$(curl -sS -o /tmp/curl_body -w "%{http_code}" "$@" 2>/tmp/curl_err) && true
+              if [ "$HTTP_CODE" = "429" ]; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge "$MAX_RETRIES" ]; then
+                  echo "ERROR: Still getting 429 after $MAX_RETRIES retries, giving up." >&2
+                  cat /tmp/curl_body 2>/dev/null
+                  return 1
+                fi
+                echo "Rate limited (429), waiting ${RETRY_DELAY}s before retry $attempt/$MAX_RETRIES..." >&2
+                sleep "$RETRY_DELAY"
+                RETRY_DELAY=$((RETRY_DELAY * 2 > 120 ? 120 : RETRY_DELAY * 2))
+              elif [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+                cat /tmp/curl_body
+                return 0
+              else
+                echo "Note: HTTP $HTTP_CODE for request." >&2
+                cat /tmp/curl_body 2>/dev/null
+                return 1
+              fi
+            done
+          }
+
           # Helper: fetch all tags with architecture info from Docker Hub (paginated)
           # Returns a JSON array: [{"name":"1.0.0","arches":["amd64","arm64"]}, ...]
           fetch_docker_tags() {
@@ -46,7 +75,7 @@ jobs:
             local ALL_RESULTS="[]"
             local PAGE=1
             while true; do
-              RESPONSE=$(curl -sS --fail-with-body "https://hub.docker.com/v2/repositories/${REPO}/tags?page_size=100&page=${PAGE}" 2>&1) || {
+              RESPONSE=$(curl_with_retry "https://hub.docker.com/v2/repositories/${REPO}/tags?page_size=100&page=${PAGE}") || {
                 echo "Note: Docker Hub API request failed for ${REPO} (page $PAGE)." >&2
                 break
               }
@@ -209,6 +238,7 @@ jobs:
     if: ${{ needs.discover.outputs.count != '0' && !inputs.dry_run }}
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include: ${{ fromJson(needs.discover.outputs.builds) }}
     steps:
@@ -247,6 +277,40 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Create retry helper script
+        run: |
+          cat > /tmp/retry_docker.sh << 'EOF'
+          # Retry helper for docker commands that may hit registry rate limits.
+          # Retries on rate-limit or transient errors with exponential backoff.
+          # Fails fast on permanent errors (auth, invalid args, etc.).
+          retry_docker() {
+            local MAX_RETRIES=20 DELAY=15 attempt=0
+            while true; do
+              local OUTPUT
+              OUTPUT=$("$@" 2>&1) && { echo "$OUTPUT"; return 0; }
+              local EXIT_CODE=$?
+
+              # Check if the error looks like a rate limit or transient issue
+              if echo "$OUTPUT" | grep -qiE '429|too many requests|rate limit|quota|temporarily unavailable|503|500'; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge "$MAX_RETRIES" ]; then
+                  echo "ERROR: Still rate limited after $MAX_RETRIES retries: $*" >&2
+                  echo "$OUTPUT" >&2
+                  return "$EXIT_CODE"
+                fi
+                echo "Rate limited, waiting ${DELAY}s before retry $attempt/$MAX_RETRIES..." >&2
+                sleep "$DELAY"
+                DELAY=$((DELAY * 2 > 120 ? 120 : DELAY * 2))
+              else
+                # Permanent failure — don't retry
+                echo "$OUTPUT" >&2
+                return "$EXIT_CODE"
+              fi
+            done
+          }
+          EOF
+          chmod +x /tmp/retry_docker.sh
+
       # --- Unified build (v2.x: single Dockerfile) ---
 
       - name: Build and push unified image
@@ -264,6 +328,8 @@ jobs:
       - name: Create/update unified manifest
         if: steps.layout.outputs.type == 'unified'
         run: |
+          source /tmp/retry_docker.sh
+
           VERSION="${{ steps.ver.outputs.number }}"
           REPO="fiestaboard/fiestaboard"
           SOURCES=""
@@ -280,7 +346,7 @@ jobs:
             OTHER_ARCH="amd64"
           fi
 
-          EXISTING_DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+          EXISTING_DIGEST=$(retry_docker docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
             jq -r --arg arch "$OTHER_ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
 
           if [ -n "$EXISTING_DIGEST" ] && [ "$EXISTING_DIGEST" != "null" ]; then
@@ -290,7 +356,7 @@ jobs:
             echo "No existing ${OTHER_ARCH} digest found (will be picked up on next run)"
           fi
 
-          docker buildx imagetools create \
+          retry_docker docker buildx imagetools create \
             -t "${REPO}:${VERSION}" \
             $SOURCES
           echo "✅ Published ${REPO}:${VERSION}"
@@ -312,6 +378,8 @@ jobs:
       - name: Create/update API manifest
         if: steps.layout.outputs.type == 'split'
         run: |
+          source /tmp/retry_docker.sh
+
           VERSION="${{ steps.ver.outputs.number }}"
           REPO="fiestaboard/fiestaboard-api"
           SOURCES=""
@@ -328,7 +396,7 @@ jobs:
             OTHER_ARCH="amd64"
           fi
 
-          EXISTING_DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+          EXISTING_DIGEST=$(retry_docker docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
             jq -r --arg arch "$OTHER_ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
 
           if [ -n "$EXISTING_DIGEST" ] && [ "$EXISTING_DIGEST" != "null" ]; then
@@ -338,7 +406,7 @@ jobs:
             echo "No existing ${OTHER_ARCH} digest found (will be picked up on next run)"
           fi
 
-          docker buildx imagetools create \
+          retry_docker docker buildx imagetools create \
             -t "${REPO}:${VERSION}" \
             $SOURCES
           echo "✅ Published ${REPO}:${VERSION}"
@@ -358,6 +426,8 @@ jobs:
       - name: Create/update UI manifest
         if: steps.layout.outputs.type == 'split'
         run: |
+          source /tmp/retry_docker.sh
+
           VERSION="${{ steps.ver.outputs.number }}"
           REPO="fiestaboard/fiestaboard-ui"
           SOURCES=""
@@ -374,7 +444,7 @@ jobs:
             OTHER_ARCH="amd64"
           fi
 
-          EXISTING_DIGEST=$(docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+          EXISTING_DIGEST=$(retry_docker docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
             jq -r --arg arch "$OTHER_ARCH" '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' 2>/dev/null) || true
 
           if [ -n "$EXISTING_DIGEST" ] && [ "$EXISTING_DIGEST" != "null" ]; then
@@ -384,7 +454,7 @@ jobs:
             echo "No existing ${OTHER_ARCH} digest found (will be picked up on next run)"
           fi
 
-          docker buildx imagetools create \
+          retry_docker docker buildx imagetools create \
             -t "${REPO}:${VERSION}" \
             $SOURCES
           echo "✅ Published ${REPO}:${VERSION}"
