@@ -234,10 +234,22 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create \
-            -t fiestaboard/fiestaboard:${{ needs.prep.outputs.version }} \
-            -t fiestaboard/fiestaboard:latest \
-            $(printf 'fiestaboard/fiestaboard@sha256:%s ' *)
+          for attempt in 1 2 3; do
+            if docker buildx imagetools create \
+              -t fiestaboard/fiestaboard:${{ needs.prep.outputs.version }} \
+              -t fiestaboard/fiestaboard:latest \
+              $(printf 'fiestaboard/fiestaboard@sha256:%s ' *); then
+              echo "Manifest push succeeded (attempt $attempt)"
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              DELAY=$((30 * attempt))
+              echo "Attempt $attempt failed, retrying in ${DELAY}s..."
+              sleep "$DELAY"
+            fi
+          done
+          echo "Manifest push failed after 3 attempts"
+          exit 1
 
   release:
     name: Create Release
@@ -355,7 +367,7 @@ jobs:
       - name: Revert merge
         uses: actions/github-script@v8
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
           script: |
             console.log('🚨 Docker build failed! Reverting merge...');
             
