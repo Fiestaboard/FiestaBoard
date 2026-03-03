@@ -277,6 +277,40 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Create retry helper script
+        run: |
+          cat > /tmp/retry_docker.sh << 'EOF'
+          # Retry helper for docker commands that may hit registry rate limits.
+          # Retries on rate-limit or transient errors with exponential backoff.
+          # Fails fast on permanent errors (auth, invalid args, etc.).
+          retry_docker() {
+            local MAX_RETRIES=10 DELAY=15 attempt=0
+            while true; do
+              local OUTPUT
+              OUTPUT=$("$@" 2>&1) && { echo "$OUTPUT"; return 0; }
+              local EXIT_CODE=$?
+
+              # Check if the error looks like a rate limit or transient issue
+              if echo "$OUTPUT" | grep -qiE '429|too many requests|rate limit|quota|temporarily unavailable|503|500'; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge "$MAX_RETRIES" ]; then
+                  echo "ERROR: Still rate limited after $MAX_RETRIES retries: $*" >&2
+                  echo "$OUTPUT" >&2
+                  return "$EXIT_CODE"
+                fi
+                echo "Rate limited, waiting ${DELAY}s before retry $attempt/$MAX_RETRIES..." >&2
+                sleep "$DELAY"
+                DELAY=$((DELAY * 2 > 120 ? 120 : DELAY * 2))
+              else
+                # Permanent failure — don't retry
+                echo "$OUTPUT" >&2
+                return "$EXIT_CODE"
+              fi
+            done
+          }
+          EOF
+          chmod +x /tmp/retry_docker.sh
+
       # --- Unified build (v2.x: single Dockerfile) ---
 
       - name: Build and push unified image
@@ -294,21 +328,7 @@ jobs:
       - name: Create/update unified manifest
         if: steps.layout.outputs.type == 'unified'
         run: |
-          # Retry helper for docker commands that may hit registry rate limits
-          retry_docker() {
-            local MAX_RETRIES=10 DELAY=15 attempt=0
-            while true; do
-              if "$@"; then return 0; fi
-              attempt=$((attempt + 1))
-              if [ "$attempt" -ge "$MAX_RETRIES" ]; then
-                echo "ERROR: Command failed after $MAX_RETRIES retries: $*" >&2
-                return 1
-              fi
-              echo "Command failed (possible rate limit), waiting ${DELAY}s before retry $attempt/$MAX_RETRIES..." >&2
-              sleep "$DELAY"
-              DELAY=$((DELAY * 2 > 120 ? 120 : DELAY * 2))
-            done
-          }
+          source /tmp/retry_docker.sh
 
           VERSION="${{ steps.ver.outputs.number }}"
           REPO="fiestaboard/fiestaboard"
@@ -358,21 +378,7 @@ jobs:
       - name: Create/update API manifest
         if: steps.layout.outputs.type == 'split'
         run: |
-          # Retry helper for docker commands that may hit registry rate limits
-          retry_docker() {
-            local MAX_RETRIES=10 DELAY=15 attempt=0
-            while true; do
-              if "$@"; then return 0; fi
-              attempt=$((attempt + 1))
-              if [ "$attempt" -ge "$MAX_RETRIES" ]; then
-                echo "ERROR: Command failed after $MAX_RETRIES retries: $*" >&2
-                return 1
-              fi
-              echo "Command failed (possible rate limit), waiting ${DELAY}s before retry $attempt/$MAX_RETRIES..." >&2
-              sleep "$DELAY"
-              DELAY=$((DELAY * 2 > 120 ? 120 : DELAY * 2))
-            done
-          }
+          source /tmp/retry_docker.sh
 
           VERSION="${{ steps.ver.outputs.number }}"
           REPO="fiestaboard/fiestaboard-api"
@@ -420,21 +426,7 @@ jobs:
       - name: Create/update UI manifest
         if: steps.layout.outputs.type == 'split'
         run: |
-          # Retry helper for docker commands that may hit registry rate limits
-          retry_docker() {
-            local MAX_RETRIES=10 DELAY=15 attempt=0
-            while true; do
-              if "$@"; then return 0; fi
-              attempt=$((attempt + 1))
-              if [ "$attempt" -ge "$MAX_RETRIES" ]; then
-                echo "ERROR: Command failed after $MAX_RETRIES retries: $*" >&2
-                return 1
-              fi
-              echo "Command failed (possible rate limit), waiting ${DELAY}s before retry $attempt/$MAX_RETRIES..." >&2
-              sleep "$DELAY"
-              DELAY=$((DELAY * 2 > 120 ? 120 : DELAY * 2))
-            done
-          }
+          source /tmp/retry_docker.sh
 
           VERSION="${{ steps.ver.outputs.number }}"
           REPO="fiestaboard/fiestaboard-ui"
