@@ -296,56 +296,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # ── Cache restores ────────────────────────────────────────────
-      # Docker images cache includes both fiestaboard:e2e and python:3.11-slim
-      # so mock board containers start instantly without a network pull.
-      - name: Cache Docker images
-        id: docker-cache
-        uses: actions/cache@v5
-        with:
-          path: /tmp/docker-images.tar.gz
-          key: docker-images-e2e-${{ hashFiles('Dockerfile', 'requirements.txt', 'src/**', 'web/**', 'plugins/**', 'tests/**', 'nginx.conf', 'supervisord.conf', 'supervisord-dev.conf', 'entrypoint.sh') }}
-
-      # Cache node_modules directly so npm ci can be skipped entirely on hit.
-      - name: Cache node_modules
-        id: node-cache
-        uses: actions/cache@v5
-        with:
-          path: web/node_modules
-          key: e2e-node-modules-${{ hashFiles('web/package-lock.json') }}
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
-
-      # ── Parallel setup ────────────────────────────────────────────
-      # Run Docker image load, npm ci, and Playwright install concurrently
-      # to overlap I/O-bound operations and cut ~30-60s from startup.
+      # ── Install deps (parallel) ──────────────────────────────────
+      # npm ci and Playwright install run concurrently to overlap I/O.
+      # NOTE: actions/cache was removed — e2e only runs on PRs (never
+      # on main), so branch-scoped caches were never populated and every
+      # restore was a miss.  Removing the save phase cuts ~2.5 min/run.
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "20"
 
-      - name: Load images and install deps (parallel)
+      - name: Install deps (parallel)
         run: |
-          # Docker image load in background (includes app + python:3.11-slim)
-          if [ -f /tmp/docker-images.tar.gz ]; then
-            (docker load -i /tmp/docker-images.tar.gz \
-              && docker tag fiestaboard:cached fiestaboard:e2e \
-              && echo "✅ Docker images loaded from cache") &
-            DOCKER_PID=$!
-          fi
-
-          # npm ci in background (skip entirely if node_modules cached)
-          if [ "${{ steps.node-cache.outputs.cache-hit }}" != "true" ]; then
-            (cd web && npm ci && echo "✅ npm ci complete") &
-            NPM_PID=$!
-          else
-            echo "✅ node_modules restored from cache"
-          fi
+          # npm ci in background
+          (cd web && npm ci && echo "✅ npm ci complete") &
+          NPM_PID=$!
 
           # Playwright system deps (always needed on fresh runner)
           cd web
@@ -353,34 +318,23 @@ jobs:
           echo "✅ Playwright system deps installed"
 
           # Wait for npm before Playwright browser install (needs node_modules)
-          [ -n "${NPM_PID:-}" ] && { wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }; }
+          wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }
 
-          # Playwright browsers (skip download if cached)
-          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
-            npx playwright install chromium
-            echo "✅ Playwright browsers installed"
-          else
-            echo "✅ Playwright browsers restored from cache"
-          fi
+          # Playwright browsers
+          npx playwright install chromium
+          echo "✅ Playwright browsers installed"
 
-          # Wait for Docker load
-          [ -n "${DOCKER_PID:-}" ] && { wait $DOCKER_PID || { echo "❌ Docker image load failed"; exit 1; }; }
-          echo "✅ All parallel setup complete"
-
-      # ── Build Docker image (only on cache miss) ───────────────────
+      # ── Build Docker image ─────────────────────────────────────────
       - name: Set up Docker Buildx
-        if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build test image
-        if: steps.docker-cache.outputs.cache-hit != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -392,15 +346,6 @@ jobs:
             VERSION=dev
           cache-from: type=gha,scope=build-test
           cache-to: type=gha,mode=max,scope=build-test
-
-      # Save both app image and python:3.11-slim into a single cache file
-      # so subsequent runs never need to pull the mock board base image.
-      - name: Save Docker images for caching
-        if: steps.docker-cache.outputs.cache-hit != 'true'
-        run: |
-          docker image inspect python:3.11-slim > /dev/null 2>&1 || docker pull python:3.11-slim
-          docker tag fiestaboard:e2e fiestaboard:cached
-          docker save fiestaboard:cached python:3.11-slim | gzip > /tmp/docker-images.tar.gz
 
       # ── Start containers ──────────────────────────────────────────
       - name: Start 4 mock board + FiestaBoard containers
