@@ -121,9 +121,12 @@ jobs:
 
           echo "::endgroup::"
 
-          # --- Get all v1.x and v2.x git tags sorted by version ---
+          # --- Get all v1.x and v2.x git tags sorted newest-first ---
+          # Reverse sort ensures v2.x versions are processed before v1.x when
+          # max_versions is limited (e.g. scheduled runs at 5/day), preventing
+          # recent releases from being starved by a large backlog of old v1.x tags.
           echo "::group::Git tags (v1.x + v2.x)"
-          GIT_TAGS=$(git tag -l 'v1.*' 'v2.*' | sort -V)
+          GIT_TAGS=$(git tag -l 'v1.*' 'v2.*' | sort -rV)
           echo "$GIT_TAGS"
           echo "::endgroup::"
 
@@ -287,6 +290,42 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Check if already pushed
+        id: check-existing
+        run: |
+          VERSION="${{ steps.ver.outputs.number }}"
+          ARCH="${{ matrix.arch }}"
+
+          # Returns the arch digest if the image exists, or empty string if not.
+          check_arch() {
+            local REPO="$1"
+            docker buildx imagetools inspect "${REPO}:${VERSION}" --raw 2>/dev/null | \
+              jq -r --arg arch "$ARCH" \
+              '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' \
+              2>/dev/null || true
+          }
+
+          SKIP=false
+          if [ "${{ steps.layout.outputs.type }}" = "unified" ]; then
+            EXISTING=$(check_arch "fiestaboard/fiestaboard")
+            [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ] && SKIP=true
+          else
+            # For split images, both api and ui must be present to skip
+            API_EXISTING=$(check_arch "fiestaboard/fiestaboard-api")
+            UI_EXISTING=$(check_arch "fiestaboard/fiestaboard-ui")
+            if [ -n "$API_EXISTING" ] && [ "$API_EXISTING" != "null" ] && \
+               [ -n "$UI_EXISTING" ] && [ "$UI_EXISTING" != "null" ]; then
+              SKIP=true
+            fi
+          fi
+
+          if [ "$SKIP" = "true" ]; then
+            echo "✅ ${{ matrix.version }} ($ARCH) already on Docker Hub — skipping build"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create retry helper script
         run: |
           cat > /tmp/retry_docker.sh << 'EOF'
@@ -324,7 +363,7 @@ jobs:
       # --- Unified build (v2.x: single Dockerfile) ---
 
       - name: Build and push unified image
-        if: steps.layout.outputs.type == 'unified'
+        if: steps.layout.outputs.type == 'unified' && steps.check-existing.outputs.skip != 'true'
         id: build-unified
         uses: docker/build-push-action@v6
         with:
@@ -338,7 +377,7 @@ jobs:
           outputs: type=image,name=fiestaboard/fiestaboard,push-by-digest=true,name-canonical=true,push=true
 
       - name: Create/update unified manifest
-        if: steps.layout.outputs.type == 'unified'
+        if: steps.layout.outputs.type == 'unified' && steps.check-existing.outputs.skip != 'true'
         run: |
           source /tmp/retry_docker.sh
 
@@ -376,7 +415,7 @@ jobs:
       # --- Split build (v1.x: Dockerfile.api + Dockerfile.ui) ---
 
       - name: Build and push API image
-        if: steps.layout.outputs.type == 'split'
+        if: steps.layout.outputs.type == 'split' && steps.check-existing.outputs.skip != 'true'
         id: build-api
         uses: docker/build-push-action@v6
         with:
@@ -390,7 +429,7 @@ jobs:
           outputs: type=image,name=fiestaboard/fiestaboard-api,push-by-digest=true,name-canonical=true,push=true
 
       - name: Create/update API manifest
-        if: steps.layout.outputs.type == 'split'
+        if: steps.layout.outputs.type == 'split' && steps.check-existing.outputs.skip != 'true'
         run: |
           source /tmp/retry_docker.sh
 
@@ -426,7 +465,7 @@ jobs:
           echo "✅ Published ${REPO}:${VERSION}"
 
       - name: Build and push UI image
-        if: steps.layout.outputs.type == 'split'
+        if: steps.layout.outputs.type == 'split' && steps.check-existing.outputs.skip != 'true'
         id: build-ui
         uses: docker/build-push-action@v6
         with:
@@ -440,7 +479,7 @@ jobs:
           outputs: type=image,name=fiestaboard/fiestaboard-ui,push-by-digest=true,name-canonical=true,push=true
 
       - name: Create/update UI manifest
-        if: steps.layout.outputs.type == 'split'
+        if: steps.layout.outputs.type == 'split' && steps.check-existing.outputs.skip != 'true'
         run: |
           source /tmp/retry_docker.sh
 
