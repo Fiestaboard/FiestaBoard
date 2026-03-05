@@ -89,14 +89,6 @@ describe("ActivePageDisplay", () => {
 
   it("shows schedule gap warning when schedule enabled and no active page", async () => {
     server.use(
-      http.get(`${API_BASE}/schedules`, () =>
-        HttpResponse.json({
-          schedules: [],
-          total: 0,
-          default_page_id: null,
-          enabled: true,
-        })
-      ),
       http.get(`${API_BASE}/schedules/active/page`, () =>
         HttpResponse.json({
           page_id: null,
@@ -116,12 +108,11 @@ describe("ActivePageDisplay", () => {
 
   it("shows View Schedule button when schedule is enabled", async () => {
     server.use(
-      http.get(`${API_BASE}/schedules`, () =>
+      http.get(`${API_BASE}/schedules/active/page`, () =>
         HttpResponse.json({
-          schedules: [],
-          total: 0,
-          default_page_id: null,
-          enabled: true,
+          page_id: null,
+          source: "none",
+          schedule_enabled: true,
         })
       )
     );
@@ -137,6 +128,29 @@ describe("ActivePageDisplay", () => {
     await userEvent.click(viewScheduleBtn);
 
     expect(mockPush).toHaveBeenCalledWith("/schedule");
+  });
+
+  it("derives schedule mode from active schedule endpoint without fetching full schedule list", async () => {
+    // This test verifies the fix: schedule_enabled is derived from the
+    // /schedules/active/page endpoint (lightweight) instead of /schedules
+    // (heavyweight, returns all schedule entries).
+    server.use(
+      http.get(`${API_BASE}/schedules/active/page`, () =>
+        HttpResponse.json({
+          page_id: "page-1",
+          source: "schedule",
+          schedule_enabled: true,
+          current_time: "09:00",
+          current_day: "monday",
+        })
+      )
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /View Schedule/i })).toBeInTheDocument();
+    });
   });
 
   it("shows silence mode indicator when silence is active", async () => {
