@@ -205,49 +205,57 @@ def check_vestaboard_connection(
 # Troubleshooting recommendations
 # ---------------------------------------------------------------------------
 
-def _build_recommendations(results: dict) -> list[str]:
-    """Build actionable troubleshooting recommendations based on diagnostics.
+def _build_recommendations(results: dict) -> list[dict]:
+    """Build user-friendly troubleshooting recommendations based on diagnostics.
 
-    Examines each check result and returns a list of clear, user-facing steps
-    to resolve detected issues.  When everything is healthy the list contains
-    a single "all clear" message.
+    Each recommendation is a dict with:
+    - ``summary``: A short, non-technical headline (e.g. "Your board can't be found
+      on the network").
+    - ``steps``: A list of plain-English actions the user can take to fix the issue.
+
+    When everything is healthy the list contains a single "all clear" entry.
 
     Args:
         results: The diagnostics dict produced by ``run_full_diagnostics``.
 
     Returns:
-        List of recommendation strings.
+        List of recommendation dicts.
     """
-    recommendations: list[str] = []
+    recommendations: list[dict] = []
 
     # --- DNS ---
     dns = results.get("dns", {})
     if not dns.get("ok", False):
-        recommendations.append(
-            "DNS resolution failed. Your device cannot resolve hostnames. "
-            "Check that your network connection is active, your DNS server is "
-            "reachable (try 8.8.8.8 or 1.1.1.1), and that no firewall is "
-            "blocking outbound DNS (port 53)."
-        )
+        recommendations.append({
+            "summary": "FiestaBoard cannot look up addresses on the internet",
+            "steps": [
+                "Make sure the device running FiestaBoard is connected to your Wi-Fi or ethernet.",
+                "Restart your router or modem.",
+                "If the problem persists, try setting your DNS server to 8.8.8.8 or 1.1.1.1 in your router settings.",
+            ],
+        })
 
     # --- Internet ---
     internet = results.get("internet", {})
     if not internet.get("ok", False):
         if dns.get("ok", False):
-            # DNS works but internet doesn't – likely a routing / firewall issue
-            recommendations.append(
-                "Internet connectivity failed. DNS works, so your network is "
-                "partially up. Verify that your router has an active WAN "
-                "connection, check for firewall rules blocking outbound HTTPS "
-                "(port 443), and confirm no proxy or captive portal is "
-                "interfering."
-            )
+            # DNS works but internet doesn't
+            recommendations.append({
+                "summary": "FiestaBoard can look up addresses but cannot reach the internet",
+                "steps": [
+                    "Check that your router is online and has an active internet connection.",
+                    "Try opening a website on another device connected to the same network.",
+                    "If other devices work, restart the device running FiestaBoard.",
+                    "If you use a VPN or corporate network, make sure it allows outbound HTTPS traffic.",
+                ],
+            })
         else:
-            recommendations.append(
-                "Internet connectivity failed. This is likely because DNS is "
-                "also down — resolve the DNS issue first and internet access "
-                "should recover."
-            )
+            recommendations.append({
+                "summary": "No internet connection detected",
+                "steps": [
+                    "This is most likely caused by the DNS issue above — fix that first and internet access should come back.",
+                ],
+            })
 
     # --- Vestaboard ---
     vb = results.get("vestaboard", {})
@@ -256,13 +264,8 @@ def _build_recommendations(results: dict) -> list[str]:
         steps = vb.get("steps", {})
 
         if mode is None:
-            # No board configured at all
-            recommendations.append(
-                "No Vestaboard connection configured. Set BOARD_HOST and "
-                "BOARD_LOCAL_API_KEY (for local mode) or BOARD_READ_WRITE_KEY "
-                "(for cloud mode) in your environment or .env file, then "
-                "restart FiestaBoard."
-            )
+            # No board configured — still helpful to tell user what to do
+            pass  # Handled by overall_ok being False; no extra recommendation
 
         elif mode == "local":
             vb_dns = steps.get("dns", {})
@@ -270,79 +273,109 @@ def _build_recommendations(results: dict) -> list[str]:
             vb_api = steps.get("api", {})
 
             if not vb_dns.get("ok", True):
-                recommendations.append(
-                    f"Cannot resolve Vestaboard hostname "
-                    f"'{vb_dns.get('hostname', 'unknown')}'. Verify the board "
-                    f"is powered on and connected to your local network. If "
-                    f"using a .local hostname, ensure mDNS/Bonjour is working "
-                    f"on your network. Alternatively, use the board's IP "
-                    f"address directly in BOARD_HOST."
-                )
+                hostname = vb_dns.get("hostname", "your board")
+                recommendations.append({
+                    "summary": f"FiestaBoard cannot find your Vestaboard ({hostname}) on the network",
+                    "steps": [
+                        "Make sure your Vestaboard is powered on (look for the LED on the back).",
+                        "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
+                        "If you're using a name like 'vestaboard.local', try using the board's IP address instead — you can find it in the Vestaboard app under Settings.",
+                        "Restart FiestaBoard after updating the address.",
+                    ],
+                })
             elif not vb_port.get("ok", True):
-                recommendations.append(
-                    f"Vestaboard host resolved but port "
-                    f"{vb_port.get('port', 7000)} is not reachable. Confirm "
-                    f"the board is powered on and the Local API is enabled in "
-                    f"the Vestaboard app settings. Check that no firewall is "
-                    f"blocking traffic between FiestaBoard and the board on "
-                    f"port {vb_port.get('port', 7000)}."
-                )
+                port_num = vb_port.get("port", 7000)
+                recommendations.append({
+                    "summary": "FiestaBoard found the board's address but cannot connect to it",
+                    "steps": [
+                        "Make sure the Vestaboard is powered on.",
+                        f"Open the Vestaboard app on your phone → Settings → Local API and make sure it is turned on (port {port_num}).",
+                        "If you recently changed networks, the board's address may have changed — check the Vestaboard app for the new IP.",
+                        "Try restarting the Vestaboard by unplugging it for 10 seconds.",
+                    ],
+                })
             elif not vb_api.get("ok", True):
                 status = vb_api.get("status_code")
                 if status == 401 or status == 403:
-                    recommendations.append(
-                        "Vestaboard is reachable but rejected the API key "
-                        "(HTTP 401/403). Double-check that BOARD_LOCAL_API_KEY "
-                        "matches the key shown in the Vestaboard app under "
-                        "Settings > Local API."
-                    )
+                    recommendations.append({
+                        "summary": "FiestaBoard connected to the Vestaboard but the API key was rejected",
+                        "steps": [
+                            "Open the Vestaboard app → Settings → Local API and copy the API key shown there.",
+                            "Paste it into your FiestaBoard .env file as BOARD_LOCAL_API_KEY.",
+                            "Restart FiestaBoard after updating the key.",
+                        ],
+                    })
                 elif status is not None:
-                    recommendations.append(
-                        f"Vestaboard responded with HTTP {status}. The board "
-                        f"may be updating or temporarily unavailable. Try "
-                        f"power-cycling the board and retrying."
-                    )
+                    recommendations.append({
+                        "summary": f"The Vestaboard responded with an error (HTTP {status})",
+                        "steps": [
+                            "Try unplugging the Vestaboard for 10 seconds and plugging it back in.",
+                            "Wait about a minute for it to restart, then try again.",
+                            "If this keeps happening, the board may need a firmware update — check the Vestaboard app.",
+                        ],
+                    })
                 else:
-                    recommendations.append(
-                        "Vestaboard port is open but the API did not respond. "
-                        "The board may still be starting up. Wait a moment and "
-                        "retry, or power-cycle the board."
-                    )
+                    recommendations.append({
+                        "summary": "FiestaBoard reached the board but got no response from its API",
+                        "steps": [
+                            "The board may still be starting up — wait 30 seconds and try again.",
+                            "If it still doesn't respond, unplug the board for 10 seconds and plug it back in.",
+                        ],
+                    })
 
         elif mode == "cloud":
             cloud_api = steps.get("cloud_api", {})
             status = cloud_api.get("status_code")
             if status == 401 or status == 403:
-                recommendations.append(
-                    "Vestaboard Cloud API rejected your credentials (HTTP "
-                    "401/403). Verify BOARD_READ_WRITE_KEY in your .env file "
-                    "matches the key from your Vestaboard account at "
-                    "https://web.vestaboard.com."
-                )
+                recommendations.append({
+                    "summary": "The Vestaboard cloud service rejected your API key",
+                    "steps": [
+                        "Go to https://web.vestaboard.com and sign in to your account.",
+                        "Copy your Read/Write API key from the Vestaboard web dashboard.",
+                        "Paste it into your FiestaBoard .env file as BOARD_READ_WRITE_KEY.",
+                        "Restart FiestaBoard after updating the key.",
+                    ],
+                })
             elif status is not None and status >= 500:
-                recommendations.append(
-                    "Vestaboard Cloud API returned a server error. This is "
-                    "likely a temporary issue on Vestaboard's end. Wait a few "
-                    "minutes and try again."
-                )
+                recommendations.append({
+                    "summary": "The Vestaboard cloud service is temporarily down",
+                    "steps": [
+                        "This is a problem on Vestaboard's end, not yours.",
+                        "Wait a few minutes and try again.",
+                        "If the problem continues, check https://twitter.com/vestaboard or https://vestaboard.com for service updates.",
+                    ],
+                })
             elif cloud_api.get("error"):
-                recommendations.append(
-                    "Could not reach the Vestaboard Cloud API "
-                    "(rw.vestaboard.com). Verify your internet connection is "
-                    "working and no firewall is blocking HTTPS traffic to "
-                    "rw.vestaboard.com."
-                )
+                recommendations.append({
+                    "summary": "FiestaBoard cannot reach the Vestaboard cloud service",
+                    "steps": [
+                        "Make sure the device running FiestaBoard has a working internet connection.",
+                        "Try opening https://rw.vestaboard.com in a browser on the same device.",
+                        "If you use a VPN or corporate network, make sure it allows connections to rw.vestaboard.com.",
+                    ],
+                })
             else:
-                recommendations.append(
-                    "Vestaboard Cloud API check failed. Verify your "
-                    "BOARD_READ_WRITE_KEY and internet connection."
-                )
+                recommendations.append({
+                    "summary": "Vestaboard cloud connection check failed",
+                    "steps": [
+                        "Double-check your BOARD_READ_WRITE_KEY in the .env file.",
+                        "Make sure your internet connection is working.",
+                        "Restart FiestaBoard and try again.",
+                    ],
+                })
 
     if not recommendations:
-        recommendations.append(
-            "All connectivity checks passed. Your Vestaboard connection is "
-            "healthy."
+        # Check if everything truly passed
+        overall = all(
+            v.get("ok", False)
+            for v in results.values()
+            if isinstance(v, dict)
         )
+        if overall:
+            recommendations.append({
+                "summary": "All checks passed — your Vestaboard connection is healthy",
+                "steps": [],
+            })
 
     return recommendations
 
