@@ -345,7 +345,6 @@ jobs:
           build-args: |
             VERSION=dev
           cache-from: type=gha,scope=build-test
-          cache-to: type=gha,mode=max,scope=build-test
 
       # ── Start containers ──────────────────────────────────────────
       - name: Start 4 mock board + FiestaBoard containers
