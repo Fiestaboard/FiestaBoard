@@ -1050,22 +1050,104 @@ async def test_board_connection(request: BoardTestRequest):
             skip_unchanged=False
         )
         
-        # Test the connection by reading current message
-        result = client.read_current_message()
+        # Test the connection directly so we can inspect HTTP status codes
+        # (read_current_message() swallows errors and returns None, losing details)
+        response = requests.get(
+            client.base_url,
+            headers=client.headers,
+            timeout=10
+        )
         
-        if result is not None:
-            logger.info(f"Board connection test successful ({api_mode} mode)")
-            return {
-                "success": True,
-                "message": "Successfully connected to your board!",
-                "api_mode": api_mode
-            }
-        else:
-            logger.warning(f"Board connection test failed - no response ({api_mode} mode)")
+        if response.status_code == 200:
+            # Parse the response to verify it's valid board data
+            try:
+                data = response.json()
+                characters = None
+                if isinstance(data, list) and len(data) > 0:
+                    characters = data
+                elif isinstance(data, dict) and "message" in data:
+                    characters = data.get("message")
+                
+                if characters is not None:
+                    logger.info(f"Board connection test successful ({api_mode} mode)")
+                    return {
+                        "success": True,
+                        "message": "Successfully connected to your board!",
+                        "api_mode": api_mode
+                    }
+                else:
+                    logger.warning(f"Board connection test: HTTP 200 but unexpected response format ({api_mode} mode)")
+                    return {
+                        "success": False,
+                        "message": "Connected to the board but received an unexpected response. Your board's firmware may need to be updated.",
+                        "error": f"Unexpected response format: {type(data).__name__}",
+                        "troubleshooting": [
+                            "Check for firmware updates in the Vestaboard app.",
+                            "Make sure you're using the latest version of FiestaBoard.",
+                        ]
+                    }
+            except ValueError:
+                logger.warning(f"Board connection test: HTTP 200 but invalid JSON ({api_mode} mode)")
+                return {
+                    "success": False,
+                    "message": "Connected to the board but the response could not be read. The board may be starting up.",
+                    "error": "Invalid JSON response",
+                    "troubleshooting": [
+                        "Wait 30 seconds and try again — the board may still be starting up.",
+                        "Try unplugging the board for 10 seconds and plugging it back in.",
+                    ]
+                }
+        
+        elif response.status_code == 401 or response.status_code == 403:
+            logger.warning(f"Board connection test: auth rejected HTTP {response.status_code} ({api_mode} mode)")
+            if use_cloud:
+                return {
+                    "success": False,
+                    "message": f"Your API key was rejected by the Vestaboard cloud service (HTTP {response.status_code}).",
+                    "error": f"HTTP {response.status_code}",
+                    "troubleshooting": [
+                        "Go to https://web.vestaboard.com and sign in to your account.",
+                        "Make sure you are copying the Read/Write API key (not the subscription key or installable key).",
+                        "Paste the key into the Cloud API Key field and try again.",
+                    ]
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Your API key was rejected by the board (HTTP {response.status_code}).",
+                    "error": f"HTTP {response.status_code}",
+                    "troubleshooting": [
+                        "Open the Vestaboard app on your phone.",
+                        "Go to Settings → Local API and copy the API key shown there.",
+                        "Paste it into the Local API Key field and try again.",
+                        "If the key was recently regenerated, the old key will no longer work.",
+                    ]
+                }
+        
+        elif response.status_code >= 500:
+            logger.warning(f"Board connection test: server error HTTP {response.status_code} ({api_mode} mode)")
             return {
                 "success": False,
-                "message": "Could not read from board - please check your credentials",
-                "error": "Board returned no data"
+                "message": f"The board returned an error (HTTP {response.status_code}). It may be temporarily unavailable.",
+                "error": f"HTTP {response.status_code}",
+                "troubleshooting": [
+                    "Try unplugging the Vestaboard for 10 seconds and plugging it back in.",
+                    "Wait about a minute for the board to restart, then try again.",
+                    "If the problem continues, check for firmware updates in the Vestaboard app.",
+                ]
+            }
+        
+        else:
+            logger.warning(f"Board connection test: unexpected HTTP {response.status_code} ({api_mode} mode)")
+            return {
+                "success": False,
+                "message": f"Received an unexpected response from the board (HTTP {response.status_code}).",
+                "error": f"HTTP {response.status_code}",
+                "troubleshooting": [
+                    "Try unplugging the Vestaboard for 10 seconds and plugging it back in.",
+                    "Check for firmware updates in the Vestaboard app.",
+                    "If the problem continues, try using the other connection mode (Local or Cloud).",
+                ]
             }
             
     except ValueError as e:
@@ -1076,25 +1158,67 @@ async def test_board_connection(request: BoardTestRequest):
             "message": str(e),
             "error": f"Configuration error: {str(e)}"
         }
-    except Exception as e:
-        # Network or other errors
+    except requests.exceptions.ConnectionError as e:
         error_msg = str(e)
-        
-        # Provide user-friendly error messages
-        if "Connection refused" in error_msg or "Failed to establish" in error_msg:
-            friendly_msg = "Could not connect to board. Please check the IP address and ensure the board is on the same network."
-        elif "401" in error_msg or "403" in error_msg or "Unauthorized" in error_msg:
-            friendly_msg = "Invalid API key. Please check your credentials."
-        elif "timeout" in error_msg.lower():
-            friendly_msg = "Connection timed out. Please check the IP address and network connection."
+        logger.error(f"Board connection test error: {e}")
+        if use_cloud:
+            return {
+                "success": False,
+                "message": "Could not connect to the Vestaboard cloud service.",
+                "error": error_msg,
+                "troubleshooting": [
+                    "Make sure the device running FiestaBoard has a working internet connection.",
+                    "Try opening https://rw.vestaboard.com in a browser to verify the service is reachable.",
+                    "If you use a VPN or corporate network, make sure it allows connections to rw.vestaboard.com.",
+                ]
+            }
         else:
-            friendly_msg = f"Connection failed: {error_msg}"
-        
+            return {
+                "success": False,
+                "message": "Could not connect to the board. The board may be off or not on the same network.",
+                "error": error_msg,
+                "troubleshooting": [
+                    "Make sure the Vestaboard is powered on (check for the LED on the back).",
+                    "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
+                    "Double-check the IP address — you can find it in the Vestaboard app under Settings.",
+                    "Open the Vestaboard app → Settings → Local API and make sure it is turned on.",
+                ]
+            }
+    except requests.exceptions.Timeout as e:
+        logger.error(f"Board connection test timeout: {e}")
+        if use_cloud:
+            return {
+                "success": False,
+                "message": "Connection to the Vestaboard cloud service timed out.",
+                "error": str(e),
+                "troubleshooting": [
+                    "Check that the device running FiestaBoard has a stable internet connection.",
+                    "The Vestaboard cloud service may be experiencing issues — try again in a few minutes.",
+                ]
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Connection to the board timed out. The board may be off or the IP address may be wrong.",
+                "error": str(e),
+                "troubleshooting": [
+                    "Make sure the Vestaboard is powered on.",
+                    "Double-check the IP address in the Vestaboard app under Settings.",
+                    "Make sure both devices are on the same network.",
+                    "Try using the board's IP address instead of a hostname.",
+                ]
+            }
+    except Exception as e:
         logger.error(f"Board connection test error: {e}")
         return {
             "success": False,
-            "message": friendly_msg,
-            "error": error_msg
+            "message": f"Connection failed: {e}",
+            "error": str(e),
+            "troubleshooting": [
+                "Make sure the Vestaboard is powered on and connected to your network.",
+                "Try restarting FiestaBoard and the Vestaboard.",
+                "Visit the Network Diagnostics page for a detailed connection check.",
+            ]
         }
 
 
@@ -2993,6 +3117,34 @@ async def debug_get_system_info():
         "service_running": _service_running,
         "dev_mode": _dev_mode
     }
+
+
+@app.get("/debug/network-diagnostics")
+async def debug_network_diagnostics():
+    """Run network diagnostics to troubleshoot connectivity issues.
+
+    Checks DNS resolution, internet connectivity, and Vestaboard reachability.
+    """
+    from .network_diagnostics import run_full_diagnostics
+
+    board_host = Config.BOARD_HOST or None
+    board_port = 7000
+    board_api_key = Config.BOARD_LOCAL_API_KEY or None
+    use_cloud = (Config.BOARD_API_MODE or "local").lower() == "cloud"
+    cloud_key = Config.BOARD_READ_WRITE_KEY or None
+
+    try:
+        results = run_full_diagnostics(
+            board_host=board_host,
+            board_port=board_port,
+            board_api_key=board_api_key,
+            use_cloud=use_cloud,
+            cloud_key=cloud_key,
+        )
+        return {"status": "success", "diagnostics": results}
+    except Exception as e:
+        logger.error(f"Error running network diagnostics: {e}")
+        raise HTTPException(status_code=500, detail="Network diagnostics failed")
 
 
 # =============================================================================
