@@ -253,7 +253,7 @@ def run_full_diagnostics(
 
     # Overall status
     results["overall_ok"] = all(
-        v.get("ok", False) for k, v in results.items() if k != "overall_ok" and isinstance(v, dict)
+        v.get("ok", False) for v in results.values() if isinstance(v, dict)
     )
 
     return results

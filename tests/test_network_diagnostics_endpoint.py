@@ -62,3 +62,5 @@ class TestNetworkDiagnosticsEndpoint:
         response = client.get("/debug/network-diagnostics")
 
         assert response.status_code == 500
+        data = response.json()
+        assert data["detail"] == "Network diagnostics failed"

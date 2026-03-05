@@ -3020,7 +3020,7 @@ async def debug_network_diagnostics():
         return {"status": "success", "diagnostics": results}
     except Exception as e:
         logger.error(f"Error running network diagnostics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Network diagnostics failed")
 
 
 # =============================================================================
