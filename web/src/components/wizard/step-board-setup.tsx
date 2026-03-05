@@ -54,6 +54,7 @@ export function StepBoardSetup({
 
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
+  const [troubleshootingSteps, setTroubleshootingSteps] = useState<string[]>([]);
   const [showApiKey, setShowApiKey] = useState(false);
   const [localKeyMode, setLocalKeyMode] = useState<LocalKeyMode>("api_key");
   const [enablementToken, setEnablementToken] = useState("");
@@ -146,6 +147,7 @@ export function StepBoardSetup({
     setTestStatus("testing");
     setIsLoading(true);
     setTestMessage("");
+    setTroubleshootingSteps([]);
 
     // Read the latest config from the ref to avoid stale closures
     const cfg = configRef.current;
@@ -161,6 +163,7 @@ export function StepBoardSetup({
       if (result.success) {
         setTestStatus("success");
         setTestMessage(result.message);
+        setTroubleshootingSteps([]);
         
         // Save per-board instance first (primary source of truth for settings page)
         await api.updateBoardSettings({
@@ -188,11 +191,13 @@ export function StepBoardSetup({
       } else {
         setTestStatus("error");
         setTestMessage(result.message || "Connection failed");
+        setTroubleshootingSteps(result.troubleshooting || []);
         onConfigChange({ ...cfg, connectionVerified: false });
       }
     } catch (error) {
       setTestStatus("error");
       setTestMessage(error instanceof Error ? error.message : "Connection test failed");
+      setTroubleshootingSteps([]);
       onConfigChange({ ...configRef.current, connectionVerified: false });
     } finally {
       setIsLoading(false);
@@ -574,7 +579,19 @@ export function StepBoardSetup({
             ) : (
               <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
             )}
-            <span>{testMessage}</span>
+            <div className="flex-1 space-y-2">
+              <span>{testMessage}</span>
+              {testStatus === "error" && troubleshootingSteps.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  <p className="font-medium text-foreground/80 text-xs uppercase tracking-wide">Things to try:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-foreground/70">
+                    {troubleshootingSteps.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

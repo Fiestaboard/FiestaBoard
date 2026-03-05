@@ -25,6 +25,8 @@ services:
       - ./supervisord-dev.conf:/app/supervisord-dev.conf:ro
       - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro
     command: ["/bin/sh", "/app/start-dev.sh"]
+    networks:
+      - fiestaboard-dev
     logging:
       driver: "json-file"
       options:
@@ -41,6 +43,8 @@ services:
       - fiestaboard-web-node-modules:/app/node_modules
     environment:
       - CI=true
+    networks:
+      - fiestaboard-dev
     profiles:
       - test
 
@@ -53,6 +57,8 @@ services:
     ports:
       - "7000:7000"
     command: python /server.py
+    networks:
+      - fiestaboard-dev
     logging:
       driver: "json-file"
       options:
@@ -72,11 +78,17 @@ services:
     environment:
       - WATCHPACK_POLLING=true
     command: sh -c "rm -f package-lock.json && npm install --force && npm run storybook -- --host 0.0.0.0"
+    networks:
+      - fiestaboard-dev
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  fiestaboard-dev:
+    driver: bridge
 
 volumes:
   web-dev-node-modules:

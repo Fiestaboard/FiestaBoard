@@ -549,6 +549,7 @@ export interface BoardTestResponse {
   message: string;
   error?: string;
   api_mode?: string;
+  troubleshooting?: string[];
 }
 
 export interface WelcomeMessageResponse {
