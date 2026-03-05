@@ -2995,6 +2995,34 @@ async def debug_get_system_info():
     }
 
 
+@app.get("/debug/network-diagnostics")
+async def debug_network_diagnostics():
+    """Run network diagnostics to troubleshoot connectivity issues.
+
+    Checks DNS resolution, internet connectivity, and Vestaboard reachability.
+    """
+    from .network_diagnostics import run_full_diagnostics
+
+    board_host = Config.BOARD_HOST or None
+    board_port = 7000
+    board_api_key = Config.BOARD_LOCAL_API_KEY or None
+    use_cloud = (Config.BOARD_API_MODE or "local").lower() == "cloud"
+    cloud_key = Config.BOARD_READ_WRITE_KEY or None
+
+    try:
+        results = run_full_diagnostics(
+            board_host=board_host,
+            board_port=board_port,
+            board_api_key=board_api_key,
+            use_cloud=use_cloud,
+            cloud_key=cloud_key,
+        )
+        return {"status": "success", "diagnostics": results}
+    except Exception as e:
+        logger.error(f"Error running network diagnostics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # =============================================================================
 # Pages Endpoints
 # =============================================================================
