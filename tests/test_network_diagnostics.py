@@ -485,6 +485,20 @@ class TestBuildRecommendations:
             for r in recs
         )
 
+    def test_cloud_fallback_recommends_check(self):
+        """Cloud mode with no specific error triggers the fallback recommendation."""
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "cloud",
+                "steps": {"cloud_api": {"ok": False, "status_code": None}},
+            },
+        }
+        recs = _build_recommendations(results)
+        assert len(recs) >= 1
+        assert any("BOARD_READ_WRITE_KEY" in s for r in recs for s in r["steps"])
+
     def test_recommendations_have_summary_and_steps(self):
         """Every recommendation must have a summary string and a steps list."""
         results = {
