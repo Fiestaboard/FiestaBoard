@@ -183,7 +183,26 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Check if already pushed
+        id: check-existing
+        run: |
+          VERSION="${{ needs.prep.outputs.version }}"
+          ARCH="${{ matrix.arch }}"
+          EXISTING=$(docker buildx imagetools inspect "fiestaboard/fiestaboard:${VERSION}" --raw 2>/dev/null | \
+            jq -r --arg arch "$ARCH" \
+            '.manifests[]? | select(.platform.architecture == $arch and .platform.os == "linux") | .digest' \
+            2>/dev/null) || true
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            echo "fiestaboard/fiestaboard:${VERSION} (${ARCH}) already on Docker Hub — skipping build"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "digest=$EXISTING" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build and push by digest
+        if: steps.check-existing.outputs.skip != 'true'
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -199,7 +218,11 @@ jobs:
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
+          if [ "${{ steps.check-existing.outputs.skip }}" = "true" ]; then
+            digest="${{ steps.check-existing.outputs.digest }}"
+          else
+            digest="${{ steps.build.outputs.digest }}"
+          fi
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
