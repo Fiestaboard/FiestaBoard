@@ -858,8 +858,8 @@ export const handlers = [
     const url = new URL(request.url);
     return HttpResponse.json({
       page_id: "page-1",
-      source: "schedule",
-      schedule_enabled: true,
+      source: "manual",
+      schedule_enabled: false,
       ...(url.searchParams.get("board_id") && { board_id: url.searchParams.get("board_id") }),
     });
   }),

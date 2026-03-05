@@ -133,21 +133,17 @@ export function ActivePageDisplay() {
     }
   }, [isSheetOpen]);
   
-  // Fetch schedule status (no board_id - gets default board's schedule)
-  const { data: schedulesData } = useQuery({
-    queryKey: ["schedules", "default"],
-    queryFn: () => api.getSchedules(undefined),
-  });
-  
-  const scheduleEnabled = schedulesData?.enabled || false;
-  
-  // Fetch active page from schedule if enabled, otherwise manual
+  // Fetch schedule status and active page in a single request.
+  // getActiveSchedule() returns both schedule_enabled and the active page_id
+  // regardless of mode, eliminating the need for a separate heavyweight
+  // getSchedules() call that fetched the entire schedule list.
   const { data: activeScheduleData } = useQuery({
     queryKey: ["schedules", "active"],
     queryFn: () => api.getActiveSchedule(),
-    enabled: scheduleEnabled,
-    refetchInterval: scheduleEnabled ? 60000 : false, // Refresh every minute if schedule enabled
+    refetchInterval: 60000, // Poll every minute for schedule changes
   });
+  
+  const scheduleEnabled = activeScheduleData?.schedule_enabled || false;
   
   // Fetch manual active page setting
   const { 
