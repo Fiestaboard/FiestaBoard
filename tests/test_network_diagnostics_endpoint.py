@@ -25,6 +25,7 @@ class TestNetworkDiagnosticsEndpoint:
             "internet": {"ok": True, "url": "https://www.google.com", "status_code": 200, "latency_ms": 42},
             "vestaboard": {"ok": True, "mode": "local", "steps": {}},
             "overall_ok": True,
+            "recommendations": ["All connectivity checks passed. Your Vestaboard connection is healthy."],
         }
 
         response = client.get("/debug/network-diagnostics")
@@ -37,6 +38,7 @@ class TestNetworkDiagnosticsEndpoint:
         assert "dns" in data["diagnostics"]
         assert "internet" in data["diagnostics"]
         assert "vestaboard" in data["diagnostics"]
+        assert "recommendations" in data["diagnostics"]
 
     @patch("src.network_diagnostics.run_full_diagnostics")
     def test_partial_failure(self, mock_diag, client):
@@ -46,6 +48,7 @@ class TestNetworkDiagnosticsEndpoint:
             "internet": {"ok": True, "url": "https://www.google.com", "status_code": 200, "latency_ms": 42},
             "vestaboard": {"ok": False, "mode": "local", "steps": {"dns": {"ok": False}}},
             "overall_ok": False,
+            "recommendations": ["Cannot resolve Vestaboard hostname."],
         }
 
         response = client.get("/debug/network-diagnostics")
@@ -53,6 +56,7 @@ class TestNetworkDiagnosticsEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["diagnostics"]["overall_ok"] is False
+        assert len(data["diagnostics"]["recommendations"]) >= 1
 
     @patch("src.network_diagnostics.run_full_diagnostics")
     def test_exception_returns_500(self, mock_diag, client):

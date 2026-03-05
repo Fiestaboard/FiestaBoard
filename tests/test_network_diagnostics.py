@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from src.network_diagnostics import (
+    _build_recommendations,
     check_dns_resolution,
     check_internet_connectivity,
     check_port_reachable,
@@ -275,6 +276,177 @@ class TestCheckVestaboardConnection:
 
 
 # ---------------------------------------------------------------------------
+# _build_recommendations
+# ---------------------------------------------------------------------------
+
+class TestBuildRecommendations:
+    """Tests for _build_recommendations troubleshooting output."""
+
+    def test_all_ok_returns_healthy_message(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {"ok": True, "mode": "local", "steps": {}},
+        }
+        recs = _build_recommendations(results)
+        assert len(recs) == 1
+        assert "healthy" in recs[0].lower()
+
+    def test_dns_failure_recommends_dns_check(self):
+        results = {
+            "dns": {"ok": False, "error": "fail"},
+            "internet": {"ok": True},
+            "vestaboard": {"ok": True, "mode": "local", "steps": {}},
+        }
+        recs = _build_recommendations(results)
+        assert any("DNS" in r for r in recs)
+        assert any("8.8.8.8" in r or "1.1.1.1" in r for r in recs)
+
+    def test_internet_failure_with_dns_ok_recommends_router(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": False, "error": "timeout"},
+            "vestaboard": {"ok": True, "mode": "local", "steps": {}},
+        }
+        recs = _build_recommendations(results)
+        assert any("router" in r.lower() or "firewall" in r.lower() for r in recs)
+
+    def test_internet_failure_with_dns_down_points_to_dns(self):
+        results = {
+            "dns": {"ok": False, "error": "fail"},
+            "internet": {"ok": False, "error": "fail"},
+            "vestaboard": {"ok": True, "mode": "local", "steps": {}},
+        }
+        recs = _build_recommendations(results)
+        # Should have both DNS and internet recs, with internet pointing to DNS
+        assert any("resolve the DNS issue first" in r for r in recs)
+
+    def test_no_board_configured_recommends_env_setup(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {"ok": False, "mode": None, "steps": {}},
+        }
+        recs = _build_recommendations(results)
+        assert any("BOARD_HOST" in r for r in recs)
+        assert any(".env" in r for r in recs)
+
+    def test_local_dns_failure_recommends_hostname_check(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "local",
+                "steps": {"dns": {"ok": False, "hostname": "myboard.local"}},
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("myboard.local" in r for r in recs)
+        assert any("mDNS" in r or "IP address" in r for r in recs)
+
+    def test_local_port_failure_recommends_local_api(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "local",
+                "steps": {
+                    "dns": {"ok": True},
+                    "port": {"ok": False, "port": 7000, "error": "refused"},
+                },
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("Local API" in r for r in recs)
+        assert any("7000" in r for r in recs)
+
+    def test_local_api_auth_failure_recommends_key_check(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "local",
+                "steps": {
+                    "dns": {"ok": True},
+                    "port": {"ok": True},
+                    "api": {"ok": False, "status_code": 401},
+                },
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("BOARD_LOCAL_API_KEY" in r for r in recs)
+
+    def test_local_api_server_error_recommends_power_cycle(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "local",
+                "steps": {
+                    "dns": {"ok": True},
+                    "port": {"ok": True},
+                    "api": {"ok": False, "status_code": 502},
+                },
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("power-cycling" in r.lower() for r in recs)
+
+    def test_local_api_no_response_recommends_retry(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "local",
+                "steps": {
+                    "dns": {"ok": True},
+                    "port": {"ok": True},
+                    "api": {"ok": False, "status_code": None, "error": "timeout"},
+                },
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("starting up" in r.lower() or "retry" in r.lower() for r in recs)
+
+    def test_cloud_auth_failure_recommends_key_check(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "cloud",
+                "steps": {"cloud_api": {"ok": False, "status_code": 403}},
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("BOARD_READ_WRITE_KEY" in r for r in recs)
+        assert any("web.vestaboard.com" in r for r in recs)
+
+    def test_cloud_server_error_recommends_wait(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "cloud",
+                "steps": {"cloud_api": {"ok": False, "status_code": 500}},
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("temporary" in r.lower() or "wait" in r.lower() for r in recs)
+
+    def test_cloud_connection_error_recommends_internet(self):
+        results = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {
+                "ok": False, "mode": "cloud",
+                "steps": {"cloud_api": {"ok": False, "status_code": None, "error": "no route"}},
+            },
+        }
+        recs = _build_recommendations(results)
+        assert any("rw.vestaboard.com" in r for r in recs)
+
+
+# ---------------------------------------------------------------------------
 # run_full_diagnostics
 # ---------------------------------------------------------------------------
 
@@ -295,6 +467,8 @@ class TestRunFullDiagnostics:
         assert "dns" in result
         assert "internet" in result
         assert "vestaboard" in result
+        assert "recommendations" in result
+        assert any("healthy" in r.lower() for r in result["recommendations"])
 
     @patch("src.network_diagnostics.check_vestaboard_connection")
     @patch("src.network_diagnostics.check_internet_connectivity")
@@ -307,6 +481,7 @@ class TestRunFullDiagnostics:
         result = run_full_diagnostics(board_host="board.local", board_api_key="key")
 
         assert result["overall_ok"] is False
+        assert any("DNS" in r for r in result["recommendations"])
 
     @patch("src.network_diagnostics.check_internet_connectivity")
     @patch("src.network_diagnostics.check_dns_resolution")
@@ -318,6 +493,7 @@ class TestRunFullDiagnostics:
 
         assert result["overall_ok"] is False
         assert "No board host" in result["vestaboard"].get("error", "")
+        assert any("BOARD_HOST" in r for r in result["recommendations"])
 
     @patch("src.network_diagnostics.check_vestaboard_connection")
     @patch("src.network_diagnostics.check_internet_connectivity")
@@ -343,3 +519,4 @@ class TestRunFullDiagnostics:
         result = run_full_diagnostics(board_host="board.local", board_api_key="key")
 
         assert result["overall_ok"] is False
+        assert len(result["recommendations"]) >= 1
