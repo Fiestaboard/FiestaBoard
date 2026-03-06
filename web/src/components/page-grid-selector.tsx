@@ -4,7 +4,10 @@ import { useEffect, useCallback, useMemo, useState, useRef, memo } from "react";
 import { usePages, useBoardSettings, getEffectiveBoardColor, useCarousels } from "@/hooks/use-board";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { LayoutTemplate, Loader2, Clock, GalleryHorizontalEnd } from "lucide-react";
+import { LayoutTemplate, Clock, GalleryHorizontalEnd, FilePlus } from "lucide-react";
+import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Page, PagePreviewResponse, PagePreviewBatchResponse, Carousel } from "@/lib/api";
@@ -104,9 +107,8 @@ const PageButtonPreview = memo(function PageButtonPreview({
 
   if (isLoading && !preview) {
     return (
-      <div ref={ref} className="w-full flex items-center justify-center py-4" role="status">
-        <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" aria-hidden="true" />
-        <span className="sr-only">Loading preview</span>
+      <div ref={ref} className="w-full py-4" role="status" aria-label="Loading preview">
+        <Skeleton className="h-20 w-full rounded-md" />
       </div>
     );
   }
@@ -162,11 +164,11 @@ const PageButton = memo(function PageButton({
   const TypeIcon = LayoutTemplate;
   
   const buttonClassName = isActive
-    ? "group relative flex flex-col gap-2 p-3 rounded-lg border-2 border-primary bg-primary/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container"
-    : "group relative flex flex-col gap-2 p-3 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container";
+    ? "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    : "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
   
   const iconClassName = isActive
-    ? "h-4 w-4 shrink-0 text-primary"
+    ? "h-4 w-4 shrink-0 text-brand"
     : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
   
   const nameClassName = isActive
@@ -189,7 +191,7 @@ const PageButton = memo(function PageButton({
       type="button"
       aria-pressed={isActive}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0">
         <TypeIcon className={iconClassName} />
         <span className={nameClassName}>
           {page.name}
@@ -206,7 +208,7 @@ const PageButton = memo(function PageButton({
       </div>
       
       {showActiveIndicator && isActive && (
-        <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-primary rounded-full" />
+        <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
       )}
     </button>
   );
@@ -254,11 +256,11 @@ const PageListItem = memo(function PageListItem({
   }, [page.updated_at]);
 
   const buttonClassName = isActive
-    ? "group flex items-center gap-3 w-full p-3 rounded-lg border-2 border-primary bg-primary/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left"
-    : "group flex items-center gap-3 w-full p-3 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left";
+    ? "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    : "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
   const iconClassName = isActive
-    ? "h-4 w-4 shrink-0 text-primary"
+    ? "h-4 w-4 shrink-0 text-brand"
     : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
 
   const nameClassName = isActive
@@ -325,11 +327,11 @@ const CarouselButton = memo(function CarouselButton({
   );
 
   const buttonClassName = isActive
-    ? "group relative flex flex-col gap-2 p-3 rounded-lg border-2 border-primary bg-primary/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container"
-    : "group relative flex flex-col gap-2 p-3 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container";
+    ? "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    : "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
   const iconClassName = isActive
-    ? "h-4 w-4 shrink-0 text-primary"
+    ? "h-4 w-4 shrink-0 text-brand"
     : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
 
   const nameClassName = isActive
@@ -349,7 +351,7 @@ const CarouselButton = memo(function CarouselButton({
       className={buttonClassName}
       type="button"
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0">
         <GalleryHorizontalEnd className={iconClassName} />
         <span className={nameClassName}>{carousel.name}</span>
         <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
@@ -360,9 +362,10 @@ const CarouselButton = memo(function CarouselButton({
       {/* Cascading stack of board previews */}
       <div className="relative h-[160px] w-full overflow-hidden hover-stable">
         {loadingPreviews && stackPages.every((sp) => !sp.preview) ? (
-          <div className="flex items-center justify-center h-full" role="status">
-            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" aria-hidden="true" />
-            <span className="sr-only">Loading previews</span>
+          <div className="flex gap-2 items-end h-full p-2" role="status" aria-label="Loading previews">
+            <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
+            <Skeleton className="h-28 flex-1 max-w-[80px] rounded-md" />
+            <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
           </div>
         ) : (
           <div className="absolute inset-0">
@@ -394,7 +397,7 @@ const CarouselButton = memo(function CarouselButton({
       </div>
 
       {showActiveIndicator && isActive && (
-        <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-primary rounded-full" />
+        <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
       )}
     </button>
   );
@@ -549,18 +552,18 @@ export function PageGridSelector({
           </span>
         )}
         {viewMode === "list" ? (
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Skeleton className="h-40 w-full rounded-lg" />
+            <Skeleton className="h-40 w-full rounded-lg" />
+            <Skeleton className="h-40 w-full rounded-lg" />
+            <Skeleton className="h-40 w-full rounded-lg" />
           </div>
         )}
       </div>
@@ -568,15 +571,27 @@ export function PageGridSelector({
   }
   
   if (pages.length === 0) {
+    const noPagesIllustration = (
+      <svg viewBox="0 0 64 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+        <path d="M12 4h24l12 12v28H12V4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="opacity-60" />
+        <path d="M36 4v12h12" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="opacity-60" />
+        <path d="M32 26v12M26 32h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="opacity-80" />
+      </svg>
+    );
     return (
-      <div className="text-center text-sm text-muted-foreground py-4">
-        <p>No pages created yet.</p>
-        <p className="mt-1">
-          <a href={`/pages/new${deviceTypeFilter ? `?device=${deviceTypeFilter}` : ''}`} className="text-primary hover:underline">
-            Create your first page
-          </a>
-        </p>
-      </div>
+      <EmptyState
+        icon={FilePlus}
+        title="No pages created yet."
+        description="Create your first page to display on the board."
+        illustration={noPagesIllustration}
+        action={
+          <Button asChild variant="default" size="sm">
+            <Link href={`/pages/new${deviceTypeFilter ? `?device=${deviceTypeFilter}` : ""}`}>
+              Create your first page
+            </Link>
+          </Button>
+        }
+      />
     );
   }
   
@@ -584,7 +599,7 @@ export function PageGridSelector({
   const defaultTab = activePageId && isCarouselId(activePageId) ? "carousels" : "pages";
 
   const pagesContent = viewMode === "list" ? (
-    <div className="flex flex-col gap-2" role="group" aria-label="Pages">
+    <div className="flex flex-col gap-3" role="group" aria-label="Pages">
       {pages.map((page) => (
         <PageListItem
           key={page.id}
@@ -596,7 +611,7 @@ export function PageGridSelector({
       ))}
     </div>
   ) : (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Pages">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label="Pages">
       {pages.map((page) => (
         <PageButton
           key={page.id}
@@ -614,7 +629,7 @@ export function PageGridSelector({
   );
 
   const carouselsGrid = (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Carousels">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label="Carousels">
       {carousels.map((carousel) => (
         <CarouselButton
           key={carousel.id}

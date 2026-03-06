@@ -33,7 +33,7 @@ export default function EditPage() {
   if (!pageId) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
           <div className="text-center text-muted-foreground">Loading...</div>
         </div>
       </div>
@@ -41,9 +41,9 @@ export default function EditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       <div 
-        className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 flex-1 flex flex-col min-h-0"
+        className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 flex-1 flex flex-col min-h-0 max-w-full"
       >
         <PageBuilder
           pageId={pageId}
