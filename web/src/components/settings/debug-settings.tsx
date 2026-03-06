@@ -20,9 +20,13 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Globe,
+  Server,
+  Lightbulb
 } from "lucide-react";
 import { api } from "@/lib/api";
+import type { NetworkDiagnosticsResult } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -145,18 +149,21 @@ export function DebugSettings() {
     },
   });
 
-  // Test connection mutation
-  const testConnectionMutation = useMutation({
-    mutationFn: api.testDebugConnection,
-    onSuccess: (data) => {
-      if (data.connected) {
-        toast.success(data.message);
+  // Network diagnostics mutation
+  const networkDiagnosticsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.getNetworkDiagnostics();
+      return response.diagnostics;
+    },
+    onSuccess: (data: NetworkDiagnosticsResult) => {
+      if (data.overall_ok) {
+        toast.success("All network checks passed!");
       } else {
-        toast.error(data.message);
+        toast.error("Some network checks failed — see details below");
       }
     },
     onError: (error: Error) => {
-      toast.error(`Connection test failed: ${error.message}`);
+      toast.error(`Network diagnostics failed: ${error.message}`);
     },
   });
 
@@ -177,7 +184,7 @@ export function DebugSettings() {
     blankMutation.isPending ||
     fillMutation.isPending ||
     debugInfoMutation.isPending ||
-    testConnectionMutation.isPending ||
+    networkDiagnosticsMutation.isPending ||
     clearCacheMutation.isPending;
 
   const isBoardConfigured = systemInfo?.board_configured ?? false;
@@ -214,40 +221,98 @@ export function DebugSettings() {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Test Connection */}
+        {/* Network Diagnostics */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Connection Test</Label>
+          <Label className="text-xs font-medium">Network Diagnostics</Label>
           <Button
-            onClick={() => testConnectionMutation.mutate()}
-            disabled={!isBoardConfigured || isAnyMutationLoading}
+            onClick={() => networkDiagnosticsMutation.mutate()}
+            disabled={isAnyMutationLoading}
             variant="outline"
             size="sm"
             className="w-full justify-start gap-2"
           >
-            {testConnectionMutation.isPending ? (
+            {networkDiagnosticsMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Wifi className="h-4 w-4" />
             )}
-            Test Connection
+            {networkDiagnosticsMutation.isPending ? "Running diagnostics…" : "Run Network Diagnostics"}
           </Button>
-          {testConnectionMutation.data && (
-            <div className={`flex items-center gap-2 text-xs p-2 rounded ${
-              testConnectionMutation.data.connected 
-                ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-foreground"
-            }`}>
-              {testConnectionMutation.data.connected ? (
-                <CheckCircle className="h-3 w-3" />
-              ) : (
-                <XCircle className="h-3 w-3" />
+          <p className="text-xs text-muted-foreground">
+            Tests DNS, internet connectivity, and Vestaboard reachability
+          </p>
+
+          {/* Diagnostics Results */}
+          {networkDiagnosticsMutation.data && (
+            <div className="space-y-2 mt-2">
+              {/* Overall Status Banner */}
+              <div className={`flex items-center gap-2 text-sm font-medium p-2.5 rounded-md ${
+                networkDiagnosticsMutation.data.overall_ok
+                  ? "bg-success/10 text-success"
+                  : "bg-destructive/10 text-foreground"
+              }`}>
+                {networkDiagnosticsMutation.data.overall_ok ? (
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                )}
+                {networkDiagnosticsMutation.data.overall_ok
+                  ? "All checks passed — your connection is healthy"
+                  : "Some checks failed — see details below"}
+              </div>
+
+              {/* Step-by-step results */}
+              <div className="rounded-md border divide-y">
+                {/* DNS Check */}
+                <DiagnosticRow
+                  icon={<Globe className="h-3.5 w-3.5" />}
+                  label="DNS Resolution"
+                  result={networkDiagnosticsMutation.data.dns}
+                  detail={networkDiagnosticsMutation.data.dns.ok
+                    ? `Resolved ${networkDiagnosticsMutation.data.dns.hostname ?? "google.com"} → ${networkDiagnosticsMutation.data.dns.ip}`
+                    : networkDiagnosticsMutation.data.dns.error ?? "Could not resolve hostname"
+                  }
+                />
+
+                {/* Internet Check */}
+                <DiagnosticRow
+                  icon={<Wifi className="h-3.5 w-3.5" />}
+                  label="Internet Access"
+                  result={networkDiagnosticsMutation.data.internet}
+                  detail={networkDiagnosticsMutation.data.internet.ok
+                    ? `Reached ${networkDiagnosticsMutation.data.internet.url ?? "google.com"} (${networkDiagnosticsMutation.data.internet.latency_ms}ms)`
+                    : networkDiagnosticsMutation.data.internet.error ?? "Could not reach the internet"
+                  }
+                />
+
+                {/* Vestaboard Check */}
+                <VestaboardDiagnosticRow
+                  vestaboard={networkDiagnosticsMutation.data.vestaboard}
+                />
+              </div>
+
+              {/* Troubleshooting Recommendations */}
+              {networkDiagnosticsMutation.data.recommendations.length > 0 &&
+                !networkDiagnosticsMutation.data.overall_ok && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Lightbulb className="h-3.5 w-3.5" />
+                    Troubleshooting
+                  </div>
+                  {networkDiagnosticsMutation.data.recommendations.map((rec, i) => (
+                    <div key={i} className="rounded-md border p-3 space-y-1.5 bg-muted/30">
+                      <div className="text-xs font-medium">{rec.summary}</div>
+                      {rec.steps.length > 0 && (
+                        <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                          {rec.steps.map((step, j) => (
+                            <li key={j}>{step}</li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
-              <span>
-                {testConnectionMutation.data.message}
-                {testConnectionMutation.data.latency_ms && 
-                  ` (${testConnectionMutation.data.latency_ms}ms)`
-                }
-              </span>
             </div>
           )}
         </div>
@@ -492,5 +557,163 @@ export function DebugSettings() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helper sub-components for network diagnostics
+// ---------------------------------------------------------------------------
+
+function DiagnosticStatusIcon({ ok }: { ok: boolean }) {
+  return ok ? (
+    <CheckCircle className="h-3.5 w-3.5 text-success flex-shrink-0" />
+  ) : (
+    <XCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+  );
+}
+
+function DiagnosticRow({
+  icon,
+  label,
+  result,
+  detail,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  result: { ok: boolean; latency_ms?: number };
+  detail: string;
+}) {
+  return (
+    <div className="flex items-start gap-2 p-2.5 text-xs">
+      <DiagnosticStatusIcon ok={result.ok} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 font-medium">
+          {icon}
+          {label}
+          {result.latency_ms != null && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono">
+              {result.latency_ms}ms
+            </Badge>
+          )}
+        </div>
+        <div className={`mt-0.5 ${result.ok ? "text-muted-foreground" : "text-destructive"}`}>
+          {detail}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VestaboardDiagnosticRow({
+  vestaboard,
+}: {
+  vestaboard: {
+    ok: boolean;
+    mode: "local" | "cloud" | null;
+    steps: Record<string, { ok: boolean; latency_ms?: number; status_code?: number | null; error?: string; hostname?: string; port?: number }>;
+    error?: string;
+  };
+}) {
+  if (vestaboard.mode === null) {
+    return (
+      <div className="flex items-start gap-2 p-2.5 text-xs">
+        <AlertCircle className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Server className="h-3.5 w-3.5" />
+            Vestaboard
+          </div>
+          <div className="mt-0.5 text-muted-foreground">
+            {vestaboard.error ?? "No board configured"}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (vestaboard.mode === "cloud") {
+    const cloud = vestaboard.steps.cloud_api;
+    return (
+      <div className="flex items-start gap-2 p-2.5 text-xs">
+        <DiagnosticStatusIcon ok={vestaboard.ok} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Server className="h-3.5 w-3.5" />
+            Vestaboard Cloud API
+            {cloud?.latency_ms != null && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono">
+                {cloud.latency_ms}ms
+              </Badge>
+            )}
+          </div>
+          <div className={`mt-0.5 ${vestaboard.ok ? "text-muted-foreground" : "text-destructive"}`}>
+            {vestaboard.ok
+              ? `Cloud API reachable${cloud?.status_code ? ` (HTTP ${cloud.status_code})` : ""}`
+              : cloud?.error ?? (cloud?.status_code ? `HTTP ${cloud.status_code}` : "Could not reach cloud API")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Local mode — show sub-steps
+  const steps = vestaboard.steps;
+  const stepEntries: { key: string; label: string; icon: React.ReactNode }[] = [
+    { key: "dns", label: "Board DNS", icon: <Globe className="h-3 w-3" /> },
+    { key: "port", label: "Board Port", icon: <Server className="h-3 w-3" /> },
+    { key: "api", label: "Board API", icon: <Wifi className="h-3 w-3" /> },
+  ];
+
+  return (
+    <div className="p-2.5 text-xs space-y-1.5">
+      <div className="flex items-center gap-2">
+        <DiagnosticStatusIcon ok={vestaboard.ok} />
+        <div className="flex items-center gap-1.5 font-medium">
+          <Server className="h-3.5 w-3.5" />
+          Vestaboard (Local API)
+        </div>
+      </div>
+      <div className="ml-5.5 space-y-1 pl-1 border-l-2 border-muted ml-[11px]">
+        {stepEntries.map(({ key, label, icon }) => {
+          const step = steps[key];
+          if (!step) {
+            // Step wasn't reached (short-circuited)
+            return (
+              <div key={key} className="flex items-center gap-1.5 pl-2 py-0.5 text-muted-foreground">
+                <div className="h-3 w-3 rounded-full border border-muted-foreground/30 flex-shrink-0" />
+                {icon}
+                <span>{label}</span>
+                <span className="text-muted-foreground/60">— skipped</span>
+              </div>
+            );
+          }
+          return (
+            <div key={key} className="flex items-start gap-1.5 pl-2 py-0.5">
+              <DiagnosticStatusIcon ok={step.ok} />
+              {icon}
+              <div className="min-w-0">
+                <span className="font-medium">{label}</span>
+                {step.latency_ms != null && (
+                  <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0 h-3.5 font-mono">
+                    {step.latency_ms}ms
+                  </Badge>
+                )}
+                {step.ok ? (
+                  <span className="text-muted-foreground ml-1">
+                    {key === "dns" && step.hostname ? `${step.hostname} resolved` : ""}
+                    {key === "port" && step.port ? `port ${step.port} open` : ""}
+                    {key === "api" && step.status_code ? `HTTP ${step.status_code}` : ""}
+                  </span>
+                ) : (
+                  <span className="text-destructive ml-1">
+                    {step.error ?? (step.status_code ? `HTTP ${step.status_code}` : "failed")}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
