@@ -500,7 +500,7 @@
 .sidebar-transition {
   transition: width 200ms cubic-bezier(0.16, 1, 0.3, 1),
               padding-left 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  contain: content;
+  contain: layout style;
 }
 .sidebar-transition.is-transitioning {
   will-change: width, padding-left;
