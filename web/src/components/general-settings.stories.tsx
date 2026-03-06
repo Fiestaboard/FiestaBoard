@@ -26,7 +26,6 @@ const mockAllSettings: AllSettingsResponse = {
   },
   output: {
     target: "both",
-    dev_mode: false,
     effective_target: "both",
     available_targets: ["ui", "board", "both"],
   },
@@ -49,7 +48,6 @@ const mockAllSettings: AllSettingsResponse = {
   },
   status: {
     running: true,
-    dev_mode: false,
   },
 };
 
@@ -65,7 +63,7 @@ const createQueryClient = (overrides?: Partial<AllSettingsResponse>) => {
   client.setQueryData(["status"], {
     running: settings.status.running,
     initialized: true,
-    config_summary: { dev_mode: settings.status.dev_mode },
+    config_summary: {},
   });
 
   return client;
@@ -110,28 +108,12 @@ export const Loading: Story = {
   ],
 };
 
-export const DevModeEnabled: Story = {
-  decorators: [
-    (Story) => (
-      <QueryClientProvider
-        client={createQueryClient({
-          status: { running: true, dev_mode: true },
-        })}
-      >
-        <div className="max-w-2xl">
-          <Story />
-        </div>
-      </QueryClientProvider>
-    ),
-  ],
-};
-
 export const ServiceStopped: Story = {
   decorators: [
     (Story) => (
       <QueryClientProvider
         client={createQueryClient({
-          status: { running: false, dev_mode: false },
+          status: { running: false },
         })}
       >
         <div className="max-w-2xl">

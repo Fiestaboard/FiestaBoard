@@ -161,21 +161,21 @@ export function TransitionSettings() {
         {/* Strategy Selector */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Transition Style</Label>
-          <div className="grid gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {STRATEGY_OPTIONS.map((option) => {
               const isSelected = strategy === option.value;
               return (
                 <button
                   key={option.value ?? "none"}
                   onClick={() => handleStrategyChange(option.value)}
-                  className={`flex flex-col items-start p-3 rounded-md border text-left transition-colors ${
+                  className={`flex flex-col items-start p-2.5 rounded-md border text-left transition-colors ${
                     isSelected
-                      ? "border-primary bg-primary/10"
-                      : "border-muted hover:border-primary/50"
+                      ? "border-brand bg-brand/10"
+                      : "border-muted hover:border-brand/50"
                   }`}
                 >
-                  <span className="text-sm font-medium">{option.label}</span>
-                  <span className="text-xs text-muted-foreground mt-0.5">
+                  <span className="text-xs font-medium">{option.label}</span>
+                  <span className="text-[11px] leading-snug text-muted-foreground mt-0.5">
                     {option.description}
                   </span>
                 </button>

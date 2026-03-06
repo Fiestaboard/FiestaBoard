@@ -219,7 +219,6 @@ class TestDebugSystemInfo:
         assert "cache_status" in data or data["cache_status"] is None
         assert "board_configured" in data
         assert "service_running" in data
-        assert "dev_mode" in data
     
     def test_get_system_info_structure(self, client, mock_board_client):
         """Test system info response structure."""
@@ -233,7 +232,6 @@ class TestDebugSystemInfo:
         assert isinstance(data["version"], str)
         assert isinstance(data["board_configured"], bool)
         assert isinstance(data["service_running"], bool)
-        assert isinstance(data["dev_mode"], bool)
 
 
 class TestDebugUtilityFunctions:

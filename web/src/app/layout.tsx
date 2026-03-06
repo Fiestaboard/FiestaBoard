@@ -6,6 +6,8 @@ import { NavigationSidebar } from "@/components/navigation-sidebar";
 import { WizardProvider } from "@/components/wizard-provider";
 import { InstallPrompt } from "@/components/install-prompt";
 import { PageFadeWrapper } from "@/components/page-fade-wrapper";
+import { MainContent } from "@/components/main-content";
+import { ThemeColorMeta } from "@/components/theme-color-meta";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -44,6 +46,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icons/favicon-32x32.png" type="image/png" sizes="32x32" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -52,13 +56,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-hidden`}
       >
         <Providers>
+          <ThemeColorMeta />
           <WizardProvider>
             <NavigationSidebar />
-            <main className="min-h-screen pt-14 lg:pt-0 lg:pl-64 overflow-x-hidden w-full max-w-full">
+            <MainContent>
               <PageFadeWrapper>
                 {children}
               </PageFadeWrapper>
-            </main>
+            </MainContent>
             <Toaster />
             <InstallPrompt />
           </WizardProvider>

@@ -11,11 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Settings, Clock, FlaskConical, Moon, RefreshCw, AlertCircle } from "lucide-react";
+import { Settings, Clock, Moon, RefreshCw, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { formatInTimeZone } from "date-fns-tz";
-import { useStatus, useToggleDevMode } from "@/hooks/use-board";
+import { useStatus } from "@/hooks/use-board";
 import { utcToLocalTime, localTimeToUTC } from "@/lib/timezone-utils";
 
 export function GeneralSettings() {
@@ -32,8 +32,6 @@ export function GeneralSettings() {
     queryKey: ["all-settings"],
     queryFn: api.getAllSettings,
   });
-
-  const devModeMutation = useToggleDevMode();
 
   // Extract individual settings from consolidated response
   const generalConfig = allSettings?.general;
@@ -206,15 +204,6 @@ export function GeneralSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timezone, silenceEnabled, silenceStartTime, silenceEndTime, hasChanges]);
 
-  const handleDevModeToggle = async (checked: boolean) => {
-    try {
-      const result = await devModeMutation.mutateAsync(checked);
-      toast.success(result.message || `Dev mode ${checked ? "enabled" : "disabled"}`);
-    } catch {
-      toast.error("Failed to toggle dev mode");
-    }
-  };
-
   // Get current time in selected timezone for display
   const getCurrentTimeInTimezone = () => {
     try {
@@ -226,7 +215,6 @@ export function GeneralSettings() {
   };
 
   const isRunning = status?.running ?? false;
-  const devMode = status?.config_summary?.dev_mode ?? false;
   const isSaving = updateGeneralMutation.isPending || updateSilenceMutation.isPending || updatePollingMutation.isPending;
 
   return (
@@ -235,7 +223,7 @@ export function GeneralSettings() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
+              <Settings className="h-5 w-5 text-muted-foreground" />
               General Settings
             </CardTitle>
             <CardDescription>
@@ -245,38 +233,13 @@ export function GeneralSettings() {
           {isLoadingStatus ? (
             <Skeleton className="h-5 w-20" />
           ) : (
-            <Badge variant={isRunning ? "default" : "secondary"} className="text-xs">
+            <Badge variant={isRunning ? "default" : "secondary"} className={`text-xs ${isRunning ? "bg-brand/15 text-brand border-brand/25 hover:bg-brand/20" : ""}`}>
               {isRunning ? "● Running" : "○ Stopped"}
             </Badge>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Dev Mode Toggle */}
-        {isLoadingStatus ? (
-          <div className="flex items-center gap-3 pb-6 border-b">
-            <Skeleton className="h-4 w-4 rounded" />
-            <Skeleton className="h-5 w-11 rounded-full" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 pb-6 border-b">
-            <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Switch
-              checked={devMode}
-              onCheckedChange={handleDevModeToggle}
-              disabled={devModeMutation.isPending}
-              id="dev-mode"
-            />
-            <label htmlFor="dev-mode" className="text-sm cursor-pointer flex-1">
-              Dev Mode{" "}
-              <span className="text-muted-foreground">
-                {devMode ? "(preview only)" : ""}
-              </span>
-            </label>
-          </div>
-        )}
-
         {/* Timezone & Polling Interval - Side by Side */}
         <div className="pb-6 border-b">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

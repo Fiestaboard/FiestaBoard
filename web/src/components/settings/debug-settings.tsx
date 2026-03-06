@@ -490,8 +490,6 @@ export function DebugSettings() {
                       )}
                     </div>
                     
-                    <div className="font-medium text-muted-foreground">Dev Mode:</div>
-                    <div>{systemInfo.dev_mode ? "Enabled" : "Disabled"}</div>
                   </div>
 
                   {/* Cache Status */}

@@ -185,8 +185,7 @@ describe("PageBuilder", () => {
       expect(screen.getByPlaceholderText("My Custom Page")).toBeInTheDocument();
     });
 
-    // Wait for and click the Cancel button (it's labeled as "Close" in the UI)
-    const closeButton = await screen.findByRole("button", { name: /close/i });
+    const closeButton = await screen.findByRole("button", { name: /back to pages/i });
     await user.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalled();
@@ -394,37 +393,14 @@ describe("PageBuilder", () => {
   });
 });
 
-describe("ServiceControls with Dev Mode", () => {
-  it("shows dev mode toggle", async () => {
-    // Import dynamically to avoid issues
-    const { ServiceControls } = await import("@/components/service-controls");
-    
-    render(<ServiceControls />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Dev Mode/i)).toBeInTheDocument();
-    });
-  });
-
+describe("ServiceControls", () => {
   it("shows service status badge", async () => {
     const { ServiceControls } = await import("@/components/service-controls");
     
     render(<ServiceControls />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      // Should show either "Running" or "Stopped" badge
       expect(screen.getByText(/Running|Stopped/)).toBeInTheDocument();
-    });
-  });
-
-  it("explains dev mode states", async () => {
-    const { ServiceControls } = await import("@/components/service-controls");
-    
-    render(<ServiceControls />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      // Should show explanatory text about live/preview mode
-      expect(screen.getByText(/Web UI displays content/i)).toBeInTheDocument();
     });
   });
 });

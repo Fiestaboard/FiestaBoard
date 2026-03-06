@@ -1,8 +1,9 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Check, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
+import { Check, GalleryHorizontalEnd, LayoutTemplate, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Carousel } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
 
@@ -39,12 +40,12 @@ export function PagePickerDialog({
       aria-pressed={selectedPageId === null}
       onClick={() => onSelect(null)}
       className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-        selectedPageId === null ? "border-primary bg-muted/50" : ""
+        selectedPageId === null ? "border-brand bg-muted/50" : ""
       }`}
     >
       <span className="text-sm font-medium">None (no default)</span>
       {selectedPageId === null && (
-        <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+        <Check className="h-4 w-4 text-brand" aria-hidden="true" />
       )}
     </button>
   );
@@ -58,7 +59,7 @@ export function PagePickerDialog({
           aria-selected={selectedPageId === page.id}
           onClick={() => onSelect(page.id)}
           className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            selectedPageId === page.id ? "border-primary bg-muted/50" : ""
+            selectedPageId === page.id ? "border-brand bg-muted/50" : ""
           }`}
         >
           <div className="flex items-center gap-2">
@@ -70,7 +71,7 @@ export function PagePickerDialog({
             )}
           </div>
           {selectedPageId === page.id && (
-            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+            <Check className="h-4 w-4 text-brand" aria-hidden="true" />
           )}
         </button>
       ))}
@@ -86,7 +87,7 @@ export function PagePickerDialog({
           aria-selected={selectedPageId === carousel.id}
           onClick={() => onSelect(carousel.id)}
           className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            selectedPageId === carousel.id ? "border-primary bg-muted/50" : ""
+            selectedPageId === carousel.id ? "border-brand bg-muted/50" : ""
           }`}
         >
           <div className="flex items-center gap-2">
@@ -97,7 +98,7 @@ export function PagePickerDialog({
             </Badge>
           </div>
           {selectedPageId === carousel.id && (
-            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+            <Check className="h-4 w-4 text-brand" aria-hidden="true" />
           )}
         </button>
       ))}
@@ -108,7 +109,15 @@ export function PagePickerDialog({
     return (
       <div className="space-y-2">
         {noneOption}
-        {pagesList}
+        {pages.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No pages yet"
+            description="Create a page from the Pages screen to select it here."
+          />
+        ) : (
+          pagesList
+        )}
       </div>
     );
   }
@@ -128,7 +137,15 @@ export function PagePickerDialog({
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pages">
-          {pagesList}
+          {pages.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No pages yet"
+              description="Create a page from the Pages screen to select it here."
+            />
+          ) : (
+            pagesList
+          )}
         </TabsContent>
         <TabsContent value="carousels">
           {carouselsList}

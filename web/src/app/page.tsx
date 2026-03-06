@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivePageDisplay } from "@/components/active-page-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Info } from "lucide-react";
+import { Info, Home as HomeIcon } from "lucide-react";
 import { getSetupStatus } from "@/lib/setup-detection";
 import { useWizard } from "@/components/wizard-provider";
 
@@ -25,19 +25,20 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+    <div className="min-h-screen bg-background overflow-x-hidden relative">
+      <div className="container relative z-10 mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
+        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
+          <h1 className="page-title flex items-center gap-3">
+            <HomeIcon className="h-7 w-7 text-brand-emphasis" />
             Dashboard
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+          <p className="page-description">
             Monitor your board display and system activity
           </p>
         </div>
 
         {boardNotConfigured && (
-          <div className="mb-4 sm:mb-6">
+          <div className="mb-6">
             <Alert className="border-info/50 bg-info/10">
               <Info className="h-4 w-4 text-info" />
               <AlertTitle>No board configured</AlertTitle>
@@ -45,7 +46,7 @@ export default function Home() {
                 <span>
                   Your board is not set up yet. Connect your board to start displaying content.
                 </span>
-                <Button variant="outline" size="sm" onClick={triggerWizard} className="w-fit">
+                <Button variant="brand" size="sm" onClick={triggerWizard} className="w-fit btn-lift">
                   Run Setup Wizard
                 </Button>
               </AlertDescription>

@@ -6,6 +6,7 @@ import {
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
+  endOfDay,
   addDays,
   setHours,
   setMinutes,
@@ -145,8 +146,10 @@ export function scheduleToCalendarEvents(
         // should wrap to this week's Sunday instead of next week's Sunday
         const morningDay = dayOfWeek === 6 ? weekStart : nextDay;
 
-        // Evening part: start_time → midnight
-        const eveningEnd = setMinutes(setHours(nextDay, 0), 0);
+        // Evening part: start_time → end of day (23:59:59.999)
+        // Use endOfDay instead of midnight-next-day so react-big-calendar
+        // keeps the event within the same day column
+        const eveningEnd = endOfDay(day);
         events.push({
           id: `${schedule.id}-${format(day, "yyyy-MM-dd")}-evening`,
           title: pageName,

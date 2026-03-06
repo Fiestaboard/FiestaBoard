@@ -48,7 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays } from "lucide-react";
+import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays, Calendar as CalendarIcon } from "lucide-react";
 import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern, isCarouselId } from "@/lib/api";
 import { toast } from "sonner";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
@@ -121,17 +121,17 @@ export default function SchedulePage() {
     enabled: (schedulesData?.schedules.length || 0) > 0,
   });
 
-  // Toggle schedule mode (per board when multi-board)
+  // Toggle schedule (per board when multi-board)
   const toggleSchedule = useMutation({
     mutationFn: (enabled: boolean) => api.setScheduleEnabled(enabled, effectiveBoardId || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-      toast.success(schedulesData?.enabled ? "Schedule mode disabled" : "Schedule mode enabled");
+      toast.success(schedulesData?.enabled ? "Schedule disabled" : "Schedule enabled");
     },
     onError: () => {
-      toast.error("Failed to toggle schedule mode");
+      toast.error("Failed to toggle schedule");
     },
   });
 
@@ -295,8 +295,8 @@ export default function SchedulePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-4 sm:p-6 md:p-8">
-        <div className="container mx-auto max-w-6xl">
+      <div className="min-h-screen bg-background overflow-x-hidden">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
           <Skeleton className="h-10 w-48 mb-4" />
           <Skeleton className="h-64 w-full" />
         </div>
@@ -312,19 +312,21 @@ export default function SchedulePage() {
   const hasGaps = (validation?.gaps?.length || 0) > 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-6xl">
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Schedule</h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
+          <h1 className="page-title flex items-center gap-3">
+            <CalendarIcon className="h-7 w-7 text-brand-emphasis" />
+            Schedule
+          </h1>
+          <p className="page-description">
             Automate page rotation based on time and day
-          </p>
-          <p className="text-muted-foreground text-xs mt-1">
-            Times shown in: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            <span className="text-xs ml-2">
+              (Times shown in: {Intl.DateTimeFormat().resolvedOptions().timeZone})
+            </span>
           </p>
         </div>
-
         {/* Board selector when multiple boards */}
         {boards.length > 1 && (
           <div className="mb-6" data-testid="board-selector">
@@ -359,7 +361,7 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {/* Schedule Mode Toggle */}
+        {/* Schedule Toggle + Default Page */}
         <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -367,8 +369,8 @@ export default function SchedulePage() {
                 <CardTitle className="text-lg">Schedule Mode</CardTitle>
                 <CardDescription>
                   {scheduleEnabled
-                    ? "Pages automatically rotate based on schedule"
-                    : "Pages are controlled manually"}
+                    ? "Enabled — pages automatically rotate based on schedule"
+                    : "Disabled — pages are controlled manually"}
                 </CardDescription>
               </div>
               <Switch
@@ -378,10 +380,42 @@ export default function SchedulePage() {
               />
             </div>
           </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <label className="text-sm text-muted-foreground whitespace-nowrap">
+                Default page for gaps:
+              </label>
+              {pagesData && (
+                <Select
+                  value={defaultPageId || NO_DEFAULT_PAGE}
+                  onValueChange={(value) => {
+                    setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Select a default page" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_DEFAULT_PAGE}>None (no default)</SelectItem>
+                    {pagesData.pages.map((page) => (
+                      <SelectItem key={page.id} value={page.id}>
+                        {page.name}
+                      </SelectItem>
+                    ))}
+                    {carouselsData?.carousels?.map((carousel) => (
+                      <SelectItem key={carousel.id} value={carousel.id}>
+                        {carousel.name} (carousel)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </CardContent>
         </Card>
 
         {/* Validation Status */}
-        {scheduleEnabled && (hasOverlaps || hasGaps) && (
+        {(hasOverlaps || hasGaps) && (
           <Alert 
             variant={hasOverlaps ? "destructive" : "default"} 
             className={`mb-6 ${hasGaps && !hasOverlaps && defaultPageId ? "border-info/50 bg-info/10" : ""}`}
@@ -434,45 +468,8 @@ export default function SchedulePage() {
           </Alert>
         )}
 
-        {/* Default Page */}
-        <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
-          <CardHeader>
-            <CardTitle className="text-lg">Default Page</CardTitle>
-            <CardDescription>
-              Page to display when no schedule matches (gaps)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {pagesData && (
-              <Select
-                value={defaultPageId || NO_DEFAULT_PAGE}
-                onValueChange={(value) => {
-                  setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a default page" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_DEFAULT_PAGE}>None (no default)</SelectItem>
-                  {pagesData.pages.map((page) => (
-                    <SelectItem key={page.id} value={page.id}>
-                      {page.name}
-                    </SelectItem>
-                  ))}
-                  {carouselsData?.carousels?.map((carousel) => (
-                    <SelectItem key={carousel.id} value={carousel.id}>
-                      {carousel.name} (carousel)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </CardContent>
-        </Card>
-
         {/* View Toggle */}
-        <div className="flex items-center justify-center sm:justify-start mb-4">
+        <div className="flex items-center justify-start mb-4">
           <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
             <Button
               variant={viewMode === "list" ? "secondary" : "ghost"}
@@ -510,7 +507,7 @@ export default function SchedulePage() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <CardTitle className="text-lg">Schedule Calendar</CardTitle>
-                <Button size="sm" onClick={handleAdd} className="w-full sm:w-auto">
+                <Button variant="brand" size="sm" onClick={handleAdd} className="w-full sm:w-auto btn-lift">
                   <Plus className="h-4 w-4 mr-1" />
                   Add Schedule
                 </Button>

@@ -310,7 +310,7 @@ class TestScheduleModeIntegration:
                         service.vb_client = mock_client_instance
                         
                         # Check active page (should use manual page1)
-                        result = service.check_and_send_active_page(dev_mode=True)
+                        result = service.check_and_send_active_page()
                         
                         # Verify it used page1 (manual), not page2
                         assert service._last_active_page_id == page1.id
@@ -372,7 +372,7 @@ class TestScheduleModeIntegration:
                             service.vb_client = mock_client_instance
                             
                             # Check active page (should use scheduled page2, not manual page1)
-                            result = service.check_and_send_active_page(dev_mode=True)
+                            result = service.check_and_send_active_page()
                             
                             # Verify it used page2 (scheduled), not page1 (manual)
                             assert service._last_active_page_id == page2.id
@@ -434,7 +434,7 @@ class TestScheduleModeIntegration:
                             service.vb_client = mock_client_instance
                             
                             # Check active page (should use default page)
-                            result = service.check_and_send_active_page(dev_mode=True)
+                            result = service.check_and_send_active_page()
                             
                             # Verify it used the default page
                             assert service._last_active_page_id == default_page.id
@@ -489,7 +489,7 @@ class TestScheduleModeIntegration:
                             service.vb_client = mock_client_instance
                             
                             # Check active page (should return False - no page available)
-                            result = service.check_and_send_active_page(dev_mode=True)
+                            result = service.check_and_send_active_page()
                             
                             # Verify it returned False and didn't send
                             assert result is False

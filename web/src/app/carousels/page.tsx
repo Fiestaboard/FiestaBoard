@@ -341,8 +341,8 @@ export default function CarouselsPage() {
 
   if (isLoadingCarousels) {
     return (
-      <div className="min-h-screen bg-background p-4 sm:p-6 md:p-8">
-        <div className="container mx-auto max-w-4xl">
+      <div className="min-h-screen bg-background overflow-x-hidden">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
           <Skeleton className="h-10 w-48 mb-4" />
           <Skeleton className="h-64 w-full" />
         </div>
@@ -351,28 +351,33 @@ export default function CarouselsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-4xl">
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Carousels</h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            Create collections of pages that cycle automatically
-          </p>
-        </div>
-
-        {/* Create button */}
-        <div className="flex justify-end mb-4">
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingCarousel(null);
-              setShowForm(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            New Carousel
-          </Button>
+        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="page-title flex items-center gap-3">
+                <GalleryHorizontalEnd className="h-7 w-7 text-brand-emphasis" />
+                Carousels
+              </h1>
+              <p className="page-description">
+                Create collections of pages that cycle automatically
+              </p>
+            </div>
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={() => {
+                setEditingCarousel(null);
+                setShowForm(true);
+              }}
+              className="btn-lift"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              New Carousel
+            </Button>
+          </div>
         </div>
 
         {/* Carousels list */}
@@ -385,11 +390,12 @@ export default function CarouselsPage() {
                 Carousels automatically cycle through a collection of pages.
               </p>
               <Button
-                variant="outline"
+                variant="brand"
                 onClick={() => {
                   setEditingCarousel(null);
                   setShowForm(true);
                 }}
+                className="btn-lift"
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Create Your First Carousel
@@ -401,7 +407,7 @@ export default function CarouselsPage() {
             {carousels.map((carousel, idx) => (
               <Card
                 key={carousel.id}
-                className="animate-card-fade-in"
+                className="animate-card-fade-in card-interactive"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
                 <CardHeader className="pb-3">

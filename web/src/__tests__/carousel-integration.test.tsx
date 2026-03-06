@@ -195,7 +195,7 @@ describe("PagePickerDialog - Carousel Integration", () => {
     // When a carousel is selected, the carousels tab is default
     expect(screen.getByText("Morning Rotation")).toBeInTheDocument();
     const button = screen.getByText("Morning Rotation").closest("button");
-    expect(button).toHaveClass("border-primary");
+    expect(button).toHaveClass("border-brand");
   });
 
   it("calls onSelect with carousel ID when carousel is clicked", async () => {

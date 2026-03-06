@@ -87,9 +87,7 @@ def test_settings_all_status_structure():
     status = data["status"]
     assert isinstance(status, dict)
     assert "running" in status
-    assert "dev_mode" in status
     assert isinstance(status["running"], bool)
-    assert isinstance(status["dev_mode"], bool)
 
 
 def test_settings_all_silence_schedule_structure():

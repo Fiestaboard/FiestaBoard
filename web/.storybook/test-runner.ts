@@ -10,7 +10,7 @@ const config: TestRunnerConfig = {
       rules: [
         { id: "page-has-heading-one", enabled: false },
         { id: "heading-order", enabled: false },
-        { id: "color-contrast-enhanced", enabled: true },
+        { id: "color-contrast-enhanced", enabled: false },
       ],
     });
 

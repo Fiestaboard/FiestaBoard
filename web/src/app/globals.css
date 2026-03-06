@@ -63,6 +63,11 @@
   /* Overlay */
   --color-overlay: var(--overlay);
 
+  /* Brand accent (sidebar active, links, key UI) - FiestaBoard orange from taco icon #f5a623 */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-emphasis: var(--brand-emphasis);
+
   /* Board Official Colors - use these for all status/tile colors */
   --color-board-red: #eb4034;
   --color-board-orange: #f5a623;
@@ -92,11 +97,16 @@
   --color-fiesta-violet: var(--color-board-violet);
   --color-fiesta-white: var(--color-board-white);
   --color-fiesta-black: var(--color-board-black);
+
+  /* Elevation shadows (theme-aware via CSS vars in :root / .dark) */
+  --shadow-card: var(--elevation-card);
+  --shadow-card-hover: var(--elevation-card-hover);
+  --shadow-modal: var(--elevation-modal);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  --background: oklch(0.985 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -104,29 +114,29 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.960 0 0);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.41 0 0);
-  --accent: oklch(0.97 0 0);
+  --muted: oklch(0.955 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.950 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.43 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.66 0 0);
-  --input: oklch(0.66 0 0);
+  --border: oklch(0.905 0 0);
+  --input: oklch(0.885 0 0);
   --ring: oklch(0.55 0 0);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.65 0.189 84.429);
   --chart-5: oklch(0.65 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(0.975 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: oklch(0.945 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.66 0 0);
+  --sidebar-border: oklch(0.915 0 0);
   --sidebar-ring: oklch(0.55 0 0);
   --info: oklch(0.45 0.15 250);
   --info-foreground: oklch(0.985 0 0);
@@ -139,41 +149,49 @@
   --tag-success: oklch(0.45 0.2 160);
   --tag-success-foreground: oklch(0.35 0.1 160);
   --overlay: oklch(0 0 0 / 80%);
+  /* Brand accent - FiestaBoard orange from taco icon (#f5a623) */
+  --brand: oklch(0.72 0.15 75);
+  --brand-emphasis: oklch(0.52 0.16 60);
+  --brand-foreground: oklch(1 0 0);
+  /* Elevation - subtle card and modal shadows */
+  --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.06);
+  --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 4px 16px -4px rgb(0 0 0 / 0.06);
+  --elevation-modal: 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.130 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.160 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.160 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --secondary: oklch(0.215 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
+  --muted: oklch(0.200 0 0);
   --muted-foreground: oklch(0.83 0 0);
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(0.190 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.80 0.191 22.216);
   --destructive-foreground: oklch(0.15 0 0);
-  --border: oklch(1 0 0 / 18%);
-  --input: oklch(1 0 0 / 22%);
-  --ring: oklch(0.62 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.55 0 0);
   --chart-1: oklch(0.55 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.145 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(0.185 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 18%);
-  --sidebar-ring: oklch(0.62 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.55 0 0);
   --info: oklch(0.75 0.18 250);
   --info-foreground: oklch(0.15 0 0);
   --success: oklch(0.68 0.18 145);
@@ -185,6 +203,12 @@
   --tag-success: oklch(0.65 0.15 160);
   --tag-success-foreground: oklch(0.85 0.08 160);
   --overlay: oklch(0 0 0 / 80%);
+  --brand: oklch(0.78 0.14 75);
+  --brand-emphasis: oklch(0.55 0.16 60);
+  --brand-foreground: oklch(1 0 0);
+  --elevation-card: 0 1px 3px 0 rgb(0 0 0 / 0.20), 0 0 0 1px oklch(1 0 0 / 6%);
+  --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.30), 0 0 0 1px oklch(1 0 0 / 10%);
+  --elevation-modal: 0 8px 24px -4px rgb(0 0 0 / 0.25), 0 4px 8px -4px rgb(0 0 0 / 0.15);
 }
 
 @layer base {
@@ -197,6 +221,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'ss01';
   }
   /* Prevent Radix UI Select from removing scrollbar when opened */
   body[data-scroll-locked] {
@@ -205,30 +230,32 @@
   }
 }
 
-/* Accordion animations */
+/* Accordion animations — grid-row technique avoids layout-triggering height animation */
 @keyframes accordion-down {
   from {
-    height: 0;
+    grid-template-rows: 0fr;
   }
   to {
-    height: var(--radix-accordion-content-height);
+    grid-template-rows: 1fr;
   }
 }
 
 @keyframes accordion-up {
   from {
-    height: var(--radix-accordion-content-height);
+    grid-template-rows: 1fr;
   }
   to {
-    height: 0;
+    grid-template-rows: 0fr;
   }
 }
 
 .animate-accordion-down {
+  display: grid;
   animation: accordion-down 0.2s ease-out;
 }
 
 .animate-accordion-up {
+  display: grid;
   animation: accordion-up 0.2s ease-out;
 }
 
@@ -469,54 +496,74 @@
 }
 
 
+/* Sidebar collapse/expand transition */
+.sidebar-transition {
+  transition: width 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              padding-left 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  contain: content;
+}
+.sidebar-transition.is-transitioning {
+  will-change: width, padding-left;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-transition {
+    transition: none;
+  }
+}
+
+/* Interactive card hover feedback */
+@layer utilities {
+  .card-interactive {
+    @apply transition-[box-shadow,border-color] duration-200;
+  }
+}
+@media (hover: hover) {
+  .card-interactive:hover {
+    box-shadow: var(--elevation-card-hover);
+    border-color: oklch(0.80 0 0);
+  }
+  .dark .card-interactive:hover {
+    border-color: oklch(0.35 0 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive {
+    transition: none;
+  }
+}
+
 /* Performance optimizations for interactive elements */
 @layer utilities {
-  /* Optimize hover states for better performance */
   .hover-optimized {
-    will-change: border-color, background-color;
-    transform: translateZ(0); /* Force GPU acceleration */
-    contain: layout style paint; /* CSS containment for better performance */
+    contain: layout style paint;
   }
   
-  /* Optimize transitions to use GPU-accelerated properties */
   .transition-optimized {
     transition-property: border-color, background-color, color;
     transition-timing-function: ease-out;
-    will-change: border-color, background-color, color;
   }
   
-  /* Optimize page button container for better hover/click performance */
   .page-button-container {
     contain: layout style paint;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-font-smoothing: antialiased;
-    /* Remove all transitions for instant feedback - no sluggishness */
     transition: none !important;
   }
   
-  /* Use compositor-only properties for hover effects - ultra fast for instant feel */
   .hover-fast {
     transition: border-color 75ms cubic-bezier(0.4, 0, 0.2, 1), 
                 background-color 75ms cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: border-color, background-color;
   }
   
-  /* Instant hover - no transition for maximum responsiveness */
   .hover-instant {
     /* No transition - instant color change */
   }
   
-  /* Prevent layout shifts on hover */
   .hover-stable {
     contain: layout;
   }
   
-  /* Use opacity/transform for smoother hover effects */
   .hover-smooth {
     transition: opacity 100ms cubic-bezier(0.4, 0, 0.2, 1),
                 transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: opacity, transform;
   }
 }
 
@@ -665,6 +712,40 @@
   animation: card-fade-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Type scale: ratio 1.25; body 1rem (16px). Tailwind text-xs/sm/base/lg/xl/2xl/3xl/4xl align. */
+/* Page typography - consistent titles and descriptions */
+.page-title {
+  @apply text-2xl sm:text-3xl font-bold tracking-tight;
+  text-wrap: balance;
+}
+.page-description {
+  @apply text-muted-foreground mt-1 text-sm sm:text-base leading-relaxed;
+}
+.page-title-display {
+  @apply text-3xl sm:text-4xl font-bold tracking-tight;
+  text-wrap: balance;
+}
+
+/* Micro-interaction: subtle lift for primary CTAs (respects prefers-reduced-motion via transition) */
+.btn-lift {
+  @apply transition-transform duration-150 ease-out;
+}
+@media (hover: hover) {
+  .btn-lift:hover {
+    transform: scale(1.015);
+  }
+}
+.btn-lift:active {
+  transform: scale(0.985);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-lift,
+  .btn-lift:hover,
+  .btn-lift:active {
+    transform: none;
+  }
+}
+
 /* Shiny text sweep animation (reactbits ShinyText) */
 @keyframes shiny-text {
   from {
@@ -687,5 +768,6 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

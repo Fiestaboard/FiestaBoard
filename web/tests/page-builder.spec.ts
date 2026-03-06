@@ -40,7 +40,7 @@ test.describe("Page Builder", () => {
 
     // Save the page
     const saveButton = page
-      .locator('[title="Save Page"]')
+      .getByRole("button", { name: "Save Page" })
       .or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
@@ -77,7 +77,7 @@ test.describe("Page Builder", () => {
     await nameInput.fill("Updated Name");
 
     const saveButton = page
-      .locator('[title="Save Page"]')
+      .getByRole("button", { name: "Save Page" })
       .or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
@@ -101,7 +101,7 @@ test.describe("Page Builder", () => {
 
     // Leave name empty — save button should be disabled
     const saveButton = page
-      .locator('[title="Save Page"]')
+      .getByRole("button", { name: "Save Page" })
       .or(page.getByRole("button", { name: /save/i }));
     const isDisabled = await saveButton
       .first()

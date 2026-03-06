@@ -39,25 +39,6 @@ describe("API Extended Tests", () => {
       expect(result.message).toContain("stopped");
     });
 
-    it("toggleDevMode sends correct body", async () => {
-      let capturedBody: any;
-      server.use(
-        http.post(`${API_BASE}/dev-mode`, async ({ request }) => {
-          capturedBody = await request.json();
-          return HttpResponse.json({
-            status: "success",
-            dev_mode: capturedBody.dev_mode,
-            message: "ok",
-          });
-        })
-      );
-
-      await api.toggleDevMode(true);
-      expect(capturedBody).toEqual({ dev_mode: true });
-
-      await api.toggleDevMode(false);
-      expect(capturedBody).toEqual({ dev_mode: false });
-    });
   });
 
   describe("Display endpoints", () => {
@@ -127,7 +108,6 @@ describe("API Extended Tests", () => {
             status: "success",
             page_id: capturedBody.page_id,
             sent_to_board: true,
-            dev_mode: false,
           });
         })
       );
@@ -197,7 +177,7 @@ describe("API Extended Tests", () => {
           capturedUrl = request.url;
           return HttpResponse.json({
             status: "success", page_id: "page-1",
-            message: "sent", sent_to_board: true, target: "both", dev_mode: false,
+            message: "sent", sent_to_board: true, target: "both",
           });
         })
       );
@@ -759,9 +739,9 @@ describe("API Extended Tests", () => {
             silence_schedule: {},
             polling: { interval_seconds: 300 },
             transitions: { strategy: "column", step_interval_ms: 500, step_size: 2 },
-            output: { target: "board", dev_mode: false, effective_target: "board", available_targets: [] },
+            output: { target: "board", effective_target: "board", available_targets: [] },
             board: { board_type: "black", boards: [], devices: [] },
-            status: { running: true, dev_mode: false },
+            status: { running: true },
           })
         )
       );
@@ -982,7 +962,7 @@ describe("API Extended Tests", () => {
             connection_mode: "local", version: "2.0.0",
             timestamp: new Date().toISOString(),
             cache_status: null, board_configured: true,
-            service_running: true, dev_mode: false,
+            service_running: true,
           })
         )
       );

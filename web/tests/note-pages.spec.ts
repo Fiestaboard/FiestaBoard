@@ -130,7 +130,7 @@ test.describe("Note pages – UI", () => {
     await editor.pressSequentially("HELLO NOTE");
 
     // Save
-    await page.locator('[title="Save Page"]').click();
+    await page.getByRole("button", { name: "Save Page" }).click();
 
     // After save, verify via API
     await page.waitForTimeout(2_000);

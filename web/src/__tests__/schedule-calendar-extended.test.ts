@@ -154,7 +154,7 @@ describe("schedule-calendar extended", () => {
       eveningEvents.forEach((e) => {
         expect(e.resource.isMidnightSplit).toBe(true);
         expect(e.start.getHours()).toBe(22);
-        expect(e.end.getHours()).toBe(0);
+        expect(e.end.getHours()).toBe(23); // endOfDay → 23:59:59.999
       });
 
       morningEvents.forEach((e) => {

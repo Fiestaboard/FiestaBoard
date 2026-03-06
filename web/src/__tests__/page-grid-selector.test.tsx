@@ -376,7 +376,7 @@ describe("PageGridSelector", () => {
 
     await waitFor(() => {
       const button = screen.getByText("Page 2").closest("button");
-      expect(button).toHaveClass("border-primary");
+      expect(button).toHaveClass("border-brand");
     });
   });
 
@@ -517,7 +517,7 @@ describe("PageGridSelector", () => {
 
     await waitFor(() => {
       const button = screen.getByText("Active Carousel").closest("button");
-      expect(button).toHaveClass("border-primary");
+      expect(button).toHaveClass("border-brand");
     });
 
     screen.getByText("Active Carousel").closest("button")!.click();
@@ -576,7 +576,7 @@ describe("PageGridSelector", () => {
 
       await waitFor(() => {
         const button = screen.getByText("Page 2").closest("button");
-        expect(button).toHaveClass("border-primary");
+        expect(button).toHaveClass("border-brand");
       });
     });
 

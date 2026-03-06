@@ -344,27 +344,20 @@ class TestSettingsServiceOutput:
         with pytest.raises(ValueError, match="Invalid target"):
             settings_service.set_output_target("invalid")
 
-    def test_should_send_to_board_dev_mode_both(self, settings_service):
+    def test_should_send_to_board_board_target(self, settings_service):
+        settings_service.set_output_target("board")
+        assert settings_service.should_send_to_board() is True
+
+    def test_should_send_to_board_both_target(self, settings_service):
         settings_service.set_output_target("both")
-        assert settings_service.should_send_to_board(dev_mode=True) is True
+        assert settings_service.should_send_to_board() is True
 
-    def test_should_send_to_board_dev_mode_ui_only(self, settings_service):
+    def test_should_send_to_board_ui_target(self, settings_service):
         settings_service.set_output_target("ui")
-        assert settings_service.should_send_to_board(dev_mode=True) is False
-
-    def test_should_send_to_board_dev_mode_board_only(self, settings_service):
-        settings_service.set_output_target("board")
-        assert settings_service.should_send_to_board(dev_mode=True) is False
-
-    def test_should_send_to_board_prod_mode(self, settings_service):
-        settings_service.set_output_target("board")
-        assert settings_service.should_send_to_board(dev_mode=False) is True
-        settings_service.set_output_target("ui")
-        assert settings_service.should_send_to_board(dev_mode=False) is False
+        assert settings_service.should_send_to_board() is False
 
     def test_should_send_to_ui_always_true(self, settings_service):
-        assert settings_service.should_send_to_ui(dev_mode=True) is True
-        assert settings_service.should_send_to_ui(dev_mode=False) is True
+        assert settings_service.should_send_to_ui() is True
 
 
 class TestSettingsServiceActivePage:

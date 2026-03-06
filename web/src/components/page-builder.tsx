@@ -13,7 +13,6 @@ import { PlainTextEditor } from "@/components/plain-text-editor";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -25,8 +24,7 @@ import {
 import { toast } from "sonner";
 import { queryKeys } from "@/hooks/use-board";
 import {
-  Wand2,
-  X,
+  ArrowLeft,
   Save,
   Trash2,
   Radio,
@@ -60,6 +58,17 @@ interface PageBuilderProps {
 // Draft storage key helper
 function getDraftKey(pageId?: string): string {
   return `fiestaboard-page-draft-${pageId || 'new'}`;
+}
+
+const EDITOR_MODE_KEY = "fiestaboard_editor_mode";
+
+function getStoredEditorMode(): "rich" | "plain" {
+  if (typeof window === "undefined") return "rich";
+  try {
+    const stored = localStorage.getItem(EDITOR_MODE_KEY);
+    if (stored === "rich" || stored === "plain") return stored;
+  } catch {}
+  return "rich";
 }
 
 interface DraftData {
@@ -101,7 +110,14 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [isTransitioning, setIsTransitioning] = useState(false); // Track if we're transitioning between previews
   const [pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
-  const [editorMode, setEditorMode] = useState<"rich" | "plain">("rich");
+  const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
+
+  const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
+    setEditorMode(mode);
+    try {
+      localStorage.setItem(EDITOR_MODE_KEY, mode);
+    } catch {}
+  }, []);
 
   // Derive line count from templateLines — single source of truth avoids
   // desync when switching between Rich and Plain Text editors.
@@ -490,49 +506,28 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       return api.renderTemplate(cleanedLines, metadata);
     },
     onSuccess: (data) => {
-      console.log('[Preview] onSuccess called');
-      console.log('[Preview] Response data:', data);
-      console.log('[Preview] shouldIgnoreNextResponse:', shouldIgnoreNextResponse.current);
-      console.log('[Preview] Current preview state:', preview);
-      console.log('[Preview] Current debouncedTemplateLines:', debouncedTemplateLines);
-      
-      // Ignore response if content was cleared while request was in flight
       if (shouldIgnoreNextResponse.current) {
-        console.log('[Preview] Ignoring response (content was cleared)');
         shouldIgnoreNextResponse.current = false;
         return;
       }
       
-      // Double-check that we still have content before setting preview
       const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
-      console.log('[Preview] Has content check in onSuccess:', hasContent);
       if (!hasContent) {
-        console.log('[Preview] No content, setting preview to null');
         setPreview(null);
         return;
       }
       
-      // Also check if the API returned empty content (all blank lines)
-      // This handles the case where API correctly identifies 6 blank lines as empty
       const renderedHasContent = data.rendered && data.rendered.trim().length > 0;
-      console.log('[Preview] Rendered has content:', renderedHasContent, 'rendered length:', data.rendered?.length);
       if (!renderedHasContent) {
-        console.log('[Preview] Rendered content is empty, setting preview to null');
         setPreview(null);
         return;
       }
       
-      console.log('[Preview] Setting preview to:', data.rendered);
-      
-      // If we have a current preview, trigger transition: show loading, then new preview
       if (preview !== null && preview !== data.rendered) {
-        console.log('[Preview] Preview changed, triggering transition');
-        // Keep current preview visible, set loading state
         setLastPreview(preview);
         setIsTransitioning(true);
         setPendingPreview(data.rendered);
         
-        // After a brief moment, show new preview (triggers transition)
         setTimeout(() => {
           setPreview(data.rendered);
           setIsTransitioning(false);
@@ -540,27 +535,21 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
           if (data.rendered) {
             setLastPreview(data.rendered);
           }
-        }, 100); // Brief delay to ensure loading state is visible
+        }, 100);
       } else {
-        // No previous preview or same preview - set directly
         setPreview(data.rendered);
         if (data.rendered) {
           setLastPreview(data.rendered);
         }
       }
       
-      // If changes occurred while this preview was rendering, trigger another preview
       if (needsRePreview.current) {
-        console.log('[Preview] Needs re-preview, triggering another mutation');
         needsRePreview.current = false;
         previewMutation.mutate();
       }
     },
-    onError: (error) => {
-      console.log('[Preview] onError called:', error);
+    onError: () => {
       setPreview(null);
-      
-      // Reset the flag on error too
       needsRePreview.current = false;
     },
   });
@@ -577,65 +566,41 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       return;
     }
 
-    console.log('[Preview] useEffect triggered');
-    console.log('[Preview] debouncedTemplateLines:', debouncedTemplateLines);
-    console.log('[Preview] previewMutation.isPending:', previewMutation.isPending);
-    console.log('[Preview] Current preview:', preview);
-    
-    // Only preview if at least one line has content
     const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
-    console.log('[Preview] Has content:', hasContent);
     
     if (!hasContent) {
-      console.log('[Preview] No content detected, clearing preview');
       setPreview(null);
-      // Reset re-preview flag when content becomes empty
       needsRePreview.current = false;
-      // Mark that we should ignore any pending mutation responses
       if (previewMutation.isPending) {
-        console.log('[Preview] Mutation is pending, setting ignore flag and resetting');
         shouldIgnoreNextResponse.current = true;
         previewMutation.reset();
       }
       return;
     }
     
-    // Clear the ignore flag when we have content again
     shouldIgnoreNextResponse.current = false;
 
-    // Debounce the preview (200ms after debounced state stabilizes)
     const timeoutId = setTimeout(() => {
-      console.log('[Preview] Debounce timeout fired');
-      // Double-check content again after debounce (in case it was cleared during debounce)
       const stillHasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
-      console.log('[Preview] Still has content after debounce:', stillHasContent);
       
       if (!stillHasContent) {
-        console.log('[Preview] Content cleared during debounce, clearing preview');
         setPreview(null);
         shouldIgnoreNextResponse.current = false;
         if (previewMutation.isPending) {
-          console.log('[Preview] Mutation still pending, setting ignore flag');
           shouldIgnoreNextResponse.current = true;
           previewMutation.reset();
         }
         return;
       }
       
-      // Only start a new preview if there isn't one already pending
-      // If one is pending, set a flag so it re-runs after completion
       if (!previewMutation.isPending) {
-        console.log('[Preview] Starting new mutation');
         previewMutation.mutate();
       } else {
-        console.log('[Preview] Mutation already pending, setting needsRePreview flag');
-        // Mark that we need to re-preview after the current mutation completes
         needsRePreview.current = true;
       }
-    }, 200); // 200ms debounce
+    }, 200);
 
     return () => {
-      console.log('[Preview] useEffect cleanup (timeout cleared)');
       clearTimeout(timeoutId);
       // Also clear transition timeout on cleanup
       if (transitionTimeoutRef.current) {
@@ -780,32 +745,45 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         <Card className="flex flex-col min-h-0 w-full max-w-full overflow-x-hidden">
           <CardHeader className="pb-1 flex-shrink-0 px-4 sm:px-6">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Wand2 className="h-4 w-4" />
-                {pageId ? "Edit Page" : "Create Page"}
-              </CardTitle>
+              <div className="flex items-center gap-2 min-w-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={onClose}
+                  aria-label="Back to Pages"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <CardTitle className="text-base sm:text-lg truncate">
+                  {pageId ? "Edit Page" : "Create Page"}
+                </CardTitle>
+              </div>
               <TooltipProvider>
-              <div className="flex items-center gap-1">
-                {/* Save button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
-                      onClick={() => saveMutation.mutate()}
-                      disabled={!name.trim() || saveMutation.isPending}
-                      aria-label="Save Page"
-                      title="Save Page"
-                    >
-                      <Save className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{saveMutation.isPending ? "Saving..." : "Save Page"}</p>
-                  </TooltipContent>
-                </Tooltip>
-                
+              <div className="flex items-center gap-1.5">
+                {/* Editor mode toggle */}
+                <div className="flex items-center border rounded-md" role="group" aria-label="Editor mode">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleEditorModeChange("rich")}
+                    className={`h-7 px-2 text-[11px] rounded-r-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                    aria-label="Rich Editor"
+                    aria-pressed={editorMode === "rich"}
+                  >
+                    Rich
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleEditorModeChange("plain")}
+                    className={`h-7 px-2 text-[11px] rounded-l-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                    aria-label="Plain Text"
+                    aria-pressed={editorMode === "plain"}
+                  >
+                    Plain
+                  </Button>
+                </div>
                 {/* Delete button - only show when editing */}
                 {pageId && (
                   <AlertDialog>
@@ -844,20 +822,23 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
+                {/* Save button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-9 w-9" 
-                      onClick={onClose}
-                      aria-label="Close"
+                    <Button
+                      variant="brand"
+                      size="sm"
+                      className="h-8 gap-1.5 px-3"
+                      onClick={() => saveMutation.mutate()}
+                      disabled={!name.trim() || saveMutation.isPending}
+                      aria-label="Save Page"
                     >
-                      <X className="h-4 w-4" />
+                      <Save className="h-3.5 w-3.5" />
+                      <span className="text-xs">{saveMutation.isPending ? "Saving..." : "Save"}</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Close</p>
+                    <p>Save Page</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -890,13 +871,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
             {/* Template line editors */}
             <div className="space-y-3">
-              <Tabs value={editorMode} onValueChange={(value) => setEditorMode(value as "rich" | "plain")}>
-                <TabsList className="grid w-full max-w-md grid-cols-2">
-                  <TabsTrigger value="rich">Rich Editor</TabsTrigger>
-                  <TabsTrigger value="plain">Plain Text</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="rich" className="mt-4">
+              {editorMode === "rich" ? (
+                <div>
                   {/* Template editor with device-specific dimensions */}
                   <TipTapTemplateEditor
                     value={templateLines.join('\n')}
@@ -964,9 +940,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     boardWidth={dims.cols}
                     boardLines={numLines}
                   />
-                </TabsContent>
-                
-                <TabsContent value="plain" className="mt-4">
+                </div>
+              ) : (
+                <div>
                   <PlainTextEditor
                     value={templateLines.join('\n')}
                     onChange={(newValue) => {
@@ -976,8 +952,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     boardLines={numLines}
                     boardWidth={dims.cols}
                   />
-                </TabsContent>
-              </Tabs>
+                </div>
+              )}
 
               {/* Line count validation warning */}
               {lineCount > numLines && (
@@ -1027,86 +1003,23 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       const isPending = previewMutation.isPending;
                       const shouldIgnore = shouldIgnoreNextResponse.current;
                       
-                      // If we're transitioning, show the last preview (old message) so tiles can transition to new one
-                      if (isTransitioning && lastPreview) {
-                        console.log('[Preview] Message: transitioning, showing last preview for smooth transition');
-                        return lastPreview;
-                      }
-                      
-                      // If we have a preview, use it (new message)
-                      if (preview !== null) {
-                        console.log('[Preview] Message: using preview value:', preview);
-                        return preview;
-                      }
-                      
-                      // If no content and not loading, show blank grid
-                      if (!hasContent && !isPending && !shouldIgnore) {
-                        console.log('[Preview] Message: returning empty string for blank grid');
-                        return "";
-                      }
-                      
-                      // If we're loading and have previous content, keep showing the last preview
-                      // This allows tiles to cycle during loading instead of showing FlipTiles
-                      // The isLoading prop will handle the cycling animation on actual CharTiles
-                      if (isPending && hasContent && !shouldIgnore && lastPreview) {
-                        console.log('[Preview] Message: loading with content, keeping last preview for tile cycling');
-                        return lastPreview;
-                      }
-                      
-                      // If we're loading but no last preview, show blank grid (tiles will cycle)
-                      if (isPending && hasContent && !shouldIgnore) {
-                        console.log('[Preview] Message: loading with content but no last preview, showing blank');
-                        return "";
-                      }
-                      
-                      // Default: return null (shows FlipTiles - only for initial state with no content)
-                      console.log('[Preview] Message: returning null (will show FlipTiles)');
+                      if (isTransitioning && lastPreview) return lastPreview;
+                      if (preview !== null) return preview;
+                      if (!hasContent && !isPending && !shouldIgnore) return "";
+                      if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
+                      if (isPending && hasContent && !shouldIgnore) return "";
                       return null;
                     })()}
                     isLoading={(() => {
-                      // Use new loading pattern: show loading when fetching new preview OR transitioning
-                      // This triggers tile cycling animation on actual CharTiles
-                      
                       const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
                       const isPending = previewMutation.isPending;
                       const shouldIgnore = shouldIgnoreNextResponse.current;
                       
-                      console.log('[Preview] Loading state calculation:');
-                      console.log('  - hasContent:', hasContent);
-                      console.log('  - preview:', preview);
-                      console.log('  - isPending:', isPending);
-                      console.log('  - isTransitioning:', isTransitioning);
-                      console.log('  - shouldIgnore:', shouldIgnore);
-                      
-                      // If we're transitioning between previews, show loading
-                      if (isTransitioning) {
-                        console.log('[Preview] Transitioning between previews, isLoading = true');
-                        return true;
-                      }
-                      
-                      // If we have a preview value and not transitioning, not loading (mutation completed)
-                      if (preview !== null && !isTransitioning) {
-                        console.log('[Preview] Has preview, isLoading = false');
-                        return false;
-                      }
-                      
-                      // If no content, show blank (not loading)
-                      if (!hasContent) {
-                        console.log('[Preview] No content, isLoading = false');
-                        return false;
-                      }
-                      
-                      // Don't show loading if we're ignoring the next response (content was cleared)
-                      if (shouldIgnore) {
-                        console.log('[Preview] Ignoring response, isLoading = false');
-                        return false;
-                      }
-                      
-                      // Show loading if we're fetching and have content
-                      // This will trigger tile cycling on the current/last message
-                      const result = isPending && hasContent;
-                      console.log('[Preview] Final isLoading:', result);
-                      return result;
+                      if (isTransitioning) return true;
+                      if (preview !== null && !isTransitioning) return false;
+                      if (!hasContent) return false;
+                      if (shouldIgnore) return false;
+                      return isPending && hasContent;
                     })()}
                     size="md"
                     boardType={effectiveBoardColor}
@@ -1115,7 +1028,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                 </div>
 
                 {/* Live output controls */}
-                <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
                   <div className="flex items-center gap-2">
                     <Switch
                       id="live-output-toggle"

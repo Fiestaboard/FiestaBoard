@@ -71,13 +71,4 @@ describe("OutputTargetSelector", () => {
     });
   });
 
-  it("shows dev mode note when dev_mode is true", async () => {
-    render(<OutputTargetSelector />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      // mockOutputSettings has dev_mode: true
-      expect(screen.getByText(/Dev mode is enabled/i)).toBeInTheDocument();
-      expect(screen.getByText(/Effective target:/i)).toBeInTheDocument();
-    });
-  });
 });
