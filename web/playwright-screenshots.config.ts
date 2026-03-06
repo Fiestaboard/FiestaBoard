@@ -16,13 +16,16 @@ export default defineConfig({
     trace: "off",
     screenshot: "off",
     viewport: { width: 1280, height: 800 },
-    colorScheme: "dark",
   },
 
   projects: [
     {
-      name: "screenshots",
-      use: { ...devices["Desktop Chrome"] },
+      name: "screenshots-dark",
+      use: { ...devices["Desktop Chrome"], colorScheme: "dark" },
+    },
+    {
+      name: "screenshots-light",
+      use: { ...devices["Desktop Chrome"], colorScheme: "light" },
     },
   ],
 });

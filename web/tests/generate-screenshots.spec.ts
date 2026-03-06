@@ -1,13 +1,14 @@
 /**
  * Playwright screenshot generator for FiestaBoard documentation.
  *
- * Generates three categories of screenshots:
- *   A) Plugin board displays (19 plugins)
+ * Generates four categories of screenshots in both dark and light modes:
+ *   A) Plugin board displays (19 plugins) -- dark only, theme-independent
  *   B) Web UI full-page screenshots (7 pages)
- *   C) Getting-started workflow screenshots (~19 images)
+ *   C) Getting-started workflow screenshots (~16 images)
+ *   D) Homepage feature icon screenshots (6 cropped images)
  *
  * Run against a running dev container at http://localhost:4420:
- *   npx playwright test scripts/generate-screenshots.ts --config scripts/playwright-screenshots.config.ts
+ *   npx playwright test --config playwright-screenshots.config.ts
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -21,7 +22,25 @@ const BOARD_HOST = process.env.MOCK_BOARD_HOST || "fiestaboard-mock-board";
 
 const DOCS_IMG = path.resolve(__dirname, "../../docs-site/static/img");
 const GUIDES_IMG = path.resolve(__dirname, "../../docs-site/static/img/guides");
+const FEATURES_IMG = path.resolve(
+  __dirname,
+  "../../docs-site/static/img/features",
+);
 const PLUGINS_DIR = path.resolve(__dirname, "../../plugins");
+const ROOT_IMG = path.resolve(__dirname, "../../images");
+
+// ---------------------------------------------------------------------------
+// Theme helpers
+// ---------------------------------------------------------------------------
+
+function currentTheme(): "dark" | "light" {
+  const name = test.info().project.name;
+  return name.includes("light") ? "light" : "dark";
+}
+
+function isDark(): boolean {
+  return currentTheme() === "dark";
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,7 +65,7 @@ async function resetToSingleBoard() {
     body: JSON.stringify({
       boards: [
         {
-          name: "My Board",
+          name: "Living Room",
           device_type: "flagship",
           board_color: "black",
           enabled: true,
@@ -73,6 +92,34 @@ async function createPage(
   return data.page.id;
 }
 
+async function createCarousel(
+  name: string,
+  pageIds: string[],
+  intervalSeconds = 30,
+): Promise<string> {
+  const res = await fetch(`${API_URL}/carousels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      page_ids: pageIds,
+      interval_seconds: intervalSeconds,
+    }),
+  });
+  if (!res.ok) throw new Error(`createCarousel failed: ${res.status}`);
+  const data = await res.json();
+  return data.carousel.id;
+}
+
+async function deleteAllCarousels() {
+  const res = await fetch(`${API_URL}/carousels`);
+  if (!res.ok) return;
+  const data = await res.json();
+  for (const c of data.carousels ?? []) {
+    await fetch(`${API_URL}/carousels/${c.id}`, { method: "DELETE" });
+  }
+}
+
 async function setActivePage(id: string | null) {
   await fetch(`${API_URL}/settings/active-page`, {
     method: "PUT",
@@ -82,6 +129,7 @@ async function setActivePage(id: string | null) {
 }
 
 async function deleteAllPages() {
+  await setActivePage(null);
   const res = await fetch(`${API_URL}/pages`);
   if (!res.ok) return;
   const data = await res.json();
@@ -120,6 +168,14 @@ async function createSchedule(
   return data.id;
 }
 
+async function setScheduleEnabled(enabled: boolean) {
+  await fetch(`${API_URL}/schedules/enabled`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  });
+}
+
 async function enablePlugin(id: string) {
   await fetch(`${API_URL}/plugins/${id}/enable`, { method: "POST" });
 }
@@ -128,10 +184,48 @@ async function disablePlugin(id: string) {
   await fetch(`${API_URL}/plugins/${id}/disable`, { method: "POST" });
 }
 
-async function suppressWizard(page: Page) {
-  await page.addInitScript(() => {
+async function disableAllPlugins() {
+  const res = await fetch(`${API_URL}/plugins`);
+  if (!res.ok) return;
+  const data = await res.json();
+  for (const p of data.plugins) {
+    if (p.enabled) await disablePlugin(p.id);
+  }
+}
+
+const DEMO_PLUGINS = [
+  "weather",
+  "date_time",
+  "stocks",
+  "star_trek_quotes",
+  "guest_wifi",
+  "muni",
+  "surf",
+  "sports_scores",
+];
+
+async function enableDemoPlugins() {
+  for (const id of DEMO_PLUGINS) {
+    await enablePlugin(id);
+  }
+}
+
+async function disableDemoPlugins() {
+  for (const id of DEMO_PLUGINS) {
+    await disablePlugin(id);
+  }
+}
+
+/**
+ * Set up a Playwright page with the wizard suppressed and
+ * the next-themes theme forced via localStorage.
+ */
+async function initPage(page: Page) {
+  const theme = currentTheme();
+  await page.addInitScript((t: string) => {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
-  });
+    localStorage.setItem("theme", t);
+  }, theme);
 }
 
 function ensureDir(dir: string) {
@@ -142,23 +236,82 @@ async function waitForBoard(page: Page) {
   await page.waitForTimeout(5000);
 }
 
+/**
+ * Take a full-page screenshot saved into a theme-specific subdirectory.
+ * Dark screenshots are also copied to the default (unthemed) path for
+ * backward compatibility with existing documentation references.
+ */
+async function screenshotPage(page: Page, baseFilePath: string) {
+  const theme = currentTheme();
+  const dir = path.dirname(baseFilePath);
+  const file = path.basename(baseFilePath);
+  const themedDir = path.join(dir, theme);
+  ensureDir(themedDir);
+  const themedPath = path.join(themedDir, file);
+  await page.screenshot({ path: themedPath, fullPage: false });
+
+  if (isDark()) {
+    ensureDir(dir);
+    fs.copyFileSync(themedPath, baseFilePath);
+  }
+}
+
+/**
+ * Take an element-level screenshot saved into a theme-specific subdirectory.
+ */
 async function screenshotElement(
   page: Page,
   selector: string,
-  filePath: string,
+  baseFilePath: string,
 ) {
-  ensureDir(path.dirname(filePath));
+  const theme = currentTheme();
+  const dir = path.dirname(baseFilePath);
+  const file = path.basename(baseFilePath);
+  const themedDir = path.join(dir, theme);
+
+  ensureDir(themedDir);
+  const themedPath = path.join(themedDir, file);
   const el = page.locator(selector).first();
-  await el.screenshot({ path: filePath });
+  await el.screenshot({ path: themedPath });
+
+  if (isDark()) {
+    ensureDir(dir);
+    fs.copyFileSync(themedPath, baseFilePath);
+  }
 }
 
-async function screenshotPage(page: Page, filePath: string) {
-  ensureDir(path.dirname(filePath));
-  await page.screenshot({ path: filePath, fullPage: false });
+/**
+ * Copy a docs-site screenshot to the root images/ directory (for README
+ * and DockerHub). Saves themed + default versions.
+ */
+function copyToRootImages(docsFileName: string, rootFileName?: string) {
+  const theme = currentTheme();
+  const src = path.join(DOCS_IMG, theme, docsFileName);
+  if (!fs.existsSync(src)) return;
+
+  const destDir = path.join(ROOT_IMG, theme);
+  ensureDir(destDir);
+  fs.copyFileSync(src, path.join(destDir, rootFileName ?? docsFileName));
+
+  if (isDark()) {
+    ensureDir(ROOT_IMG);
+    fs.copyFileSync(src, path.join(ROOT_IMG, rootFileName ?? docsFileName));
+  }
+}
+
+/** Reset all transient state so tests start clean. */
+async function fullReset() {
+  await configureBoard();
+  await resetToSingleBoard();
+  await deleteAllSchedules();
+  await deleteAllCarousels();
+  await deleteAllPages();
+  await disableAllPlugins();
 }
 
 // ---------------------------------------------------------------------------
-// Plugin board content definitions
+// Plugin board content definitions (unchanged -- plugin screenshots are
+// dark-only and handled in Section A)
 // ---------------------------------------------------------------------------
 
 interface PluginDisplay {
@@ -398,11 +551,98 @@ const PLUGIN_DISPLAYS: PluginDisplay[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Reusable demo page templates (richer content for a "used app" feel)
+// ---------------------------------------------------------------------------
+
+const DEMO_PAGES = {
+  morningDashboard: {
+    name: "Morning Dashboard",
+    template: [
+      "THURSDAY MAR 6 2026",
+      "{blue}54{/blue} F PARTLY CLOUDY SF",
+      "N JUDAH 3 MIN  38 GEARY 8M",
+      "{green}AAPL 192.50 +1.4%{/green}",
+      "{red}TSLA 245.30  -0.6%{/red}",
+      "{green}NVDA 890.15 +2.3%{/green}",
+    ],
+  },
+  weatherReport: {
+    name: "Weather Report",
+    template: [
+      "SAN FRANCISCO",
+      "{blue}54{/blue} F {yellow}62{/yellow} F CLOUDY",
+      "UV 3   HUMIDITY 68%",
+      "WIND 12 MPH  W",
+      "",
+      "{green}AQI 42 - GOOD{/green}",
+    ],
+  },
+  stockTicker: {
+    name: "Stock Ticker",
+    template: [
+      "{green}AAPL   192.50  +1.4%{/green}",
+      "{red}TSLA   245.30  -0.6%{/red}",
+      "{green}GOOGL  178.90  +0.5%{/green}",
+      "{green}MSFT   420.15  +0.3%{/green}",
+      "{red}AMZN   182.40  -0.2%{/red}",
+      "{green}NVDA   890.15  +2.3%{/green}",
+    ],
+  },
+  transitHub: {
+    name: "Transit Hub",
+    template: [
+      "{67}{67}{67} SF MUNI {67}{67}{67}",
+      "N JUDAH       3 MIN",
+      "N JUDAH       12 MIN",
+      "7 HAIGHT      8 MIN",
+      "38 GEARY      5 MIN",
+      "38 GEARY      14 MIN",
+    ],
+  },
+  eveningWindDown: {
+    name: "Evening Wind Down",
+    template: [
+      "GOOD EVENING",
+      "",
+      "SUNSET AT 6:12 PM",
+      "{blue}OCEAN BEACH 4-6 FT{/blue}",
+      "",
+      "MAKE IT SO  - PICARD",
+    ],
+  },
+  weekendFun: {
+    name: "Weekend Fun",
+    template: [
+      "{63}{63} DISNEYLAND {63}{63}",
+      "SPACE MTN      45 MIN",
+      "MATTERHORN     30 MIN",
+      "PIRATES        15 MIN",
+      "HAUNTED MANS   20 MIN",
+      "SPLASH MTN     60 MIN",
+    ],
+  },
+};
+
+/** Create all demo pages and return a map of key -> pageId. */
+async function createDemoPages(): Promise<Record<string, string>> {
+  const ids: Record<string, string> = {};
+  for (const [key, def] of Object.entries(DEMO_PAGES)) {
+    ids[key] = await createPage(def.name, def.template);
+  }
+  return ids;
+}
+
 // =========================================================================
-// A) Plugin Board Display Screenshots
+// A) Plugin Board Display Screenshots  (dark only, skipped for light)
 // =========================================================================
 
 test.describe("Plugin Board Display Screenshots", () => {
+  test.skip(
+    () => !test.info().project.name.includes("dark"),
+    "Plugin display screenshots are captured in dark mode only",
+  );
+
   test.beforeAll(async () => {
     await configureBoard();
     await resetToSingleBoard();
@@ -412,7 +652,10 @@ test.describe("Plugin Board Display Screenshots", () => {
 
   for (const plugin of PLUGIN_DISPLAYS) {
     test(`screenshot: ${plugin.id}`, async ({ page }) => {
-      await suppressWizard(page);
+      await page.addInitScript(() => {
+        localStorage.setItem("fiestaboard_wizard_complete", "true");
+        localStorage.setItem("theme", "dark");
+      });
 
       const pageId = await createPage(
         `Screenshot - ${plugin.name}`,
@@ -427,55 +670,42 @@ test.describe("Plugin Board Display Screenshots", () => {
 
       await waitForBoard(page);
 
-      // Screenshot the board display container
-      const boardEl = page.locator('[class*="rounded-lg"][style*="background"]').first();
+      const boardEl = page
+        .locator('[class*="rounded-lg"][style*="background"]')
+        .first();
       if (await boardEl.isVisible()) {
         const pluginDocsDir = path.join(PLUGINS_DIR, plugin.id, "docs");
         const fileName = `${plugin.id.replace(/_/g, "-")}-display.png`;
 
-        // Save to docs-site/static/img/
         await boardEl.screenshot({
           path: path.join(DOCS_IMG, fileName),
         });
 
-        // Save to plugins/{id}/docs/
         ensureDir(pluginDocsDir);
         await boardEl.screenshot({
           path: path.join(pluginDocsDir, fileName),
         });
       }
 
-      // Clean up
       await deleteAllPages();
     });
   }
 });
 
 // =========================================================================
-// B) Web UI Full-Page Screenshots
+// B) Web UI Full-Page Screenshots  (dark + light)
 // =========================================================================
 
 test.describe("Web UI Full-Page Screenshots", () => {
   test.beforeAll(async () => {
-    await configureBoard();
-    await resetToSingleBoard();
-    await deleteAllSchedules();
-    await deleteAllPages();
+    await fullReset();
   });
 
   test("dashboard with active page", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    // Create a visually interesting page for the dashboard
-    const pageId = await createPage("Morning Dashboard", [
-      "MONDAY FEB 23 2026",
-      "{blue}52{/blue} F  SAN FRANCISCO",
-      "N JUDAH  3 MIN",
-      "{green}AAPL 189.84 +1.2%{/green}",
-      "{red}TSLA 248.50  -0.8%{/red}",
-      "HAVE A GREAT DAY!",
-    ]);
-    await setActivePage(pageId);
+    const pages = await createDemoPages();
+    await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
     await expect(
@@ -484,20 +714,20 @@ test.describe("Web UI Full-Page Screenshots", () => {
     await waitForBoard(page);
 
     await screenshotPage(page, path.join(DOCS_IMG, "web-ui-home.png"));
+    copyToRootImages("web-ui-home.png");
     await deleteAllPages();
   });
 
   test("page editor", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    // Create a page to edit
-    const pageId = await createPage("Weather Page", [
+    const pageId = await createPage("Weather Report", [
       "SAN FRANCISCO",
-      "{blue}52{/blue} F CLOUDY",
+      "{blue}54{/blue} F {yellow}62{/yellow} F CLOUDY",
       "UV 3   HUMIDITY 68%",
+      "WIND 12 MPH  W",
       "",
-      "",
-      "",
+      "{green}AQI 42 - GOOD{/green}",
     ]);
 
     await page.goto(`/pages/edit/${pageId}`);
@@ -507,45 +737,13 @@ test.describe("Web UI Full-Page Screenshots", () => {
       page,
       path.join(DOCS_IMG, "page-editor-wysiwyg.png"),
     );
+    copyToRootImages("page-editor-wysiwyg.png");
     await deleteAllPages();
   });
 
   test("pages list", async ({ page }) => {
-    await suppressWizard(page);
-
-    // Create several pages for a populated list
-    await createPage("Morning Dashboard", [
-      "GOOD MORNING!",
-      "{blue}52{/blue} F SAN FRANCISCO",
-      "N JUDAH  3 MIN",
-      "",
-      "",
-      "",
-    ]);
-    await createPage("Weather Display", [
-      "SAN FRANCISCO",
-      "{blue}52{/blue} F CLOUDY",
-      "UV 3   HUMIDITY 68%",
-      "",
-      "",
-      "",
-    ]);
-    await createPage("Stock Ticker", [
-      "{green}AAPL 189.84 +1.2%{/green}",
-      "{red}TSLA 248.50  -0.8%{/red}",
-      "{green}GOOGL 176.32 +0.5%{/green}",
-      "",
-      "",
-      "",
-    ]);
-    await createPage("Evening Info", [
-      "GOOD EVENING!",
-      "SUNSET AT 5:45 PM",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    await initPage(page);
+    await createDemoPages();
 
     await page.goto("/pages");
     await page.waitForTimeout(3000);
@@ -555,44 +753,23 @@ test.describe("Web UI Full-Page Screenshots", () => {
   });
 
   test("schedule page", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    // Create pages and schedules for a populated calendar
-    const morningId = await createPage("Morning Dashboard", [
-      "GOOD MORNING!",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-    const weatherId = await createPage("Weather Display", [
-      "SAN FRANCISCO",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-    const eveningId = await createPage("Evening Info", [
-      "GOOD EVENING!",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const pages = await createDemoPages();
 
-    await createSchedule(morningId, "06:00", "09:00", "weekdays");
-    await createSchedule(weatherId, "09:00", "17:00", "weekdays");
-    await createSchedule(eveningId, "17:00", "22:00", "all");
+    const carouselId = await createCarousel(
+      "Work Rotation",
+      [pages.stockTicker, pages.weatherReport],
+      30,
+    );
 
-    // Enable schedule mode
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: true }),
-    });
+    await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
+    await createSchedule(`carousel:${carouselId}`, "09:00", "17:00", "weekdays");
+    await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
+    await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
+    await createSchedule(pages.transitHub, "12:00", "17:00", "weekends");
+
+    await setScheduleEnabled(true);
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
@@ -601,25 +778,17 @@ test.describe("Web UI Full-Page Screenshots", () => {
       page,
       path.join(DOCS_IMG, "schedule-calendar.png"),
     );
+    copyToRootImages("schedule-calendar.png");
 
-    // Clean up
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: false }),
-    });
+    await setScheduleEnabled(false);
     await deleteAllSchedules();
+    await deleteAllCarousels();
     await deleteAllPages();
   });
 
   test("integrations page", async ({ page }) => {
-    await suppressWizard(page);
-
-    // Enable a few plugins for visual variety
-    await enablePlugin("weather");
-    await enablePlugin("date_time");
-    await enablePlugin("star_trek_quotes");
-    await enablePlugin("guest_wifi");
+    await initPage(page);
+    await enableDemoPlugins();
 
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
@@ -629,15 +798,11 @@ test.describe("Web UI Full-Page Screenshots", () => {
       path.join(DOCS_IMG, "integrations-page.png"),
     );
 
-    // Disable plugins
-    await disablePlugin("weather");
-    await disablePlugin("date_time");
-    await disablePlugin("star_trek_quotes");
-    await disablePlugin("guest_wifi");
+    await disableDemoPlugins();
   });
 
   test("settings page", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await page.goto("/settings");
     await page.waitForTimeout(3000);
@@ -646,38 +811,20 @@ test.describe("Web UI Full-Page Screenshots", () => {
   });
 
   test("schedule list view", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    const morningId = await createPage("Morning Dashboard", [
-      "GOOD MORNING!",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-    const weatherId = await createPage("Weather Display", [
-      "WEATHER",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const pages = await createDemoPages();
 
-    await createSchedule(morningId, "06:00", "09:00", "weekdays");
-    await createSchedule(weatherId, "09:00", "17:00", "all");
+    await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
+    await createSchedule(pages.weatherReport, "09:00", "17:00", "weekdays");
+    await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
+    await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
 
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: true }),
-    });
+    await setScheduleEnabled(true);
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
 
-    // Try to find and click a list view toggle if it exists
     const listBtn = page.getByRole("button", { name: /list/i });
     if (await listBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await listBtn.click();
@@ -689,40 +836,27 @@ test.describe("Web UI Full-Page Screenshots", () => {
       path.join(DOCS_IMG, "schedule-list-view.png"),
     );
 
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: false }),
-    });
+    await setScheduleEnabled(false);
     await deleteAllSchedules();
+    await deleteAllCarousels();
     await deleteAllPages();
   });
 });
 
 // =========================================================================
-// C) Getting Started & Workflow Screenshots
+// C) Getting Started & Workflow Screenshots  (dark + light)
 // =========================================================================
 
 test.describe("Getting Started Workflow Screenshots", () => {
   test.beforeAll(async () => {
-    await configureBoard();
-    await resetToSingleBoard();
-    await deleteAllSchedules();
-    await deleteAllPages();
+    await fullReset();
   });
 
   test("dashboard running state", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    const pageId = await createPage("Active Page", [
-      "MONDAY FEB 23 2026",
-      "{blue}52{/blue} F  SAN FRANCISCO",
-      "N JUDAH  3 MIN",
-      "",
-      "",
-      "HAVE A GREAT DAY!",
-    ]);
-    await setActivePage(pageId);
+    const pages = await createDemoPages();
+    await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
     await expect(
@@ -738,7 +872,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("settings board configuration", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await page.goto("/settings");
     await page.waitForTimeout(3000);
@@ -750,12 +884,11 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("settings silence schedule", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await page.goto("/settings");
     await page.waitForTimeout(3000);
 
-    // Scroll to find silence schedule section
     const silenceText = page.getByText(/silence/i).first();
     if (await silenceText.isVisible({ timeout: 3000 }).catch(() => false)) {
       await silenceText.scrollIntoViewIfNeeded();
@@ -769,12 +902,8 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("integrations full page", async ({ page }) => {
-    await suppressWizard(page);
-
-    await enablePlugin("weather");
-    await enablePlugin("date_time");
-    await enablePlugin("star_trek_quotes");
-    await enablePlugin("stocks");
+    await initPage(page);
+    await enableDemoPlugins();
 
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
@@ -784,21 +913,16 @@ test.describe("Getting Started Workflow Screenshots", () => {
       path.join(GUIDES_IMG, "integrations-full.png"),
     );
 
-    await disablePlugin("weather");
-    await disablePlugin("date_time");
-    await disablePlugin("star_trek_quotes");
-    await disablePlugin("stocks");
+    await disableDemoPlugins();
   });
 
   test("integrations plugin config", async ({ page }) => {
-    await suppressWizard(page);
-
+    await initPage(page);
     await enablePlugin("weather");
 
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
 
-    // Try to click into a plugin's settings
     const weatherCard = page.getByText("Weather").first();
     if (await weatherCard.isVisible({ timeout: 3000 }).catch(() => false)) {
       await weatherCard.click();
@@ -814,10 +938,12 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("integrations plugin enabled state", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await enablePlugin("date_time");
     await enablePlugin("star_trek_quotes");
+    await enablePlugin("weather");
+    await enablePlugin("stocks");
 
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
@@ -829,19 +955,13 @@ test.describe("Getting Started Workflow Screenshots", () => {
 
     await disablePlugin("date_time");
     await disablePlugin("star_trek_quotes");
+    await disablePlugin("weather");
+    await disablePlugin("stocks");
   });
 
   test("pages new button", async ({ page }) => {
-    await suppressWizard(page);
-
-    await createPage("Sample Page", [
-      "HELLO WORLD",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    await initPage(page);
+    await createDemoPages();
 
     await page.goto("/pages");
     await page.waitForTimeout(3000);
@@ -854,7 +974,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("page editor empty grid", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await page.goto("/pages/new");
     await page.waitForTimeout(3000);
@@ -866,7 +986,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("page editor with variables", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await enablePlugin("weather");
     await enablePlugin("date_time");
@@ -894,7 +1014,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("page editor variable picker", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await enablePlugin("weather");
     await enablePlugin("date_time");
@@ -903,7 +1023,6 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/pages/new");
     await page.waitForTimeout(3000);
 
-    // Look for the variable picker button ({x} icon)
     const varPickerBtn = page
       .getByRole("button", { name: /variable/i })
       .first();
@@ -912,18 +1031,12 @@ test.describe("Getting Started Workflow Screenshots", () => {
     ) {
       await varPickerBtn.click();
       await page.waitForTimeout(1000);
-
-      await screenshotPage(
-        page,
-        path.join(GUIDES_IMG, "page-editor-variable-picker-open.png"),
-      );
-    } else {
-      // Fallback: screenshot the editor as-is
-      await screenshotPage(
-        page,
-        path.join(GUIDES_IMG, "page-editor-variable-picker-open.png"),
-      );
     }
+
+    await screenshotPage(
+      page,
+      path.join(GUIDES_IMG, "page-editor-variable-picker-open.png"),
+    );
 
     await disablePlugin("weather");
     await disablePlugin("date_time");
@@ -931,15 +1044,15 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("page editor preview", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     const pageId = await createPage("Preview Demo", [
-      "GOOD MORNING!",
-      "{blue}52{/blue} F  SAN FRANCISCO",
-      "HAVE A GREAT DAY",
+      "THURSDAY MAR 6 2026",
+      "{blue}54{/blue} F PARTLY CLOUDY",
+      "SAN FRANCISCO  CA",
+      "{green}AAPL 192.50 +1.4%{/green}",
       "",
-      "",
-      "",
+      "HAVE A GREAT DAY!",
     ]);
 
     await page.goto(`/pages/edit/${pageId}`);
@@ -953,7 +1066,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("page editor colors", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     const pageId = await createPage("Color Demo", [
       "{63}{64}{65}{66}{67}{68}{63}{64}{65}{66}{67}{68}{63}{64}{65}{66}{67}{68}{63}{64}{65}{66}",
@@ -975,17 +1088,12 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("schedule mode toggle", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    const pageId = await createPage("Scheduled Page", [
-      "HELLO",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-    await createSchedule(pageId, "08:00", "17:00", "weekdays");
+    const pages = await createDemoPages();
+    await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
+    await createSchedule(pages.weatherReport, "09:00", "17:00", "weekdays");
+    await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
@@ -1000,27 +1108,15 @@ test.describe("Getting Started Workflow Screenshots", () => {
   });
 
   test("schedule entry form", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    const pageId = await createPage("Morning Page", [
-      "GOOD MORNING",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const pages = await createDemoPages();
 
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: true }),
-    });
+    await setScheduleEnabled(true);
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
 
-    // Click "Add Schedule" or similar button
     const addBtn = page
       .getByRole("button", { name: /add|new|create/i })
       .first();
@@ -1034,52 +1130,29 @@ test.describe("Getting Started Workflow Screenshots", () => {
       path.join(GUIDES_IMG, "schedule-entry-form.png"),
     );
 
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: false }),
-    });
+    await setScheduleEnabled(false);
     await deleteAllSchedules();
     await deleteAllPages();
   });
 
   test("schedule calendar populated", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
-    const morningId = await createPage("Morning Info", [
-      "GOOD MORNING",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-    const workId = await createPage("Work Display", [
-      "WORK MODE",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-    const eveningId = await createPage("Evening Wind Down", [
-      "GOOD EVENING",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const pages = await createDemoPages();
 
-    await createSchedule(morningId, "06:00", "09:00", "weekdays");
-    await createSchedule(workId, "09:00", "17:00", "weekdays");
-    await createSchedule(eveningId, "17:00", "22:00", "all");
+    const carouselId = await createCarousel(
+      "Work Rotation",
+      [pages.stockTicker, pages.weatherReport],
+      30,
+    );
 
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: true }),
-    });
+    await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
+    await createSchedule(`carousel:${carouselId}`, "09:00", "17:00", "weekdays");
+    await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
+    await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
+    await createSchedule(pages.transitHub, "12:00", "17:00", "weekends");
+
+    await setScheduleEnabled(true);
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
@@ -1089,17 +1162,14 @@ test.describe("Getting Started Workflow Screenshots", () => {
       path.join(GUIDES_IMG, "schedule-calendar-populated.png"),
     );
 
-    await fetch(`${API_URL}/schedules/enabled`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: false }),
-    });
+    await setScheduleEnabled(false);
     await deleteAllSchedules();
+    await deleteAllCarousels();
     await deleteAllPages();
   });
 
   test("start service button", async ({ page }) => {
-    await suppressWizard(page);
+    await initPage(page);
 
     await deleteAllPages();
     await setActivePage(null);
@@ -1114,5 +1184,173 @@ test.describe("Getting Started Workflow Screenshots", () => {
       page,
       path.join(GUIDES_IMG, "start-service-button.png"),
     );
+  });
+});
+
+// =========================================================================
+// D) Homepage Feature Icon Screenshots  (dark + light)
+//
+// These are cropped element-level screenshots used as feature cards on
+// the docs-site landing page.
+// =========================================================================
+
+test.describe("Homepage Feature Icon Screenshots", () => {
+  test.beforeAll(async () => {
+    await fullReset();
+  });
+
+  test("plugin-architecture", async ({ page }) => {
+    await initPage(page);
+    await enableDemoPlugins();
+
+    await page.goto("/integrations");
+    await page.waitForTimeout(3000);
+
+    await screenshotElement(
+      page,
+      "main .grid",
+      path.join(FEATURES_IMG, "plugin-architecture.png"),
+    );
+
+    await disableDemoPlugins();
+  });
+
+  test("wysiwyg-editor", async ({ page }) => {
+    await initPage(page);
+
+    const pageId = await createPage("Editor Demo", [
+      "SAN FRANCISCO",
+      "{blue}54{/blue} F {yellow}62{/yellow} F CLOUDY",
+      "UV 3   HUMIDITY 68%",
+      "WIND 12 MPH  W",
+      "",
+      "{green}AQI 42 - GOOD{/green}",
+    ]);
+
+    await page.goto(`/pages/edit/${pageId}`);
+    await page.waitForTimeout(3000);
+
+    await screenshotElement(
+      page,
+      ".ProseMirror",
+      path.join(FEATURES_IMG, "wysiwyg-editor.png"),
+    );
+
+    await deleteAllPages();
+  });
+
+  test("schedule-mode", async ({ page }) => {
+    await initPage(page);
+
+    const pages = await createDemoPages();
+
+    await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
+    await createSchedule(pages.weatherReport, "09:00", "17:00", "weekdays");
+    await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
+    await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
+
+    await setScheduleEnabled(true);
+
+    await page.goto("/schedule");
+
+    // The calendar is lazy-loaded; wait for it to render
+    const calendarEl = page.locator(".schedule-calendar-container").first();
+    const calendarVisible = await calendarEl
+      .waitFor({ state: "visible", timeout: 15_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (calendarVisible) {
+      await page.waitForTimeout(1000);
+      await screenshotElement(
+        page,
+        ".schedule-calendar-container",
+        path.join(FEATURES_IMG, "schedule-mode.png"),
+      );
+    } else {
+      await page.waitForTimeout(3000);
+      await screenshotPage(
+        page,
+        path.join(FEATURES_IMG, "schedule-mode.png"),
+      );
+    }
+
+    await setScheduleEnabled(false);
+    await deleteAllSchedules();
+    await deleteAllPages();
+  });
+
+  test("docker-ready", async ({ page }) => {
+    await initPage(page);
+
+    await page.goto("/settings");
+    await page.waitForTimeout(3000);
+
+    // Capture the board connection / display settings area
+    const displayCard = page.locator(".animate-card-fade-in").nth(1);
+    if (await displayCard.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await screenshotElement(
+        page,
+        ".animate-card-fade-in >> nth=1",
+        path.join(FEATURES_IMG, "docker-ready.png"),
+      );
+    } else {
+      await screenshotPage(
+        page,
+        path.join(FEATURES_IMG, "docker-ready.png"),
+      );
+    }
+  });
+
+  test("customizable", async ({ page }) => {
+    await initPage(page);
+
+    await page.goto("/settings");
+    await page.waitForTimeout(3000);
+
+    // Capture the general settings area (first animated card)
+    const generalCard = page.locator(".animate-card-fade-in").first();
+    if (await generalCard.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await screenshotElement(
+        page,
+        ".animate-card-fade-in >> nth=0",
+        path.join(FEATURES_IMG, "customizable.png"),
+      );
+    } else {
+      await screenshotPage(
+        page,
+        path.join(FEATURES_IMG, "customizable.png"),
+      );
+    }
+  });
+
+  test("open-source", async ({ page }) => {
+    await initPage(page);
+
+    const pages = await createDemoPages();
+    await setActivePage(pages.morningDashboard);
+
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+    await waitForBoard(page);
+
+    // Capture the sidebar / navigation area as the "open-source" feature icon
+    const sidebar = page.locator("nav").first();
+    if (await sidebar.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await screenshotElement(
+        page,
+        "nav",
+        path.join(FEATURES_IMG, "open-source.png"),
+      );
+    } else {
+      await screenshotPage(
+        page,
+        path.join(FEATURES_IMG, "open-source.png"),
+      );
+    }
+
+    await deleteAllPages();
   });
 });
