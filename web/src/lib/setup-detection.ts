@@ -49,9 +49,9 @@ export async function shouldShowWizard(): Promise<boolean> {
   try {
     const validation = await api.validateSetup();
     
-    // If first run (missing board config), always show wizard
+    // If first run (missing board config), show wizard unless user previously skipped
     if (validation.is_first_run) {
-      return true;
+      return !isWizardCompleted();
     }
     
     // If config is invalid, show wizard

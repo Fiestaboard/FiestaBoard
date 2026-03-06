@@ -17,10 +17,8 @@ import {
   EyeOff,
   Key,
   KeyRound,
-  Search,
 } from "lucide-react";
 import { BoardDisplay } from "@/components/board-display";
-import type { DiscoveredBoard } from "@/lib/api";
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -60,8 +58,6 @@ export function StepBoardSetup({
   const [enablementToken, setEnablementToken] = useState("");
   const [enablementStatus, setEnablementStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [enablementMessage, setEnablementMessage] = useState("");
-  const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "done" | "error">("idle");
-  const [discoveredBoards, setDiscoveredBoards] = useState<DiscoveredBoard[]>([]);
 
   // Update validity when config or test status changes
   useEffect(() => {
@@ -82,27 +78,6 @@ export function StepBoardSetup({
     setTestMessage("");
     setEnablementStatus("idle");
     setEnablementMessage("");
-  };
-
-  const handleScanForBoards = async () => {
-    setScanStatus("scanning");
-    setDiscoveredBoards([]);
-    try {
-      const result = await api.scanForBoards();
-      setDiscoveredBoards(result.boards);
-      setScanStatus("done");
-    } catch {
-      setScanStatus("error");
-    }
-  };
-
-  const handleSelectBoard = (board: DiscoveredBoard) => {
-    onConfigChange({
-      ...config,
-      host: board.ip,
-      connectionVerified: false,
-    });
-    setTestStatus("idle");
   };
 
   const handleEnableLocalApi = async () => {
@@ -318,89 +293,25 @@ export function StepBoardSetup({
           {/* Board IP Address - always needed for local */}
           <div className="space-y-2">
             <Label htmlFor="host">Board IP Address</Label>
-            <div className="flex gap-2">
-              <Input
-                id="host"
-                placeholder="e.g., 192.168.1.100"
-                value={config.host}
-                onChange={(e) => {
-                  onConfigChange({
-                    ...config,
-                    host: e.target.value,
-                    connectionVerified: false,
-                  });
-                  setTestStatus("idle");
-                  setEnablementStatus("idle");
-                }}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="default"
-                onClick={handleScanForBoards}
-                disabled={scanStatus === "scanning"}
-                title="Scan network for Vestaboards"
-              >
-                {scanStatus === "scanning" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            <Input
+              id="host"
+              placeholder="e.g., 192.168.1.100"
+              value={config.host}
+              onChange={(e) => {
+                onConfigChange({
+                  ...config,
+                  host: e.target.value,
+                  connectionVerified: false,
+                });
+                setTestStatus("idle");
+                setEnablementStatus("idle");
+              }}
+            />
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
-              Enter IP manually or click <Search className="h-3 w-3 inline" /> to scan your network
+              The IP address of your Vestaboard on your local network
             </p>
           </div>
-
-          {/* Scan results */}
-          {scanStatus === "scanning" && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Scanning network for Vestaboards…</span>
-            </div>
-          )}
-          {scanStatus === "done" && discoveredBoards.length === 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-              <HelpCircle className="h-4 w-4" />
-              <span>No boards found. Enter the IP address manually.</span>
-            </div>
-          )}
-          {scanStatus === "done" && discoveredBoards.length >= 1 && (
-            <div className="space-y-2">
-              <Label className="text-sm">
-                Found {discoveredBoards.length} {discoveredBoards.length === 1 ? "board" : "boards"} — select one:
-              </Label>
-              <div className="space-y-1.5">
-                {discoveredBoards.map((board) => (
-                  <button
-                    key={board.ip}
-                    type="button"
-                    onClick={() => handleSelectBoard(board)}
-                    className={cn(
-                      "w-full flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors text-left",
-                      config.host === board.ip
-                        ? "border-primary bg-primary/5"
-                        : "border-muted hover:border-muted-foreground/30"
-                    )}
-                  >
-                    <span className="font-mono">{board.ip}</span>
-                    {board.hostname && (
-                      <span className="text-xs text-muted-foreground">{board.hostname}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {scanStatus === "error" && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-              <XCircle className="h-4 w-4" />
-              <span>Scan failed. Please enter the IP address manually.</span>
-            </div>
-          )}
 
           {/* Local Key Mode Toggle */}
           <div className="space-y-3">

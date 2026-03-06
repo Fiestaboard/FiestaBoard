@@ -32,6 +32,16 @@ describe("setup-detection", () => {
       expect(await shouldShowWizard()).toBe(true);
     });
 
+    it("returns false when is_first_run is true but wizard was previously completed (skipped)", async () => {
+      localStorage.setItem(WIZARD_COMPLETE_KEY, "true");
+      server.use(
+        http.get(`${API_BASE}/config/validate`, () =>
+          HttpResponse.json({ valid: false, is_first_run: true, errors: [], missing_fields: [] })
+        )
+      );
+      expect(await shouldShowWizard()).toBe(false);
+    });
+
     it("returns true when config is invalid and wizard not completed", async () => {
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
