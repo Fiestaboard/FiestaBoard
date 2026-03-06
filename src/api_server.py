@@ -2584,7 +2584,7 @@ async def set_active_page(request: dict):
     
     # Immediately send to board if a page is set
     sent_to_board = False
-    if render_page_id and page and service and service.vb_client:
+    if render_page_id and page and service and service.vb_client and settings_service.should_send_to_board():
         result = page_service.preview_page(render_page_id, force_refresh=True)
         if result and result.available:
             system_transition = settings_service.get_transition_settings()
