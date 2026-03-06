@@ -1,5 +1,6 @@
 """REST API server for FiestaBoard Display Service."""
 
+import asyncio
 import logging
 import logging.handlers
 import threading
@@ -3831,7 +3832,7 @@ async def render_template(request: dict):
 
 
 @app.post("/templates/render/live")
-def render_template_live(request: dict):
+async def render_template_live(request: dict):
     """
     Render a template and send it to a board (live edit mode).
 
@@ -3902,7 +3903,8 @@ def render_template_live(request: dict):
 
             transition_settings = settings_service.get_transition_settings()
             try:
-                success, was_sent = client.send_characters(
+                success, was_sent = await asyncio.to_thread(
+                    client.send_characters,
                     board_array,
                     strategy=transition_settings.strategy,
                     step_interval_ms=transition_settings.step_interval_ms,
