@@ -280,7 +280,7 @@ export function DebugSettings() {
                   label="Internet Access"
                   result={networkDiagnosticsMutation.data.internet}
                   detail={networkDiagnosticsMutation.data.internet.ok
-                    ? `Reached ${networkDiagnosticsMutation.data.internet.url ?? "google.com"} (${networkDiagnosticsMutation.data.internet.latency_ms}ms)`
+                    ? `Reached ${networkDiagnosticsMutation.data.internet.url ?? "google.com"}${networkDiagnosticsMutation.data.internet.latency_ms != null ? ` (${networkDiagnosticsMutation.data.internet.latency_ms}ms)` : ""}`
                     : networkDiagnosticsMutation.data.internet.error ?? "Could not reach the internet"
                   }
                 />
@@ -673,7 +673,7 @@ function VestaboardDiagnosticRow({
           Vestaboard (Local API)
         </div>
       </div>
-      <div className="ml-5.5 space-y-1 pl-1 border-l-2 border-muted ml-[11px]">
+      <div className="space-y-1 pl-1 border-l-2 border-muted ml-[11px]">
         {stepEntries.map(({ key, label, icon }) => {
           const step = steps[key];
           if (!step) {
