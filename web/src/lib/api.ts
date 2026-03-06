@@ -44,6 +44,43 @@ export interface DebugTestResponse {
   latency_ms: number | null;
 }
 
+export interface DiagnosticStepResult {
+  ok: boolean;
+  hostname?: string;
+  ip?: string | null;
+  url?: string;
+  host?: string;
+  port?: number;
+  status_code?: number | null;
+  latency_ms?: number;
+  error?: string;
+}
+
+export interface VestaboardDiagnostics {
+  ok: boolean;
+  mode: "local" | "cloud" | null;
+  steps: Record<string, DiagnosticStepResult>;
+  error?: string;
+}
+
+export interface DiagnosticRecommendation {
+  summary: string;
+  steps: string[];
+}
+
+export interface NetworkDiagnosticsResult {
+  dns: DiagnosticStepResult;
+  internet: DiagnosticStepResult;
+  vestaboard: VestaboardDiagnostics;
+  overall_ok: boolean;
+  recommendations: DiagnosticRecommendation[];
+}
+
+export interface NetworkDiagnosticsResponse {
+  status: string;
+  diagnostics: NetworkDiagnosticsResult;
+}
+
 export interface DebugCacheStatus {
   status: string;
   cache: {
@@ -1203,4 +1240,7 @@ export const api = {
   
   getDebugSystemInfo: () =>
     fetchApi<DebugSystemInfo>("/debug/system-info"),
+
+  getNetworkDiagnostics: () =>
+    fetchApi<NetworkDiagnosticsResponse>("/debug/network-diagnostics"),
 };
