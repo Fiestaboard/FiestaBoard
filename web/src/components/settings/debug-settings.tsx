@@ -545,12 +545,12 @@ export function DebugSettings() {
 
         {/* Warning message if not configured */}
         {!isBoardConfigured && (
-          <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 text-foreground text-xs">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2 p-2 rounded-md bg-muted text-foreground text-xs">
+            <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <div>
               <div className="font-medium">Board not configured</div>
               <div className="text-xs mt-0.5">
-                Please configure your board connection in the Board Connection section above before using debug tools.
+                Network diagnostics can still be run to test DNS and internet connectivity. Configure your board connection above to enable the other debug tools.
               </div>
             </div>
           </div>
