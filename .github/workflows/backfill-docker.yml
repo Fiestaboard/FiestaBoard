@@ -133,12 +133,28 @@ jobs:
           # --- Find versions with missing architectures ---
           # v1.x used split images (fiestaboard-api + fiestaboard-ui)
           # v2.x uses a unified image (fiestaboard)
+          # Versions with broken Dockerfiles that cannot be built.
+          # v1.32.18–v1.32.31: python:3.14-slim base but COPY references python3.11 site-packages path.
+          SKIP_VERSIONS=(
+            v1.32.18 v1.32.19 v1.32.20 v1.32.21 v1.32.22 v1.32.23
+            v1.32.24 v1.32.25 v1.32.26 v1.32.27 v1.32.28 v1.32.29
+            v1.32.30 v1.32.31
+          )
+
           echo "::group::Comparing versions and architectures"
           BUILDS="[]"
           VERSIONS=()
           SUMMARY_LINES=()
 
           for TAG in $GIT_TAGS; do
+            # Skip versions with known-broken Dockerfiles
+            for SKIP in "${SKIP_VERSIONS[@]}"; do
+              if [ "$TAG" = "$SKIP" ]; then
+                echo "SKIP:    $TAG (known broken Dockerfile)"
+                continue 2
+              fi
+            done
+
             VERSION="${TAG#v}"
             MAJOR="${VERSION%%.*}"
 
@@ -372,8 +388,6 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             VERSION=${{ steps.ver.outputs.number }}
-          cache-from: type=gha,scope=backfill-unified-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=backfill-unified-${{ matrix.arch }}
           outputs: type=image,name=fiestaboard/fiestaboard,push-by-digest=true,name-canonical=true,push=true
 
       - name: Create/update unified manifest
@@ -424,8 +438,6 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             VERSION=${{ steps.ver.outputs.number }}
-          cache-from: type=gha,scope=backfill-api-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=backfill-api-${{ matrix.arch }}
           outputs: type=image,name=fiestaboard/fiestaboard-api,push-by-digest=true,name-canonical=true,push=true
 
       - name: Create/update API manifest
@@ -474,8 +486,6 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             VERSION=${{ steps.ver.outputs.number }}
-          cache-from: type=gha,scope=backfill-ui-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=backfill-ui-${{ matrix.arch }}
           outputs: type=image,name=fiestaboard/fiestaboard-ui,push-by-digest=true,name-canonical=true,push=true
 
       - name: Create/update UI manifest
