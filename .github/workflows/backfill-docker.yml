@@ -43,6 +43,16 @@ jobs:
 
           REQUIRED_ARCHES=("amd64" "arm64")
 
+          # Versions with broken Dockerfiles that can never be built.
+          # v1.32.18–v1.32.31: base image was bumped to python:3.14-slim but the
+          # COPY path still references python3.11 site-packages, causing a build
+          # error ("not found"). Since these are immutable git tags the Dockerfiles
+          # cannot be fixed retroactively.
+          SKIP_VERSIONS=(
+            v1.32.18 v1.32.19 v1.32.20 v1.32.21 v1.32.22 v1.32.23 v1.32.24
+            v1.32.25 v1.32.26 v1.32.27 v1.32.28 v1.32.29 v1.32.30 v1.32.31
+          )
+
           # Helper: curl with retry on 429 (rate limit) using exponential backoff.
           # Waits and retries instead of failing, since 429s always resolve eventually.
           curl_with_retry() {
@@ -138,7 +148,23 @@ jobs:
           VERSIONS=()
           SUMMARY_LINES=()
 
+          SKIPPED_LINES=()
+
           for TAG in $GIT_TAGS; do
+            # Skip versions with known-broken Dockerfiles
+            SKIP=false
+            for SV in "${SKIP_VERSIONS[@]}"; do
+              if [ "$TAG" = "$SV" ]; then
+                SKIP=true
+                break
+              fi
+            done
+            if [ "$SKIP" = "true" ]; then
+              echo "SKIP:    $TAG (known broken Dockerfile)"
+              SKIPPED_LINES+=("- \`$TAG\` — known broken Dockerfile")
+              continue
+            fi
+
             VERSION="${TAG#v}"
             MAJOR="${VERSION%%.*}"
 
@@ -237,10 +263,16 @@ jobs:
             echo "- **Docker Hub tags (ui):** $(echo "$DOCKER_UI" | jq 'length')"
             echo "- **Versions needing work:** $VERSION_COUNT"
             echo "- **Total builds needed:** $BUILD_COUNT"
+            echo "- **Versions skipped (broken):** ${#SKIPPED_LINES[@]}"
             if [ ${#SUMMARY_LINES[@]} -gt 0 ]; then
               echo ""
               echo "### Versions to backfill"
               printf '%s\n' "${SUMMARY_LINES[@]}"
+            fi
+            if [ ${#SKIPPED_LINES[@]} -gt 0 ]; then
+              echo ""
+              echo "### Skipped versions (known broken Dockerfiles)"
+              printf '%s\n' "${SKIPPED_LINES[@]}"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
