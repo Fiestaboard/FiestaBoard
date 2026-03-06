@@ -185,8 +185,7 @@ describe("PageBuilder", () => {
       expect(screen.getByPlaceholderText("My Custom Page")).toBeInTheDocument();
     });
 
-    // Wait for and click the Cancel button (it's labeled as "Close" in the UI)
-    const closeButton = await screen.findByRole("button", { name: /close/i });
+    const closeButton = await screen.findByRole("button", { name: /back to pages/i });
     await user.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalled();
