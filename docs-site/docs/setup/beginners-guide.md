@@ -163,7 +163,12 @@ If you used the install wizard (Path B or C), you may have already entered your 
 
 1. In the FiestaBoard dashboard, go to **Settings**
 2. Enter your board API key (from Step 2)
-3. If you're using the Local API, also enter your board's IP address (settings save automatically)
+3. If you're using the Local API, also enter your board's IP address
+4. Click **Test Connection** to verify FiestaBoard can talk to your board
+
+:::tip Having trouble connecting?
+The **Test Connection** button checks connectivity and shows specific troubleshooting steps if something isn't working (e.g. wrong IP, invalid API key, network issues). During the setup wizard, you can also click **Skip for now** to go straight to the dashboard and configure the board later from **Settings**.
+:::
 
 ![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
 

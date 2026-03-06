@@ -69,13 +69,14 @@ docker-compose -f docker-compose.hub.yml up -d
 
 ### Board not updating
 
-This is the most common issue. Work through this checklist:
+This is the most common issue. Start with the built-in diagnostic, then work through the checklist:
 
-1. **Is the display service running?** Open http://localhost:4420 and check if the dashboard shows **Running**. If it shows **Stopped** or **Disconnected**, check that your Docker container is running (`docker ps`).
-2. **Is your API key correct?** Go to **Settings** in the web UI and verify your board API key.
-3. **Is the API mode correct?** Make sure you're using the right mode (Local API or Cloud API) for the key you entered.
-4. **For Local API:** Is your board on the same WiFi network as the computer running FiestaBoard?
-5. **Check the logs** for specific error messages:
+1. **Use the Connection Test.** Go to **Settings** in the web UI and click **Test Connection**. It checks connectivity and provides specific troubleshooting steps if something isn't working.
+2. **Is the display service running?** Open http://localhost:4420 and check if the dashboard shows **Running**. If it shows **Stopped** or **Disconnected**, check that your Docker container is running (`docker ps`).
+3. **Is your API key correct?** Go to **Settings** in the web UI and verify your board API key.
+4. **Is the API mode correct?** Make sure you're using the right mode (Local API or Cloud API) for the key you entered.
+5. **For Local API:** Is your board on the same WiFi network as the computer running FiestaBoard?
+6. **Check the logs** for specific error messages:
    ```bash
    docker-compose logs -f fiestaboard
    ```

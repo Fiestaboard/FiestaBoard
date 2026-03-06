@@ -60,8 +60,13 @@ The wizard asks for your board API key, device type, and board color, then start
 Once FiestaBoard is running at **http://localhost:4420**:
 
 1. The setup wizard will guide you through connecting your board (or go to **Settings** if you've already been through setup)
-2. Once connected, the display service starts automatically
-3. Verify the dashboard shows **Running** — your board is now connected!
+2. Enter your API key and board IP address (for Local API), then click **Test Connection** to verify everything works
+3. Once connected, the display service starts automatically
+4. Verify the dashboard shows **Running** — your board is now connected!
+
+:::tip Having trouble connecting?
+Use the **Test Connection** button in the setup wizard or Settings page. It checks connectivity and provides specific troubleshooting steps if something isn't working. You can also **Skip for now** during setup and configure the board later from **Settings**.
+:::
 
 ![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
 
