@@ -49,7 +49,7 @@ export function ScheduleListView({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Schedule Entries</CardTitle>
-          <Button size="sm" onClick={onAdd}>
+          <Button variant="brand" size="sm" onClick={onAdd} className="btn-lift">
             <Plus className="h-4 w-4 mr-1" />
             Add Schedule
           </Button>

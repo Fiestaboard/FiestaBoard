@@ -141,28 +141,16 @@ class TestSettingsService:
             result = service.set_output_target(target)
             assert result.target == target
     
-    def test_should_send_to_board_dev_mode_off(self, service):
-        """Test should_send_to_board when dev mode is off."""
+    def test_should_send_to_board(self, service):
+        """Test should_send_to_board based on output target."""
         service.set_output_target("board")
-        assert service.should_send_to_board(dev_mode=False) is True
-        
+        assert service.should_send_to_board() is True
+
         service.set_output_target("both")
-        assert service.should_send_to_board(dev_mode=False) is True
-        
+        assert service.should_send_to_board() is True
+
         service.set_output_target("ui")
-        assert service.should_send_to_board(dev_mode=False) is False
-    
-    def test_should_send_to_board_dev_mode_on(self, service):
-        """Test should_send_to_board when dev mode is on."""
-        # In dev mode, only send if target is "both"
-        service.set_output_target("board")
-        assert service.should_send_to_board(dev_mode=True) is False
-        
-        service.set_output_target("both")
-        assert service.should_send_to_board(dev_mode=True) is True
-        
-        service.set_output_target("ui")
-        assert service.should_send_to_board(dev_mode=True) is False
+        assert service.should_send_to_board() is False
     
     def test_settings_persistence(self, temp_settings_file):
         """Test that settings persist across service restarts."""

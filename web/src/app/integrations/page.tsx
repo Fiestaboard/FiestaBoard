@@ -323,7 +323,6 @@ import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import CountUp from "@/components/ui/react-bits/count-up";
-import SpotlightCard from "@/components/ui/react-bits/spotlight-card";
 import ShinyText from "@/components/ui/react-bits/shiny-text";
 
 /**
@@ -994,15 +993,14 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
   const Icon = getPluginIcon(plugin.icon);
   
   return (
-    <SpotlightCard
+    <div
       className="rounded-xl animate-card-fade-in"
-      spotlightColor={plugin.enabled ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.08)"}
-      style={{ animationDelay: `${index * 150}ms` }}
+      style={{ animationDelay: `${index * 60}ms` }}
     >
     <Card
       className={cn(
-        "transition-all duration-200 hover:shadow-md",
-        plugin.enabled ? "border-primary/50" : "opacity-75"
+        "card-interactive",
+        plugin.enabled ? "border-l-2 border-l-brand/50" : "opacity-75"
       )}
     >
       <CardHeader className="pb-3">
@@ -1233,7 +1231,7 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
         </div>
       </CardContent>
     </Card>
-    </SpotlightCard>
+    </div>
   );
 }
 
@@ -1342,18 +1340,18 @@ export default function IntegrationsPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
         {/* Header - Always visible */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Puzzle className="h-7 w-7 text-primary" />
+        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
+          <h1 className="page-title flex items-center gap-3">
+            <Puzzle className="h-7 w-7 text-brand-emphasis" />
             Integrations
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+          <p className="page-description">
             Enable and configure data source plugins for your FiestaBoard
           </p>
         </div>
 
         {/* Stats Bar - Progressive loading */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-4 mb-6 animate-card-fade-in" style={{ animationDelay: "100ms" }}>
           {isLoading ? (
             <>
               <div className="flex items-center gap-2 text-sm">
@@ -1396,7 +1394,7 @@ export default function IntegrationsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
             {(() => {
               let globalIndex = 0;
               return Object.entries(groupedPlugins || {})

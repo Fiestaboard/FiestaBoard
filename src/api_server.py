@@ -51,7 +51,6 @@ _service: Optional[DisplayService] = None
 _service_lock = threading.Lock()
 _service_thread: Optional[threading.Thread] = None
 _service_running = False
-_dev_mode = False  # When True, preview only - don't send to board
 _service_start_time: Optional[float] = None  # Track when service started
 _shutting_down = False  # Set during app shutdown to suppress auto-restart
 
@@ -261,20 +260,13 @@ class UpdateCheckResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
-    global _dev_mode, _service_thread, _shutting_down, _service, _service_running
+    global _service_thread, _shutting_down, _service, _service_running
     # --- Startup ---
     _shutting_down = False
     logger.info("API server starting up...")
     
     # Set up file-based logging
     _setup_file_logging()
-    
-    # Auto-enable dev mode in local development (when not in production)
-    # Check if we're in a development environment
-    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-    if not is_production:
-        _dev_mode = True
-        logger.info("Dev mode auto-enabled for local development")
     
     # Initialize and auto-start the service
     service = get_service()
@@ -618,7 +610,6 @@ async def get_logs(
 @app.get("/status", response_model=StatusResponse)
 async def get_status():
     """Get current service status."""
-    global _dev_mode
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
@@ -630,8 +621,6 @@ async def get_status():
         initialized=service is not None,
         config_summary=Config.get_summary()
     )
-    # Add dev mode to config summary for UI
-    status.config_summary["dev_mode"] = _dev_mode
     # Add active page ID to config summary
     status.config_summary["active_page_id"] = settings_service.get_active_page_id()
     return status
@@ -694,19 +683,12 @@ async def stop_service():
 @app.post("/refresh")
 async def refresh_display():
     """Manually trigger a display refresh."""
-    global _dev_mode
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        service.fetch_and_display(dev_mode=_dev_mode)
-        if _dev_mode:
-            return {
-                "status": "success", 
-                "message": "Display previewed (dev mode enabled - not sent to board)",
-                "dev_mode": True
-            }
+        service.fetch_and_display()
         return {"status": "success", "message": "Display refreshed successfully"}
     except Exception as e:
         logger.error(f"Error refreshing display: {e}")
@@ -716,18 +698,9 @@ async def refresh_display():
 @app.post("/send-message")
 async def send_message(request: MessageRequest):
     """Send a custom message to the board."""
-    global _dev_mode
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    if _dev_mode:
-        logger.info(f"[DEV MODE] Would send message (not actually sending):\n{request.text}")
-        return {
-            "status": "success", 
-            "message": "Message previewed (dev mode enabled - not sent to board)",
-            "dev_mode": True
-        }
     
     # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
     if Config.is_silence_mode_active():
@@ -783,16 +756,6 @@ async def send_welcome_message():
     to ensure any recent config changes (e.g., from the setup wizard) are used.
     """
     from .board_client import BoardClient
-    
-    global _dev_mode
-    
-    if _dev_mode:
-        logger.info("[DEV MODE] Would send welcome message (not actually sending)")
-        return {
-            "status": "success", 
-            "message": "Welcome message previewed (dev mode enabled - not sent to board)",
-            "dev_mode": True
-        }
     
     # Check silence mode
     if Config.is_silence_mode_active():
@@ -1612,13 +1575,11 @@ async def send_display(
     Args:
         display_type: The display type to send
         target: Override output target (ui, board, both). If not provided,
-                uses the configured default based on dev_mode.
+                uses the configured default.
     
     Returns:
         Result of the send operation.
     """
-    global _dev_mode
-    
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(
             status_code=400,
@@ -1644,15 +1605,12 @@ async def send_display(
     
     # Determine target
     if target is None:
-        # Use settings-based logic
-        send_to_board = settings_service.should_send_to_board(_dev_mode)
+        send_to_board = settings_service.should_send_to_board()
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate (explicit target=board/both can bypass dev_mode)
     sent_to_board = False
-    explicit_target = target is not None and target in ["board", "both"]
-    if send_to_board and (explicit_target or not _dev_mode):
+    if send_to_board:
         transition = settings_service.get_transition_settings()
         # Use first board's device type for dimensions (flagship vs note)
         board_settings = settings_service.get_board_settings()
@@ -1676,8 +1634,7 @@ async def send_display(
         "display_type": display_type,
         "message": result.formatted,
         "sent_to_board": sent_to_board,
-        "target": target or ("ui" if _dev_mode else settings_service.get_output_settings().target),
-        "dev_mode": _dev_mode
+        "target": target or settings_service.get_output_settings().target,
     }
 
 
@@ -2547,13 +2504,11 @@ async def update_transition_settings(request: dict):
 @app.get("/settings/output")
 async def get_output_settings():
     """Get current output target settings."""
-    global _dev_mode
     settings_service = get_settings_service()
     output = settings_service.get_output_settings()
     return {
         "target": output.target,
-        "dev_mode": _dev_mode,
-        "effective_target": "ui" if _dev_mode else output.target,
+        "effective_target": output.target,
         "available_targets": VALID_OUTPUT_TARGETS
     }
 
@@ -2599,11 +2554,8 @@ async def set_active_page(request: dict):
     Body should include:
     - page_id: Page ID to set as active, or null to clear
     
-    When a page is set, it will be immediately rendered and sent to the board
-    (unless dev_mode is enabled).
+    When a page is set, it will be immediately rendered and sent to the board.
     """
-    global _dev_mode
-    
     settings_service = get_settings_service()
     page_service = get_page_service()
     service = get_service()
@@ -2632,7 +2584,7 @@ async def set_active_page(request: dict):
     
     # Immediately send to board if a page is set
     sent_to_board = False
-    if render_page_id and page and service and service.vb_client and not _dev_mode:
+    if render_page_id and page and service and service.vb_client and settings_service.should_send_to_board():
         result = page_service.preview_page(render_page_id, force_refresh=True)
         if result and result.available:
             system_transition = settings_service.get_transition_settings()
@@ -2656,7 +2608,6 @@ async def set_active_page(request: dict):
         "status": "success",
         "page_id": page_id,
         "sent_to_board": sent_to_board,
-        "dev_mode": _dev_mode
     }
 
 
@@ -2778,9 +2729,9 @@ async def get_all_settings():
     - transitions settings
     - output settings
     - board settings
-    - service status (running, dev_mode)
+    - service status (running)
     """
-    global _service_running, _dev_mode
+    global _service_running
     
     settings_service = get_settings_service()
     config_manager = get_config_manager()
@@ -2806,7 +2757,6 @@ async def get_all_settings():
         "board": board.to_dict(),
         "status": {
             "running": _service_running,
-            "dev_mode": _dev_mode
         }
     }
 
@@ -2866,19 +2816,15 @@ def _get_board_client():
 @app.post("/debug/blank")
 async def debug_blank_board():
     """Clear the board by filling with space characters (code 0)."""
-    global _dev_mode
-    
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
     
     settings_service = get_settings_service()
-    send_to_board = settings_service.should_send_to_board(_dev_mode)
-    
-    if not send_to_board:
+    if not settings_service.should_send_to_board():
         return {
             "status": "success",
-            "message": "Board blank (preview only - dev mode active)"
+            "message": "Board blank (output target is UI only)"
         }
     
     try:
@@ -2904,8 +2850,6 @@ async def debug_fill_board(request: dict):
     
     Body: {"character_code": number} - code must be 0-71
     """
-    global _dev_mode
-    
     character_code = request.get("character_code")
     if character_code is None:
         raise HTTPException(status_code=400, detail="character_code is required")
@@ -2918,12 +2862,10 @@ async def debug_fill_board(request: dict):
         raise HTTPException(status_code=400, detail="Board not configured")
     
     settings_service = get_settings_service()
-    send_to_board = settings_service.should_send_to_board(_dev_mode)
-    
-    if not send_to_board:
+    if not settings_service.should_send_to_board():
         return {
             "status": "success",
-            "message": f"Board filled with character {character_code} (preview only - dev mode active)"
+            "message": f"Board filled with character {character_code} (output target is UI only)"
         }
     
     try:
@@ -2946,14 +2888,12 @@ async def debug_fill_board(request: dict):
 @app.post("/debug/info")
 async def debug_show_info():
     """Display debug information on the board."""
-    global _dev_mode
-    
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
     
     settings_service = get_settings_service()
-    send_to_board = settings_service.should_send_to_board(_dev_mode)
+    send_to_board = settings_service.should_send_to_board()
     
     # Gather system info
     board_ip = Config.BOARD_HOST or "not set"
@@ -2980,7 +2920,7 @@ V{version[:7]} {timestamp}"""
     if not send_to_board:
         return {
             "status": "success",
-            "message": "Debug info displayed (preview only - dev mode active)",
+            "message": "Debug info displayed (output target is UI only)",
             "debug_info": debug_text
         }
     
@@ -3079,7 +3019,7 @@ async def debug_get_cache_status():
 @app.get("/debug/system-info")
 async def debug_get_system_info():
     """Get system information without sending to board."""
-    global _service_running, _dev_mode
+    global _service_running
     
     # Gather all system info
     board_ip = Config.BOARD_HOST or ""
@@ -3115,7 +3055,6 @@ async def debug_get_system_info():
         "cache_status": cache_status,
         "board_configured": board_configured,
         "service_running": _service_running,
-        "dev_mode": _dev_mode
     }
 
 
@@ -3409,8 +3348,6 @@ async def send_page(page_id: str, target: Optional[str] = None):
         page_id: The page ID
         target: Override output target (ui, board, both)
     """
-    global _dev_mode
-    
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(
             status_code=400,
@@ -3440,14 +3377,12 @@ async def send_page(page_id: str, target: Optional[str] = None):
     
     # Determine target
     if target is None:
-        send_to_board = settings_service.should_send_to_board(_dev_mode)
+        send_to_board = settings_service.should_send_to_board()
     else:
         send_to_board = target in ["board", "both"]
     
-    # Send to board if appropriate (explicit target=board/both can bypass dev_mode)
     sent_to_board = False
-    explicit_target = target is not None and target in ["board", "both"]
-    if send_to_board and (explicit_target or not _dev_mode):
+    if send_to_board:
         # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
         if Config.is_silence_mode_active():
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
@@ -3478,8 +3413,7 @@ async def send_page(page_id: str, target: Optional[str] = None):
         "page_id": page_id,
         "message": result.formatted,
         "sent_to_board": sent_to_board,
-        "target": target or ("ui" if _dev_mode else settings_service.get_output_settings().target),
-        "dev_mode": _dev_mode
+        "target": target or settings_service.get_output_settings().target,
     }
 
 
@@ -3988,28 +3922,6 @@ def render_template_live(request: dict):
     }
 
 
-@app.get("/dev-mode")
-async def get_dev_mode():
-    """Get current dev mode status."""
-    global _dev_mode
-    return {"dev_mode": _dev_mode}
-
-
-@app.post("/dev-mode")
-async def set_dev_mode(request: dict):
-    """Enable or disable dev mode (preview only, no actual sending)."""
-    global _dev_mode
-    if "dev_mode" in request:
-        _dev_mode = bool(request["dev_mode"])
-        logger.info(f"Dev mode {'enabled' if _dev_mode else 'disabled'}")
-        return {
-            "status": "success",
-            "dev_mode": _dev_mode,
-            "message": f"Dev mode {'enabled' if _dev_mode else 'disabled'}"
-        }
-    raise HTTPException(status_code=400, detail="dev_mode parameter required")
-
-
 @app.get("/cache-status")
 async def get_cache_status():
     """Get the current client-side cache status for the board client."""
@@ -4045,24 +3957,16 @@ async def force_refresh():
     Unlike /refresh, this will send to the board even if the message 
     content hasn't changed. Useful when you want to resync the board.
     """
-    global _dev_mode
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    if _dev_mode:
-        return {
-            "status": "success", 
-            "message": "Force refresh previewed (dev mode enabled - not sent to board)",
-            "dev_mode": True
-        }
     
     # Clear cache to force send
     if service.vb_client:
         service.vb_client.clear_cache()
     
     try:
-        service.fetch_and_display(dev_mode=False)
+        service.fetch_and_display()
         return {"status": "success", "message": "Display force-refreshed successfully"}
     except Exception as e:
         logger.error(f"Error force-refreshing display: {e}")

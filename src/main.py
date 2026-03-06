@@ -116,14 +116,11 @@ class DisplayService:
         
         return True
     
-    def check_and_send_active_page(self, dev_mode: bool = False) -> bool:
+    def check_and_send_active_page(self) -> bool:
         """Check the active page and send to board if content changed.
         
         Respects schedule mode - uses schedule-based page selection when enabled,
         otherwise falls back to manual active page setting.
-        
-        Args:
-            dev_mode: If True, don't actually send to board
             
         Returns:
             True if content was sent to board, False otherwise
@@ -245,21 +242,6 @@ class DisplayService:
             
             # At this point, we're going to send an update
             
-            if dev_mode:
-                logger.info("[DEV MODE] Would send active page (not actually sending)")
-                self._last_active_page_content = content_to_send
-                self._last_active_page_id = active_page_id
-                self._last_silence_mode_active = silence_mode_active
-                
-                # Mark snoozing message as sent in dev mode if content has indicator
-                if silence_mode_active and "snoozing" in content_to_send:
-                    self._snoozing_message_sent = True
-                    logger.info("[DEV MODE] 🔇 Silence mode fully activated - ALL further updates blocked")
-                elif exiting_silence_mode:
-                    self._snoozing_message_sent = False
-                
-                return False
-            
             if not self.vb_client:
                 logger.warning("Board client not initialized")
                 return False
@@ -343,11 +325,11 @@ class DisplayService:
         settings_service = get_settings_service()
         polling_interval = settings_service.get_polling_interval()
         
-        schedule.every(polling_interval).seconds.do(lambda: self.check_and_send_active_page(dev_mode=False))
+        schedule.every(polling_interval).seconds.do(self.check_and_send_active_page)
         logger.info(f"Active page polling scheduled every {polling_interval} seconds")
         
         logger.info("Sending initial active page...")
-        self.check_and_send_active_page(dev_mode=False)
+        self.check_and_send_active_page()
         
         logger.info("Service started, waiting for scheduled updates...")
         _next_carousel_check: float = time.time()
@@ -362,7 +344,7 @@ class DisplayService:
                         carousel_service = get_carousel_service()
                         secs = carousel_service.seconds_until_next_page(ref_id, now)
                         if secs is not None:
-                            self.check_and_send_active_page(dev_mode=False)
+                            self.check_and_send_active_page()
                             _next_carousel_check = now + max(1, secs)
                         else:
                             _next_carousel_check = now + polling_interval

@@ -17,7 +17,7 @@ The schedule feature provides a visual calendar where you can assign pages to sp
 - Showing fun content like Star Trek quotes on weekends
 - Setting a default "home" page for unscheduled times
 
-![Schedule Calendar](/img/schedule-calendar.png)
+<ThemedScreenshot src="/img/schedule-calendar.png" alt="Schedule Calendar" />
 
 ## Creating a Schedule Entry
 
@@ -30,7 +30,7 @@ The schedule feature provides a visual calendar where you can assign pages to sp
    - **End Time** - When the page should stop showing
    - **Days** - Which days this schedule applies to
 
-![Schedule entry form with page, time, and day selection](/img/guides/schedule-entry-form.png)
+<ThemedScreenshot src="/img/guides/schedule-entry-form.png" alt="Schedule entry form with page, time, and day selection" />
 
 ### Day Patterns
 
@@ -57,7 +57,7 @@ The calendar view provides a visual weekly overview. Each scheduled page appears
 
 The list view shows all schedule entries in a table format, which is useful for managing many entries or making quick edits.
 
-![Schedule list view showing entries in table format](/img/schedule-list-view.png)
+<ThemedScreenshot src="/img/schedule-list-view.png" alt="Schedule list view showing entries in table format" />
 
 ## Schedule Validation
 

@@ -133,10 +133,8 @@ export function ScheduleCalendarView({
       if (event.resource.isMidnightSplit) {
         const orig = event.resource.originalSchedule;
         if (event.resource.splitPart === "evening") {
-          // Evening part: end must stay at midnight (00:00)
-          if (endTime !== "00:00") {
-            return; // Revert – can't change midnight boundary
-          }
+          // Evening part: end is always pinned to the midnight boundary.
+          // Only the start time can be changed; orig.end_time is always preserved.
           onEventTimeChange(event.resource.scheduleId, startTime, orig.end_time);
         } else {
           // Morning part: start must stay at midnight (00:00)

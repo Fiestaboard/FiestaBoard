@@ -3,7 +3,6 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import {
-  useToggleDevMode,
   useSetActivePage,
   usePagePreview,
   useBoardSettings,
@@ -38,21 +37,6 @@ describe("use-board extended", () => {
       expect(queryKeys.pages).toEqual(["pages"]);
       expect(queryKeys.boardSettings).toEqual(["boardSettings"]);
       expect(queryKeys.pagePreview("p1")).toEqual(["pagePreview", "p1"]);
-    });
-  });
-
-  describe("useToggleDevMode", () => {
-    it("sends mutation and invalidates status", async () => {
-      const { result } = renderHook(() => useToggleDevMode(), {
-        wrapper: createWrapper(),
-      });
-
-      await act(async () => {
-        result.current.mutate(true);
-      });
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(result.current.data?.status).toBe("success");
     });
   });
 

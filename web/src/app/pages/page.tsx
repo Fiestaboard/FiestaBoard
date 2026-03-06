@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useState, useMemo, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, LayoutGrid, List } from "lucide-react";
+import { Plus, LayoutGrid, List, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import type { ViewMode } from "@/components/page-grid-selector";
@@ -55,61 +54,57 @@ export default function PagesPage() {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Pages
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            Create and manage content for your board
-          </p>
-        </div>
-
-        {/* Page Grid */}
-        <Card className="animate-card-fade-in">
-          <CardHeader className="pb-3 px-4 sm:px-6">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base sm:text-lg">
-                Saved Pages
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center border rounded-md" role="group" aria-label="View mode">
-                  <Button
-                    size="sm"
-                    variant={viewMode === "grid" ? "secondary" : "ghost"}
-                    onClick={() => handleViewModeChange("grid")}
-                    className="h-8 w-8 p-0 rounded-r-none"
-                    aria-label="Grid view"
-                    aria-pressed={viewMode === "grid"}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={viewMode === "list" ? "secondary" : "ghost"}
-                    onClick={() => handleViewModeChange("list")}
-                    className="h-8 w-8 p-0 rounded-l-none"
-                    aria-label="List view"
-                    aria-pressed={viewMode === "list"}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                </div>
+        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="page-title flex items-center gap-3">
+                <FileText className="h-7 w-7 text-brand-emphasis" />
+                Pages
+              </h1>
+              <p className="page-description">
+                Create and manage content for your board
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center border rounded-md" role="group" aria-label="View mode">
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={handleCreateNew}
-                  className="h-9 sm:h-8 px-3 text-xs"
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  onClick={() => handleViewModeChange("grid")}
+                  className="h-8 w-8 p-0 rounded-r-none"
+                  aria-label="Grid view"
+                  aria-pressed={viewMode === "grid"}
                 >
-                  <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
-                  New
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  onClick={() => handleViewModeChange("list")}
+                  className="h-8 w-8 p-0 rounded-l-none"
+                  aria-label="List view"
+                  aria-pressed={viewMode === "list"}
+                >
+                  <List className="h-4 w-4" />
                 </Button>
               </div>
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={handleCreateNew}
+                className="h-9 sm:h-8 px-3 text-xs btn-lift"
+              >
+                <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
+                New
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6">
+          </div>
+        </div>
+
+        <div className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
             {hasMultipleDevices ? (
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-                <TabsList className="mb-4">
+                <TabsList className="mb-5">
                   {configuredDevices.includes("flagship") && (
                     <TabsTrigger value="flagship">Flagship</TabsTrigger>
                   )}
@@ -122,7 +117,6 @@ export default function PagesPage() {
                     <PageGridSelector
                       onSelectPage={handleSelectPage}
                       showActiveIndicator={false}
-                      label="SELECT FLAGSHIP PAGE TO EDIT"
                       deviceTypeFilter="flagship"
                       viewMode={viewMode}
                     />
@@ -133,7 +127,6 @@ export default function PagesPage() {
                     <PageGridSelector
                       onSelectPage={handleSelectPage}
                       showActiveIndicator={false}
-                      label="SELECT NOTE PAGE TO EDIT"
                       deviceTypeFilter="note"
                       viewMode={viewMode}
                     />
@@ -144,13 +137,11 @@ export default function PagesPage() {
               <PageGridSelector
                 onSelectPage={handleSelectPage}
                 showActiveIndicator={false}
-                label="SELECT PAGE TO EDIT"
                 deviceTypeFilter={configuredDevices[0] as DeviceType}
                 viewMode={viewMode}
               />
             )}
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </div>
   );

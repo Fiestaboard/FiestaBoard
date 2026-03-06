@@ -231,11 +231,7 @@ export function ActivePageDisplay() {
       const firstPage = pages[0];
       setActivePageMutation.mutate(firstPage.id, {
         onSuccess: (result) => {
-          if (result.sent_to_board) {
-            toast.success(`Set "${firstPage.name}" as active page`);
-          } else {
-            toast.info(`Set "${firstPage.name}" as active page (dev mode)`);
-          }
+          toast.success(`Set "${firstPage.name}" as active page`);
         },
         onError: () => {
           toast.error("Failed to set default page");
@@ -274,11 +270,7 @@ export function ActivePageDisplay() {
         
         // Use startTransition for toast notifications (non-urgent)
         startTransition(() => {
-          if (result.sent_to_board) {
-            toast.success(`Switched to active page`);
-          } else {
-            toast.info(`Switched to active page (dev mode)`);
-          }
+          toast.success(`Switched to active page`);
         });
       },
       onError: () => {
@@ -331,7 +323,7 @@ export function ActivePageDisplay() {
 
   return (
     <>
-      <Card>
+      <Card className="card-interactive">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Active Display</CardTitle>

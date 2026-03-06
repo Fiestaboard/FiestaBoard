@@ -1,7 +1,7 @@
 """Extended tests for api_server.py to increase coverage.
 
 Covers config endpoints, plugin endpoints, template endpoints, settings endpoints,
-pages endpoints, schedule endpoints, dev mode, cache, service lifecycle, and error paths.
+pages endpoints, schedule endpoints, cache, service lifecycle, and error paths.
 """
 
 import pytest
@@ -413,8 +413,7 @@ class TestSettingsEndpoints:
         assert response.status_code == 400
 
     def test_get_output_settings(self, client, mock_settings_service):
-        with patch("src.api_server._dev_mode", False):
-            response = client.get("/settings/output")
+        response = client.get("/settings/output")
         assert response.status_code == 200
         data = response.json()
         assert "target" in data
@@ -440,8 +439,7 @@ class TestSettingsEndpoints:
         assert response.json()["page_id"] == "page1"
 
     def test_set_active_page(self, client, mock_settings_service, mock_page_service):
-        with patch("src.api_server._dev_mode", True):
-            response = client.put("/settings/active-page", json={"page_id": "page1"})
+        response = client.put("/settings/active-page", json={"page_id": "page1"})
         assert response.status_code == 200
         assert response.json()["status"] == "success"
 
@@ -531,8 +529,7 @@ class TestSettingsEndpoints:
         assert response.status_code == 400
 
     def test_get_all_settings(self, client, mock_settings_service, mock_config_manager):
-        with patch("src.api_server._service_running", True), \
-             patch("src.api_server._dev_mode", False):
+        with patch("src.api_server._service_running", True):
             response = client.get("/settings/all")
         assert response.status_code == 200
         data = response.json()
@@ -949,8 +946,7 @@ class TestPagesEndpoints:
         assert response.status_code == 200
 
     def test_send_page(self, client, mock_page_service, mock_settings_service, mock_service):
-        with patch("src.api_server._dev_mode", True):
-            response = client.post("/pages/page1/send")
+        response = client.post("/pages/page1/send")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
@@ -1072,31 +1068,6 @@ class TestScheduleEndpoints:
 
 
 # ============================================================
-# Dev Mode
-# ============================================================
-
-class TestDevMode:
-    def test_get_dev_mode(self, client):
-        response = client.get("/dev-mode")
-        assert response.status_code == 200
-        assert "dev_mode" in response.json()
-
-    def test_set_dev_mode_on(self, client):
-        response = client.post("/dev-mode", json={"dev_mode": True})
-        assert response.status_code == 200
-        assert response.json()["dev_mode"] is True
-
-    def test_set_dev_mode_off(self, client):
-        response = client.post("/dev-mode", json={"dev_mode": False})
-        assert response.status_code == 200
-        assert response.json()["dev_mode"] is False
-
-    def test_set_dev_mode_missing_param(self, client):
-        response = client.post("/dev-mode", json={})
-        assert response.status_code == 400
-
-
-# ============================================================
 # Cache / Force Refresh
 # ============================================================
 
@@ -1127,26 +1098,18 @@ class TestCacheEndpoints:
             response = client.post("/clear-cache")
         assert response.status_code == 503
 
-    def test_force_refresh_dev_mode(self, client, mock_service):
-        with patch("src.api_server._dev_mode", True):
-            response = client.post("/force-refresh")
-        assert response.status_code == 200
-        assert response.json()["dev_mode"] is True
-
     def test_force_refresh_no_service(self, client):
         with patch("src.api_server.get_service", return_value=None):
             response = client.post("/force-refresh")
         assert response.status_code == 503
 
     def test_force_refresh_success(self, client, mock_service):
-        with patch("src.api_server._dev_mode", False):
-            response = client.post("/force-refresh")
+        response = client.post("/force-refresh")
         assert response.status_code == 200
 
     def test_force_refresh_error(self, client, mock_service):
         mock_service.fetch_and_display.side_effect = Exception("Refresh failed")
-        with patch("src.api_server._dev_mode", False):
-            response = client.post("/force-refresh")
+        response = client.post("/force-refresh")
         assert response.status_code == 500
 
 
@@ -1173,12 +1136,6 @@ class TestServiceLifecycle:
         assert response.status_code == 200
         assert response.json()["status"] == "stopped"
 
-    def test_refresh_dev_mode(self, client, mock_service):
-        with patch("src.api_server._dev_mode", True):
-            response = client.post("/refresh")
-        assert response.status_code == 200
-        assert response.json()["dev_mode"] is True
-
     def test_refresh_no_service(self, client):
         with patch("src.api_server.get_service", return_value=None):
             response = client.post("/refresh")
@@ -1186,8 +1143,7 @@ class TestServiceLifecycle:
 
     def test_refresh_error(self, client, mock_service):
         mock_service.fetch_and_display.side_effect = Exception("Display error")
-        with patch("src.api_server._dev_mode", False):
-            response = client.post("/refresh")
+        response = client.post("/refresh")
         assert response.status_code == 500
 
     def test_send_message_no_service(self, client):
@@ -1195,45 +1151,34 @@ class TestServiceLifecycle:
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 503
 
-    def test_send_message_dev_mode(self, client, mock_service):
-        with patch("src.api_server._dev_mode", True):
-            response = client.post("/send-message", json={"text": "Hello"})
-        assert response.status_code == 200
-        assert response.json()["dev_mode"] is True
-
     def test_send_message_silence_mode(self, client, mock_service):
-        with patch("src.api_server._dev_mode", False), \
-             patch("src.api_server.Config.is_silence_mode_active", return_value=True):
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
         assert response.json()["silence_mode"] is True
 
     def test_send_message_no_board_client(self, client, mock_service, mock_settings_service):
         mock_service.vb_client = None
-        with patch("src.api_server._dev_mode", False), \
-             patch("src.api_server.Config.is_silence_mode_active", return_value=False):
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 503
 
     def test_send_message_success(self, client, mock_service, mock_settings_service):
-        with patch("src.api_server._dev_mode", False), \
-             patch("src.api_server.Config.is_silence_mode_active", return_value=False):
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
         assert response.json()["status"] == "success"
 
     def test_send_message_skipped(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (True, False)
-        with patch("src.api_server._dev_mode", False), \
-             patch("src.api_server.Config.is_silence_mode_active", return_value=False):
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
         assert response.json()["skipped"] is True
 
     def test_send_message_failure(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (False, False)
-        with patch("src.api_server._dev_mode", False), \
-             patch("src.api_server.Config.is_silence_mode_active", return_value=False):
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 500
 
@@ -1278,11 +1223,6 @@ class TestDisplayBatchEndpoints:
             response = client.post("/displays/weather/send")
         assert response.status_code == 503
 
-    def test_send_display_dev_mode(self, client, mock_display_service, mock_settings_service, mock_service):
-        with patch("src.api_server._dev_mode", True):
-            response = client.post("/displays/weather/send")
-        assert response.status_code == 200
-
     def test_send_display_unknown_type(self, client, mock_display_service, mock_settings_service, mock_service):
         from src.displays.service import DisplayResult
         mock_display_service.get_display.return_value = DisplayResult(
@@ -1301,15 +1241,8 @@ class TestDisplayBatchEndpoints:
 # ============================================================
 
 class TestWelcomeMessage:
-    def test_send_welcome_dev_mode(self, client):
-        with patch("src.api_server._dev_mode", True):
-            response = client.post("/send-welcome-message")
-        assert response.status_code == 200
-        assert response.json()["dev_mode"] is True
-
     def test_send_welcome_silence_mode(self, client):
-        with patch("src.api_server._dev_mode", False), \
-             patch("src.api_server.Config.is_silence_mode_active", return_value=True):
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-welcome-message")
         assert response.status_code == 200
         assert response.json()["silence_mode"] is True

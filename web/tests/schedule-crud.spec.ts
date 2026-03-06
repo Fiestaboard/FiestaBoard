@@ -69,10 +69,9 @@ test.describe("Schedule CRUD", () => {
       page.getByRole("heading", { name: "Schedule", exact: true })
     ).toBeVisible({ timeout: 15_000 });
 
-    // Verify schedule-related content is visible (time slots or entries)
-    // The schedule page should show at least one entry
+    // Verify the schedule entry is visible (shows the full time range)
     await expect(
-      page.getByText("10:00").first().or(page.getByText("14:00").first())
+      page.getByText("10:00 - 14:00").first()
     ).toBeVisible({ timeout: 10_000 });
   });
 
