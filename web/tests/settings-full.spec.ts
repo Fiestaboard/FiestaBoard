@@ -179,6 +179,9 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
+    // Expand the Advanced collapsible (Debug Tools + Setup Wizard are inside)
+    await page.getByRole("heading", { name: "Advanced" }).click();
+
     // Find the "Run Setup Wizard" button
     const wizardBtn = page
       .getByRole("button", { name: /setup wizard/i })
@@ -193,6 +196,9 @@ test.describe("Settings – Full Coverage", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    // Expand the Advanced collapsible
+    await page.getByRole("heading", { name: "Advanced" }).click();
 
     // Verify Debug Tools section
     await expect(page.getByText("Debug Tools").first()).toBeVisible({
@@ -211,6 +217,9 @@ test.describe("Settings – Full Coverage", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    // Expand the Advanced collapsible
+    await page.getByRole("heading", { name: "Advanced" }).click();
 
     // Find "Clear Message Cache" button
     const clearBtn = page

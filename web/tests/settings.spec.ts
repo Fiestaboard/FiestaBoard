@@ -38,10 +38,15 @@ test.describe("Settings Page", () => {
     // Boards section
     await expect(page.getByText("Boards").first()).toBeVisible();
 
-    // Debug Tools section
-    await expect(page.getByText("Debug Tools").first()).toBeVisible();
+    // Advanced section (collapsed by default) contains Debug Tools and Setup Wizard
+    const advancedHeading = page.getByRole("heading", { name: "Advanced" });
+    await expect(advancedHeading).toBeVisible({ timeout: 5_000 });
+    await advancedHeading.click();
 
-    // Setup Wizard re-run button
+    // Debug Tools section (inside Advanced)
+    await expect(page.getByText("Debug Tools").first()).toBeVisible({ timeout: 5_000 });
+
+    // Setup Wizard re-run button (inside Advanced)
     await expect(page.getByText("Setup Wizard").first()).toBeVisible();
   });
 

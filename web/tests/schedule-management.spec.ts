@@ -178,11 +178,10 @@ test.describe("Schedule Management", () => {
       await page.waitForTimeout(300);
     }
 
-    const rowWithTime = page.getByText("10:00").first();
-    await expect(rowWithTime).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("10:00").first()).toBeVisible({ timeout: 10_000 });
 
-    // Open the edit modal: list row has two icon buttons (Edit, Delete); first is Edit
-    const editBtn = rowWithTime.locator("../..").getByRole("button").first();
+    // Open the edit modal via the Edit button (has aria-label="Edit")
+    const editBtn = page.getByRole("button", { name: "Edit" }).first();
     await expect(editBtn).toBeVisible({ timeout: 5_000 });
     await editBtn.click();
 
@@ -195,9 +194,8 @@ test.describe("Schedule Management", () => {
     await page.getByRole("button", { name: "Cancel" }).click();
     await page.waitForTimeout(300);
 
-    // Click the row's Delete button (second button in the row; icon-only in UI)
-    const rowButtons = rowWithTime.locator("../..").getByRole("button");
-    const rowDeleteBtn = rowButtons.nth(1);
+    // Click the Delete button (has aria-label="Delete")
+    const rowDeleteBtn = page.getByRole("button", { name: "Delete" }).first();
     await expect(rowDeleteBtn).toBeVisible({ timeout: 5_000 });
     await rowDeleteBtn.click();
 
