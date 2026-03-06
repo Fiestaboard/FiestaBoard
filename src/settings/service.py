@@ -397,32 +397,12 @@ class SettingsService:
         logger.info(f"Output target set to: {target}")
         return self._output
     
-    def should_send_to_board(self, dev_mode: bool = False) -> bool:
-        """Determine if message should be sent to board.
-        
-        Args:
-            dev_mode: Whether dev mode is enabled
-            
-        Returns:
-            True if message should be sent to board
-        """
-        if dev_mode:
-            # In dev mode, only send if target is "both"
-            return self._output.target == "both"
-        else:
-            # In prod mode, send unless target is "ui"
-            return self._output.target in ["board", "both"]
+    def should_send_to_board(self) -> bool:
+        """Determine if message should be sent to board based on output target."""
+        return self._output.target in ["board", "both"]
     
-    def should_send_to_ui(self, dev_mode: bool = False) -> bool:
-        """Determine if message should be sent to UI.
-        
-        Args:
-            dev_mode: Whether dev mode is enabled
-            
-        Returns:
-            True if message should be sent to UI (always True for preview)
-        """
-        # UI preview is always available
+    def should_send_to_ui(self) -> bool:
+        """Determine if message should be sent to UI."""
         return True
     
     # Active page settings
