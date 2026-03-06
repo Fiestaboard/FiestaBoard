@@ -366,7 +366,7 @@ export default function SchedulePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Schedule</CardTitle>
+                <CardTitle className="text-lg">Schedule Mode</CardTitle>
                 <CardDescription>
                   {scheduleEnabled
                     ? "Enabled — pages automatically rotate based on schedule"

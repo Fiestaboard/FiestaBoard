@@ -189,7 +189,7 @@ test.describe("Page Management", () => {
     }
 
     // Save the page
-    const saveButton = page.locator('[title="Save Page"]').or(
+    const saveButton = page.getByRole("button", { name: "Save Page" }).or(
       page.getByRole("button", { name: /save/i })
     );
     await saveButton.first().click();

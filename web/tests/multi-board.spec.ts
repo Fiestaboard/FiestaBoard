@@ -129,11 +129,8 @@ test.describe("Settings – Board Instance CRUD", () => {
       timeout: 5_000,
     });
 
-    // Click the Note option (has Smartphone icon + "Note" text)
-    const noteAddBtn = page.locator("button", { hasText: "Note" }).filter({
-      has: page.locator("svg"),
-    });
-    await noteAddBtn.last().click();
+    // Click the Note option in the type picker
+    await page.getByRole("button", { name: "Note", exact: true }).click();
 
     // Verify Note dimensions appear
     await expect(page.getByText("15×3").first()).toBeVisible({
@@ -164,13 +161,11 @@ test.describe("Settings – Board Instance CRUD", () => {
       timeout: 5_000,
     });
 
-    // Click the Flagship option
-    const flagshipAddBtn = page
-      .locator("button", { hasText: "Flagship" })
-      .filter({ has: page.locator("svg") });
-    await flagshipAddBtn.last().click();
+    // Click the Flagship option in the type picker
+    await page.getByRole("button", { name: "Flagship", exact: true }).click();
 
-    await page.waitForTimeout(1_500);
+    await expect(page.getByText("Board added")).toBeVisible({ timeout: 5_000 }).catch(() => {});
+    await page.waitForTimeout(1_000);
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
