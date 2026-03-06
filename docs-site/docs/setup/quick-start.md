@@ -63,7 +63,7 @@ Once FiestaBoard is running at **http://localhost:4420**:
 2. Once connected, the display service starts automatically
 3. Verify the dashboard shows **Running** — your board is now connected!
 
-![Settings page with board API key and IP address inputs](/img/guides/settings-board-config.png)
+<ThemedScreenshot src="/img/guides/settings-board-config.png" alt="Settings page with board API key and IP address inputs" />
 
 ## What to Do Next
 
@@ -77,9 +77,9 @@ Now that FiestaBoard is running, you'll want to:
 Many plugins need no API key: Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, Disney Parks, Surf Conditions, and more. Start with those while you gather API keys for weather, traffic, etc.
 :::
 
-![Integrations page showing all plugins with toggle switches](/img/guides/integrations-full.png)
+<ThemedScreenshot src="/img/guides/integrations-full.png" alt="Integrations page showing all plugins with toggle switches" />
 
-![Schedule calendar with multiple time-based entries](/img/guides/schedule-calendar-populated.png)
+<ThemedScreenshot src="/img/guides/schedule-calendar-populated.png" alt="Schedule calendar with multiple time-based entries" />
 
 For a full walkthrough, see **[Your First 10 Minutes](/docs/setup/first-10-minutes)**.
 
