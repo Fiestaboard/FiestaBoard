@@ -14,7 +14,6 @@ export interface ConfigSummary {
   home_assistant_enabled: boolean;
   guest_wifi_enabled: boolean;
   star_trek_quotes_enabled: boolean;
-  dev_mode: boolean;
   transition_strategy?: string | null;
   transition_interval_ms?: number | null;
   transition_step_size?: number | null;
@@ -32,7 +31,6 @@ export interface PreviewResponse {
 export interface ActionResponse {
   status: string;
   message: string;
-  dev_mode?: boolean;
   debug_info?: string;
 }
 
@@ -107,7 +105,6 @@ export interface DebugSystemInfo {
   } | null;
   board_configured: boolean;
   service_running: boolean;
-  dev_mode: boolean;
 }
 
 export interface PageDeleteResponse {
@@ -167,7 +164,6 @@ export interface TransitionSettings {
 
 export interface OutputSettings {
   target: "ui" | "board" | "both";
-  dev_mode: boolean;
   effective_target: string;
   available_targets: string[];
 }
@@ -181,7 +177,6 @@ export interface SetActivePageResponse {
   status: string;
   page_id: string | null;
   sent_to_board: boolean;
-  dev_mode: boolean;
 }
 
 // Page types
@@ -274,7 +269,6 @@ export interface PageSendResponse {
   message: string;
   sent_to_board: boolean;
   target: string;
-  dev_mode: boolean;
 }
 
 // Template types
@@ -554,7 +548,6 @@ export interface AllSettingsResponse {
   board: BoardSettings;
   status: {
     running: boolean;
-    dev_mode: boolean;
   };
 }
 
@@ -592,7 +585,6 @@ export interface BoardTestResponse {
 export interface WelcomeMessageResponse {
   status: string;
   message: string;
-  dev_mode?: boolean;
   skipped?: boolean;
   silence_mode?: boolean;
 }
@@ -778,12 +770,6 @@ export const api = {
     fetchApi<ActionResponse>("/start", { method: "POST" }),
   stopService: () =>
     fetchApi<ActionResponse>("/stop", { method: "POST" }),
-  toggleDevMode: (devMode: boolean) =>
-    fetchApi<ActionResponse>("/dev-mode", {
-      method: "POST",
-      body: JSON.stringify({ dev_mode: devMode }),
-    }),
-
   // Display endpoints
   getDisplays: () => fetchApi<DisplaysResponse>("/displays"),
   getDisplay: (type: string) => fetchApi<DisplayResponse>(`/displays/${type}`),

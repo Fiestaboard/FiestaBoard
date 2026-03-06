@@ -34,17 +34,6 @@ export function useConfig() {
   });
 }
 
-// Toggle dev mode mutation
-export function useToggleDevMode() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: api.toggleDevMode,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.status });
-    },
-  });
-}
-
 // Active page query
 export function useActivePage() {
   return useQuery({
