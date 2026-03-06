@@ -27,7 +27,6 @@ describe("useStatus", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.running).toBe(true);
-    expect(result.current.data?.config_summary.dev_mode).toBe(true);
   });
 });
 

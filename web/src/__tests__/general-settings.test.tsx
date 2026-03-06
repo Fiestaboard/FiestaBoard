@@ -41,17 +41,6 @@ describe("GeneralSettings", () => {
     });
   });
 
-  it("shows dev mode toggle", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Dev Mode/i)).toBeInTheDocument();
-      const switches = screen.getAllByRole("switch");
-      const devModeSwitch = switches.find((s) => s.getAttribute("id") === "dev-mode");
-      expect(devModeSwitch).toBeInTheDocument();
-    });
-  });
-
   it("shows timezone picker", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
@@ -175,30 +164,6 @@ describe("GeneralSettings", () => {
     });
   });
 
-  it("toggles dev mode", async () => {
-    const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      const switches = screen.getAllByRole("switch");
-      expect(switches.length).toBeGreaterThan(0);
-    });
-
-    const switches = screen.getAllByRole("switch");
-    const devModeSwitch = switches.find((s) => s.getAttribute("id") === "dev-mode");
-    
-    expect(devModeSwitch).toBeInTheDocument();
-    
-    if (devModeSwitch) {
-      await user.click(devModeSwitch);
-
-      // Should handle the toggle
-      await waitFor(() => {
-        expect(devModeSwitch).toBeInTheDocument();
-      });
-    }
-  });
-
   it("displays timezone description", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
@@ -223,7 +188,6 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Dev Mode")).toBeInTheDocument();
       expect(screen.getByText("Timezone")).toBeInTheDocument();
       expect(screen.getByText("Silence Schedule")).toBeInTheDocument();
     }, { timeout: 2000 });

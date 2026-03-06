@@ -85,34 +85,6 @@ describe("GeneralSettings extended", () => {
     });
   });
 
-  it("shows dev mode toggle error on mutation failure", async () => {
-    const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
-    server.use(
-      http.post(`${API_BASE}/dev-mode`, () =>
-        HttpResponse.json({ error: "Failed" }, { status: 500 })
-      )
-    );
-
-    const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      const devModeSwitch = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "dev-mode");
-      expect(devModeSwitch).toBeInTheDocument();
-    });
-
-    const devModeSwitch = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "dev-mode");
-    if (devModeSwitch) {
-      await user.click(devModeSwitch);
-
-      await waitFor(() => {
-        expect(toastSpy).toHaveBeenCalledWith("Failed to toggle dev mode");
-      });
-    }
-
-    toastSpy.mockRestore();
-  });
-
   it("displays Board Update Interval description", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
@@ -137,9 +109,9 @@ describe("GeneralSettings extended", () => {
           silence_schedule: { config: { enabled: false, start_time: "04:00+00:00", end_time: "15:00+00:00" } },
           polling: { interval_seconds: 300 },
           transitions: { strategy: "column", step_interval_ms: 500, step_size: 2, available_strategies: [] },
-          output: { target: "board", dev_mode: false, effective_target: "board", available_targets: [] },
+          output: { target: "board", effective_target: "board", available_targets: [] },
           board: { board_type: "black", boards: [], devices: [] },
-          status: { running: false, config_summary: { dev_mode: false } },
+          status: { running: false, config_summary: {} },
         })
       )
     );
@@ -151,25 +123,4 @@ describe("GeneralSettings extended", () => {
     });
   });
 
-  it("shows dev mode preview text when dev mode is on", async () => {
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json({
-          general: { timezone: "America/Los_Angeles", refresh_interval_seconds: 300, output_target: "board" },
-          silence_schedule: { config: { enabled: false, start_time: "04:00+00:00", end_time: "15:00+00:00" } },
-          polling: { interval_seconds: 300 },
-          transitions: { strategy: "column", step_interval_ms: 500, step_size: 2, available_strategies: [] },
-          output: { target: "board", dev_mode: false, effective_target: "board", available_targets: [] },
-          board: { board_type: "black", boards: [], devices: [] },
-          status: { running: true, config_summary: { dev_mode: true } },
-        })
-      )
-    );
-
-    render(<GeneralSettings />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText(/preview only/i)).toBeInTheDocument();
-    });
-  });
 });

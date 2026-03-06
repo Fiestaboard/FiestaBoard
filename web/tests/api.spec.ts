@@ -3,7 +3,7 @@
  *
  * Covers fundamental API contracts: version, config, settings,
  * basic CRUD for pages/schedules, plugins listing, templates,
- * displays, dev-mode toggle, and debug endpoints.
+ * displays, and debug endpoints.
  *
  * Extended endpoint tests live in api-extended.spec.ts.
  */
@@ -267,48 +267,6 @@ test.describe("API – Displays", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Dev Mode
-// ---------------------------------------------------------------------------
-
-test.describe("API – Dev Mode", () => {
-  test("can get and set dev mode", async () => {
-    // Get current state
-    const getRes = await fetch(`${API()}/dev-mode`);
-    expect(getRes.ok).toBe(true);
-    const initial = await getRes.json();
-    expect(initial).toHaveProperty("dev_mode");
-    const originalMode = initial.dev_mode;
-
-    // Toggle on
-    const onRes = await fetch(`${API()}/dev-mode`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dev_mode: true }),
-    });
-    expect(onRes.ok).toBe(true);
-    const onData = await onRes.json();
-    expect(onData.dev_mode).toBe(true);
-
-    // Toggle off
-    const offRes = await fetch(`${API()}/dev-mode`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dev_mode: false }),
-    });
-    expect(offRes.ok).toBe(true);
-    const offData = await offRes.json();
-    expect(offData.dev_mode).toBe(false);
-
-    // Restore original state so subsequent tests aren't affected
-    await fetch(`${API()}/dev-mode`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dev_mode: originalMode }),
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Debug Endpoints
 // ---------------------------------------------------------------------------
 
@@ -333,7 +291,6 @@ test.describe("API – Debug", () => {
     expect(data).toHaveProperty("version");
     expect(data).toHaveProperty("connection_mode");
     expect(data).toHaveProperty("service_running");
-    expect(data).toHaveProperty("dev_mode");
   });
 
   test("can blank the board", async () => {

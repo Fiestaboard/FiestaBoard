@@ -37,7 +37,6 @@ export const mockStatus: StatusResponse = {
     guest_wifi_enabled: false,
     star_trek_quotes_enabled: true,
     rotation_enabled: true,
-    dev_mode: true,
   },
 };
 
@@ -60,7 +59,6 @@ export const mockConfig: ConfigSummary = {
   guest_wifi_enabled: false,
   star_trek_quotes_enabled: true,
   rotation_enabled: true,
-  dev_mode: false,
 };
 
 export const mockDisplays: DisplaysResponse = {
@@ -112,8 +110,7 @@ export const mockTransitionSettings: TransitionSettings = {
 
 export const mockOutputSettings: OutputSettings = {
   target: "board",
-  dev_mode: true,
-  effective_target: "ui",
+  effective_target: "board",
   available_targets: ["ui", "board", "both"],
 };
 
@@ -344,15 +341,6 @@ export const handlers = [
     return HttpResponse.json({ status: "stopped", message: "Service stopped successfully" });
   }),
 
-  http.post(`${API_BASE}/dev-mode`, async ({ request }) => {
-    const body = await request.json() as { dev_mode: boolean };
-    return HttpResponse.json({
-      status: "success",
-      dev_mode: body.dev_mode,
-      message: `Dev mode ${body.dev_mode ? "enabled" : "disabled"}`,
-    });
-  }),
-
   http.post(`${API_BASE}/publish-preview`, () => {
     return HttpResponse.json({
       status: "success",
@@ -419,7 +407,6 @@ export const handlers = [
       message: `${type} sent`,
       sent_to_board: true,
       target: "board",
-      dev_mode: false,
     });
   }),
 
@@ -469,7 +456,6 @@ export const handlers = [
       status: "success",
       page_id: body.page_id,
       sent_to_board: true,
-      dev_mode: false,
     });
   }),
 
@@ -568,7 +554,6 @@ export const handlers = [
       message: "Page sent",
       sent_to_board: true,
       target: "board",
-      dev_mode: false,
     });
   }),
 
@@ -889,7 +874,7 @@ export const handlers = [
       },
       status: {
         running: true,
-        config_summary: { dev_mode: false },
+        config_summary: {},
       },
     });
   }),

@@ -89,13 +89,13 @@ describe("TransitionSettings", () => {
           silence_schedule: {},
           polling: { interval_seconds: 300 },
           transitions: { ...mockTransitionSettings, strategy: null },
-          output: { target: "board", dev_mode: false, effective_target: "board", available_targets: [] },
+          output: { target: "board", effective_target: "board", available_targets: [] },
           board: {
             board_type: "black",
             boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
             devices: ["flagship"],
           },
-          status: { running: true, config_summary: { dev_mode: false } },
+          status: { running: true, config_summary: {} },
         });
       })
     );

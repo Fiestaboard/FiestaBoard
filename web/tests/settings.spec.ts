@@ -45,33 +45,6 @@ test.describe("Settings Page", () => {
     await expect(page.getByText("Setup Wizard").first()).toBeVisible();
   });
 
-  test("can toggle dev mode", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
-
-    // Dev mode switch should be visible in General Settings
-    const devModeSwitch = page.locator("#dev-mode");
-    await expect(devModeSwitch).toBeVisible({ timeout: 5_000 });
-
-    // Click the switch and verify the API call succeeds
-    const toggleResponse = page.waitForResponse(
-      (r) => r.url().includes("/dev-mode") && r.status() === 200
-    );
-    await devModeSwitch.click();
-    const response = await toggleResponse;
-    const data = await response.json();
-    expect(data).toHaveProperty("dev_mode");
-
-    // Toggle back and verify the revert API call also succeeds
-    const revertResponse = page.waitForResponse(
-      (r) => r.url().includes("/dev-mode") && r.status() === 200
-    );
-    await devModeSwitch.click();
-    await revertResponse;
-  });
-
   test("can navigate to integrations from settings", async ({ page }) => {
     await page.goto("/settings");
     await expect(

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { SidebarProvider } from "@/components/sidebar-context";
 
 // Mock usePathname from next/navigation
 const mockPathname = vi.fn();
@@ -29,16 +30,20 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ConfigOverridesProvider>
-        <ThemeProvider attribute="class" defaultTheme="light">
-          {children}
-        </ThemeProvider>
-      </ConfigOverridesProvider>
+      <SidebarProvider>
+        <ConfigOverridesProvider>
+          <ThemeProvider attribute="class" defaultTheme="light">
+            {children}
+          </ThemeProvider>
+        </ConfigOverridesProvider>
+      </SidebarProvider>
     </QueryClientProvider>
   );
 }
 
 describe("NavigationSidebar active state", () => {
+  const activeNavClass = "bg-sidebar-accent";
+
   it("highlights Pages when on /pages", () => {
     mockPathname.mockReturnValue("/pages");
     render(<NavigationSidebar />, { wrapper: TestWrapper });
@@ -46,7 +51,7 @@ describe("NavigationSidebar active state", () => {
     const pagesLinks = screen.getAllByText("Pages");
     // Both mobile and desktop nav links should be active
     pagesLinks.forEach((link) => {
-      expect(link.closest("a")).toHaveClass("bg-primary");
+      expect(link.closest("a")).toHaveClass(activeNavClass);
     });
   });
 
@@ -56,7 +61,7 @@ describe("NavigationSidebar active state", () => {
 
     const pagesLinks = screen.getAllByText("Pages");
     pagesLinks.forEach((link) => {
-      expect(link.closest("a")).toHaveClass("bg-primary");
+      expect(link.closest("a")).toHaveClass(activeNavClass);
     });
   });
 
@@ -66,7 +71,7 @@ describe("NavigationSidebar active state", () => {
 
     const pagesLinks = screen.getAllByText("Pages");
     pagesLinks.forEach((link) => {
-      expect(link.closest("a")).toHaveClass("bg-primary");
+      expect(link.closest("a")).toHaveClass(activeNavClass);
     });
   });
 
@@ -76,7 +81,7 @@ describe("NavigationSidebar active state", () => {
 
     const pagesLinks = screen.getAllByText("Pages");
     pagesLinks.forEach((link) => {
-      expect(link.closest("a")).not.toHaveClass("bg-primary");
+      expect(link.closest("a")).not.toHaveClass(activeNavClass);
     });
   });
 
@@ -86,7 +91,7 @@ describe("NavigationSidebar active state", () => {
 
     const homeLinks = screen.getAllByText("Home");
     homeLinks.forEach((link) => {
-      expect(link.closest("a")).toHaveClass("bg-primary");
+      expect(link.closest("a")).toHaveClass(activeNavClass);
     });
   });
 
@@ -96,7 +101,7 @@ describe("NavigationSidebar active state", () => {
 
     const homeLinks = screen.getAllByText("Home");
     homeLinks.forEach((link) => {
-      expect(link.closest("a")).not.toHaveClass("bg-primary");
+      expect(link.closest("a")).not.toHaveClass(activeNavClass);
     });
   });
 });

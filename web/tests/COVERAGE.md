@@ -12,7 +12,7 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 | File | Area | Description |
 |------|------|-------------|
 | `integration.spec.ts` | Core flows | Infrastructure, setup wizard, navigation, pages, schedules |
-| `settings.spec.ts` | Settings | Settings page, output target, debug tools, dev mode |
+| `settings.spec.ts` | Settings | Settings page, output target, debug tools |
 | `api.spec.ts` | Backend API | Direct API endpoint tests for config, pages, schedules, settings, templates |
 | `pages-crud.spec.ts` | Page management | Create, edit, and delete pages via the UI |
 | `schedule-crud.spec.ts` | Schedule management | Create, validate, and delete schedules via the UI |
@@ -74,8 +74,7 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 | # | Use Case | Test |
 |---|----------|------|
 | 23 | Settings page loads with all sections | `loads settings page with all sections visible` |
-| 24 | Toggle dev mode on and off | `can toggle dev mode` |
-| 25 | Navigate to Integrations from Settings | `can navigate to integrations from settings` |
+| 24 | Navigate to Integrations from Settings | `can navigate to integrations from settings` |
 | 26 | Run Setup Wizard button is available | `loads settings page with all sections visible` |
 
 ### Integrations – UI (`integrations.spec.ts`)
@@ -103,9 +102,7 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 | 40 | `GET /templates/variables` returns variable catalog | `returns template variables` |
 | 41 | `POST /templates/validate` validates correct template | `validates a correct template` |
 | 42 | `GET /displays` lists display sources | `can list displays` |
-| 43 | `GET /dev-mode` returns current dev mode state | `can get and set dev mode` |
-| 44 | `POST /dev-mode` toggles dev mode | `can get and set dev mode` |
-| 45 | `POST /debug/test-connection` tests board connection | `can test board connection` |
+| 43 | `POST /debug/test-connection` tests board connection | `can test board connection` |
 | 46 | `GET /debug/system-info` returns system information | `returns system information` |
 
 ---
