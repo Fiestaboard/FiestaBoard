@@ -89,14 +89,14 @@ export function OutputTargetSelector() {
               disabled={updateMutation.isPending}
               className={`w-full p-4 rounded-lg border-2 text-left transition-all active:scale-[0.98] min-h-[64px] ${
                 isActive
-                  ? "border-primary bg-primary/5"
-                  : "border-muted hover:border-primary/50 active:bg-muted/50"
+                  ? "border-brand bg-brand/5"
+                  : "border-muted hover:border-brand/50 active:bg-muted/50"
               }`}
             >
               <div className="flex items-start gap-3">
                 <div
                   className={`p-2 rounded-md shrink-0 ${
-                    isActive ? "bg-primary text-primary-foreground" : "bg-muted"
+                    isActive ? "bg-brand text-brand-foreground" : "bg-muted"
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -124,14 +124,6 @@ export function OutputTargetSelector() {
           );
         })}
 
-        {settings?.dev_mode && (
-          <div className="pt-2 text-xs text-muted-foreground">
-            <p>
-              <strong>Note:</strong> Dev mode is enabled, so output target may be
-              overridden. Effective target: <strong>{settings.effective_target}</strong>
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
