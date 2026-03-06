@@ -151,7 +151,7 @@
   --overlay: oklch(0 0 0 / 80%);
   /* Brand accent - FiestaBoard orange from taco icon (#f5a623) */
   --brand: oklch(0.72 0.15 75);
-  --brand-emphasis: oklch(0.52 0.16 60);
+  --brand-emphasis: oklch(0.42 0.16 60);
   --brand-foreground: oklch(1 0 0);
   /* Elevation - subtle card and modal shadows */
   --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.06);
@@ -204,7 +204,7 @@
   --tag-success-foreground: oklch(0.85 0.08 160);
   --overlay: oklch(0 0 0 / 80%);
   --brand: oklch(0.78 0.14 75);
-  --brand-emphasis: oklch(0.55 0.16 60);
+  --brand-emphasis: oklch(0.40 0.16 60);
   --brand-foreground: oklch(1 0 0);
   --elevation-card: 0 1px 3px 0 rgb(0 0 0 / 0.20), 0 0 0 1px oklch(1 0 0 / 6%);
   --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.30), 0 0 0 1px oklch(1 0 0 / 10%);

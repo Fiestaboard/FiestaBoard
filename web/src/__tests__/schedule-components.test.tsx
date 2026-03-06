@@ -35,9 +35,8 @@ describe("PagePickerDialog", () => {
       />
     );
 
-    // The selected page's container should have border-primary class
     const page2Button = screen.getByText("Afternoon Dashboard").closest("button");
-    expect(page2Button).toHaveClass("border-primary");
+    expect(page2Button).toHaveClass("border-brand");
   });
 
   it("calls onSelect when page is clicked", () => {
@@ -131,7 +130,7 @@ describe("PagePickerDialog", () => {
     );
 
     const noneButton = screen.getByText("None (no default)").closest("button");
-    expect(noneButton).toHaveClass("border-primary");
+    expect(noneButton).toHaveClass("border-brand");
   });
 
   it("displays page types as badges", () => {
