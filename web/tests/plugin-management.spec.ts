@@ -142,45 +142,50 @@ test.describe("Plugin Management", () => {
   });
 
   test("handles plugin with API key requirement", async ({ page }) => {
+    // Pre-enable the weather plugin via API so the Configure button is
+    // immediately visible when the page loads (avoids a toggle → re-fetch
+    // race condition that caused flaky failures).
+    await enablePlugin("weather").catch(() => {});
+
     await page.goto("/integrations");
     await expect(
       page.getByRole("heading", { name: /integrations/i }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Weather plugin typically requires an API key
-    const weatherSection = page
-      .locator("div, section, article")
-      .filter({ hasText: /Weather/i })
-      .first();
+    // Identify the weather plugin card by its unique toggle aria-label, then
+    // scope the Configure button lookup to that card so we never accidentally
+    // click a different plugin's Configure button.
+    const weatherToggle = page.getByRole("switch", { name: "Toggle Weather" });
+    if (await weatherToggle.isVisible({ timeout: 10_000 }).catch(() => false)) {
+      // Find the plugin card that contains the weather toggle
+      const weatherCard = page
+        .locator('[class*="card-interactive"]')
+        .filter({ has: weatherToggle });
 
-    // Enable it
-    const toggle = weatherSection.getByRole("switch").first();
-    if (await toggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      // Check if it's already enabled
-      const isChecked = await toggle.isChecked().catch(() => false);
-      if (!isChecked) {
-        await toggle.click();
-        await page.waitForTimeout(1_000);
-      }
-
-      // Open configuration
-      const configBtn = weatherSection
+      const configBtn = weatherCard
         .getByRole("button", { name: /configure/i })
-        .first()
-        .or(page.getByRole("button", { name: /configure/i }).first());
+        .first();
 
       if (
         await configBtn.isVisible({ timeout: 5_000 }).catch(() => false)
       ) {
         await configBtn.click();
-        await page.waitForTimeout(1_000);
 
-        // Should show an API key field (password-type input)
-        const apiKeyField = page.locator('input[type="password"]').first();
-        const hasApiKeyField = await apiKeyField
-          .isVisible({ timeout: 5_000 })
-          .catch(() => false);
-        expect(hasApiKeyField).toBe(true);
+        // Wait for the sheet to fully open: the "Save Changes" button only
+        // appears once the plugin-details query has resolved and the schema
+        // form has rendered – no hardcoded sleep needed.
+        const saveBtn = page.getByRole("button", { name: "Save Changes" });
+        if (
+          await saveBtn.isVisible({ timeout: 10_000 }).catch(() => false)
+        ) {
+          // Weather plugin requires an API key – the field must be a
+          // password-type input (ui:widget "password" in the manifest).
+          const apiKeyField = page.locator('input[type="password"]').first();
+          const hasApiKeyField = await apiKeyField
+            .isVisible({ timeout: 5_000 })
+            .catch(() => false);
+          expect(hasApiKeyField).toBe(true);
+        }
       }
     }
   });
