@@ -11,7 +11,7 @@ import {
   ExternalLink,
   RefreshCw,
 } from "lucide-react";
-import ShinyText from "@/components/ui/react-bits/shiny-text";
+
 
 export function SystemUpdate() {
   const queryClient = useQueryClient();
@@ -38,7 +38,7 @@ export function SystemUpdate() {
       <ArrowUpCircle className="h-4 w-4 text-warning" />
       <AlertDescription className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium"><ShinyText text="Update Available" speed={3} /></span>
+          <span className="text-sm font-medium">Update Available</span>
           <Badge variant="secondary" className="text-xs">
             v{updateCheck.latest_version}
           </Badge>

@@ -746,19 +746,6 @@
   }
 }
 
-/* Shiny text sweep animation (reactbits ShinyText) */
-@keyframes shiny-text {
-  from {
-    background-position: 150% center;
-  }
-  to {
-    background-position: -50% center;
-  }
-}
-
-.animate-shiny-text {
-  animation: shiny-text 3s linear infinite;
-}
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
