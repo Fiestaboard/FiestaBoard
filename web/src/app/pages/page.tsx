@@ -1,14 +1,30 @@
 "use client";
 
 import { useCallback, useState, useMemo, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Plus, LayoutGrid, List, FileText } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PageGridSelector } from "@/components/page-grid-selector";
 import type { ViewMode } from "@/components/page-grid-selector";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useBoardSettings } from "@/hooks/use-board";
 import type { DeviceType } from "@/lib/api";
+
+// Lazy load PageGridSelector so the header renders immediately
+const PageGridSelector = dynamic(
+  () => import("@/components/page-grid-selector").then(mod => ({ default: mod.PageGridSelector })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="aspect-[9/16] w-full rounded-lg" />
+        ))}
+      </div>
+    ),
+  }
+);
 
 const VIEW_MODE_STORAGE_KEY = "fiestaboard_pages_view_mode";
 
