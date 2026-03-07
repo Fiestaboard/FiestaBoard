@@ -81,6 +81,7 @@ export default function DebugMonitorPage() {
 
         {isEnabled && (
           <div className="animate-card-fade-in" style={{ animationDelay: "100ms" }}>
+            {/* Height accounts for page header (~60px) + container padding (~80px) */}
             <div className="rounded-xl border bg-card shadow-card overflow-hidden" style={{ height: "calc(100vh - 140px)", minHeight: "500px" }}>
               <iframe
                 src="/glances/"
