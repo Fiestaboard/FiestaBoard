@@ -1,5 +1,6 @@
 """REST API server for FiestaBoard Display Service."""
 
+import asyncio
 import logging
 import logging.handlers
 import threading
@@ -516,10 +517,11 @@ async def system_update_check():
     
     try:
         # Try Docker Hub first (checks actual container registry), fall back to GitHub Releases
-        latest_version = _check_dockerhub_for_latest()
+        # Run in a thread so the blocking HTTP call doesn't stall the event loop
+        latest_version = await asyncio.to_thread(_check_dockerhub_for_latest)
         
         if not latest_version:
-            latest_version = _check_github_releases_for_latest()
+            latest_version = await asyncio.to_thread(_check_github_releases_for_latest)
         
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
@@ -656,7 +658,7 @@ async def start_service(background_tasks: BackgroundTasks):
     _service_thread.start()
     
     # Give it a moment to start
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
     
     if _service_running:
         return {"status": "started", "message": "Service started successfully"}
@@ -1015,10 +1017,8 @@ async def test_board_connection(request: BoardTestRequest):
         
         # Test the connection directly so we can inspect HTTP status codes
         # (read_current_message() swallows errors and returns None, losing details)
-        response = requests.get(
-            client.base_url,
-            headers=client.headers,
-            timeout=10
+        response = await asyncio.to_thread(
+            requests.get, client.base_url, headers=client.headers, timeout=10
         )
         
         if response.status_code == 200:
@@ -1653,11 +1653,11 @@ async def list_all_baywheels_stations():
     import requests
     
     try:
-        # Get station information
-        station_info = BayWheelsSource._get_station_information()
-        
-        # Get current status
-        response = requests.get(STATION_STATUS_URL, timeout=10)
+        # Get station information and current status concurrently (both make HTTP calls)
+        station_info, response = await asyncio.gather(
+            asyncio.to_thread(BayWheelsSource._get_station_information),
+            asyncio.to_thread(requests.get, STATION_STATUS_URL, timeout=10),
+        )
         response.raise_for_status()
         status_data = response.json()
         stations_status = {s.get("station_id"): s for s in status_data.get("data", {}).get("stations", [])}
@@ -1726,10 +1726,12 @@ async def find_nearby_baywheels_stations(
     import requests
     
     try:
-        stations = BayWheelsSource.find_stations_near_location(lat, lng, radius, limit)
+        stations, response = await asyncio.gather(
+            asyncio.to_thread(BayWheelsSource.find_stations_near_location, lat, lng, radius, limit),
+            asyncio.to_thread(requests.get, STATION_STATUS_URL, timeout=10),
+        )
         
         # Get current status for these stations
-        response = requests.get(STATION_STATUS_URL, timeout=10)
         response.raise_for_status()
         status_data = response.json()
         stations_status = {s.get("station_id"): s for s in status_data.get("data", {}).get("stations", [])}
@@ -1803,7 +1805,9 @@ async def search_baywheels_stations_by_address(
             "User-Agent": "FiestaBoard-Service/1.0"
         }
         
-        geocode_response = requests.get(geocode_url, params=geocode_params, headers=geocode_headers, timeout=10)
+        geocode_response = await asyncio.to_thread(
+            requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
+        )
         geocode_response.raise_for_status()
         geocode_data = geocode_response.json()
         
@@ -1814,11 +1818,13 @@ async def search_baywheels_stations_by_address(
         lat = float(location["lat"])
         lng = float(location["lon"])
         
-        # Find nearby stations
-        stations = BayWheelsSource.find_stations_near_location(lat, lng, radius, limit)
+        # Find nearby stations and get current status concurrently
+        stations, response = await asyncio.gather(
+            asyncio.to_thread(BayWheelsSource.find_stations_near_location, lat, lng, radius, limit),
+            asyncio.to_thread(requests.get, STATION_STATUS_URL, timeout=10),
+        )
         
         # Get current status for these stations
-        response = requests.get(STATION_STATUS_URL, timeout=10)
         response.raise_for_status()
         status_data = response.json()
         stations_status = {s.get("station_id"): s for s in status_data.get("data", {}).get("stations", [])}
@@ -1902,7 +1908,7 @@ async def list_disney_parks():
     Returns parks from Walt Disney Attractions group only.
     """
     try:
-        data = _queue_times_get("/parks.json")
+        data = await asyncio.to_thread(_queue_times_get, "/parks.json")
         for group in data:
             if group.get("id") == DISNEY_GROUP_ID:
                 parks = group.get("parks", [])
@@ -1922,7 +1928,7 @@ async def list_park_rides(park_id: int):
     Returns id and name for each ride from the park's queue_times.
     """
     try:
-        data = _queue_times_get(f"/parks/{park_id}/queue_times.json")
+        data = await asyncio.to_thread(_queue_times_get, f"/parks/{park_id}/queue_times.json")
         rides = []
         for land in data.get("lands", []):
             for ride in land.get("rides", []):
@@ -1985,7 +1991,7 @@ async def list_all_muni_stops():
             "format": "json"
         }
         
-        response = requests.get(url, params=params, timeout=15)
+        response = await asyncio.to_thread(requests.get, url, params=params, timeout=15)
         response.raise_for_status()
         
         # Handle BOM if present
@@ -2179,7 +2185,9 @@ async def search_muni_stops_by_address(
             "User-Agent": "FiestaBoard-Service/1.0"
         }
         
-        geocode_response = requests.get(geocode_url, params=geocode_params, headers=geocode_headers, timeout=10)
+        geocode_response = await asyncio.to_thread(
+            requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
+        )
         geocode_response.raise_for_status()
         geocode_data = geocode_response.json()
         
@@ -2356,7 +2364,9 @@ async def geocode_address(request: dict):
             "User-Agent": "FiestaBoard-Service/1.0"
         }
         
-        response = requests.get(geocode_url, params=geocode_params, headers=geocode_headers, timeout=10)
+        response = await asyncio.to_thread(
+            requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
+        )
         response.raise_for_status()
         data = response.json()
         
@@ -2420,8 +2430,8 @@ async def validate_traffic_route(request: dict):
             routes=routes
         )
         
-        # Fetch traffic data to validate
-        data = traffic_source.fetch_traffic_data()
+        # Fetch traffic data to validate (blocking HTTP call - run in thread pool)
+        data = await asyncio.to_thread(traffic_source.fetch_traffic_data)
         
         if not data:
             return {
@@ -3831,7 +3841,7 @@ async def render_template(request: dict):
 
 
 @app.post("/templates/render/live")
-def render_template_live(request: dict):
+async def render_template_live(request: dict):
     """
     Render a template and send it to a board (live edit mode).
 
@@ -3902,7 +3912,8 @@ def render_template_live(request: dict):
 
             transition_settings = settings_service.get_transition_settings()
             try:
-                success, was_sent = client.send_characters(
+                success, was_sent = await asyncio.to_thread(
+                    client.send_characters,
                     board_array,
                     strategy=transition_settings.strategy,
                     step_interval_ms=transition_settings.step_interval_ms,
@@ -3993,10 +4004,11 @@ async def get_home_assistant_entities():
     
     try:
         # Call Home Assistant /api/states to get ALL entities
-        response = requests.get(
+        response = await asyncio.to_thread(
+            requests.get,
             f"{ha_source.base_url}/api/states",
             headers=ha_source.headers,
-            timeout=ha_source.timeout
+            timeout=ha_source.timeout,
         )
         response.raise_for_status()
         entities = response.json()
