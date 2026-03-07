@@ -96,6 +96,7 @@ export default function DebugMonitorPage() {
                 src={`${grafanaUrl}/d/fiestaboard-system/fiestaboard-system?orgId=1&kiosk`}
                 title="Grafana System Monitor"
                 className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
               />
             </div>
           </div>

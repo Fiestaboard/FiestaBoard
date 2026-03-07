@@ -350,6 +350,9 @@ _system_disk_gauge = Gauge("fiestaboard_system_disk_percent", "System disk usage
 _system_disk_used_gauge = Gauge("fiestaboard_system_disk_used_bytes", "System disk used in bytes")
 _system_disk_total_gauge = Gauge("fiestaboard_system_disk_total_bytes", "System total disk in bytes")
 
+# Initialize cpu_percent so subsequent non-blocking calls return meaningful values
+psutil.cpu_percent(interval=None)
+
 def _update_system_metrics():
     """Callback to update system gauges before Prometheus scrape."""
     _system_cpu_gauge.set(psutil.cpu_percent(interval=None))
