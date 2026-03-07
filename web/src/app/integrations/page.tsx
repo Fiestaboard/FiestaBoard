@@ -323,7 +323,7 @@ import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import CountUp from "@/components/ui/react-bits/count-up";
-import ShinyText from "@/components/ui/react-bits/shiny-text";
+
 
 /**
  * Comprehensive icon mapping from Lucide icon names to components.
@@ -1044,7 +1044,7 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
               plugin.configured ? (
                 <Badge variant="default" className="text-xs gap-1">
                   <CheckCircle className="h-3 w-3" />
-                  <ShinyText text="Configured" speed={4} className="text-xs" />
+                  Configured
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="text-xs gap-1">
