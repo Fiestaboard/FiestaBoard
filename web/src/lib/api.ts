@@ -743,100 +743,6 @@ export interface UpdateCheckResponse {
   is_production: boolean;
 }
 
-// Debug monitoring types
-export interface DebugMonitorEnabledResponse {
-  enabled: boolean;
-}
-
-export interface DebugMonitorSystemResponse {
-  cpu: {
-    percent: number;
-    count: number;
-    freq_mhz: number | null;
-    load_avg: number[] | null;
-  };
-  memory: {
-    total_bytes: number;
-    used_bytes: number;
-    available_bytes: number;
-    percent: number;
-    swap_total_bytes: number;
-    swap_used_bytes: number;
-    swap_percent: number;
-  };
-  disk: {
-    total_bytes: number;
-    used_bytes: number;
-    free_bytes: number;
-    percent: number;
-  };
-  network: {
-    bytes_sent: number;
-    bytes_recv: number;
-    packets_sent: number;
-    packets_recv: number;
-    errors_in: number;
-    errors_out: number;
-  };
-  system_uptime_seconds: number;
-}
-
-export interface DebugMonitorProcess {
-  pid: number;
-  name: string;
-  status: string;
-  cpu_percent: number;
-  memory_rss_bytes: number;
-  uptime_seconds: number | null;
-  cmdline: string;
-}
-
-export interface DebugMonitorProcessesResponse {
-  processes: DebugMonitorProcess[];
-  total: number;
-}
-
-export interface DebugMonitorMetricsResponse {
-  total_requests: number;
-  total_errors: number;
-  requests_by_method: Record<string, number>;
-  requests_by_status: Record<string, number>;
-  error_rate_percent: number;
-  uptime_seconds: number;
-  service_uptime_seconds: number | null;
-  service_uptime_formatted: string;
-  service_running: boolean;
-  version: string;
-}
-
-export interface DebugMonitorRequestError {
-  timestamp: string;
-  method: string;
-  path: string;
-  status_code: number;
-  duration_ms: number;
-}
-
-export interface DebugMonitorLogEntry {
-  timestamp?: string;
-  level?: string;
-  logger?: string;
-  message?: string;
-}
-
-export interface DebugMonitorErrorsResponse {
-  request_errors: DebugMonitorRequestError[];
-  log_errors: DebugMonitorLogEntry[];
-  total_request_errors: number;
-  total_log_errors: number;
-}
-
-export interface DebugMonitorLogsResponse {
-  logs: DebugMonitorLogEntry[];
-  total: number;
-  filter_level: string | null;
-}
-
 
 
 // API client with typed methods
@@ -1332,27 +1238,7 @@ export const api = {
   getNetworkDiagnostics: () =>
     fetchApi<NetworkDiagnosticsResponse>("/debug/network-diagnostics"),
 
-  // Debug monitoring endpoints
+  // Debug monitoring (Glances)
   getDebugMonitorEnabled: () =>
-    fetchApi<DebugMonitorEnabledResponse>("/debug/monitor/enabled"),
-
-  getDebugMonitorSystem: () =>
-    fetchApi<DebugMonitorSystemResponse>("/debug/monitor/system"),
-
-  getDebugMonitorProcesses: () =>
-    fetchApi<DebugMonitorProcessesResponse>("/debug/monitor/processes"),
-
-  getDebugMonitorMetrics: () =>
-    fetchApi<DebugMonitorMetricsResponse>("/debug/monitor/metrics"),
-
-  getDebugMonitorErrors: () =>
-    fetchApi<DebugMonitorErrorsResponse>("/debug/monitor/errors"),
-
-  getDebugMonitorLogs: (level?: string, limit?: number) => {
-    const params = new URLSearchParams();
-    if (level) params.set("level", level);
-    if (limit) params.set("limit", limit.toString());
-    const query = params.toString();
-    return fetchApi<DebugMonitorLogsResponse>(`/debug/monitor/logs/stream${query ? `?${query}` : ""}`);
-  },
+    fetchApi<{ enabled: boolean }>("/debug/monitor/enabled"),
 };

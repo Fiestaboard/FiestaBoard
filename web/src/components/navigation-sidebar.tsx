@@ -38,9 +38,7 @@ export function NavigationSidebar() {
     retry: 1,
   });
 
-  const debugEnabled = debugEnabledQuery.data?.enabled ?? false;
-
-  const navItems = debugEnabled
+  const navItems = debugEnabledQuery.data?.enabled
     ? [...navigation, { name: "Monitor", href: "/debug", icon: Activity }]
     : navigation;
 

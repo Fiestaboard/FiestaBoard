@@ -1,0 +1,41 @@
+"""Tests for the debug monitor enabled endpoint."""
+
+from unittest.mock import patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from src.api_server import app
+
+
+@pytest.fixture
+def client():
+    """Create a test client."""
+    return TestClient(app)
+
+
+class TestDebugMonitorEnabled:
+    """Tests for /debug/monitor/enabled endpoint."""
+
+    def test_enabled_returns_false_by_default(self, client):
+        """Debug mode should be disabled by default."""
+        response = client.get("/debug/monitor/enabled")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["enabled"] is False
+
+    @patch.dict("os.environ", {"DEBUG_MODE": "true"})
+    def test_enabled_returns_true_when_set(self, client):
+        """Debug mode should be enabled when DEBUG_MODE=true."""
+        response = client.get("/debug/monitor/enabled")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["enabled"] is True
+
+    @patch.dict("os.environ", {"DEBUG_MODE": "1"})
+    def test_enabled_returns_true_for_1(self, client):
+        """Debug mode should be enabled when DEBUG_MODE=1."""
+        response = client.get("/debug/monitor/enabled")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["enabled"] is True

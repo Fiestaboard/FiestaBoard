@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity } from "lucide-react";
+import { Activity, ExternalLink } from "lucide-react";
 import { api } from "@/lib/api";
-import { MonitorDashboard } from "@/components/debug/monitor-dashboard";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DebugMonitorPage() {
@@ -21,10 +21,20 @@ export default function DebugMonitorPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 max-w-full">
         <div className="animate-card-fade-in" style={{ animationDelay: "0ms" }}>
-          <h1 className="page-title flex items-center gap-3">
-            <Activity className="h-7 w-7" />
-            System Monitor
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="page-title flex items-center gap-3 mb-0">
+              <Activity className="h-7 w-7" />
+              System Monitor
+            </h1>
+            {isEnabled && (
+              <Button variant="outline" size="sm" asChild>
+                <a href="/glances/" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                  Open in New Tab
+                </a>
+              </Button>
+            )}
+          </div>
         </div>
 
         {enabledQuery.isLoading && (
@@ -62,14 +72,25 @@ export default function DebugMonitorPage() {
                 environment variable and restart the container.
               </p>
               <p className="text-xs text-muted-foreground mt-3">
-                This provides Grafana-like monitoring for CPU, memory, disk, network,
-                process status, request metrics, error tracking, and logs.
+                This enables Glances, an open-source system monitoring tool that provides
+                real-time CPU, memory, disk, network, and process monitoring.
               </p>
             </CardContent>
           </Card>
         )}
 
-        {isEnabled && <MonitorDashboard />}
+        {isEnabled && (
+          <div className="animate-card-fade-in" style={{ animationDelay: "100ms" }}>
+            <div className="rounded-xl border bg-card shadow-card overflow-hidden" style={{ height: "calc(100vh - 140px)", minHeight: "500px" }}>
+              <iframe
+                src="/glances/"
+                title="Glances System Monitor"
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
