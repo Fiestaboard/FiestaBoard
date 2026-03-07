@@ -47,6 +47,9 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0"
   },
+  "overrides": {
+    "serialize-javascript": ">=7.0.3"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@next/bundle-analyzer": "^16.1.6",
