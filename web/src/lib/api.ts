@@ -1238,7 +1238,7 @@ export const api = {
   getNetworkDiagnostics: () =>
     fetchApi<NetworkDiagnosticsResponse>("/debug/network-diagnostics"),
 
-  // Debug monitoring (Glances)
+  // Debug monitoring (Grafana)
   getDebugMonitorEnabled: () =>
     fetchApi<{ enabled: boolean }>("/debug/monitor/enabled"),
 };

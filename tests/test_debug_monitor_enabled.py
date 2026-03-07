@@ -1,4 +1,4 @@
-"""Tests for the debug monitor enabled endpoint."""
+"""Tests for the debug monitor enabled endpoint and Prometheus metrics."""
 
 from unittest.mock import patch
 
@@ -39,3 +39,21 @@ class TestDebugMonitorEnabled:
         assert response.status_code == 200
         data = response.json()
         assert data["enabled"] is True
+
+
+class TestPrometheusMetrics:
+    """Tests for /metrics Prometheus endpoint."""
+
+    def test_metrics_endpoint_returns_prometheus_format(self, client):
+        """The /metrics endpoint should return Prometheus text format."""
+        response = client.get("/metrics")
+        assert response.status_code == 200
+        assert "text/plain" in response.headers["content-type"]
+
+    def test_metrics_include_system_gauges(self, client):
+        """The /metrics endpoint should include FiestaBoard system gauges."""
+        response = client.get("/metrics")
+        body = response.text
+        assert "fiestaboard_system_cpu_percent" in body
+        assert "fiestaboard_system_memory_percent" in body
+        assert "fiestaboard_system_disk_percent" in body

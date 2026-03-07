@@ -17,6 +17,12 @@ export default function DebugMonitorPage() {
 
   const isEnabled = enabledQuery.data?.enabled;
 
+  // Grafana runs on port 3030 on the same host
+  const grafanaUrl =
+    typeof window !== "undefined"
+      ? `${window.location.protocol}//${window.location.hostname}:3030`
+      : "http://localhost:3030";
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 max-w-full">
@@ -28,9 +34,9 @@ export default function DebugMonitorPage() {
             </h1>
             {isEnabled && (
               <Button variant="outline" size="sm" asChild>
-                <a href="/glances/" target="_blank" rel="noopener noreferrer">
+                <a href={grafanaUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Open in New Tab
+                  Open Grafana
                 </a>
               </Button>
             )}
@@ -52,7 +58,7 @@ export default function DebugMonitorPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-destructive font-medium">
-                Failed to check debug mode status
+                Failed to check monitoring status
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {(enabledQuery.error as Error)?.message}
@@ -65,15 +71,18 @@ export default function DebugMonitorPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <Activity className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h2 className="text-lg font-semibold mb-2">Debug Monitor is Disabled</h2>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                To enable the system monitoring dashboard, set the{" "}
+              <h2 className="text-lg font-semibold mb-2">Monitoring is Disabled</h2>
+              <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                To enable Grafana monitoring, set{" "}
                 <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">DEBUG_MODE=true</code>{" "}
-                environment variable and restart the container.
+                and start the monitoring stack:
               </p>
-              <p className="text-xs text-muted-foreground mt-3">
-                This enables Glances, an open-source system monitoring tool that provides
-                real-time CPU, memory, disk, network, and process monitoring.
+              <pre className="mt-3 px-4 py-2 rounded bg-muted font-mono text-xs text-left inline-block max-w-lg">
+                docker compose -f docker-compose.yml \{"\n"}  -f docker-compose.monitoring.yml up -d
+              </pre>
+              <p className="text-xs text-muted-foreground mt-4">
+                This starts Grafana + Prometheus with a pre-built FiestaBoard dashboard
+                for CPU, memory, disk, request rate, latency, and error monitoring.
               </p>
             </CardContent>
           </Card>
@@ -84,10 +93,9 @@ export default function DebugMonitorPage() {
             {/* Height accounts for page header (~60px) + container padding (~80px) */}
             <div className="rounded-xl border bg-card shadow-card overflow-hidden" style={{ height: "calc(100vh - 140px)", minHeight: "500px" }}>
               <iframe
-                src="/glances/"
-                title="Glances System Monitor"
+                src={`${grafanaUrl}/d/fiestaboard-system/fiestaboard-system?orgId=1&kiosk`}
+                title="Grafana System Monitor"
                 className="w-full h-full border-0"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
               />
             </div>
           </div>

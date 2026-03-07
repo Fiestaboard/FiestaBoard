@@ -97,10 +97,8 @@ RUN mkdir -p /app/data/logs
 # Copy supervisord configs and entrypoint before creating user
 COPY supervisord.conf /app/supervisord.conf
 COPY supervisord-dev.conf /app/supervisord-dev.conf
-COPY start-glances.sh /app/start-glances.sh
-COPY glances.conf /app/glances.conf
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh /app/start-glances.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Create non-root user for security and transfer ownership
 RUN useradd -m -u 1000 appuser && \
