@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ServiceStatus } from "@/components/service-status";
@@ -13,6 +13,8 @@ import { ViewTransitionLink } from "@/components/view-transition-link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { useSidebar } from "@/components/sidebar-context";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -28,6 +30,19 @@ export function NavigationSidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
+
+  const debugEnabledQuery = useQuery({
+    queryKey: ["debug-monitor", "enabled"],
+    queryFn: api.getDebugMonitorEnabled,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const debugEnabled = debugEnabledQuery.data?.enabled ?? false;
+
+  const navItems = debugEnabled
+    ? [...navigation, { name: "Monitor", href: "/debug", icon: Activity }]
+    : navigation;
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -107,7 +122,7 @@ export function NavigationSidebar() {
         }}
       >
         <nav aria-label="Mobile navigation" className="space-y-1 px-3 py-4">
-          {navigation.map((item) => {
+          {navItems.map((item) => {
             const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             const prefetchHandler = item.href === "/pages" ? prefetchPages : undefined;
@@ -198,7 +213,7 @@ export function NavigationSidebar() {
 
             {/* Navigation */}
             <nav aria-label="Main navigation" className={cn("flex-1 space-y-1 py-4", collapsed ? "px-2" : "px-3")}>
-              {navigation.map((item) => {
+              {navItems.map((item) => {
                 const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
                 const Icon = item.icon;
                 const prefetchHandler = item.href === "/pages" ? prefetchPages : undefined;

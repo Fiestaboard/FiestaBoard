@@ -3097,6 +3097,269 @@ async def debug_network_diagnostics():
 
 
 # =============================================================================
+# Debug Monitor Endpoints (Grafana-like system monitoring)
+# =============================================================================
+
+# In-memory request metrics for monitoring
+_request_metrics: Dict[str, Any] = {
+    "total_requests": 0,
+    "total_errors": 0,
+    "requests_by_method": {},
+    "requests_by_status": {},
+    "recent_errors": deque(maxlen=100),
+    "start_time": time.time(),
+}
+_metrics_lock = threading.Lock()
+
+
+@app.middleware("http")
+async def request_metrics_middleware(request, call_next):
+    """Track request metrics for the debug monitoring dashboard."""
+    start = time.time()
+    response = None
+    try:
+        response = await call_next(request)
+    except Exception:
+        with _metrics_lock:
+            _request_metrics["total_requests"] += 1
+            _request_metrics["total_errors"] += 1
+        raise
+    duration_ms = round((time.time() - start) * 1000, 1)
+    status_code = response.status_code if response else 500
+    method = request.method
+
+    with _metrics_lock:
+        _request_metrics["total_requests"] += 1
+        _request_metrics["requests_by_method"][method] = (
+            _request_metrics["requests_by_method"].get(method, 0) + 1
+        )
+        bucket = f"{status_code // 100}xx"
+        _request_metrics["requests_by_status"][bucket] = (
+            _request_metrics["requests_by_status"].get(bucket, 0) + 1
+        )
+        if status_code >= 400:
+            _request_metrics["total_errors"] += 1
+            _request_metrics["recent_errors"].append({
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "method": method,
+                "path": str(request.url.path),
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+            })
+    return response
+
+
+def _is_debug_mode_enabled() -> bool:
+    """Check if debug monitoring mode is enabled."""
+    return os.getenv("DEBUG_MODE", "false").lower() in ("true", "1", "yes")
+
+
+@app.get("/debug/monitor/enabled")
+async def debug_monitor_enabled():
+    """Check if debug monitoring mode is enabled."""
+    return {"enabled": _is_debug_mode_enabled()}
+
+
+@app.get("/debug/monitor/system")
+async def debug_monitor_system():
+    """Get system resource metrics (CPU, memory, disk, network).
+
+    Requires DEBUG_MODE=true environment variable.
+    """
+    if not _is_debug_mode_enabled():
+        raise HTTPException(status_code=403, detail="Debug mode is not enabled. Set DEBUG_MODE=true to use monitoring.")
+
+    import psutil
+
+    # CPU
+    cpu_percent = psutil.cpu_percent(interval=0.5)
+    cpu_count = psutil.cpu_count()
+    cpu_freq = psutil.cpu_freq()
+    load_avg = None
+    try:
+        load_avg = list(os.getloadavg())
+    except (AttributeError, OSError):
+        pass
+
+    # Memory
+    mem = psutil.virtual_memory()
+    swap = psutil.swap_memory()
+
+    # Disk
+    disk = psutil.disk_usage("/")
+
+    # Network I/O
+    net_io = psutil.net_io_counters()
+
+    # Boot time
+    boot_time = psutil.boot_time()
+    system_uptime = time.time() - boot_time
+
+    return {
+        "cpu": {
+            "percent": cpu_percent,
+            "count": cpu_count,
+            "freq_mhz": round(cpu_freq.current, 1) if cpu_freq else None,
+            "load_avg": load_avg,
+        },
+        "memory": {
+            "total_bytes": mem.total,
+            "used_bytes": mem.used,
+            "available_bytes": mem.available,
+            "percent": mem.percent,
+            "swap_total_bytes": swap.total,
+            "swap_used_bytes": swap.used,
+            "swap_percent": swap.percent,
+        },
+        "disk": {
+            "total_bytes": disk.total,
+            "used_bytes": disk.used,
+            "free_bytes": disk.free,
+            "percent": disk.percent,
+        },
+        "network": {
+            "bytes_sent": net_io.bytes_sent,
+            "bytes_recv": net_io.bytes_recv,
+            "packets_sent": net_io.packets_sent,
+            "packets_recv": net_io.packets_recv,
+            "errors_in": net_io.errin,
+            "errors_out": net_io.errout,
+        },
+        "system_uptime_seconds": round(system_uptime, 1),
+    }
+
+
+@app.get("/debug/monitor/processes")
+async def debug_monitor_processes():
+    """Get managed process information (supervisord processes).
+
+    Requires DEBUG_MODE=true environment variable.
+    """
+    if not _is_debug_mode_enabled():
+        raise HTTPException(status_code=403, detail="Debug mode is not enabled. Set DEBUG_MODE=true to use monitoring.")
+
+    import psutil
+
+    managed_names = {"uvicorn", "python", "node", "nginx", "supervisord"}
+    processes = []
+
+    for proc in psutil.process_iter(["pid", "name", "status", "cpu_percent", "memory_info", "create_time", "cmdline"]):
+        try:
+            info = proc.info
+            name = (info.get("name") or "").lower()
+            cmdline = " ".join(info.get("cmdline") or [])
+            # Match managed processes by name or cmdline content
+            if any(n in name or n in cmdline.lower() for n in managed_names):
+                mem = info.get("memory_info")
+                processes.append({
+                    "pid": info["pid"],
+                    "name": info["name"],
+                    "status": info["status"],
+                    "cpu_percent": info.get("cpu_percent", 0.0),
+                    "memory_rss_bytes": mem.rss if mem else 0,
+                    "uptime_seconds": round(time.time() - info["create_time"], 1) if info.get("create_time") else None,
+                    "cmdline": cmdline[:200],
+                })
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    return {
+        "processes": processes,
+        "total": len(processes),
+    }
+
+
+@app.get("/debug/monitor/metrics")
+async def debug_monitor_metrics():
+    """Get application-level request metrics.
+
+    Requires DEBUG_MODE=true environment variable.
+    """
+    if not _is_debug_mode_enabled():
+        raise HTTPException(status_code=403, detail="Debug mode is not enabled. Set DEBUG_MODE=true to use monitoring.")
+
+    with _metrics_lock:
+        metrics_snapshot = {
+            "total_requests": _request_metrics["total_requests"],
+            "total_errors": _request_metrics["total_errors"],
+            "requests_by_method": dict(_request_metrics["requests_by_method"]),
+            "requests_by_status": dict(_request_metrics["requests_by_status"]),
+            "error_rate_percent": round(
+                (_request_metrics["total_errors"] / max(_request_metrics["total_requests"], 1)) * 100, 2
+            ),
+            "uptime_seconds": round(time.time() - _request_metrics["start_time"], 1),
+        }
+
+    # Service-level info
+    service_uptime = _get_service_uptime()
+    metrics_snapshot["service_uptime_seconds"] = round(service_uptime, 1) if service_uptime else None
+    metrics_snapshot["service_uptime_formatted"] = _format_uptime(service_uptime)
+    metrics_snapshot["service_running"] = _service_running
+    metrics_snapshot["version"] = __version__
+
+    return metrics_snapshot
+
+
+@app.get("/debug/monitor/errors")
+async def debug_monitor_errors():
+    """Get recent error log entries for monitoring.
+
+    Requires DEBUG_MODE=true environment variable.
+    """
+    if not _is_debug_mode_enabled():
+        raise HTTPException(status_code=403, detail="Debug mode is not enabled. Set DEBUG_MODE=true to use monitoring.")
+
+    # Get recent errors from request metrics
+    with _metrics_lock:
+        request_errors = list(_request_metrics["recent_errors"])
+
+    # Get recent error-level log entries from the in-memory log buffer
+    log_errors = []
+    with _log_lock:
+        for entry in _log_buffer:
+            if entry.get("level") in ("ERROR", "CRITICAL"):
+                log_errors.append(entry)
+
+    return {
+        "request_errors": request_errors,
+        "log_errors": log_errors[-100:],  # Last 100 log errors
+        "total_request_errors": len(request_errors),
+        "total_log_errors": len(log_errors),
+    }
+
+
+@app.get("/debug/monitor/logs/stream")
+async def debug_monitor_logs_stream(
+    level: Optional[str] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    """Get recent log entries for the monitoring dashboard.
+
+    Requires DEBUG_MODE=true environment variable.
+    Returns logs from the in-memory buffer (newest first).
+    """
+    if not _is_debug_mode_enabled():
+        raise HTTPException(status_code=403, detail="Debug mode is not enabled. Set DEBUG_MODE=true to use monitoring.")
+
+    with _log_lock:
+        entries = list(_log_buffer)
+
+    # Filter by level if specified
+    if level:
+        level_upper = level.upper()
+        entries = [e for e in entries if e.get("level") == level_upper]
+
+    # Return newest first, limited
+    entries = list(reversed(entries))[:limit]
+
+    return {
+        "logs": entries,
+        "total": len(entries),
+        "filter_level": level,
+    }
+
+
+# =============================================================================
 # Pages Endpoints
 # =============================================================================
 

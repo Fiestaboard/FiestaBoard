@@ -24,6 +24,9 @@ docker>=7.1.0
 # mDNS/Bonjour local network discovery (fiestaboard.local)
 zeroconf>=0.131.0
 
+# System monitoring (CPU, memory, disk, network metrics for debug dashboard)
+psutil>=6.1.0
+
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
 
