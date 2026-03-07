@@ -22,6 +22,8 @@ export function useStatus() {
     queryFn: api.getStatus,
     refetchInterval: 15000,
     retry: 1,
+    staleTime: 15000,
+    gcTime: 60000,
   });
 }
 
@@ -31,6 +33,8 @@ export function useConfig() {
     queryKey: queryKeys.config,
     queryFn: api.getConfig,
     retry: 1,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -40,6 +44,8 @@ export function useActivePage() {
     queryKey: queryKeys.activePage,
     queryFn: api.getActivePage,
     retry: 1,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -97,6 +103,8 @@ export function usePagePreview(pageId: string | null, options?: { enabled?: bool
     enabled: !!pageId && (options?.enabled !== false),
     retry: 1,
     refetchInterval: options?.refetchInterval,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 

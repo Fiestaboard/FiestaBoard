@@ -746,9 +746,17 @@ export interface UpdateCheckResponse {
 
 
 // API client with typed methods
+const DEFAULT_TIMEOUT_MS = 30000;
+
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
+  const timeoutSignal = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+  const signal = options?.signal
+    ? AbortSignal.any([options.signal, timeoutSignal])
+    : timeoutSignal;
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
+    signal,
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,

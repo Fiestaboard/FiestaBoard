@@ -8,6 +8,7 @@ The PluginRegistry is the central point for:
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -386,19 +387,45 @@ class PluginRegistry:
     
     def build_template_context(self) -> Dict[str, Any]:
         """Build context dictionary for template rendering.
-        
-        Fetches data from all enabled plugins.
-        
+
+        Fetches data from all enabled plugins in parallel so that slow or
+        unresponsive external data sources do not block each other.
+
         Returns:
             Dictionary mapping plugin_id to plugin data
         """
         context: Dict[str, Any] = {}
-        
-        for plugin_id in self.enabled_plugins:
-            result = self.fetch_plugin_data(plugin_id)
-            if result.available and result.data:
-                context[plugin_id] = result.data
-        
+        enabled = list(self.enabled_plugins)
+
+        if not enabled:
+            return context
+
+        # Fetch every plugin concurrently; cap the pool to avoid spawning an
+        # unbounded number of threads when many plugins are enabled.
+        max_workers = min(len(enabled), 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(self.fetch_plugin_data, plugin_id): plugin_id
+                for plugin_id in enabled
+            }
+            done, not_done = futures_wait(futures, timeout=15)
+
+            if not_done:
+                slow_ids = [futures[f] for f in not_done]
+                logger.warning(
+                    f"{len(not_done)} plugin(s) did not complete within the "
+                    f"context-build timeout and will be skipped: {slow_ids}"
+                )
+
+            for future in done:
+                plugin_id = futures[future]
+                try:
+                    result = future.result()
+                    if result.available and result.data:
+                        context[plugin_id] = result.data
+                except Exception:
+                    logger.exception(f"Plugin {plugin_id} raised an error during context build")
+
         return context
 
 
