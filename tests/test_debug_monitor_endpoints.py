@@ -1,8 +1,10 @@
 """Tests for debug monitor API endpoints."""
 
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+
 from src.api_server import app
 
 

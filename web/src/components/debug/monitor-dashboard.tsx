@@ -105,6 +105,13 @@ function MetricCard({
 
 // ─── System Metrics Section ──────────────────────────────────────────────────
 
+function formatCpuSubtitle(cpu: DebugMonitorSystemResponse["cpu"]): string {
+  let subtitle = `${cpu.count} cores`;
+  if (cpu.freq_mhz) subtitle += ` @ ${cpu.freq_mhz} MHz`;
+  if (cpu.load_avg) subtitle += ` · Load: ${cpu.load_avg.map((v) => v.toFixed(2)).join(", ")}`;
+  return subtitle;
+}
+
 function SystemMetrics({ data }: { data: DebugMonitorSystemResponse }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -112,7 +119,7 @@ function SystemMetrics({ data }: { data: DebugMonitorSystemResponse }) {
         icon={Cpu}
         title="CPU Usage"
         value={`${data.cpu.percent}%`}
-        subtitle={`${data.cpu.count} cores${data.cpu.freq_mhz ? ` @ ${data.cpu.freq_mhz} MHz` : ""}${data.cpu.load_avg ? ` · Load: ${data.cpu.load_avg.map((v) => v.toFixed(2)).join(", ")}` : ""}`}
+        subtitle={formatCpuSubtitle(data.cpu)}
         percent={data.cpu.percent}
         color="bg-blue-500/10 text-blue-500"
       />
@@ -275,6 +282,8 @@ function RequestMetrics({ data }: { data: DebugMonitorMetricsResponse }) {
 
 // ─── Error Tracker Section ───────────────────────────────────────────────────
 
+const MAX_VISIBLE_ERRORS = 20;
+
 function ErrorTracker({ data }: { data: DebugMonitorErrorsResponse }) {
   const hasErrors = data.total_request_errors > 0 || data.total_log_errors > 0;
 
@@ -301,7 +310,7 @@ function ErrorTracker({ data }: { data: DebugMonitorErrorsResponse }) {
         {data.request_errors.length > 0 && (
           <div className="space-y-1 max-h-48 overflow-y-auto">
             <p className="text-xs font-medium text-muted-foreground mb-2">Recent Request Errors</p>
-            {data.request_errors.slice(-20).reverse().map((err, i) => (
+            {data.request_errors.slice(-MAX_VISIBLE_ERRORS).reverse().map((err, i) => (
               <div key={i} className="flex items-center gap-2 text-xs font-mono py-1 border-b last:border-0">
                 <Badge variant="destructive" className="text-[10px] px-1.5">{err.status_code}</Badge>
                 <span className="text-muted-foreground">{err.method}</span>
@@ -314,7 +323,7 @@ function ErrorTracker({ data }: { data: DebugMonitorErrorsResponse }) {
         {data.log_errors.length > 0 && (
           <div className="mt-3 space-y-1 max-h-48 overflow-y-auto">
             <p className="text-xs font-medium text-muted-foreground mb-2">Recent Log Errors</p>
-            {data.log_errors.slice(-20).reverse().map((entry, i) => (
+            {data.log_errors.slice(-MAX_VISIBLE_ERRORS).reverse().map((entry, i) => (
               <div key={i} className="text-xs font-mono py-1 border-b last:border-0">
                 <div className="flex items-center gap-2">
                   <Badge variant="destructive" className="text-[10px] px-1.5">{entry.level}</Badge>

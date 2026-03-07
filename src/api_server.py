@@ -11,7 +11,7 @@ import requests
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -3140,7 +3140,7 @@ async def request_metrics_middleware(request, call_next):
         if status_code >= 400:
             _request_metrics["total_errors"] += 1
             _request_metrics["recent_errors"].append({
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
                 "method": method,
                 "path": str(request.url.path),
                 "status_code": status_code,
@@ -3172,7 +3172,7 @@ async def debug_monitor_system():
     import psutil
 
     # CPU
-    cpu_percent = psutil.cpu_percent(interval=0.5)
+    cpu_percent = psutil.cpu_percent(interval=None)  # Non-blocking; returns since last call
     cpu_count = psutil.cpu_count()
     cpu_freq = psutil.cpu_freq()
     load_avg = None
