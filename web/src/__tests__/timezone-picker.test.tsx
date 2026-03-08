@@ -3,6 +3,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 
+function currentLAOffset(): string {
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", timeZoneName: "shortOffset" });
+  const parts = fmt.formatToParts(now);
+  const offsetPart = parts.find((p) => p.type === "timeZoneName");
+  return offsetPart?.value?.replace("GMT", "UTC") ?? "UTC-8";
+}
+
 describe("TimezonePicker", () => {
   it("renders with default value", () => {
     render(
@@ -14,7 +22,8 @@ describe("TimezonePicker", () => {
 
     const input = screen.getByPlaceholderText("Search timezone...");
     expect(input).toBeInTheDocument();
-    expect(input).toHaveValue("America/Los Angeles (UTC-8)");
+    const offset = currentLAOffset();
+    expect(input).toHaveValue(`America/Los Angeles (${offset})`);
   });
 
   it("displays input field for searching", () => {
