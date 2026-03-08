@@ -12,6 +12,7 @@ const sidebars: SidebarsConfig = {
         'setup/beginners-guide',
         'setup/first-10-minutes',
         'setup/api-keys',
+        'setup/vestaboard-software',
       ],
     },
     {

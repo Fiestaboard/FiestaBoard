@@ -44,7 +44,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'keywords',
-        content: 'split-flap display, dashboard, Vestaboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display, open source, self-hosted, WYSIWYG editor, display scheduler, IoT display, transit times, surf report, Home Assistant display',
+        content: 'split-flap display, split-flap display software, dashboard, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display, open source, self-hosted, WYSIWYG editor, display scheduler, IoT display, transit times, surf report, Home Assistant display, split-flap display app, display plugins, FiestaBoard',
       },
     },
     {
@@ -70,7 +70,8 @@ const config: Config = {
         '@context': 'https://schema.org',
         '@type': 'SoftwareApplication',
         name: 'FiestaBoard',
-        description: 'Open-source software that transforms split-flap displays into living dashboards. Display weather, stocks, sports scores, transit times, and more.',
+        alternateName: ['FiestaBoard Split-Flap Display Software', 'FiestaBoard Dashboard'],
+        description: 'Open-source software for split-flap displays. Adds plugins, scheduling, and a visual page editor to your board. Compatible with Vestaboard Flagship and Note.',
         url: 'https://fiestaboard.app',
         applicationCategory: 'UtilitiesApplication',
         operatingSystem: 'Linux, macOS, Windows',
@@ -90,6 +91,50 @@ const config: Config = {
           name: 'FiestaBoard',
           url: 'https://github.com/Fiestaboard/FiestaBoard',
         },
+      }),
+    },
+    {
+      tagName: 'script',
+      attributes: {
+        type: 'application/ld+json',
+      },
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'What is FiestaBoard?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'FiestaBoard is free, open-source software for split-flap displays. It adds 23 data plugins, a visual page editor, and scheduling to your board. Compatible with Vestaboard Flagship and Note.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Is FiestaBoard free?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes. FiestaBoard is completely free and open source under the MIT license. There are no subscriptions, paid tiers, or usage limits.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'How do I install FiestaBoard?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'FiestaBoard runs in Docker. Pull the image from Docker Hub and start it with docker-compose — you can be up and running in under 5 minutes. It works on Mac, Windows, Linux, and Raspberry Pi.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'What can FiestaBoard display on my board?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'FiestaBoard has 23 built-in plugins for weather, stocks, sports scores, transit times, Disney park wait times, aircraft tracking, surf conditions, Home Assistant integration, and more. Many plugins require no API key.',
+            },
+          },
+        ],
       }),
     },
   ],
@@ -124,13 +169,13 @@ const config: Config = {
   themeConfig: {
     image: 'img/logo.png',
     metadata: [
-      {name: 'description', content: 'FiestaBoard transforms your split-flap display into a living dashboard. Display weather, stocks, sports scores, transit times, and more with Docker deployment.'},
+      {name: 'description', content: 'FiestaBoard is free, open-source software for split-flap displays. Add weather, stocks, sports scores, transit times, and more with 23 plugins, a visual editor, and scheduling. Compatible with Vestaboard.'},
       {name: 'og:type', content: 'website'},
       {name: 'og:site_name', content: 'FiestaBoard'},
       {name: 'og:image', content: 'https://fiestaboard.app/img/logo.png'},
       {name: 'twitter:card', content: 'summary_large_image'},
-      {name: 'twitter:title', content: 'FiestaBoard - Split-Flap Display Dashboard'},
-      {name: 'twitter:description', content: 'Transform your split-flap display into a living dashboard with weather, stocks, sports, and more.'},
+      {name: 'twitter:title', content: 'FiestaBoard — Split-Flap Display Software'},
+      {name: 'twitter:description', content: 'Free, open-source software for split-flap displays. 23 plugins, visual editor, scheduling. Compatible with Vestaboard.'},
       {name: 'twitter:image', content: 'https://fiestaboard.app/img/logo.png'},
     ],
     colorMode: {
