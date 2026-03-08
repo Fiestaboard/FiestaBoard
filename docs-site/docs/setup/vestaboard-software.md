@@ -7,7 +7,7 @@ keywords: [split-flap display software, Vestaboard software, Vestaboard app, Ves
 
 # Split-Flap Display Software
 
-If you own a split-flap display and you're looking for software to get more out of it, **FiestaBoard** is a free, open-source platform built for split-flap display owners. It connects to your board via the Local API or Cloud API and gives you a plugin system, visual page editor, and scheduling — all through a self-hosted web interface.
+If you own a split-flap display and you're looking for software to get more out of it, **FiestaBoard** is a free, open-source platform built for split-flap display owners. It connects to your board via the Local API or Cloud API and gives you a plugin system, visual page editor, and scheduling through a self-hosted web interface.
 
 FiestaBoard is compatible with split-flap displays including the Flagship (22×6) and Note (15×3) form factors.
 
