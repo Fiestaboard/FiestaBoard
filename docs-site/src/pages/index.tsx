@@ -52,7 +52,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Transform Your Split-Flap Display"
-      description="FiestaBoard transforms your split-flap display into a living dashboard. Track weather, transit, stocks, and more with a beautiful web UI and Docker deployment.">
+      description="FiestaBoard is free, open-source software for split-flap displays. 23 plugins for weather, stocks, sports, transit, and more. Visual editor, scheduling, Docker deployment.">
       <HomepageHeader />
       <main>
         <HomepageFeatures />
