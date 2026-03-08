@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
-description: "FiestaBoard is an open-source server that lets split-flap display owners use plugins to get data onto their board."
-keywords: [FiestaBoard, split-flap display, Vestaboard, smart dashboard, live display, open source]
+description: "FiestaBoard is free, open-source software for split-flap displays. Use plugins to display weather, stocks, sports, transit, and more on your board."
+keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, smart dashboard, live display, open source]
 ---
 
 # Welcome to FiestaBoard
 
-FiestaBoard is free, open-source software that connects to your split-flap display and lets you control what it shows. You bring the board, you bring the API keys for the services you care about, and FiestaBoard handles pulling data from those services and formatting it for your display.
+FiestaBoard is free, open-source software for split-flap displays. It connects to your board and lets you control what it shows through a web interface with plugins, a visual editor, and scheduling. You bring the board, you bring the API keys for the services you care about, and FiestaBoard handles pulling data from those services and formatting it for your display.
 
 ## What Can FiestaBoard Do?
 
