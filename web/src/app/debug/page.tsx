@@ -74,15 +74,15 @@ export default function DebugMonitorPage() {
               <h2 className="text-lg font-semibold mb-2">Monitoring is Disabled</h2>
               <p className="text-sm text-muted-foreground max-w-lg mx-auto">
                 To enable Grafana monitoring, set{" "}
-                <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">DEBUG_MODE=true</code>{" "}
+                <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">LOCAL_MONITORING=true</code>{" "}
                 and start the monitoring stack:
               </p>
               <pre className="mt-3 px-4 py-2 rounded bg-muted font-mono text-xs text-left inline-block max-w-lg">
                 docker compose -f docker-compose.yml \{"\n"}  -f docker-compose.monitoring.yml up -d
               </pre>
               <p className="text-xs text-muted-foreground mt-4">
-                This starts Grafana + Prometheus with a pre-built FiestaBoard dashboard
-                for CPU, memory, disk, request rate, latency, and error monitoring.
+                Monitoring is enabled by default in development. For production,
+                add the monitoring compose overlay and set <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">LOCAL_MONITORING=true</code>.
               </p>
             </CardContent>
           </Card>

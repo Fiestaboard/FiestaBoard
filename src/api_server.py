@@ -3146,12 +3146,12 @@ async def debug_network_diagnostics():
 
 @app.get("/debug/monitor/enabled")
 async def debug_monitor_enabled():
-    """Check if debug monitoring mode is enabled.
+    """Check if local monitoring mode is enabled.
 
     Returns whether the Grafana monitoring dashboard is expected to be running.
     Used by the frontend to conditionally show the Monitor nav link.
     """
-    enabled = os.getenv("DEBUG_MODE", "false").lower() in ("true", "1", "yes")
+    enabled = os.getenv("LOCAL_MONITORING", "false").lower() in ("true", "1", "yes")
     return {"enabled": enabled}
 
 

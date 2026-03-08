@@ -1,10 +1,13 @@
-# Grafana + Prometheus monitoring stack for FiestaBoard
+# Grafana + Prometheus monitoring stack for FiestaBoard (production overlay)
 #
-# Usage:
+# In development: Grafana + Prometheus are included in docker-compose.dev.yml
+# by default. You do NOT need this file for development.
+#
+# For production, add this as a compose overlay:
 #   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 #
-# Or for development:
-#   docker compose -f docker-compose.dev.yml -f docker-compose.monitoring.yml up -d
+# You also need to set LOCAL_MONITORING=true in your .env file (or as an
+# environment variable) to show the "Monitor" nav link in the FiestaBoard UI.
 #
 # Access Grafana at http://localhost:3030 (admin / admin)
 # A pre-built "FiestaBoard System" dashboard is auto-provisioned.
@@ -51,6 +54,11 @@ services:
       options:
         max-size: "5m"
         max-file: "2"
+
+  # Set LOCAL_MONITORING=true so the Monitor nav link appears
+  fiestaboard:
+    environment:
+      - LOCAL_MONITORING=true
 
 volumes:
   prometheus-data:

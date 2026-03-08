@@ -24,17 +24,17 @@ class TestDebugMonitorEnabled:
         data = response.json()
         assert data["enabled"] is False
 
-    @patch.dict("os.environ", {"DEBUG_MODE": "true"})
+    @patch.dict("os.environ", {"LOCAL_MONITORING": "true"})
     def test_enabled_returns_true_when_set(self, client):
-        """Debug mode should be enabled when DEBUG_MODE=true."""
+        """Monitoring should be enabled when LOCAL_MONITORING=true."""
         response = client.get("/debug/monitor/enabled")
         assert response.status_code == 200
         data = response.json()
         assert data["enabled"] is True
 
-    @patch.dict("os.environ", {"DEBUG_MODE": "1"})
+    @patch.dict("os.environ", {"LOCAL_MONITORING": "1"})
     def test_enabled_returns_true_for_1(self, client):
-        """Debug mode should be enabled when DEBUG_MODE=1."""
+        """Monitoring should be enabled when LOCAL_MONITORING=1."""
         response = client.get("/debug/monitor/enabled")
         assert response.status_code == 200
         data = response.json()
