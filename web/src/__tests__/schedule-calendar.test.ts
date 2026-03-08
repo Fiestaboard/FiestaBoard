@@ -70,10 +70,10 @@ describe("scheduleToCalendarEvents", () => {
       expect(event.resource.isMidnightSplit).toBe(true);
       expect(event.start.getHours()).toBe(23);
       expect(event.start.getMinutes()).toBe(0);
-      // endOfDay returns 23:59:59.999
+      // endOfDay returns 23:59:59.999, same day as start (RBC bug #2617 workaround)
       expect(event.end.getHours()).toBe(23);
       expect(event.end.getMinutes()).toBe(59);
-      expect(event.end.getTime()).toBeGreaterThan(event.start.getTime());
+      expect(event.end.getDate()).toBe(event.start.getDate());
     }
 
     for (const event of morningEvents) {
@@ -103,7 +103,8 @@ describe("scheduleToCalendarEvents", () => {
     const morning = events.find((e) => e.resource.splitPart === "morning")!;
 
     expect(evening.start.getHours()).toBe(22);
-    expect(evening.end.getHours()).toBe(23); // endOfDay → 23:59:59.999
+    expect(evening.end.getHours()).toBe(23);
+    expect(evening.end.getMinutes()).toBe(59);
     expect(morning.start.getHours()).toBe(0);
     expect(morning.end.getHours()).toBe(2);
   });

@@ -35,22 +35,36 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
     [resource.originalSchedule]
   );
 
-  // Format time range (e.g., "9:00a - 5:00p")
-  // For midnight-split events, show the original schedule time range
-  const timeRange = useMemo(() => {
+  // Format time range with segment-specific labels for split events
+  const { timeRange, continuationHint } = useMemo(() => {
     if (resource.isMidnightSplit) {
       const orig = resource.originalSchedule;
       const [startH, startM] = orig.start_time.split(":").map(Number);
       const [endH, endM] = orig.end_time.split(":").map(Number);
-      // Arbitrary date; only hours/minutes matter for formatting
       const startDate = new Date(2000, 0, 1, startH, startM);
       const endDate = new Date(2000, 0, 1, endH, endM);
-      return `${format(startDate, "h:mma").toLowerCase()} - ${format(endDate, "h:mma").toLowerCase()}`;
+      const fullStart = format(startDate, "h:mma").toLowerCase();
+      const fullEnd = format(endDate, "h:mma").toLowerCase();
+
+      if (resource.splitPart === "evening") {
+        return {
+          timeRange: `${fullStart} - 12:00am`,
+          continuationHint: `→ ${fullEnd}`,
+        };
+      }
+      return {
+        timeRange: `12:00am - ${fullEnd}`,
+        continuationHint: `${fullStart} →`,
+      };
     }
     const startTime = format(event.start, "h:mma").toLowerCase();
     const endTime = format(event.end, "h:mma").toLowerCase();
-    return `${startTime} - ${endTime}`;
-  }, [event.start, event.end, resource.isMidnightSplit, resource.originalSchedule]);
+    return { timeRange: `${startTime} - ${endTime}`, continuationHint: null };
+  }, [event.start, event.end, resource.isMidnightSplit, resource.originalSchedule, resource.splitPart]);
+
+  const isMorningSplit = resource.isMidnightSplit && resource.splitPart === "morning";
+  const isEveningSplit = resource.isMidnightSplit && resource.splitPart === "evening";
+  const activeColor = resource.enabled ? scheduleColor : "var(--muted-foreground)";
 
   return (
     <div
@@ -59,21 +73,39 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
         backgroundColor: resource.enabled ? scheduleColorLight : "var(--muted)",
         borderLeft: `2px solid ${resource.enabled ? scheduleColor : "color-mix(in oklch, var(--muted-foreground) 50%, transparent)"}`,
         opacity: resource.enabled ? 1 : 0.5,
+        ...(isMorningSplit ? { borderTop: `1px dashed ${activeColor}` } : {}),
+        ...(isEveningSplit ? { borderBottom: `1px dashed ${activeColor}` } : {}),
       }}
     >
       <div className="flex flex-col gap-0">
+        {isMorningSplit && continuationHint && (
+          <span
+            className="text-[8px] leading-tight truncate opacity-70"
+            style={{ color: activeColor }}
+          >
+            {continuationHint}
+          </span>
+        )}
         <div
           className="font-medium text-[10px] leading-tight truncate"
-          style={{ color: resource.enabled ? scheduleColor : "var(--muted-foreground)" }}
+          style={{ color: activeColor }}
         >
           {event.title}
         </div>
         <span 
           className="text-[9px] font-medium truncate"
-          style={{ color: resource.enabled ? scheduleColor : "var(--muted-foreground)" }}
+          style={{ color: activeColor }}
         >
           {timeRange}
         </span>
+        {isEveningSplit && continuationHint && (
+          <span
+            className="text-[8px] leading-tight truncate opacity-70"
+            style={{ color: activeColor }}
+          >
+            {continuationHint}
+          </span>
+        )}
         {!resource.enabled && (
           <Badge
             variant="secondary"
