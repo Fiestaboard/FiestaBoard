@@ -148,7 +148,7 @@ export function scheduleToCalendarEvents(
 
         // Evening part: start_time → end of day (23:59:59.999)
         // Use endOfDay instead of midnight-next-day so react-big-calendar
-        // keeps the event within the same day column
+        // keeps the event within the same day column (RBC bug #2617)
         const eveningEnd = endOfDay(day);
         events.push({
           id: `${schedule.id}-${format(day, "yyyy-MM-dd")}-evening`,

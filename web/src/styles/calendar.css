@@ -9,6 +9,7 @@
 }
 
 /* ===== Container & General ===== */
+/* Single source of truth for time slot heights - ensures gutter numbers align with grid ticks */
 .schedule-calendar-container {
   --rbc-border-color: var(--border);
   --rbc-grid-line: color-mix(in oklch, currentColor 15%, transparent);
@@ -17,6 +18,8 @@
   --rbc-text-color: var(--foreground);
   --rbc-muted-color: var(--muted-foreground);
   --rbc-primary-color: var(--primary);
+  --rbc-hour-height: 28px;
+  --rbc-slot-height: 7px; /* Must equal --rbc-hour-height / 4 (timeslots) */
 
   /* Schedule event colors derived from board palette - Light mode */
   --schedule-color-0: color-mix(in oklch, var(--color-board-blue), black 35%);
@@ -80,12 +83,24 @@
   border-bottom: 1px solid var(--rbc-grid-line-hour);
 }
 
+/* Align time labels to top of slot so numbers match tick marks */
+.schedule-calendar-container .rbc-time-gutter .rbc-timeslot-group {
+  align-items: flex-start;
+}
+
+.schedule-calendar-container .rbc-time-gutter .rbc-time-slot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
 .schedule-calendar-container .rbc-label {
   color: var(--rbc-muted-color);
   font-size: 0.6rem;
   font-weight: 500;
   padding: 0 4px;
-  transform: translateY(-50%);
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 /* ===== Header Row (Day Names) ===== */
@@ -137,13 +152,18 @@
   border-right: none !important;
 }
 
+/* Use explicit heights from CSS vars so gutter and day slots stay in sync (critical for mobile) */
 .schedule-calendar-container .rbc-timeslot-group {
   border-bottom: 1px solid var(--rbc-grid-line-hour) !important;
-  min-height: 28px; /* Compact to fit 24 hours */
+  min-height: var(--rbc-hour-height);
+  height: var(--rbc-hour-height);
+  flex: 0 0 var(--rbc-hour-height);
 }
 
 .schedule-calendar-container .rbc-time-slot {
-  min-height: 7px;
+  min-height: var(--rbc-slot-height);
+  height: var(--rbc-slot-height);
+  flex: 0 0 var(--rbc-slot-height);
   box-sizing: border-box;
 }
 
@@ -457,8 +477,23 @@
     padding: 0 2px;
   }
 
+  /* Use same hour/slot heights on mobile - critical for gutter/slot alignment */
+  .schedule-calendar-container {
+    --rbc-hour-height: 24px;
+    --rbc-slot-height: 6px;
+  }
+
+  /* Explicit heights prevent flex rounding drift on mobile */
   .schedule-calendar-container .rbc-timeslot-group {
-    min-height: 24px;
+    min-height: var(--rbc-hour-height);
+    height: var(--rbc-hour-height);
+    flex: 0 0 var(--rbc-hour-height);
+  }
+
+  .schedule-calendar-container .rbc-time-slot {
+    min-height: var(--rbc-slot-height);
+    height: var(--rbc-slot-height);
+    flex: 0 0 var(--rbc-slot-height);
   }
 
   .schedule-event-content {
@@ -500,10 +535,10 @@
     opacity: 0.5;
   }
 
-  /* Larger hit area for touch */
-  .schedule-calendar-container .rbc-day-slot .rbc-time-slot {
-    min-height: 8px;
-  }
+  /*
+   * Do NOT change time-slot height here - it would desync gutter from day slots.
+   * Gutter and day columns must use identical slot heights for alignment.
+   */
 
   /* Remove hover effects that don't work on touch */
   .schedule-calendar-container .rbc-day-slot .rbc-time-slot:hover {
