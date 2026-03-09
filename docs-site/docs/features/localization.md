@@ -4,12 +4,22 @@ FiestaBoard supports multiple languages through community-maintained translation
 
 ## Supported Languages
 
-| Language | Code | Status |
-|----------|------|--------|
-| English  | `en` | ✅ Default |
-| Spanish  | `es` | ✅ Available |
-| French   | `fr` | ✅ Available |
-| German   | `de` | ✅ Available |
+| Language            | Code | Status |
+|---------------------|------|--------|
+| English             | `en` | ✅ Default |
+| Spanish             | `es` | ✅ Available |
+| French              | `fr` | ✅ Available |
+| German              | `de` | ✅ Available |
+| Italian             | `it` | ✅ Available |
+| Portuguese          | `pt` | ✅ Available |
+| Dutch               | `nl` | ✅ Available |
+| Polish              | `pl` | ✅ Available |
+| Russian             | `ru` | ✅ Available |
+| Swedish             | `sv` | ✅ Available |
+| Turkish             | `tr` | ✅ Available |
+| Japanese            | `ja` | ✅ Available |
+| Korean              | `ko` | ✅ Available |
+| Chinese (Simplified)| `zh` | ✅ Available |
 
 ## Changing Language
 
