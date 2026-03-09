@@ -709,7 +709,8 @@ class TestAirFogPluginClass:
 
     def test_fetch_data_no_sources(self, plugin):
         with patch.object(plugin, '_fetch_purpleair_data', return_value=None), \
-             patch.object(plugin, '_fetch_openweathermap_data', return_value=None):
+             patch.object(plugin, '_fetch_openweathermap_data', return_value=None), \
+             patch.object(plugin, '_fetch_pollen_data', return_value=None):
             result = plugin.fetch_data()
             assert not result.available
 
@@ -808,4 +809,489 @@ class TestAirFogPluginClass:
         with patch('plugins.air_fog.requests.get', side_effect=Exception("API error")):
             result = plugin._fetch_openweathermap_data()
             assert result is None
+
+    def test_determine_pollen_level_low(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            10, AirFogPlugin.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_determine_pollen_level_moderate(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            50, AirFogPlugin.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "MODERATE"
+        assert color == "YELLOW"
+
+    def test_determine_pollen_level_high(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            100, AirFogPlugin.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "HIGH"
+        assert color == "ORANGE"
+
+    def test_determine_pollen_level_very_high(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            300, AirFogPlugin.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "VERY HIGH"
+        assert color == "RED"
+
+    def test_determine_pollen_level_negative(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            -5, AirFogPlugin.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_determine_pollen_level_zero(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            0, AirFogPlugin.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_determine_pollen_level_tree_thresholds(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            100, AirFogPlugin.TREE_POLLEN_THRESHOLDS
+        )
+        assert level == "MODERATE"
+        assert color == "YELLOW"
+
+    def test_determine_pollen_level_weed_thresholds(self):
+        from plugins.air_fog import AirFogPlugin
+        level, color = AirFogPlugin.determine_pollen_level(
+            200, AirFogPlugin.WEED_POLLEN_THRESHOLDS
+        )
+        assert level == "HIGH"
+        assert color == "ORANGE"
+
+    def test_fetch_pollen_data_success(self, plugin):
+        """Test _fetch_pollen_data with successful response."""
+        plugin._config = {
+            "latitude": 37.7749,
+            "longitude": -122.4194
+        }
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "current": {
+                "grass_pollen": 10.0,
+                "birch_pollen": 30.0,
+                "alder_pollen": 20.0,
+                "ragweed_pollen": 5.0,
+                "mugwort_pollen": 3.0,
+                "olive_pollen": 15.0,
+            }
+        }
+        with patch('plugins.air_fog.requests.get', return_value=mock_resp):
+            result = plugin._fetch_pollen_data()
+            assert result is not None
+            assert result["grass_pollen"] == 10.0
+            assert result["tree_pollen"] == 65.0  # 30 + 20 + 15
+            assert result["weed_pollen"] == 8.0    # 5 + 3
+            assert result["grass_pollen_level"] == "LOW"
+            assert result["tree_pollen_level"] == "MODERATE"
+            assert result["weed_pollen_level"] == "LOW"
+
+    def test_fetch_pollen_data_api_error(self, plugin):
+        """Test _fetch_pollen_data with API error."""
+        plugin._config = {
+            "latitude": 37.7749,
+            "longitude": -122.4194
+        }
+        with patch('plugins.air_fog.requests.get', side_effect=Exception("API error")):
+            result = plugin._fetch_pollen_data()
+            assert result is None
+
+    def test_fetch_pollen_data_null_values(self, plugin):
+        """Test _fetch_pollen_data with null pollen values."""
+        plugin._config = {
+            "latitude": 37.7749,
+            "longitude": -122.4194
+        }
+        mock_resp = Mock()
+        mock_resp.json.return_value = {
+            "current": {
+                "grass_pollen": None,
+                "birch_pollen": None,
+                "alder_pollen": None,
+                "ragweed_pollen": None,
+                "mugwort_pollen": None,
+                "olive_pollen": None,
+            }
+        }
+        with patch('plugins.air_fog.requests.get', return_value=mock_resp):
+            result = plugin._fetch_pollen_data()
+            assert result is not None
+            assert result["grass_pollen"] == 0
+            assert result["tree_pollen"] == 0
+            assert result["weed_pollen"] == 0
+
+    def test_fetch_data_with_pollen(self, plugin):
+        """Test fetch_data includes pollen data."""
+        plugin._config = {
+            "purpleair_api_key": "test",
+            "openweathermap_api_key": "test",
+        }
+        pa_data = {"aqi": 75, "pm2_5": 20.0, "aqi_category": "MODERATE", "aqi_color": "YELLOW"}
+        owm_data = {"visibility_m": 5000, "humidity": 75, "temperature_f": 62.5}
+        pollen_data = {
+            "grass_pollen": 10.0,
+            "grass_pollen_level": "LOW",
+            "grass_pollen_color": "GREEN",
+            "tree_pollen": 65.0,
+            "tree_pollen_level": "MODERATE",
+            "tree_pollen_color": "YELLOW",
+            "weed_pollen": 0,
+            "weed_pollen_level": "LOW",
+            "weed_pollen_color": "GREEN",
+        }
+        with patch.object(plugin, '_fetch_purpleair_data', return_value=pa_data), \
+             patch.object(plugin, '_fetch_openweathermap_data', return_value=owm_data), \
+             patch.object(plugin, '_fetch_pollen_data', return_value=pollen_data):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["grass_pollen"] == 10.0
+            assert result.data["tree_pollen"] == 65.0
+            assert result.data["weed_pollen"] == 0
+            assert "GRASS:10.0" in result.data["formatted"]
+            assert "TREES:65.0" in result.data["formatted"]
+
+    def test_fetch_data_pollen_only(self, plugin):
+        """Test fetch_data succeeds with only pollen data available."""
+        plugin._config = {}
+        pollen_data = {
+            "grass_pollen": 5.0,
+            "grass_pollen_level": "LOW",
+            "grass_pollen_color": "GREEN",
+            "tree_pollen": 100.0,
+            "tree_pollen_level": "MODERATE",
+            "tree_pollen_color": "YELLOW",
+            "weed_pollen": 25.0,
+            "weed_pollen_level": "MODERATE",
+            "weed_pollen_color": "YELLOW",
+        }
+        with patch.object(plugin, '_fetch_purpleair_data', return_value=None), \
+             patch.object(plugin, '_fetch_openweathermap_data', return_value=None), \
+             patch.object(plugin, '_fetch_pollen_data', return_value=pollen_data):
+            result = plugin.fetch_data()
+            assert result.available
+            assert result.data["grass_pollen"] == 5.0
+            assert result.data["tree_pollen"] == 100.0
+            assert result.data["weed_pollen"] == 25.0
+
+
+class TestPollenLevel:
+    """Tests for pollen level determination in AirFogSource."""
+
+    def test_grass_pollen_low(self):
+        level, color = AirFogSource.determine_pollen_level(
+            10, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_grass_pollen_moderate(self):
+        level, color = AirFogSource.determine_pollen_level(
+            50, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "MODERATE"
+        assert color == "YELLOW"
+
+    def test_grass_pollen_high(self):
+        level, color = AirFogSource.determine_pollen_level(
+            100, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "HIGH"
+        assert color == "ORANGE"
+
+    def test_grass_pollen_very_high(self):
+        level, color = AirFogSource.determine_pollen_level(
+            300, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "VERY HIGH"
+        assert color == "RED"
+
+    def test_tree_pollen_low(self):
+        level, color = AirFogSource.determine_pollen_level(
+            30, AirFogSource.TREE_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_tree_pollen_moderate(self):
+        level, color = AirFogSource.determine_pollen_level(
+            100, AirFogSource.TREE_POLLEN_THRESHOLDS
+        )
+        assert level == "MODERATE"
+        assert color == "YELLOW"
+
+    def test_tree_pollen_high(self):
+        level, color = AirFogSource.determine_pollen_level(
+            500, AirFogSource.TREE_POLLEN_THRESHOLDS
+        )
+        assert level == "HIGH"
+        assert color == "ORANGE"
+
+    def test_tree_pollen_very_high(self):
+        level, color = AirFogSource.determine_pollen_level(
+            800, AirFogSource.TREE_POLLEN_THRESHOLDS
+        )
+        assert level == "VERY HIGH"
+        assert color == "RED"
+
+    def test_weed_pollen_low(self):
+        level, color = AirFogSource.determine_pollen_level(
+            5, AirFogSource.WEED_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_weed_pollen_moderate(self):
+        level, color = AirFogSource.determine_pollen_level(
+            50, AirFogSource.WEED_POLLEN_THRESHOLDS
+        )
+        assert level == "MODERATE"
+        assert color == "YELLOW"
+
+    def test_pollen_level_negative(self):
+        level, color = AirFogSource.determine_pollen_level(
+            -5, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_pollen_level_zero(self):
+        level, color = AirFogSource.determine_pollen_level(
+            0, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        assert color == "GREEN"
+
+    def test_pollen_level_boundary_grass_low_moderate(self):
+        """Test boundary between LOW and MODERATE for grass."""
+        level, _ = AirFogSource.determine_pollen_level(
+            20, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "LOW"
+        level, _ = AirFogSource.determine_pollen_level(
+            21, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "MODERATE"
+
+    def test_pollen_level_boundary_grass_moderate_high(self):
+        """Test boundary between MODERATE and HIGH for grass."""
+        level, _ = AirFogSource.determine_pollen_level(
+            77, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "MODERATE"
+        level, _ = AirFogSource.determine_pollen_level(
+            78, AirFogSource.GRASS_POLLEN_THRESHOLDS
+        )
+        assert level == "HIGH"
+
+
+class TestPollenFetch:
+    """Tests for pollen data fetching from Open-Meteo."""
+
+    @patch('src.utils.air_fog.requests.get')
+    def test_fetch_pollen_data_success(self, mock_get):
+        """Test successful pollen data fetch."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "current": {
+                "grass_pollen": 15.0,
+                "birch_pollen": 40.0,
+                "alder_pollen": 25.0,
+                "ragweed_pollen": 10.0,
+                "mugwort_pollen": 5.0,
+                "olive_pollen": 20.0,
+            }
+        }
+        mock_get.return_value = mock_response
+
+        source = AirFogSource(latitude=37.7749, longitude=-122.4194)
+        result = source.fetch_pollen_data()
+
+        assert result is not None
+        assert result["grass_pollen"] == 15.0
+        assert result["tree_pollen"] == 85.0  # 40 + 25 + 20
+        assert result["weed_pollen"] == 15.0  # 10 + 5
+        assert result["grass_pollen_level"] == "LOW"
+        assert result["tree_pollen_level"] == "MODERATE"
+        assert result["weed_pollen_level"] == "LOW"
+
+    @patch('src.utils.air_fog.requests.get')
+    def test_fetch_pollen_data_api_error(self, mock_get):
+        """Test handling of Open-Meteo API errors."""
+        mock_get.side_effect = Exception("Network error")
+
+        source = AirFogSource(latitude=37.7749, longitude=-122.4194)
+        result = source.fetch_pollen_data()
+
+        assert result is None
+
+    @patch('src.utils.air_fog.requests.get')
+    def test_fetch_pollen_data_null_values(self, mock_get):
+        """Test pollen data with null/None values from API."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "current": {
+                "grass_pollen": None,
+                "birch_pollen": None,
+                "alder_pollen": None,
+                "ragweed_pollen": None,
+                "mugwort_pollen": None,
+                "olive_pollen": None,
+            }
+        }
+        mock_get.return_value = mock_response
+
+        source = AirFogSource(latitude=37.7749, longitude=-122.4194)
+        result = source.fetch_pollen_data()
+
+        assert result is not None
+        assert result["grass_pollen"] == 0
+        assert result["tree_pollen"] == 0
+        assert result["weed_pollen"] == 0
+        assert result["grass_pollen_level"] == "LOW"
+
+    @patch('src.utils.air_fog.requests.get')
+    def test_fetch_pollen_data_high_values(self, mock_get):
+        """Test pollen data with high pollen values."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "current": {
+                "grass_pollen": 300.0,
+                "birch_pollen": 400.0,
+                "alder_pollen": 250.0,
+                "ragweed_pollen": 200.0,
+                "mugwort_pollen": 100.0,
+                "olive_pollen": 150.0,
+            }
+        }
+        mock_get.return_value = mock_response
+
+        source = AirFogSource(latitude=37.7749, longitude=-122.4194)
+        result = source.fetch_pollen_data()
+
+        assert result is not None
+        assert result["grass_pollen"] == 300.0
+        assert result["grass_pollen_level"] == "VERY HIGH"
+        assert result["grass_pollen_color"] == "RED"
+        assert result["tree_pollen"] == 800.0  # 400 + 250 + 150
+        assert result["tree_pollen_level"] == "VERY HIGH"
+        assert result["weed_pollen"] == 300.0  # 200 + 100
+        assert result["weed_pollen_level"] == "VERY HIGH"
+
+    @patch('src.utils.air_fog.requests.get')
+    def test_fetch_pollen_data_empty_current(self, mock_get):
+        """Test pollen data with empty current block."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"current": {}}
+        mock_get.return_value = mock_response
+
+        source = AirFogSource(latitude=37.7749, longitude=-122.4194)
+        result = source.fetch_pollen_data()
+
+        assert result is not None
+        assert result["grass_pollen"] == 0
+        assert result["tree_pollen"] == 0
+        assert result["weed_pollen"] == 0
+
+    @patch('src.utils.air_fog.requests.get')
+    def test_fetch_air_fog_combined_with_pollen(self, mock_get):
+        """Test combined fetch including pollen data."""
+        def side_effect(url, **kwargs):
+            mock_response = Mock()
+            mock_response.status_code = 200
+
+            if "purpleair" in url:
+                mock_response.json.return_value = {
+                    "sensor": {
+                        "pm2.5_10minute": 10.0,
+                        "humidity": 50,
+                        "temperature": 72
+                    }
+                }
+            elif "openweathermap" in url:
+                mock_response.json.return_value = {
+                    "visibility": 10000,
+                    "main": {"humidity": 50, "temp": 72.0},
+                    "weather": [{"main": "Clear"}]
+                }
+            elif "open-meteo" in url:
+                mock_response.json.return_value = {
+                    "current": {
+                        "grass_pollen": 5.0,
+                        "birch_pollen": 10.0,
+                        "alder_pollen": 8.0,
+                        "ragweed_pollen": 3.0,
+                        "mugwort_pollen": 2.0,
+                        "olive_pollen": 7.0,
+                    }
+                }
+
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        source = AirFogSource(
+            purpleair_api_key="purple_key",
+            openweathermap_api_key="owm_key",
+            purpleair_sensor_id="12345"
+        )
+        result = source.fetch_air_fog_data()
+
+        assert result is not None
+        assert result["pm2_5_aqi"] is not None
+        assert result["grass_pollen"] == 5.0
+        assert result["tree_pollen"] == 25.0  # 10 + 8 + 7
+        assert result["weed_pollen"] == 5.0   # 3 + 2
+        assert "GRASS:5.0" in result["formatted_message"]
+        assert "TREES:25.0" in result["formatted_message"]
+
+    @patch('src.utils.air_fog.requests.get')
+    def test_fetch_air_fog_pollen_only(self, mock_get):
+        """Test combined fetch with only pollen data available."""
+        def side_effect(url, **kwargs):
+            mock_response = Mock()
+            mock_response.status_code = 200
+
+            if "open-meteo" in url:
+                mock_response.json.return_value = {
+                    "current": {
+                        "grass_pollen": 50.0,
+                        "birch_pollen": 0,
+                        "alder_pollen": 0,
+                        "ragweed_pollen": 0,
+                        "mugwort_pollen": 0,
+                        "olive_pollen": 0,
+                    }
+                }
+            else:
+                raise Exception("No API key")
+
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        source = AirFogSource()
+        result = source.fetch_air_fog_data()
+
+        assert result is not None
+        assert result["grass_pollen"] == 50.0
+        assert result["grass_pollen_level"] == "MODERATE"
 
