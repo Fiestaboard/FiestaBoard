@@ -788,6 +788,23 @@ test.describe("Plugin Board Display Screenshots", () => {
 
         await waitForBoard(page);
 
+        // White board screenshots need a transparent background so the dark
+        // page theme doesn't bleed through the rounded corners.
+        if (boardColor === "white") {
+          await page.evaluate(() => {
+            const s = document.createElement("style");
+            s.textContent = `
+              html, body, div:not([role="img"]):not([role="img"] *) {
+                background: transparent !important;
+                background-color: transparent !important;
+              }
+            `;
+            document.head.appendChild(s);
+          });
+        }
+
+        const screenshotOpts = boardColor === "white" ? { omitBackground: true } : {};
+
         const boardEl = page
           .locator('[class*="rounded-lg"][style*="background"]')
           .first();
@@ -796,12 +813,14 @@ test.describe("Plugin Board Display Screenshots", () => {
           ensureDir(docsColorDir);
           await boardEl.screenshot({
             path: path.join(docsColorDir, fileName),
+            ...screenshotOpts,
           });
 
           const pluginColorDir = path.join(pluginDocsDir, boardColor);
           ensureDir(pluginColorDir);
           await boardEl.screenshot({
             path: path.join(pluginColorDir, fileName),
+            ...screenshotOpts,
           });
 
           if (boardColor === "black") {
