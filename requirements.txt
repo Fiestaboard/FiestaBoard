@@ -24,6 +24,9 @@ docker>=7.1.0
 # mDNS/Bonjour local network discovery (fiestaboard.local)
 zeroconf>=0.131.0
 
+# MQTT client for Home Assistant auto-discovery and control
+paho-mqtt>=2.0.0
+
 # Prometheus metrics exposition for Grafana monitoring
 # Automatically instruments FastAPI with request count, latency, and status metrics
 prometheus-fastapi-instrumentator>=7.1.0

@@ -1,0 +1,212 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { toast } from "sonner";
+import { Radio, ChevronDown, Eye, EyeOff, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { api } from "@/lib/api";
+import type { MqttSettings } from "@/lib/api";
+
+export function MqttSettingsCard() {
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [draft, setDraft] = useState<Partial<MqttSettings>>({});
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["mqtt-settings"],
+    queryFn: () => api.getMqttSettings(),
+  });
+
+  const { data: status } = useQuery({
+    queryKey: ["mqtt-status"],
+    queryFn: () => api.getMqttStatus(),
+    refetchInterval: 5000,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (updates: Partial<MqttSettings>) => api.updateMqttSettings(updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mqtt-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["mqtt-status"] });
+      setDraft({});
+      toast.success("MQTT settings saved");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const merged: MqttSettings = {
+    enabled: false,
+    broker_host: "localhost",
+    broker_port: 1883,
+    username: "",
+    password: "",
+    external_url: "",
+    ...settings,
+    ...draft,
+  };
+
+  const hasDraft = Object.keys(draft).length > 0;
+
+  const handleToggleEnabled = (checked: boolean) => {
+    saveMutation.mutate({ ...merged, enabled: checked });
+  };
+
+  const handleSave = () => {
+    saveMutation.mutate(merged);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-56" />
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const isConnected = status?.connected;
+  const isEnabled = merged.enabled;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Radio className="h-4 w-4" />
+            <CardTitle className="text-base">Home Assistant (MQTT)</CardTitle>
+          </div>
+          <div className="flex items-center gap-3">
+            {isEnabled && (
+              isConnected ? (
+                <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                  Connected
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
+                  <XCircle className="h-2.5 w-2.5" />
+                  Disconnected
+                </Badge>
+              )
+            )}
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={handleToggleEnabled}
+              disabled={saveMutation.isPending}
+            />
+          </div>
+        </div>
+        <CardDescription>
+          Expose FiestaBoard as a device in Home Assistant via MQTT auto-discovery. Requires a running MQTT broker (e.g. Mosquitto).
+        </CardDescription>
+      </CardHeader>
+
+      <Collapsible open={expanded} onOpenChange={setExpanded}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none">
+          <span>Broker configuration</span>
+          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <CardContent className="pt-2 space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2 space-y-1">
+                <Label className="text-xs">Broker Host</Label>
+                <Input
+                  value={merged.broker_host}
+                  onChange={(e) => setDraft((d) => ({ ...d, broker_host: e.target.value }))}
+                  placeholder="localhost"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Port</Label>
+                <Input
+                  type="number"
+                  value={merged.broker_port}
+                  onChange={(e) => setDraft((d) => ({ ...d, broker_port: Number(e.target.value) }))}
+                  placeholder="1883"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Username</Label>
+                <Input
+                  value={merged.username}
+                  onChange={(e) => setDraft((d) => ({ ...d, username: e.target.value }))}
+                  placeholder="Optional"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Password</Label>
+                <div className="flex gap-1.5">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={merged.password === "***" ? "" : merged.password}
+                    onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
+                    placeholder={settings?.password === "***" ? "••• (set)" : "Optional"}
+                    className="h-8 text-xs font-mono flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPassword((p) => !p)}
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">External URL</Label>
+              <Input
+                value={merged.external_url}
+                onChange={(e) => setDraft((d) => ({ ...d, external_url: e.target.value }))}
+                placeholder="http://192.168.1.50:4420 (shown as Visit link in HA)"
+                className="h-8 text-xs font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                The URL your browser uses to reach FiestaBoard — shown as a &quot;Visit&quot; link on the device page in Home Assistant.
+              </p>
+            </div>
+
+            {hasDraft && (
+              <div className="flex justify-end pt-1">
+                <Button
+                  size="sm"
+                  variant="brand"
+                  onClick={handleSave}
+                  disabled={saveMutation.isPending}
+                  className="text-xs gap-1.5"
+                >
+                  {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Save
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+}

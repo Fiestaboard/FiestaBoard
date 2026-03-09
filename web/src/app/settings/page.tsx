@@ -4,6 +4,7 @@ import { DisplaySettings } from "@/components/settings/display-settings";
 import { TransitionSettings } from "@/components/settings/transition-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
 import { SystemUpdate } from "@/components/settings/system-update";
+import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,11 @@ export default function SettingsPage() {
           {/* Board Transitions */}
           <div className="animate-card-fade-in" style={{ animationDelay: "400ms" }}>
             <TransitionSettings />
+          </div>
+
+          {/* Integrations */}
+          <div className="animate-card-fade-in" style={{ animationDelay: "480ms" }}>
+            <MqttSettingsCard />
           </div>
 
           {/* Advanced: Debug & Setup Wizard - progressive disclosure */}
