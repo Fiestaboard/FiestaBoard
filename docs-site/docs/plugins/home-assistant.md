@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
-description: "Integrate Home Assistant with FiestaBoard to show smart home sensor states on your split-flap display."
-keywords: [FiestaBoard Home Assistant, smart home, IoT display, sensor data, home automation, Vestaboard Home Assistant]
+description: "Display Home Assistant smart home data on your Vestaboard. Show door sensors, temperature, lights, and more with the FiestaBoard Home Assistant plugin."
+keywords: [FiestaBoard Home Assistant, Vestaboard Home Assistant, Vestaboard Home Assistant integration, Vestaboard smart home, smart home display, IoT display, sensor data, home automation]
 ---
 
 # Home Assistant Plugin
@@ -12,7 +12,7 @@ Display smart home device states from your Home Assistant instance on your board
 
 ## Overview
 
-The Home Assistant plugin connects to your Home Assistant server and displays entity states: door sensors, temperature readings, light status, and any other entity your HA instance tracks.
+The Home Assistant plugin connects to your Home Assistant server and displays entity states on your Vestaboard: door sensors, temperature readings, light status, and any other entity your HA instance tracks.
 
 ## Setup
 

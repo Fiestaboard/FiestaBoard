@@ -6,7 +6,7 @@
 [![Documentation](https://img.shields.io/badge/docs-fiestaboard.app-orange)](https://fiestaboard.app)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white)](https://discord.gg/ujasGntNhQ)
 
-**FiestaBoard is free, open-source software for split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with split-flap displays including Vestaboard.
+**FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22x6) and Note (15x3).
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 

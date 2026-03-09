@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
-description: "Display live NFL, NBA, NHL, and soccer scores on your split-flap display with FiestaBoard's sports plugin."
-keywords: [FiestaBoard sports scores, NFL scores, NBA scores, NHL scores, soccer scores, split-flap sports, live scores]
+description: "Display live NFL, NBA, NHL, and soccer scores on your Vestaboard with FiestaBoard's sports plugin."
+keywords: [FiestaBoard sports scores, Vestaboard sports scores, Vestaboard NFL, Vestaboard NBA, NFL scores, NBA scores, NHL scores, soccer scores, split-flap sports, live scores]
 ---
 
 # Sports Scores Plugin

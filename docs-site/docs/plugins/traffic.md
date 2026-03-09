@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
-description: "Show real-time commute and traffic times on your split-flap display using FiestaBoard's Google Routes API plugin."
-keywords: [FiestaBoard traffic plugin, Google Routes API, commute time, traffic display, split-flap traffic, ETA]
+description: "Show real-time commute and traffic times on your Vestaboard using FiestaBoard's Google Routes API plugin."
+keywords: [FiestaBoard traffic plugin, Vestaboard traffic, Vestaboard commute, Google Routes API, commute time, traffic display, split-flap traffic, ETA]
 ---
 
 # Traffic Plugin
