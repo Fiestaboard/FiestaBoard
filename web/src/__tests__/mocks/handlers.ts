@@ -670,6 +670,10 @@ export const handlers = [
     return HttpResponse.json(mockCacheStatus);
   }),
 
+  http.get(`${API_BASE}/debug/monitor/enabled`, () => {
+    return HttpResponse.json({ enabled: false });
+  }),
+
   http.post(`${API_BASE}/clear-cache`, () => {
     return HttpResponse.json({
       status: "success",
