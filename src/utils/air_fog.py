@@ -1,4 +1,4 @@
-"""Air Quality and Fog data source using PurpleAir and OpenWeatherMap."""
+"""Air Quality, Fog, and Allergen data source using PurpleAir, OpenWeatherMap, and Open-Meteo."""
 
 import logging
 import math
@@ -13,9 +13,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_LAT = 37.7749
 DEFAULT_LON = -122.4194
 
+# Open-Meteo Air Quality API (free, no key required)
+OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+
 
 class AirFogSource:
-    """Fetches air quality from PurpleAir and visibility/fog data from OpenWeatherMap."""
+    """Fetches air quality from PurpleAir, visibility/fog from OpenWeatherMap, and pollen from Open-Meteo."""
     
     # AQI breakpoints for PM2.5 (US EPA standard)
     AQI_BREAKPOINTS = [
@@ -26,6 +29,29 @@ class AirFogSource:
         (55.5, 150.4, 151, 200, "UNHEALTHY", "RED"),
         (150.5, 250.4, 201, 300, "VERY_UNHEALTHY", "PURPLE"),
         (250.5, 500.4, 301, 500, "HAZARDOUS", "MAROON"),
+    ]
+    
+    # Pollen severity thresholds (grains/m³)
+    # Grass pollen thresholds
+    GRASS_POLLEN_THRESHOLDS = [
+        (0, 20, "LOW", "GREEN"),
+        (21, 77, "MODERATE", "YELLOW"),
+        (78, 266, "HIGH", "ORANGE"),
+        (267, float("inf"), "VERY HIGH", "RED"),
+    ]
+    # Tree pollen thresholds (aggregate: birch + alder + olive)
+    TREE_POLLEN_THRESHOLDS = [
+        (0, 50, "LOW", "GREEN"),
+        (51, 200, "MODERATE", "YELLOW"),
+        (201, 700, "HIGH", "ORANGE"),
+        (701, float("inf"), "VERY HIGH", "RED"),
+    ]
+    # Weed pollen thresholds (aggregate: ragweed + mugwort)
+    WEED_POLLEN_THRESHOLDS = [
+        (0, 20, "LOW", "GREEN"),
+        (21, 77, "MODERATE", "YELLOW"),
+        (78, 266, "HIGH", "ORANGE"),
+        (267, float("inf"), "VERY HIGH", "RED"),
     ]
     
     # Fog trigger thresholds
@@ -114,6 +140,28 @@ class AirFogSource:
         
         # If above all breakpoints, return hazardous
         return 500, "HAZARDOUS", "MAROON"
+    
+    @staticmethod
+    def determine_pollen_level(
+        value: float,
+        thresholds: list,
+    ) -> Tuple[str, str]:
+        """
+        Determine pollen severity level from concentration.
+        
+        Args:
+            value: Pollen concentration in grains/m³
+            thresholds: List of (low, high, level, color) tuples
+            
+        Returns:
+            Tuple of (level, color)
+        """
+        if value < 0:
+            value = 0
+        for low, high, level, color in thresholds:
+            if low <= value <= high:
+                return level, color
+        return "VERY HIGH", "RED"
     
     @staticmethod
     def determine_fog_status(
@@ -299,19 +347,84 @@ class AirFogSource:
             logger.error(f"Error fetching OpenWeatherMap data: {e}")
             return None
     
-    def fetch_air_fog_data(self) -> Optional[Dict[str, any]]:
+    def fetch_pollen_data(self) -> Optional[Dict[str, any]]:
         """
-        Fetch combined air quality and fog data.
+        Fetch pollen/allergen data from Open-Meteo Air Quality API.
+        
+        This is a free API that requires no API key.
         
         Returns:
-            Dictionary with all air/fog data, or None if all sources failed
+            Dictionary with pollen data, or None if failed
         """
-        # Fetch data from both sources
+        params = {
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "current": "grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen",
+        }
+        
+        try:
+            response = requests.get(OPEN_METEO_AIR_QUALITY_URL, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            current = data.get("current", {})
+            
+            grass = current.get("grass_pollen") or 0
+            birch = current.get("birch_pollen") or 0
+            alder = current.get("alder_pollen") or 0
+            ragweed = current.get("ragweed_pollen") or 0
+            mugwort = current.get("mugwort_pollen") or 0
+            olive = current.get("olive_pollen") or 0
+            
+            tree_total = birch + alder + olive
+            weed_total = ragweed + mugwort
+            
+            grass_level, grass_color = self.determine_pollen_level(
+                grass, self.GRASS_POLLEN_THRESHOLDS
+            )
+            tree_level, tree_color = self.determine_pollen_level(
+                tree_total, self.TREE_POLLEN_THRESHOLDS
+            )
+            weed_level, weed_color = self.determine_pollen_level(
+                weed_total, self.WEED_POLLEN_THRESHOLDS
+            )
+            
+            return {
+                "grass_pollen": round(grass, 1),
+                "grass_pollen_level": grass_level,
+                "grass_pollen_color": grass_color,
+                "tree_pollen": round(tree_total, 1),
+                "tree_pollen_level": tree_level,
+                "tree_pollen_color": tree_color,
+                "weed_pollen": round(weed_total, 1),
+                "weed_pollen_level": weed_level,
+                "weed_pollen_color": weed_color,
+            }
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to fetch pollen data from Open-Meteo: {e}")
+            return None
+        except (KeyError, ValueError, IndexError, TypeError) as e:
+            logger.error(f"Unexpected response format from Open-Meteo pollen API: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching pollen data: {e}")
+            return None
+    
+    def fetch_air_fog_data(self) -> Optional[Dict[str, any]]:
+        """
+        Fetch combined air quality, fog, and pollen data.
+        
+        Returns:
+            Dictionary with all air/fog/pollen data, or None if all sources failed
+        """
+        # Fetch data from all sources
         purpleair_data = self.fetch_purpleair_data()
         owm_data = self.fetch_openweathermap_data()
+        pollen_data = self.fetch_pollen_data()
         
-        if not purpleair_data and not owm_data:
-            logger.error("Failed to fetch data from both PurpleAir and OpenWeatherMap")
+        if not purpleair_data and not owm_data and not pollen_data:
+            logger.error("Failed to fetch data from all sources")
             return None
         
         result = {
@@ -327,6 +440,15 @@ class AirFogSource:
             "air_status": "UNKNOWN",
             "air_color": "YELLOW",
             "alert_message": None,
+            "grass_pollen": None,
+            "grass_pollen_level": "UNKNOWN",
+            "grass_pollen_color": "GREEN",
+            "tree_pollen": None,
+            "tree_pollen_level": "UNKNOWN",
+            "tree_pollen_color": "GREEN",
+            "weed_pollen": None,
+            "weed_pollen_level": "UNKNOWN",
+            "weed_pollen_color": "GREEN",
         }
         
         # Merge PurpleAir data
@@ -367,6 +489,18 @@ class AirFogSource:
                 result["humidity"]
             )
         
+        # Merge pollen data (Open-Meteo, free API)
+        if pollen_data:
+            result["grass_pollen"] = pollen_data["grass_pollen"]
+            result["grass_pollen_level"] = pollen_data["grass_pollen_level"]
+            result["grass_pollen_color"] = pollen_data["grass_pollen_color"]
+            result["tree_pollen"] = pollen_data["tree_pollen"]
+            result["tree_pollen_level"] = pollen_data["tree_pollen_level"]
+            result["tree_pollen_color"] = pollen_data["tree_pollen_color"]
+            result["weed_pollen"] = pollen_data["weed_pollen"]
+            result["weed_pollen_level"] = pollen_data["weed_pollen_level"]
+            result["weed_pollen_color"] = pollen_data["weed_pollen_color"]
+        
         # Determine primary alert message
         result["alert_message"] = self._determine_alert_message(result)
         result["formatted_message"] = self._format_message(result)
@@ -400,6 +534,15 @@ class AirFogSource:
         
         if data.get("humidity"):
             parts.append(f"HUM:{data['humidity']}%")
+        
+        if data.get("grass_pollen") is not None:
+            parts.append(f"GRASS:{data['grass_pollen']}")
+        
+        if data.get("tree_pollen") is not None:
+            parts.append(f"TREES:{data['tree_pollen']}")
+        
+        if data.get("weed_pollen") is not None:
+            parts.append(f"WEEDS:{data['weed_pollen']}")
         
         return " ".join(parts) if parts else "NO DATA"
 

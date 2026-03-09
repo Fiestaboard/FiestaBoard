@@ -1,8 +1,8 @@
 {
   "id": "air_fog",
   "name": "Air Quality & Fog",
-  "version": "1.0.0",
-  "description": "Display air quality (AQI) and fog/visibility conditions",
+  "version": "1.1.0",
+  "description": "Display air quality (AQI), fog/visibility conditions, and pollen/allergen levels",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
@@ -96,6 +96,15 @@
       "fog_color",
       "is_foggy",
       "visibility",
+      "grass_pollen",
+      "grass_pollen_level",
+      "grass_pollen_color",
+      "tree_pollen",
+      "tree_pollen_level",
+      "tree_pollen_color",
+      "weed_pollen",
+      "weed_pollen_level",
+      "weed_pollen_color",
       "formatted"
     ]
   },
@@ -108,7 +117,16 @@
     "fog_color": 4,
     "is_foggy": 3,
     "visibility": 5,
-    "formatted": 22
+    "grass_pollen": 6,
+    "grass_pollen_level": 9,
+    "grass_pollen_color": 4,
+    "tree_pollen": 6,
+    "tree_pollen_level": 9,
+    "tree_pollen_color": 4,
+    "weed_pollen": 6,
+    "weed_pollen_level": 9,
+    "weed_pollen_color": 4,
+    "formatted": 66
   },
 
   "color_rules_schema": {
