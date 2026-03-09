@@ -9,6 +9,8 @@
   "icon": "laugh",
   "category": "entertainment",
 
+  "min_refresh_seconds": 30,
+
   "settings_schema": {
     "type": "object",
     "properties": {
@@ -16,6 +18,14 @@
         "type": "boolean",
         "title": "Enable Dad Jokes",
         "default": false
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "How often to fetch a new dad joke",
+        "default": 300,
+        "minimum": 30,
+        "maximum": 3600
       }
     }
   },

@@ -9,6 +9,8 @@
   "icon": "wind",
   "category": "weather",
 
+  "min_refresh_seconds": 60,
+
   "settings_schema": {
     "type": "object",
     "properties": {

@@ -5,10 +5,15 @@ All plugins must inherit from PluginBase and implement the required methods.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_REFRESH_SECONDS = 300
+MIN_REFRESH_SECONDS = 10
+MAX_REFRESH_SECONDS = 86400
 
 
 @dataclass
@@ -81,6 +86,8 @@ class PluginBase(ABC):
         self._manifest = manifest
         self._config: Dict[str, Any] = {}
         self._enabled = False
+        self._cached_result: Optional["PluginResult"] = None
+        self._last_fetch_time: Optional[datetime] = None
         logger.debug(f"Plugin initialized: {self.plugin_id}")
     
     @property
@@ -121,6 +128,7 @@ class PluginBase(ABC):
         old_config = self._config
         self._config = value
         if old_config != value:
+            self.clear_cache()
             self.on_config_change(old_config, value)
     
     @property
@@ -137,6 +145,7 @@ class PluginBase(ABC):
                 logger.info(f"Plugin enabled: {self.plugin_id}")
             else:
                 logger.info(f"Plugin disabled: {self.plugin_id}")
+                self.clear_cache()
                 self.cleanup()
     
     @abstractmethod
@@ -153,6 +162,119 @@ class PluginBase(ABC):
         """
         pass
     
+    def _get_refresh_schema(self) -> Optional[Dict[str, Any]]:
+        """Get refresh_seconds property schema from the manifest, if defined."""
+        schema = self._manifest.get("settings_schema", {})
+        properties = schema.get("properties", {})
+        return properties.get("refresh_seconds")
+
+    @property
+    def min_refresh_seconds(self) -> Optional[int]:
+        """Get the hard rate-limit floor from the manifest.
+        
+        This is the absolute minimum refresh interval enforced at runtime,
+        regardless of user configuration.  Plugin developers set this via
+        the top-level ``min_refresh_seconds`` field in manifest.json.
+        Falls back to settings_schema ``minimum`` if the explicit field
+        is absent.  Returns None when the plugin has no refresh_seconds.
+        """
+        refresh_schema = self._get_refresh_schema()
+        if refresh_schema is None:
+            return None
+        explicit = self._manifest.get("min_refresh_seconds")
+        if explicit is not None:
+            return int(explicit)
+        return refresh_schema.get("minimum", MIN_REFRESH_SECONDS)
+
+    @property
+    def refresh_seconds(self) -> Optional[int]:
+        """Get the effective refresh interval in seconds.
+        
+        Returns the configured value, falling back to the manifest default.
+        The value is clamped to never go below ``min_refresh_seconds`` --
+        even if the stored config contains a lower number.
+        Returns None if the plugin's manifest does not define refresh_seconds.
+        """
+        refresh_schema = self._get_refresh_schema()
+        if refresh_schema is None:
+            return None
+        default = refresh_schema.get("default", DEFAULT_REFRESH_SECONDS)
+        value = self._config.get("refresh_seconds", default)
+        floor = self.min_refresh_seconds
+        if floor is not None and isinstance(value, (int, float)) and value < floor:
+            logger.warning(
+                f"Plugin {self.plugin_id}: refresh_seconds {value} is below "
+                f"hard minimum {floor}, clamping"
+            )
+            return floor
+        return value
+
+    def get_data(self) -> PluginResult:
+        """Get plugin data with automatic caching based on refresh_seconds.
+        
+        If the plugin's manifest defines refresh_seconds in settings_schema,
+        results are cached and reused until the refresh interval expires.
+        Plugins without refresh_seconds in their manifest always fetch fresh.
+        
+        Returns:
+            PluginResult with data or error
+        """
+        interval = self.refresh_seconds
+
+        if interval is None:
+            return self.fetch_data()
+
+        if self._cached_result is not None and self._last_fetch_time is not None:
+            age = (datetime.now() - self._last_fetch_time).total_seconds()
+            if age < interval:
+                logger.debug(
+                    f"Using cached data for {self.plugin_id} "
+                    f"(age: {age:.0f}s < {interval}s)"
+                )
+                return self._cached_result
+
+        result = self.fetch_data()
+
+        if result.available:
+            self._cached_result = result
+            self._last_fetch_time = datetime.now()
+
+        return result
+
+    def clear_cache(self) -> None:
+        """Clear cached data, forcing a fresh fetch on the next get_data() call."""
+        self._cached_result = None
+        self._last_fetch_time = None
+
+    def _validate_refresh_seconds(self, config: Dict[str, Any]) -> List[str]:
+        """Validate refresh_seconds against the manifest schema bounds.
+        
+        Uses the hard floor from ``min_refresh_seconds`` (which considers
+        the top-level manifest field first, then the schema minimum).
+        """
+        errors: List[str] = []
+        refresh_schema = self._get_refresh_schema()
+
+        if refresh_schema is None or "refresh_seconds" not in config:
+            return errors
+
+        value = config["refresh_seconds"]
+        floor = self.min_refresh_seconds or MIN_REFRESH_SECONDS
+        maximum = refresh_schema.get("maximum", MAX_REFRESH_SECONDS)
+
+        if not isinstance(value, (int, float)):
+            errors.append("Refresh interval must be a number")
+        elif value < floor:
+            errors.append(
+                f"Refresh interval must be at least {floor} seconds"
+            )
+        elif value > maximum:
+            errors.append(
+                f"Refresh interval must not exceed {maximum} seconds"
+            )
+
+        return errors
+
     def validate_config(self, config: Dict[str, Any]) -> List[str]:
         """Validate configuration before use.
         

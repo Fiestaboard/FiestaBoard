@@ -59,12 +59,10 @@ class TestWsdotValidateConfig:
 
     def test_refresh_seconds_too_low(self):
         plugin = _plugin()
-        errors = plugin.validate_config({
-            "api_access_code": "test-code",
-            "routes": [{"route_id": 7}],
+        errors = plugin._validate_refresh_seconds({
             "refresh_seconds": 30,
         })
-        assert any("60" in e or "refresh" in e.lower() for e in errors)
+        assert any("at least 60 seconds" in e for e in errors)
 
 
 class TestWsdotFetchData:

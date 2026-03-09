@@ -50,11 +50,11 @@ class TestConfigurationValidation:
         errors = plugin.validate_config(config)
         assert any("Max launches" in e for e in errors)
 
-    def test_validate_config_invalid_refresh_too_low(self, plugin):
-        """Test validation fails with refresh < 240."""
+    def test_validate_refresh_too_low(self, plugin):
+        """Test base validation fails with refresh < 240 (manifest minimum)."""
         config = {"refresh_seconds": 100}
-        errors = plugin.validate_config(config)
-        assert any("Refresh interval" in e and "240" in e for e in errors)
+        errors = plugin._validate_refresh_seconds(config)
+        assert any("at least 240 seconds" in e for e in errors)
 
     def test_validate_config_invalid_max_launches_type(self, plugin):
         """Test validation fails with non-integer max_launches."""
@@ -62,11 +62,11 @@ class TestConfigurationValidation:
         errors = plugin.validate_config(config)
         assert any("Max launches" in e for e in errors)
 
-    def test_validate_config_invalid_refresh_type(self, plugin):
-        """Test validation fails with non-integer refresh_seconds."""
+    def test_validate_refresh_non_numeric(self, plugin):
+        """Test base validation fails with non-numeric refresh_seconds."""
         config = {"refresh_seconds": "fast"}
-        errors = plugin.validate_config(config)
-        assert any("Refresh interval" in e for e in errors)
+        errors = plugin._validate_refresh_seconds(config)
+        assert any("must be a number" in e for e in errors)
 
 
 class TestCountdown:

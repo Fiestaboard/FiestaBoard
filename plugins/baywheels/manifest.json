@@ -9,6 +9,8 @@
   "icon": "bike",
   "category": "transit",
 
+  "min_refresh_seconds": 30,
+
   "settings_schema": {
     "type": "object",
     "properties": {
