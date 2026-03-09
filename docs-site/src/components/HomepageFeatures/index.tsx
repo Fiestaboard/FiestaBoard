@@ -17,7 +17,7 @@ const FeatureList: FeatureItem[] = [
     icon: '/img/features/plugin-architecture.png',
     description: (
       <>
-        23 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times,
+        26 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times,
         ferry schedules, and more. Create your own plugins with our developer guide.
       </>
     ),
