@@ -10,6 +10,7 @@ import type { ViewMode } from "@/components/page-grid-selector";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useBoardSettings } from "@/hooks/use-board";
 import type { DeviceType } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 // Lazy load PageGridSelector so the header renders immediately
 const PageGridSelector = dynamic(
@@ -39,6 +40,7 @@ function getStoredViewMode(): ViewMode {
 
 export default function PagesPage() {
   const { push } = useViewTransition();
+  const t = useTranslations("pages");
   const { data: boardSettings } = useBoardSettings();
   const configuredDevices = useMemo(() => boardSettings?.devices ?? ["flagship"], [boardSettings]);
   const hasMultipleDevices = configuredDevices.length > 1;
@@ -75,20 +77,20 @@ export default function PagesPage() {
             <div>
               <h1 className="page-title flex items-center gap-3">
                 <FileText className="h-7 w-7 text-brand-emphasis" />
-                Pages
+                {t("title")}
               </h1>
               <p className="page-description">
-                Create and manage content for your board
+                {t("description")}
               </p>
             </div>
             <div className="flex items-center gap-3 pt-1">
-              <div className="flex items-center border rounded-md" role="group" aria-label="View mode">
+              <div className="flex items-center border rounded-md" role="group" aria-label={t("viewModeLabel")}>
                 <Button
                   size="sm"
                   variant={viewMode === "grid" ? "secondary" : "ghost"}
                   onClick={() => handleViewModeChange("grid")}
                   className="h-8 w-8 p-0 rounded-r-none"
-                  aria-label="Grid view"
+                  aria-label={t("gridView")}
                   aria-pressed={viewMode === "grid"}
                 >
                   <LayoutGrid className="h-4 w-4" />
@@ -98,7 +100,7 @@ export default function PagesPage() {
                   variant={viewMode === "list" ? "secondary" : "ghost"}
                   onClick={() => handleViewModeChange("list")}
                   className="h-8 w-8 p-0 rounded-l-none"
-                  aria-label="List view"
+                  aria-label={t("listView")}
                   aria-pressed={viewMode === "list"}
                 >
                   <List className="h-4 w-4" />
@@ -111,7 +113,7 @@ export default function PagesPage() {
                 className="h-9 sm:h-8 px-3 text-xs btn-lift"
               >
                 <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
-                New
+                {t("newPage")}
               </Button>
             </div>
           </div>
@@ -122,10 +124,10 @@ export default function PagesPage() {
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
                 <TabsList className="mb-5">
                   {configuredDevices.includes("flagship") && (
-                    <TabsTrigger value="flagship">Flagship</TabsTrigger>
+                    <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>
                   )}
                   {configuredDevices.includes("note") && (
-                    <TabsTrigger value="note">Note</TabsTrigger>
+                    <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>
                   )}
                 </TabsList>
                 {configuredDevices.includes("flagship") && (

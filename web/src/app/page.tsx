@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Info, Home as HomeIcon } from "lucide-react";
 import { getSetupStatus } from "@/lib/setup-detection";
 import { useWizard } from "@/components/wizard-provider";
+import { useTranslations } from "next-intl";
 
 export default function Home() {
   const [boardNotConfigured, setBoardNotConfigured] = useState(false);
   const { triggerWizard } = useWizard();
+  const t = useTranslations("home");
 
   useEffect(() => {
     getSetupStatus()
@@ -30,10 +32,10 @@ export default function Home() {
         <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
           <h1 className="page-title flex items-center gap-3">
             <HomeIcon className="h-7 w-7 text-brand-emphasis" />
-            Dashboard
+            {t("title")}
           </h1>
           <p className="page-description">
-            Monitor your board display and system activity
+            {t("description")}
           </p>
         </div>
 
@@ -41,13 +43,13 @@ export default function Home() {
           <div className="mb-6">
             <Alert className="border-info/50 bg-info/10">
               <Info className="h-4 w-4 text-info" />
-              <AlertTitle>No board configured</AlertTitle>
+              <AlertTitle>{t("noBoardConfigured")}</AlertTitle>
               <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <span>
-                  Your board is not set up yet. Connect your board to start displaying content.
+                  {t("noBoardDescription")}
                 </span>
                 <Button variant="brand" size="sm" onClick={triggerWizard} className="w-fit btn-lift">
-                  Run Setup Wizard
+                  {t("runSetupWizard")}
                 </Button>
               </AlertDescription>
             </Alert>

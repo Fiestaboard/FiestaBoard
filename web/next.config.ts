@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin();
 
 // Bundle analyzer (only enabled when ANALYZE env var is set)
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
@@ -66,4 +69,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withBundleAnalyzer(withPWA(nextConfig));
+export default withBundleAnalyzer(withNextIntl(withPWA(nextConfig)));

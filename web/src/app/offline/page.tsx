@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { WifiOff, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function OfflinePage() {
   const [isOnline, setIsOnline] = useState(false);
+  const t = useTranslations("offline");
 
   useEffect(() => {
     // Check initial online status
@@ -49,12 +51,12 @@ export default function OfflinePage() {
 
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">
-            {isOnline ? "Reconnecting..." : "You're Offline"}
+            {isOnline ? t("reconnecting") : t("youreOffline")}
           </h1>
           <p className="text-muted-foreground">
             {isOnline
-              ? "Connection restored! Reloading app..."
-              : "It looks like you've lost your internet connection. Some features may not be available."}
+              ? t("connectionRestored")
+              : t("offlineDescription")}
           </p>
         </div>
 
@@ -65,15 +67,15 @@ export default function OfflinePage() {
               className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <RefreshCw className="h-4 w-4" />
-              Try Again
+              {t("tryAgain")}
             </button>
 
             <div className="text-sm text-muted-foreground">
-              <p>While offline, you can still:</p>
+              <p>{t("whileOffline")}</p>
               <ul className="mt-2 space-y-1">
-                <li>• View previously loaded pages</li>
-                <li>• Access cached content</li>
-                <li>• Browse your saved data</li>
+                <li>• {t("viewPreviouslyLoaded")}</li>
+                <li>• {t("accessCached")}</li>
+                <li>• {t("browseSaved")}</li>
               </ul>
             </div>
           </div>

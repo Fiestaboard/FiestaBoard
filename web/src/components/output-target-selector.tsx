@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,26 +12,39 @@ import { Monitor, Smartphone, Zap } from "lucide-react";
 const OUTPUT_OPTIONS = [
   {
     value: "ui" as const,
-    label: "UI Only",
-    description: "Preview in web interface only",
     icon: Monitor,
   },
   {
     value: "board" as const,
-    label: "Board Only",
-    description: "Send directly to board",
     icon: Zap,
   },
   {
     value: "both" as const,
-    label: "UI + Board",
-    description: "Show in UI and send to board",
     icon: Smartphone,
   },
 ];
 
 export function OutputTargetSelector() {
+  const t = useTranslations("outputTarget");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
+
+  const getOptionLabel = (value: string) => {
+    const labels: Record<string, string> = {
+      ui: t("uiOnly"),
+      board: t("boardOnly"),
+      both: t("uiAndBoard"),
+    };
+    return labels[value] || value;
+  };
+  const getOptionDescription = (value: string) => {
+    const descriptions: Record<string, string> = {
+      ui: t("uiOnlyDescription"),
+      board: t("boardOnlyDescription"),
+      both: t("uiAndBoardDescription"),
+    };
+    return descriptions[value] || value;
+  };
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["output-settings"],
@@ -43,7 +57,7 @@ export function OutputTargetSelector() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["output-settings"] });
       queryClient.invalidateQueries({ queryKey: ["status"] });
-      toast.success("Output target updated");
+      toast.success(t("toastUpdated"));
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -54,9 +68,9 @@ export function OutputTargetSelector() {
     return (
       <Card>
         <CardHeader className="px-4 sm:px-6">
-          <CardTitle className="text-base sm:text-lg">Output Target</CardTitle>
+          <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Choose where content should be displayed
+            {t("description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
@@ -71,9 +85,9 @@ export function OutputTargetSelector() {
   return (
     <Card>
       <CardHeader className="px-4 sm:px-6">
-        <CardTitle className="text-base sm:text-lg">Output Target</CardTitle>
+        <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
         <CardDescription className="text-xs sm:text-sm">
-          Choose where content should be displayed
+          {t("description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 px-4 sm:px-6">
@@ -103,20 +117,20 @@ export function OutputTargetSelector() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm sm:text-base">{option.label}</span>
+                    <span className="font-medium text-sm sm:text-base">{getOptionLabel(option.value)}</span>
                     {isActive && (
                       <Badge variant="default" className="text-[10px] sm:text-xs">
-                        Active
+                        {tc("active")}
                       </Badge>
                     )}
                     {isEffective && !isActive && (
                       <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                        Effective
+                        {tc("effective")}
                       </Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {option.description}
+                    {getOptionDescription(option.value)}
                   </p>
                 </div>
               </div>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
@@ -37,13 +39,16 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
@@ -55,19 +60,21 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-hidden`}
       >
-        <Providers>
-          <ThemeColorMeta />
-          <WizardProvider>
-            <NavigationSidebar />
-            <MainContent>
-              <PageFadeWrapper>
-                {children}
-              </PageFadeWrapper>
-            </MainContent>
-            <Toaster />
-            <InstallPrompt />
-          </WizardProvider>
-        </Providers>
+        <NextIntlClientProvider messages={messages}>
+          <Providers>
+            <ThemeColorMeta />
+            <WizardProvider>
+              <NavigationSidebar />
+              <MainContent>
+                <PageFadeWrapper>
+                  {children}
+                </PageFadeWrapper>
+              </MainContent>
+              <Toaster />
+              <InstallPrompt />
+            </WizardProvider>
+          </Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
