@@ -44,7 +44,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'keywords',
-        content: 'split-flap display, split-flap display software, dashboard, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display, open source, self-hosted, WYSIWYG editor, display scheduler, IoT display, transit times, surf report, Home Assistant display, split-flap display app, display plugins, FiestaBoard',
+        content: 'split-flap display, split-flap display software, dashboard, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard Home Assistant, Vestaboard plugins, best software for Vestaboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display, open source, self-hosted, WYSIWYG editor, display scheduler, IoT display, transit times, surf report, Home Assistant display, split-flap display app, display plugins, FiestaBoard',
       },
     },
     {
@@ -132,6 +132,14 @@ const config: Config = {
             acceptedAnswer: {
               '@type': 'Answer',
               text: 'FiestaBoard has 23 built-in plugins for weather, stocks, sports scores, transit times, Disney park wait times, aircraft tracking, surf conditions, Home Assistant integration, and more. Many plugins require no API key.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Does FiestaBoard work with Vestaboard?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes. FiestaBoard is compatible with Vestaboard Flagship (22x6) and Vestaboard Note (15x3). It connects via the Vestaboard Local API (recommended, supports animations) or the Vestaboard Cloud API (works remotely). FiestaBoard runs alongside the official Vestaboard app.',
             },
           },
         ],

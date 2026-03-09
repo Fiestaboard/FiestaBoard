@@ -1,7 +1,7 @@
 ---
 sidebar_position: 11
-description: "Display real-time stock prices with percentage changes and color indicators on your split-flap display."
-keywords: [FiestaBoard stocks, stock prices, stock ticker, Yahoo Finance, split-flap stocks, Vestaboard stocks]
+description: "Display real-time stock prices on your Vestaboard with percentage changes and color-coded indicators."
+keywords: [FiestaBoard stocks, Vestaboard stocks, Vestaboard stock ticker, stock prices, stock ticker, Yahoo Finance, split-flap stocks]
 ---
 
 # Stock Prices

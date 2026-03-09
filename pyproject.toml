@@ -12,7 +12,7 @@ license = {text = "MIT"}
 authors = [
     {name = "FiestaBoard Contributors"}
 ]
-keywords = ["fiestaboard", "display", "home-automation", "api", "split-flap"]
+keywords = ["fiestaboard", "vestaboard", "display", "home-automation", "api", "split-flap"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

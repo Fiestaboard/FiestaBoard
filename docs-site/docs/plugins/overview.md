@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
-description: "Explore FiestaBoard's plugin system with weather, sports, traffic, transit, and entertainment plugins for split-flap displays."
-keywords: [FiestaBoard plugins, plugin overview, available plugins, split-flap integrations, Vestaboard plugins]
+description: "Explore FiestaBoard's 23 plugins for your Vestaboard — weather, sports, traffic, transit, Home Assistant, and more."
+keywords: [FiestaBoard plugins, plugin overview, available plugins, Vestaboard plugins, Vestaboard integrations, split-flap integrations]
 ---
 
 # Plugins Overview
 
-FiestaBoard uses a **plugin architecture** - each data source is a self-contained plugin you can enable or disable independently. There are currently 23 built-in plugins, and many work without any API key.
+FiestaBoard uses a **plugin architecture** to bring live data to your Vestaboard. Each data source is a self-contained plugin you can enable or disable independently. There are currently 23 built-in plugins, and many work without any API key.
 
 ## Enabling Plugins
 
