@@ -1,5 +1,5 @@
 # Grafana datasource provisioning
-# Auto-configures Prometheus as the default data source
+# Prometheus runs in the same container on the default port.
 
 apiVersion: 1
 
@@ -7,6 +7,6 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    url: http://prometheus:9090
+    url: http://127.0.0.1:9090
     isDefault: true
     editable: false

@@ -192,10 +192,7 @@ export default function DebugMonitorPage() {
     refetchInterval: 5_000,
   });
 
-  const grafanaUrl =
-    typeof window !== "undefined"
-      ? `${window.location.protocol}//${window.location.hostname}:3030`
-      : "http://localhost:3030";
+  const grafanaUrl = "/grafana/";
 
   const handleRefresh = useCallback(() => {
     requestLogQuery.refetch();
@@ -284,14 +281,11 @@ export default function DebugMonitorPage() {
               <p className="text-sm text-muted-foreground max-w-lg mx-auto">
                 To enable monitoring, set{" "}
                 <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">LOCAL_MONITORING=true</code>{" "}
-                and start the monitoring stack:
+                in your <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">.env</code> file and restart the container.
               </p>
-              <pre className="mt-3 px-4 py-2 rounded bg-muted font-mono text-xs text-left inline-block max-w-lg">
-                docker compose -f docker-compose.yml \{"\n"}  -f docker-compose.monitoring.yml up -d
-              </pre>
               <p className="text-xs text-muted-foreground mt-4">
-                Monitoring is enabled by default in development. For production,
-                add the monitoring compose overlay and set <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">LOCAL_MONITORING=true</code>.
+                Prometheus and Grafana run inside the same container.
+                Monitoring is enabled by default in development.
               </p>
             </CardContent>
           </Card>

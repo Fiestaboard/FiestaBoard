@@ -132,3 +132,51 @@ class TestProdPrebuiltCompose:
     def test_port_mapping(self):
         ports = self.compose["services"]["fiestaboard"].get("ports", [])
         assert "4420:3000" in ports
+
+
+# ---------------------------------------------------------------------------
+# In-container monitoring (supervisord-monitoring.conf + configs)
+# ---------------------------------------------------------------------------
+
+class TestInContainerMonitoring:
+    """Validate that the in-container monitoring config files are correct."""
+
+    def test_supervisord_monitoring_conf_exists(self):
+        """supervisord-monitoring.conf must exist in the repo root."""
+        path = os.path.join(REPO_ROOT, "supervisord-monitoring.conf")
+        assert os.path.isfile(path)
+
+    def test_supervisord_monitoring_has_prometheus(self):
+        """The monitoring supervisord config must define a prometheus program."""
+        path = os.path.join(REPO_ROOT, "supervisord-monitoring.conf")
+        with open(path) as fh:
+            content = fh.read()
+        assert "[program:prometheus]" in content
+
+    def test_supervisord_monitoring_has_grafana(self):
+        """The monitoring supervisord config must define a grafana program."""
+        path = os.path.join(REPO_ROOT, "supervisord-monitoring.conf")
+        with open(path) as fh:
+            content = fh.read()
+        assert "[program:grafana]" in content
+
+    def test_prometheus_config_targets_localhost(self):
+        """Prometheus should scrape metrics from localhost (in-container)."""
+        prom_conf = os.path.join(REPO_ROOT, "monitoring", "prometheus", "prometheus.yml")
+        with open(prom_conf) as fh:
+            data = yaml.safe_load(fh)
+        targets = data["scrape_configs"][0]["static_configs"][0]["targets"]
+        assert any("127.0.0.1" in t for t in targets)
+
+    def test_grafana_datasource_targets_localhost(self):
+        """Grafana datasource should point to localhost Prometheus."""
+        ds_conf = os.path.join(REPO_ROOT, "monitoring", "grafana", "provisioning", "datasources", "prometheus.yml")
+        with open(ds_conf) as fh:
+            data = yaml.safe_load(fh)
+        url = data["datasources"][0]["url"]
+        assert "127.0.0.1" in url
+
+    def test_no_monitoring_overlay_exists(self):
+        """docker-compose.monitoring.yml should not exist (monitoring is in-container)."""
+        path = os.path.join(REPO_ROOT, "docker-compose.monitoring.yml")
+        assert not os.path.isfile(path), "Monitoring overlay should not exist; Grafana/Prometheus run in-container"

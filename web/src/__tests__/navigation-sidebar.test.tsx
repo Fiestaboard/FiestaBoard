@@ -162,7 +162,7 @@ describe("NavigationSidebar Monitor link", () => {
     });
   });
 
-  it("Monitor link href points to Grafana port 3030", async () => {
+  it("Monitor link href points to /grafana/", async () => {
     server.use(
       http.get(`${API_BASE}/debug/monitor/enabled`, () =>
         HttpResponse.json({ enabled: true })
@@ -175,7 +175,7 @@ describe("NavigationSidebar Monitor link", () => {
       const monitorLinks = screen.getAllByText("Monitor");
       monitorLinks.forEach((link) => {
         const anchor = link.closest("a");
-        expect(anchor?.getAttribute("href")).toContain("3030");
+        expect(anchor?.getAttribute("href")).toBe("/grafana/");
       });
     });
   });
