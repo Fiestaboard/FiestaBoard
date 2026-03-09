@@ -3,22 +3,18 @@
 # That repo auto-publishes to https://fiestaboard.github.io since it is
 # the organization's GitHub Pages repo.
 #
-# When dispatched with a release tag, the workflow also creates a
-# Docusaurus version snapshot before building so the versioned docs are
-# included in the deployed site.  Patch releases (e.g. 2.5.0 → 2.5.1)
-# are skipped because they share the same docs version (e.g. "2.5").
+# Dispatched by the release workflow with a release tag.  Creates a
+# Docusaurus version snapshot, builds the site, then deploys.
+# Patch releases (e.g. 2.5.0 → 2.5.1) share the same docs version
+# (e.g. "2.5") so the snapshot step is a no-op for them.
 name: Deploy Docs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs-site/**'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to version docs for (e.g. v2.5.0). Leave empty for deploy-only.'
-        required: false
+        description: 'Release tag to version docs for (e.g. v2.5.0).'
+        required: true
         type: string
 
 permissions:
@@ -50,10 +46,9 @@ jobs:
         working-directory: docs-site
         run: npm ci
 
-      # --- Version snapshot (only when dispatched with a release tag) ---
+      # --- Version snapshot ---
 
       - name: Determine docs version
-        if: inputs.tag != ''
         id: version
         run: |
           TAG="${{ inputs.tag }}"
@@ -68,7 +63,6 @@ jobs:
           echo "Resolved docs version: ${DOCS_VERSION}"
 
       - name: Check if version already exists
-        if: inputs.tag != ''
         id: check-version
         run: |
           DOCS_VERSION="${{ steps.version.outputs.docs_version }}"
@@ -81,7 +75,7 @@ jobs:
           fi
 
       - name: Create docs version snapshot
-        if: inputs.tag != '' && steps.check-version.outputs.skip != 'true'
+        if: steps.check-version.outputs.skip != 'true'
         working-directory: docs-site
         run: npx docusaurus docs:version "${{ steps.version.outputs.docs_version }}"
 
@@ -94,7 +88,7 @@ jobs:
       # --- Push version snapshot to main (after successful build) ---
 
       - name: Commit and push versioned docs
-        if: inputs.tag != '' && steps.check-version.outputs.skip != 'true'
+        if: steps.check-version.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
