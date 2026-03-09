@@ -345,6 +345,7 @@ class WeatherSource:
             }
             
             # Try to fetch forecast data (non-blocking if it fails)
+            # No cnt limit: fetch full 5-day/3-hour forecast for multi-day display
             try:
                 forecast_url = "https://api.openweathermap.org/data/2.5/forecast"
                 forecast_params = {
@@ -359,7 +360,6 @@ class WeatherSource:
                 
                 if "list" in forecast_data and len(forecast_data["list"]) > 0:
                     # Group forecast periods by date for daily aggregation
-                    from collections import defaultdict
                     daily_data: Dict[str, Dict[str, Any]] = {}
                     for item in forecast_data["list"]:
                         dt_txt = item.get("dt_txt", "")
