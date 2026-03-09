@@ -57,25 +57,8 @@ class SportsScoresPlugin(PluginBase):
             if invalid_sports:
                 errors.append(f"Invalid sports: {', '.join(invalid_sports)}. Valid options: {', '.join(valid_sports)}")
         
-        # Validate refresh_seconds - handle string conversion and use default if missing/invalid
-        refresh_seconds_raw = config.get("refresh_seconds")
-        if refresh_seconds_raw is None:
-            # Use default if not provided
-            refresh_seconds = 300
-        else:
-            try:
-                refresh_seconds = int(refresh_seconds_raw)
-                if refresh_seconds < 60:
-                    errors.append("Refresh interval must be at least 60 seconds")
-            except (ValueError, TypeError):
-                errors.append("Refresh interval must be a valid number")
-        
-        # Validate max_games_per_sport - handle string conversion and use default if missing/invalid
         max_games_raw = config.get("max_games_per_sport")
-        if max_games_raw is None:
-            # Use default if not provided
-            max_games = 3
-        else:
+        if max_games_raw is not None:
             try:
                 max_games = int(max_games_raw)
                 if max_games < 1 or max_games > 10:

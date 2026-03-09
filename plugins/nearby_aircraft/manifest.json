@@ -9,6 +9,8 @@
   "icon": "plane",
   "category": "data",
 
+  "min_refresh_seconds": 10,
+
   "settings_schema": {
     "type": "object",
     "properties": {

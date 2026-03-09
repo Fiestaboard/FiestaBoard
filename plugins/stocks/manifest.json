@@ -9,6 +9,8 @@
   "icon": "trending-up",
   "category": "data",
 
+  "min_refresh_seconds": 60,
+
   "settings_schema": {
     "type": "object",
     "properties": {

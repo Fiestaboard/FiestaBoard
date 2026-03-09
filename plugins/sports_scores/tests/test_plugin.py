@@ -39,25 +39,23 @@ class TestSportsScoresPlugin:
         assert len(errors) > 0
         assert any("invalid" in e.lower() for e in errors)
     
-    def test_validate_config_refresh_too_low(self, sample_manifest):
-        """Test config validation detects refresh interval too low."""
+    def test_validate_refresh_too_low(self, sample_manifest):
+        """Test base validation detects refresh interval too low."""
         plugin = SportsScoresPlugin(sample_manifest)
-        errors = plugin.validate_config({
-            "sports": ["NFL"],
+        errors = plugin._validate_refresh_seconds({
             "refresh_seconds": 30
         })
         assert len(errors) > 0
-        assert any("refresh" in e.lower() or "60" in e for e in errors)
+        assert any("at least 60 seconds" in e for e in errors)
     
-    def test_validate_config_refresh_invalid_type(self, sample_manifest):
-        """Test config validation detects invalid refresh_seconds type."""
+    def test_validate_refresh_invalid_type(self, sample_manifest):
+        """Test base validation detects invalid refresh_seconds type."""
         plugin = SportsScoresPlugin(sample_manifest)
-        errors = plugin.validate_config({
-            "sports": ["NFL"],
+        errors = plugin._validate_refresh_seconds({
             "refresh_seconds": "not_a_number"
         })
         assert len(errors) > 0
-        assert any("valid number" in e.lower() for e in errors)
+        assert any("must be a number" in e for e in errors)
 
     def test_validate_config_max_games_invalid(self, sample_manifest):
         """Test config validation detects invalid max_games_per_sport."""

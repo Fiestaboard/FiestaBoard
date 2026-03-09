@@ -326,6 +326,101 @@ class TestPluginStructure:
             print(f"\nWarning: Plugins without tests/: {', '.join(missing_tests)}")
 
 
+class TestPluginRateLimits:
+    """Tests for plugin refresh rate-limit configuration."""
+
+    def test_min_refresh_seconds_is_valid_when_present(self):
+        """CI Test: min_refresh_seconds must be a positive integer."""
+        plugins = get_plugin_directories()
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        invalid: List[str] = []
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+            manifest = load_manifest(plugin_dir)
+            floor = manifest.get("min_refresh_seconds")
+            if floor is None:
+                continue
+            if not isinstance(floor, int) or floor <= 0:
+                invalid.append(
+                    f"{plugin_dir.name}: min_refresh_seconds must be a positive integer, "
+                    f"got {floor!r}"
+                )
+        assert not invalid, (
+            "Invalid min_refresh_seconds:\n" + "\n".join(f"  - {i}" for i in invalid)
+        )
+
+    def test_min_refresh_seconds_lte_schema_minimum(self):
+        """CI Test: min_refresh_seconds must be <= settings_schema minimum.
+        
+        The schema minimum is the user-facing lower bound shown in the UI.
+        The hard floor must not exceed it, otherwise users would see a
+        minimum in the UI that is lower than what the runtime enforces.
+        """
+        plugins = get_plugin_directories()
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        inconsistent: List[str] = []
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+            manifest = load_manifest(plugin_dir)
+            floor = manifest.get("min_refresh_seconds")
+            if floor is None:
+                continue
+            schema = manifest.get("settings_schema", {})
+            props = schema.get("properties", {})
+            refresh = props.get("refresh_seconds", {})
+            schema_min = refresh.get("minimum")
+            if schema_min is not None and floor > schema_min:
+                inconsistent.append(
+                    f"{plugin_dir.name}: min_refresh_seconds ({floor}) > "
+                    f"settings_schema minimum ({schema_min})"
+                )
+        assert not inconsistent, (
+            "Inconsistent rate-limit floors:\n"
+            + "\n".join(f"  - {i}" for i in inconsistent)
+        )
+
+    def test_plugins_with_refresh_seconds_have_floor(self):
+        """CI Test: Plugins declaring refresh_seconds should have a rate-limit floor.
+
+        A floor is satisfied by either an explicit top-level
+        ``min_refresh_seconds`` field or a ``minimum`` inside the
+        settings_schema ``refresh_seconds`` property (PluginBase falls
+        back to the schema minimum at runtime).
+        """
+        plugins = get_plugin_directories()
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing: List[str] = []
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+            manifest = load_manifest(plugin_dir)
+            schema = manifest.get("settings_schema", {})
+            props = schema.get("properties", {})
+            refresh_prop = props.get("refresh_seconds")
+            if refresh_prop is None:
+                continue
+            has_explicit = "min_refresh_seconds" in manifest
+            has_schema_min = "minimum" in refresh_prop
+            if not has_explicit and not has_schema_min:
+                missing.append(plugin_dir.name)
+        assert not missing, (
+            "Plugins with refresh_seconds but no rate-limit floor "
+            "(add min_refresh_seconds or a schema minimum):\n"
+            + "\n".join(f"  - {m}" for m in missing)
+        )
+
+
 class TestPluginIconsAndCategories:
     """Tests for plugin display configuration."""
     

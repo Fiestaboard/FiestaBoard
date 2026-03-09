@@ -197,8 +197,9 @@ class PluginRegistry:
         
         plugin = self._plugins[plugin_id]
         
-        # Validate config
-        errors = plugin.validate_config(config)
+        # Validate config (base refresh_seconds + plugin-specific)
+        errors = plugin._validate_refresh_seconds(config)
+        errors.extend(plugin.validate_config(config))
         if errors:
             return errors
         
@@ -244,7 +245,7 @@ class PluginRegistry:
         plugin = self._plugins[plugin_id]
         
         try:
-            return plugin.fetch_data()
+            return plugin.get_data()
         except Exception as e:
             logger.exception(f"Error fetching data from {plugin_id}")
             return PluginResult(

@@ -9,6 +9,8 @@
   "icon": "rocket",
   "category": "data",
 
+  "min_refresh_seconds": 240,
+
   "settings_schema": {
     "type": "object",
     "properties": {

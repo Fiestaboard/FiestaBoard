@@ -8,6 +8,9 @@
   "documentation": "README.md",
   "icon": "landmark",
   "category": "entertainment",
+
+  "min_refresh_seconds": 60,
+
   "settings_schema": {
     "type": "object",
     "properties": {

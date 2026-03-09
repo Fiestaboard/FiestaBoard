@@ -91,6 +91,8 @@ class MyPlugin(PluginBase):
         Validate plugin configuration.
         
         This method is called when configuration is updated.
+        Note: refresh_seconds validation is handled automatically by
+        the base class using the manifest's settings_schema bounds.
         
         Args:
             config: The configuration dictionary to validate
@@ -104,10 +106,6 @@ class MyPlugin(PluginBase):
         if not config.get("api_key"):
             # API key is required per settings_schema
             errors.append("API key is required")
-        
-        refresh = config.get("refresh_seconds", 300)
-        if refresh < 60:
-            errors.append("Refresh interval must be at least 60 seconds")
         
         return errors
     
