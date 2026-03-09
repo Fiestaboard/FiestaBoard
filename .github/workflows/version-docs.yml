@@ -6,6 +6,12 @@ name: Version Docs
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v2.5.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -19,7 +25,7 @@ jobs:
       - name: Determine docs version
         id: version
         run: |
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
           # Strip leading 'v' if present (v2.5.0 → 2.5.0)
           SEMVER="${TAG#v}"
           MAJOR="${SEMVER%%.*}"

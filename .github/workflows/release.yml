@@ -12,6 +12,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: read
+  actions: write
 
 jobs:
   # Prevent loop: skip release when this run was triggered by our own version-bump push.
@@ -349,6 +350,17 @@ jobs:
             });
             
             console.log(`Created release: ${release.html_url}`)
+
+      # The release above is created with GITHUB_TOKEN, whose events do
+      # not trigger other workflows.  Explicitly dispatch version-docs so
+      # it can snapshot the docs for this release.
+      - name: Trigger docs versioning
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run version-docs.yml \
+            --repo "${{ github.repository }}" \
+            -f tag="v${{ needs.prep.outputs.version }}"
 
   dockerhub-description:
     name: Update Docker Hub Description
