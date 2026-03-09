@@ -52,6 +52,11 @@
   background: linear-gradient(135deg, #8b2d00 0%, #b35900 50%, #c07800 100%);
 }
 
+/* Hide the per-page version badge — the navbar version dropdown is sufficient */
+.theme-doc-version-badge {
+  display: none;
+}
+
 /* Button hover effects */
 .button--secondary:hover {
   background-color: var(--ifm-color-primary-light);
