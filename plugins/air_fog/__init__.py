@@ -1,6 +1,6 @@
-"""Air Quality & Fog plugin for FiestaBoard.
+"""Air Quality, Fog & Allergen plugin for FiestaBoard.
 
-Displays air quality (AQI) and fog/visibility conditions.
+Displays air quality (AQI), fog/visibility conditions, and pollen/allergen levels.
 """
 
 from typing import Any, Dict, List, Optional
@@ -12,11 +12,15 @@ from src.plugins.base import PluginBase, PluginResult
 
 logger = logging.getLogger(__name__)
 
+# Open-Meteo Air Quality API (free, no key required)
+OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+
 
 class AirFogPlugin(PluginBase):
-    """Air Quality and Fog data plugin.
+    """Air Quality, Fog, and Allergen data plugin.
     
-    Fetches AQI from PurpleAir and visibility from OpenWeatherMap.
+    Fetches AQI from PurpleAir, visibility from OpenWeatherMap,
+    and pollen data from Open-Meteo.
     """
     
     # AQI breakpoints for PM2.5 (US EPA standard)
@@ -27,6 +31,26 @@ class AirFogPlugin(PluginBase):
         (55.5, 150.4, 151, 200, "UNHEALTHY", "RED"),
         (150.5, 250.4, 201, 300, "VERY_UNHEALTHY", "PURPLE"),
         (250.5, 500.4, 301, 500, "HAZARDOUS", "MAROON"),
+    ]
+    
+    # Pollen severity thresholds (grains/m³)
+    GRASS_POLLEN_THRESHOLDS = [
+        (0, 20, "LOW", "GREEN"),
+        (21, 77, "MODERATE", "YELLOW"),
+        (78, 266, "HIGH", "ORANGE"),
+        (267, float("inf"), "VERY HIGH", "RED"),
+    ]
+    TREE_POLLEN_THRESHOLDS = [
+        (0, 50, "LOW", "GREEN"),
+        (51, 200, "MODERATE", "YELLOW"),
+        (201, 700, "HIGH", "ORANGE"),
+        (701, float("inf"), "VERY HIGH", "RED"),
+    ]
+    WEED_POLLEN_THRESHOLDS = [
+        (0, 20, "LOW", "GREEN"),
+        (21, 77, "MODERATE", "YELLOW"),
+        (78, 266, "HIGH", "ORANGE"),
+        (267, float("inf"), "VERY HIGH", "RED"),
     ]
     
     # Thresholds
@@ -79,6 +103,16 @@ class AirFogPlugin(PluginBase):
                 return aqi, category, color
         
         return 500, "HAZARDOUS", "MAROON"
+    
+    @staticmethod
+    def determine_pollen_level(value: float, thresholds: list) -> tuple:
+        """Determine pollen severity level from concentration."""
+        if value < 0:
+            value = 0
+        for low, high, level, color in thresholds:
+            if low <= value <= high:
+                return level, color
+        return "VERY HIGH", "RED"
     
     def determine_fog_status(self, visibility_m: float, humidity: float, temp_f: float) -> tuple:
         """Determine fog status based on conditions."""
@@ -195,15 +229,70 @@ class AirFogPlugin(PluginBase):
             logger.error(f"Failed to fetch OpenWeatherMap data: {e}")
             return None
     
+    def _fetch_pollen_data(self) -> Optional[Dict]:
+        """Fetch pollen/allergen data from Open-Meteo Air Quality API (free, no key)."""
+        lat = self.config.get("latitude", 37.7749)
+        lon = self.config.get("longitude", -122.4194)
+        
+        try:
+            params = {
+                "latitude": lat,
+                "longitude": lon,
+                "current": "grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen",
+            }
+            
+            response = requests.get(OPEN_METEO_AIR_QUALITY_URL, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            current = data.get("current", {})
+            
+            grass = current.get("grass_pollen", 0) or 0
+            birch = current.get("birch_pollen", 0) or 0
+            alder = current.get("alder_pollen", 0) or 0
+            ragweed = current.get("ragweed_pollen", 0) or 0
+            mugwort = current.get("mugwort_pollen", 0) or 0
+            olive = current.get("olive_pollen", 0) or 0
+            
+            tree_total = birch + alder + olive
+            weed_total = ragweed + mugwort
+            
+            grass_level, grass_color = self.determine_pollen_level(
+                grass, self.GRASS_POLLEN_THRESHOLDS
+            )
+            tree_level, tree_color = self.determine_pollen_level(
+                tree_total, self.TREE_POLLEN_THRESHOLDS
+            )
+            weed_level, weed_color = self.determine_pollen_level(
+                weed_total, self.WEED_POLLEN_THRESHOLDS
+            )
+            
+            return {
+                "grass_pollen": round(grass, 1),
+                "grass_pollen_level": grass_level,
+                "grass_pollen_color": grass_color,
+                "tree_pollen": round(tree_total, 1),
+                "tree_pollen_level": tree_level,
+                "tree_pollen_color": tree_color,
+                "weed_pollen": round(weed_total, 1),
+                "weed_pollen_level": weed_level,
+                "weed_pollen_color": weed_color,
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch pollen data: {e}")
+            return None
+    
     def fetch_data(self) -> PluginResult:
-        """Fetch combined air quality and fog data."""
+        """Fetch combined air quality, fog, and pollen data."""
         purpleair_data = self._fetch_purpleair_data()
         owm_data = self._fetch_openweathermap_data()
+        pollen_data = self._fetch_pollen_data()
         
-        if not purpleair_data and not owm_data:
+        if not purpleair_data and not owm_data and not pollen_data:
             return PluginResult(
                 available=False,
-                error="Failed to fetch air/fog data from any source"
+                error="Failed to fetch data from any source"
             )
         
         result = {
@@ -214,6 +303,15 @@ class AirFogPlugin(PluginBase):
             "fog_color": "",
             "is_foggy": False,
             "visibility": None,
+            "grass_pollen": None,
+            "grass_pollen_level": "UNKNOWN",
+            "grass_pollen_color": "",
+            "tree_pollen": None,
+            "tree_pollen_level": "UNKNOWN",
+            "tree_pollen_color": "",
+            "weed_pollen": None,
+            "weed_pollen_level": "UNKNOWN",
+            "weed_pollen_color": "",
             "formatted": "NO DATA",
         }
         
@@ -236,12 +334,29 @@ class AirFogPlugin(PluginBase):
             result["fog_status"] = fog_status
             result["fog_color"] = f"{{{self._color_to_code(fog_color)}}}"
         
+        if pollen_data:
+            result["grass_pollen"] = pollen_data["grass_pollen"]
+            result["grass_pollen_level"] = pollen_data["grass_pollen_level"]
+            result["grass_pollen_color"] = f"{{{self._color_to_code(pollen_data['grass_pollen_color'])}}}"
+            result["tree_pollen"] = pollen_data["tree_pollen"]
+            result["tree_pollen_level"] = pollen_data["tree_pollen_level"]
+            result["tree_pollen_color"] = f"{{{self._color_to_code(pollen_data['tree_pollen_color'])}}}"
+            result["weed_pollen"] = pollen_data["weed_pollen"]
+            result["weed_pollen_level"] = pollen_data["weed_pollen_level"]
+            result["weed_pollen_color"] = f"{{{self._color_to_code(pollen_data['weed_pollen_color'])}}}"
+        
         # Build formatted message
         parts = []
         if result["aqi"]:
             parts.append(f"AQI:{result['aqi']}")
         if result["visibility"]:
             parts.append(f"VIS:{result['visibility']}")
+        if result["grass_pollen"] is not None:
+            parts.append(f"GRASS:{result['grass_pollen']}")
+        if result["tree_pollen"] is not None:
+            parts.append(f"TREES:{result['tree_pollen']}")
+        if result["weed_pollen"] is not None:
+            parts.append(f"WEEDS:{result['weed_pollen']}")
         result["formatted"] = " ".join(parts) if parts else "NO DATA"
         
         return PluginResult(
