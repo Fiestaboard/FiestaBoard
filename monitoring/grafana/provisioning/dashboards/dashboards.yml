@@ -1,5 +1,5 @@
 # Grafana dashboard provisioning
-# Auto-loads dashboards from the /var/lib/grafana/dashboards directory
+# Auto-loads dashboards bundled inside the container image.
 
 apiVersion: 1
 
@@ -11,5 +11,5 @@ providers:
     disableDeletion: false
     updateIntervalSeconds: 30
     options:
-      path: /var/lib/grafana/dashboards
+      path: /app/monitoring/grafana/dashboards
       foldersFromFilesStructure: false

@@ -1,8 +1,5 @@
 # Prometheus configuration for FiestaBoard monitoring
-# Scrapes metrics from the FiestaBoard API server
-#
-# When used with docker-compose.monitoring.yml as an overlay, Prometheus
-# can reach the FiestaBoard container via the shared Docker network.
+# Scrapes metrics from the co-located FastAPI server on localhost.
 
 global:
   scrape_interval: 15s
@@ -10,8 +7,8 @@ global:
 
 scrape_configs:
   - job_name: "fiestaboard"
-    metrics_path: "/api/metrics"
+    metrics_path: "/metrics"
     static_configs:
-      - targets: ["fiestaboard:3000"]
+      - targets: ["127.0.0.1:8000"]
         labels:
           instance: "fiestaboard"

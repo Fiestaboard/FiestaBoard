@@ -62,6 +62,7 @@ LABEL org.opencontainers.image.title="FiestaBoard" \
 WORKDIR /app
 
 # Install Node.js, nginx, wget, and gosu (for entrypoint privilege dropping)
+ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gosu \
@@ -70,6 +71,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Install monitoring tools (Prometheus + Grafana) for optional in-container monitoring.
+# These add ~400MB to the image but allow LOCAL_MONITORING=true to work without
+# any external services or compose overlays.
+ARG PROMETHEUS_VERSION=2.53.4
+ARG GRAFANA_VERSION=12.4.0
+RUN ARCH="${TARGETARCH:-amd64}" && \
+    wget -qO- "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-${ARCH}.tar.gz" \
+    | tar xz -C /tmp/ && \
+    cp /tmp/prometheus-*/prometheus /tmp/prometheus-*/promtool /usr/local/bin/ && \
+    rm -rf /tmp/prometheus-* && \
+    wget -qO- "https://dl.grafana.com/oss/release/grafana-${GRAFANA_VERSION}.linux-${ARCH}.tar.gz" \
+    | tar xz -C /opt/ && \
+    mv /opt/grafana-* /opt/grafana
 
 # Copy Python packages from builder
 COPY --from=python-builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
@@ -94,15 +109,22 @@ RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx /var/lib/nginx/body
 # Create data directory for logs and app state
 RUN mkdir -p /app/data/logs
 
+# Copy monitoring configuration (used when LOCAL_MONITORING=true)
+COPY monitoring/ /app/monitoring/
+
 # Copy supervisord configs and entrypoint before creating user
 COPY supervisord.conf /app/supervisord.conf
 COPY supervisord-dev.conf /app/supervisord-dev.conf
+COPY supervisord-monitoring.conf /app/supervisord-monitoring.conf
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+# Prepare supervisord include directory and monitoring data directories
+RUN mkdir -p /app/conf.d /app/data/grafana /app/data/prometheus
+
 # Create non-root user for security and transfer ownership
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
+    chown -R appuser:appuser /app /opt/grafana /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
 
 # Expose single port
 EXPOSE 3000
