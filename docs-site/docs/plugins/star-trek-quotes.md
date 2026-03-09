@@ -8,7 +8,7 @@ keywords: [FiestaBoard Star Trek, quotes display, TNG quotes, split-flap Star Tr
 
 Display random quotes from Star Trek: The Next Generation, Voyager, and Deep Space Nine. **No API key required.**
 
-![Star Trek Quotes on split-flap board](/img/star-trek-quotes-display.png)
+<BoardScreenshot src="/img/star-trek-quotes-display.png" alt="Star Trek Quotes on split-flap board" />
 
 ## Overview
 

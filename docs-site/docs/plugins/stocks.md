@@ -8,7 +8,7 @@ keywords: [FiestaBoard stocks, stock prices, stock ticker, Yahoo Finance, split-
 
 Display real-time stock prices and percentage changes from Yahoo Finance with color-coded gain/loss indicators.
 
-![Stock Prices on split-flap board](/img/stocks-display.png)
+<BoardScreenshot src="/img/stocks-display.png" alt="Stock Prices on split-flap board" />
 
 ## Overview
 
