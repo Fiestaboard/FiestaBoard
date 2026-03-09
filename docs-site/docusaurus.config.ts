@@ -155,6 +155,12 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           editUrl:
             'https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/',
+          versions: {
+            current: {
+              label: 'Next 🚧',
+              banner: 'unreleased',
+            },
+          },
         },
         blog: false, // Disable blog for now - keep it simple
         theme: {
@@ -210,6 +216,10 @@ const config: Config = {
             {type: 'doc', docId: 'reference/api-endpoints', label: 'API Reference'},
             {type: 'doc', docId: 'troubleshooting', label: 'Troubleshooting'},
           ],
+        },
+        {
+          type: 'docsVersionDropdown',
+          position: 'left',
         },
         {
           href: 'https://hub.docker.com/r/fiestaboard/fiestaboard',
