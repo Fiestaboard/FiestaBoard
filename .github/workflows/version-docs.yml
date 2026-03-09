@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   version-docs:
@@ -88,3 +89,14 @@ jobs:
           git add docs-site/versions.json docs-site/versioned_docs docs-site/versioned_sidebars
           git commit -m "docs: snapshot version ${{ steps.version.outputs.docs_version }} docs"
           git push origin main
+
+      # The docs site is deployed to a separate GitHub Pages repo
+      # (Fiestaboard/fiestaboard.github.io) by the Deploy Docs workflow.
+      # Explicitly trigger it so the new version reaches the live site
+      # even if the push above doesn't auto-trigger workflows (e.g.
+      # when GITHUB_TOKEN is used instead of RELEASE_PAT).
+      - name: Trigger docs deployment
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docs.yml --repo "${{ github.repository }}"
