@@ -1,4 +1,5 @@
 import {useState, useEffect, useCallback, type ReactNode} from 'react';
+import {useColorMode} from '@docusaurus/theme-common';
 import styles from './styles.module.css';
 
 interface BoardScreenshotProps {
@@ -103,12 +104,18 @@ export default function BoardScreenshot({
   black,
   white,
 }: BoardScreenshotProps): ReactNode {
+  const {colorMode} = useColorMode();
   const derived = deriveBoardPaths(src);
   const blackSrc = black ?? derived.black;
   const whiteSrc = white ?? derived.white;
 
-  const [activeStyle, setActiveStyle] = useState<'black' | 'white'>('black');
+  const defaultStyle = colorMode === 'light' ? 'white' : 'black';
+  const [activeStyle, setActiveStyle] = useState<'black' | 'white'>(defaultStyle);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  useEffect(() => {
+    setActiveStyle(colorMode === 'light' ? 'white' : 'black');
+  }, [colorMode]);
 
   const activeSrc = activeStyle === 'black' ? blackSrc : whiteSrc;
 
