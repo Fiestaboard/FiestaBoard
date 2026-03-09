@@ -4,7 +4,7 @@ Displays allergy levels (pollen counts), air quality, and health risk
 indicators using the Open-Meteo Air Quality API.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import logging
 import requests
 
@@ -79,7 +79,7 @@ class HealthPlugin(PluginBase):
         return errors
 
     @staticmethod
-    def calculate_allergy_risk(grass: float, tree: float, weed: float) -> tuple:
+    def calculate_allergy_risk(grass: float, tree: float, weed: float) -> Tuple[str, str]:
         """Calculate overall allergy risk from pollen counts.
 
         Args:
