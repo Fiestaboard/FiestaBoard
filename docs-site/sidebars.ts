@@ -12,6 +12,7 @@ const sidebars: SidebarsConfig = {
         'setup/beginners-guide',
         'setup/first-10-minutes',
         'setup/api-keys',
+        'setup/home-assistant-mqtt',
       ],
     },
     {
@@ -24,6 +25,7 @@ const sidebars: SidebarsConfig = {
         'features/page-editor',
         'features/schedule',
         'features/silence-schedule',
+        'features/home-assistant-control',
       ],
     },
     {
@@ -94,6 +96,7 @@ const sidebars: SidebarsConfig = {
         'development/plugin-guide',
         'development/testing',
         'setup/local-development',
+        'setup/local-home-assistant',
       ],
     },
     'setup/v2-migration',

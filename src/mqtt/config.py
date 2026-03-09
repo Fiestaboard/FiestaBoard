@@ -27,6 +27,9 @@ class MQTTConfig:
         discovery_prefix: HA discovery topic prefix (default: 'homeassistant')
         base_topic: Base topic for FiestaBoard state/commands (default: 'fiestaboard')
         instance_id: Unique instance identifier for multi-board setups
+        external_url: Public URL of this FiestaBoard instance, shown as the
+            "Visit" link on the HA device page (e.g. http://192.168.1.50:4420).
+            Omitted from discovery payloads when not set.
     """
     enabled: bool = False
     broker_host: str = DEFAULT_BROKER_HOST
@@ -36,6 +39,7 @@ class MQTTConfig:
     discovery_prefix: str = DEFAULT_DISCOVERY_PREFIX
     base_topic: str = DEFAULT_BASE_TOPIC
     instance_id: str = DEFAULT_INSTANCE_ID
+    external_url: str | None = None
 
     def validate(self) -> list[str]:
         """Validate the MQTT configuration.
@@ -74,6 +78,7 @@ class MQTTConfig:
             "discovery_prefix": self.discovery_prefix,
             "base_topic": self.base_topic,
             "instance_id": self.instance_id,
+            "external_url": self.external_url,
         }
 
     @classmethod
@@ -101,6 +106,7 @@ class MQTTConfig:
             discovery_prefix=data.get("discovery_prefix", DEFAULT_DISCOVERY_PREFIX),
             base_topic=data.get("base_topic", DEFAULT_BASE_TOPIC),
             instance_id=data.get("instance_id", DEFAULT_INSTANCE_ID),
+            external_url=data.get("external_url") or None,
         )
 
     @classmethod
@@ -129,4 +135,5 @@ class MQTTConfig:
             discovery_prefix=env.get("MQTT_DISCOVERY_PREFIX") or DEFAULT_DISCOVERY_PREFIX,
             base_topic=env.get("MQTT_BASE_TOPIC") or DEFAULT_BASE_TOPIC,
             instance_id=env.get("MQTT_INSTANCE_ID") or DEFAULT_INSTANCE_ID,
+            external_url=env.get("FIESTABOARD_EXTERNAL_URL") or None,
         )

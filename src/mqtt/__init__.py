@@ -14,3 +14,13 @@ References:
     - HA MQTT Discovery: https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery
     - paho-mqtt client: https://github.com/eclipse/paho.mqtt.python
 """
+
+from .config import MQTTConfig
+from .client import MQTTClient, get_mqtt_client, set_mqtt_client_instance
+
+__all__ = [
+    "MQTTConfig",
+    "MQTTClient",
+    "get_mqtt_client",
+    "set_mqtt_client_instance",
+]

@@ -831,4 +831,34 @@ This is the standard Python MQTT client library, widely used and well-maintained
 
 ---
 
-*This plan is ready for review. No implementation should begin until the approach and entity definitions are approved.*
+---
+
+## Phase 2 Roadmap: Custom HA Integration
+
+The current MQTT Discovery approach is the right foundation and covers the primary use case well. A future Phase 2 could add a **custom Home Assistant integration** (`custom_components/fiestaboard/`) for users who want deeper integration. This would be a separate project.
+
+### What a custom integration would enable
+
+- **SSDP/Zeroconf auto-discovery**: FiestaBoard advertises itself on the local network; HA detects it without the user needing to know the IP address or configure MQTT. No broker required for discovery.
+- **Config flow UI inside HA**: A guided setup wizard in the HA Devices & Services screen (same as Hue, Chromecast, etc.) — the user clicks "+ Add Integration" and FiestaBoard appears in the list.
+- **Custom Lovelace dashboard cards**: A live board preview card (showing a simulation of the split-flap display), quick-send controls, and a schedule overview — not possible with generic entity cards.
+- **Device-level brand image**: The FiestaBoard logo appears automatically on the device page without the user needing to set it manually.
+- **HACS distribution**: One-click install from HACS (Home Assistant Community Store), the standard distribution channel for custom integrations.
+
+### What it costs
+
+- A **separate Python codebase** that must stay compatible with HA's rapidly-changing internal APIs (HA regularly makes breaking changes to custom integration APIs).
+- **Installation on the HA side** — HACS or manual `custom_components/` file copy. Not zero-install.
+- **HACS or HA Core submission process** — HACS listing requires a public repo and a review; HA Core submission is a multi-month process with strict requirements.
+- **Ongoing maintenance burden** — HA's `config_entries`, `entity`, and `coordinator` APIs change with nearly every major release.
+
+### Recommendation
+
+Build Phase 2 only after:
+1. The MQTT integration has been tested in production with real users
+2. There is clear demand for features that MQTT cannot provide (primarily: custom Lovelace cards, network-level auto-discovery without a broker)
+3. The team has capacity to maintain a separate Python codebase against HA's release cycle
+
+Until then, improving the MQTT experience (better defaults, Setup UI in FiestaBoard, documentation) delivers the most value per engineering hour.
+
+*This plan is complete. The MQTT Discovery implementation is live. Phase 2 items above are not scheduled.*

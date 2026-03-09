@@ -30,6 +30,10 @@ Before setting up, you need:
 2. **Home Assistant** with the [MQTT integration](https://www.home-assistant.io/integrations/mqtt/) enabled
 3. **An MQTT broker** accessible from both FiestaBoard and Home Assistant
 
+:::tip First time connecting?
+See the [Connecting to Home Assistant via MQTT](/docs/setup/home-assistant-mqtt) guide for a step-by-step walkthrough of broker setup, HA MQTT integration configuration, and FiestaBoard configuration.
+:::
+
 ### About the MQTT Broker
 
 An MQTT broker relays messages between FiestaBoard and Home Assistant. The most common setup:
@@ -206,6 +210,7 @@ You can also configure MQTT via environment variables (useful for Docker):
 | `MQTT_DISCOVERY_PREFIX` | `homeassistant` | HA discovery topic prefix |
 | `MQTT_BASE_TOPIC` | `fiestaboard` | Base topic for state and commands |
 | `MQTT_INSTANCE_ID` | `fiestaboard_1` | Unique ID (for multi-board setups) |
+| `FIESTABOARD_EXTERNAL_URL` | *(empty)* | URL shown as the "Visit" link on the HA device page (e.g. `http://192.168.1.50:4420`). When not set, no link appears. |
 
 ### Docker Compose Example
 
@@ -221,6 +226,7 @@ services:
       - MQTT_BROKER_PORT=1883
       - MQTT_USERNAME=mqtt_user
       - MQTT_PASSWORD=mqtt_pass
+      - FIESTABOARD_EXTERNAL_URL=http://192.168.1.50:4420
 ```
 
 ### Multiple FiestaBoards
@@ -275,6 +281,36 @@ FiestaBoard sets a **Last Will and Testament (LWT)** — if FiestaBoard disconne
 - Verify the MQTT broker allows publish/subscribe from both HA and FiestaBoard
 - Check that HA's MQTT integration is configured with the correct broker credentials
 - Check FiestaBoard logs for command processing errors
+
+## Branding
+
+### Entity Icons
+
+Each entity in HA shows a Material Design Icon that reflects its role:
+
+| Entity | Icon | Reasoning |
+|--------|------|-----------|
+| Schedule | `mdi:calendar-clock` | Scheduled content delivery |
+| Display Service | `mdi:television-play` | The board as an active display |
+| Active Page | `mdi:bookmark` | The page queued for display |
+| Transition Style | `mdi:animation-play` | Animated flip between pages |
+| Current Page | `mdi:eye` | What is visible on the board right now |
+| Board Message | `mdi:text` | The text content on the board |
+| Silence Mode | `mdi:volume-off` | Quiet hours: no updates |
+| Blank Board | `mdi:rectangle-outline` | Clear/empty board face |
+| Send Message | `mdi:send` | Push text to the board |
+
+### Device Image
+
+MQTT Discovery does not support setting a device-level image directly. To add a FiestaBoard logo to the device page in HA:
+
+1. Go to **Settings → Devices & Services → MQTT**
+2. Click on the **FiestaBoard** device
+3. Click the **pencil (edit)** icon in the top-right corner
+4. Under **Icon**, click the camera/image icon and upload the FiestaBoard logo
+   - The logo is served from your FiestaBoard instance at `http://<your-fiestaboard-ip>:4420/logo.png`
+
+This is saved locally in HA and persists across restarts.
 
 ## FAQ
 

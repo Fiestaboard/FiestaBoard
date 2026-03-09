@@ -77,7 +77,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="switch",
         object_id="display_service",
         name="Display Service",
-        icon="mdi:monitor",
+        icon="mdi:television-play",
         has_command=True,
     ),
     # Selects
@@ -85,7 +85,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="select",
         object_id="active_page",
         name="Active Page",
-        icon="mdi:page-layout-body",
+        icon="mdi:bookmark",
         has_command=True,
         options=[],  # Populated dynamically from page list
     ),
@@ -93,7 +93,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="select",
         object_id="transition_style",
         name="Transition Style",
-        icon="mdi:transition",
+        icon="mdi:animation-play",
         has_command=True,
         options=["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"],
     ),
@@ -102,7 +102,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="sensor",
         object_id="current_page",
         name="Current Page",
-        icon="mdi:page-layout-body",
+        icon="mdi:eye",
     ),
     EntityDefinition(
         entity_type="binary_sensor",
@@ -115,7 +115,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="sensor",
         object_id="current_message",
         name="Board Message",
-        icon="mdi:message-text",
+        icon="mdi:text",
     ),
     EntityDefinition(
         entity_type="binary_sensor",
@@ -127,13 +127,13 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="sensor",
         object_id="version",
         name="Version",
-        icon="mdi:tag",
+        icon="mdi:information-outline",
     ),
     EntityDefinition(
         entity_type="sensor",
         object_id="page_count",
         name="Page Count",
-        icon="mdi:file-multiple",
+        icon="mdi:counter",
     ),
     # Buttons
     EntityDefinition(
@@ -147,7 +147,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="button",
         object_id="blank_board",
         name="Blank Board",
-        icon="mdi:card-outline",
+        icon="mdi:rectangle-outline",
         has_command=True,
     ),
     # Text
@@ -155,7 +155,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_type="text",
         object_id="send_message",
         name="Send Message",
-        icon="mdi:message-draw",
+        icon="mdi:send",
         has_command=True,
         min_length=1,
         max_length=132,
