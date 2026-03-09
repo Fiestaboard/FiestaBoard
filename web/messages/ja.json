@@ -49,7 +49,6 @@
     "savingIndicator": "保存中...",
     "pageCount": "{count, plural, one {# ページ} other {# ページ}}"
   },
-
   "navigation": {
     "home": "ホーム",
     "pages": "ページ",
@@ -65,7 +64,6 @@
     "mobileNavigation": "モバイルナビゲーション",
     "mainNavigation": "メインナビゲーション"
   },
-
   "home": {
     "title": "ダッシュボード",
     "description": "ボードの表示状態とシステムアクティビティを確認できます",
@@ -73,7 +71,6 @@
     "noBoardDescription": "ボードがまだセットアップされていません。ボードを接続してコンテンツの表示を開始しましょう。",
     "runSetupWizard": "セットアップウィザードを実行"
   },
-
   "pages": {
     "title": "ページ",
     "description": "ボードに表示するコンテンツを作成・管理します",
@@ -87,7 +84,6 @@
     "noPagesDescription": "最初のページを作成してボードに表示しましょう。",
     "createFirstPage": "最初のページを作成"
   },
-
   "carousels": {
     "title": "カルーセル",
     "description": "自動で切り替わるページのコレクションを作成します",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "カルーセルの更新に失敗しました",
     "toastDeleteFailed": "カルーセルの削除に失敗しました"
   },
-
   "schedule": {
     "title": "スケジュール",
     "description": "時間と曜日に基づいてページの切り替えを自動化します",
@@ -186,7 +181,6 @@
       "submitError": "スケジュールの保存に失敗しました"
     }
   },
-
   "integrations": {
     "title": "連携",
     "description": "FiestaBoard のデータソースプラグインを有効化・設定します",
@@ -241,7 +235,6 @@
       "weather": "天気・環境"
     }
   },
-
   "settings": {
     "title": "設定",
     "description": "FiestaBoard サービスの設定を行います",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "セットアップウィザードを再実行して、ボード接続と基本設定を再構成します。",
     "runSetupWizard": "セットアップウィザードを実行"
   },
-
   "offline": {
     "youreOffline": "オフラインです",
     "reconnecting": "再接続中...",
@@ -262,7 +254,6 @@
     "accessCached": "キャッシュされたコンテンツへのアクセス",
     "browseSaved": "保存済みデータの参照"
   },
-
   "wizard": {
     "welcomeTitle": "FiestaBoard へようこそ",
     "welcomeSubtitle": "簡単なステップでセットアップを完了しましょう",
@@ -316,7 +307,9 @@
       "boardType": "ボードタイプ",
       "flagshipDimensions": "22×6 文字",
       "noteDimensions": "15×3 文字",
-      "boardColor": "ボードカラー"
+      "boardColor": "ボードカラー",
+      "connectionTestFailed": "接続テストに失敗しました",
+      "failedToEnableLocalApi": "ローカルAPIの有効化に失敗しました"
     },
     "easyPlugins": {
       "description": "以下の機能は外部 API キーなしですぐに使えます。使いたい機能を有効にしましょう！",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "ボードはサイレントモード中です — メッセージは後で送信されます！",
       "failedToSend": "送信に失敗しました",
       "goToDashboard": "ダッシュボードへ",
-      "skipGoToDashboard": "スキップしてダッシュボードへ"
+      "skipGoToDashboard": "スキップしてダッシュボードへ",
+      "dateTimeName": "日付と時刻",
+      "starTrekName": "スタートレックの名言",
+      "guestWifiName": "ゲストWiFi"
     }
   },
-
   "activeDisplay": {
     "title": "アクティブ表示",
     "viewSchedule": "スケジュールを表示",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "アクティブページに切り替えました",
     "toastSwitchFailed": "ページの切り替えに失敗しました"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "サービスステータス: 切断",
     "runningAriaLabel": "サービスステータス: 実行中",
@@ -381,7 +375,6 @@
     "runningTooltip": "実行中",
     "stoppedTooltip": "停止中"
   },
-
   "installPrompt": {
     "title": "FiestaBoard コントロールをインストール",
     "description": "ホーム画面に追加して、すばやくアクセスできるようにしましょう。",
@@ -389,7 +382,6 @@
     "notNow": "後で",
     "dismissAriaLabel": "閉じる"
   },
-
   "silenceMode": {
     "loading": "読み込み中...",
     "disabled": "サイレントモード: 無効",
@@ -400,7 +392,6 @@
     "compactSilent": "サイレント",
     "compactActive": "アクティブ"
   },
-
   "pageBuilder": {
     "editPage": "ページを編集",
     "createPage": "ページを作成",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "無操作のためライブ出力をオフにしました",
     "toastLiveSendFailed": "ボードへの送信に失敗しました"
   },
-
   "displaySettings": {
     "title": "ボード一覧",
     "description": "お持ちの Vestaboard を追加し、接続を設定します。",
@@ -484,14 +474,12 @@
     "boardRemoved": "ボードを削除しました",
     "atLeastOneBoard": "ボードは少なくとも1台必要です"
   },
-
   "systemUpdate": {
     "updateAvailable": "アップデートがあります",
     "youAreRunning": "現在のバージョン: v{currentVersion}",
     "viewRelease": "リリースを確認",
     "checkForUpdates": "アップデートを確認"
   },
-
   "transitionSettings": {
     "title": "ボードトランジション",
     "description": "ボードが新しいメッセージに更新される際のアニメーション方法を選択します。トランジションは Vestaboard の文字のフリップアニメーションスタイルを制御します。",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "デバッグツール",
     "description": "Vestaboard の接続をテスト・デバッグします",
@@ -594,7 +581,6 @@
     "toastNetworkError": "ネットワーク診断に失敗しました: {error}",
     "toastCacheClearFailed": "キャッシュのクリアに失敗しました: {error}"
   },
-
   "generalSettings": {
     "title": "一般設定",
     "description": "グローバル設定とサービス制御を構成します",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "サイレントスケジュールの保存に失敗しました: {error}",
     "toastPollingUpdated": "ポーリング間隔を更新しました",
     "toastPollingUpdatedRestart": "ポーリング間隔を更新しました。変更を適用するにはサービスを再起動してください。",
-    "toastPollingFailed": "ポーリング間隔の更新に失敗しました: {error}"
+    "toastPollingFailed": "ポーリング間隔の更新に失敗しました: {error}",
+    "languageLabel": "言語",
+    "languageDescription": "インターフェースの表示言語を選択してください"
   },
-
   "themeToggle": {
     "toggleTheme": "テーマを切り替え"
   },
-
   "versionDisplay": {
     "devSuffix": "（開発版）",
     "updateAvailableAriaLabel": "アップデートがあります: v{version}",
     "updateAvailableTooltip": "アップデートがあります: v{version}"
   },
-
   "serviceControls": {
     "title": "サービス制御",
     "contentAutoSent": "コンテンツは物理ボードに自動的に送信されます"
   },
-
   "daySelector": {
     "daysLegend": "曜日",
     "dayPatternAriaLabel": "曜日パターン",
@@ -652,7 +636,6 @@
       "sunday": "日"
     }
   },
-
   "configDisplay": {
     "title": "設定",
     "clickToToggle": "クリックでプレビューを切り替え",
@@ -665,7 +648,6 @@
       "rotation": "ローテーション"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "テンプレートテキストを入力...",
     "lineCount": "{current} / {total} 行",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "配置プレフィックス: {left}、{center}、{right}",
     "wrapPrefix": "折り返しプレフィックス: {wrap}"
   },
-
   "outputTarget": {
     "title": "出力先",
     "description": "コンテンツの表示先を選択します",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "UI に表示し、ボードにも送信",
     "toastUpdated": "出力先を更新しました"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "なし（デフォルトなし）",
     "pagesAriaLabel": "ページ",
@@ -697,7 +677,6 @@
     "pagesTab": "ページ（{count}）",
     "carouselsTab": "カルーセル（{count}）"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "ページを選択",
     "loadingPreviewAriaLabel": "プレビューを読み込み中",

@@ -49,7 +49,6 @@
     "savingIndicator": "Salvataggio...",
     "pageCount": "{count, plural, one {# pagina} other {# pagine}}"
   },
-
   "navigation": {
     "home": "Home",
     "pages": "Pagine",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Navigazione mobile",
     "mainNavigation": "Navigazione principale"
   },
-
   "home": {
     "title": "Dashboard",
     "description": "Monitora la visualizzazione della bacheca e l'attività del sistema",
@@ -73,7 +71,6 @@
     "noBoardDescription": "La tua bacheca non è ancora configurata. Collega la tua bacheca per iniziare a mostrare contenuti.",
     "runSetupWizard": "Avvia procedura guidata"
   },
-
   "pages": {
     "title": "Pagine",
     "description": "Crea e gestisci i contenuti per la tua bacheca",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Crea la tua prima pagina da visualizzare sulla bacheca.",
     "createFirstPage": "Crea la tua prima pagina"
   },
-
   "carousels": {
     "title": "Caroselli",
     "description": "Crea raccolte di pagine che scorrono automaticamente",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Impossibile aggiornare il carosello",
     "toastDeleteFailed": "Impossibile eliminare il carosello"
   },
-
   "schedule": {
     "title": "Programmazione",
     "description": "Automatizza la rotazione delle pagine in base a orario e giorno",
@@ -186,7 +181,6 @@
       "submitError": "Impossibile salvare la programmazione"
     }
   },
-
   "integrations": {
     "title": "Integrazioni",
     "description": "Attiva e configura i plugin delle fonti dati per il tuo FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Meteo e ambiente"
     }
   },
-
   "settings": {
     "title": "Impostazioni",
     "description": "Configura il tuo servizio FiestaBoard",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Riesegui la procedura guidata per riconfigurare la connessione della bacheca e le impostazioni di base.",
     "runSetupWizard": "Avvia procedura guidata"
   },
-
   "offline": {
     "youreOffline": "Sei offline",
     "reconnecting": "Riconnessione...",
@@ -262,7 +254,6 @@
     "accessCached": "Accedere ai contenuti memorizzati nella cache",
     "browseSaved": "Sfogliare i dati salvati"
   },
-
   "wizard": {
     "welcomeTitle": "Benvenuto su FiestaBoard",
     "welcomeSubtitle": "Configuriamoti in pochi semplici passaggi",
@@ -316,7 +307,9 @@
       "boardType": "Tipo di bacheca",
       "flagshipDimensions": "22 × 6 caratteri",
       "noteDimensions": "15 × 3 caratteri",
-      "boardColor": "Colore della bacheca"
+      "boardColor": "Colore della bacheca",
+      "connectionTestFailed": "Test di connessione fallito",
+      "failedToEnableLocalApi": "Impossibile abilitare l'API locale"
     },
     "easyPlugins": {
       "description": "Queste funzionalità sono pronte all'uso senza chiavi API esterne. Attiva quelle che desideri!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "La bacheca è in modalità silenziosa — il messaggio verrà inviato più tardi!",
       "failedToSend": "Invio fallito",
       "goToDashboard": "Vai alla dashboard",
-      "skipGoToDashboard": "Salta e vai alla dashboard"
+      "skipGoToDashboard": "Salta e vai alla dashboard",
+      "dateTimeName": "Data e ora",
+      "starTrekName": "Citazioni di Star Trek",
+      "guestWifiName": "WiFi ospiti"
     }
   },
-
   "activeDisplay": {
     "title": "Visualizzazione attiva",
     "viewSchedule": "Visualizza programmazione",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Passato alla pagina attiva",
     "toastSwitchFailed": "Impossibile cambiare pagina"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Stato del servizio: Disconnesso",
     "runningAriaLabel": "Stato del servizio: In esecuzione",
@@ -381,7 +375,6 @@
     "runningTooltip": "In esecuzione",
     "stoppedTooltip": "Arrestato"
   },
-
   "installPrompt": {
     "title": "Installa FiestaBoard Control",
     "description": "Aggiungi alla schermata home per un accesso rapido e un'esperienza migliore.",
@@ -389,7 +382,6 @@
     "notNow": "Non ora",
     "dismissAriaLabel": "Ignora"
   },
-
   "silenceMode": {
     "loading": "Caricamento...",
     "disabled": "Modalità silenziosa: Disattivata",
@@ -400,7 +392,6 @@
     "compactSilent": "Silenzioso",
     "compactActive": "Attivo"
   },
-
   "pageBuilder": {
     "editPage": "Modifica pagina",
     "createPage": "Crea pagina",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Output in tempo reale disattivato per inattività",
     "toastLiveSendFailed": "Impossibile inviare alla bacheca"
   },
-
   "displaySettings": {
     "title": "Le tue bacheche",
     "description": "Aggiungi ogni Vestaboard che possiedi e configurane la connessione.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Bacheca rimossa",
     "atLeastOneBoard": "È necessaria almeno una bacheca"
   },
-
   "systemUpdate": {
     "updateAvailable": "Aggiornamento disponibile",
     "youAreRunning": "Stai usando la versione v{currentVersion}.",
     "viewRelease": "Visualizza la release",
     "checkForUpdates": "Controlla aggiornamenti"
   },
-
   "transitionSettings": {
     "title": "Transizioni della bacheca",
     "description": "Scegli come la bacheca si anima durante l'aggiornamento a un nuovo messaggio. Le transizioni controllano lo stile di animazione dei caratteri sul tuo Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Strumenti di debug",
     "description": "Testa e verifica la connessione a Vestaboard",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Diagnostica di rete fallita: {error}",
     "toastCacheClearFailed": "Impossibile cancellare la cache: {error}"
   },
-
   "generalSettings": {
     "title": "Impostazioni generali",
     "description": "Configura le impostazioni globali e il controllo del servizio",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Impossibile salvare la programmazione del silenzio: {error}",
     "toastPollingUpdated": "Intervallo di polling aggiornato",
     "toastPollingUpdatedRestart": "Intervallo di polling aggiornato. Riavvia il servizio per applicare le modifiche.",
-    "toastPollingFailed": "Impossibile aggiornare l'intervallo di polling: {error}"
+    "toastPollingFailed": "Impossibile aggiornare l'intervallo di polling: {error}",
+    "languageLabel": "Lingua",
+    "languageDescription": "Scegli la lingua di visualizzazione dell'interfaccia"
   },
-
   "themeToggle": {
     "toggleTheme": "Cambia tema"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Aggiornamento disponibile: v{version}",
     "updateAvailableTooltip": "Aggiornamento disponibile: v{version}"
   },
-
   "serviceControls": {
     "title": "Controllo servizio",
     "contentAutoSent": "I contenuti vengono inviati automaticamente alla bacheca fisica"
   },
-
   "daySelector": {
     "daysLegend": "Giorni",
     "dayPatternAriaLabel": "Pattern giornaliero",
@@ -652,7 +636,6 @@
       "sunday": "Dom"
     }
   },
-
   "configDisplay": {
     "title": "Configurazione",
     "clickToToggle": "clicca per attivare/disattivare l'anteprima",
@@ -665,7 +648,6 @@
       "rotation": "Rotazione"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Scrivi il testo del template...",
     "lineCount": "{current} / {total} righe",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Prefissi di allineamento: {left}, {center}, {right}",
     "wrapPrefix": "Prefisso a capo: {wrap}"
   },
-
   "outputTarget": {
     "title": "Destinazione output",
     "description": "Scegli dove mostrare i contenuti",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Mostra nell'interfaccia e invia alla bacheca",
     "toastUpdated": "Destinazione output aggiornata"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Nessuna (nessuna predefinita)",
     "pagesAriaLabel": "Pagine",
@@ -697,7 +677,6 @@
     "pagesTab": "Pagine ({count})",
     "carouselsTab": "Caroselli ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "SELEZIONA PAGINA",
     "loadingPreviewAriaLabel": "Caricamento anteprima",

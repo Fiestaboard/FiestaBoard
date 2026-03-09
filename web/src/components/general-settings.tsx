@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Settings, Clock, Moon, RefreshCw, AlertCircle } from "lucide-react";
+import { Settings, Clock, Moon, RefreshCw, AlertCircle, Globe } from "lucide-react";
 import { api } from "@/lib/api";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { LanguageSelector } from "@/components/language-selector";
 import { formatInTimeZone } from "date-fns-tz";
 import { useStatus } from "@/hooks/use-board";
 import { utcToLocalTime, localTimeToUTC } from "@/lib/timezone-utils";
@@ -243,6 +244,22 @@ export function GeneralSettings() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Language Setting */}
+        <div className="pb-6 border-b">
+          <div className="flex items-center gap-2 mb-3">
+            <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex-1">
+              <Label className="text-sm font-medium">
+                {t("languageLabel")}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("languageDescription")}
+              </p>
+            </div>
+          </div>
+          <LanguageSelector />
+        </div>
+
         {/* Timezone & Polling Interval - Side by Side */}
         <div className="pb-6 border-b">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -381,10 +398,10 @@ export function GeneralSettings() {
                       onChange={(val) => handleSilenceTimeChange("start", val)}
                       disabled={isSaving}
                     />
-                    <p className="text-xs text-muted-foreground">When silence begins</p>
+                    <p className="text-xs text-muted-foreground">{t("whenSilenceBegins")}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="silence-end" className="text-xs">End Time</Label>
+                    <Label htmlFor="silence-end" className="text-xs">{t("endTimeLabel")}</Label>
                     <TimePicker
                       value={silenceEndTime}
                       onChange={(val) => handleSilenceTimeChange("end", val)}

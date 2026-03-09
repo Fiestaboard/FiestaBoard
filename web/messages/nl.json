@@ -49,7 +49,6 @@
     "savingIndicator": "Opslaan...",
     "pageCount": "{count, plural, one {# pagina} other {# pagina's}}"
   },
-
   "navigation": {
     "home": "Start",
     "pages": "Pagina's",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Mobiele navigatie",
     "mainNavigation": "Hoofdnavigatie"
   },
-
   "home": {
     "title": "Dashboard",
     "description": "Bekijk je bordweergave en systeemactiviteit",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Je bord is nog niet ingesteld. Verbind je bord om inhoud weer te geven.",
     "runSetupWizard": "Installatiewizard starten"
   },
-
   "pages": {
     "title": "Pagina's",
     "description": "Maak en beheer inhoud voor je bord",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Maak je eerste pagina aan om op het bord weer te geven.",
     "createFirstPage": "Maak je eerste pagina"
   },
-
   "carousels": {
     "title": "Carrousels",
     "description": "Maak verzamelingen van pagina's die automatisch roteren",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Carrousel bijwerken mislukt",
     "toastDeleteFailed": "Carrousel verwijderen mislukt"
   },
-
   "schedule": {
     "title": "Planning",
     "description": "Automatiseer paginarotatie op basis van tijd en dag",
@@ -186,7 +181,6 @@
       "submitError": "Planning opslaan mislukt"
     }
   },
-
   "integrations": {
     "title": "Integraties",
     "description": "Schakel databronplug-ins in en configureer ze voor je FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Weer & omgeving"
     }
   },
-
   "settings": {
     "title": "Instellingen",
     "description": "Configureer je FiestaBoard-service",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Voer de installatiewizard opnieuw uit om je bordverbinding en basisinstellingen opnieuw te configureren.",
     "runSetupWizard": "Installatiewizard starten"
   },
-
   "offline": {
     "youreOffline": "Je bent offline",
     "reconnecting": "Opnieuw verbinden...",
@@ -262,7 +254,6 @@
     "accessCached": "Gecachte inhoud openen",
     "browseSaved": "Door opgeslagen gegevens bladeren"
   },
-
   "wizard": {
     "welcomeTitle": "Welkom bij FiestaBoard",
     "welcomeSubtitle": "Laten we je in een paar stappen instellen",
@@ -316,7 +307,9 @@
       "boardType": "Bordtype",
       "flagshipDimensions": "22 × 6 tekens",
       "noteDimensions": "15 × 3 tekens",
-      "boardColor": "Bordkleur"
+      "boardColor": "Bordkleur",
+      "connectionTestFailed": "Verbindingstest mislukt",
+      "failedToEnableLocalApi": "Lokale API activeren mislukt"
     },
     "easyPlugins": {
       "description": "Deze functies werken direct zonder externe API-sleutels. Schakel in wat je wilt!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "Bord is in stille modus — bericht staat in de wachtrij!",
       "failedToSend": "Verzenden mislukt",
       "goToDashboard": "Ga naar dashboard",
-      "skipGoToDashboard": "Overslaan & naar dashboard"
+      "skipGoToDashboard": "Overslaan & naar dashboard",
+      "dateTimeName": "Datum & Tijd",
+      "starTrekName": "Star Trek Citaten",
+      "guestWifiName": "Gast WiFi"
     }
   },
-
   "activeDisplay": {
     "title": "Actieve weergave",
     "viewSchedule": "Planning bekijken",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Gewisseld naar actieve pagina",
     "toastSwitchFailed": "Pagina wisselen mislukt"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Servicestatus: Niet verbonden",
     "runningAriaLabel": "Servicestatus: Actief",
@@ -381,7 +375,6 @@
     "runningTooltip": "Actief",
     "stoppedTooltip": "Gestopt"
   },
-
   "installPrompt": {
     "title": "FiestaBoard Control installeren",
     "description": "Voeg toe aan je startscherm voor snelle toegang en een betere ervaring.",
@@ -389,7 +382,6 @@
     "notNow": "Niet nu",
     "dismissAriaLabel": "Sluiten"
   },
-
   "silenceMode": {
     "loading": "Laden...",
     "disabled": "Stille modus: Uitgeschakeld",
@@ -400,7 +392,6 @@
     "compactSilent": "Stil",
     "compactActive": "Actief"
   },
-
   "pageBuilder": {
     "editPage": "Pagina bewerken",
     "createPage": "Pagina aanmaken",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Live-uitvoer uitgeschakeld wegens inactiviteit",
     "toastLiveSendFailed": "Verzenden naar bord mislukt"
   },
-
   "displaySettings": {
     "title": "Je borden",
     "description": "Voeg elk Vestaboard dat je bezit toe en configureer de verbinding.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Bord verwijderd",
     "atLeastOneBoard": "Minstens één bord is vereist"
   },
-
   "systemUpdate": {
     "updateAvailable": "Update beschikbaar",
     "youAreRunning": "Je gebruikt v{currentVersion}.",
     "viewRelease": "Release bekijken",
     "checkForUpdates": "Controleren op updates"
   },
-
   "transitionSettings": {
     "title": "Bordovergangen",
     "description": "Kies hoe het bord animeert bij het bijwerken naar een nieuw bericht. Overgangen bepalen de flipanimatiestijl van de tekens op je Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Foutopsporingstools",
     "description": "Test en debug de Vestaboard-verbinding",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Netwerkdiagnose mislukt: {error}",
     "toastCacheClearFailed": "Cache wissen mislukt: {error}"
   },
-
   "generalSettings": {
     "title": "Algemene instellingen",
     "description": "Configureer globale instellingen en servicebeheer",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Stilteperiode opslaan mislukt: {error}",
     "toastPollingUpdated": "Polling-interval bijgewerkt",
     "toastPollingUpdatedRestart": "Polling-interval bijgewerkt. Herstart de service om wijzigingen toe te passen.",
-    "toastPollingFailed": "Polling-interval bijwerken mislukt: {error}"
+    "toastPollingFailed": "Polling-interval bijwerken mislukt: {error}",
+    "languageLabel": "Taal",
+    "languageDescription": "Kies de weergavetaal van de interface"
   },
-
   "themeToggle": {
     "toggleTheme": "Thema wisselen"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Update beschikbaar: v{version}",
     "updateAvailableTooltip": "Update beschikbaar: v{version}"
   },
-
   "serviceControls": {
     "title": "Servicebeheer",
     "contentAutoSent": "Inhoud wordt automatisch naar het fysieke bord verzonden"
   },
-
   "daySelector": {
     "daysLegend": "Dagen",
     "dayPatternAriaLabel": "Dagpatroon",
@@ -652,7 +636,6 @@
       "sunday": "Zo"
     }
   },
-
   "configDisplay": {
     "title": "Configuratie",
     "clickToToggle": "klik om voorbeeld te wisselen",
@@ -665,7 +648,6 @@
       "rotation": "Rotatie"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Typ je sjabloontekst...",
     "lineCount": "{current} / {total} regels",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Uitlijningsvoorvoegsels: {left}, {center}, {right}",
     "wrapPrefix": "Terugloopvoorvoegsel: {wrap}"
   },
-
   "outputTarget": {
     "title": "Uitvoerdoel",
     "description": "Kies waar inhoud moet worden weergegeven",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Tonen in UI en naar bord verzenden",
     "toastUpdated": "Uitvoerdoel bijgewerkt"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Geen (geen standaard)",
     "pagesAriaLabel": "Pagina's",
@@ -697,7 +677,6 @@
     "pagesTab": "Pagina's ({count})",
     "carouselsTab": "Carrousels ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "PAGINA SELECTEREN",
     "loadingPreviewAriaLabel": "Voorbeeld laden",

@@ -49,7 +49,6 @@
     "savingIndicator": "保存中...",
     "pageCount": "{count, plural, one {# 个页面} other {# 个页面}}"
   },
-
   "navigation": {
     "home": "首页",
     "pages": "页面",
@@ -65,7 +64,6 @@
     "mobileNavigation": "移动端导航",
     "mainNavigation": "主导航"
   },
-
   "home": {
     "title": "仪表盘",
     "description": "监控看板显示和系统活动",
@@ -73,7 +71,6 @@
     "noBoardDescription": "您的看板尚未设置。连接看板以开始显示内容。",
     "runSetupWizard": "运行设置向导"
   },
-
   "pages": {
     "title": "页面",
     "description": "为您的看板创建和管理内容",
@@ -87,7 +84,6 @@
     "noPagesDescription": "创建您的第一个页面以在看板上显示。",
     "createFirstPage": "创建您的第一个页面"
   },
-
   "carousels": {
     "title": "轮播",
     "description": "创建自动循环播放的页面合集",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "更新轮播失败",
     "toastDeleteFailed": "删除轮播失败"
   },
-
   "schedule": {
     "title": "日程",
     "description": "根据时间和星期自动轮换页面",
@@ -186,7 +181,6 @@
       "submitError": "保存日程失败"
     }
   },
-
   "integrations": {
     "title": "集成",
     "description": "为您的 FiestaBoard 启用和配置数据源插件",
@@ -241,7 +235,6 @@
       "weather": "天气与环境"
     }
   },
-
   "settings": {
     "title": "设置",
     "description": "配置您的 FiestaBoard 服务",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "重新运行设置向导以重新配置看板连接和基本设置。",
     "runSetupWizard": "运行设置向导"
   },
-
   "offline": {
     "youreOffline": "您已离线",
     "reconnecting": "正在重新连接...",
@@ -262,7 +254,6 @@
     "accessCached": "访问缓存内容",
     "browseSaved": "浏览已保存的数据"
   },
-
   "wizard": {
     "welcomeTitle": "欢迎使用 FiestaBoard",
     "welcomeSubtitle": "只需几步即可完成设置",
@@ -316,7 +307,9 @@
       "boardType": "看板类型",
       "flagshipDimensions": "22 × 6 个字符",
       "noteDimensions": "15 × 3 个字符",
-      "boardColor": "看板颜色"
+      "boardColor": "看板颜色",
+      "connectionTestFailed": "连接测试失败",
+      "failedToEnableLocalApi": "启用本地API失败"
     },
     "easyPlugins": {
       "description": "这些功能无需任何外部 API 密钥即可使用。启用您想要的功能吧！",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "看板处于静默时段 — 消息已排队稍后发送！",
       "failedToSend": "发送失败",
       "goToDashboard": "前往仪表盘",
-      "skipGoToDashboard": "跳过并前往仪表盘"
+      "skipGoToDashboard": "跳过并前往仪表盘",
+      "dateTimeName": "日期和时间",
+      "starTrekName": "星际迷航语录",
+      "guestWifiName": "访客WiFi"
     }
   },
-
   "activeDisplay": {
     "title": "当前显示",
     "viewSchedule": "查看日程",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "已切换到活跃页面",
     "toastSwitchFailed": "切换页面失败"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "服务状态：已断开",
     "runningAriaLabel": "服务状态：运行中",
@@ -381,7 +375,6 @@
     "runningTooltip": "运行中",
     "stoppedTooltip": "已停止"
   },
-
   "installPrompt": {
     "title": "安装 FiestaBoard Control",
     "description": "添加到主屏幕以获得快速访问和更好的体验。",
@@ -389,7 +382,6 @@
     "notNow": "暂不安装",
     "dismissAriaLabel": "关闭"
   },
-
   "silenceMode": {
     "loading": "加载中...",
     "disabled": "静默模式：已禁用",
@@ -400,7 +392,6 @@
     "compactSilent": "静默",
     "compactActive": "活跃"
   },
-
   "pageBuilder": {
     "editPage": "编辑页面",
     "createPage": "创建页面",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "由于不活跃，实时输出已关闭",
     "toastLiveSendFailed": "发送到看板失败"
   },
-
   "displaySettings": {
     "title": "您的看板",
     "description": "添加您拥有的每个 Vestaboard 并配置其连接。",
@@ -484,14 +474,12 @@
     "boardRemoved": "看板已移除",
     "atLeastOneBoard": "至少需要一个看板"
   },
-
   "systemUpdate": {
     "updateAvailable": "有可用更新",
     "youAreRunning": "您当前运行的是 v{currentVersion}。",
     "viewRelease": "查看发布详情",
     "checkForUpdates": "检查更新"
   },
-
   "transitionSettings": {
     "title": "看板过渡效果",
     "description": "选择看板更新新消息时的动画方式。过渡效果控制 Vestaboard 上字符翻转的动画样式。",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "调试工具",
     "description": "测试和调试 Vestaboard 连接",
@@ -594,7 +581,6 @@
     "toastNetworkError": "网络诊断失败：{error}",
     "toastCacheClearFailed": "清除缓存失败：{error}"
   },
-
   "generalSettings": {
     "title": "通用设置",
     "description": "配置全局设置和服务控制",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "保存静默时间表失败：{error}",
     "toastPollingUpdated": "轮询间隔已更新",
     "toastPollingUpdatedRestart": "轮询间隔已更新。重启服务以应用更改。",
-    "toastPollingFailed": "更新轮询间隔失败：{error}"
+    "toastPollingFailed": "更新轮询间隔失败：{error}",
+    "languageLabel": "语言",
+    "languageDescription": "选择界面显示语言"
   },
-
   "themeToggle": {
     "toggleTheme": "切换主题"
   },
-
   "versionDisplay": {
     "devSuffix": "（开发版）",
     "updateAvailableAriaLabel": "有可用更新：v{version}",
     "updateAvailableTooltip": "有可用更新：v{version}"
   },
-
   "serviceControls": {
     "title": "服务控制",
     "contentAutoSent": "内容会自动发送到物理看板"
   },
-
   "daySelector": {
     "daysLegend": "星期",
     "dayPatternAriaLabel": "星期模式",
@@ -652,7 +636,6 @@
       "sunday": "周日"
     }
   },
-
   "configDisplay": {
     "title": "配置",
     "clickToToggle": "点击切换预览",
@@ -665,7 +648,6 @@
       "rotation": "轮换"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "输入您的模板文本...",
     "lineCount": "{current} / {total} 行",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "对齐前缀：{left}、{center}、{right}",
     "wrapPrefix": "换行前缀：{wrap}"
   },
-
   "outputTarget": {
     "title": "输出目标",
     "description": "选择内容的显示位置",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "在界面中显示并发送到看板",
     "toastUpdated": "输出目标已更新"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "无（无默认页面）",
     "pagesAriaLabel": "页面",
@@ -697,7 +677,6 @@
     "pagesTab": "页面（{count}）",
     "carouselsTab": "轮播（{count}）"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "选择页面",
     "loadingPreviewAriaLabel": "正在加载预览",

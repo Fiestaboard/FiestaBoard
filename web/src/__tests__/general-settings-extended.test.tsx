@@ -3,9 +3,22 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { GeneralSettings } from "@/components/general-settings";
 import { http, HttpResponse } from "msw";
 import { server } from "./mocks/server";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  usePathname: () => "/settings",
+}));
+
+import { GeneralSettings } from "@/components/general-settings";
 
 const API_BASE = "/api";
 

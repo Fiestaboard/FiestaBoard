@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -26,6 +27,8 @@ export function StepEasyPlugins({
   onConfigChange,
   onValidChange,
 }: StepEasyPluginsProps) {
+  const t = useTranslations("wizard.easyPlugins");
+  const tc = useTranslations("common");
   const [showPassword, setShowPassword] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
 
@@ -74,7 +77,7 @@ export function StepEasyPlugins({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground mb-4">
-        These features work right away without any external API keys. Enable what you'd like!
+        {t("description")}
       </p>
 
       {/* Date & Time */}
@@ -95,9 +98,9 @@ export function StepEasyPlugins({
                 )} />
               </div>
               <div>
-                <CardTitle className="text-base">Date & Time</CardTitle>
+                <CardTitle className="text-base">{t("dateTimeTitle")}</CardTitle>
                 <CardDescription className="text-xs">
-                  Display current date and time
+                  {t("dateTimeDescription")}
                 </CardDescription>
               </div>
             </div>
@@ -115,7 +118,7 @@ export function StepEasyPlugins({
         {config.date_time.enabled && (
           <CardContent className="pt-2 space-y-3">
             <div className="space-y-2">
-              <Label className="text-sm">Timezone</Label>
+              <Label className="text-sm">{t("timezoneLabel")}</Label>
               <TimezonePicker
                 value={config.date_time.timezone}
                 onChange={(timezone) =>
@@ -127,7 +130,7 @@ export function StepEasyPlugins({
               />
             </div>
             <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-              Preview: <span className="font-mono">{currentTime}</span>
+              {tc("preview")}: <span className="font-mono">{currentTime}</span>
             </div>
           </CardContent>
         )}
@@ -151,9 +154,9 @@ export function StepEasyPlugins({
                 )} />
               </div>
               <div>
-                <CardTitle className="text-base">Star Trek Quotes</CardTitle>
+                <CardTitle className="text-base">{t("starTrekTitle")}</CardTitle>
                 <CardDescription className="text-xs">
-                  Random quotes from TNG, Voyager, DS9
+                  {t("starTrekDescription")}
                 </CardDescription>
               </div>
             </div>
@@ -196,9 +199,9 @@ export function StepEasyPlugins({
                 )} />
               </div>
               <div>
-                <CardTitle className="text-base">Guest WiFi</CardTitle>
+                <CardTitle className="text-base">{t("guestWifiTitle")}</CardTitle>
                 <CardDescription className="text-xs">
-                  Display WiFi credentials for guests
+                  {t("guestWifiDescription")}
                 </CardDescription>
               </div>
             </div>
@@ -216,9 +219,9 @@ export function StepEasyPlugins({
         {config.guest_wifi.enabled && (
           <CardContent className="pt-2 space-y-3">
             <div className="space-y-2">
-              <Label className="text-sm">Network Name (SSID)</Label>
+              <Label className="text-sm">{t("networkNameLabel")}</Label>
               <Input
-                placeholder="MyGuestNetwork"
+                placeholder={t("networkNamePlaceholder")}
                 value={config.guest_wifi.ssid}
                 onChange={(e) =>
                   onConfigChange({
@@ -230,11 +233,11 @@ export function StepEasyPlugins({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm">Password</Label>
+              <Label className="text-sm">{t("passwordLabel")}</Label>
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
-                  placeholder="YourPassword"
+                  placeholder={t("passwordPlaceholder")}
                   value={config.guest_wifi.password}
                   onChange={(e) =>
                     onConfigChange({
@@ -256,8 +259,8 @@ export function StepEasyPlugins({
             </div>
             {config.guest_wifi.ssid && (
               <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded font-mono text-center">
-                <p>WIFI: {config.guest_wifi.ssid}</p>
-                <p>PASS: {config.guest_wifi.password ? "••••••••" : "(no password)"}</p>
+                <p>{t("wifiPreview", { ssid: config.guest_wifi.ssid })}</p>
+                <p>{t("passPreview", { password: config.guest_wifi.password ? "••••••••" : t("noPassword") })}</p>
               </div>
             )}
           </CardContent>

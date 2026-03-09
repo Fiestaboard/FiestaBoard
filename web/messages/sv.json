@@ -49,7 +49,6 @@
     "savingIndicator": "Sparar...",
     "pageCount": "{count, plural, one {# sida} other {# sidor}}"
   },
-
   "navigation": {
     "home": "Hem",
     "pages": "Sidor",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Mobilnavigering",
     "mainNavigation": "Huvudnavigering"
   },
-
   "home": {
     "title": "Instrumentpanel",
     "description": "Övervaka din tavlas visning och systemaktivitet",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Din tavla är inte inställd ännu. Anslut din tavla för att börja visa innehåll.",
     "runSetupWizard": "Kör installationsguiden"
   },
-
   "pages": {
     "title": "Sidor",
     "description": "Skapa och hantera innehåll för din tavla",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Skapa din första sida att visa på tavlan.",
     "createFirstPage": "Skapa din första sida"
   },
-
   "carousels": {
     "title": "Karuseller",
     "description": "Skapa samlingar av sidor som roterar automatiskt",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Kunde inte uppdatera karusell",
     "toastDeleteFailed": "Kunde inte ta bort karusell"
   },
-
   "schedule": {
     "title": "Schema",
     "description": "Automatisera sidrotation baserat på tid och dag",
@@ -186,7 +181,6 @@
       "submitError": "Kunde inte spara schema"
     }
   },
-
   "integrations": {
     "title": "Integrationer",
     "description": "Aktivera och konfigurera datakällor för din FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Väder och miljö"
     }
   },
-
   "settings": {
     "title": "Inställningar",
     "description": "Konfigurera din FiestaBoard-tjänst",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Kör installationsguiden igen för att konfigurera om din tavlas anslutning och grundinställningar.",
     "runSetupWizard": "Kör installationsguiden"
   },
-
   "offline": {
     "youreOffline": "Du är offline",
     "reconnecting": "Återansluter...",
@@ -262,7 +254,6 @@
     "accessCached": "Komma åt cachad data",
     "browseSaved": "Bläddra bland sparad data"
   },
-
   "wizard": {
     "welcomeTitle": "Välkommen till FiestaBoard",
     "welcomeSubtitle": "Låt oss komma igång med några enkla steg",
@@ -316,7 +307,9 @@
       "boardType": "Tavlans typ",
       "flagshipDimensions": "22 × 6 tecken",
       "noteDimensions": "15 × 3 tecken",
-      "boardColor": "Tavlans färg"
+      "boardColor": "Tavlans färg",
+      "connectionTestFailed": "Anslutningstest misslyckades",
+      "failedToEnableLocalApi": "Kunde inte aktivera lokalt API"
     },
     "easyPlugins": {
       "description": "Dessa funktioner fungerar direkt utan externa API-nycklar. Aktivera det du vill!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "Tavlan är i tyst läge — meddelandet köas till senare!",
       "failedToSend": "Kunde inte skicka",
       "goToDashboard": "Gå till instrumentpanelen",
-      "skipGoToDashboard": "Hoppa över och gå till instrumentpanelen"
+      "skipGoToDashboard": "Hoppa över och gå till instrumentpanelen",
+      "dateTimeName": "Datum & tid",
+      "starTrekName": "Star Trek-citat",
+      "guestWifiName": "Gäst-WiFi"
     }
   },
-
   "activeDisplay": {
     "title": "Aktiv visning",
     "viewSchedule": "Visa schema",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Bytte till aktiv sida",
     "toastSwitchFailed": "Kunde inte byta sida"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Tjänstestatus: Frånkopplad",
     "runningAriaLabel": "Tjänstestatus: Körs",
@@ -381,7 +375,6 @@
     "runningTooltip": "Körs",
     "stoppedTooltip": "Stoppad"
   },
-
   "installPrompt": {
     "title": "Installera FiestaBoard Control",
     "description": "Lägg till på din hemskärm för snabb åtkomst och en bättre upplevelse.",
@@ -389,7 +382,6 @@
     "notNow": "Inte nu",
     "dismissAriaLabel": "Stäng"
   },
-
   "silenceMode": {
     "loading": "Laddar...",
     "disabled": "Tyst läge: Inaktiverat",
@@ -400,7 +392,6 @@
     "compactSilent": "Tyst",
     "compactActive": "Aktivt"
   },
-
   "pageBuilder": {
     "editPage": "Redigera sida",
     "createPage": "Skapa sida",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Liveutmatning avstängd på grund av inaktivitet",
     "toastLiveSendFailed": "Kunde inte skicka till tavlan"
   },
-
   "displaySettings": {
     "title": "Dina tavlor",
     "description": "Lägg till varje Vestaboard du äger och konfigurera dess anslutning.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Tavla borttagen",
     "atLeastOneBoard": "Minst en tavla krävs"
   },
-
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",
     "youAreRunning": "Du kör v{currentVersion}.",
     "viewRelease": "Visa version",
     "checkForUpdates": "Sök efter uppdateringar"
   },
-
   "transitionSettings": {
     "title": "Tavlans övergångar",
     "description": "Välj hur tavlan animerar vid uppdatering till ett nytt meddelande. Övergångar styr animationsstilen för tecknen på din Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Felsökningsverktyg",
     "description": "Testa och felsök Vestaboard-anslutningen",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Nätverksdiagnostik misslyckades: {error}",
     "toastCacheClearFailed": "Kunde inte rensa cache: {error}"
   },
-
   "generalSettings": {
     "title": "Allmänna inställningar",
     "description": "Konfigurera globala inställningar och tjänststyrning",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Kunde inte spara tyst schema: {error}",
     "toastPollingUpdated": "Pollningsintervall uppdaterat",
     "toastPollingUpdatedRestart": "Pollningsintervall uppdaterat. Starta om tjänsten för att tillämpa ändringar.",
-    "toastPollingFailed": "Kunde inte uppdatera pollningsintervall: {error}"
+    "toastPollingFailed": "Kunde inte uppdatera pollningsintervall: {error}",
+    "languageLabel": "Språk",
+    "languageDescription": "Välj visningsspråk för gränssnittet"
   },
-
   "themeToggle": {
     "toggleTheme": "Växla tema"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Uppdatering tillgänglig: v{version}",
     "updateAvailableTooltip": "Uppdatering tillgänglig: v{version}"
   },
-
   "serviceControls": {
     "title": "Tjänststyrning",
     "contentAutoSent": "Innehåll skickas automatiskt till den fysiska tavlan"
   },
-
   "daySelector": {
     "daysLegend": "Dagar",
     "dayPatternAriaLabel": "Dagmönster",
@@ -652,7 +636,6 @@
       "sunday": "Sön"
     }
   },
-
   "configDisplay": {
     "title": "Konfiguration",
     "clickToToggle": "klicka för att växla förhandsvisning",
@@ -665,7 +648,6 @@
       "rotation": "Rotation"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Skriv din malltext...",
     "lineCount": "{current} / {total} rader",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Justeringsprefix: {left}, {center}, {right}",
     "wrapPrefix": "Radbrytningsprefix: {wrap}"
   },
-
   "outputTarget": {
     "title": "Utmatningsmål",
     "description": "Välj var innehållet ska visas",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Visa i gränssnittet och skicka till tavlan",
     "toastUpdated": "Utmatningsmål uppdaterat"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Ingen (ingen standard)",
     "pagesAriaLabel": "Sidor",
@@ -697,7 +677,6 @@
     "pagesTab": "Sidor ({count})",
     "carouselsTab": "Karuseller ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "VÄLJ SIDA",
     "loadingPreviewAriaLabel": "Laddar förhandsvisning",
