@@ -709,7 +709,8 @@ class TestAirFogPluginClass:
 
     def test_fetch_data_no_sources(self, plugin):
         with patch.object(plugin, '_fetch_purpleair_data', return_value=None), \
-             patch.object(plugin, '_fetch_openweathermap_data', return_value=None):
+             patch.object(plugin, '_fetch_openweathermap_data', return_value=None), \
+             patch.object(plugin, '_fetch_pollen_data', return_value=None):
             result = plugin.fetch_data()
             assert not result.available
 
