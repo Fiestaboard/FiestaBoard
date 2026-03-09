@@ -52,7 +52,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Transform Your Split-Flap Display"
-      description="FiestaBoard is free, open-source software for Vestaboard and split-flap displays. 23 plugins for weather, stocks, sports, transit, and more. Compatible with Vestaboard Flagship and Note.">
+      description="FiestaBoard is free, open-source software for Vestaboard and split-flap displays. 26 plugins for weather, stocks, sports, transit, and more. Compatible with Vestaboard Flagship and Note.">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

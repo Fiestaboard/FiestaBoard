@@ -58,7 +58,11 @@ Stock prices are automatically color-coded:
 | 5 Days | 5 trading days ago |
 | 1 Month | ~22 trading days ago |
 | 3 Months | ~66 trading days ago |
+| 6 Months | ~132 trading days ago |
 | 1 Year | ~252 trading days ago |
+| 2 Years | ~504 trading days ago |
+| 5 Years | ~1260 trading days ago |
+| ALL | Since earliest available data |
 
 ## Next Steps
 

@@ -82,7 +82,7 @@ const config: Config = {
           price: '0',
           priceCurrency: 'USD',
         },
-        featureList: 'WYSIWYG page editor, Schedule mode, 23 plugins, Docker deployment, Raspberry Pi support, Weather display, Stock ticker, Sports scores, Transit times, Home Assistant integration',
+        featureList: 'WYSIWYG page editor, Schedule mode, 26 plugins, Docker deployment, Raspberry Pi support, Weather display, Stock ticker, Sports scores, Transit times, Home Assistant integration',
         screenshot: 'https://fiestaboard.app/img/web-ui-home.png',
         softwareRequirements: 'Docker and Docker Compose',
         codeRepository: 'https://github.com/Fiestaboard/FiestaBoard',
@@ -131,7 +131,7 @@ const config: Config = {
             name: 'What can FiestaBoard display on my board?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'FiestaBoard has 23 built-in plugins for weather, stocks, sports scores, transit times, Disney park wait times, aircraft tracking, surf conditions, Home Assistant integration, and more. Many plugins require no API key.',
+              text: 'FiestaBoard has 26 built-in plugins for weather, stocks, sports scores, transit times, Disney park wait times, aircraft tracking, surf conditions, Home Assistant integration, and more. Many plugins require no API key.',
             },
           },
           {
@@ -178,13 +178,13 @@ const config: Config = {
   themeConfig: {
     image: 'img/logo.png',
     metadata: [
-      {name: 'description', content: 'FiestaBoard is free, open-source software for split-flap displays. Add weather, stocks, sports scores, transit times, and more with 23 plugins, a visual editor, and scheduling. Compatible with Vestaboard.'},
+      {name: 'description', content: 'FiestaBoard is free, open-source software for split-flap displays. Add weather, stocks, sports scores, transit times, and more with 26 plugins, a visual editor, and scheduling. Compatible with Vestaboard.'},
       {name: 'og:type', content: 'website'},
       {name: 'og:site_name', content: 'FiestaBoard'},
       {name: 'og:image', content: 'https://fiestaboard.app/img/logo.png'},
       {name: 'twitter:card', content: 'summary_large_image'},
       {name: 'twitter:title', content: 'FiestaBoard — Split-Flap Display Software'},
-      {name: 'twitter:description', content: 'Free, open-source software for split-flap displays. 23 plugins, visual editor, scheduling. Compatible with Vestaboard.'},
+      {name: 'twitter:description', content: 'Free, open-source software for split-flap displays. 26 plugins, visual editor, scheduling. Compatible with Vestaboard.'},
       {name: 'twitter:image', content: 'https://fiestaboard.app/img/logo.png'},
     ],
     colorMode: {
