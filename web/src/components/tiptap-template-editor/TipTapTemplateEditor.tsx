@@ -352,13 +352,6 @@ export function TipTapTemplateEditor({
           }
         }
         
-        // Handle Copy (Ctrl/Cmd + C) - clipboardTextSerializer handles this automatically
-        // We don't need to intercept it, TipTap will use clipboardTextSerializer
-        // if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
-        //   // Let clipboardTextSerializer handle it
-        //   return false;
-        // }
-        
           return false;
         } catch (error) {
           console.warn('Error in handleKeyDown:', error);

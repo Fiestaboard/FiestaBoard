@@ -6,7 +6,7 @@ when midnight of December 25th hits famous/remarkable world locations in each ti
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import pytz
 

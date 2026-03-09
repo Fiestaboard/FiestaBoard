@@ -52,7 +52,6 @@ class HealthPlugin(PluginBase):
 
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "health"
 
     def validate_config(self, config: Dict[str, Any]) -> List[str]:

@@ -2114,8 +2114,6 @@ async def list_park_rides(park_id: int):
                 rides.append({"id": ride["id"], "name": ride["name"]})
         rides.sort(key=lambda x: (x.get("name") or "").lower())
         return rides
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error listing rides for park {park_id}: {e}", exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch rides from Queue-Times")
