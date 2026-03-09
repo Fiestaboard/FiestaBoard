@@ -41,10 +41,7 @@ export function NavigationSidebar() {
     retry: 1,
   });
 
-  const grafanaUrl =
-    typeof window !== "undefined"
-      ? `${window.location.protocol}//${window.location.hostname}:3030`
-      : "#";
+  const grafanaUrl = "/grafana/";
 
   type NavItem = { key: string; href: string; icon: typeof Home; external?: boolean };
   const navItems: NavItem[] = debugEnabledQuery.data?.enabled

@@ -464,7 +464,7 @@ app.add_middleware(RequestLoggingMiddleware)
 
 # Prometheus metrics instrumentation
 # Exposes /metrics endpoint with request count, latency, and status code metrics
-# Used by Prometheus + Grafana monitoring stack (see docker-compose.monitoring.yml)
+# Used by the in-container Prometheus + Grafana stack (LOCAL_MONITORING=true)
 from prometheus_fastapi_instrumentator import Instrumentator
 import psutil
 from prometheus_client import Gauge

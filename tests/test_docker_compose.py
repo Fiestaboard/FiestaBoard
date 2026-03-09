@@ -135,35 +135,48 @@ class TestProdPrebuiltCompose:
 
 
 # ---------------------------------------------------------------------------
-# docker-compose.monitoring.yml (production monitoring overlay)
+# In-container monitoring (supervisord-monitoring.conf + configs)
 # ---------------------------------------------------------------------------
 
-class TestMonitoringCompose:
-    """Validate docker-compose.monitoring.yml has the required monitoring services."""
+class TestInContainerMonitoring:
+    """Validate that the in-container monitoring config files are correct."""
 
-    @pytest.fixture(autouse=True)
-    def load(self):
-        self.compose = _load_compose("docker-compose.monitoring.yml")
+    def test_supervisord_monitoring_conf_exists(self):
+        """supervisord-monitoring.conf must exist in the repo root."""
+        path = os.path.join(REPO_ROOT, "supervisord-monitoring.conf")
+        assert os.path.isfile(path)
 
-    def test_prometheus_service_exists(self):
-        """The monitoring overlay must define a prometheus service."""
-        assert "prometheus" in self.compose["services"]
+    def test_supervisord_monitoring_has_prometheus(self):
+        """The monitoring supervisord config must define a prometheus program."""
+        path = os.path.join(REPO_ROOT, "supervisord-monitoring.conf")
+        with open(path) as fh:
+            content = fh.read()
+        assert "[program:prometheus]" in content
 
-    def test_grafana_service_exists(self):
-        """The monitoring overlay must define a grafana service."""
-        assert "grafana" in self.compose["services"]
+    def test_supervisord_monitoring_has_grafana(self):
+        """The monitoring supervisord config must define a grafana program."""
+        path = os.path.join(REPO_ROOT, "supervisord-monitoring.conf")
+        with open(path) as fh:
+            content = fh.read()
+        assert "[program:grafana]" in content
 
-    def test_grafana_port_mapping(self):
-        """Grafana should be exposed on host port 3030."""
-        ports = self.compose["services"]["grafana"].get("ports", [])
-        assert "3030:3000" in ports
+    def test_prometheus_config_targets_localhost(self):
+        """Prometheus should scrape metrics from localhost (in-container)."""
+        prom_conf = os.path.join(REPO_ROOT, "monitoring", "prometheus", "prometheus.yml")
+        with open(prom_conf) as fh:
+            data = yaml.safe_load(fh)
+        targets = data["scrape_configs"][0]["static_configs"][0]["targets"]
+        assert any("127.0.0.1" in t for t in targets)
 
-    def test_grafana_depends_on_prometheus(self):
-        """Grafana should depend on prometheus."""
-        deps = self.compose["services"]["grafana"].get("depends_on", [])
-        assert "prometheus" in deps
+    def test_grafana_datasource_targets_localhost(self):
+        """Grafana datasource should point to localhost Prometheus."""
+        ds_conf = os.path.join(REPO_ROOT, "monitoring", "grafana", "provisioning", "datasources", "prometheus.yml")
+        with open(ds_conf) as fh:
+            data = yaml.safe_load(fh)
+        url = data["datasources"][0]["url"]
+        assert "127.0.0.1" in url
 
-    def test_fiestaboard_sets_local_monitoring(self):
-        """The overlay should set LOCAL_MONITORING=true on fiestaboard."""
-        env = self.compose["services"]["fiestaboard"].get("environment", [])
-        assert "LOCAL_MONITORING=true" in env
+    def test_no_monitoring_overlay_exists(self):
+        """docker-compose.monitoring.yml should not exist (monitoring is in-container)."""
+        path = os.path.join(REPO_ROOT, "docker-compose.monitoring.yml")
+        assert not os.path.isfile(path), "Monitoring overlay should not exist; Grafana/Prometheus run in-container"
