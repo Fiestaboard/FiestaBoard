@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
-description: "Get FiestaBoard running in minutes with Docker. Quick setup guide for your split-flap display."
-keywords: [FiestaBoard quick start, Docker setup, getting started, Vestaboard setup, split-flap dashboard]
+description: "Get FiestaBoard running on your Vestaboard in minutes with Docker. Quick setup guide for Vestaboard Flagship and Note."
+keywords: [FiestaBoard quick start, Docker setup, getting started, Vestaboard setup, Vestaboard quick start, Vestaboard Docker, split-flap dashboard]
 ---
 
 # Quick Start

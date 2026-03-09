@@ -18,7 +18,7 @@
 
 ## What is FiestaBoard?
 
-FiestaBoard is a free, open-source server that connects to your split-flap display (like a Vestaboard) and lets you control what it shows. Use built-in plugins to display weather, stocks, sports scores, transit times, surf conditions, and more.
+FiestaBoard is a free, open-source server that connects to your Vestaboard or compatible split-flap display and lets you control what it shows. Compatible with Vestaboard Flagship (22x6) and Note (15x3). Use built-in plugins to display weather, stocks, sports scores, transit times, surf conditions, and more.
 
 You bring the board and the API keys for the services you care about. FiestaBoard handles the rest.
 
