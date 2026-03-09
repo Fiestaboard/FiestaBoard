@@ -41,7 +41,6 @@ class SportsScoresPlugin(PluginBase):
     
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "sports_scores"
     
     def validate_config(self, config: Dict[str, Any]) -> List[str]:
@@ -215,7 +214,7 @@ class SportsScoresPlugin(PluginBase):
                 try:
                     error_data = response.json()
                     logger.debug(f"Error response: {error_data}")
-                except:
+                except Exception:
                     logger.debug(f"Response text: {response.text[:200]}")
                 return []
             

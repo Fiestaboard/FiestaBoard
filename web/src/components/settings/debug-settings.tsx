@@ -140,9 +140,6 @@ export function DebugSettings() {
     mutationFn: api.showDebugInfo,
     onSuccess: (data) => {
       toast.success(data.message);
-      if (data.debug_info) {
-        console.log("Debug info sent:", data.debug_info);
-      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to show debug info: ${error.message}`);

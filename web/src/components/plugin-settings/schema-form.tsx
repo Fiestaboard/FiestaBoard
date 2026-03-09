@@ -251,8 +251,6 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
   };
 
   const handleLocationClick = async () => {
-    console.log("handleLocationClick called");
-    
     // Check if we're on HTTPS or localhost (required for Safari)
     const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (!isSecure) {
@@ -261,24 +259,20 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
     }
     
     if (!navigator.geolocation) {
-      console.log("Geolocation not available");
       toast.error("Geolocation is not supported by your browser");
       return;
     }
 
     if (!onLocationRequest) {
-      console.log("onLocationRequest not provided");
       toast.error("Location request callback not available");
       return;
     }
 
-    console.log("Starting geolocation request...");
     setIsGettingLocation(true);
     
     // Use native geolocation API directly for better control
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        console.log("Geolocation success:", position);
         setIsGettingLocation(false);
         if (onLocationRequest && position.coords) {
           onLocationRequest(position.coords.latitude, position.coords.longitude);

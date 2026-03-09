@@ -7,7 +7,7 @@ rather than an overwhelming clatter.
 """
 
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import logging
 
@@ -60,7 +60,6 @@ class WhiteNoisePlugin(PluginBase):
 
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "white_noise"
 
     def validate_config(self, config: Dict[str, Any]) -> List[str]:

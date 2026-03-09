@@ -3,7 +3,7 @@
 Displays random dad jokes from the icanhazdadjoke API.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 import logging
 import requests
 
@@ -24,7 +24,6 @@ class DadJokesPlugin(PluginBase):
 
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "dad_jokes"
 
     def fetch_data(self) -> PluginResult:

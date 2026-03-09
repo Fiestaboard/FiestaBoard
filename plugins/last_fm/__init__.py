@@ -6,7 +6,7 @@ Works with Apple Music, Spotify, and any music source that scrobbles to Last.fm.
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -34,7 +34,6 @@ class LastFmPlugin(PluginBase):
     
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "last_fm"
     
     def validate_config(self, config: Dict[str, Any]) -> List[str]:

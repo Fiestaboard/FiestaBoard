@@ -27,7 +27,6 @@ class HomeAssistantPlugin(PluginBase):
     
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "home_assistant"
     
     def validate_config(self, config: Dict[str, Any]) -> List[str]:
