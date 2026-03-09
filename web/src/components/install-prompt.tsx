@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -9,6 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function InstallPrompt() {
+  const t = useTranslations("installPrompt");
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -108,10 +110,10 @@ export function InstallPrompt() {
           
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm mb-1">
-              Install FiestaBoard Control
+              {t("title")}
             </h3>
             <p className="text-xs text-muted-foreground mb-3">
-              Add to your home screen for quick access and a better experience.
+              {t("description")}
             </p>
             
             <div className="flex gap-2">
@@ -120,13 +122,13 @@ export function InstallPrompt() {
                 className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Download className="h-3 w-3" />
-                Install
+                {t("installButton")}
               </button>
               <button
                 onClick={handleDismiss}
                 className="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                Not now
+                {t("notNow")}
               </button>
             </div>
           </div>
@@ -134,7 +136,7 @@ export function InstallPrompt() {
           <button
             onClick={handleDismiss}
             className="flex-shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Dismiss"
+            aria-label={t("dismissAriaLabel")}
           >
             <X className="h-4 w-4" />
           </button>

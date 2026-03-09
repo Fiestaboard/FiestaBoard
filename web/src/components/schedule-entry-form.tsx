@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +52,8 @@ export function ScheduleEntryForm({
   prefillDayPattern,
   prefillCustomDays,
 }: ScheduleEntryFormProps) {
+  const t = useTranslations("schedule");
+  const tc = useTranslations("common");
   const isEdit = Boolean(schedule);
   
   // Use schedule values if editing, prefill values if creating from calendar, or defaults
@@ -79,7 +82,7 @@ export function ScheduleEntryForm({
     const errors: string[] = [];
     
     if (!pageId) {
-      errors.push("Please select a page");
+      errors.push(t("scheduleEntryForm.validationSelectPage"));
     }
     
     // Validate times are not identical (zero-duration schedule)
@@ -87,12 +90,12 @@ export function ScheduleEntryForm({
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = timeToMinutes(endTime);
     if (startMinutes === endMinutes) {
-      errors.push("End time must be different from start time");
+      errors.push(t("scheduleEntryForm.validationEndTimeDifferent"));
     }
     
     // Validate custom days
     if (dayPattern === "custom" && customDays.length === 0) {
-      errors.push("Please select at least one day for custom pattern");
+      errors.push(t("scheduleEntryForm.validationSelectDay"));
     }
     
     setValidationErrors(errors);
@@ -125,7 +128,7 @@ export function ScheduleEntryForm({
       
       await onSubmit(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save schedule");
+      setError(err instanceof Error ? err.message : t("scheduleEntryForm.submitError"));
       setIsSubmitting(false);
     }
   };
@@ -148,15 +151,15 @@ export function ScheduleEntryForm({
       
       {/* Page / Carousel Selection */}
       <div className="space-y-2">
-        <Label htmlFor="page">Page or Carousel</Label>
+        <Label htmlFor="page">{t("scheduleEntryForm.pageOrCarousel")}</Label>
         <Select value={pageId} onValueChange={setPageId}>
           <SelectTrigger id="page">
-            <SelectValue placeholder="Select a page or carousel" />
+            <SelectValue placeholder={t("scheduleEntryForm.selectPageOrCarousel")} />
           </SelectTrigger>
           <SelectContent>
             {carousels.length > 0 && (
               <>
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Carousels</div>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t("scheduleEntryForm.carouselsGroup")}</div>
                 {carousels.map((carousel) => (
                   <SelectItem key={carousel.id} value={carousel.id}>
                     <span className="flex items-center gap-2">
@@ -165,7 +168,7 @@ export function ScheduleEntryForm({
                     </span>
                   </SelectItem>
                 ))}
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pages</div>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t("scheduleEntryForm.pagesGroup")}</div>
               </>
             )}
             {pages.map((page) => (
@@ -180,7 +183,7 @@ export function ScheduleEntryForm({
       {/* Time Selection */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="start-time">Start Time</Label>
+          <Label htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
           <Select value={startTime} onValueChange={setStartTime}>
             <SelectTrigger id="start-time">
               <SelectValue />
@@ -196,7 +199,7 @@ export function ScheduleEntryForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="end-time">End Time</Label>
+          <Label htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
           <Select value={endTime} onValueChange={setEndTime}>
             <SelectTrigger id="end-time">
               <SelectValue />
@@ -261,20 +264,20 @@ export function ScheduleEntryForm({
               disabled={isSubmitting}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {tc("delete")}
             </Button>
           )}
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             type="submit"
             disabled={validationErrors.length > 0 || isSubmitting}
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEdit ? "Update" : "Create"} Schedule
+            {isEdit ? t("scheduleEntryForm.updateSchedule") : t("scheduleEntryForm.createSchedule")}
           </Button>
         </div>
       </div>

@@ -1,8 +1,27 @@
 import type { Preview } from "@storybook/nextjs";
 import { ThemeProvider, useTheme } from "next-themes";
+import { NextIntlClientProvider } from "next-intl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { locales, localeNames, type Locale } from "../src/i18n/config";
 import "../src/app/globals.css";
+
+import en from "../messages/en.json";
+import es from "../messages/es.json";
+import fr from "../messages/fr.json";
+import de from "../messages/de.json";
+import it from "../messages/it.json";
+import pt from "../messages/pt.json";
+import nl from "../messages/nl.json";
+import pl from "../messages/pl.json";
+import ru from "../messages/ru.json";
+import sv from "../messages/sv.json";
+import tr from "../messages/tr.json";
+import ja from "../messages/ja.json";
+import ko from "../messages/ko.json";
+import zh from "../messages/zh.json";
+
+const messages: Record<Locale, typeof en> = { en, es, fr, de, it, pt, nl, pl, ru, sv, tr, ja, ko, zh };
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,9 +52,23 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
+    locale: {
+      description: "Locale for i18n",
+      toolbar: {
+        title: "Locale",
+        icon: "globe",
+        items: locales.map((loc) => ({
+          value: loc,
+          title: localeNames[loc],
+          right: loc.toUpperCase(),
+        })),
+        dynamicTitle: true,
+      },
+    },
   },
   initialGlobals: {
     theme: "dark",
+    locale: "en",
   },
   parameters: {
     controls: {
@@ -60,25 +93,27 @@ const preview: Preview = {
   decorators: [
     (Story, context) => {
       const theme = context.globals.theme || "dark";
+      const locale = (context.globals.locale || "en") as Locale;
       return (
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme={theme}
-            enableSystem={false}
-            forcedTheme={theme}
-            disableTransitionOnChange
-          >
-            <ThemeSync theme={theme} />
-            <main className="min-h-screen bg-background text-foreground p-8">
-              <Story />
-            </main>
-          </ThemeProvider>
-        </QueryClientProvider>
+        <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme={theme}
+              enableSystem={false}
+              forcedTheme={theme}
+              disableTransitionOnChange
+            >
+              <ThemeSync theme={theme} />
+              <main className="min-h-screen bg-background text-foreground p-8">
+                <Story />
+              </main>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </NextIntlClientProvider>
       );
     },
   ],
 };
 
 export default preview;
-

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useDeferredValue } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ import { useStatus } from "@/hooks/use-board";
 import { utcToLocalTime, localTimeToUTC } from "@/lib/timezone-utils";
 
 export function GeneralSettings() {
+  const t = useTranslations("generalSettings");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [hasChanges, setHasChanges] = useState(false);
   const [timezone, setTimezone] = useState("America/Los_Angeles");
@@ -92,10 +95,10 @@ export function GeneralSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["generalConfig"] });
       queryClient.invalidateQueries({ queryKey: ["config"] });
-      toast.success("Settings saved successfully");
+      toast.success(t("toastSettingsSaved"));
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save settings: ${error.message}`);
+      toast.error(t("toastSettingsSaveFailed", { error: error.message }));
     },
   });
 
@@ -109,10 +112,10 @@ export function GeneralSettings() {
       queryClient.invalidateQueries({ queryKey: ["config"], refetchType: 'active' });
       // Invalidate template variables since plugin config may affect available variables
       queryClient.invalidateQueries({ queryKey: ["template-variables"], refetchType: 'active' });
-      toast.success("Settings saved successfully");
+      toast.success(t("toastSettingsSaved"));
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save silence schedule: ${error.message}`);
+      toast.error(t("toastSilenceSaveFailed", { error: error.message }));
     },
   });
 
@@ -122,16 +125,16 @@ export function GeneralSettings() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
       if (data.requires_restart) {
-        toast.success("Polling interval updated. Restart service to apply changes.", {
+        toast.success(t("toastPollingUpdatedRestart"), {
           duration: 5000,
         });
       } else {
-        toast.success("Polling interval updated");
+        toast.success(t("toastPollingUpdated"));
       }
       setHasChanges(false);
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update polling interval: ${error.message}`);
+      toast.error(t("toastPollingFailed", { error: error.message }));
     },
   });
 
@@ -224,17 +227,17 @@ export function GeneralSettings() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-muted-foreground" />
-              General Settings
+              {t("title")}
             </CardTitle>
             <CardDescription>
-              Configure global settings and service control
+              {t("description")}
             </CardDescription>
           </div>
           {isLoadingStatus ? (
             <Skeleton className="h-5 w-20" />
           ) : (
             <Badge variant={isRunning ? "default" : "secondary"} className={`text-xs ${isRunning ? "bg-brand/15 text-brand border-brand/25 hover:bg-brand/20" : ""}`}>
-              {isRunning ? "● Running" : "○ Stopped"}
+              {isRunning ? tc("running") : tc("stopped")}
             </Badge>
           )}
         </div>
@@ -262,10 +265,10 @@ export function GeneralSettings() {
                   <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1">
                     <Label htmlFor="timezone" className="text-sm font-medium">
-                      Timezone
+                      {t("timezoneLabel")}
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      All times in the application will be displayed in this timezone
+                      {t("timezoneDescription")}
                     </p>
                   </div>
                 </div>
@@ -278,7 +281,7 @@ export function GeneralSettings() {
                 {/* Current time display */}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span>Current time: {getCurrentTimeInTimezone()}</span>
+                  <span>{t("currentTime", { time: getCurrentTimeInTimezone() })}</span>
                 </div>
               </div>
             )}
@@ -305,10 +308,10 @@ export function GeneralSettings() {
                   <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1">
                     <Label htmlFor="polling-interval" className="text-sm font-medium">
-                      Board Update Interval
+                      {t("boardUpdateIntervalLabel")}
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      How often the board checks for content updates (in seconds)
+                      {t("boardUpdateIntervalDescription")}
                     </p>
                   </div>
                 </div>
@@ -324,12 +327,12 @@ export function GeneralSettings() {
                     disabled={isSaving}
                     className="w-32"
                   />
-                  <span className="text-sm text-muted-foreground">seconds</span>
+                  <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Requires service restart</span>
+                  <span>{t("requiresServiceRestart")}</span>
                 </div>
               </div>
             )}
@@ -360,10 +363,10 @@ export function GeneralSettings() {
               />
               <div className="flex-1">
                 <label htmlFor="silence-enabled" className="text-sm font-medium cursor-pointer">
-                  Silence Schedule
+                  {t("silenceScheduleLabel")}
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  Prevent board updates during specified hours
+                  {t("silenceScheduleDescription")}
                 </p>
               </div>
             </div>
@@ -372,7 +375,7 @@ export function GeneralSettings() {
               <div className="ml-7 space-y-4 pt-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="silence-start" className="text-xs">Start Time</Label>
+                    <Label htmlFor="silence-start" className="text-xs">{t("startTimeLabel")}</Label>
                     <TimePicker
                       value={silenceStartTime}
                       onChange={(val) => handleSilenceTimeChange("start", val)}
@@ -387,7 +390,7 @@ export function GeneralSettings() {
                       onChange={(val) => handleSilenceTimeChange("end", val)}
                       disabled={isSaving}
                     />
-                    <p className="text-xs text-muted-foreground">When silence ends</p>
+                    <p className="text-xs text-muted-foreground">{t("whenSilenceEnds")}</p>
                   </div>
                 </div>
               </div>
@@ -399,7 +402,7 @@ export function GeneralSettings() {
         {isSaving && (
           <div className="flex items-center justify-center gap-2 pt-4 border-t text-xs text-muted-foreground">
             <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span>Saving...</span>
+            <span>{tc("savingIndicator")}</span>
           </div>
         )}
       </CardContent>
