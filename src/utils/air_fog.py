@@ -369,12 +369,12 @@ class AirFogSource:
             
             current = data.get("current", {})
             
-            grass = current.get("grass_pollen", 0) or 0
-            birch = current.get("birch_pollen", 0) or 0
-            alder = current.get("alder_pollen", 0) or 0
-            ragweed = current.get("ragweed_pollen", 0) or 0
-            mugwort = current.get("mugwort_pollen", 0) or 0
-            olive = current.get("olive_pollen", 0) or 0
+            grass = current.get("grass_pollen") or 0
+            birch = current.get("birch_pollen") or 0
+            alder = current.get("alder_pollen") or 0
+            ragweed = current.get("ragweed_pollen") or 0
+            mugwort = current.get("mugwort_pollen") or 0
+            olive = current.get("olive_pollen") or 0
             
             tree_total = birch + alder + olive
             weed_total = ragweed + mugwort
