@@ -1,13 +1,18 @@
 # Grafana + Prometheus monitoring stack for FiestaBoard (production overlay)
 #
-# In development: Grafana + Prometheus are included in docker-compose.dev.yml
-# by default. You do NOT need this file for development.
+# To enable monitoring in production, add these two lines to your .env file:
 #
-# For production, add this as a compose overlay:
+#   LOCAL_MONITORING=true
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.monitoring.yml
+#
+# Then start normally:
+#   docker compose up -d
+#
+# You can also use the traditional overlay syntax instead of COMPOSE_FILE:
 #   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 #
-# You also need to set LOCAL_MONITORING=true in your .env file (or as an
-# environment variable) to show the "Monitor" nav link in the FiestaBoard UI.
+# In development: Grafana + Prometheus are included in docker-compose.dev.yml
+# by default. You do NOT need this file for development.
 #
 # Access Grafana at http://localhost:3030 (admin / admin)
 # A pre-built "FiestaBoard System" dashboard is auto-provisioned.

@@ -132,3 +132,38 @@ class TestProdPrebuiltCompose:
     def test_port_mapping(self):
         ports = self.compose["services"]["fiestaboard"].get("ports", [])
         assert "4420:3000" in ports
+
+
+# ---------------------------------------------------------------------------
+# docker-compose.monitoring.yml (production monitoring overlay)
+# ---------------------------------------------------------------------------
+
+class TestMonitoringCompose:
+    """Validate docker-compose.monitoring.yml has the required monitoring services."""
+
+    @pytest.fixture(autouse=True)
+    def load(self):
+        self.compose = _load_compose("docker-compose.monitoring.yml")
+
+    def test_prometheus_service_exists(self):
+        """The monitoring overlay must define a prometheus service."""
+        assert "prometheus" in self.compose["services"]
+
+    def test_grafana_service_exists(self):
+        """The monitoring overlay must define a grafana service."""
+        assert "grafana" in self.compose["services"]
+
+    def test_grafana_port_mapping(self):
+        """Grafana should be exposed on host port 3030."""
+        ports = self.compose["services"]["grafana"].get("ports", [])
+        assert "3030:3000" in ports
+
+    def test_grafana_depends_on_prometheus(self):
+        """Grafana should depend on prometheus."""
+        deps = self.compose["services"]["grafana"].get("depends_on", [])
+        assert "prometheus" in deps
+
+    def test_fiestaboard_sets_local_monitoring(self):
+        """The overlay should set LOCAL_MONITORING=true on fiestaboard."""
+        env = self.compose["services"]["fiestaboard"].get("environment", [])
+        assert "LOCAL_MONITORING=true" in env
