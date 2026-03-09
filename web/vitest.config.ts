@@ -37,6 +37,8 @@ export default defineConfig({
         "src/components/live-output.tsx",
         "src/components/output-target-selector.tsx",
         "src/components/notification-display.tsx",
+        "src/components/language-selector.tsx",
+        "src/i18n/config.ts",
       ],
       exclude: [
         "src/__tests__/**",

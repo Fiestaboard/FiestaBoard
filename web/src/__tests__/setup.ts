@@ -3,6 +3,39 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, beforeAll, afterAll, vi } from "vitest";
 import React from "react";
 import { server } from "./mocks/server";
+import enMessages from "../../messages/en.json";
+
+// Mock next-intl: resolve translation keys from English messages
+function getNestedValue(obj: Record<string, unknown>, path: string): string {
+  const parts = path.split(".");
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current && typeof current === "object" && part in (current as Record<string, unknown>)) {
+      current = (current as Record<string, unknown>)[part];
+    } else {
+      return path;
+    }
+  }
+  return typeof current === "string" ? current : path;
+}
+
+vi.mock("next-intl", () => ({
+  useTranslations: (namespace?: string) => {
+    const ns = namespace
+      ? (enMessages as Record<string, unknown>)[namespace]
+      : enMessages;
+    return (key: string, params?: Record<string, unknown>) => {
+      const raw = typeof ns === "object" && ns ? getNestedValue(ns as Record<string, unknown>, key) : key;
+      if (!params) return raw;
+      return raw.replace(/\{(\w+)\}/g, (_: string, k: string) =>
+        params[k] != null ? String(params[k]) : `{${k}}`
+      );
+    };
+  },
+  useLocale: () => "en",
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
+    React.createElement(React.Fragment, null, children),
+}));
 
 // Filter out jsdom localStorage file warnings
 // These are internal to jsdom and don't affect our tests
@@ -119,9 +152,12 @@ if (typeof Range !== 'undefined') {
   Range.prototype.getBoundingClientRect = vi.fn(mockDOMRect);
 }
 
-// Mock scrollIntoView
+// Mock scrollIntoView and pointer capture (needed by Radix UI)
 if (typeof Element !== 'undefined') {
   Element.prototype.scrollIntoView = vi.fn();
+  Element.prototype.hasPointerCapture = vi.fn(() => false);
+  Element.prototype.setPointerCapture = vi.fn();
+  Element.prototype.releasePointerCapture = vi.fn();
 }
 
 // Mock ResizeObserver for components that use it (e.g., ScrollArea)
