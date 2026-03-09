@@ -8,7 +8,7 @@ keywords: [FiestaBoard Last.fm, now playing, music display, Spotify scrobbling, 
 
 Display what you're currently listening to via Last.fm scrobbling. Works with Spotify, Apple Music, and any scrobbling source.
 
-![Last.fm Now Playing on split-flap board](/img/last-fm-display.png)
+<BoardScreenshot src="/img/last-fm-display.png" alt="Last.fm Now Playing on split-flap board" />
 
 ## Overview
 

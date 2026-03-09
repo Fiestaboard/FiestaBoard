@@ -8,7 +8,7 @@ keywords: [FiestaBoard Disney, theme park wait times, Disneyland, Disney World, 
 
 Display real-time ride wait times from Disney theme parks worldwide. **No API key required.**
 
-![Disney Parks wait times on split-flap board](/img/disney-parks-times-display.png)
+<BoardScreenshot src="/img/disney-parks-times-display.png" alt="Disney Parks wait times on split-flap board" />
 
 ## Overview
 

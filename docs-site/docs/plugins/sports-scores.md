@@ -8,7 +8,7 @@ keywords: [FiestaBoard sports scores, NFL scores, NBA scores, NHL scores, soccer
 
 Display recent sports scores from NFL, Soccer, NHL, and NBA on your board.
 
-![Sports scores on split-flap board](/img/sports-scores-display.png)
+<BoardScreenshot src="/img/sports-scores-display.png" alt="Sports scores on split-flap board" />
 
 ## Overview
 
