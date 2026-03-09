@@ -8,7 +8,7 @@ keywords: [FiestaBoard traffic plugin, Google Routes API, commute time, traffic 
 
 Display commute times and live traffic conditions using the Google Routes API.
 
-![Traffic display on split-flap board](/img/traffic-display.png)
+<BoardScreenshot src="/img/traffic-display.png" alt="Traffic display on split-flap board" />
 
 ## Overview
 

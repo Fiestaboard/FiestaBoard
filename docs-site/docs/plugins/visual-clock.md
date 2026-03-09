@@ -8,7 +8,7 @@ keywords: [FiestaBoard visual clock, pixel art clock, full screen clock, split-f
 
 Display a full-screen clock with large pixel-art style digits that fills the entire board. **No API key required.**
 
-![Visual Clock on split-flap board](/img/visual-clock-display.png)
+<BoardScreenshot src="/img/visual-clock-display.png" alt="Visual Clock on split-flap board" />
 
 ## Overview
 

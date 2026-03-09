@@ -2,7 +2,7 @@
  * Playwright screenshot generator for FiestaBoard documentation.
  *
  * Generates four categories of screenshots in both dark and light modes:
- *   A) Plugin board displays (19 plugins) -- dark only, theme-independent
+ *   A) Plugin board displays (25 plugins) -- dark only, theme-independent
  *   B) Web UI full-page screenshots (7 pages)
  *   C) Getting-started workflow screenshots (~16 images)
  *   D) Homepage feature icon screenshots (6 cropped images)
@@ -58,7 +58,7 @@ async function configureBoard() {
   });
 }
 
-async function resetToSingleBoard() {
+async function resetToSingleBoard(boardColor: "black" | "white" = "black") {
   await fetch(`${API_URL}/settings/board`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -67,7 +67,7 @@ async function resetToSingleBoard() {
         {
           name: "Living Room",
           device_type: "flagship",
-          board_color: "black",
+          board_color: boardColor,
           enabled: true,
           api_mode: "local",
           host: BOARD_HOST,
@@ -76,6 +76,10 @@ async function resetToSingleBoard() {
       ],
     }),
   });
+}
+
+async function setBoardColor(color: "black" | "white") {
+  await resetToSingleBoard(color);
 }
 
 async function createPage(
@@ -233,7 +237,19 @@ function ensureDir(dir: string) {
 }
 
 async function waitForBoard(page: Page) {
-  await page.waitForTimeout(5000);
+  // Initial wait for the animation to start and mostly complete
+  // (board flip animation is ~5s max: 71 chars × ~70ms each)
+  await page.waitForTimeout(6000);
+
+  // Then poll until no tiles are still transitioning
+  const maxPoll = 10;
+  for (let i = 0; i < maxPoll; i++) {
+    const transitioning = await page
+      .locator('[data-is-transitioning="true"]')
+      .count();
+    if (transitioning === 0) break;
+    await page.waitForTimeout(500);
+  }
 }
 
 /**
@@ -310,8 +326,31 @@ async function fullReset() {
 }
 
 // ---------------------------------------------------------------------------
-// Plugin board content definitions (unchanged -- plugin screenshots are
-// dark-only and handled in Section A)
+// Vestaboard Template Design Guidelines
+//
+//  1. CENTER TEXT. Use leading spaces so content sits in the middle of
+//     the 22-column board, not flush left. A 12-char string needs ~5
+//     leading spaces: floor((22 - len) / 2).
+//
+//  2. FILL THE ROW. Aim for 18-22 visible characters per row. If
+//     natural content is short, restructure or combine data to widen.
+//
+//  3. COLOR TILES = DECORATION ONLY. Use them for full-row bars and
+//     header borders. Never use a single tile as an inline bullet or
+//     data indicator mid-text.
+//
+//  4. NO CANYON FORMAT. Do NOT write "LABEL      VALUE" with a large
+//     gap. Keep label and value tight ("LABEL VALUE") or put them on
+//     separate centered lines.
+//
+//  5. TIGHT GRIDS. For tabular data (stocks, transit, aircraft) pack
+//     columns with 1-2 space gaps, not 4-8.
+//
+//  6. SIMPLIFY. Show 2-4 key data points clearly rather than cramming
+//     6 metrics in confusing formats.
+//
+//  7. 22-CHAR LIMIT. Each row is 22 columns. Color tags like `{blue}`
+//     consume 1 column (the tile). End tags like `{/blue}` consume 0.
 // ---------------------------------------------------------------------------
 
 interface PluginDisplay {
@@ -325,192 +364,192 @@ const PLUGIN_DISPLAYS: PluginDisplay[] = [
     id: "weather",
     name: "Weather",
     template: [
-      "SAN FRANCISCO",
-      "{blue}52{/blue} F {yellow}62{/yellow} F CLOUDY",
-      "UV 3   HUMIDITY 68%",
-      "WIND 12 MPH  W",
-      "",
-      "",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      "    SAN FRANCISCO",
+      "   54 F  PARTLY CLOUDY",
+      "   HIGH 62   LOW 48",
+      "  WIND 12MPH HUMID 68%",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
     ],
   },
   {
     id: "stocks",
     name: "Stock Prices",
     template: [
-      "{green}AAPL   189.84  +1.2%{/green}",
-      "{red}TSLA   248.50  -0.8%{/red}",
-      "{green}GOOGL 176.32  +0.5%{/green}",
-      "{green}MSFT   415.20  +0.3%{/green}",
-      "{red}AMZN   178.90  -0.2%{/red}",
-      "{green}NVDA   875.40  +2.1%{/green}",
+      "{green}AAPL    189.84  +1.2%{/green}",
+      "{red}TSLA    248.50  -0.8%{/red}",
+      "{green}GOOGL   176.32  +0.5%{/green}",
+      "{green}MSFT    415.20  +0.3%{/green}",
+      "{red}AMZN    178.90  -0.2%{/red}",
+      "{green}NVDA    875.40  +2.1%{/green}",
     ],
   },
   {
     id: "muni",
     name: "SF Muni",
     template: [
-      "{67}{67}{67} SF MUNI {67}{67}{67}",
-      "N JUDAH       3 MIN",
-      "N JUDAH       12 MIN",
-      "7 HAIGHT      8 MIN",
-      "38 GEARY      5 MIN",
-      "38 GEARY      14 MIN",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      "N JUDAH  CHURCH  3 MIN",
+      "N JUDAH  CHURCH 12 MIN",
+      "7 HAIGHT DUBOCE  8 MIN",
+      "38 GEARY POWELL  5 MIN",
+      "38 GEARY POWELL 14 MIN",
     ],
   },
   {
     id: "traffic",
     name: "Traffic",
     template: [
-      "{65}{65} TRAFFIC {65}{65}",
+      "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
+      "    SF TO OAKLAND",
       "",
-      "HOME TO WORK",
-      "25 MIN VIA US-101",
-      "MODERATE TRAFFIC",
-      "",
+      " BAY BRIDGE    25 MIN",
+      " VIA I-880     32 MIN",
+      "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
     ],
   },
   {
     id: "sports_scores",
     name: "Sports Scores",
     template: [
-      "{63}{63} NFL SCORES {63}{63}",
-      "SF 49ERS   24",
-      "KC CHIEFS  21",
-      "",
-      "DAL COWBOYS 17",
-      "PHI EAGLES  31",
+      "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
+      "     NFL SCORES",
+      " 49ERS  24  CHIEFS  21",
+      "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
+      " COWBOYS 17 EAGLES  31",
+      "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
     ],
   },
   {
     id: "date_time",
     name: "Date & Time",
     template: [
+      "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
       "",
-      "MONDAY",
-      "FEBRUARY 23 2026",
-      "10:30 AM",
-      "",
-      "",
+      "        MONDAY",
+      "    MARCH  9  2026",
+      "       10:30 AM",
+      "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
     ],
   },
   {
     id: "star_trek_quotes",
     name: "Star Trek Quotes",
     template: [
-      "MAKE IT SO",
+      "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+      "THE NEEDS OF THE MANY",
+      " OUTWEIGH THE NEEDS",
+      "      OF THE FEW",
       "",
-      "",
-      "",
-      "",
-      "- JEAN-LUC PICARD",
+      "       - MR SPOCK",
     ],
   },
   {
     id: "guest_wifi",
     name: "Guest WiFi",
     template: [
+      "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}",
+      "     WIFI NETWORK",
+      "    ALOHA-GUEST-5G",
       "",
-      "WIFI NETWORK",
-      "MYNETWORK-GUEST",
-      "PASSWORD",
-      "WELCOME2024",
-      "",
+      "       PASSWORD",
+      "      MAHALO2026",
     ],
   },
   {
     id: "nearby_aircraft",
     name: "Nearby Aircraft",
     template: [
-      "{67}{67} AIRCRAFT {67}{67}",
-      "UAL 1532  B738  12K FT",
-      "SWA 445   B737  8K FT",
-      "DAL 892   A321  15K FT",
-      "AAL 210   B789  22K FT",
-      "SKW 5412  E175  6K FT",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      "UAL 1532 B738 12000 FT",
+      "SWA 445  B737  8200 FT",
+      "DAL 892  A321 15400 FT",
+      "AAL 210  B789 22100 FT",
+      "SKW 5412 E175  6500 FT",
     ],
   },
   {
     id: "disney_parks_times",
     name: "Disney Parks Queue Times",
     template: [
-      "{63}{63} DISNEYLAND {63}{63}",
-      "SPACE MTN      45 MIN",
-      "MATTERHORN     30 MIN",
-      "PIRATES        15 MIN",
-      "HAUNTED MANS   20 MIN",
-      "SPLASH MTN     60 MIN",
+      "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
+      "SPACE MOUNTAIN   45MIN",
+      "MATTERHORN BOBS  30MIN",
+      "PIRATES CARIBBN  15MIN",
+      "HAUNTED MANSION  20MIN",
+      "SPLASH MOUNTAIN  60MIN",
     ],
   },
   {
     id: "last_fm",
     name: "Last.fm Now Playing",
     template: [
-      "{68}{68} NOW PLAYING {68}{68}",
-      "",
-      "BOHEMIAN RHAPSODY",
-      "QUEEN",
-      "",
-      "A NIGHT AT THE OPERA",
+      "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+      "     NOW PLAYING",
+      "  BOHEMIAN RHAPSODY",
+      "         QUEEN",
+      " A NIGHT AT THE OPERA",
+      "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
     ],
   },
   {
     id: "baywheels",
     name: "Bay Wheels",
     template: [
-      "{66}{66} BAY WHEELS {66}{66}",
-      "MARKET + 2ND",
-      "  5 EBIKE   3 CLASSIC",
-      "POWELL STATION",
-      "  2 EBIKE   7 CLASSIC",
-      "4 DOCKS AVAILABLE",
+      "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}",
+      "     BAY WHEELS",
+      "MARKET + 2ND   8 BIKES",
+      "POWELL STATION 9 BIKES",
+      "EMBARCADERO   20 BIKES",
+      "FERRY BLDG    11 BIKES",
     ],
   },
   {
     id: "home_assistant",
     name: "Home Assistant",
     template: [
-      "{66}{66} HOME {66}{66}",
-      "LIVING ROOM    72 F",
-      "FRONT DOOR     LOCKED",
-      "GARAGE         CLOSED",
-      "LIGHTS         3 ON",
-      "ALARM          ARMED",
+      "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}",
+      "     SMART HOME",
+      "  LIVING ROOM  72F",
+      "  FRONT DOOR  LOCKED",
+      "  GARAGE DOOR  CLOSED",
+      "  ALARM ARMED 3 LIGHTS",
     ],
   },
   {
     id: "air_fog",
     name: "Air Quality & Fog",
     template: [
-      "AIR QUALITY",
-      "{green}AQI 42 - GOOD{/green}",
-      "",
-      "VISIBILITY",
-      "{blue}8.5 MILES{/blue}",
-      "LIGHT FOG",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      "     AIR QUALITY",
+      "     AQI 42  GOOD",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      "      VISIBILITY",
+      "  8.5 MILES  LIGHT FOG",
     ],
   },
   {
     id: "surf",
     name: "Surf Conditions",
     template: [
-      "{blue}{blue} SURF REPORT {blue}{blue}",
-      "OCEAN BEACH SF",
-      "WAVE HEIGHT  4-6 FT",
-      "SWELL PERIOD 14 SEC",
-      "WIND  OFFSHORE 8 MPH",
-      "{green}GOOD CONDITIONS{/green}",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      "   OCEAN BEACH  SF",
+      "    4 TO 6 FT WAVES",
+      "   14 SEC PERIOD  NW",
+      "    WIND 8MPH OFFSHORE",
+      "     GOOD CONDITIONS",
     ],
   },
   {
     id: "wsdot",
     name: "WSDOT Ferries",
     template: [
-      "{67}{67} WA FERRIES {67}{67}",
-      "SEATTLE-BAINBRIDGE",
-      "NEXT  3:30 PM",
-      "MV WENATCHEE",
-      "CAR SPOTS  45/120",
-      "",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      " SEATTLE - BAINBRIDGE",
+      "  NEXT DEP  3:30 PM",
+      "  VESSEL MV WENATCHEE",
+      "  CAR SPACES  45/120",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
     ],
   },
   {
@@ -529,24 +568,96 @@ const PLUGIN_DISPLAYS: PluginDisplay[] = [
     id: "visual_clock",
     name: "Visual Clock",
     template: [
-      "                      ",
-      " {63} {63}    {67}{67}    {66}{66}    {65}{65} ",
-      " {63} {63} {67}  {67} {66}{66}{66} {65}{65}{65}",
-      " {63} {63} {67}  {67}    {66} {65}  {65}",
-      " {63} {63} {67}  {67}    {66} {65}  {65}",
-      "  {63}     {67}{67}     {66}  {65}{65} ",
+      "  {63}  {67}{67}{67}{67}  {66}{66}{66}{66}  {65}{65}{65}{65} ",
+      "  {63}  {67}  {67}     {66}  {65}  {65} ",
+      "  {63}  {67}  {67}     {66}  {65}  {65} ",
+      "  {63}  {67}  {67}  {66}{66}{66}{66}  {65}{65}{65}{65} ",
+      "  {63}  {67}  {67}     {66}  {65}  {65} ",
+      "  {63}  {67}{67}{67}{67}  {66}{66}{66}{66}  {65}{65}{65}{65} ",
     ],
   },
   {
     id: "stardate",
     name: "Stardate",
     template: [
+      "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+      "   USS ENTERPRISE",
       "",
+      "       STARDATE",
+      "       79145.7",
+      "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+    ],
+  },
+  {
+    id: "countdown",
+    name: "Countdown",
+    template: [
+      "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
+      "   SUMMER VACATION",
       "",
-      "STARDATE",
-      "79145.7",
+      "       12 DAYS",
+      "    06 HRS  30 MIN",
+      "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
+    ],
+  },
+  {
+    id: "dad_jokes",
+    name: "Dad Jokes",
+    template: [
+      "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
       "",
+      "  WHAT DO YOU CALL A",
+      "     FAKE NOODLE?",
       "",
+      "     AN IMPASTA!",
+    ],
+  },
+  {
+    id: "generic_data",
+    name: "Generic Data",
+    template: [
+      "{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}",
+      "    ISS TRACKER",
+      "  LAT 32.71  LON 96.80",
+      "",
+      "    ALTITUDE 420 KM",
+      "   SPEED 27600 KM/H",
+    ],
+  },
+  {
+    id: "santa_tracker",
+    name: "Santa Tracker",
+    template: [
+      "{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}",
+      "    SANTA TRACKER",
+      "",
+      "   STATUS IN FLIGHT",
+      "   NEXT STOP NEW YORK",
+      "   GIFTS 2.4 BILLION",
+    ],
+  },
+  {
+    id: "spacecraft_launches",
+    name: "Spacecraft Launches",
+    template: [
+      "{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}",
+      "     NEXT LAUNCH",
+      " FALCON 9  STARLINK",
+      " CAPE CANAVERAL  FL",
+      "",
+      "     T - 02:15:30",
+    ],
+  },
+  {
+    id: "white_noise",
+    name: "White Noise",
+    template: [
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+      "     WHITE NOISE",
+      "",
+      "   RAIN ON TIN ROOF",
+      "   VOL 60%   45 MIN",
+      "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
     ],
   },
 ];
@@ -635,6 +746,7 @@ async function createDemoPages(): Promise<Record<string, string>> {
 
 // =========================================================================
 // A) Plugin Board Display Screenshots  (dark only, skipped for light)
+//    Captures both black and white Vestaboard variants for each plugin.
 // =========================================================================
 
 test.describe("Plugin Board Display Screenshots", () => {
@@ -645,7 +757,7 @@ test.describe("Plugin Board Display Screenshots", () => {
 
   test.beforeAll(async () => {
     await configureBoard();
-    await resetToSingleBoard();
+    await resetToSingleBoard("black");
     await deleteAllSchedules();
     await deleteAllPages();
   });
@@ -663,30 +775,49 @@ test.describe("Plugin Board Display Screenshots", () => {
       );
       await setActivePage(pageId);
 
-      await page.goto("/");
-      await expect(
-        page.getByRole("heading", { name: "Dashboard" }),
-      ).toBeVisible({ timeout: 15_000 });
+      const fileName = `${plugin.id.replace(/_/g, "-")}-display.png`;
+      const pluginDocsDir = path.join(PLUGINS_DIR, plugin.id, "docs");
 
-      await waitForBoard(page);
+      for (const boardColor of ["black", "white"] as const) {
+        await setBoardColor(boardColor);
 
-      const boardEl = page
-        .locator('[class*="rounded-lg"][style*="background"]')
-        .first();
-      if (await boardEl.isVisible()) {
-        const pluginDocsDir = path.join(PLUGINS_DIR, plugin.id, "docs");
-        const fileName = `${plugin.id.replace(/_/g, "-")}-display.png`;
+        await page.goto("/");
+        await expect(
+          page.getByRole("heading", { name: "Dashboard" }),
+        ).toBeVisible({ timeout: 15_000 });
 
-        await boardEl.screenshot({
-          path: path.join(DOCS_IMG, fileName),
-        });
+        await waitForBoard(page);
 
-        ensureDir(pluginDocsDir);
-        await boardEl.screenshot({
-          path: path.join(pluginDocsDir, fileName),
-        });
+        const boardEl = page
+          .locator('[class*="rounded-lg"][style*="background"]')
+          .first();
+        if (await boardEl.isVisible()) {
+          const docsColorDir = path.join(DOCS_IMG, boardColor);
+          ensureDir(docsColorDir);
+          await boardEl.screenshot({
+            path: path.join(docsColorDir, fileName),
+          });
+
+          const pluginColorDir = path.join(pluginDocsDir, boardColor);
+          ensureDir(pluginColorDir);
+          await boardEl.screenshot({
+            path: path.join(pluginColorDir, fileName),
+          });
+
+          if (boardColor === "black") {
+            ensureDir(DOCS_IMG);
+            await boardEl.screenshot({
+              path: path.join(DOCS_IMG, fileName),
+            });
+            ensureDir(pluginDocsDir);
+            await boardEl.screenshot({
+              path: path.join(pluginDocsDir, fileName),
+            });
+          }
+        }
       }
 
+      await setBoardColor("black");
       await deleteAllPages();
     });
   }

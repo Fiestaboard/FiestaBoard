@@ -8,7 +8,7 @@ keywords: [FiestaBoard Home Assistant, smart home, IoT display, sensor data, hom
 
 Display smart home device states from your Home Assistant instance on your board.
 
-![Home Assistant on split-flap board](/img/home-assistant-display.png)
+<BoardScreenshot src="/img/home-assistant-display.png" alt="Home Assistant on split-flap board" />
 
 ## Overview
 
