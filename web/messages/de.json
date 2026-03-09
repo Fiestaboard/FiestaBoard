@@ -49,7 +49,6 @@
     "savingIndicator": "Wird gespeichert...",
     "pageCount": "{count, plural, one {# Seite} other {# Seiten}}"
   },
-
   "navigation": {
     "home": "Startseite",
     "pages": "Seiten",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Mobile Navigation",
     "mainNavigation": "Hauptnavigation"
   },
-
   "home": {
     "title": "Dashboard",
     "description": "Überwachen Sie die Anzeige Ihres Boards und die Systemaktivität",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Ihr Board ist noch nicht eingerichtet. Verbinden Sie Ihr Board, um Inhalte anzuzeigen.",
     "runSetupWizard": "Einrichtungsassistent starten"
   },
-
   "pages": {
     "title": "Seiten",
     "description": "Erstellen und verwalten Sie Inhalte für Ihr Board",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Erstellen Sie Ihre erste Seite zur Anzeige auf dem Board.",
     "createFirstPage": "Erste Seite erstellen"
   },
-
   "carousels": {
     "title": "Karussells",
     "description": "Erstellen Sie Sammlungen von Seiten, die automatisch wechseln",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Karussell konnte nicht aktualisiert werden",
     "toastDeleteFailed": "Karussell konnte nicht gelöscht werden"
   },
-
   "schedule": {
     "title": "Zeitplan",
     "description": "Automatisieren Sie den Seitenwechsel nach Zeit und Wochentag",
@@ -186,7 +181,6 @@
       "submitError": "Zeitplan konnte nicht gespeichert werden"
     }
   },
-
   "integrations": {
     "title": "Integrationen",
     "description": "Aktivieren und konfigurieren Sie Datenquellen-Plugins für Ihr FiestaBoard",
@@ -221,9 +215,9 @@
       "title": "Dynamische Farben",
       "firstMatchWins": "Erster Treffer gewinnt",
       "addField": "Feld hinzufügen",
-      "fieldPlaceholder": "Feldname (z.\u00a0B. temperature)",
+      "fieldPlaceholder": "Feldname (z. B. temperature)",
       "noRulesConfigured": "Keine Farbregeln konfiguriert. Fügen Sie ein Feld hinzu, um dynamische Farben zu erstellen.",
-      "colorBasedOnValue": "\u2192 Farbe basierend auf Wert",
+      "colorBasedOnValue": "→ Farbe basierend auf Wert",
       "deleteFieldTooltip": "Alle Regeln für dieses Feld löschen",
       "when": "wenn",
       "valuePlaceholder": "Wert",
@@ -241,7 +235,6 @@
       "weather": "Wetter & Umwelt"
     }
   },
-
   "settings": {
     "title": "Einstellungen",
     "description": "Konfigurieren Sie Ihren FiestaBoard-Dienst",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Führen Sie den Einrichtungsassistenten erneut aus, um Ihre Boardverbindung und Grundeinstellungen neu zu konfigurieren.",
     "runSetupWizard": "Einrichtungsassistent starten"
   },
-
   "offline": {
     "youreOffline": "Sie sind offline",
     "reconnecting": "Verbindung wird wiederhergestellt...",
@@ -262,7 +254,6 @@
     "accessCached": "Auf zwischengespeicherte Inhalte zugreifen",
     "browseSaved": "Gespeicherte Daten durchsuchen"
   },
-
   "wizard": {
     "welcomeTitle": "Willkommen bei FiestaBoard",
     "welcomeSubtitle": "Wir richten Sie in wenigen Schritten ein",
@@ -289,14 +280,14 @@
       "localApiFaster": "Schneller, gleiches Netzwerk",
       "readWriteApiKey": "Lese-/Schreib-API-Schlüssel",
       "cloudKeyPlaceholder": "Erhalten Sie diesen unter web.vestaboard.com",
-      "cloudKeyHelp": "Zu finden unter web.vestaboard.com \u2192 Einstellungen \u2192 API",
+      "cloudKeyHelp": "Zu finden unter web.vestaboard.com → Einstellungen → API",
       "boardIpAddress": "Board-IP-Adresse",
-      "boardIpPlaceholder": "z.\u00a0B. 192.168.1.100",
+      "boardIpPlaceholder": "z. B. 192.168.1.100",
       "boardIpHelp": "IP-Adresse manuell eingeben oder klicken, um Ihr Netzwerk zu scannen",
       "scanNetworkTooltip": "Netzwerk nach Vestaboards durchsuchen",
-      "scanningNetwork": "Netzwerk wird nach Vestaboards durchsucht\u2026",
+      "scanningNetwork": "Netzwerk wird nach Vestaboards durchsucht…",
       "noBoardsFound": "Keine Boards gefunden. Geben Sie die IP-Adresse manuell ein.",
-      "foundBoards": "{count} {count, plural, one {Board} other {Boards}} gefunden \u2014 wählen Sie eines aus:",
+      "foundBoards": "{count} {count, plural, one {Board} other {Boards}} gefunden — wählen Sie eines aus:",
       "scanFailed": "Scan fehlgeschlagen. Bitte geben Sie die IP-Adresse manuell ein.",
       "authenticationMethod": "Authentifizierungsmethode",
       "apiKey": "API-Schlüssel",
@@ -314,9 +305,11 @@
       "connectedTestAgain": "Verbunden! Erneut testen",
       "thingsToTry": "Tipps:",
       "boardType": "Board-Typ",
-      "flagshipDimensions": "22 \u00d7 6 Zeichen",
-      "noteDimensions": "15 \u00d7 3 Zeichen",
-      "boardColor": "Boardfarbe"
+      "flagshipDimensions": "22 × 6 Zeichen",
+      "noteDimensions": "15 × 3 Zeichen",
+      "boardColor": "Boardfarbe",
+      "connectionTestFailed": "Verbindungstest fehlgeschlagen",
+      "failedToEnableLocalApi": "Lokale API konnte nicht aktiviert werden"
     },
     "easyPlugins": {
       "description": "Diese Funktionen sind sofort einsatzbereit, ohne externe API-Schlüssel. Aktivieren Sie, was Ihnen gefällt!",
@@ -346,13 +339,15 @@
       "sendWelcomeDescription": "Senden wir eine farbenfrohe Willkommensnachricht an Ihr Board!",
       "sendHelloButton": "\"Hallo von FiestaBoard\" senden",
       "messageSent": "Nachricht gesendet!",
-      "boardInQuietHours": "Board befindet sich in der Ruhephase \u2014 Nachricht wird später gesendet!",
+      "boardInQuietHours": "Board befindet sich in der Ruhephase — Nachricht wird später gesendet!",
       "failedToSend": "Senden fehlgeschlagen",
       "goToDashboard": "Zum Dashboard",
-      "skipGoToDashboard": "Überspringen & zum Dashboard"
+      "skipGoToDashboard": "Überspringen & zum Dashboard",
+      "dateTimeName": "Datum & Uhrzeit",
+      "starTrekName": "Star Trek Zitate",
+      "guestWifiName": "Gast-WLAN"
     }
   },
-
   "activeDisplay": {
     "title": "Aktive Anzeige",
     "viewSchedule": "Zeitplan anzeigen",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Zur aktiven Seite gewechselt",
     "toastSwitchFailed": "Seitenwechsel fehlgeschlagen"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Dienststatus: Getrennt",
     "runningAriaLabel": "Dienststatus: Läuft",
@@ -381,7 +375,6 @@
     "runningTooltip": "Läuft",
     "stoppedTooltip": "Gestoppt"
   },
-
   "installPrompt": {
     "title": "FiestaBoard Control installieren",
     "description": "Zum Startbildschirm hinzufügen für schnellen Zugriff und ein besseres Erlebnis.",
@@ -389,7 +382,6 @@
     "notNow": "Nicht jetzt",
     "dismissAriaLabel": "Schließen"
   },
-
   "silenceMode": {
     "loading": "Wird geladen...",
     "disabled": "Ruhemodus: Deaktiviert",
@@ -400,7 +392,6 @@
     "compactSilent": "Stumm",
     "compactActive": "Aktiv"
   },
-
   "pageBuilder": {
     "editPage": "Seite bearbeiten",
     "createPage": "Seite erstellen",
@@ -420,7 +411,7 @@
     "draftRestored": "Entwurf aus Ihrer letzten Sitzung wiederhergestellt. Ihre Arbeit wurde automatisch gespeichert.",
     "pageNameLabel": "Seitenname",
     "pageNamePlaceholder": "Meine Seite",
-    "richEditorPlaceholder": "Vorlagensyntax eingeben, z.\u00a0B. {{weather.temp}} oder {{red}} für Farbkacheln",
+    "richEditorPlaceholder": "Vorlagensyntax eingeben, z. B. {{weather.temp}} oder {{red}} für Farbkacheln",
     "plainEditorPlaceholder": "Vorlagentext mit {{variable}}-Syntax für dynamische Daten eingeben",
     "lineCountWarning": "Die Vorlage hat {lineCount} Zeilen, aber das Board zeigt nur {maxLines} an. Zeilen über {maxLines} hinaus werden ignoriert.",
     "warningLabel": "Warnung:",
@@ -441,14 +432,13 @@
     "toastLiveOutputOff": "Live-Ausgabe wegen Inaktivität deaktiviert",
     "toastLiveSendFailed": "Senden an Board fehlgeschlagen"
   },
-
   "displaySettings": {
     "title": "Ihre Boards",
     "description": "Fügen Sie jedes Vestaboard hinzu, das Sie besitzen, und konfigurieren Sie die Verbindung.",
     "unnamedBoard": "Unbenanntes Board",
     "boardDimensions": {
-      "flagship": "22\u00d76",
-      "note": "15\u00d73"
+      "flagship": "22×6",
+      "note": "15×3"
     },
     "connectionLabel": "Verbindung",
     "localApiLabel": "Lokale API",
@@ -461,7 +451,7 @@
     "enablementTokenLabel": "Aktivierungstoken",
     "localApiKeyLabel": "Lokaler API-Schlüssel",
     "localApiKeyPlaceholder": "Lokalen API-Schlüssel eingeben",
-    "localApiKeySetPlaceholder": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (gesetzt)",
+    "localApiKeySetPlaceholder": "••••••••••• (gesetzt)",
     "localApiKeyHelp": "Senden Sie eine E-Mail an support@vestaboard.com, um Ihren lokalen API-Schlüssel anzufordern",
     "enablementTokenPlaceholder": "Token von Vestaboard-Support",
     "getApiKeyFromBoard": "API-Schlüssel vom Board abrufen",
@@ -469,8 +459,8 @@
     "localApiEnabled": "Lokale API aktiviert! API-Schlüssel abgerufen und gespeichert.",
     "cloudKeyLabel": "Lese-/Schreib-API-Schlüssel",
     "cloudKeyPlaceholder": "R/W-API-Schlüssel eingeben",
-    "cloudKeySetPlaceholder": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (gesetzt)",
-    "cloudKeyHelp": "Zu finden in Ihrer Board-App unter Einstellungen \u2192 Integrationen \u2192 Lese-/Schreib-API",
+    "cloudKeySetPlaceholder": "••••••••••• (gesetzt)",
+    "cloudKeyHelp": "Zu finden in Ihrer Board-App unter Einstellungen → Integrationen → Lese-/Schreib-API",
     "localApiRequired": "Lokaler API-Schlüssel und Host sind erforderlich",
     "cloudApiRequired": "Cloud-API-Schlüssel ist erforderlich",
     "boardHostAndTokenRequired": "Board-Host und Aktivierungstoken sind erforderlich",
@@ -484,14 +474,12 @@
     "boardRemoved": "Board entfernt",
     "atLeastOneBoard": "Mindestens ein Board ist erforderlich"
   },
-
   "systemUpdate": {
     "updateAvailable": "Update verfügbar",
     "youAreRunning": "Sie verwenden v{currentVersion}.",
     "viewRelease": "Release anzeigen",
     "checkForUpdates": "Nach Updates suchen"
   },
-
   "transitionSettings": {
     "title": "Board-Übergänge",
     "description": "Wählen Sie, wie das Board beim Wechsel zu einer neuen Nachricht animiert wird. Übergänge steuern den Klapp-Animationsstil der Zeichen auf Ihrem Vestaboard.",
@@ -509,7 +497,7 @@
     "strategies": {
       "none": {
         "label": "Keine",
-        "description": "Keine Übergangsanimation \u2014 das Board aktualisiert alle Zeichen gleichzeitig."
+        "description": "Keine Übergangsanimation — das Board aktualisiert alle Zeichen gleichzeitig."
       },
       "column": {
         "label": "Welle",
@@ -537,19 +525,18 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Debug-Werkzeuge",
     "description": "Vestaboard-Verbindung testen und debuggen",
     "networkDiagnosticsLabel": "Netzwerkdiagnose",
     "runNetworkDiagnostics": "Netzwerkdiagnose starten",
-    "runningDiagnostics": "Diagnose wird ausgeführt\u2026",
+    "runningDiagnostics": "Diagnose wird ausgeführt…",
     "diagnosticsDescription": "Testet DNS, Internetverbindung und Vestaboard-Erreichbarkeit",
-    "allChecksPassed": "Alle Prüfungen bestanden \u2014 Ihre Verbindung ist einwandfrei",
-    "someChecksFailed": "Einige Prüfungen fehlgeschlagen \u2014 siehe Details unten",
+    "allChecksPassed": "Alle Prüfungen bestanden — Ihre Verbindung ist einwandfrei",
+    "someChecksFailed": "Einige Prüfungen fehlgeschlagen — siehe Details unten",
     "dnsResolution": "DNS-Auflösung",
     "internetAccess": "Internetzugang",
-    "resolved": "{hostname} aufgelöst \u2192 {ip}",
+    "resolved": "{hostname} aufgelöst → {ip}",
     "couldNotResolve": "Hostname konnte nicht aufgelöst werden",
     "reached": "{url} erreicht",
     "couldNotReach": "Internet konnte nicht erreicht werden",
@@ -590,11 +577,10 @@
     "toastFillFailed": "Board konnte nicht gefüllt werden: {error}",
     "toastDebugInfoFailed": "Debug-Info konnte nicht angezeigt werden: {error}",
     "toastNetworkSuccess": "Alle Netzwerkprüfungen bestanden!",
-    "toastNetworkFailed": "Einige Netzwerkprüfungen fehlgeschlagen \u2014 siehe Details unten",
+    "toastNetworkFailed": "Einige Netzwerkprüfungen fehlgeschlagen — siehe Details unten",
     "toastNetworkError": "Netzwerkdiagnose fehlgeschlagen: {error}",
     "toastCacheClearFailed": "Cache konnte nicht geleert werden: {error}"
   },
-
   "generalSettings": {
     "title": "Allgemeine Einstellungen",
     "description": "Globale Einstellungen und Dienststeuerung konfigurieren",
@@ -616,30 +602,28 @@
     "toastSilenceSaveFailed": "Ruheplan konnte nicht gespeichert werden: {error}",
     "toastPollingUpdated": "Abfrageintervall aktualisiert",
     "toastPollingUpdatedRestart": "Abfrageintervall aktualisiert. Starten Sie den Dienst neu, um die Änderungen zu übernehmen.",
-    "toastPollingFailed": "Abfrageintervall konnte nicht aktualisiert werden: {error}"
+    "toastPollingFailed": "Abfrageintervall konnte nicht aktualisiert werden: {error}",
+    "languageLabel": "Sprache",
+    "languageDescription": "Wählen Sie die Anzeigesprache der Benutzeroberfläche"
   },
-
   "themeToggle": {
     "toggleTheme": "Design wechseln"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Update verfügbar: v{version}",
     "updateAvailableTooltip": "Update verfügbar: v{version}"
   },
-
   "serviceControls": {
     "title": "Dienststeuerung",
     "contentAutoSent": "Inhalte werden automatisch an das physische Board gesendet"
   },
-
   "daySelector": {
     "daysLegend": "Tage",
     "dayPatternAriaLabel": "Tagesmuster",
     "allDays": "Alle Tage",
-    "weekdays": "Werktags (Mo\u2013Fr)",
-    "weekends": "Wochenende (Sa\u2013So)",
+    "weekdays": "Werktags (Mo–Fr)",
+    "weekends": "Wochenende (Sa–So)",
     "customDays": "Benutzerdefinierte Tage",
     "selectCustomDaysAriaLabel": "Benutzerdefinierte Tage auswählen",
     "dayLabels": {
@@ -652,7 +636,6 @@
       "sunday": "So"
     }
   },
-
   "configDisplay": {
     "title": "Konfiguration",
     "clickToToggle": "Klicken zum Umschalten der Vorschau",
@@ -665,17 +648,15 @@
       "rotation": "Rotation"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Vorlagentext eingeben...",
     "lineCount": "{current} / {total} Zeilen",
-    "exceedsLimit": "\u2014 überschreitet das {limit}-Zeilen-Boardlimit",
+    "exceedsLimit": "— überschreitet das {limit}-Zeilen-Boardlimit",
     "charsPerLine": "{width} Zeichen pro Zeile empfohlen",
     "templateSyntax": "Vorlagensyntax verwenden: {{variable}}, {{red}}, {{fill_space}}",
     "alignmentPrefixes": "Ausrichtungspräfixe: {left}, {center}, {right}",
     "wrapPrefix": "Umbruchpräfix: {wrap}"
   },
-
   "outputTarget": {
     "title": "Ausgabeziel",
     "description": "Wählen Sie, wo Inhalte angezeigt werden sollen",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "In Oberfläche anzeigen und an Board senden",
     "toastUpdated": "Ausgabeziel aktualisiert"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Keine (kein Standard)",
     "pagesAriaLabel": "Seiten",
@@ -697,7 +677,6 @@
     "pagesTab": "Seiten ({count})",
     "carouselsTab": "Karussells ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "SEITE AUSWÄHLEN",
     "loadingPreviewAriaLabel": "Vorschau wird geladen",

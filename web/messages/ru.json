@@ -49,7 +49,6 @@
     "savingIndicator": "Сохранение...",
     "pageCount": "{count, plural, one {# страница} few {# страницы} many {# страниц} other {# страниц}}"
   },
-
   "navigation": {
     "home": "Главная",
     "pages": "Страницы",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Мобильная навигация",
     "mainNavigation": "Основная навигация"
   },
-
   "home": {
     "title": "Панель управления",
     "description": "Отслеживайте отображение доски и активность системы",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Ваша доска ещё не настроена. Подключите доску, чтобы начать отображать контент.",
     "runSetupWizard": "Запустить мастер настройки"
   },
-
   "pages": {
     "title": "Страницы",
     "description": "Создавайте и управляйте контентом для вашей доски",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Создайте первую страницу для отображения на доске.",
     "createFirstPage": "Создайте свою первую страницу"
   },
-
   "carousels": {
     "title": "Карусели",
     "description": "Создавайте коллекции страниц с автоматической сменой",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Не удалось обновить карусель",
     "toastDeleteFailed": "Не удалось удалить карусель"
   },
-
   "schedule": {
     "title": "Расписание",
     "description": "Автоматизируйте смену страниц по времени и дням недели",
@@ -186,7 +181,6 @@
       "submitError": "Не удалось сохранить расписание"
     }
   },
-
   "integrations": {
     "title": "Интеграции",
     "description": "Включайте и настраивайте плагины источников данных для вашего FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Погода и окружающая среда"
     }
   },
-
   "settings": {
     "title": "Настройки",
     "description": "Настройте сервис FiestaBoard",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Перезапустите мастер настройки для повторной настройки подключения доски и основных параметров.",
     "runSetupWizard": "Запустить мастер настройки"
   },
-
   "offline": {
     "youreOffline": "Вы не в сети",
     "reconnecting": "Переподключение...",
@@ -262,7 +254,6 @@
     "accessCached": "Обращаться к кэшированному контенту",
     "browseSaved": "Просматривать сохранённые данные"
   },
-
   "wizard": {
     "welcomeTitle": "Добро пожаловать в FiestaBoard",
     "welcomeSubtitle": "Давайте настроим всё за несколько шагов",
@@ -316,7 +307,9 @@
       "boardType": "Тип доски",
       "flagshipDimensions": "22 × 6 символов",
       "noteDimensions": "15 × 3 символов",
-      "boardColor": "Цвет доски"
+      "boardColor": "Цвет доски",
+      "connectionTestFailed": "Ошибка проверки подключения",
+      "failedToEnableLocalApi": "Не удалось включить локальный API"
     },
     "easyPlugins": {
       "description": "Эти функции работают сразу без внешних API-ключей. Включите то, что вам нравится!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "Доска в тихом режиме — сообщение поставлено в очередь!",
       "failedToSend": "Не удалось отправить",
       "goToDashboard": "Перейти на панель управления",
-      "skipGoToDashboard": "Пропустить и перейти на панель управления"
+      "skipGoToDashboard": "Пропустить и перейти на панель управления",
+      "dateTimeName": "Дата и время",
+      "starTrekName": "Цитаты из Звёздного пути",
+      "guestWifiName": "Гостевой WiFi"
     }
   },
-
   "activeDisplay": {
     "title": "Активное отображение",
     "viewSchedule": "Посмотреть расписание",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Переключено на активную страницу",
     "toastSwitchFailed": "Не удалось переключить страницу"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Статус сервиса: Отключён",
     "runningAriaLabel": "Статус сервиса: Работает",
@@ -381,7 +375,6 @@
     "runningTooltip": "Работает",
     "stoppedTooltip": "Остановлен"
   },
-
   "installPrompt": {
     "title": "Установить FiestaBoard Control",
     "description": "Добавьте на главный экран для быстрого доступа и удобства.",
@@ -389,7 +382,6 @@
     "notNow": "Не сейчас",
     "dismissAriaLabel": "Закрыть"
   },
-
   "silenceMode": {
     "loading": "Загрузка...",
     "disabled": "Тихий режим: Отключён",
@@ -400,7 +392,6 @@
     "compactSilent": "Тихий",
     "compactActive": "Активен"
   },
-
   "pageBuilder": {
     "editPage": "Редактировать страницу",
     "createPage": "Создать страницу",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Живой вывод отключён из-за бездействия",
     "toastLiveSendFailed": "Не удалось отправить на доску"
   },
-
   "displaySettings": {
     "title": "Ваши доски",
     "description": "Добавьте каждый Vestaboard, которым вы владеете, и настройте его подключение.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Доска удалена",
     "atLeastOneBoard": "Требуется хотя бы одна доска"
   },
-
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",
     "youAreRunning": "Текущая версия: v{currentVersion}.",
     "viewRelease": "Посмотреть релиз",
     "checkForUpdates": "Проверить обновления"
   },
-
   "transitionSettings": {
     "title": "Переходы доски",
     "description": "Выберите, как доска анимируется при обновлении сообщения. Переходы управляют стилем анимации переворота символов на вашем Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Инструменты отладки",
     "description": "Тестирование и отладка подключения к Vestaboard",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Сетевая диагностика завершилась с ошибкой: {error}",
     "toastCacheClearFailed": "Не удалось очистить кэш: {error}"
   },
-
   "generalSettings": {
     "title": "Общие настройки",
     "description": "Настройте глобальные параметры и управление сервисом",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Не удалось сохранить расписание тихого режима: {error}",
     "toastPollingUpdated": "Интервал опроса обновлён",
     "toastPollingUpdatedRestart": "Интервал опроса обновлён. Перезапустите сервис для применения изменений.",
-    "toastPollingFailed": "Не удалось обновить интервал опроса: {error}"
+    "toastPollingFailed": "Не удалось обновить интервал опроса: {error}",
+    "languageLabel": "Язык",
+    "languageDescription": "Выберите язык интерфейса"
   },
-
   "themeToggle": {
     "toggleTheme": "Переключить тему"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Доступно обновление: v{version}",
     "updateAvailableTooltip": "Доступно обновление: v{version}"
   },
-
   "serviceControls": {
     "title": "Управление сервисом",
     "contentAutoSent": "Контент автоматически отправляется на физическую доску"
   },
-
   "daySelector": {
     "daysLegend": "Дни",
     "dayPatternAriaLabel": "Шаблон дней",
@@ -652,7 +636,6 @@
       "sunday": "Вс"
     }
   },
-
   "configDisplay": {
     "title": "Конфигурация",
     "clickToToggle": "нажмите для переключения предпросмотра",
@@ -665,7 +648,6 @@
       "rotation": "Ротация"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Введите текст шаблона...",
     "lineCount": "{current} / {total} строк",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Префиксы выравнивания: {left}, {center}, {right}",
     "wrapPrefix": "Префикс переноса: {wrap}"
   },
-
   "outputTarget": {
     "title": "Цель вывода",
     "description": "Выберите, куда отображать контент",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Показывать в интерфейсе и отправлять на доску",
     "toastUpdated": "Цель вывода обновлена"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Нет (без страницы по умолчанию)",
     "pagesAriaLabel": "Страницы",
@@ -697,7 +677,6 @@
     "pagesTab": "Страницы ({count})",
     "carouselsTab": "Карусели ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "ВЫБРАТЬ СТРАНИЦУ",
     "loadingPreviewAriaLabel": "Загрузка предпросмотра",

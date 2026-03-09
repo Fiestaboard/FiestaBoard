@@ -49,7 +49,6 @@
     "savingIndicator": "Enregistrement...",
     "pageCount": "{count, plural, one {# page} other {# pages}}"
   },
-
   "navigation": {
     "home": "Accueil",
     "pages": "Pages",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Navigation mobile",
     "mainNavigation": "Navigation principale"
   },
-
   "home": {
     "title": "Tableau de bord",
     "description": "Surveillez l'affichage de votre tableau et l'activité du système",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Votre tableau n'est pas encore configuré. Connectez votre tableau pour commencer à afficher du contenu.",
     "runSetupWizard": "Lancer l'assistant de configuration"
   },
-
   "pages": {
     "title": "Pages",
     "description": "Créez et gérez le contenu de votre tableau",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
     "createFirstPage": "Créer votre première page"
   },
-
   "carousels": {
     "title": "Carrousels",
     "description": "Créez des collections de pages qui défilent automatiquement",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Échec de la mise à jour du carrousel",
     "toastDeleteFailed": "Échec de la suppression du carrousel"
   },
-
   "schedule": {
     "title": "Planification",
     "description": "Automatisez la rotation des pages selon l'heure et le jour",
@@ -186,7 +181,6 @@
       "submitError": "Échec de l'enregistrement de la planification"
     }
   },
-
   "integrations": {
     "title": "Intégrations",
     "description": "Activez et configurez les plugins de sources de données pour votre FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Météo et environnement"
     }
   },
-
   "settings": {
     "title": "Paramètres",
     "description": "Configurez votre service FiestaBoard",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Relancez l'assistant de configuration pour reconfigurer la connexion de votre tableau et les paramètres de base.",
     "runSetupWizard": "Lancer l'assistant de configuration"
   },
-
   "offline": {
     "youreOffline": "Vous êtes hors ligne",
     "reconnecting": "Reconnexion...",
@@ -262,7 +254,6 @@
     "accessCached": "Accéder au contenu en cache",
     "browseSaved": "Parcourir vos données enregistrées"
   },
-
   "wizard": {
     "welcomeTitle": "Bienvenue sur FiestaBoard",
     "welcomeSubtitle": "Configurons tout en quelques étapes",
@@ -316,7 +307,9 @@
       "boardType": "Type de tableau",
       "flagshipDimensions": "22 × 6 caractères",
       "noteDimensions": "15 × 3 caractères",
-      "boardColor": "Couleur du tableau"
+      "boardColor": "Couleur du tableau",
+      "connectionTestFailed": "Échec du test de connexion",
+      "failedToEnableLocalApi": "Échec de l'activation de l'API locale"
     },
     "easyPlugins": {
       "description": "Ces fonctionnalités sont opérationnelles immédiatement sans clé API externe. Activez celles qui vous intéressent !",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "Le tableau est en mode silencieux — le message sera envoyé plus tard !",
       "failedToSend": "Échec de l'envoi",
       "goToDashboard": "Aller au tableau de bord",
-      "skipGoToDashboard": "Passer et aller au tableau de bord"
+      "skipGoToDashboard": "Passer et aller au tableau de bord",
+      "dateTimeName": "Date et heure",
+      "starTrekName": "Citations Star Trek",
+      "guestWifiName": "WiFi invité"
     }
   },
-
   "activeDisplay": {
     "title": "Affichage actif",
     "viewSchedule": "Voir la planification",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Page active changée",
     "toastSwitchFailed": "Échec du changement de page"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "État du service : Déconnecté",
     "runningAriaLabel": "État du service : En cours d'exécution",
@@ -381,7 +375,6 @@
     "runningTooltip": "En cours d'exécution",
     "stoppedTooltip": "Arrêté"
   },
-
   "installPrompt": {
     "title": "Installer le panneau de contrôle FiestaBoard",
     "description": "Ajoutez-le à votre écran d'accueil pour un accès rapide et une meilleure expérience.",
@@ -389,7 +382,6 @@
     "notNow": "Pas maintenant",
     "dismissAriaLabel": "Fermer"
   },
-
   "silenceMode": {
     "loading": "Chargement...",
     "disabled": "Mode silencieux : Désactivé",
@@ -400,7 +392,6 @@
     "compactSilent": "Silencieux",
     "compactActive": "Actif"
   },
-
   "pageBuilder": {
     "editPage": "Modifier la page",
     "createPage": "Créer une page",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Sortie en direct désactivée pour cause d'inactivité",
     "toastLiveSendFailed": "Échec de l'envoi vers le tableau"
   },
-
   "displaySettings": {
     "title": "Vos tableaux",
     "description": "Ajoutez chaque Vestaboard que vous possédez et configurez sa connexion.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Tableau retiré",
     "atLeastOneBoard": "Au moins un tableau est requis"
   },
-
   "systemUpdate": {
     "updateAvailable": "Mise à jour disponible",
     "youAreRunning": "Vous utilisez la version v{currentVersion}.",
     "viewRelease": "Voir la version",
     "checkForUpdates": "Vérifier les mises à jour"
   },
-
   "transitionSettings": {
     "title": "Transitions du tableau",
     "description": "Choisissez comment le tableau s'anime lors de l'affichage d'un nouveau message. Les transitions contrôlent le style d'animation des caractères sur votre Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Outils de débogage",
     "description": "Testez et déboguez la connexion Vestaboard",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Échec des diagnostics réseau : {error}",
     "toastCacheClearFailed": "Échec du vidage du cache : {error}"
   },
-
   "generalSettings": {
     "title": "Paramètres généraux",
     "description": "Configurez les paramètres globaux et le contrôle du service",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Échec de l'enregistrement de la plage de silence : {error}",
     "toastPollingUpdated": "Intervalle de vérification mis à jour",
     "toastPollingUpdatedRestart": "Intervalle de vérification mis à jour. Redémarrez le service pour appliquer les changements.",
-    "toastPollingFailed": "Échec de la mise à jour de l'intervalle de vérification : {error}"
+    "toastPollingFailed": "Échec de la mise à jour de l'intervalle de vérification : {error}",
+    "languageLabel": "Langue",
+    "languageDescription": "Choisissez la langue d'affichage de l'interface"
   },
-
   "themeToggle": {
     "toggleTheme": "Changer de thème"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Mise à jour disponible : v{version}",
     "updateAvailableTooltip": "Mise à jour disponible : v{version}"
   },
-
   "serviceControls": {
     "title": "Contrôle du service",
     "contentAutoSent": "Le contenu est envoyé automatiquement au tableau physique"
   },
-
   "daySelector": {
     "daysLegend": "Jours",
     "dayPatternAriaLabel": "Motif de jours",
@@ -652,7 +636,6 @@
       "sunday": "Dim"
     }
   },
-
   "configDisplay": {
     "title": "Configuration",
     "clickToToggle": "cliquer pour basculer l'aperçu",
@@ -665,7 +648,6 @@
       "rotation": "Rotation"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Tapez votre texte de modèle...",
     "lineCount": "{current} / {total} lignes",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Préfixes d'alignement : {left}, {center}, {right}",
     "wrapPrefix": "Préfixe de retour à la ligne : {wrap}"
   },
-
   "outputTarget": {
     "title": "Cible de sortie",
     "description": "Choisissez où le contenu doit être affiché",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Afficher dans l'interface et envoyer au tableau",
     "toastUpdated": "Cible de sortie mise à jour"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Aucune (pas de page par défaut)",
     "pagesAriaLabel": "Pages",
@@ -697,7 +677,6 @@
     "pagesTab": "Pages ({count})",
     "carouselsTab": "Carrousels ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "SÉLECTIONNER UNE PAGE",
     "loadingPreviewAriaLabel": "Chargement de l'aperçu",

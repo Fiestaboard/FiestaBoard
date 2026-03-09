@@ -49,7 +49,6 @@
     "savingIndicator": "Saving...",
     "pageCount": "{count, plural, one {# page} other {# pages}}"
   },
-
   "navigation": {
     "home": "Home",
     "pages": "Pages",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Mobile navigation",
     "mainNavigation": "Main navigation"
   },
-
   "home": {
     "title": "Dashboard",
     "description": "Monitor your board display and system activity",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Your board is not set up yet. Connect your board to start displaying content.",
     "runSetupWizard": "Run Setup Wizard"
   },
-
   "pages": {
     "title": "Pages",
     "description": "Create and manage content for your board",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Create your first page to display on the board.",
     "createFirstPage": "Create your first page"
   },
-
   "carousels": {
     "title": "Carousels",
     "description": "Create collections of pages that cycle automatically",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Failed to update carousel",
     "toastDeleteFailed": "Failed to delete carousel"
   },
-
   "schedule": {
     "title": "Schedule",
     "description": "Automate page rotation based on time and day",
@@ -186,7 +181,6 @@
       "submitError": "Failed to save schedule"
     }
   },
-
   "integrations": {
     "title": "Integrations",
     "description": "Enable and configure data source plugins for your FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Weather & Environment"
     }
   },
-
   "settings": {
     "title": "Settings",
     "description": "Configure your FiestaBoard service",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Re-run the setup wizard to reconfigure your board connection and basic settings.",
     "runSetupWizard": "Run Setup Wizard"
   },
-
   "offline": {
     "youreOffline": "You're Offline",
     "reconnecting": "Reconnecting...",
@@ -262,7 +254,6 @@
     "accessCached": "Access cached content",
     "browseSaved": "Browse your saved data"
   },
-
   "wizard": {
     "welcomeTitle": "Welcome to FiestaBoard",
     "welcomeSubtitle": "Let's get you set up in just a few steps",
@@ -316,7 +307,9 @@
       "boardType": "Board Type",
       "flagshipDimensions": "22 × 6 characters",
       "noteDimensions": "15 × 3 characters",
-      "boardColor": "Board Color"
+      "boardColor": "Board Color",
+      "connectionTestFailed": "Connection test failed",
+      "failedToEnableLocalApi": "Failed to enable local API"
     },
     "easyPlugins": {
       "description": "These features work right away without any external API keys. Enable what you'd like!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "Board is in quiet hours - message queued for later!",
       "failedToSend": "Failed to send",
       "goToDashboard": "Go to Dashboard",
-      "skipGoToDashboard": "Skip & Go to Dashboard"
+      "skipGoToDashboard": "Skip & Go to Dashboard",
+      "dateTimeName": "Date & Time",
+      "starTrekName": "Star Trek Quotes",
+      "guestWifiName": "Guest WiFi"
     }
   },
-
   "activeDisplay": {
     "title": "Active Display",
     "viewSchedule": "View Schedule",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Switched to active page",
     "toastSwitchFailed": "Failed to switch page"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Service status: Disconnected",
     "runningAriaLabel": "Service status: Running",
@@ -381,7 +375,6 @@
     "runningTooltip": "Running",
     "stoppedTooltip": "Stopped"
   },
-
   "installPrompt": {
     "title": "Install FiestaBoard Control",
     "description": "Add to your home screen for quick access and a better experience.",
@@ -389,7 +382,6 @@
     "notNow": "Not now",
     "dismissAriaLabel": "Dismiss"
   },
-
   "silenceMode": {
     "loading": "Loading...",
     "disabled": "Silence Mode: Disabled",
@@ -400,7 +392,6 @@
     "compactSilent": "Silent",
     "compactActive": "Active"
   },
-
   "pageBuilder": {
     "editPage": "Edit Page",
     "createPage": "Create Page",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Live output turned off due to inactivity",
     "toastLiveSendFailed": "Failed to send to board"
   },
-
   "displaySettings": {
     "title": "Your Boards",
     "description": "Add each Vestaboard you own and configure its connection.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Board removed",
     "atLeastOneBoard": "At least one board is required"
   },
-
   "systemUpdate": {
     "updateAvailable": "Update Available",
     "youAreRunning": "You are running v{currentVersion}.",
     "viewRelease": "View Release",
     "checkForUpdates": "Check for updates"
   },
-
   "transitionSettings": {
     "title": "Board Transitions",
     "description": "Choose how the board animates when updating to a new message. Transitions control the flip animation style of the characters on your Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Debug Tools",
     "description": "Test and debug Vestaboard connection",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Network diagnostics failed: {error}",
     "toastCacheClearFailed": "Failed to clear cache: {error}"
   },
-
   "generalSettings": {
     "title": "General Settings",
     "description": "Configure global settings and service control",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Failed to save silence schedule: {error}",
     "toastPollingUpdated": "Polling interval updated",
     "toastPollingUpdatedRestart": "Polling interval updated. Restart service to apply changes.",
-    "toastPollingFailed": "Failed to update polling interval: {error}"
+    "toastPollingFailed": "Failed to update polling interval: {error}",
+    "languageLabel": "Language",
+    "languageDescription": "Choose the display language for the interface"
   },
-
   "themeToggle": {
     "toggleTheme": "Toggle theme"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Update available: v{version}",
     "updateAvailableTooltip": "Update available: v{version}"
   },
-
   "serviceControls": {
     "title": "Service Control",
     "contentAutoSent": "Content is automatically sent to the physical board"
   },
-
   "daySelector": {
     "daysLegend": "Days",
     "dayPatternAriaLabel": "Day pattern",
@@ -652,7 +636,6 @@
       "sunday": "Sun"
     }
   },
-
   "configDisplay": {
     "title": "Configuration",
     "clickToToggle": "click to toggle preview",
@@ -665,7 +648,6 @@
       "rotation": "Rotation"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Type your template text...",
     "lineCount": "{current} / {total} lines",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Alignment prefixes: {left}, {center}, {right}",
     "wrapPrefix": "Wrap prefix: {wrap}"
   },
-
   "outputTarget": {
     "title": "Output Target",
     "description": "Choose where content should be displayed",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Show in UI and send to board",
     "toastUpdated": "Output target updated"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "None (no default)",
     "pagesAriaLabel": "Pages",
@@ -697,7 +677,6 @@
     "pagesTab": "Pages ({count})",
     "carouselsTab": "Carousels ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "SELECT PAGE",
     "loadingPreviewAriaLabel": "Loading preview",

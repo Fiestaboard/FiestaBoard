@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -47,6 +48,8 @@ export function StepWelcome({
   isLoading,
   setIsLoading,
 }: StepWelcomeProps) {
+  const t = useTranslations("wizard.welcome");
+  const tc = useTranslations("common");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [sendMessage, setSendMessage] = useState("");
   const [configSaved, setConfigSaved] = useState(false);
@@ -107,23 +110,23 @@ export function StepWelcome({
         setSendMessage(result.message);
       } else if (result.status === "blocked") {
         setSendStatus("success");
-        setSendMessage("Board is in quiet hours - message queued for later!");
+        setSendMessage(t("boardInQuietHours"));
       } else {
         setSendStatus("error");
-        setSendMessage(result.message || "Failed to send");
+        setSendMessage(result.message || t("failedToSend"));
       }
     } catch (error) {
       setSendStatus("error");
-      setSendMessage(error instanceof Error ? error.message : "Failed to send welcome message");
+      setSendMessage(error instanceof Error ? error.message : t("failedToSend"));
     } finally {
       setIsLoading(false);
     }
   };
 
   const enabledPlugins = [
-    pluginConfig.date_time.enabled && { name: "Date & Time", icon: Clock },
-    pluginConfig.star_trek_quotes.enabled && { name: "Star Trek Quotes", icon: Star },
-    pluginConfig.guest_wifi.enabled && pluginConfig.guest_wifi.ssid && { name: "Guest WiFi", icon: Wifi },
+    pluginConfig.date_time.enabled && { name: t("dateTimeName"), icon: Clock },
+    pluginConfig.star_trek_quotes.enabled && { name: t("starTrekName"), icon: Star },
+    pluginConfig.guest_wifi.enabled && pluginConfig.guest_wifi.ssid && { name: t("guestWifiName"), icon: Wifi },
   ].filter(Boolean) as { name: string; icon: typeof Clock }[];
 
   return (
@@ -135,7 +138,7 @@ export function StepWelcome({
         </div>
         <h3 className="text-xl font-semibold">
           <DecryptedText
-            text="Setup Complete!"
+            text={t("setupComplete")}
             speed={60}
             sequential
             animateOn="view"
@@ -143,20 +146,28 @@ export function StepWelcome({
           />
         </h3>
         <p className="text-muted-foreground">
-          Your FiestaBoard is ready to shine
+          {t("boardReady")}
         </p>
       </div>
 
       {/* Summary */}
       <div className="space-y-3 bg-muted/50 rounded-lg p-4">
-        <h4 className="font-medium text-sm">What you've set up:</h4>
+        <h4 className="font-medium text-sm">{t("summaryTitle")}</h4>
         
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-success" />
             <span>
-              My Board ({boardConfig.device_type === "flagship" ? "Flagship" : "Note"}) connected via {boardConfig.api_mode === "cloud" ? "Cloud" : "Local"} API
-              {boardConfig.api_mode === "local" && ` (${boardConfig.host})`}
+              {boardConfig.api_mode === "local" 
+                ? t("boardConnectedLocal", { 
+                    deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
+                    host: boardConfig.host 
+                  })
+                : t("boardConnected", { 
+                    deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
+                    apiMode: boardConfig.api_mode === "cloud" ? "Cloud" : "Local"
+                  })
+              }
             </span>
           </div>
 
@@ -165,7 +176,7 @@ export function StepWelcome({
               {enabledPlugins.map(({ name, icon: Icon }) => (
                 <div key={name} className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-success" />
-                  <span>{name} enabled</span>
+                  <span>{t("pluginEnabled", { name })}</span>
                 </div>
               ))}
             </>
@@ -173,7 +184,7 @@ export function StepWelcome({
 
           {enabledPlugins.length === 0 && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <span>No additional features enabled (you can add them later in Settings)</span>
+              <span>{t("noPluginsEnabled")}</span>
             </div>
           )}
         </div>
@@ -183,7 +194,7 @@ export function StepWelcome({
       <div className="space-y-3">
         <div className="text-center">
           <p className="text-sm text-muted-foreground mb-3">
-            Let's send a colorful welcome message to your board!
+            {t("sendWelcomeDescription")}
           </p>
           
           <Button
@@ -198,17 +209,17 @@ export function StepWelcome({
             {sendStatus === "sending" ? (
               <>
                 <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Sending...
+                {tc("sending")}
               </>
             ) : sendStatus === "success" ? (
               <>
                 <CheckCircle className="h-5 w-5 mr-2" />
-                Message Sent!
+                {t("messageSent")}
               </>
             ) : (
               <>
                 <Send className="h-5 w-5 mr-2" />
-                Send "Hello from FiestaBoard"
+                {t("sendHelloButton")}
               </>
             )}
           </Button>
@@ -242,7 +253,7 @@ export function StepWelcome({
           className="w-full"
           size="lg"
         >
-          {sendStatus === "success" ? "Go to Dashboard" : "Skip & Go to Dashboard"}
+          {sendStatus === "success" ? t("goToDashboard") : t("skipGoToDashboard")}
         </Button>
       </div>
     </div>

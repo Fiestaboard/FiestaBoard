@@ -49,7 +49,6 @@
     "savingIndicator": "Salvando...",
     "pageCount": "{count, plural, one {# página} other {# páginas}}"
   },
-
   "navigation": {
     "home": "Início",
     "pages": "Páginas",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Navegação mobile",
     "mainNavigation": "Navegação principal"
   },
-
   "home": {
     "title": "Painel",
     "description": "Monitore a exibição do seu painel e a atividade do sistema",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Seu painel ainda não foi configurado. Conecte seu painel para começar a exibir conteúdo.",
     "runSetupWizard": "Iniciar Assistente de Configuração"
   },
-
   "pages": {
     "title": "Páginas",
     "description": "Crie e gerencie conteúdo para o seu painel",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Crie sua primeira página para exibir no painel.",
     "createFirstPage": "Crie sua primeira página"
   },
-
   "carousels": {
     "title": "Carrosséis",
     "description": "Crie coleções de páginas que alternam automaticamente",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Falha ao atualizar carrossel",
     "toastDeleteFailed": "Falha ao excluir carrossel"
   },
-
   "schedule": {
     "title": "Agenda",
     "description": "Automatize a rotação de páginas com base em horário e dia",
@@ -186,7 +181,6 @@
       "submitError": "Falha ao salvar agenda"
     }
   },
-
   "integrations": {
     "title": "Integrações",
     "description": "Ative e configure plugins de fontes de dados para o seu FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Clima e Meio Ambiente"
     }
   },
-
   "settings": {
     "title": "Configurações",
     "description": "Configure o seu serviço FiestaBoard",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Execute novamente o assistente de configuração para reconfigurar a conexão do painel e as configurações básicas.",
     "runSetupWizard": "Iniciar Assistente de Configuração"
   },
-
   "offline": {
     "youreOffline": "Você Está Offline",
     "reconnecting": "Reconectando...",
@@ -262,7 +254,6 @@
     "accessCached": "Acessar conteúdo em cache",
     "browseSaved": "Navegar pelos seus dados salvos"
   },
-
   "wizard": {
     "welcomeTitle": "Bem-vindo ao FiestaBoard",
     "welcomeSubtitle": "Vamos configurar tudo em apenas alguns passos",
@@ -316,7 +307,9 @@
       "boardType": "Tipo de Painel",
       "flagshipDimensions": "22 × 6 caracteres",
       "noteDimensions": "15 × 3 caracteres",
-      "boardColor": "Cor do Painel"
+      "boardColor": "Cor do Painel",
+      "connectionTestFailed": "Teste de conexão falhou",
+      "failedToEnableLocalApi": "Falha ao habilitar a API local"
     },
     "easyPlugins": {
       "description": "Esses recursos funcionam imediatamente sem nenhuma chave de API externa. Ative o que desejar!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "O painel está em horário de silêncio — a mensagem foi agendada para depois!",
       "failedToSend": "Falha ao enviar",
       "goToDashboard": "Ir para o Painel",
-      "skipGoToDashboard": "Pular e Ir para o Painel"
+      "skipGoToDashboard": "Pular e Ir para o Painel",
+      "dateTimeName": "Data e Hora",
+      "starTrekName": "Citações de Star Trek",
+      "guestWifiName": "WiFi de Convidados"
     }
   },
-
   "activeDisplay": {
     "title": "Exibição Ativa",
     "viewSchedule": "Ver Agenda",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Página ativa alterada",
     "toastSwitchFailed": "Falha ao trocar de página"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Status do serviço: Desconectado",
     "runningAriaLabel": "Status do serviço: Em execução",
@@ -381,7 +375,6 @@
     "runningTooltip": "Em execução",
     "stoppedTooltip": "Parado"
   },
-
   "installPrompt": {
     "title": "Instalar FiestaBoard Control",
     "description": "Adicione à sua tela inicial para acesso rápido e uma experiência melhor.",
@@ -389,7 +382,6 @@
     "notNow": "Agora não",
     "dismissAriaLabel": "Dispensar"
   },
-
   "silenceMode": {
     "loading": "Carregando...",
     "disabled": "Modo Silêncio: Desativado",
@@ -400,7 +392,6 @@
     "compactSilent": "Silencioso",
     "compactActive": "Ativo"
   },
-
   "pageBuilder": {
     "editPage": "Editar Página",
     "createPage": "Criar Página",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Saída ao vivo desativada por inatividade",
     "toastLiveSendFailed": "Falha ao enviar para o painel"
   },
-
   "displaySettings": {
     "title": "Seus Painéis",
     "description": "Adicione cada Vestaboard que você possui e configure sua conexão.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Painel removido",
     "atLeastOneBoard": "É necessário pelo menos um painel"
   },
-
   "systemUpdate": {
     "updateAvailable": "Atualização Disponível",
     "youAreRunning": "Você está usando a v{currentVersion}.",
     "viewRelease": "Ver Versão",
     "checkForUpdates": "Verificar atualizações"
   },
-
   "transitionSettings": {
     "title": "Transições do Painel",
     "description": "Escolha como o painel é animado ao atualizar para uma nova mensagem. As transições controlam o estilo de animação dos caracteres no seu Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Ferramentas de Depuração",
     "description": "Teste e depure a conexão com o Vestaboard",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Diagnóstico de rede falhou: {error}",
     "toastCacheClearFailed": "Falha ao limpar cache: {error}"
   },
-
   "generalSettings": {
     "title": "Configurações Gerais",
     "description": "Configure as definições globais e o controle do serviço",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Falha ao salvar horário de silêncio: {error}",
     "toastPollingUpdated": "Intervalo de verificação atualizado",
     "toastPollingUpdatedRestart": "Intervalo de verificação atualizado. Reinicie o serviço para aplicar as alterações.",
-    "toastPollingFailed": "Falha ao atualizar intervalo de verificação: {error}"
+    "toastPollingFailed": "Falha ao atualizar intervalo de verificação: {error}",
+    "languageLabel": "Idioma",
+    "languageDescription": "Escolha o idioma de exibição da interface"
   },
-
   "themeToggle": {
     "toggleTheme": "Alternar tema"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Atualização disponível: v{version}",
     "updateAvailableTooltip": "Atualização disponível: v{version}"
   },
-
   "serviceControls": {
     "title": "Controle do Serviço",
     "contentAutoSent": "O conteúdo é enviado automaticamente para o painel físico"
   },
-
   "daySelector": {
     "daysLegend": "Dias",
     "dayPatternAriaLabel": "Padrão de dias",
@@ -652,7 +636,6 @@
       "sunday": "Dom"
     }
   },
-
   "configDisplay": {
     "title": "Configuração",
     "clickToToggle": "clique para alternar pré-visualização",
@@ -665,7 +648,6 @@
       "rotation": "Rotação"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Digite o texto do seu template...",
     "lineCount": "{current} / {total} linhas",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Prefixos de alinhamento: {left}, {center}, {right}",
     "wrapPrefix": "Prefixo de quebra de linha: {wrap}"
   },
-
   "outputTarget": {
     "title": "Destino da Saída",
     "description": "Escolha onde o conteúdo deve ser exibido",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Exibir na interface e enviar para o painel",
     "toastUpdated": "Destino da saída atualizado"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Nenhuma (sem padrão)",
     "pagesAriaLabel": "Páginas",
@@ -697,7 +677,6 @@
     "pagesTab": "Páginas ({count})",
     "carouselsTab": "Carrosséis ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "SELECIONAR PÁGINA",
     "loadingPreviewAriaLabel": "Carregando pré-visualização",

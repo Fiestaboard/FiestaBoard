@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
@@ -14,6 +15,7 @@ import {
   WizardProgress 
 } from "@/lib/setup-detection";
 import { Aurora } from "@/components/ui/aurora";
+import { LanguageSelector } from "@/components/language-selector";
 import { StepBoardSetup } from "./step-board-setup";
 import { StepEasyPlugins } from "./step-easy-plugins";
 import { StepWelcome } from "./step-welcome";
@@ -26,6 +28,8 @@ const TOTAL_STEPS = 3;
 
 export function SetupWizard({ onComplete }: SetupWizardProps) {
   const router = useRouter();
+  const t = useTranslations("wizard");
+  const tc = useTranslations("common");
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
@@ -163,15 +167,15 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   // Step titles
   const stepTitles = [
-    "Connect Your Board",
-    "Add Data Sources",
-    "You're All Set!",
+    t("stepTitles.connectBoard"),
+    t("stepTitles.addDataSources"),
+    t("stepTitles.allSet"),
   ];
 
   const stepDescriptions = [
-    "Enter your board credentials to get started",
-    "Enable optional features that work right away",
-    "Send a test message to your board",
+    t("stepDescriptions.enterCredentials"),
+    t("stepDescriptions.enableFeatures"),
+    t("stepDescriptions.sendTestMessage"),
   ];
 
   return (
@@ -191,20 +195,24 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         <div className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
           {/* Header */}
           <header className="text-center pb-4">
-            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 mb-4 overflow-hidden">
-              <Image
-                src="/icons/icon-96x96.png"
-                alt="FiestaBoard"
-                width={48}
-                height={48}
-                className="w-10 h-10 sm:w-12 sm:h-12"
-              />
+            <div className="flex items-center justify-between mb-4">
+              <div />
+              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 overflow-hidden">
+                <Image
+                  src="/icons/icon-96x96.png"
+                  alt="FiestaBoard"
+                  width={48}
+                  height={48}
+                  className="w-10 h-10 sm:w-12 sm:h-12"
+                />
+              </div>
+              <LanguageSelector />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Welcome to FiestaBoard
+              {t("welcomeTitle")}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-              Let&apos;s get you set up in just a few steps
+              {t("welcomeSubtitle")}
             </p>
           </header>
 
@@ -224,9 +232,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               ))}
             </div>
             <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>Connect</span>
-              <span>Customize</span>
-              <span>Finish</span>
+              <span>{t("progressConnect")}</span>
+              <span>{t("progressCustomize")}</span>
+              <span>{t("progressFinish")}</span>
             </div>
           </div>
 
@@ -254,14 +262,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   size="lg"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
-                  Back
+                  {tc("back")}
                 </Button>
               )}
             </div>
 
             <div className="flex items-center gap-3">
               <span className="text-sm text-muted-foreground">
-                Step {currentStep} of {TOTAL_STEPS}
+                {t("stepOf", { current: currentStep, total: TOTAL_STEPS })}
               </span>
 
               {currentStep === 1 && (
@@ -271,7 +279,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   disabled={isLoading}
                   size="lg"
                 >
-                  Skip for now
+                  {t("skipForNow")}
                 </Button>
               )}
 
@@ -281,7 +289,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   disabled={!canProceed || isLoading}
                   size="lg"
                 >
-                  Next
+                  {tc("next")}
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               )}
