@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LanguageSelector } from "@/components/language-selector";
 import { ServiceStatus } from "@/components/service-status";
 import { VersionDisplay } from "@/components/version-display";
 import { Button } from "@/components/ui/button";
@@ -171,10 +170,7 @@ export function NavigationSidebar() {
         </nav>
         <div className="border-t px-4 py-3 flex items-center justify-between">
           <VersionDisplay />
-          <div className="flex items-center gap-2">
-            <LanguageSelector />
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -198,7 +194,7 @@ export function NavigationSidebar() {
               <button
                 onClick={toggle}
                 aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
-                className="absolute -right-3.5 top-[84px] z-[51] flex h-7 w-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-md ring-1 ring-black/[0.08] dark:ring-white/20 hover:bg-accent hover:text-foreground transition-colors"
+                className="absolute -right-3.5 top-[51px] z-[51] flex h-7 w-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-md ring-1 ring-black/[0.08] dark:ring-white/20 hover:bg-accent hover:text-foreground transition-colors"
               >
                 {collapsed ? (
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -214,10 +210,7 @@ export function NavigationSidebar() {
 
           <div className="flex h-full flex-col overflow-hidden">
             {/* Header */}
-            <div className={cn(
-              "flex items-center border-b border-sidebar-border overflow-hidden",
-              collapsed ? "justify-center px-2 py-4" : "justify-between px-6 py-4"
-            )}>
+            <div className="flex items-center justify-between border-b border-sidebar-border overflow-hidden px-4 py-4">
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Image
                   src="/icons/favicon-32x32.png"
@@ -227,25 +220,27 @@ export function NavigationSidebar() {
                   className="flex-shrink-0"
                 />
                 <h1 className={cn(
-                  "text-xl font-semibold tracking-tight whitespace-nowrap",
-                  collapsed && "sr-only"
+                  "text-xl font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-200",
+                  collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-75",
                 )}>FiestaBoard</h1>
               </div>
-              <div className={cn(collapsed && "sr-only")}>
+              <div className={cn(
+                "overflow-hidden flex-shrink-0 transition-[opacity,max-width] duration-200",
+                collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px] delay-75",
+              )}>
                 <ServiceStatus />
               </div>
             </div>
 
             {/* Navigation */}
-            <nav aria-label="Main navigation" className={cn("flex-1 space-y-1 py-4", collapsed ? "px-2" : "px-3")}>
+            <nav aria-label="Main navigation" className="flex-1 space-y-1 py-4 px-2">
               {navItems.map((item) => {
                 const isActive = !item.external && (item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/"));
                 const Icon = item.icon;
                 const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
                 const name = item.external ? item.key.charAt(0).toUpperCase() + item.key.slice(1) : t(item.key);
                 const linkClassName = cn(
-                  "flex items-center rounded-lg text-sm font-medium",
-                  collapsed ? "justify-center p-2" : "gap-3 px-3 py-2",
+                  "flex items-center gap-3 py-2 pl-[14px] pr-3 rounded-lg text-sm font-medium transition-colors",
                   isActive
                     ? "bg-brand-emphasis text-brand-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -260,7 +255,10 @@ export function NavigationSidebar() {
                     aria-label={collapsed ? name : undefined}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className={cn(collapsed && "sr-only")}>{name}</span>
+                    <span className={cn(
+                      "whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-200",
+                      collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-75",
+                    )}>{name}</span>
                   </a>
                 ) : (
                   <ViewTransitionLink
@@ -271,7 +269,10 @@ export function NavigationSidebar() {
                     aria-label={collapsed ? name : undefined}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className={cn(collapsed && "sr-only")}>{name}</span>
+                    <span className={cn(
+                      "whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-200",
+                      collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-75",
+                    )}>{name}</span>
                   </ViewTransitionLink>
                 );
 
@@ -291,16 +292,13 @@ export function NavigationSidebar() {
             </nav>
 
             {/* Footer */}
-            <div className={cn(
-              "border-t border-sidebar-border",
-              collapsed ? "px-2 py-3 flex flex-col items-center gap-2" : "px-6 py-4 space-y-2"
-            )}>
-              <div className={cn("flex items-center", collapsed ? "flex-col gap-2" : "justify-between")}>
-                <div className={cn(collapsed && "sr-only")}><VersionDisplay /></div>
+            <div className="border-t border-sidebar-border px-2 py-3">
+              <div className="relative flex items-center justify-center">
+                <div className={cn(
+                  "absolute left-0 overflow-hidden whitespace-nowrap transition-[opacity,max-width] duration-200",
+                  collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px] delay-75",
+                )}><VersionDisplay /></div>
                 <ThemeToggle />
-              </div>
-              <div className={cn(collapsed && "sr-only")}>
-                <LanguageSelector />
               </div>
             </div>
           </div>
