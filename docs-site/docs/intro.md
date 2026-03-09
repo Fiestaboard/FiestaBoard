@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. Add weather, stocks, sports, transit, and 23 more plugins to your Vestaboard Flagship or Note."
+description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. Add weather, stocks, sports, transit, and 26 more plugins to your Vestaboard Flagship or Note."
 keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard open source, best software for Vestaboard, smart dashboard, live display, open source]
 ---
 
@@ -21,7 +21,7 @@ Here's a quick look at what your board can show once FiestaBoard is running:
 | **Home** | Smart home status via Home Assistant, guest WiFi credentials |
 | **Fun & Visual** | Disney park wait times, sun art, visual clock, stardate |
 
-There are **23 built-in plugins**, and many of them work without any API key at all.
+There are **26 built-in plugins**, and many of them work without any API key at all.
 
 ## How It Works
 
@@ -77,7 +77,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Quick Start](/docs/setup/quick-start)** | Installation and first run |
 | **[Beginner's Guide](/docs/setup/beginners-guide)** | Step-by-step for non-technical users |
 | **[Your First 10 Minutes](/docs/setup/first-10-minutes)** | What to do right after setup |
-| **[Plugins Overview](/docs/plugins/overview)** | All 23 plugins and what they do |
+| **[Plugins Overview](/docs/plugins/overview)** | All 26 plugins and what they do |
 | **[Plugin Configuration](/docs/plugins/configuration)** | Enabling and configuring plugins |
 | **[Page Editor](/docs/features/page-editor)** | Creating and editing board content |
 | **[Schedule Mode](/docs/features/schedule)** | Automating when pages display |

@@ -63,7 +63,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ## What Can You Display?
 
-FiestaBoard has **23 built-in plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
+FiestaBoard has **26 built-in plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
@@ -102,6 +102,7 @@ FiestaBoard has **23 built-in plugins** covering weather, finance, transit, spor
 | [Date & Time](./plugins/date_time/README.md) | Current date/time in many formats | No |
 | [Generic Data](./plugins/generic_data/README.md) | Custom data from any JSON/XML URL | No |
 | [Guest WiFi](./plugins/guest_wifi/README.md) | WiFi credentials for guests | No |
+| [Allergy & Health](./plugins/health/README.md) | Allergy levels and health risk indicators | No |
 | [Star Trek Quotes](./plugins/star_trek_quotes/README.md) | Quotes from TNG, Voyager, DS9 | No |
 | [Dad Jokes](./plugins/dad_jokes/README.md) | Random dad jokes | No |
 | [Santa Tracker](./plugins/santa_tracker/README.md) | Track Santa's journey on Christmas | No |
