@@ -179,6 +179,14 @@ function deriveThemedPath(src: string, mode: 'light' | 'dark'): string {
   return `${dir}/${mode}/${filename}`;
 }
 
+function deriveBoardPath(src: string, colorMode: 'light' | 'dark'): string {
+  const boardDir = colorMode === 'light' ? 'white' : 'black';
+  const lastSlash = src.lastIndexOf('/');
+  const dir = src.substring(0, lastSlash);
+  const filename = src.substring(lastSlash + 1);
+  return `${dir}/${boardDir}/${filename}`;
+}
+
 function Feature({title, icon, description}: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
@@ -323,10 +331,13 @@ function FeatureShowcase({title, image, alt, description, link, reverse}: Showca
 }
 
 function PluginCard({title, image, alt, description, link}: ShowcaseItem) {
+  const {colorMode} = useColorMode();
+  const src = deriveBoardPath(image, colorMode);
+
   return (
     <Link to={link} className={styles.pluginCard}>
       <div className={styles.pluginCardImage}>
-        <img src={image} alt={alt} loading="lazy" />
+        <img src={src} alt={alt} loading="lazy" />
       </div>
       <div className={styles.pluginCardBody}>
         <Heading as="h4">
