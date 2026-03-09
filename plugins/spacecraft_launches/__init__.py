@@ -43,10 +43,6 @@ class SpacecraftLaunchesPlugin(PluginBase):
         if not isinstance(max_launches, int) or not (1 <= max_launches <= 10):
             errors.append("Max launches must be between 1 and 10")
 
-        refresh_seconds = config.get("refresh_seconds", 300)
-        if not isinstance(refresh_seconds, int) or refresh_seconds < 240:
-            errors.append("Refresh interval must be at least 240 seconds")
-
         return errors
 
     @staticmethod

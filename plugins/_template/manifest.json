@@ -8,6 +8,9 @@
   "category": "utility",
   "repository": "https://github.com/YourUsername/your-repo",
   "documentation": "README.md",
+
+  "min_refresh_seconds": 60,
+
   "settings_schema": {
     "type": "object",
     "properties": {

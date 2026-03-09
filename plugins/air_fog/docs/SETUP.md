@@ -7,9 +7,10 @@ The Air Quality & Fog feature monitors air quality (AQI from PM2.5) and fog cond
 **What it does:**
 - Real-time Air Quality Index (AQI) from PM2.5 concentrations
 - Intelligent fog detection based on visibility and weather
+- Pollen/allergen levels (grass, tree, weed) via Open-Meteo (free, no API key)
 - Wildfire smoke alerts when AQI > 100
 - Dew point calculation for fog prediction
-- Dual data sources: PurpleAir (air quality) + OpenWeatherMap (visibility)
+- Dual data sources: PurpleAir (air quality) + OpenWeatherMap (visibility) + Open-Meteo (pollen)
 - Color-coded alerts (green/yellow/orange/red)
 
 **Use Cases:**
@@ -160,6 +161,22 @@ Fog: {air_fog.fog_status}
 {air_fog.visibility}          # Visibility in meters
 ```
 
+### Pollen / Allergens
+
+Pollen data from [Open-Meteo](https://open-meteo.com/) — free, no API key required.
+
+```
+{air_fog.grass_pollen}        # Grass pollen concentration (grains/m³)
+{air_fog.grass_pollen_level}  # Severity: LOW, MODERATE, HIGH, VERY HIGH
+{air_fog.grass_pollen_color}  # Color code based on severity
+{air_fog.tree_pollen}         # Tree pollen concentration (grains/m³, birch+alder+olive)
+{air_fog.tree_pollen_level}   # Severity: LOW, MODERATE, HIGH, VERY HIGH
+{air_fog.tree_pollen_color}   # Color code based on severity
+{air_fog.weed_pollen}         # Weed pollen concentration (grains/m³, ragweed+mugwort)
+{air_fog.weed_pollen_level}   # Severity: LOW, MODERATE, HIGH, VERY HIGH
+{air_fog.weed_pollen_color}   # Color code based on severity
+```
+
 ## AQI Categories & Color Coding
 
 Air quality automatically categorized using US EPA standards:
@@ -232,6 +249,25 @@ Output example:
      AIR & FOG
 AQI:42 VIS:0.8mi
 AIR: GOOD
+```
+
+### Allergy & Health
+
+```
+{center}ALLERGY & HEALTH
+{{air_fog.grass_pollen_color}} GRASS: {air_fog.grass_pollen}
+{{air_fog.tree_pollen_color}} TREES: {air_fog.tree_pollen}
+{{air_fog.weed_pollen_color}} WEEDS: {air_fog.weed_pollen}
+AQI: {air_fog.aqi}
+```
+
+Output example:
+```
+  ALLERGY & HEALTH
+🟢 GRASS: 0
+🟠 TREES: 65
+🟢 WEEDS: 0
+AQI: 32
 ```
 
 ### Detailed Conditions
@@ -452,6 +488,13 @@ San Francisco's famous fog is most common:
 - **Measurement**: Visibility, temperature, humidity, weather conditions
 - **Update Frequency**: Updated every 10 minutes
 - **Free Tier**: 60 calls/minute, 1,000,000 calls/month
+
+### Open-Meteo (Pollen / Allergens)
+- **API**: https://open-meteo.com/en/docs/air-quality-api
+- **Coverage**: Global pollen data
+- **Measurement**: Grass, birch, alder, ragweed, mugwort, olive pollen (grains/m³)
+- **Update Frequency**: Hourly
+- **Free Tier**: Free for non-commercial use, no API key required
 
 ### AQI Calculation
 - **Standard**: US EPA AQI formula for PM2.5

@@ -12,6 +12,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: read
+  actions: write
 
 jobs:
   # Prevent loop: skip release when this run was triggered by our own version-bump push.
@@ -26,8 +27,8 @@ jobs:
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          # Skip when head commit is our version-bump (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
-          if echo "$COMMIT_MSG" | head -1 | grep -qE '^chore: bump version to '; then
+          # Skip when head commit is our version-bump or docs-snapshot (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
+          if echo "$COMMIT_MSG" | head -1 | grep -qE '^(chore: bump version to |docs: snapshot version )'; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "Skipping: trigger commit is a version-bump commit."
           else
@@ -349,6 +350,18 @@ jobs:
             });
             
             console.log(`Created release: ${release.html_url}`)
+
+      # The release above is created with GITHUB_TOKEN, whose events do
+      # not trigger other workflows.  Explicitly dispatch the Deploy Docs
+      # workflow with the release tag so it can create a Docusaurus version
+      # snapshot and deploy the updated site in a single run.
+      - name: Trigger docs versioning and deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run docs.yml \
+            --repo "${{ github.repository }}" \
+            -f tag="v${{ needs.prep.outputs.version }}"
 
   dockerhub-description:
     name: Update Docker Hub Description

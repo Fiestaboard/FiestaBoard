@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 import logging
 
 from src.plugins.base import PluginBase, PluginResult
-from .source import WeatherSource
+from .source import WeatherSource, _get_temperature_color
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +143,8 @@ class WeatherPlugin(PluginBase):
                 "location_count": len(all_data),
                 # All locations array
                 "locations": all_data,
+                # Multi-day forecast (from primary location)
+                "forecast": primary.get("forecast", []),
             }
             
             self._cache = data
@@ -187,6 +189,78 @@ class WeatherPlugin(PluginBase):
         ]
         
         return lines
+    
+    def get_forecast_display(self) -> Optional[List[str]]:
+        """Return forecast formatted weather display for the board.
+        
+        Layout (6 rows x 22 cols):
+        Row 0: Header "WEATHER REPORT" with color tiles
+        Row 1: Empty
+        Rows 2-5: Two-column forecast with day name, temp, and color tile
+        
+        Each forecast entry uses 11 display characters:
+        DAY + spaces + tempF + {color_tile}
+        """
+        if not self._cache:
+            result = self.fetch_data()
+            if not result.available:
+                return None
+        
+        data = self._cache
+        if not data:
+            return None
+        
+        forecast = data.get("forecast", [])
+        if not forecast:
+            return None
+        
+        # Row 0: Header with decorative color tiles
+        lines = [
+            "\u00b0{violet}{violet} WEATHER REPORT {violet}{violet}\u00b0",
+            "",  # Row 1: empty
+        ]
+        
+        # Rows 2-5: Forecast in two-column layout (up to 8 days)
+        # Left column: days 0,1,2,3  Right column: days 4,5,6,7
+        max_days = min(len(forecast), 8)
+        half = (max_days + 1) // 2  # Number of rows needed
+        
+        for row_idx in range(4):  # Rows 2-5
+            left_idx = row_idx
+            right_idx = row_idx + half
+            
+            if left_idx < max_days:
+                left = self._format_forecast_entry(forecast[left_idx])
+            else:
+                left = " " * 11
+            
+            if right_idx < max_days:
+                right = self._format_forecast_entry(forecast[right_idx])
+            else:
+                right = " " * 11
+            
+            lines.append(left + right)
+        
+        return lines
+    
+    @staticmethod
+    def _format_forecast_entry(day_data: Dict[str, Any]) -> str:
+        """Format a single forecast day for the board display.
+        
+        Returns a string that renders as exactly 11 board tiles:
+        DAY + spaces + tempF + {color_tile}
+        
+        Args:
+            day_data: Dict with day_name, high_temp, temperature_color
+        """
+        day_name = str(day_data.get("day_name", "???"))[:3]
+        temp = day_data.get("high_temp")
+        color = day_data.get("temperature_color", "white")
+        
+        temp_str = f"{temp}F" if temp is not None else "??F"
+        # Display tiles: 3 (day) + spaces + len(temp_str) + 1 (color) = 11
+        spaces = max(1, 7 - len(temp_str))
+        return f"{day_name}{' ' * spaces}{temp_str}{{{color}}}"
     
     def cleanup(self) -> None:
         """Clean up resources."""

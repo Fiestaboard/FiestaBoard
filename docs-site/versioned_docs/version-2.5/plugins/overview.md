@@ -1,0 +1,88 @@
+---
+sidebar_position: 1
+description: "Explore FiestaBoard's 23 plugins for your Vestaboard — weather, sports, traffic, transit, Home Assistant, and more."
+keywords: [FiestaBoard plugins, plugin overview, available plugins, Vestaboard plugins, Vestaboard integrations, split-flap integrations]
+---
+
+# Plugins Overview
+
+FiestaBoard uses a **plugin architecture** to bring live data to your Vestaboard. Each data source is a self-contained plugin you can enable or disable independently. There are currently 23 built-in plugins, and many work without any API key.
+
+## Enabling Plugins
+
+All plugin management is done through the **Web UI**:
+
+1. Open **http://localhost:4420**
+2. Go to the **Integrations** page
+3. Toggle plugins on or off
+4. For plugins that need API keys, the Integrations page shows you where to get them and has fields to enter them
+
+<ThemedScreenshot src="/img/guides/integrations-full.png" alt="Full Integrations page with plugin list and settings" />
+
+## No API Key Required
+
+These plugins work immediately after enabling - no registration or API keys needed:
+
+| Plugin | What It Shows |
+|--------|--------------|
+| **Bay Wheels** | Bike availability at Bay Area stations |
+| **Countdown** | Time remaining until a target event |
+| **Dad Jokes** | Random dad jokes from icanhazdadjoke |
+| **Date & Time** | Current date and time in multiple formats (12h/24h, US/international) with timezone support |
+| **Disney Parks Queue Times** | Live wait times for rides at Disney parks worldwide |
+| **Guest WiFi** | Your WiFi network name and password for guests |
+| **Santa Tracker** | Track Santa's journey around the world on Christmas Eve |
+| **Star Trek Quotes** | Random quotes from TNG, Voyager, and DS9 |
+| **Stardate** | Current TNG-era stardate |
+| **Sun Art** | Full-screen art pattern that changes with the sun's position throughout the day |
+| **Surf Conditions** | Wave height, swell period, and quality ratings |
+| **Visual Clock** | Large pixel-art style clock that fills the whole board |
+| **White Noise** | Ambient rain/white noise effect with cascading tiles |
+
+## Free API Key Required
+
+These plugins need a free API key from an external service:
+
+| Plugin | What It Shows | Where to Get the Key |
+|--------|--------------|---------------------|
+| **Weather** | Temperature, UV index, precipitation, high/low, sunset | [weatherapi.com](https://www.weatherapi.com/) (1M calls/month free) or [openweathermap.org](https://openweathermap.org/api) |
+| **Muni Transit** | Real-time SF Muni arrival predictions | [511.org](https://511.org/open-data/token) (free) |
+| **WSDOT Ferries** | WA State ferry schedules, vessel names, car spots, and alerts | [wsdot.wa.gov/traffic/api](https://wsdot.wa.gov/traffic/api/) (free) |
+| **Last.fm Now Playing** | Currently playing music via Last.fm scrobbling | [last.fm/api](https://www.last.fm/api/account/create) (free) |
+
+## Free Tier API Key Required
+
+These plugins need an API key from a service with a generous free tier:
+
+| Plugin | What It Shows | Where to Get the Key | Free Tier |
+|--------|--------------|---------------------|-----------|
+| **Traffic** | Travel time to destinations with live traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | $200/month credit |
+| **Home Assistant** | Smart home status (doors, garage, locks, etc.) | Your Home Assistant instance | Self-hosted |
+| **Air Quality & Fog** | AQI and fog conditions | PurpleAir or OpenWeatherMap | Varies |
+
+## Optional API Key
+
+These plugins work without an API key but offer additional features with one:
+
+| Plugin | Without API Key | With API Key |
+|--------|----------------|-------------|
+| **Stocks** | Monitor stock prices with color-coded indicators | Better symbol search/autocomplete ([finnhub.io](https://finnhub.io/)) |
+| **Sports Scores** | NFL, Soccer, NHL, NBA match scores | Extended data ([thesportsdb.com](https://www.thesportsdb.com/)) |
+| **Nearby Aircraft** | Real-time aircraft info from OpenSky Network | Higher rate limits ([opensky-network.org](https://opensky-network.org/)) |
+
+## Using Plugin Data in Pages
+
+Once a plugin is enabled, its data becomes available as **template variables** in the page editor:
+
+1. Create or edit a page in the **Pages** section
+2. Click the **Variables** button in the editor toolbar
+3. Browse variables grouped by plugin
+4. Click a variable to insert it at the cursor position
+
+Variables look like `{weather.temperature}` or `{date_time.datetime}` and are automatically replaced with live data when the page is displayed.
+
+For more details, see [Plugin Configuration](/docs/plugins/configuration).
+
+## Creating Your Own Plugins
+
+Want to add a data source that isn't built in? Check out the [Plugin Development Guide](/docs/development/plugin-guide) to learn how to create custom plugins.

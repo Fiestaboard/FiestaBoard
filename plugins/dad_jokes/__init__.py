@@ -22,10 +22,6 @@ class DadJokesPlugin(PluginBase):
     and displays them on the board.
     """
 
-    def __init__(self, manifest: Dict[str, Any]):
-        """Initialize the Dad Jokes plugin."""
-        super().__init__(manifest)
-
     @property
     def plugin_id(self) -> str:
         """Return plugin identifier."""
@@ -53,13 +49,9 @@ class DadJokesPlugin(PluginBase):
                     error="No joke returned from API",
                 )
 
-            data = {
-                "joke": joke_text,
-            }
-
             return PluginResult(
                 available=True,
-                data=data,
+                data={"joke": joke_text},
             )
 
         except Exception as e:
@@ -71,7 +63,7 @@ class DadJokesPlugin(PluginBase):
 
     def get_formatted_display(self) -> Optional[List[str]]:
         """Return default formatted joke display."""
-        result = self.fetch_data()
+        result = self.get_data()
         if not result.available or not result.data:
             return None
 

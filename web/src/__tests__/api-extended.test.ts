@@ -1019,4 +1019,119 @@ describe("API Extended Tests", () => {
       expect(typeof result.update_available).toBe("boolean");
     });
   });
+
+  describe("Monitoring endpoints", () => {
+    it("getDebugMonitorEnabled returns enabled status", async () => {
+      server.use(
+        http.get(`${API_BASE}/debug/monitor/enabled`, () =>
+          HttpResponse.json({ enabled: true })
+        )
+      );
+      const result = await api.getDebugMonitorEnabled();
+      expect(result.enabled).toBe(true);
+    });
+
+    it("getRequestLog without params returns entries", async () => {
+      server.use(
+        http.get(`${API_BASE}/debug/request-log`, () =>
+          HttpResponse.json({
+            total: 2,
+            offset: 0,
+            limit: 50,
+            entries: [
+              { timestamp: "2026-01-01T00:00:00Z", method: "GET", path: "/api/status", query: null, status: 200, duration_ms: 10 },
+              { timestamp: "2026-01-01T00:00:01Z", method: "POST", path: "/api/start", query: null, status: 500, duration_ms: 50 },
+            ],
+          })
+        )
+      );
+      const result = await api.getRequestLog();
+      expect(result.total).toBe(2);
+      expect(result.entries).toHaveLength(2);
+    });
+
+    it("getRequestLog with all params builds query string", async () => {
+      let capturedUrl = "";
+      server.use(
+        http.get(`${API_BASE}/debug/request-log`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({ total: 0, offset: 5, limit: 10, entries: [] });
+        })
+      );
+      await api.getRequestLog({ limit: 10, offset: 5, status: "4xx", path: "/api/status" });
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.get("limit")).toBe("10");
+      expect(url.searchParams.get("offset")).toBe("5");
+      expect(url.searchParams.get("status")).toBe("4xx");
+      expect(url.searchParams.get("path")).toBe("/api/status");
+    });
+
+    it("getRequestLog with partial params only sets provided values", async () => {
+      let capturedUrl = "";
+      server.use(
+        http.get(`${API_BASE}/debug/request-log`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({ total: 0, offset: 0, limit: 100, entries: [] });
+        })
+      );
+      await api.getRequestLog({ limit: 100 });
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.get("limit")).toBe("100");
+      expect(url.searchParams.has("offset")).toBe(false);
+      expect(url.searchParams.has("status")).toBe(false);
+      expect(url.searchParams.has("path")).toBe(false);
+    });
+
+    it("getClientErrors without params returns entries", async () => {
+      server.use(
+        http.get(`${API_BASE}/debug/client-errors`, () =>
+          HttpResponse.json({
+            total: 1,
+            offset: 0,
+            limit: 50,
+            entries: [
+              { timestamp: "2026-01-01T00:00:00Z", path: "/api/broken", method: "GET", status: 500, error_message: "Server error" },
+            ],
+          })
+        )
+      );
+      const result = await api.getClientErrors();
+      expect(result.total).toBe(1);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].error_message).toBe("Server error");
+    });
+
+    it("getClientErrors with params builds query string", async () => {
+      let capturedUrl = "";
+      server.use(
+        http.get(`${API_BASE}/debug/client-errors`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({ total: 0, offset: 10, limit: 25, entries: [] });
+        })
+      );
+      await api.getClientErrors({ limit: 25, offset: 10 });
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.get("limit")).toBe("25");
+      expect(url.searchParams.get("offset")).toBe("10");
+    });
+
+    it("getNetworkDiagnostics returns diagnostics result", async () => {
+      server.use(
+        http.get(`${API_BASE}/debug/network-diagnostics`, () =>
+          HttpResponse.json({
+            diagnostics: {
+              overall_ok: true,
+              dns: { ok: true, ip: "142.250.80.46", hostname: "google.com" },
+              internet: { ok: true, url: "https://google.com", latency_ms: 42 },
+              vestaboard: { ok: true, mode: "cloud", steps: { cloud_api: { ok: true, latency_ms: 120, status_code: 200 } }, error: null },
+              recommendations: [],
+            },
+          })
+        )
+      );
+      const result = await api.getNetworkDiagnostics();
+      expect(result.diagnostics.overall_ok).toBe(true);
+      expect(result.diagnostics.dns.ok).toBe(true);
+    });
+  });
 });

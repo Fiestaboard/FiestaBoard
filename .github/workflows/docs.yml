@@ -2,17 +2,23 @@
 # the Fiestaboard/fiestaboard.github.io repo as incremental commits.
 # That repo auto-publishes to https://fiestaboard.github.io since it is
 # the organization's GitHub Pages repo.
+#
+# Dispatched by the release workflow with a release tag.  Creates a
+# Docusaurus version snapshot, builds the site, then deploys.
+# Patch releases (e.g. 2.5.0 → 2.5.1) share the same docs version
+# (e.g. "2.5") so the snapshot step is a no-op for them.
 name: Deploy Docs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs-site/**'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to version docs for (e.g. v2.5.0).'
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: pages
@@ -25,6 +31,9 @@ jobs:
     steps:
       - name: Checkout source repo
         uses: actions/checkout@v6
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -37,9 +46,58 @@ jobs:
         working-directory: docs-site
         run: npm ci
 
+      # --- Version snapshot ---
+
+      - name: Determine docs version
+        id: version
+        run: |
+          TAG="${{ inputs.tag }}"
+          # Strip leading 'v' if present (v2.5.0 → 2.5.0)
+          SEMVER="${TAG#v}"
+          MAJOR="${SEMVER%%.*}"
+          REST="${SEMVER#*.}"
+          MINOR="${REST%%.*}"
+          DOCS_VERSION="${MAJOR}.${MINOR}"
+
+          echo "docs_version=${DOCS_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved docs version: ${DOCS_VERSION}"
+
+      - name: Check if version already exists
+        id: check-version
+        run: |
+          DOCS_VERSION="${{ steps.version.outputs.docs_version }}"
+          if [ -f docs-site/versions.json ] && grep -q "\"${DOCS_VERSION}\"" docs-site/versions.json; then
+            echo "Docs version ${DOCS_VERSION} already exists — skipping snapshot."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Docs version ${DOCS_VERSION} is new — will create snapshot."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create docs version snapshot
+        if: steps.check-version.outputs.skip != 'true'
+        working-directory: docs-site
+        run: npx docusaurus docs:version "${{ steps.version.outputs.docs_version }}"
+
+      # --- Build (always) ---
+
       - name: Build Docusaurus site
         working-directory: docs-site
         run: npm run build
+
+      # --- Push version snapshot to main (after successful build) ---
+
+      - name: Commit and push versioned docs
+        if: steps.check-version.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs-site/versions.json docs-site/versioned_docs docs-site/versioned_sidebars
+          git commit -m "docs: snapshot version ${{ steps.version.outputs.docs_version }} docs"
+          git push origin main
+
+      # --- Deploy (always) ---
 
       # Push the built static site to fiestaboard.github.io as an incremental commit.
       # That repo serves from main automatically — no Pages config needed here.

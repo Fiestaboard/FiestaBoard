@@ -9,6 +9,8 @@
   "icon": "cloud-sun",
   "category": "weather",
 
+  "min_refresh_seconds": 60,
+
   "settings_schema": {
     "type": "object",
     "properties": {
@@ -134,6 +136,20 @@
           "uv_index",
           "sunset"
         ]
+      },
+      "forecast": {
+        "label_field": "day_name",
+        "item_fields": [
+          "date",
+          "day_name",
+          "high_temp",
+          "high_temp_c",
+          "low_temp",
+          "low_temp_c",
+          "condition",
+          "precipitation_chance",
+          "temperature_color"
+        ]
       }
     }
   },
@@ -173,7 +189,16 @@
     "locations.*.low_temp": 3,
     "locations.*.low_temp_c": 3,
     "locations.*.uv_index": 2,
-    "locations.*.sunset": 8
+    "locations.*.sunset": 8,
+    "forecast.*.date": 10,
+    "forecast.*.day_name": 3,
+    "forecast.*.high_temp": 3,
+    "forecast.*.high_temp_c": 3,
+    "forecast.*.low_temp": 3,
+    "forecast.*.low_temp_c": 3,
+    "forecast.*.condition": 12,
+    "forecast.*.precipitation_chance": 3,
+    "forecast.*.temperature_color": 6
   },
 
   "color_rules_schema": {
