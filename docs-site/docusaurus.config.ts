@@ -155,12 +155,7 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           editUrl:
             'https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/',
-          versions: {
-            current: {
-              label: 'Next 🚧',
-              banner: 'unreleased',
-            },
-          },
+          includeCurrentVersion: false,
         },
         blog: false, // Disable blog for now - keep it simple
         theme: {
