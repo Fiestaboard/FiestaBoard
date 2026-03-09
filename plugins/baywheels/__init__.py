@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional
 import logging
 import requests
 import time
-import math
 
 from src.plugins.base import PluginBase, PluginResult
 
@@ -36,7 +35,6 @@ class BayWheelsPlugin(PluginBase):
     
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "baywheels"
     
     def validate_config(self, config: Dict[str, Any]) -> List[str]:

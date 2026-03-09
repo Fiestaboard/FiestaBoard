@@ -36,7 +36,6 @@ class StarTrekQuotesPlugin(PluginBase):
     
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "star_trek_quotes"
     
     def _load_quotes(self) -> None:

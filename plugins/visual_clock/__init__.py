@@ -4,7 +4,7 @@ Displays a full-screen clock with large pixel-art style digits
 that span the 6x22 board grid.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import logging
 from datetime import datetime
 import pytz
@@ -183,7 +183,6 @@ class VisualClockPlugin(PluginBase):
     
     @property
     def plugin_id(self) -> str:
-        """Return plugin identifier."""
         return "visual_clock"
     
     def validate_config(self, config: Dict[str, Any]) -> List[str]:
