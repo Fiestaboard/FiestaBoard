@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Clock, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { utcToLocalTime, getTimezoneAbbreviation } from "@/lib/timezone-utils";
+import { useTranslations } from "next-intl";
 
 interface SilenceModeStatusProps {
   className?: string;
@@ -12,6 +13,8 @@ interface SilenceModeStatusProps {
 }
 
 export function SilenceModeStatus({ className, showDetails = true }: SilenceModeStatusProps) {
+  const t = useTranslations("silenceMode");
+
   // Fetch general config for timezone
   const { data: generalConfig } = useQuery({
     queryKey: ["generalConfig"],
@@ -30,7 +33,7 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
       <div className={className}>
         <Badge variant="secondary" className="gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" />
-          Loading...
+          {t("loading")}
         </Badge>
       </div>
     );
@@ -41,7 +44,7 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
       <div className={className}>
         <Badge variant="outline" className="gap-1.5">
           <Moon className="h-3 w-3" />
-          Silence Mode: Disabled
+          {t("disabled")}
         </Badge>
       </div>
     );
@@ -60,12 +63,12 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
       <div className={className}>
         <Badge variant="destructive" className="gap-1.5">
           <Moon className="h-3 w-3" />
-          <span>Silence Mode: Active</span>
+          <span>{t("active")}</span>
         </Badge>
         {showDetails && (
           <p className="text-xs text-muted-foreground mt-1">
             <Clock className="h-3 w-3 inline mr-1" />
-            Until {nextChangeLocal} {timezoneAbbr}
+            {t("until", { time: nextChangeLocal, timezone: timezoneAbbr })}
           </p>
         )}
       </div>
@@ -76,12 +79,12 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
     <div className={className}>
       <Badge variant="secondary" className="gap-1.5">
         <Sun className="h-3 w-3" />
-        <span>Silence Mode: Inactive</span>
+        <span>{t("inactive")}</span>
       </Badge>
       {showDetails && (
         <p className="text-xs text-muted-foreground mt-1">
           <Clock className="h-3 w-3 inline mr-1" />
-          Starts at {nextChangeLocal} {timezoneAbbr}
+          {t("startsAt", { time: nextChangeLocal, timezone: timezoneAbbr })}
         </p>
       )}
     </div>
@@ -90,6 +93,7 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
 
 // Compact version for use in headers or tight spaces
 export function SilenceModeStatusCompact({ className }: { className?: string }) {
+  const t = useTranslations("silenceMode");
   const { data: silenceStatus } = useQuery({
     queryKey: ["silenceStatus"],
     queryFn: api.getSilenceStatus,
@@ -108,12 +112,12 @@ export function SilenceModeStatusCompact({ className }: { className?: string }) 
       {silenceStatus.active ? (
         <>
           <Moon className="h-3 w-3 mr-1" />
-          Silent
+          {t("compactSilent")}
         </>
       ) : (
         <>
           <Sun className="h-3 w-3 mr-1" />
-          Active
+          {t("compactActive")}
         </>
       )}
     </Badge>

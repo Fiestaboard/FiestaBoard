@@ -8,19 +8,27 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTranslations } from "next-intl";
 
 export function ServiceStatus() {
   const { data, isLoading, isError } = useStatus();
+  const t = useTranslations("serviceStatus");
 
   if (isLoading) {
     return <Skeleton className="h-3 w-3 rounded-full" />;
   }
 
   const statusText = isError || !data 
-    ? "Disconnected" 
+    ? t("disconnectedTooltip") 
     : data.running 
-    ? "Running" 
-    : "Stopped";
+    ? t("runningTooltip") 
+    : t("stoppedTooltip");
+
+  const ariaLabel = isError || !data
+    ? t("disconnectedAriaLabel")
+    : data.running
+    ? t("runningAriaLabel")
+    : t("stoppedAriaLabel");
 
   const statusClass = isError || !data
     ? "bg-board-red animate-pulse"
@@ -40,7 +48,7 @@ export function ServiceStatus() {
         <TooltipTrigger asChild>
           <button
             className="relative h-6 w-6 flex items-center justify-center cursor-default rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`Service status: ${statusText}`}
+            aria-label={ariaLabel}
           >
             <span className={`h-3 w-3 rounded-full ${statusClass} transition-all`} style={glowStyle} />
           </button>

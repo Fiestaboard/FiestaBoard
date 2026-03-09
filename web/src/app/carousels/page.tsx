@@ -37,18 +37,19 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import type { Carousel, CarouselCreate, CarouselUpdate, Page } from "@/lib/api";
 import { queryKeys } from "@/hooks/use-board";
+import { useTranslations } from "next-intl";
 
 const INTERVAL_PRESETS = [
-  { label: "5 seconds", value: 5 },
-  { label: "10 seconds", value: 10 },
-  { label: "15 seconds", value: 15 },
-  { label: "30 seconds", value: 30 },
-  { label: "1 minute", value: 60 },
-  { label: "2 minutes", value: 120 },
-  { label: "5 minutes", value: 300 },
-  { label: "10 minutes", value: 600 },
-  { label: "15 minutes", value: 900 },
-  { label: "30 minutes", value: 1800 },
+  { labelKey: "interval5s", value: 5 },
+  { labelKey: "interval10s", value: 10 },
+  { labelKey: "interval15s", value: 15 },
+  { labelKey: "interval30s", value: 30 },
+  { labelKey: "interval1m", value: 60 },
+  { labelKey: "interval2m", value: 120 },
+  { labelKey: "interval5m", value: 300 },
+  { labelKey: "interval10m", value: 600 },
+  { labelKey: "interval15m", value: 900 },
+  { labelKey: "interval30m", value: 1800 },
 ];
 
 function formatInterval(seconds: number): string {
@@ -66,6 +67,8 @@ interface CarouselFormProps {
 }
 
 function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: CarouselFormProps) {
+  const t = useTranslations("carousels");
+  const tc = useTranslations("common");
   const isEdit = Boolean(carousel);
   const [name, setName] = useState(carousel?.name || "");
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>(carousel?.page_ids || []);
@@ -135,20 +138,20 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
     <form onSubmit={handleSubmit} className="space-y-6 mt-4">
       {/* Name */}
       <div className="space-y-2">
-        <Label htmlFor="carousel-name">Name</Label>
+        <Label htmlFor="carousel-name">{t("nameLabel")}</Label>
         <Input
           id="carousel-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="My Carousel"
+          placeholder={t("namePlaceholder")}
           maxLength={100}
         />
       </div>
 
       {/* Interval */}
       <div className="space-y-2">
-        <Label>Page Duration</Label>
-        <p className="text-xs text-muted-foreground">How long each page displays before cycling</p>
+        <Label>{t("pageDurationLabel")}</Label>
+        <p className="text-xs text-muted-foreground">{t("pageDurationDescription")}</p>
         <Select
           value={String(intervalSeconds)}
           onValueChange={(v) => setIntervalSeconds(Number(v))}
@@ -159,7 +162,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
           <SelectContent>
             {INTERVAL_PRESETS.map((p) => (
               <SelectItem key={p.value} value={String(p.value)}>
-                {p.label}
+                {t(p.labelKey)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -168,14 +171,14 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
 
       {/* Selected Pages (reorderable) */}
       <div className="space-y-2">
-        <Label>Pages in Carousel</Label>
+        <Label>{t("pagesInCarousel")}</Label>
         <p className="text-xs text-muted-foreground">
-          Drag to reorder. Pages cycle in this order.
+          {t("dragToReorder")}
         </p>
 
         {selectedPageIds.length === 0 ? (
           <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-            No pages added yet
+            {t("noPagesAdded")}
           </div>
         ) : (
           <div className="space-y-1">
@@ -219,7 +222,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
         {availablePages.length > 0 && (
           <Select onValueChange={handleAddPage} value="">
             <SelectTrigger className="mt-2">
-              <SelectValue placeholder="Add a page..." />
+              <SelectValue placeholder={t("addPagePlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {availablePages.map((page) => (
@@ -238,17 +241,17 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
           {isEdit && onDelete && (
             <Button type="button" variant="destructive" onClick={onDelete} disabled={isSubmitting}>
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {tc("delete")}
             </Button>
           )}
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button type="submit" disabled={!canSubmit || isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEdit ? "Update" : "Create"} Carousel
+            {isEdit ? t("updateCarousel") : t("createCarousel")}
           </Button>
         </div>
       </div>
@@ -257,6 +260,8 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
 }
 
 export default function CarouselsPage() {
+  const t = useTranslations("carousels");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingCarousel, setEditingCarousel] = useState<Carousel | null>(null);
@@ -281,11 +286,11 @@ export default function CarouselsPage() {
     mutationFn: (data: CarouselCreate) => api.createCarousel(data),
     onSuccess: () => {
       invalidateAll();
-      toast.success("Carousel created");
+      toast.success(t("toastCreated"));
       setShowForm(false);
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to create carousel");
+      toast.error(err.message || t("toastCreateFailed"));
       throw err;
     },
   });
@@ -295,12 +300,12 @@ export default function CarouselsPage() {
       api.updateCarousel(id, data),
     onSuccess: () => {
       invalidateAll();
-      toast.success("Carousel updated");
+      toast.success(t("toastUpdated"));
       setShowForm(false);
       setEditingCarousel(null);
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to update carousel");
+      toast.error(err.message || t("toastUpdateFailed"));
       throw err;
     },
   });
@@ -309,10 +314,10 @@ export default function CarouselsPage() {
     mutationFn: (id: string) => api.deleteCarousel(id),
     onSuccess: () => {
       invalidateAll();
-      toast.success("Carousel deleted");
+      toast.success(t("toastDeleted"));
       setDeleteId(null);
     },
-    onError: () => toast.error("Failed to delete carousel"),
+    onError: () => toast.error(t("toastDeleteFailed")),
   });
 
   const handleSubmit = async (data: CarouselCreate | CarouselUpdate) => {
@@ -359,10 +364,10 @@ export default function CarouselsPage() {
             <div>
               <h1 className="page-title flex items-center gap-3">
                 <GalleryHorizontalEnd className="h-7 w-7 text-brand-emphasis" />
-                Carousels
+                {t("title")}
               </h1>
               <p className="page-description">
-                Create collections of pages that cycle automatically
+                {t("description")}
               </p>
             </div>
             <Button
@@ -375,7 +380,7 @@ export default function CarouselsPage() {
               className="btn-lift"
             >
               <Plus className="h-4 w-4 mr-1" />
-              New Carousel
+              {t("newCarousel")}
             </Button>
           </div>
         </div>
@@ -385,9 +390,9 @@ export default function CarouselsPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <GalleryHorizontalEnd className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-2">No carousels yet</p>
+              <p className="text-muted-foreground mb-2">{t("noCarouselsTitle")}</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Carousels automatically cycle through a collection of pages.
+                {t("noCarouselsDescription")}
               </p>
               <Button
                 variant="brand"
@@ -398,7 +403,7 @@ export default function CarouselsPage() {
                 className="btn-lift"
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Create Your First Carousel
+                {t("createFirstCarousel")}
               </Button>
             </CardContent>
           </Card>
@@ -452,12 +457,12 @@ export default function CarouselsPage() {
           <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
             <SheetHeader>
               <SheetTitle>
-                {editingCarousel ? "Edit" : "New"} Carousel
+                {editingCarousel ? t("editCarousel") : t("newCarousel")}
               </SheetTitle>
               <SheetDescription>
                 {editingCarousel
-                  ? "Update carousel settings and page order"
-                  : "Create a collection of pages that cycle automatically"}
+                  ? t("editDescription")
+                  : t("createDescription")}
               </SheetDescription>
             </SheetHeader>
             <CarouselForm
@@ -482,16 +487,15 @@ export default function CarouselsPage() {
         <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Carousel</AlertDialogTitle>
+              <AlertDialogTitle>{t("deleteCarousel")}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure? This cannot be undone. If this carousel is currently active, the
-                display will stop cycling.
+                {t("deleteConfirmation")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
               <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>
-                Delete
+                {tc("delete")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -15,10 +15,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export default function SettingsPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const { triggerWizard } = useWizard();
+  const t = useTranslations("settings");
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -27,10 +29,10 @@ export default function SettingsPage() {
         <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
           <h1 className="page-title flex items-center gap-3">
             <SlidersHorizontal className="h-7 w-7 text-brand-emphasis" />
-            Settings
+            {t("title")}
           </h1>
           <p className="page-description">
-            Configure your FiestaBoard service
+            {t("description")}
           </p>
         </div>
           {/* Update alert banner */}
@@ -60,7 +62,7 @@ export default function SettingsPage() {
               onOpenChange={setAdvancedOpen}
             >
               <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-                <h2 className="text-base font-semibold">Advanced</h2>
+                <h2 className="text-base font-semibold">{t("advancedSection")}</h2>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${advancedOpen ? "rotate-180" : ""}`} />
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -70,16 +72,16 @@ export default function SettingsPage() {
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
                         <Wand2 className="h-4 w-4" />
-                        Setup Wizard
+                        {t("setupWizardTitle")}
                       </CardTitle>
                       <CardDescription>
-                        Re-run the setup wizard to reconfigure your board connection and basic settings.
+                        {t("setupWizardDescription")}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <Button variant="brand" onClick={triggerWizard} className="gap-2 btn-lift">
                         <Wand2 className="h-4 w-4" />
-                        Run Setup Wizard
+                        {t("runSetupWizard")}
                       </Button>
                     </CardContent>
                   </Card>
