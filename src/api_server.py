@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import logging.handlers
+import re
 import threading
 import time
 import os
@@ -15,9 +16,11 @@ from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body, Response
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 
 # Load environment variables from .env file
 load_dotenv()
@@ -58,6 +61,83 @@ _shutting_down = False  # Set during app shutdown to suppress auto-restart
 # In-memory log buffer (last 500 log entries for quick access)
 _log_buffer: deque = deque(maxlen=500)
 _log_lock = threading.Lock()
+
+# ---------------------------------------------------------------------------
+# Request-log ring buffer (populated by middleware when LOCAL_MONITORING=true)
+# ---------------------------------------------------------------------------
+_REQUEST_LOG_MAX = 300
+_request_log_buffer: deque = deque(maxlen=_REQUEST_LOG_MAX)
+_request_log_lock = threading.Lock()
+
+# Client-error ring buffer (populated by POST /api/debug/client-errors)
+_CLIENT_ERROR_LOG_MAX = 100
+_client_error_buffer: deque = deque(maxlen=_CLIENT_ERROR_LOG_MAX)
+_client_error_lock = threading.Lock()
+
+# Cached flag so middleware doesn't read os.environ on every request
+_LOCAL_MONITORING: bool = os.getenv("LOCAL_MONITORING", "false").lower() in ("true", "1", "yes")
+
+# Keys whose values must be redacted (case-insensitive partial match)
+_REDACT_KEYS = re.compile(
+    r"(api_key|token|password|secret|authorization|cookie|credential)",
+    re.IGNORECASE,
+)
+_REDACT_HEADERS = {"authorization", "cookie", "x-api-key"}
+
+
+def _redact_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a shallow copy of *d* with sensitive values replaced."""
+    out = {}
+    for k, v in d.items():
+        if _REDACT_KEYS.search(k):
+            out[k] = "[REDACTED]"
+        elif isinstance(v, dict):
+            out[k] = _redact_dict(v)
+        elif isinstance(v, list):
+            out[k] = [_redact_dict(i) if isinstance(i, dict) else i for i in v]
+        else:
+            out[k] = v
+    return out
+
+
+def _redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Redact known-sensitive HTTP headers."""
+    out = {}
+    for k, v in headers.items():
+        if k.lower() in _REDACT_HEADERS or _REDACT_KEYS.search(k):
+            out[k] = "[REDACTED]"
+        else:
+            out[k] = v
+    return out
+
+
+def _redact_query_params(params: Dict[str, str]) -> Dict[str, str]:
+    """Redact sensitive query parameter values."""
+    out = {}
+    for k, v in params.items():
+        if _REDACT_KEYS.search(k):
+            out[k] = "[REDACTED]"
+        else:
+            out[k] = v
+    return out
+
+
+def _body_summary(body_bytes: bytes, content_type: str) -> Any:
+    """Return a small, redacted summary of a request body."""
+    if not body_bytes:
+        return None
+    size = len(body_bytes)
+    if size > 4096:
+        return {"_summary": f"{size} bytes (too large to log)"}
+    if "json" in content_type:
+        try:
+            parsed = json.loads(body_bytes)
+            if isinstance(parsed, dict):
+                return _redact_dict(parsed)
+            return parsed
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return {"_summary": f"{size} bytes (non-JSON)"}
+    return {"_summary": f"{size} bytes"}
 
 
 def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> Dict[str, Any]:
@@ -333,6 +413,105 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Request-logging middleware (only active when LOCAL_MONITORING=true)
+# ---------------------------------------------------------------------------
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    _SKIP_PATHS = {"/health", "/metrics", "/api/metrics"}
+
+    async def dispatch(self, request: Request, call_next):
+        if not _LOCAL_MONITORING or request.url.path in self._SKIP_PATHS:
+            return await call_next(request)
+
+        start = time.monotonic()
+        method = request.method
+        path = request.url.path
+        query = dict(request.query_params)
+        headers = dict(request.headers)
+        content_type = headers.get("content-type", "")
+
+        body_data = None
+        if method in ("POST", "PUT", "PATCH"):
+            try:
+                raw = await request.body()
+                body_data = _body_summary(raw, content_type)
+            except Exception:
+                body_data = None
+
+        response: StarletteResponse = await call_next(request)
+        duration_ms = round((time.monotonic() - start) * 1000, 2)
+
+        entry = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "method": method,
+            "path": path,
+            "query": _redact_query_params(query) if query else None,
+            "status": response.status_code,
+            "duration_ms": duration_ms,
+            "headers": _redact_headers(headers),
+            "body": body_data,
+        }
+        with _request_log_lock:
+            _request_log_buffer.append(entry)
+
+        return response
+
+
+app.add_middleware(RequestLoggingMiddleware)
+
+
+# Prometheus metrics instrumentation
+# Exposes /metrics endpoint with request count, latency, and status code metrics
+# Used by Prometheus + Grafana monitoring stack (see docker-compose.monitoring.yml)
+from prometheus_fastapi_instrumentator import Instrumentator
+import psutil
+from prometheus_client import Gauge
+
+# System-level Prometheus gauges (updated on each /metrics scrape)
+_system_cpu_gauge = Gauge("fiestaboard_system_cpu_percent", "System CPU usage percentage")
+_system_memory_gauge = Gauge("fiestaboard_system_memory_percent", "System memory usage percentage")
+_system_memory_used_gauge = Gauge("fiestaboard_system_memory_used_bytes", "System memory used in bytes")
+_system_memory_total_gauge = Gauge("fiestaboard_system_memory_total_bytes", "System total memory in bytes")
+_system_disk_gauge = Gauge("fiestaboard_system_disk_percent", "System disk usage percentage")
+_system_disk_used_gauge = Gauge("fiestaboard_system_disk_used_bytes", "System disk used in bytes")
+_system_disk_total_gauge = Gauge("fiestaboard_system_disk_total_bytes", "System total disk in bytes")
+
+# Initialize cpu_percent so subsequent non-blocking calls return meaningful values
+psutil.cpu_percent(interval=None)
+
+def _update_system_metrics():
+    """Callback to update system gauges before Prometheus scrape."""
+    _system_cpu_gauge.set(psutil.cpu_percent(interval=None))
+    mem = psutil.virtual_memory()
+    _system_memory_gauge.set(mem.percent)
+    _system_memory_used_gauge.set(mem.used)
+    _system_memory_total_gauge.set(mem.total)
+    try:
+        disk = psutil.disk_usage("/")
+        _system_disk_gauge.set(disk.percent)
+        _system_disk_used_gauge.set(disk.used)
+        _system_disk_total_gauge.set(disk.total)
+    except OSError:
+        pass
+
+instrumentator = Instrumentator(
+    should_ignore_untemplated=True,
+    excluded_handlers=["/health", "/metrics"],
+    should_instrument_requests_inprogress=_LOCAL_MONITORING,
+    inprogress_name="http_requests_inprogress",
+    inprogress_labels=True,
+)
+instrumentator.instrument(app).expose(app, include_in_schema=False, should_gzip=False)
+
+# Register a callback to update system metrics before each scrape
+from prometheus_client import REGISTRY
+class _SystemMetricsCollector:
+    def collect(self):
+        _update_system_metrics()
+        return []
+REGISTRY.register(_SystemMetricsCollector())
 
 # Set up log buffer handler
 log_buffer_handler = LogBufferHandler()
@@ -3096,6 +3275,95 @@ async def debug_network_diagnostics():
         raise HTTPException(status_code=500, detail="Network diagnostics failed")
 
 
+@app.get("/debug/monitor/enabled")
+async def debug_monitor_enabled():
+    """Check if local monitoring mode is enabled.
+
+    Returns whether the Grafana monitoring dashboard is expected to be running.
+    Used by the frontend to conditionally show the Monitor nav link.
+    """
+    enabled = os.getenv("LOCAL_MONITORING", "false").lower() in ("true", "1", "yes")
+    return {"enabled": enabled}
+
+
+@app.get("/debug/request-log")
+async def get_request_log(
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    path_prefix: Optional[str] = Query(None, alias="path"),
+):
+    """Return recent HTTP request log entries (only when LOCAL_MONITORING is on)."""
+    if not _LOCAL_MONITORING:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    with _request_log_lock:
+        entries = list(_request_log_buffer)
+    entries.reverse()
+
+    if status_filter:
+        if status_filter.endswith("xx"):
+            prefix = status_filter[0]
+            entries = [e for e in entries if str(e["status"])[0] == prefix]
+        else:
+            try:
+                code = int(status_filter)
+                entries = [e for e in entries if e["status"] == code]
+            except ValueError:
+                pass
+
+    if path_prefix:
+        entries = [e for e in entries if e["path"].startswith(path_prefix)]
+
+    total = len(entries)
+    page = entries[offset : offset + limit]
+    return {"total": total, "offset": offset, "limit": limit, "entries": page}
+
+
+class ClientErrorReport(BaseModel):
+    path: str
+    method: str = "GET"
+    status: Optional[int] = None
+    error_message: str = ""
+    timestamp: Optional[str] = None
+
+
+@app.post("/debug/client-errors")
+async def report_client_error(report: ClientErrorReport):
+    """Accept a client-side error report (only when LOCAL_MONITORING is on)."""
+    if not _LOCAL_MONITORING:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    entry = {
+        "timestamp": report.timestamp or (datetime.utcnow().isoformat() + "Z"),
+        "path": report.path,
+        "method": report.method,
+        "status": report.status,
+        "error_message": report.error_message,
+    }
+    with _client_error_lock:
+        _client_error_buffer.append(entry)
+    return {"status": "ok"}
+
+
+@app.get("/debug/client-errors")
+async def get_client_errors(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Return recent client-reported errors (only when LOCAL_MONITORING is on)."""
+    if not _LOCAL_MONITORING:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    with _client_error_lock:
+        entries = list(_client_error_buffer)
+    entries.reverse()
+
+    total = len(entries)
+    page = entries[offset : offset + limit]
+    return {"total": total, "offset": offset, "limit": limit, "entries": page}
+
+
 # =============================================================================
 # Pages Endpoints
 # =============================================================================
@@ -4344,7 +4612,15 @@ async def get_plugin_data(plugin_id: str):
         )
     
     result = registry.fetch_plugin_data(plugin_id)
-    
+
+    # Return 503 when plugin data is unavailable (e.g. not configured, auth failure)
+    # so monitoring (Grafana) and request log show it as an error for triage
+    if not result.available:
+        raise HTTPException(
+            status_code=503,
+            detail=result.error or "Plugin data not available"
+        )
+
     return {
         "plugin_id": plugin_id,
         "available": result.available,

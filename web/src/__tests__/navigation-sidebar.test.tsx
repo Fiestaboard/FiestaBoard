@@ -1,9 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { SidebarProvider } from "@/components/sidebar-context";
+import { http, HttpResponse } from "msw";
+import { server } from "./mocks/server";
+
+const API_BASE = "/api";
 
 // Mock usePathname from next/navigation
 const mockPathname = vi.fn();
@@ -49,7 +53,6 @@ describe("NavigationSidebar active state", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     const pagesLinks = screen.getAllByText("Pages");
-    // Both mobile and desktop nav links should be active
     pagesLinks.forEach((link) => {
       expect(link.closest("a")).toHaveClass(activeNavClass);
     });
@@ -103,5 +106,119 @@ describe("NavigationSidebar active state", () => {
     homeLinks.forEach((link) => {
       expect(link.closest("a")).not.toHaveClass(activeNavClass);
     });
+  });
+});
+
+describe("NavigationSidebar Monitor link", () => {
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("does not show Monitor link when monitoring is disabled", async () => {
+    server.use(
+      http.get(`${API_BASE}/debug/monitor/enabled`, () =>
+        HttpResponse.json({ enabled: false })
+      )
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Monitor")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows Monitor link when monitoring is enabled", async () => {
+    server.use(
+      http.get(`${API_BASE}/debug/monitor/enabled`, () =>
+        HttpResponse.json({ enabled: true })
+      )
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const monitorLinks = screen.getAllByText("Monitor");
+      expect(monitorLinks.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("Monitor link opens in new tab with target _blank", async () => {
+    server.use(
+      http.get(`${API_BASE}/debug/monitor/enabled`, () =>
+        HttpResponse.json({ enabled: true })
+      )
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const monitorLinks = screen.getAllByText("Monitor");
+      monitorLinks.forEach((link) => {
+        const anchor = link.closest("a");
+        expect(anchor).toHaveAttribute("target", "_blank");
+        expect(anchor).toHaveAttribute("rel", "noopener noreferrer");
+      });
+    });
+  });
+
+  it("Monitor link href points to Grafana port 3030", async () => {
+    server.use(
+      http.get(`${API_BASE}/debug/monitor/enabled`, () =>
+        HttpResponse.json({ enabled: true })
+      )
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const monitorLinks = screen.getAllByText("Monitor");
+      monitorLinks.forEach((link) => {
+        const anchor = link.closest("a");
+        expect(anchor?.getAttribute("href")).toContain("3030");
+      });
+    });
+  });
+});
+
+describe("NavigationSidebar mobile menu", () => {
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("toggles mobile menu on button click", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const menuButton = screen.getByLabelText("Open menu");
+    fireEvent.click(menuButton);
+
+    const closeButton = screen.getByLabelText("Close menu");
+    expect(closeButton).toBeInTheDocument();
+  });
+
+  it("closes mobile menu when backdrop is clicked", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const menuButton = screen.getByLabelText("Open menu");
+    fireEvent.click(menuButton);
+
+    const backdrop = document.querySelector('[aria-hidden="true"]');
+    if (backdrop) {
+      fireEvent.click(backdrop);
+    }
+
+    expect(screen.getByLabelText("Open menu")).toBeInTheDocument();
+  });
+
+  it("shows collapse/expand sidebar toggle", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const collapseButton = screen.getByLabelText("Collapse sidebar");
+    expect(collapseButton).toBeInTheDocument();
+
+    fireEvent.click(collapseButton);
+
+    const expandButton = screen.getByLabelText("Expand sidebar");
+    expect(expandButton).toBeInTheDocument();
   });
 });
