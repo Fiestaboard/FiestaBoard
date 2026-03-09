@@ -674,6 +674,18 @@ export const handlers = [
     return HttpResponse.json({ enabled: false });
   }),
 
+  http.get(`${API_BASE}/debug/request-log`, () => {
+    return HttpResponse.json({ total: 0, offset: 0, limit: 50, entries: [] });
+  }),
+
+  http.get(`${API_BASE}/debug/client-errors`, () => {
+    return HttpResponse.json({ total: 0, offset: 0, limit: 50, entries: [] });
+  }),
+
+  http.post(`${API_BASE}/debug/client-errors`, () => {
+    return HttpResponse.json({ status: "ok" });
+  }),
+
   http.post(`${API_BASE}/clear-cache`, () => {
     return HttpResponse.json({
       status: "success",

@@ -38,8 +38,13 @@ export function NavigationSidebar() {
     retry: 1,
   });
 
+  const grafanaUrl =
+    typeof window !== "undefined"
+      ? `${window.location.protocol}//${window.location.hostname}:3030`
+      : "#";
+
   const navItems = debugEnabledQuery.data?.enabled
-    ? [...navigation, { name: "Monitor", href: "/debug", icon: Activity }]
+    ? [...navigation, { name: "Monitor", href: grafanaUrl, icon: Activity, external: true }]
     : navigation;
 
   useEffect(() => {
@@ -121,9 +126,31 @@ export function NavigationSidebar() {
       >
         <nav aria-label="Mobile navigation" className="space-y-1 px-3 py-4">
           {navItems.map((item) => {
-            const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive = !item.external && (item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/"));
             const Icon = item.icon;
-            const prefetchHandler = item.href === "/pages" ? prefetchPages : undefined;
+            const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
+            const className = cn(
+              "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
+              isActive
+                ? "bg-brand-emphasis text-brand-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent"
+            );
+
+            if (item.external) {
+              return (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={className}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.name}
+                </a>
+              );
+            }
 
             return (
               <ViewTransitionLink
@@ -132,12 +159,7 @@ export function NavigationSidebar() {
                 onClick={() => setMobileMenuOpen(false)}
                 onMouseEnter={prefetchHandler}
                 onFocus={prefetchHandler}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
-                  isActive
-                    ? "bg-brand-emphasis text-brand-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent"
-                )}
+                className={className}
               >
                 <Icon className="h-5 w-5" />
                 {item.name}
@@ -212,22 +234,34 @@ export function NavigationSidebar() {
             {/* Navigation */}
             <nav aria-label="Main navigation" className={cn("flex-1 space-y-1 py-4", collapsed ? "px-2" : "px-3")}>
               {navItems.map((item) => {
-                const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
+                const isActive = !item.external && (item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/"));
                 const Icon = item.icon;
-                const prefetchHandler = item.href === "/pages" ? prefetchPages : undefined;
+                const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
+                const linkClassName = cn(
+                  "flex items-center rounded-lg text-sm font-medium",
+                  collapsed ? "justify-center p-2" : "gap-3 px-3 py-2",
+                  isActive
+                    ? "bg-brand-emphasis text-brand-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                );
 
-                const link = (
+                const link = item.external ? (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={linkClassName}
+                    aria-label={collapsed ? item.name : undefined}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span className={cn(collapsed && "sr-only")}>{item.name}</span>
+                  </a>
+                ) : (
                   <ViewTransitionLink
                     href={item.href}
                     onMouseEnter={prefetchHandler}
                     onFocus={prefetchHandler}
-                    className={cn(
-                      "flex items-center rounded-lg text-sm font-medium",
-                      collapsed ? "justify-center p-2" : "gap-3 px-3 py-2",
-                      isActive
-                        ? "bg-brand-emphasis text-brand-foreground"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    )}
+                    className={linkClassName}
                     aria-label={collapsed ? item.name : undefined}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
@@ -236,7 +270,7 @@ export function NavigationSidebar() {
                 );
 
                 return (
-                  <Tooltip key={item.href}>
+                  <Tooltip key={item.external ? item.name : item.href}>
                     <TooltipTrigger asChild>
                       {link}
                     </TooltipTrigger>

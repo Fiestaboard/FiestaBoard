@@ -745,8 +745,77 @@ export interface UpdateCheckResponse {
 
 
 
+// Request log types (LOCAL_MONITORING debug endpoints)
+export interface RequestLogEntry {
+  timestamp: string;
+  method: string;
+  path: string;
+  query: Record<string, string> | null;
+  status: number;
+  duration_ms: number;
+  headers: Record<string, string>;
+  body: unknown;
+}
+
+export interface RequestLogResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  entries: RequestLogEntry[];
+}
+
+export interface ClientErrorEntry {
+  timestamp: string;
+  path: string;
+  method: string;
+  status: number | null;
+  error_message: string;
+}
+
+export interface ClientErrorResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  entries: ClientErrorEntry[];
+}
+
+
 // API client with typed methods
 const DEFAULT_TIMEOUT_MS = 30000;
+
+let _monitoringEnabled: boolean | null = null;
+
+async function _reportClientError(path: string, method: string, status: number | null, errorMessage: string) {
+  if (_monitoringEnabled === null) {
+    try {
+      const res = await fetch(`${API_BASE}/debug/monitor/enabled`);
+      if (res.ok) {
+        const data = await res.json();
+        _monitoringEnabled = !!data.enabled;
+      } else {
+        _monitoringEnabled = false;
+      }
+    } catch {
+      _monitoringEnabled = false;
+    }
+  }
+  if (!_monitoringEnabled) return;
+  try {
+    await fetch(`${API_BASE}/debug/client-errors`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path,
+        method: method || "GET",
+        status,
+        error_message: errorMessage,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  } catch {
+    // best-effort, don't recurse
+  }
+}
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const timeoutSignal = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
@@ -754,16 +823,25 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
     ? AbortSignal.any([options.signal, timeoutSignal])
     : timeoutSignal;
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
+  let res: globalThis.Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    _reportClientError(path, options?.method || "GET", null, msg);
+    throw err;
+  }
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    const msg = `API error: ${res.status} ${res.statusText}`;
+    _reportClientError(path, options?.method || "GET", res.status, msg);
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -1241,4 +1319,23 @@ export const api = {
   // Local monitoring (Grafana)
   getDebugMonitorEnabled: () =>
     fetchApi<{ enabled: boolean }>("/debug/monitor/enabled"),
+
+  // Request log + client errors (LOCAL_MONITORING only)
+  getRequestLog: (params?: { limit?: number; offset?: number; status?: string; path?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.offset) q.set("offset", String(params.offset));
+    if (params?.status) q.set("status", params.status);
+    if (params?.path) q.set("path", params.path);
+    const qs = q.toString();
+    return fetchApi<RequestLogResponse>(`/debug/request-log${qs ? `?${qs}` : ""}`);
+  },
+
+  getClientErrors: (params?: { limit?: number; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.offset) q.set("offset", String(params.offset));
+    const qs = q.toString();
+    return fetchApi<ClientErrorResponse>(`/debug/client-errors${qs ? `?${qs}` : ""}`);
+  },
 };
