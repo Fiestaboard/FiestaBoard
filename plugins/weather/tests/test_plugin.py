@@ -968,3 +968,380 @@ class TestWeatherPluginMethods:
         plugin.cleanup()
         assert plugin._source is None
         assert plugin._cache is None
+
+
+class TestGetTemperatureColor:
+    """Tests for the _get_temperature_color helper function."""
+
+    def test_hot_returns_red(self):
+        from plugins.weather.source import _get_temperature_color
+        assert _get_temperature_color(95) == "red"
+        assert _get_temperature_color(90) == "red"
+        assert _get_temperature_color(110) == "red"
+
+    def test_warm_returns_orange(self):
+        from plugins.weather.source import _get_temperature_color
+        assert _get_temperature_color(75) == "orange"
+        assert _get_temperature_color(80) == "orange"
+        assert _get_temperature_color(89) == "orange"
+
+    def test_mild_returns_green(self):
+        from plugins.weather.source import _get_temperature_color
+        assert _get_temperature_color(60) == "green"
+        assert _get_temperature_color(65) == "green"
+        assert _get_temperature_color(74) == "green"
+
+    def test_cool_returns_blue(self):
+        from plugins.weather.source import _get_temperature_color
+        assert _get_temperature_color(45) == "blue"
+        assert _get_temperature_color(50) == "blue"
+        assert _get_temperature_color(44.9) == "violet"
+
+    def test_cold_returns_violet(self):
+        from plugins.weather.source import _get_temperature_color
+        assert _get_temperature_color(44) == "violet"
+        assert _get_temperature_color(30) == "violet"
+        assert _get_temperature_color(0) == "violet"
+        assert _get_temperature_color(-10) == "violet"
+
+    def test_none_returns_white(self):
+        from plugins.weather.source import _get_temperature_color
+        assert _get_temperature_color(None) == "white"
+
+    def test_invalid_returns_white(self):
+        from plugins.weather.source import _get_temperature_color
+        assert _get_temperature_color("not_a_number") == "white"
+
+
+class TestWeatherApiForecastArray:
+    """Tests for multi-day forecast array from WeatherAPI."""
+
+    @patch('requests.get')
+    def test_weatherapi_returns_forecast_array(self, mock_get):
+        """Test that WeatherAPI returns a forecast array with multiple days."""
+        current_response = Mock()
+        current_response.status_code = 200
+        current_response.json.return_value = {
+            "current": {
+                "temp_f": 63,
+                "feelslike_f": 62,
+                "condition": {"text": "Rain"},
+                "humidity": 80,
+                "wind_mph": 14,
+                "uv": 5
+            },
+            "location": {"name": "San Francisco"}
+        }
+        current_response.raise_for_status = Mock()
+
+        forecast_response = Mock()
+        forecast_response.status_code = 200
+        forecast_response.json.return_value = {
+            "forecast": {
+                "forecastday": [
+                    {
+                        "date": "2024-01-15",
+                        "day": {
+                            "maxtemp_f": 55,
+                            "mintemp_f": 42,
+                            "condition": {"text": "Cloudy"},
+                            "daily_chance_of_rain": 30,
+                            "uv": 3
+                        },
+                        "astro": {"sunset": "05:36 PM"}
+                    },
+                    {
+                        "date": "2024-01-16",
+                        "day": {
+                            "maxtemp_f": 62,
+                            "mintemp_f": 48,
+                            "condition": {"text": "Sunny"},
+                            "daily_chance_of_rain": 0,
+                            "uv": 6
+                        },
+                        "astro": {"sunset": "05:37 PM"}
+                    },
+                    {
+                        "date": "2024-01-17",
+                        "day": {
+                            "maxtemp_f": 78,
+                            "mintemp_f": 55,
+                            "condition": {"text": "Clear"},
+                            "daily_chance_of_rain": 10,
+                            "uv": 8
+                        },
+                        "astro": {"sunset": "05:38 PM"}
+                    },
+                ]
+            }
+        }
+        forecast_response.raise_for_status = Mock()
+        mock_get.side_effect = [current_response, forecast_response]
+
+        source = WeatherSource(
+            provider="weatherapi",
+            api_key="test_key",
+            locations=[{"location": "San Francisco, CA", "name": "SF"}]
+        )
+        result = source.fetch_current_weather()
+
+        assert result is not None
+        assert "forecast" in result
+        assert len(result["forecast"]) == 3
+
+        # Check first day
+        day0 = result["forecast"][0]
+        assert day0["date"] == "2024-01-15"
+        assert day0["day_name"] == "MON"
+        assert day0["high_temp"] == 55
+        assert day0["low_temp"] == 42
+        assert day0["condition"] == "Cloudy"
+        assert day0["precipitation_chance"] == 30
+        assert day0["temperature_color"] == "blue"  # 55 >= 45
+        assert day0["high_temp_c"] is not None
+        assert day0["low_temp_c"] is not None
+
+        # Check second day
+        day1 = result["forecast"][1]
+        assert day1["high_temp"] == 62
+        assert day1["temperature_color"] == "green"  # 62 >= 60
+
+        # Check third day
+        day2 = result["forecast"][2]
+        assert day2["high_temp"] == 78
+        assert day2["temperature_color"] == "orange"  # 78 >= 75
+
+    @patch('requests.get')
+    def test_weatherapi_forecast_fallback_no_forecast_array(self, mock_get):
+        """Test that forecast array is absent when forecast API fails."""
+        current_response = Mock()
+        current_response.status_code = 200
+        current_response.json.return_value = {
+            "current": {
+                "temp_f": 72,
+                "feelslike_f": 70,
+                "condition": {"text": "Sunny"},
+                "humidity": 45,
+                "wind_mph": 10,
+                "uv": 3
+            },
+            "location": {"name": "San Francisco"}
+        }
+        current_response.raise_for_status = Mock()
+
+        from requests.exceptions import RequestException
+        mock_get.side_effect = [current_response, RequestException("Forecast API error")]
+
+        source = WeatherSource(
+            provider="weatherapi",
+            api_key="test_key",
+            locations=[{"location": "San Francisco, CA", "name": "SF"}]
+        )
+        result = source.fetch_current_weather()
+
+        assert result is not None
+        assert result["temperature"] == 72
+        # forecast key may be absent when forecast API fails
+        assert result.get("forecast") is None or result.get("forecast") == []
+
+
+class TestOpenWeatherMapForecastArray:
+    """Tests for multi-day forecast array from OpenWeatherMap."""
+
+    @patch('requests.get')
+    def test_owm_returns_forecast_array(self, mock_get):
+        """Test that OpenWeatherMap returns a forecast array with daily aggregation."""
+        current_response = Mock()
+        current_response.status_code = 200
+        current_response.json.return_value = {
+            "main": {"temp": 63, "feels_like": 62, "humidity": 80},
+            "weather": [{"main": "Rain", "description": "light rain"}],
+            "wind": {"speed": 14},
+            "name": "San Francisco",
+            "sys": {"sunset": 1705363200},
+            "timezone": -28800
+        }
+        current_response.raise_for_status = Mock()
+
+        forecast_response = Mock()
+        forecast_response.status_code = 200
+        forecast_response.json.return_value = {
+            "list": [
+                {"main": {"temp": 55}, "weather": [{"main": "Cloudy"}], "pop": 0.3,
+                 "dt_txt": "2024-01-15 12:00:00"},
+                {"main": {"temp": 48}, "weather": [{"main": "Cloudy"}], "pop": 0.2,
+                 "dt_txt": "2024-01-15 15:00:00"},
+                {"main": {"temp": 65}, "weather": [{"main": "Sunny"}], "pop": 0.0,
+                 "dt_txt": "2024-01-16 12:00:00"},
+                {"main": {"temp": 70}, "weather": [{"main": "Sunny"}], "pop": 0.0,
+                 "dt_txt": "2024-01-16 15:00:00"},
+            ]
+        }
+        forecast_response.raise_for_status = Mock()
+        mock_get.side_effect = [current_response, forecast_response]
+
+        source = WeatherSource(
+            provider="openweathermap",
+            api_key="test_key",
+            locations=[{"location": "San Francisco, CA", "name": "SF"}]
+        )
+        result = source.fetch_current_weather()
+
+        assert result is not None
+        assert "forecast" in result
+        assert len(result["forecast"]) == 2
+
+        # Check first day (Jan 15)
+        day0 = result["forecast"][0]
+        assert day0["date"] == "2024-01-15"
+        assert day0["day_name"] == "MON"
+        assert day0["high_temp"] == 55  # max(55, 48) rounded
+        assert day0["low_temp"] == 48
+        assert day0["condition"] == "Cloudy"
+        assert day0["precipitation_chance"] == 30  # max(0.3, 0.2) * 100
+        assert day0["temperature_color"] == "blue"  # 55 >= 45
+
+        # Check second day (Jan 16)
+        day1 = result["forecast"][1]
+        assert day1["high_temp"] == 70
+        assert day1["temperature_color"] == "green"  # 70 >= 60
+
+
+class TestForecastDisplay:
+    """Tests for the forecast display format."""
+
+    @pytest.fixture
+    def weather_manifest(self):
+        return {
+            "id": "weather",
+            "name": "Weather",
+            "version": "1.0.0",
+            "description": "Weather plugin",
+            "author": "Test",
+            "settings_schema": {},
+            "variables": {"simple": ["temperature", "condition"]},
+            "max_lengths": {}
+        }
+
+    @pytest.fixture
+    def plugin(self, weather_manifest):
+        return WeatherPlugin(weather_manifest)
+
+    def test_format_forecast_entry_two_digit_temp(self, plugin):
+        """Test formatting a forecast entry with 2-digit temp."""
+        entry = {"day_name": "MON", "high_temp": 37, "temperature_color": "orange"}
+        result = plugin._format_forecast_entry(entry)
+        # Should be 11 display tiles: MON + 4 spaces + 37F + {orange}
+        assert result == "MON    37F{orange}"
+
+    def test_format_forecast_entry_three_digit_temp(self, plugin):
+        """Test formatting a forecast entry with 3-digit temp."""
+        entry = {"day_name": "TUE", "high_temp": 100, "temperature_color": "red"}
+        result = plugin._format_forecast_entry(entry)
+        assert result == "TUE   100F{red}"
+
+    def test_format_forecast_entry_single_digit_temp(self, plugin):
+        """Test formatting a forecast entry with single-digit temp."""
+        entry = {"day_name": "WED", "high_temp": 5, "temperature_color": "violet"}
+        result = plugin._format_forecast_entry(entry)
+        assert result == "WED     5F{violet}"
+
+    def test_format_forecast_entry_none_temp(self, plugin):
+        """Test formatting a forecast entry with None temp."""
+        entry = {"day_name": "THU", "high_temp": None, "temperature_color": "white"}
+        result = plugin._format_forecast_entry(entry)
+        assert "??F" in result
+        assert result.startswith("THU")
+
+    def test_get_forecast_display_with_cache(self, plugin):
+        """Test get_forecast_display returns correct 6-line layout."""
+        plugin._cache = {
+            "forecast": [
+                {"day_name": "MON", "high_temp": 37, "temperature_color": "orange"},
+                {"day_name": "TUE", "high_temp": 30, "temperature_color": "violet"},
+                {"day_name": "WED", "high_temp": 43, "temperature_color": "violet"},
+                {"day_name": "THU", "high_temp": 38, "temperature_color": "violet"},
+                {"day_name": "FRI", "high_temp": 41, "temperature_color": "violet"},
+                {"day_name": "SAT", "high_temp": 48, "temperature_color": "blue"},
+                {"day_name": "SUN", "high_temp": 40, "temperature_color": "violet"},
+                {"day_name": "MON", "high_temp": 31, "temperature_color": "violet"},
+            ]
+        }
+        lines = plugin.get_forecast_display()
+        assert lines is not None
+        assert len(lines) == 6
+        # Header
+        assert "WEATHER REPORT" in lines[0]
+        assert "{violet}" in lines[0]
+        # Empty row
+        assert lines[1] == ""
+        # Forecast rows - check day names
+        assert "MON" in lines[2]
+        assert "FRI" in lines[2]
+        assert "TUE" in lines[3]
+        assert "SAT" in lines[3]
+        assert "WED" in lines[4]
+        assert "SUN" in lines[4]
+        assert "THU" in lines[5]
+        assert "MON" in lines[5]
+
+    def test_get_forecast_display_no_forecast_data(self, plugin):
+        """Test get_forecast_display returns None when no forecast data."""
+        plugin._cache = {"forecast": []}
+        lines = plugin.get_forecast_display()
+        assert lines is None
+
+    def test_get_forecast_display_partial_days(self, plugin):
+        """Test get_forecast_display with fewer than 8 days."""
+        plugin._cache = {
+            "forecast": [
+                {"day_name": "MON", "high_temp": 55, "temperature_color": "blue"},
+                {"day_name": "TUE", "high_temp": 62, "temperature_color": "green"},
+                {"day_name": "WED", "high_temp": 70, "temperature_color": "green"},
+            ]
+        }
+        lines = plugin.get_forecast_display()
+        assert lines is not None
+        assert len(lines) == 6
+        assert "MON" in lines[2]
+        assert "TUE" in lines[3]
+
+    def test_get_forecast_display_no_cache(self, plugin):
+        """Test get_forecast_display without cache (fetch fails)."""
+        plugin._cache = None
+        plugin._config = {}
+        lines = plugin.get_forecast_display()
+        assert lines is None
+
+    def test_plugin_fetch_data_includes_forecast(self, plugin):
+        """Test that fetch_data includes forecast in returned data."""
+        mock_source = Mock()
+        mock_source.fetch_multiple_locations.return_value = [
+            {
+                "temperature": 63,
+                "temperature_c": 17,
+                "feels_like": 62,
+                "feels_like_c": 17,
+                "condition": "Rain",
+                "humidity": 80,
+                "wind_speed": 14,
+                "location": "San Francisco",
+                "location_name": "SF",
+                "precipitation_chance": 30,
+                "high_temp": 65,
+                "high_temp_c": 18,
+                "low_temp": 52,
+                "low_temp_c": 11,
+                "uv_index": 5,
+                "sunset": "5:36 PM",
+                "forecast": [
+                    {"day_name": "MON", "high_temp": 65, "temperature_color": "green"},
+                    {"day_name": "TUE", "high_temp": 58, "temperature_color": "blue"},
+                ]
+            }
+        ]
+        with patch.object(plugin, '_get_source', return_value=mock_source):
+            result = plugin.fetch_data()
+            assert result.available is True
+            assert "forecast" in result.data
+            assert len(result.data["forecast"]) == 2
