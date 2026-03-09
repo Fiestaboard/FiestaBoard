@@ -34,6 +34,33 @@ def _uv_to_display_index(uv: Any) -> Optional[int]:
     return round(v)
 
 
+def _get_temperature_color(temp_f: Any) -> str:
+    """Get color name for a temperature value using default threshold rules.
+
+    Rules (evaluated in order):
+    - >=90°F: red
+    - >=75°F: orange
+    - >=60°F: green
+    - >=45°F: blue
+    - <45°F: violet
+    """
+    if temp_f is None:
+        return "white"
+    try:
+        temp = float(temp_f)
+    except (TypeError, ValueError):
+        return "white"
+    if temp >= 90:
+        return "red"
+    if temp >= 75:
+        return "orange"
+    if temp >= 60:
+        return "green"
+    if temp >= 45:
+        return "blue"
+    return "violet"
+
+
 class WeatherSource:
     """Fetches current weather data from weather APIs."""
     
@@ -117,12 +144,12 @@ class WeatherSource:
             "aqi": "no"
         }
         
-        # Fetch forecast (1 day for today's high/low, UV, sunset)
+        # Fetch forecast (up to 8 days for multi-day forecast display)
         forecast_url = "http://api.weatherapi.com/v1/forecast.json"
         forecast_params = {
             "key": self.api_key,
             "q": location,
-            "days": 1,
+            "days": 8,
             "aqi": "no",
             "alerts": "no"
         }
@@ -197,6 +224,33 @@ class WeatherSource:
                         sunset_str = astro_data.get("sunset", "")
                         if sunset_str:
                             result["sunset"] = self._format_sunset_time(sunset_str)
+                    
+                    # Build multi-day forecast array from all forecast days
+                    forecast_days = []
+                    for day_forecast in forecast_data["forecast"]["forecastday"]:
+                        date_str = day_forecast.get("date", "")
+                        fd = day_forecast.get("day", {})
+                        high = fd.get("maxtemp_f")
+                        low = fd.get("mintemp_f")
+                        high_r = round(high) if isinstance(high, (int, float)) else None
+                        low_r = round(low) if isinstance(low, (int, float)) else None
+                        try:
+                            dt = datetime.strptime(date_str, "%Y-%m-%d")
+                            day_name = dt.strftime("%a").upper()[:3]
+                        except (ValueError, TypeError):
+                            day_name = "???"
+                        forecast_days.append({
+                            "date": date_str,
+                            "day_name": day_name,
+                            "high_temp": high_r,
+                            "high_temp_c": round((high - 32) * 5 / 9) if isinstance(high, (int, float)) else None,
+                            "low_temp": low_r,
+                            "low_temp_c": round((low - 32) * 5 / 9) if isinstance(low, (int, float)) else None,
+                            "condition": fd.get("condition", {}).get("text", ""),
+                            "precipitation_chance": fd.get("daily_chance_of_rain", 0),
+                            "temperature_color": _get_temperature_color(high_r),
+                        })
+                    result["forecast"] = forecast_days
             except Exception as e:
                 logger.warning(f"Failed to fetch forecast data from WeatherAPI for {location_name}: {e}")
                 # Continue with current weather data only
@@ -291,13 +345,13 @@ class WeatherSource:
             }
             
             # Try to fetch forecast data (non-blocking if it fails)
+            # No cnt limit: fetch full 5-day/3-hour forecast for multi-day display
             try:
                 forecast_url = "https://api.openweathermap.org/data/2.5/forecast"
                 forecast_params = {
                     "q": location,
                     "appid": self.api_key,
                     "units": "imperial",
-                    "cnt": 8  # Get next 8 periods (24 hours)
                 }
                 
                 forecast_response = requests.get(forecast_url, params=forecast_params, timeout=10)
@@ -305,10 +359,35 @@ class WeatherSource:
                 forecast_data = forecast_response.json()
                 
                 if "list" in forecast_data and len(forecast_data["list"]) > 0:
-                    # Find min/max temps from forecast periods (round to whole numbers)
-                    temps = [item["main"]["temp"] for item in forecast_data["list"]]
-                    high_temp = round(max(temps)) if temps else None
-                    low_temp = round(min(temps)) if temps else None
+                    # Group forecast periods by date for daily aggregation
+                    daily_data: Dict[str, Dict[str, Any]] = {}
+                    for item in forecast_data["list"]:
+                        dt_txt = item.get("dt_txt", "")
+                        date_str = dt_txt[:10]  # "2024-01-15"
+                        if not date_str:
+                            continue
+                        if date_str not in daily_data:
+                            daily_data[date_str] = {
+                                "temps": [],
+                                "conditions": [],
+                                "pops": [],
+                            }
+                        daily_data[date_str]["temps"].append(item["main"]["temp"])
+                        daily_data[date_str]["conditions"].append(
+                            item.get("weather", [{}])[0].get("main", "")
+                        )
+                        daily_data[date_str]["pops"].append(item.get("pop", 0))
+                    
+                    # Use today's date to extract today's high/low
+                    today_str = datetime.now().strftime("%Y-%m-%d")
+                    if today_str in daily_data:
+                        today_temps = daily_data[today_str]["temps"]
+                    else:
+                        # Fall back to first 8 periods
+                        today_temps = [item["main"]["temp"] for item in forecast_data["list"][:8]]
+                    
+                    high_temp = round(max(today_temps)) if today_temps else None
+                    low_temp = round(min(today_temps)) if today_temps else None
                     result["high_temp"] = high_temp
                     result["low_temp"] = low_temp
                     
@@ -340,6 +419,36 @@ class WeatherSource:
                     # Note: UV index not available in free tier forecast API
                     # Would require One Call API v3.0 (paid)
                     result["uv_index"] = None
+                    
+                    # Build multi-day forecast array from aggregated daily data
+                    forecast_days = []
+                    for date_str in sorted(daily_data.keys()):
+                        dd = daily_data[date_str]
+                        temps = dd["temps"]
+                        high = round(max(temps)) if temps else None
+                        low = round(min(temps)) if temps else None
+                        # Most common condition for the day
+                        conditions = [c for c in dd["conditions"] if c]
+                        condition = max(set(conditions), key=conditions.count) if conditions else ""
+                        # Max precipitation chance for the day (0-1 to 0-100)
+                        max_pop = max(dd["pops"]) if dd["pops"] else 0
+                        try:
+                            dt = datetime.strptime(date_str, "%Y-%m-%d")
+                            day_name = dt.strftime("%a").upper()[:3]
+                        except (ValueError, TypeError):
+                            day_name = "???"
+                        forecast_days.append({
+                            "date": date_str,
+                            "day_name": day_name,
+                            "high_temp": high,
+                            "high_temp_c": round((high - 32) * 5 / 9) if high is not None else None,
+                            "low_temp": low,
+                            "low_temp_c": round((low - 32) * 5 / 9) if low is not None else None,
+                            "condition": condition,
+                            "precipitation_chance": int(max_pop * 100),
+                            "temperature_color": _get_temperature_color(high),
+                        })
+                    result["forecast"] = forecast_days
             except Exception as e:
                 logger.warning(f"Failed to fetch forecast data from OpenWeatherMap for {location_name}: {e}")
                 # Continue with current weather data only
