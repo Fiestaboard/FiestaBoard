@@ -26,8 +26,8 @@ jobs:
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          # Skip when head commit is our version-bump (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
-          if echo "$COMMIT_MSG" | head -1 | grep -qE '^chore: bump version to '; then
+          # Skip when head commit is our version-bump or docs-snapshot (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
+          if echo "$COMMIT_MSG" | head -1 | grep -qE '^(chore: bump version to |docs: snapshot version )'; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "Skipping: trigger commit is a version-bump commit."
           else

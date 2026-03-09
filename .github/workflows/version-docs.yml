@@ -1,0 +1,102 @@
+# Automatically snapshot a new docs version when a minor or major release
+# is published.  Patch releases (e.g. 2.5.0 → 2.5.1) are skipped because
+# they share the same docs version (e.g. "2.5").
+name: Version Docs
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  version-docs:
+    name: Snapshot Docs Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine docs version
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          # Strip leading 'v' if present (v2.5.0 → 2.5.0)
+          SEMVER="${TAG#v}"
+          MAJOR="${SEMVER%%.*}"
+          REST="${SEMVER#*.}"
+          MINOR="${REST%%.*}"
+          PATCH="${REST#*.}"
+          DOCS_VERSION="${MAJOR}.${MINOR}"
+
+          echo "semver=${SEMVER}"   >> "$GITHUB_OUTPUT"
+          echo "docs_version=${DOCS_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "patch=${PATCH}"     >> "$GITHUB_OUTPUT"
+          echo "Resolved docs version: ${DOCS_VERSION} (patch=${PATCH})"
+
+      - name: Check if version already exists
+        id: check
+        run: |
+          # Only proceed for the first patch of a minor (x.y.0) or when
+          # the docs version doesn't exist yet.
+          DOCS_VERSION="${{ steps.version.outputs.docs_version }}"
+
+          # Checkout just the versions.json file to check
+          git init /tmp/repo-check
+          cd /tmp/repo-check
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth 1 origin main
+          git checkout FETCH_HEAD -- docs-site/versions.json 2>/dev/null || true
+
+          if [ -f docs-site/versions.json ] && grep -q "\"${DOCS_VERSION}\"" docs-site/versions.json; then
+            echo "Docs version ${DOCS_VERSION} already exists — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Docs version ${DOCS_VERSION} is new — will create snapshot."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout source repo
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.skip != 'true'
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Create docs version snapshot
+        if: steps.check.outputs.skip != 'true'
+        working-directory: docs-site
+        run: npx docusaurus docs:version "${{ steps.version.outputs.docs_version }}"
+
+      - name: Commit and push versioned docs
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs-site/versions.json docs-site/versioned_docs docs-site/versioned_sidebars
+          git commit -m "docs: snapshot version ${{ steps.version.outputs.docs_version }} docs"
+          git push origin main
+
+      # The docs site is deployed to a separate GitHub Pages repo
+      # (Fiestaboard/fiestaboard.github.io) by the Deploy Docs workflow.
+      # Explicitly trigger it so the new version reaches the live site
+      # even if the push above doesn't auto-trigger workflows (e.g.
+      # when GITHUB_TOKEN is used instead of RELEASE_PAT).
+      - name: Trigger docs deployment
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docs.yml --repo "${{ github.repository }}"
