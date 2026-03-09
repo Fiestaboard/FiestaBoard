@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useTransition, useRef, useDeferredValue, useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,8 @@ function addSnoozingIndicator(content: string, numRows: number = 6, numCols: num
 }
 
 export function ActivePageDisplay() {
+  const t = useTranslations("activeDisplay");
+  const tc = useTranslations("common");
   const router = useRouter();
   
   // Sheet open state
@@ -231,10 +234,10 @@ export function ActivePageDisplay() {
       const firstPage = pages[0];
       setActivePageMutation.mutate(firstPage.id, {
         onSuccess: (result) => {
-          toast.success(`Set "${firstPage.name}" as active page`);
+          toast.success(t("toastSetActivePage", { pageName: firstPage.name }));
         },
         onError: () => {
-          toast.error("Failed to set default page");
+          toast.error(t("toastSetDefaultFailed"));
         }
       });
     }
@@ -270,11 +273,11 @@ export function ActivePageDisplay() {
         
         // Use startTransition for toast notifications (non-urgent)
         startTransition(() => {
-          toast.success(`Switched to active page`);
+          toast.success(t("toastSwitchSuccess"));
         });
       },
       onError: () => {
-        toast.error("Failed to switch page");
+        toast.error(t("toastSwitchFailed"));
       }
     });
   }, [activePageId, setActivePageMutation]);
@@ -290,7 +293,7 @@ export function ActivePageDisplay() {
   // Get the active page name for display
   const activePageName = useMemo(() => {
     if (!activePageId && scheduleEnabled) {
-      return "Schedule gap (no default page set)";
+      return t("scheduleGapNoDefault");
     }
     if (activeCarousel) {
       return activeCarousel.name;
@@ -326,7 +329,7 @@ export function ActivePageDisplay() {
       <Card className="card-interactive">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Active Display</CardTitle>
+            <CardTitle className="text-lg">{t("title")}</CardTitle>
             <Button
               variant="outline"
               size="sm"
@@ -371,13 +374,13 @@ export function ActivePageDisplay() {
             {activeCarousel && (
               <Badge variant="outline" className="text-xs gap-1">
                 <GalleryHorizontalEnd className="h-3 w-3" />
-                Carousel
+                {t("carouselBadge")}
               </Badge>
             )}
             {silenceStatus?.active && (
               <div className="flex items-center gap-1.5">
                 <Moon className="h-3 w-3 text-info" aria-hidden="true" />
-                <span className="text-info">Silence mode active</span>
+                <span className="text-info">{t("silenceModeActive")}</span>
               </div>
             )}
           </div>
@@ -389,12 +392,12 @@ export function ActivePageDisplay() {
             <Alert variant="default" className="border-warning/50 bg-warning/10">
               <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="text-sm">
-                No page scheduled for current time. Set a default page in{" "}
+                {t("noPageScheduled")}{" "}
                 <button
                   onClick={() => router.push("/schedule")}
                   className="underline font-medium hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 >
-                  Schedule settings
+                  {t("scheduleSettingsLink")}
                 </button>
                 .
               </AlertDescription>
@@ -431,9 +434,9 @@ export function ActivePageDisplay() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Select Page</SheetTitle>
+            <SheetTitle>{t("selectPageTitle")}</SheetTitle>
             <SheetDescription>
-              Choose which page to display on your board
+              {t("selectPageDescription")}
             </SheetDescription>
           </SheetHeader>
           
@@ -456,7 +459,7 @@ export function ActivePageDisplay() {
               />
             ) : (
               <div className="text-center text-sm text-muted-foreground py-8">
-                Loading pages...
+                {t("loadingPages")}
               </div>
             )}
           </div>
