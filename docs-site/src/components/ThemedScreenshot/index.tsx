@@ -134,7 +134,7 @@ export default function ThemedScreenshot({
           loading="lazy"
           onClick={() => setLightboxOpen(true)}
         />
-        <figcaption className={styles.toggleBar}>
+        <figcaption className={styles.caption}>
           <ThemeToggle activeMode={activeMode} onSetMode={setActiveMode} />
         </figcaption>
       </figure>
