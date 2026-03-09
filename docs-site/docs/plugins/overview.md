@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
-description: "Explore FiestaBoard's 23 plugins for your Vestaboard — weather, sports, traffic, transit, Home Assistant, and more."
+description: "Explore FiestaBoard's 26 plugins for your Vestaboard — weather, sports, traffic, transit, Home Assistant, and more."
 keywords: [FiestaBoard plugins, plugin overview, available plugins, Vestaboard plugins, Vestaboard integrations, split-flap integrations]
 ---
 
 # Plugins Overview
 
-FiestaBoard uses a **plugin architecture** to bring live data to your Vestaboard. Each data source is a self-contained plugin you can enable or disable independently. There are currently 23 built-in plugins, and many work without any API key.
+FiestaBoard uses a **plugin architecture** to bring live data to your Vestaboard. Each data source is a self-contained plugin you can enable or disable independently. There are currently 26 built-in plugins, and many work without any API key.
 
 ## Enabling Plugins
 
@@ -30,8 +30,11 @@ These plugins work immediately after enabling - no registration or API keys need
 | **Dad Jokes** | Random dad jokes from icanhazdadjoke |
 | **Date & Time** | Current date and time in multiple formats (12h/24h, US/international) with timezone support |
 | **Disney Parks Queue Times** | Live wait times for rides at Disney parks worldwide |
+| **Generic Data** | Fetch data from any URL (JSON or XML) and map fields to template variables |
 | **Guest WiFi** | Your WiFi network name and password for guests |
+| **Allergy & Health** | Display allergy levels (pollen counts) and health risk indicators using Open-Meteo data |
 | **Santa Tracker** | Track Santa's journey around the world on Christmas Eve |
+| **Spacecraft Launches** | Track upcoming spacecraft launch countdowns and statuses |
 | **Star Trek Quotes** | Random quotes from TNG, Voyager, and DS9 |
 | **Stardate** | Current TNG-era stardate |
 | **Sun Art** | Full-screen art pattern that changes with the sun's position throughout the day |

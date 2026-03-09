@@ -33,7 +33,6 @@ When using the default deployment, prefix all paths with `/api` (e.g. `GET http:
 | `POST` | `/refresh` | Refresh the current display |
 | `POST` | `/force-refresh` | Force refresh (bypasses preview cache) |
 | `POST` | `/send-message` | Send a custom message to the board |
-| `POST` | `/dev-mode` | Toggle development mode |
 
 ### Service Control
 

@@ -30,9 +30,9 @@ def mock_client():
 class TestStatePublisherGather:
     """Tests for StatePublisher.gather_and_publish."""
 
-    @patch("src.mqtt.state.get_page_service")
-    @patch("src.mqtt.state.get_settings_service")
-    @patch("src.mqtt.state.Config")
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
     def test_gather_publishes_schedule_enabled(
         self, mock_config, get_settings, get_page, mock_client
     ):
@@ -59,9 +59,9 @@ class TestStatePublisherGather:
         idx = topics.index("schedule_enabled")
         assert calls[idx][0][1] == "ON"
 
-    @patch("src.mqtt.state.get_page_service")
-    @patch("src.mqtt.state.get_settings_service")
-    @patch("src.mqtt.state.Config")
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
     def test_gather_dedup_does_not_republish_unchanged(
         self, mock_config, get_settings, get_page, mock_client
     ):
@@ -87,8 +87,8 @@ class TestStatePublisherGather:
         second_count = mock_client.publish_state.call_count
         assert second_count == first_count
 
-    @patch("src.mqtt.state.get_page_service")
-    @patch("src.mqtt.state.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
     def test_gather_handles_exception(self, get_settings, get_page, mock_client):
         get_settings.side_effect = RuntimeError("service unavailable")
         pub = StatePublisher(mock_client)

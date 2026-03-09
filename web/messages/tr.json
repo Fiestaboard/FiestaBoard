@@ -49,7 +49,6 @@
     "savingIndicator": "Kaydediliyor...",
     "pageCount": "{count, plural, one {# sayfa} other {# sayfa}}"
   },
-
   "navigation": {
     "home": "Ana Sayfa",
     "pages": "Sayfalar",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Mobil gezinme",
     "mainNavigation": "Ana gezinme"
   },
-
   "home": {
     "title": "Gösterge Paneli",
     "description": "Pano ekranınızı ve sistem etkinliğini izleyin",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Panonuz henüz kurulmadı. İçerik görüntülemeye başlamak için panonuzu bağlayın.",
     "runSetupWizard": "Kurulum Sihirbazını Çalıştır"
   },
-
   "pages": {
     "title": "Sayfalar",
     "description": "Panonuz için içerik oluşturun ve yönetin",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Panoda görüntülemek için ilk sayfanızı oluşturun.",
     "createFirstPage": "İlk sayfanızı oluşturun"
   },
-
   "carousels": {
     "title": "Döngüler",
     "description": "Otomatik olarak geçiş yapan sayfa koleksiyonları oluşturun",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Döngü güncellenemedi",
     "toastDeleteFailed": "Döngü silinemedi"
   },
-
   "schedule": {
     "title": "Zamanlama",
     "description": "Zamana ve güne göre sayfa rotasyonunu otomatikleştirin",
@@ -186,7 +181,6 @@
       "submitError": "Zamanlama kaydedilemedi"
     }
   },
-
   "integrations": {
     "title": "Entegrasyonlar",
     "description": "FiestaBoard için veri kaynağı eklentilerini etkinleştirin ve yapılandırın",
@@ -241,7 +235,6 @@
       "weather": "Hava Durumu ve Çevre"
     }
   },
-
   "settings": {
     "title": "Ayarlar",
     "description": "FiestaBoard hizmetinizi yapılandırın",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Pano bağlantınızı ve temel ayarlarınızı yeniden yapılandırmak için kurulum sihirbazını tekrar çalıştırın.",
     "runSetupWizard": "Kurulum Sihirbazını Çalıştır"
   },
-
   "offline": {
     "youreOffline": "Çevrimdışısınız",
     "reconnecting": "Yeniden bağlanılıyor...",
@@ -262,7 +254,6 @@
     "accessCached": "Önbelleğe alınmış içeriğe erişme",
     "browseSaved": "Kayıtlı verilerinize göz atma"
   },
-
   "wizard": {
     "welcomeTitle": "FiestaBoard'a Hoş Geldiniz",
     "welcomeSubtitle": "Birkaç adımda kurulumunuzu tamamlayalım",
@@ -316,7 +307,9 @@
       "boardType": "Pano Türü",
       "flagshipDimensions": "22 × 6 karakter",
       "noteDimensions": "15 × 3 karakter",
-      "boardColor": "Pano Rengi"
+      "boardColor": "Pano Rengi",
+      "connectionTestFailed": "Bağlantı testi başarısız",
+      "failedToEnableLocalApi": "Yerel API etkinleştirilemedi"
     },
     "easyPlugins": {
       "description": "Bu özellikler harici API anahtarı gerektirmeden hemen çalışır. İstediğinizi etkinleştirin!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "Pano sessiz saatlerde — mesaj daha sonraya ertelendi!",
       "failedToSend": "Gönderilemedi",
       "goToDashboard": "Gösterge Paneline Git",
-      "skipGoToDashboard": "Atla ve Gösterge Paneline Git"
+      "skipGoToDashboard": "Atla ve Gösterge Paneline Git",
+      "dateTimeName": "Tarih ve Saat",
+      "starTrekName": "Star Trek Alıntıları",
+      "guestWifiName": "Misafir WiFi"
     }
   },
-
   "activeDisplay": {
     "title": "Aktif Ekran",
     "viewSchedule": "Zamanlamayı Görüntüle",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Aktif sayfaya geçildi",
     "toastSwitchFailed": "Sayfa değiştirilemedi"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Hizmet durumu: Bağlantı kesildi",
     "runningAriaLabel": "Hizmet durumu: Çalışıyor",
@@ -381,7 +375,6 @@
     "runningTooltip": "Çalışıyor",
     "stoppedTooltip": "Durduruldu"
   },
-
   "installPrompt": {
     "title": "FiestaBoard Kontrolü Yükle",
     "description": "Hızlı erişim ve daha iyi bir deneyim için ana ekranınıza ekleyin.",
@@ -389,7 +382,6 @@
     "notNow": "Şimdi değil",
     "dismissAriaLabel": "Kapat"
   },
-
   "silenceMode": {
     "loading": "Yükleniyor...",
     "disabled": "Sessiz Mod: Devre Dışı",
@@ -400,7 +392,6 @@
     "compactSilent": "Sessiz",
     "compactActive": "Aktif"
   },
-
   "pageBuilder": {
     "editPage": "Sayfayı Düzenle",
     "createPage": "Sayfa Oluştur",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Hareketsizlik nedeniyle canlı çıktı kapatıldı",
     "toastLiveSendFailed": "Panoya gönderilemedi"
   },
-
   "displaySettings": {
     "title": "Panolarınız",
     "description": "Sahip olduğunuz her Vestaboard'u ekleyin ve bağlantısını yapılandırın.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Pano kaldırıldı",
     "atLeastOneBoard": "En az bir pano gereklidir"
   },
-
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",
     "youAreRunning": "v{currentVersion} sürümünü çalıştırıyorsunuz.",
     "viewRelease": "Sürümü Görüntüle",
     "checkForUpdates": "Güncellemeleri kontrol et"
   },
-
   "transitionSettings": {
     "title": "Pano Geçişleri",
     "description": "Pano yeni bir mesaja güncellenirken nasıl animasyon yapacağını seçin. Geçişler, Vestaboard'unuzdaki karakterlerin çevirme animasyonu stilini kontrol eder.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Hata Ayıklama Araçları",
     "description": "Vestaboard bağlantısını test edin ve hata ayıklayın",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Ağ tanılaması başarısız oldu: {error}",
     "toastCacheClearFailed": "Önbellek temizlenemedi: {error}"
   },
-
   "generalSettings": {
     "title": "Genel Ayarlar",
     "description": "Genel ayarları ve hizmet kontrolünü yapılandırın",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Sessizlik zamanlaması kaydedilemedi: {error}",
     "toastPollingUpdated": "Yoklama aralığı güncellendi",
     "toastPollingUpdatedRestart": "Yoklama aralığı güncellendi. Değişikliklerin uygulanması için hizmeti yeniden başlatın.",
-    "toastPollingFailed": "Yoklama aralığı güncellenemedi: {error}"
+    "toastPollingFailed": "Yoklama aralığı güncellenemedi: {error}",
+    "languageLabel": "Dil",
+    "languageDescription": "Arayüz görüntüleme dilini seçin"
   },
-
   "themeToggle": {
     "toggleTheme": "Temayı değiştir"
   },
-
   "versionDisplay": {
     "devSuffix": "(geliştirme)",
     "updateAvailableAriaLabel": "Güncelleme mevcut: v{version}",
     "updateAvailableTooltip": "Güncelleme mevcut: v{version}"
   },
-
   "serviceControls": {
     "title": "Hizmet Kontrolü",
     "contentAutoSent": "İçerik fiziksel panoya otomatik olarak gönderilir"
   },
-
   "daySelector": {
     "daysLegend": "Günler",
     "dayPatternAriaLabel": "Gün düzeni",
@@ -652,7 +636,6 @@
       "sunday": "Paz"
     }
   },
-
   "configDisplay": {
     "title": "Yapılandırma",
     "clickToToggle": "önizlemeyi değiştirmek için tıklayın",
@@ -665,7 +648,6 @@
       "rotation": "Rotasyon"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Şablon metninizi yazın...",
     "lineCount": "{current} / {total} satır",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Hizalama önekleri: {left}, {center}, {right}",
     "wrapPrefix": "Kaydırma öneki: {wrap}"
   },
-
   "outputTarget": {
     "title": "Çıktı Hedefi",
     "description": "İçeriğin nerede görüntüleneceğini seçin",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Arayüzde göster ve panoya gönder",
     "toastUpdated": "Çıktı hedefi güncellendi"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Yok (varsayılan yok)",
     "pagesAriaLabel": "Sayfalar",
@@ -697,7 +677,6 @@
     "pagesTab": "Sayfalar ({count})",
     "carouselsTab": "Döngüler ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "SAYFA SEÇ",
     "loadingPreviewAriaLabel": "Önizleme yükleniyor",

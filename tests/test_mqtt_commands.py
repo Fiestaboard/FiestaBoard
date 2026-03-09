@@ -41,14 +41,14 @@ def handler(mock_client):
 class TestCommandHandlerScheduleEnabled:
     """Tests for schedule_enabled command."""
 
-    @patch("src.mqtt.commands.get_settings_service")
+    @patch("src.settings.service.get_settings_service")
     def test_handle_schedule_on(self, get_settings, handler):
         settings = MagicMock()
         get_settings.return_value = settings
         handler.handle("schedule_enabled", "ON")
         settings.set_schedule_enabled.assert_called_once_with(True)
 
-    @patch("src.mqtt.commands.get_settings_service")
+    @patch("src.settings.service.get_settings_service")
     def test_handle_schedule_off(self, get_settings, handler):
         settings = MagicMock()
         get_settings.return_value = settings
@@ -71,8 +71,8 @@ class TestCommandHandlerDisplayService:
 class TestCommandHandlerActivePage:
     """Tests for active_page command."""
 
-    @patch("src.mqtt.commands.get_settings_service")
-    @patch("src.mqtt.commands.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
     def test_handle_active_page_by_name(self, get_page, get_settings, handler):
         page_svc = MagicMock()
         page = MagicMock()
@@ -85,7 +85,7 @@ class TestCommandHandlerActivePage:
         handler.handle("active_page", "Weather")
         settings.set_active_page_id.assert_called_once_with("page-weather-id")
 
-    @patch("src.mqtt.commands.get_page_service")
+    @patch("src.pages.service.get_page_service")
     def test_handle_active_page_unknown_name_logs(self, get_page, handler):
         page_svc = MagicMock()
         page_svc.list_pages.return_value = []
@@ -97,8 +97,8 @@ class TestCommandHandlerActivePage:
 class TestCommandHandlerTransitionStyle:
     """Tests for transition_style command."""
 
-    @patch("src.mqtt.commands.VALID_STRATEGIES", ["column", "random"])
-    @patch("src.mqtt.commands.get_settings_service")
+    @patch("src.settings.service.VALID_STRATEGIES", ["column", "random"])
+    @patch("src.settings.service.get_settings_service")
     def test_handle_transition_style(self, get_settings, handler):
         settings = MagicMock()
         get_settings.return_value = settings
@@ -109,14 +109,14 @@ class TestCommandHandlerTransitionStyle:
 class TestCommandHandlerRefreshInterval:
     """Tests for refresh_interval command."""
 
-    @patch("src.mqtt.commands.get_settings_service")
+    @patch("src.settings.service.get_settings_service")
     def test_handle_refresh_interval(self, get_settings, handler):
         settings = MagicMock()
         get_settings.return_value = settings
         handler.handle("refresh_interval", "120")
         settings.set_polling_interval.assert_called_once_with(120)
 
-    @patch("src.mqtt.commands.get_settings_service")
+    @patch("src.settings.service.get_settings_service")
     def test_handle_refresh_interval_invalid_ignored(self, get_settings, handler):
         settings = MagicMock()
         get_settings.return_value = settings

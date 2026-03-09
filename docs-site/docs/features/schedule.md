@@ -65,7 +65,7 @@ FiestaBoard automatically validates your schedule and provides real-time feedbac
 
 - **Overlap Detection** - Warns if two schedules overlap on the same day/time
 - **Gap Detection** - Shows unscheduled time periods
-- **Active Page Resolution** - The system checks at your configured refresh interval (default: 300 seconds) which page should be displayed based on the current time
+- **Active Page Resolution** - The system checks at your configured polling interval (default: 15 seconds) which page should be displayed based on the current time
 
 :::info
 When no schedule is active, FiestaBoard displays the default page. You can set the default page in Settings.
@@ -73,7 +73,7 @@ When no schedule is active, FiestaBoard displays the default page. You can set t
 
 ## How Page Resolution Works
 
-At your configured refresh interval (default: 300 seconds), the display service:
+At your configured polling interval (default: 15 seconds), the display service:
 
 1. Checks the current local time and day of week
 2. Looks for enabled schedule entries that match the current time

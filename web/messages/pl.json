@@ -49,7 +49,6 @@
     "savingIndicator": "Zapisywanie...",
     "pageCount": "{count, plural, one {# strona} few {# strony} many {# stron} other {# stron}}"
   },
-
   "navigation": {
     "home": "Strona główna",
     "pages": "Strony",
@@ -65,7 +64,6 @@
     "mobileNavigation": "Nawigacja mobilna",
     "mainNavigation": "Nawigacja główna"
   },
-
   "home": {
     "title": "Panel",
     "description": "Monitoruj wyświetlacz tablicy i aktywność systemu",
@@ -73,7 +71,6 @@
     "noBoardDescription": "Twoja tablica nie jest jeszcze skonfigurowana. Połącz tablicę, aby zacząć wyświetlać treści.",
     "runSetupWizard": "Uruchom kreator konfiguracji"
   },
-
   "pages": {
     "title": "Strony",
     "description": "Twórz treści i zarządzaj nimi na swojej tablicy",
@@ -87,7 +84,6 @@
     "noPagesDescription": "Utwórz pierwszą stronę do wyświetlenia na tablicy.",
     "createFirstPage": "Utwórz pierwszą stronę"
   },
-
   "carousels": {
     "title": "Karuzele",
     "description": "Twórz kolekcje stron, które zmieniają się automatycznie",
@@ -127,7 +123,6 @@
     "toastUpdateFailed": "Nie udało się zaktualizować karuzeli",
     "toastDeleteFailed": "Nie udało się usunąć karuzeli"
   },
-
   "schedule": {
     "title": "Harmonogram",
     "description": "Automatyzuj rotację stron na podstawie czasu i dnia",
@@ -186,7 +181,6 @@
       "submitError": "Nie udało się zapisać harmonogramu"
     }
   },
-
   "integrations": {
     "title": "Integracje",
     "description": "Włącz i skonfiguruj wtyczki źródeł danych dla swojego FiestaBoard",
@@ -241,7 +235,6 @@
       "weather": "Pogoda i środowisko"
     }
   },
-
   "settings": {
     "title": "Ustawienia",
     "description": "Skonfiguruj usługę FiestaBoard",
@@ -250,7 +243,6 @@
     "setupWizardDescription": "Uruchom ponownie kreator konfiguracji, aby zmienić połączenie z tablicą i podstawowe ustawienia.",
     "runSetupWizard": "Uruchom kreator konfiguracji"
   },
-
   "offline": {
     "youreOffline": "Jesteś offline",
     "reconnecting": "Ponowne łączenie...",
@@ -262,7 +254,6 @@
     "accessCached": "Korzystać z treści w pamięci podręcznej",
     "browseSaved": "Przeglądać zapisane dane"
   },
-
   "wizard": {
     "welcomeTitle": "Witaj w FiestaBoard",
     "welcomeSubtitle": "Skonfigurujmy wszystko w kilku krokach",
@@ -316,7 +307,9 @@
       "boardType": "Typ tablicy",
       "flagshipDimensions": "22 × 6 znaków",
       "noteDimensions": "15 × 3 znaki",
-      "boardColor": "Kolor tablicy"
+      "boardColor": "Kolor tablicy",
+      "connectionTestFailed": "Test połączenia nie powiódł się",
+      "failedToEnableLocalApi": "Nie udało się włączyć lokalnego API"
     },
     "easyPlugins": {
       "description": "Te funkcje działają od razu bez zewnętrznych kluczy API. Włącz to, co chcesz!",
@@ -349,10 +342,12 @@
       "boardInQuietHours": "Tablica jest w trybie ciszy — wiadomość zostanie wysłana później!",
       "failedToSend": "Nie udało się wysłać",
       "goToDashboard": "Przejdź do panelu",
-      "skipGoToDashboard": "Pomiń i przejdź do panelu"
+      "skipGoToDashboard": "Pomiń i przejdź do panelu",
+      "dateTimeName": "Data i czas",
+      "starTrekName": "Cytaty ze Star Treka",
+      "guestWifiName": "WiFi dla gości"
     }
   },
-
   "activeDisplay": {
     "title": "Aktywny wyświetlacz",
     "viewSchedule": "Zobacz harmonogram",
@@ -372,7 +367,6 @@
     "toastSwitchSuccess": "Przełączono na aktywną stronę",
     "toastSwitchFailed": "Nie udało się przełączyć strony"
   },
-
   "serviceStatus": {
     "disconnectedAriaLabel": "Status usługi: Rozłączono",
     "runningAriaLabel": "Status usługi: Działa",
@@ -381,7 +375,6 @@
     "runningTooltip": "Działa",
     "stoppedTooltip": "Zatrzymano"
   },
-
   "installPrompt": {
     "title": "Zainstaluj FiestaBoard Control",
     "description": "Dodaj do ekranu głównego, aby mieć szybki dostęp i lepsze wrażenia.",
@@ -389,7 +382,6 @@
     "notNow": "Nie teraz",
     "dismissAriaLabel": "Odrzuć"
   },
-
   "silenceMode": {
     "loading": "Ładowanie...",
     "disabled": "Tryb ciszy: Wyłączony",
@@ -400,7 +392,6 @@
     "compactSilent": "Cisza",
     "compactActive": "Aktywny"
   },
-
   "pageBuilder": {
     "editPage": "Edytuj stronę",
     "createPage": "Utwórz stronę",
@@ -441,7 +432,6 @@
     "toastLiveOutputOff": "Podgląd na żywo wyłączony z powodu braku aktywności",
     "toastLiveSendFailed": "Nie udało się wysłać na tablicę"
   },
-
   "displaySettings": {
     "title": "Twoje tablice",
     "description": "Dodaj każdy Vestaboard, który posiadasz, i skonfiguruj jego połączenie.",
@@ -484,14 +474,12 @@
     "boardRemoved": "Tablica usunięta",
     "atLeastOneBoard": "Wymagana jest co najmniej jedna tablica"
   },
-
   "systemUpdate": {
     "updateAvailable": "Dostępna aktualizacja",
     "youAreRunning": "Używasz wersji v{currentVersion}.",
     "viewRelease": "Zobacz wydanie",
     "checkForUpdates": "Sprawdź aktualizacje"
   },
-
   "transitionSettings": {
     "title": "Przejścia tablicy",
     "description": "Wybierz sposób animacji tablicy podczas aktualizacji do nowej wiadomości. Przejścia kontrolują styl animacji przewracania znaków na Twoim Vestaboard.",
@@ -537,7 +525,6 @@
       }
     }
   },
-
   "debugSettings": {
     "title": "Narzędzia debugowania",
     "description": "Testuj i debuguj połączenie z Vestaboard",
@@ -594,7 +581,6 @@
     "toastNetworkError": "Diagnostyka sieci nie powiodła się: {error}",
     "toastCacheClearFailed": "Nie udało się wyczyścić pamięci podręcznej: {error}"
   },
-
   "generalSettings": {
     "title": "Ustawienia ogólne",
     "description": "Skonfiguruj ustawienia globalne i kontrolę usługi",
@@ -616,24 +602,22 @@
     "toastSilenceSaveFailed": "Nie udało się zapisać harmonogramu ciszy: {error}",
     "toastPollingUpdated": "Interwał odpytywania zaktualizowany",
     "toastPollingUpdatedRestart": "Interwał odpytywania zaktualizowany. Uruchom ponownie usługę, aby zastosować zmiany.",
-    "toastPollingFailed": "Nie udało się zaktualizować interwału odpytywania: {error}"
+    "toastPollingFailed": "Nie udało się zaktualizować interwału odpytywania: {error}",
+    "languageLabel": "Język",
+    "languageDescription": "Wybierz język wyświetlania interfejsu"
   },
-
   "themeToggle": {
     "toggleTheme": "Przełącz motyw"
   },
-
   "versionDisplay": {
     "devSuffix": "(dev)",
     "updateAvailableAriaLabel": "Dostępna aktualizacja: v{version}",
     "updateAvailableTooltip": "Dostępna aktualizacja: v{version}"
   },
-
   "serviceControls": {
     "title": "Kontrola usługi",
     "contentAutoSent": "Treść jest automatycznie wysyłana na fizyczną tablicę"
   },
-
   "daySelector": {
     "daysLegend": "Dni",
     "dayPatternAriaLabel": "Wzorzec dni",
@@ -652,7 +636,6 @@
       "sunday": "Niedz."
     }
   },
-
   "configDisplay": {
     "title": "Konfiguracja",
     "clickToToggle": "kliknij, aby przełączyć podgląd",
@@ -665,7 +648,6 @@
       "rotation": "Rotacja"
     }
   },
-
   "plainTextEditor": {
     "placeholder": "Wpisz tekst szablonu...",
     "lineCount": "{current} / {total} linii",
@@ -675,7 +657,6 @@
     "alignmentPrefixes": "Prefiksy wyrównania: {left}, {center}, {right}",
     "wrapPrefix": "Prefiks zawijania: {wrap}"
   },
-
   "outputTarget": {
     "title": "Cel wyjściowy",
     "description": "Wybierz, gdzie treść ma być wyświetlana",
@@ -687,7 +668,6 @@
     "uiAndBoardDescription": "Pokaż w interfejsie i wyślij na tablicę",
     "toastUpdated": "Cel wyjściowy zaktualizowany"
   },
-
   "pagePickerDialog": {
     "noneNoDefault": "Brak (bez domyślnej)",
     "pagesAriaLabel": "Strony",
@@ -697,7 +677,6 @@
     "pagesTab": "Strony ({count})",
     "carouselsTab": "Karuzele ({count})"
   },
-
   "pageGridSelector": {
     "selectPageLabel": "WYBIERZ STRONĘ",
     "loadingPreviewAriaLabel": "Ładowanie podglądu",

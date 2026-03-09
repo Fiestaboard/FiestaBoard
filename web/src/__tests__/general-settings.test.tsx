@@ -2,6 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  usePathname: () => "/settings",
+}));
+
 import { GeneralSettings } from "@/components/general-settings";
 
 // Test wrapper with providers
@@ -71,27 +84,25 @@ describe("GeneralSettings", () => {
     const user = userEvent.setup();
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
+    // Wait for data to fully load including deferred values by checking
+    // that the polling input has its value from the API mock (300)
     await waitFor(() => {
-      const switches = screen.getAllByRole("switch");
-      expect(switches.length).toBeGreaterThan(0);
+      const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
+      expect(pollingInput).toBeInTheDocument();
+      expect(parseInt(pollingInput.value, 10)).toBe(300);
     });
 
-    // Get the silence schedule toggle (second switch)
-    const switches = screen.getAllByRole("switch");
-    const silenceToggle = switches.find((s) => s.getAttribute("id") === "silence-enabled");
-    
-    if (silenceToggle) {
-      await user.click(silenceToggle);
+    // Get the silence schedule toggle
+    const silenceToggle = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "silence-enabled");
+    expect(silenceToggle).toBeDefined();
 
-      // Should show time pickers
-      await waitFor(() => {
-        expect(screen.getByText("Start Time")).toBeInTheDocument();
-        expect(screen.getByText("End Time")).toBeInTheDocument();
-      });
-    } else {
-      // If silence toggle is not found, just verify the component rendered
-      expect(switches.length).toBeGreaterThan(0);
-    }
+    await user.click(silenceToggle!);
+
+    // Should show time pickers
+    await waitFor(() => {
+      expect(screen.getByText("Start Time")).toBeInTheDocument();
+      expect(screen.getByText("End Time")).toBeInTheDocument();
+    }, { timeout: 2000 });
   });
 
   it("shows save button when changes are made", async () => {

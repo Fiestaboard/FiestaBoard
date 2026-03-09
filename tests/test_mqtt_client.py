@@ -51,10 +51,10 @@ class TestMQTTClientStart:
         client = MQTTClient(mqtt_config)
         client.start()
         mock_client.will_set.assert_called_once()
-        args = mock_client.will_set.call_args
-        assert args[0][0] == "fiestaboard/status"
-        assert args[0][1] == "offline"
-        assert args[1].get("retain") is True
+        args, kwargs = mock_client.will_set.call_args
+        assert args[0] == "fiestaboard/status"
+        assert kwargs.get("payload") == "offline"
+        assert kwargs.get("retain") is True
 
     @patch("src.mqtt.client._get_paho_client")
     def test_start_invalid_config_does_not_connect(self, get_paho, mock_paho):

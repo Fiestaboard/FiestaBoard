@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,8 @@ export function StepBoardSetup({
   isLoading,
   setIsLoading,
 }: StepBoardSetupProps) {
+  const t = useTranslations("wizard.boardSetup");
+  const tc = useTranslations("common");
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -133,11 +136,11 @@ export function StepBoardSetup({
         setEnablementToken("");
       } else {
         setEnablementStatus("error");
-        setEnablementMessage(result.message || "Failed to enable local API");
+        setEnablementMessage(result.message || t("failedToEnableLocalApi"));
       }
     } catch (error) {
       setEnablementStatus("error");
-      setEnablementMessage(error instanceof Error ? error.message : "Failed to enable local API");
+      setEnablementMessage(error instanceof Error ? error.message : t("failedToEnableLocalApi"));
     } finally {
       setIsLoading(false);
     }
@@ -190,13 +193,13 @@ export function StepBoardSetup({
         onConfigChange({ ...cfg, connectionVerified: true });
       } else {
         setTestStatus("error");
-        setTestMessage(result.message || "Connection failed");
+        setTestMessage(result.message || t("connectionTestFailed"));
         setTroubleshootingSteps(result.troubleshooting || []);
         onConfigChange({ ...cfg, connectionVerified: false });
       }
     } catch (error) {
       setTestStatus("error");
-      setTestMessage(error instanceof Error ? error.message : "Connection test failed");
+      setTestMessage(error instanceof Error ? error.message : t("connectionTestFailed"));
       setTroubleshootingSteps([]);
       onConfigChange({ ...configRef.current, connectionVerified: false });
     } finally {
@@ -234,7 +237,7 @@ export function StepBoardSetup({
     <div className="space-y-6">
       {/* API Mode Selection */}
       <div className="space-y-3">
-        <Label className="text-base font-medium">Connection Type</Label>
+        <Label className="text-base font-medium">{t("connectionType")}</Label>
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -250,9 +253,9 @@ export function StepBoardSetup({
               "h-8 w-8",
               config.api_mode === "cloud" ? "text-primary" : "text-muted-foreground"
             )} />
-            <span className="font-medium">Cloud API</span>
+            <span className="font-medium">{t("cloudApi")}</span>
             <span className="text-xs text-muted-foreground text-center">
-              Easiest setup
+              {t("cloudApiEasiest")}
             </span>
           </button>
 
@@ -270,9 +273,9 @@ export function StepBoardSetup({
               "h-8 w-8",
               config.api_mode === "local" ? "text-primary" : "text-muted-foreground"
             )} />
-            <span className="font-medium">Local API</span>
+            <span className="font-medium">{t("localApi")}</span>
             <span className="text-xs text-muted-foreground text-center">
-              Faster, same network
+              {t("localApiFaster")}
             </span>
           </button>
         </div>
@@ -282,12 +285,12 @@ export function StepBoardSetup({
       {config.api_mode === "cloud" ? (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="cloud_key">Read/Write API Key</Label>
+            <Label htmlFor="cloud_key">{t("readWriteApiKey")}</Label>
             <div className="relative">
               <Input
                 id="cloud_key"
                 type={showApiKey ? "text" : "password"}
-                placeholder="Get this from web.vestaboard.com"
+                placeholder={t("cloudKeyPlaceholder")}
                 value={config.cloud_key}
                 onChange={(e) => {
                   onConfigChange({
@@ -309,7 +312,7 @@ export function StepBoardSetup({
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
-              Found at web.vestaboard.com → Settings → API
+              {t("cloudKeyHelp")}
             </p>
           </div>
         </div>
@@ -317,11 +320,11 @@ export function StepBoardSetup({
         <div className="space-y-4">
           {/* Board IP Address - always needed for local */}
           <div className="space-y-2">
-            <Label htmlFor="host">Board IP Address</Label>
+            <Label htmlFor="host">{t("boardIpAddress")}</Label>
             <div className="flex gap-2">
               <Input
                 id="host"
-                placeholder="e.g., 192.168.1.100"
+                placeholder={t("boardIpPlaceholder")}
                 value={config.host}
                 onChange={(e) => {
                   onConfigChange({
@@ -340,7 +343,7 @@ export function StepBoardSetup({
                 size="default"
                 onClick={handleScanForBoards}
                 disabled={scanStatus === "scanning"}
-                title="Scan network for Vestaboards"
+                title={t("scanNetworkTooltip")}
               >
                 {scanStatus === "scanning" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -351,7 +354,7 @@ export function StepBoardSetup({
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
-              Enter IP manually or click <Search className="h-3 w-3 inline" /> to scan your network
+              {t("boardIpHelp")}
             </p>
           </div>
 
@@ -359,19 +362,19 @@ export function StepBoardSetup({
           {scanStatus === "scanning" && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Scanning network for Vestaboards…</span>
+              <span>{t("scanningNetwork")}</span>
             </div>
           )}
           {scanStatus === "done" && discoveredBoards.length === 0 && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
               <HelpCircle className="h-4 w-4" />
-              <span>No boards found. Enter the IP address manually.</span>
+              <span>{t("noBoardsFound")}</span>
             </div>
           )}
           {scanStatus === "done" && discoveredBoards.length >= 1 && (
             <div className="space-y-2">
               <Label className="text-sm">
-                Found {discoveredBoards.length} {discoveredBoards.length === 1 ? "board" : "boards"} — select one:
+                {t("foundBoards", { count: discoveredBoards.length })}
               </Label>
               <div className="space-y-1.5">
                 {discoveredBoards.map((board) => (
@@ -398,13 +401,13 @@ export function StepBoardSetup({
           {scanStatus === "error" && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <XCircle className="h-4 w-4" />
-              <span>Scan failed. Please enter the IP address manually.</span>
+              <span>{t("scanFailed")}</span>
             </div>
           )}
 
           {/* Local Key Mode Toggle */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Authentication Method</Label>
+            <Label className="text-sm font-medium">{t("authenticationMethod")}</Label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -417,7 +420,7 @@ export function StepBoardSetup({
                 )}
               >
                 <Key className="h-4 w-4" />
-                <span>API Key</span>
+                <span>{t("apiKey")}</span>
               </button>
               <button
                 type="button"
@@ -430,19 +433,19 @@ export function StepBoardSetup({
                 )}
               >
                 <KeyRound className="h-4 w-4" />
-                <span>Enablement Token</span>
+                <span>{t("enablementToken")}</span>
               </button>
             </div>
           </div>
 
           {localKeyMode === "api_key" ? (
             <div className="space-y-2">
-              <Label htmlFor="local_api_key">Local API Key</Label>
+              <Label htmlFor="local_api_key">{t("localApiKey")}</Label>
               <div className="relative">
                 <Input
                   id="local_api_key"
                   type={showApiKey ? "text" : "password"}
-                  placeholder="Your local API key"
+                  placeholder={t("localApiKeyPlaceholder")}
                   value={config.local_api_key}
                   onChange={(e) => {
                     onConfigChange({
@@ -464,18 +467,18 @@ export function StepBoardSetup({
               </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <HelpCircle className="h-3 w-3" />
-                Email support@vestaboard.com to request your Local API Key
+                {t("localApiKeyHelp")}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="enablement_token">Enablement Token</Label>
+                <Label htmlFor="enablement_token">{t("enablementToken")}</Label>
                 <div className="relative">
                   <Input
                     id="enablement_token"
                     type={showApiKey ? "text" : "password"}
-                    placeholder="Token provided by Vestaboard support"
+                    placeholder={t("enablementTokenPlaceholder")}
                     value={enablementToken}
                     onChange={(e) => {
                       setEnablementToken(e.target.value);
@@ -493,7 +496,7 @@ export function StepBoardSetup({
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <HelpCircle className="h-3 w-3" />
-                  Email support@vestaboard.com for an enablement token
+                  {t("enablementTokenHelp")}
                 </p>
               </div>
 
@@ -506,15 +509,15 @@ export function StepBoardSetup({
                 {enablementStatus === "loading" ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Enabling Local API...
+                    {t("enablingLocalApi")}
                   </>
                 ) : enablementStatus === "success" ? (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2 text-success" />
-                    API Key Retrieved!
+                    {t("apiKeyRetrieved")}
                   </>
                 ) : (
-                  "Get API Key from Board"
+                  t("getApiKeyFromBoard")
                 )}
               </Button>
 
@@ -552,15 +555,15 @@ export function StepBoardSetup({
           {testStatus === "testing" ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Testing Connection...
+              {t("testingConnection")}
             </>
           ) : testStatus === "success" ? (
             <>
               <CheckCircle className="h-4 w-4 mr-2 text-success" />
-              Connected! Test Again
+              {t("connectedTestAgain")}
             </>
           ) : (
-            "Test Connection"
+            t("testConnection")
           )}
         </Button>
 
@@ -583,7 +586,7 @@ export function StepBoardSetup({
               <span>{testMessage}</span>
               {testStatus === "error" && troubleshootingSteps.length > 0 && (
                 <div className="mt-2 space-y-1.5">
-                  <p className="font-medium text-foreground/80 text-xs uppercase tracking-wide">Things to try:</p>
+                  <p className="font-medium text-foreground/80 text-xs uppercase tracking-wide">{t("thingsToTry")}</p>
                   <ol className="list-decimal list-inside space-y-1 text-foreground/70">
                     {troubleshootingSteps.map((step, i) => (
                       <li key={i}>{step}</li>
@@ -599,7 +602,7 @@ export function StepBoardSetup({
       {/* Device Type & Board Color */}
       <div className="space-y-4 pt-4 border-t">
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Board Type</Label>
+          <Label className="text-sm font-medium">{t("boardType")}</Label>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -611,8 +614,8 @@ export function StepBoardSetup({
                   : "border-muted hover:border-border"
               )}
             >
-              <span className="font-medium text-sm">Flagship</span>
-              <span className="text-xs text-muted-foreground">22 × 6 characters</span>
+              <span className="font-medium text-sm">{tc("flagship")}</span>
+              <span className="text-xs text-muted-foreground">{t("flagshipDimensions")}</span>
             </button>
             <button
               type="button"
@@ -624,19 +627,19 @@ export function StepBoardSetup({
                   : "border-muted hover:border-border"
               )}
             >
-              <span className="font-medium text-sm">Note</span>
-              <span className="text-xs text-muted-foreground">15 × 3 characters</span>
+              <span className="font-medium text-sm">{tc("note")}</span>
+              <span className="text-xs text-muted-foreground">{t("noteDimensions")}</span>
             </button>
           </div>
         </div>
 
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Board Color</Label>
+          <Label className="text-sm font-medium">{t("boardColor")}</Label>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, board_color: "black" })}
-              aria-label="Black"
+              aria-label={tc("black")}
               className={cn(
                 "h-8 w-8 rounded-full border-2 bg-board-surface-dark transition-colors",
                 config.board_color === "black"
@@ -647,7 +650,7 @@ export function StepBoardSetup({
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, board_color: "white" })}
-              aria-label="White"
+              aria-label={tc("white")}
               className={cn(
                 "h-8 w-8 rounded-full border-2 bg-board-surface-light transition-colors",
                 config.board_color === "white"
@@ -660,7 +663,7 @@ export function StepBoardSetup({
 
         {/* Live board preview */}
         <div className="space-y-2 pt-3">
-          <Label className="text-sm font-medium text-muted-foreground">Preview</Label>
+          <Label className="text-sm font-medium text-muted-foreground">{tc("preview")}</Label>
           <BoardDisplay
             message={previewMessage}
             size="sm"
