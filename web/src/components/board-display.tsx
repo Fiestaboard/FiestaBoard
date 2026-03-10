@@ -178,10 +178,9 @@ function ensureKeyframesInjected() {
   const style = document.createElement("style");
   style.setAttribute("data-board-keyframes", "");
   style.textContent = `
-    @keyframes flapRotate { 0% { transform: rotateX(0deg); } 100% { transform: rotateX(180deg); } }
-    @keyframes flapShadow { 0% { opacity: 0; } 25% { opacity: 0.3; } 50% { opacity: 0.8; } 75% { opacity: 0.3; } 100% { opacity: 0; } }
-    @keyframes flapShadowLight { 0% { opacity: 0; } 25% { opacity: 0.05; } 50% { opacity: 0.15; } 75% { opacity: 0.05; } 100% { opacity: 0; } }
-    @keyframes castShadow { 0% { opacity: 0; } 50% { opacity: 0.4; } 100% { opacity: 0; } }
+    @keyframes flapDown { from { transform: rotateX(0deg); } to { transform: rotateX(-90deg); } }
+    @keyframes flapUp { from { transform: rotateX(90deg); } to { transform: rotateX(0deg); } }
+    @keyframes flapShadow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
   `;
   document.head.appendChild(style);
 }
@@ -276,8 +275,7 @@ const CharTile = memo(function CharTile({
   const targetCharIndex = getCharIndex(targetChar);
   
   // All tiles flip in sync - same duration, no random delay
-  // Realistic split-flap speed: 71 characters in ~5 seconds = ~70ms per character
-  const animationDuration = Math.round(5000 / BOARD_CHARS.length); // ~70ms per character for realistic speed
+  const animationDuration = 80; // ms per character step — matches Vestaboard "Fast" mode (~60 RPM, 62 flaps)
   const delay = 0; // All tiles start at the same time
   
   // State for current character index during animation
@@ -578,10 +576,9 @@ const CharTile = memo(function CharTile({
   // Color tiles also animate - they cycle through all characters during loading
   // No special handling needed - they go through the same animation logic below
   
-  // Character tiles - pre-render all 71 characters
   const currentChar = BOARD_CHARS[currentCharIndex];
-  // Next character is simply the next one in sequence (cycling forward)
-  const nextChar = BOARD_CHARS[(currentCharIndex + 1) % BOARD_CHARS.length];
+  const prevCharIndex = (currentCharIndex - 1 + BOARD_CHARS.length) % BOARD_CHARS.length;
+  const prevChar = BOARD_CHARS[prevCharIndex];
 
   ensureKeyframesInjected();
   
@@ -598,7 +595,7 @@ const CharTile = memo(function CharTile({
           backgroundColor: tileBg,
           boxShadow,
           contain: 'layout style paint',
-          ...(isAnimating ? { perspective: '800px', isolation: 'isolate' } : {})
+          ...((isAnimating || isTransitioning) ? { perspective: '800px', isolation: 'isolate' } : {})
         }}
       >
         {/* Static display - show target character when not animating and not transitioning */}
@@ -701,110 +698,115 @@ const CharTile = memo(function CharTile({
           );
         })()}
         
-        {/* Simple character transition - no flip animation, just direct character changes */}
-        {/* Show animation during loading OR during transition to new target */}
+        {/* 3D split-flap animation — 4-layer structure per tile:
+            1. Static new top half (revealed behind falling flap)
+            2. Static old bottom half (covered by unfolding flap)
+            3. Top flap: old char top, folds down past midpoint (gravity ease-in)
+            4. Bottom flap: new char bottom, unfolds into place (settling ease-out) */}
         {(isAnimating || isTransitioning) && (() => {
-          // Check if current character is a color tile
-          const isCurrentColor = isColorTile(currentChar);
-          
-          // If it's a color tile, use the same rendering as static display
-          if (isCurrentColor) {
-            const bgColor = resolveColorCode(currentChar, isWhiteBoard);
-            const marginClasses = size === "sm"
-              ? "[--color-margin-top:3px] [--color-margin-bottom:4px] [--color-margin-h:1px]"
-              : size === "md"
-              ? "[--color-margin-top:3px] sm:[--color-margin-top:4px] md:[--color-margin-top:5px] lg:[--color-margin-top:6px] [--color-margin-bottom:4px] sm:[--color-margin-bottom:6px] md:[--color-margin-bottom:7px] lg:[--color-margin-bottom:8px] [--color-margin-h:1px] sm:[--color-margin-h:2px]"
-              : "[--color-margin-top:4px] sm:[--color-margin-top:5px] md:[--color-margin-top:6px] lg:[--color-margin-top:8px] [--color-margin-bottom:5px] sm:[--color-margin-bottom:7px] md:[--color-margin-bottom:8px] lg:[--color-margin-bottom:10px] [--color-margin-h:2px] md:[--color-margin-h:3px]";
-            
+          const newChar = currentChar;
+          const flipDur = animationDuration;
+          const topDur = Math.round(flipDur * 0.55);
+          const botDelay = Math.round(flipDur * 0.35);
+          const botDur = Math.round(flipDur * 0.55);
+
+          const renderHalf = (char: string, isTop: boolean) => {
+            const isColor = isColorTile(char);
+            const bg = isColor ? resolveColorCode(char, isWhiteBoard) : tileBg;
+            const isHeart = char === '♥';
             return (
-              <>
-                <div 
-                  key={`transition-color-${currentChar}`}
-                  className={`absolute inset-0 ${marginClasses} flex items-center justify-center`}
-                  style={{ zIndex: 2 }}
-                >
-                  <div 
-                    className="relative rounded-[3px] overflow-hidden"
-                    style={{ 
-                      marginTop: "var(--color-margin-top)",
-                      marginBottom: "var(--color-margin-bottom)",
-                      marginLeft: "var(--color-margin-h)",
-                      marginRight: "var(--color-margin-h)",
-                      width: "calc(100% - (var(--color-margin-h) * 2))",
-                      height: "calc(100% - (var(--color-margin-top) + var(--color-margin-bottom)))",
-                      backgroundColor: bgColor,
-                      boxShadow: `
-                        0 2px 4px rgba(0,0,0,0.3),
-                        inset 0 1px 1px rgba(255,255,255,0.15),
-                        inset 0 -1px 1px rgba(0,0,0,0.25),
-                        inset 1px 0 1px rgba(255,255,255,0.1),
-                        inset -1px 0 1px rgba(0,0,0,0.2)
-                      `
-                    }}
-                  >
-                    <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
-                  </div>
-                </div>
-                
-                {/* Subtle split flip effect - horizontal line in middle */}
-                <div className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? 'bg-black/10' : 'bg-black/30'}`} />
-                
-                {/* Subtle gradient for curvature */}
-                <div 
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: isWhiteBoard 
-                      ? 'linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%, rgba(0,0,0,0.05) 100%)'
-                      : 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)'
-                  }}
-                />
-              </>
-            );
-          }
-          
-          // Regular character tile during transition
-          return (
-            <>
-              <div 
-                className="absolute inset-0 flex items-center justify-center overflow-hidden"
-                style={{ 
-                  zIndex: 2,
-                  backgroundColor: tileBg,
-                  marginLeft: 0,
-                  marginRight: 0
-                }}
-              >
-                {currentChar !== ' ' && (
-                  <span 
-                    className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none relative z-10`}
-                    style={{ color: textColor }}
-                  >
-                    {currentChar}
-                  </span>
-                )}
-                {/* Blank/space character - render as empty but maintain layout */}
-                {currentChar === ' ' && (
-                  <span 
-                    className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none relative z-10`}
-                    style={{ color: textColor, visibility: 'hidden' }}
-                    aria-hidden="true"
-                  >
-                    {' '}
-                  </span>
+              <div style={{
+                position: 'absolute' as const,
+                ...(isTop ? { top: 0 } : { bottom: 0 }),
+                left: 0, right: 0, height: '200%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: bg,
+              }}>
+                {!isColor && char !== ' ' && (
+                  <span
+                    className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
+                    style={{ color: isHeart ? '#eb4034' : textColor }}
+                  >{char}</span>
                 )}
               </div>
-              
-              {/* Subtle split flip effect - horizontal line in middle */}
-              <div className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? 'bg-black/10' : 'bg-black/30'}`} />
-              
-              {/* Subtle gradient for curvature */}
-              <div 
-                className="absolute inset-0 pointer-events-none"
+            );
+          };
+
+          return (
+            <>
+              {/* Layer 1: new char top half — sits behind falling top flap */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%', overflow: 'hidden', zIndex: 1 }}>
+                {renderHalf(newChar, true)}
+              </div>
+
+              {/* Layer 2: old char bottom half — sits behind unfolding bottom flap */}
+              <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '50%', overflow: 'hidden', zIndex: 1 }}>
+                {renderHalf(prevChar, false)}
+              </div>
+
+              {/* Layer 3: top flap — old char top half, folds DOWN (hinged at midpoint) */}
+              <div
+                key={`ft-${currentCharIndex}`}
                 style={{
-                  background: isWhiteBoard 
-                    ? 'linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%, rgba(0,0,0,0.05) 100%)'
-                    : 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)'
+                  position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
+                  overflow: 'hidden', zIndex: 3,
+                  transformOrigin: 'bottom center',
+                  backfaceVisibility: 'hidden',
+                  willChange: 'transform',
+                  animation: `flapDown ${topDur}ms ease-in forwards`,
                 }}
+              >
+                {renderHalf(prevChar, true)}
+                {/* Hinge shadow at bottom edge of flap */}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
+                  background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.12))',
+                  pointerEvents: 'none',
+                }} />
+              </div>
+
+              {/* Layer 4: bottom flap — new char bottom half, UNFOLDS into place */}
+              <div
+                key={`fb-${currentCharIndex}`}
+                style={{
+                  position: 'absolute', top: '50%', left: 0, right: 0, height: '50%',
+                  overflow: 'hidden', zIndex: 2,
+                  transformOrigin: 'top center',
+                  backfaceVisibility: 'hidden',
+                  willChange: 'transform',
+                  transform: 'rotateX(90deg)',
+                  animation: `flapUp ${botDur}ms cubic-bezier(0.33, 0, 0.15, 1) ${botDelay}ms forwards`,
+                }}
+              >
+                {renderHalf(newChar, false)}
+                {/* Hinge highlight at top edge of flap */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, height: '30%',
+                  background: isWhiteBoard
+                    ? 'linear-gradient(to bottom, rgba(0,0,0,0.06), transparent)'
+                    : 'linear-gradient(to bottom, rgba(0,0,0,0.15), transparent)',
+                  pointerEvents: 'none',
+                }} />
+              </div>
+
+              {/* Shadow cast by falling flap onto bottom half */}
+              <div
+                key={`fs-${currentCharIndex}`}
+                style={{
+                  position: 'absolute', top: '50%', left: 0, right: 0, height: '50%',
+                  background: isWhiteBoard
+                    ? 'linear-gradient(to bottom, rgba(0,0,0,0.06), transparent)'
+                    : 'linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)',
+                  zIndex: 4, pointerEvents: 'none',
+                  opacity: 0,
+                  animation: `flapShadow ${flipDur}ms ease-in-out forwards`,
+                }}
+              />
+
+              {/* Split line at midpoint */}
+              <div
+                className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? 'bg-black/10' : 'bg-black/30'}`}
+                style={{ zIndex: 5 }}
               />
             </>
           );
