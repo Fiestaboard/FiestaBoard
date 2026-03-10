@@ -72,13 +72,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install monitoring tools (Prometheus + Grafana) for optional in-container monitoring.
-# These add ~400MB to the image but allow LOCAL_MONITORING=true to work without
-# any external services or compose overlays.
+# Install monitoring tools (Prometheus + Grafana + Loki) for optional in-container
+# monitoring. These add ~400MB to the image but allow LOCAL_MONITORING=true to
+# work without any external services or compose overlays.
 # Set INCLUDE_MONITORING=false to skip (e.g. for CI test images).
 ARG INCLUDE_MONITORING=true
 ARG PROMETHEUS_VERSION=2.53.4
 ARG GRAFANA_VERSION=12.4.0
+ARG LOKI_VERSION=3.4.2
 RUN if [ "$INCLUDE_MONITORING" = "true" ]; then \
     ARCH="${TARGETARCH:-amd64}" && \
     wget -qO- "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-${ARCH}.tar.gz" \
@@ -87,7 +88,9 @@ RUN if [ "$INCLUDE_MONITORING" = "true" ]; then \
     rm -rf /tmp/prometheus-* && \
     wget -qO- "https://dl.grafana.com/oss/release/grafana-${GRAFANA_VERSION}.linux-${ARCH}.tar.gz" \
     | tar xz -C /opt/ && \
-    mv /opt/grafana-* /opt/grafana; \
+    mv /opt/grafana-* /opt/grafana && \
+    wget -qO /usr/local/bin/loki "https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-${ARCH}" && \
+    chmod +x /usr/local/bin/loki; \
     fi
 
 # Copy Python packages from builder
@@ -124,7 +127,7 @@ COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Prepare supervisord include directory and monitoring data directories
-RUN mkdir -p /app/conf.d /app/data/grafana /app/data/prometheus
+RUN mkdir -p /app/conf.d /app/data/grafana /app/data/prometheus /app/data/loki
 
 # Create non-root user for security and transfer ownership
 RUN useradd -m -u 1000 appuser && \

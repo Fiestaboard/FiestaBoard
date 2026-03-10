@@ -82,6 +82,19 @@ docker-compose logs -f
 docker-compose logs -f fiestaboard
 ```
 
+### Built-in Monitoring (Grafana + Prometheus + Loki)
+
+FiestaBoard ships with optional in-container monitoring. Set `LOCAL_MONITORING=true` in your `.env` to enable it, then visit `http://localhost:4420/grafana/` (default credentials: `admin` / `admin`).
+
+Two dashboards are auto-provisioned:
+
+| Dashboard | What it shows |
+|-----------|--------------|
+| **FiestaBoard System** | CPU, memory, disk, request rate, latency, and HTTP error monitoring |
+| **FiestaBoard Logs** | Searchable log viewer with level and component filters (e.g. show only MQTT errors) |
+
+The **Logs** dashboard lets you filter by severity (`ERROR`, `WARNING`, `INFO`, …), by component (`mqtt`, `api`, `plugin`, …), and by free-text search — making it easy to track down issues like MQTT connection failures.
+
 ## Security Considerations
 
 - **Never commit `.env` files** to version control

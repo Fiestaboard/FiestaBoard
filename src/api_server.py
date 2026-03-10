@@ -215,6 +215,19 @@ def _setup_file_logging():
     except Exception as e:
         logger.warning(f"Failed to set up file logging: {e}")
 
+    # When local monitoring is enabled, also push logs to Loki for the
+    # Grafana log viewer dashboard.
+    if _LOCAL_MONITORING:
+        try:
+            from .logging_loki import LokiHandler
+            loki_handler = LokiHandler()
+            loki_handler.setFormatter(logging.Formatter('%(message)s'))
+            loki_handler.setLevel(logging.DEBUG)
+            logging.getLogger().addHandler(loki_handler)
+            logger.info("Loki log handler initialized")
+        except Exception as e:
+            logger.warning(f"Failed to set up Loki logging: {e}")
+
 
 def _read_logs_from_files(
     limit: int = 100,

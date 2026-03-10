@@ -8,8 +8,9 @@ set -e
 # so it works regardless of the user the container runs as.
 # ---------------------------------------------------------------------------
 setup_monitoring() {
-    mkdir -p /app/conf.d /app/data/grafana /app/data/prometheus /app/data/logs
+    mkdir -p /app/conf.d /app/data/grafana /app/data/prometheus /app/data/loki /app/data/logs
     chown appuser:appuser /app/data/logs 2>/dev/null || true
+    chown appuser:appuser /app/data/loki 2>/dev/null || true
     LOCAL_MON=$(echo "${LOCAL_MONITORING:-false}" | tr '[:upper:]' '[:lower:]')
     if [ "$LOCAL_MON" = "true" ] || [ "$LOCAL_MON" = "1" ] || [ "$LOCAL_MON" = "yes" ]; then
         cp /app/supervisord-monitoring.conf /app/conf.d/monitoring.conf
