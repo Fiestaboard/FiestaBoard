@@ -404,8 +404,9 @@ export function ActivePageDisplay() {
             </Alert>
           )}
           
-          {/* Board Frame */}
-          <div className="flex justify-center overflow-x-hidden px-2">
+          {/* Board Frame — contain: layout style paint isolates the tile grid from
+              any layout changes in ancestor elements (e.g. sidebar padding snap). */}
+          <div className="flex justify-center overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
             <BoardDisplay 
               message={displayMessage} 
               isLoading={isLoadingPreview || (!!activePageId && !previewData)}

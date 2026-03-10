@@ -342,3 +342,76 @@ export const LoadingToLoadedTransition = () => {
   );
 };
 
+// Dedicated story to showcase the 3D split-flap animation.
+// Cycles between two messages so you can watch the flap mechanics at full board size.
+export const SplitFlapAnimation = () => {
+  const [message, setMessage] = useState("HELLO WORLD");
+  const [isLoading, setIsLoading] = useState(false);
+  const [boardType, setBoardType] = useState<"black" | "white">("black");
+
+  const messages = [
+    "HELLO WORLD",
+    `{red}SPLIT{/red} {blue}FLAP{/blue} DEMO
+{63}{64}{65}{66}{67}{68}{63}{64}{65}{66}{67}
+ABCDEFGHIJKLMNOPQRSTUV
+1234567890!@#$$()`,
+    `GOOD MORNING
+THE TIME IS 9:45 AM
+{blue}52{/blue}°F PARTLY CLOUDY
+{yellow}HAVE A GREAT DAY!{/yellow}`,
+  ];
+
+  const [msgIdx, setMsgIdx] = useState(0);
+
+  const handleFlip = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      const next = (msgIdx + 1) % messages.length;
+      setMsgIdx(next);
+      setMessage(messages[next]);
+      setIsLoading(false);
+    }, 4000);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-6">
+      <BoardDisplay
+        message={message}
+        isLoading={isLoading}
+        size="lg"
+        boardType={boardType}
+      />
+
+      <div className="flex gap-3">
+        <button
+          onClick={handleFlip}
+          disabled={isLoading}
+          className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+            isLoading
+              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          }`}
+        >
+          {isLoading ? 'Flipping...' : 'Flip to Next Message'}
+        </button>
+        <button
+          onClick={() => setBoardType(boardType === "black" ? "white" : "black")}
+          className="px-6 py-3 rounded-lg font-semibold border border-border hover:bg-accent transition-colors"
+        >
+          {boardType === "black" ? "Switch to White" : "Switch to Black"}
+        </button>
+      </div>
+
+      <div className="text-sm text-muted-foreground text-center max-w-lg">
+        <p className="font-semibold mb-2">Split-Flap Animation Demo</p>
+        <p>Each tile uses a 4-layer 3D structure: the old character&apos;s top half folds
+           down past the midpoint while the new character&apos;s bottom half unfolds into
+           place — just like a real Solari board.</p>
+        <p className="mt-2">During loading, all tiles cycle through the full character set.
+           When the new message arrives, each tile continues flipping until it reaches
+           its target character and stops.</p>
+      </div>
+    </div>
+  );
+};
+
