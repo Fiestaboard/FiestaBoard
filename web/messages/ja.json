@@ -368,12 +368,12 @@
     "toastSwitchFailed": "ページの切り替えに失敗しました"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "サービスステータス: 切断",
-    "runningAriaLabel": "サービスステータス: 実行中",
-    "stoppedAriaLabel": "サービスステータス: 停止中",
-    "disconnectedTooltip": "切断",
-    "runningTooltip": "実行中",
-    "stoppedTooltip": "停止中"
+    "disconnectedAriaLabel": "アプリに接続できません。ネットワークまたは FiestaBoard の起動を確認してください。",
+    "runningAriaLabel": "表示サービスがスケジュールに従ってボードにコンテンツを送信しています。",
+    "stoppedAriaLabel": "表示サービスは一時停止中です。ボードにはコンテンツが送信されていません。",
+    "disconnectedTooltip": "アプリに接続できません。ネットワークまたは FiestaBoard の起動を確認してください。",
+    "runningTooltip": "表示サービスがスケジュールに従ってボードにコンテンツを送信しています。",
+    "stoppedTooltip": "表示サービスは一時停止中です。ボードにはコンテンツが送信されていません。"
   },
   "installPrompt": {
     "title": "FiestaBoard コントロールをインストール",

@@ -35,6 +35,9 @@ import {
 import { Plus, GalleryHorizontalEnd, Trash2, GripVertical, Clock, FileText, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
+import { PageToolbar } from "@/components/page-toolbar";
 import type { Carousel, CarouselCreate, CarouselUpdate, Page } from "@/lib/api";
 import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "next-intl";
@@ -346,30 +349,18 @@ export default function CarouselsPage() {
 
   if (isLoadingCarousels) {
     return (
-      <div className="min-h-screen bg-background overflow-x-hidden">
-        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-          <Skeleton className="h-10 w-48 mb-4" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </div>
+      <PageLayout>
+        <Skeleton className="h-10 w-48 mb-4" />
+        <Skeleton className="h-64 w-full" />
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-        {/* Header */}
-        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="page-title flex items-center gap-3">
-                <GalleryHorizontalEnd className="h-7 w-7 text-brand-emphasis" />
-                {t("title")}
-              </h1>
-              <p className="page-description">
-                {t("description")}
-              </p>
-            </div>
+    <PageLayout>
+      <PageHeader icon={GalleryHorizontalEnd} title={t("title")} description={t("description")} />
+        <PageToolbar
+          right={
             <Button
               variant="brand"
               size="sm"
@@ -382,8 +373,8 @@ export default function CarouselsPage() {
               <Plus className="h-4 w-4 mr-1" />
               {t("newCarousel")}
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Carousels list */}
         {carousels.length === 0 ? (
@@ -408,7 +399,7 @@ export default function CarouselsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {carousels.map((carousel, idx) => (
               <Card
                 key={carousel.id}
@@ -500,7 +491,6 @@ export default function CarouselsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

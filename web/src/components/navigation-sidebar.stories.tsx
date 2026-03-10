@@ -31,7 +31,7 @@ const meta = {
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen">
           <Story />
-          <div className="lg:pl-64 p-8">
+          <div className="lg:pl-[268px] p-8">
             <h1 className="text-3xl font-bold mb-4">Page Content</h1>
             <p className="text-muted-foreground">
               The sidebar shows on desktop (left side) and as a mobile menu on smaller screens.

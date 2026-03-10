@@ -74,7 +74,7 @@
   "pages": {
     "title": "Sayfalar",
     "description": "Panonuz için içerik oluşturun ve yönetin",
-    "newPage": "Yeni",
+    "newPage": "Yeni Sayfa",
     "viewModeLabel": "Görünüm modu",
     "gridView": "Izgara görünümü",
     "listView": "Liste görünümü",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Sayfa değiştirilemedi"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Hizmet durumu: Bağlantı kesildi",
-    "runningAriaLabel": "Hizmet durumu: Çalışıyor",
-    "stoppedAriaLabel": "Hizmet durumu: Durduruldu",
-    "disconnectedTooltip": "Bağlantı kesildi",
-    "runningTooltip": "Çalışıyor",
-    "stoppedTooltip": "Durduruldu"
+    "disconnectedAriaLabel": "Uygulamaya ulaşılamıyor. Ağınızı veya FiestaBoard'un çalışıp çalışmadığını kontrol edin.",
+    "runningAriaLabel": "Görüntüleme hizmeti panoya içerik gönderiyor (zamanlamaya göre).",
+    "stoppedAriaLabel": "Görüntüleme hizmeti duraklatıldı. Panoya içerik gönderilmiyor.",
+    "disconnectedTooltip": "Uygulamaya ulaşılamıyor. Ağınızı veya FiestaBoard'un çalışıp çalışmadığını kontrol edin.",
+    "runningTooltip": "Görüntüleme hizmeti panoya içerik gönderiyor (zamanlamaya göre).",
+    "stoppedTooltip": "Görüntüleme hizmeti duraklatıldı. Panoya içerik gönderilmiyor."
   },
   "installPrompt": {
     "title": "FiestaBoard Kontrolü Yükle",

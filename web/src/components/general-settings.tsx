@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Settings, Clock, Moon, RefreshCw, AlertCircle, Globe } from "lucide-react";
+import { Settings } from "lucide-react";
 import { api } from "@/lib/api";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { LanguageSelector } from "@/components/language-selector";
@@ -243,181 +243,130 @@ export function GeneralSettings() {
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Language Setting */}
-        <div className="pb-6 border-b">
-          <div className="flex items-center gap-2 mb-3">
-            <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex-1">
-              <Label className="text-sm font-medium">
-                {t("languageLabel")}
-              </Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("languageDescription")}
-              </p>
+      <CardContent>
+        <div className="divide-y">
+          {/* Language */}
+          <div className="py-5 first:pt-0">
+            <Label className="text-sm font-medium">{t("languageLabel")}</Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">{t("languageDescription")}</p>
+            <LanguageSelector />
+          </div>
+
+          {/* Timezone & Polling Interval */}
+          <div className="py-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Timezone */}
+              {isLoadingConfig ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="timezone" className="text-sm font-medium">{t("timezoneLabel")}</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-3">{t("timezoneDescription")}</p>
+                  <TimezonePicker
+                    value={timezone}
+                    onChange={handleTimezoneChange}
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {t("currentTime", { time: getCurrentTimeInTimezone() })}
+                  </p>
+                </div>
+              )}
+
+              {/* Polling Interval */}
+              {isLoadingPolling ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="polling-interval" className="text-sm font-medium">{t("boardUpdateIntervalLabel")}</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-3">{t("boardUpdateIntervalDescription")}</p>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="polling-interval"
+                      type="number"
+                      min={10}
+                      max={3600}
+                      value={pollingInterval}
+                      onChange={(e) => handlePollingIntervalChange(e.target.value)}
+                      disabled={isSaving}
+                      className="w-32"
+                    />
+                    <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">{t("requiresServiceRestart")}</p>
+                </div>
+              )}
             </div>
           </div>
-          <LanguageSelector />
-        </div>
 
-        {/* Timezone & Polling Interval - Side by Side */}
-        <div className="pb-6 border-b">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Timezone Setting */}
-            {isLoadingConfig ? (
+          {/* Silence Schedule */}
+          <div className="py-5 last:pb-0">
+            {isLoadingSilence ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4 rounded" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-3 w-full" />
-                  </div>
-                </div>
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-4 w-48" />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="flex-1">
-                    <Label htmlFor="timezone" className="text-sm font-medium">
-                      {t("timezoneLabel")}
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("timezoneDescription")}
-                    </p>
-                  </div>
-                </div>
-                
-                <TimezonePicker
-                  value={timezone}
-                  onChange={handleTimezoneChange}
-                />
-                
-                {/* Current time display */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>{t("currentTime", { time: getCurrentTimeInTimezone() })}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Polling Interval Setting */}
-            {isLoadingPolling ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4 rounded" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-full" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-32" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-                <Skeleton className="h-4 w-40" />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="flex-1">
-                    <Label htmlFor="polling-interval" className="text-sm font-medium">
-                      {t("boardUpdateIntervalLabel")}
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("boardUpdateIntervalDescription")}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="polling-interval"
-                    type="number"
-                    min={10}
-                    max={3600}
-                    value={pollingInterval}
-                    onChange={(e) => handlePollingIntervalChange(e.target.value)}
-                    disabled={isSaving}
-                    className="w-32"
-                  />
-                  <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{t("requiresServiceRestart")}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Silence Schedule */}
-        {isLoadingSilence ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-4 w-4 rounded" />
-              <Skeleton className="h-5 w-11 rounded-full" />
-              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-11 rounded-full" />
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-3 w-48" />
               </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Moon className="h-4 w-4 text-muted-foreground shrink-0" />
-              <Switch
-                checked={silenceEnabled}
-                onCheckedChange={handleSilenceToggle}
-                disabled={isSaving}
-                id="silence-enabled"
-              />
-              <div className="flex-1">
-                <label htmlFor="silence-enabled" className="text-sm font-medium cursor-pointer">
-                  {t("silenceScheduleLabel")}
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  {t("silenceScheduleDescription")}
-                </p>
-              </div>
-            </div>
-
-            {silenceEnabled && (
-              <div className="ml-7 space-y-4 pt-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="silence-start" className="text-xs">{t("startTimeLabel")}</Label>
-                    <TimePicker
-                      value={silenceStartTime}
-                      onChange={(val) => handleSilenceTimeChange("start", val)}
-                      disabled={isSaving}
-                    />
-                    <p className="text-xs text-muted-foreground">{t("whenSilenceBegins")}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="silence-end" className="text-xs">{t("endTimeLabel")}</Label>
-                    <TimePicker
-                      value={silenceEndTime}
-                      onChange={(val) => handleSilenceTimeChange("end", val)}
-                      disabled={isSaving}
-                    />
-                    <p className="text-xs text-muted-foreground">{t("whenSilenceEnds")}</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={silenceEnabled}
+                    onCheckedChange={handleSilenceToggle}
+                    disabled={isSaving}
+                    id="silence-enabled"
+                  />
+                  <div>
+                    <label htmlFor="silence-enabled" className="text-sm font-medium cursor-pointer">
+                      {t("silenceScheduleLabel")}
+                    </label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("silenceScheduleDescription")}
+                    </p>
                   </div>
                 </div>
-              </div>
+
+                {silenceEnabled && (
+                  <div className="mt-4 ml-[52px]">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="silence-start" className="text-xs">{t("startTimeLabel")}</Label>
+                        <TimePicker
+                          value={silenceStartTime}
+                          onChange={(val) => handleSilenceTimeChange("start", val)}
+                          disabled={isSaving}
+                        />
+                        <p className="text-xs text-muted-foreground">{t("whenSilenceBegins")}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="silence-end" className="text-xs">{t("endTimeLabel")}</Label>
+                        <TimePicker
+                          value={silenceEndTime}
+                          onChange={(val) => handleSilenceTimeChange("end", val)}
+                          disabled={isSaving}
+                        />
+                        <p className="text-xs text-muted-foreground">{t("whenSilenceEnds")}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
-        )}
+        </div>
 
         {/* Auto-save indicator */}
         {isSaving && (
-          <div className="flex items-center justify-center gap-2 pt-4 border-t text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 pt-4 mt-4 border-t text-xs text-muted-foreground">
             <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <span>{tc("savingIndicator")}</span>
           </div>

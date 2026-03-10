@@ -74,7 +74,7 @@
   "pages": {
     "title": "Pages",
     "description": "Create and manage content for your board",
-    "newPage": "New",
+    "newPage": "New Page",
     "viewModeLabel": "View mode",
     "gridView": "Grid view",
     "listView": "List view",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Failed to switch page"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Service status: Disconnected",
-    "runningAriaLabel": "Service status: Running",
-    "stoppedAriaLabel": "Service status: Stopped",
-    "disconnectedTooltip": "Disconnected",
-    "runningTooltip": "Running",
-    "stoppedTooltip": "Stopped"
+    "disconnectedAriaLabel": "Cannot reach the app. Check your network or that FiestaBoard is running.",
+    "runningAriaLabel": "Display service is sending content to the board on a schedule.",
+    "stoppedAriaLabel": "Display service is paused. Content is not being sent to the board.",
+    "disconnectedTooltip": "Cannot reach the app. Check your network or that FiestaBoard is running.",
+    "runningTooltip": "Display service is sending content to the board on a schedule.",
+    "stoppedTooltip": "Display service is paused. Content is not being sent to the board."
   },
   "installPrompt": {
     "title": "Install FiestaBoard Control",

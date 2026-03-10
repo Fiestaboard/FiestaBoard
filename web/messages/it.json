@@ -74,7 +74,7 @@
   "pages": {
     "title": "Pagine",
     "description": "Crea e gestisci i contenuti per la tua bacheca",
-    "newPage": "Nuova",
+    "newPage": "Nuova pagina",
     "viewModeLabel": "Modalità di visualizzazione",
     "gridView": "Vista a griglia",
     "listView": "Vista a elenco",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Impossibile cambiare pagina"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Stato del servizio: Disconnesso",
-    "runningAriaLabel": "Stato del servizio: In esecuzione",
-    "stoppedAriaLabel": "Stato del servizio: Arrestato",
-    "disconnectedTooltip": "Disconnesso",
-    "runningTooltip": "In esecuzione",
-    "stoppedTooltip": "Arrestato"
+    "disconnectedAriaLabel": "Impossibile raggiungere l'app. Controlla la rete o che FiestaBoard sia in esecuzione.",
+    "runningAriaLabel": "Il servizio di visualizzazione sta inviando i contenuti alla lavagna secondo la pianificazione.",
+    "stoppedAriaLabel": "Il servizio di visualizzazione è in pausa. Nessun contenuto viene inviato alla lavagna.",
+    "disconnectedTooltip": "Impossibile raggiungere l'app. Controlla la rete o che FiestaBoard sia in esecuzione.",
+    "runningTooltip": "Il servizio di visualizzazione sta inviando i contenuti alla lavagna secondo la pianificazione.",
+    "stoppedTooltip": "Il servizio di visualizzazione è in pausa. Nessun contenuto viene inviato alla lavagna."
   },
   "installPrompt": {
     "title": "Installa FiestaBoard Control",

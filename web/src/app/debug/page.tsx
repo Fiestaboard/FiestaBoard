@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, RefreshCw, ExternalLink, AlertTriangle, Globe, List } from "lucide-react";
+import { PageLayout } from "@/components/page-layout";
 import { api, RequestLogEntry, ClientErrorEntry } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -219,8 +220,7 @@ export default function DebugMonitorPage() {
   }, [requestLogQuery.data?.entries, clientErrorsQuery.data?.entries]);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 max-w-full">
+    <PageLayout>
         <div className="animate-card-fade-in" style={{ animationDelay: "0ms" }}>
           <div className="flex items-center justify-between mb-4">
             <h1 className="page-title flex items-center gap-3">
@@ -429,7 +429,6 @@ export default function DebugMonitorPage() {
             </Tabs>
           </div>
         )}
-      </div>
-    </div>
+    </PageLayout>
   );
 }

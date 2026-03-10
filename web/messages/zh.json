@@ -368,12 +368,12 @@
     "toastSwitchFailed": "切换页面失败"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "服务状态：已断开",
-    "runningAriaLabel": "服务状态：运行中",
-    "stoppedAriaLabel": "服务状态：已停止",
-    "disconnectedTooltip": "已断开",
-    "runningTooltip": "运行中",
-    "stoppedTooltip": "已停止"
+    "disconnectedAriaLabel": "无法连接应用。请检查网络或 FiestaBoard 是否在运行。",
+    "runningAriaLabel": "显示服务正在按计划向看板发送内容。",
+    "stoppedAriaLabel": "显示服务已暂停。内容未在向看板发送。",
+    "disconnectedTooltip": "无法连接应用。请检查网络或 FiestaBoard 是否在运行。",
+    "runningTooltip": "显示服务正在按计划向看板发送内容。",
+    "stoppedTooltip": "显示服务已暂停。内容未在向看板发送。"
   },
   "installPrompt": {
     "title": "安装 FiestaBoard Control",

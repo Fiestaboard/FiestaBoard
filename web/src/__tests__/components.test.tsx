@@ -37,7 +37,7 @@ describe("ServiceStatus", () => {
     render(<ServiceStatus />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Service status: Running")).toBeInTheDocument();
+      expect(screen.getByLabelText("Display service is sending content to the board on a schedule.")).toBeInTheDocument();
     });
   });
 
@@ -51,7 +51,7 @@ describe("ServiceStatus", () => {
     render(<ServiceStatus />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Service status: Disconnected")).toBeInTheDocument();
+      expect(screen.getByLabelText("Cannot reach the app. Check your network or that FiestaBoard is running.")).toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
@@ -65,7 +65,7 @@ describe("ServiceStatus", () => {
     render(<ServiceStatus />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Service status: Stopped")).toBeInTheDocument();
+      expect(screen.getByLabelText("Display service is paused. Content is not being sent to the board.")).toBeInTheDocument();
     });
   });
 });

@@ -74,7 +74,7 @@
   "pages": {
     "title": "Sidor",
     "description": "Skapa och hantera innehåll för din tavla",
-    "newPage": "Ny",
+    "newPage": "Ny sida",
     "viewModeLabel": "Visningsläge",
     "gridView": "Rutnätsvy",
     "listView": "Listvy",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Kunde inte byta sida"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Tjänstestatus: Frånkopplad",
-    "runningAriaLabel": "Tjänstestatus: Körs",
-    "stoppedAriaLabel": "Tjänstestatus: Stoppad",
-    "disconnectedTooltip": "Frånkopplad",
-    "runningTooltip": "Körs",
-    "stoppedTooltip": "Stoppad"
+    "disconnectedAriaLabel": "Kan inte nå appen. Kontrollera nätverket eller att FiestaBoard körs.",
+    "runningAriaLabel": "Visningstjänsten skickar innehåll till tavlan enligt schemat.",
+    "stoppedAriaLabel": "Visningstjänsten är pausad. Inget innehåll skickas till tavlan.",
+    "disconnectedTooltip": "Kan inte nå appen. Kontrollera nätverket eller att FiestaBoard körs.",
+    "runningTooltip": "Visningstjänsten skickar innehåll till tavlan enligt schemat.",
+    "stoppedTooltip": "Visningstjänsten är pausad. Inget innehåll skickas till tavlan."
   },
   "installPrompt": {
     "title": "Installera FiestaBoard Control",

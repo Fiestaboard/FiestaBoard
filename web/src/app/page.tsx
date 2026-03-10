@@ -8,6 +8,8 @@ import { Info, Home as HomeIcon } from "lucide-react";
 import { getSetupStatus } from "@/lib/setup-detection";
 import { useWizard } from "@/components/wizard-provider";
 import { useTranslations } from "next-intl";
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 
 export default function Home() {
   const [boardNotConfigured, setBoardNotConfigured] = useState(false);
@@ -27,39 +29,29 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden relative">
-      <div className="container relative z-10 mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
-          <h1 className="page-title flex items-center gap-3">
-            <HomeIcon className="h-7 w-7 text-brand-emphasis" />
-            {t("title")}
-          </h1>
-          <p className="page-description">
-            {t("description")}
-          </p>
-        </div>
+    <PageLayout outerClassName="relative" className="relative z-10">
+      <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} />
 
-        {boardNotConfigured && (
-          <div className="mb-6">
-            <Alert className="border-info/50 bg-info/10">
-              <Info className="h-4 w-4 text-info" />
+      {boardNotConfigured && (
+        <div className="mb-6">
+          <Alert className="border-info/50 bg-info/10 flex flex-col sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3">
+            <Info className="h-4 w-4 text-info" />
+            <div className="flex-1 min-w-0">
               <AlertTitle>{t("noBoardConfigured")}</AlertTitle>
-              <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span>
-                  {t("noBoardDescription")}
-                </span>
-                <Button variant="brand" size="sm" onClick={triggerWizard} className="w-fit btn-lift">
-                  {t("runSetupWizard")}
-                </Button>
+              <AlertDescription>
+                {t("noBoardDescription")}
               </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        <div className="animate-card-fade-in">
-          <ActivePageDisplay />
+            </div>
+            <Button variant="brand" size="sm" onClick={triggerWizard} className="w-fit btn-lift shrink-0 self-center sm:self-center">
+              {t("runSetupWizard")}
+            </Button>
+          </Alert>
         </div>
+      )}
+
+      <div className="animate-card-fade-in">
+        <ActivePageDisplay />
       </div>
-    </div>
+    </PageLayout>
   );
 }

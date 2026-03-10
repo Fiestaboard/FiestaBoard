@@ -74,7 +74,7 @@
   "pages": {
     "title": "Seiten",
     "description": "Erstellen und verwalten Sie Inhalte für Ihr Board",
-    "newPage": "Neu",
+    "newPage": "Neue Seite",
     "viewModeLabel": "Ansichtsmodus",
     "gridView": "Rasteransicht",
     "listView": "Listenansicht",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Seitenwechsel fehlgeschlagen"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Dienststatus: Getrennt",
-    "runningAriaLabel": "Dienststatus: Läuft",
-    "stoppedAriaLabel": "Dienststatus: Gestoppt",
-    "disconnectedTooltip": "Getrennt",
-    "runningTooltip": "Läuft",
-    "stoppedTooltip": "Gestoppt"
+    "disconnectedAriaLabel": "App nicht erreichbar. Netzwerk prüfen oder prüfen, ob FiestaBoard läuft.",
+    "runningAriaLabel": "Anzeigedienst sendet Inhalte nach Zeitplan an die Anzeigetafel.",
+    "stoppedAriaLabel": "Anzeigedienst pausiert. Es werden keine Inhalte an die Anzeigetafel gesendet.",
+    "disconnectedTooltip": "App nicht erreichbar. Netzwerk prüfen oder prüfen, ob FiestaBoard läuft.",
+    "runningTooltip": "Anzeigedienst sendet Inhalte nach Zeitplan an die Anzeigetafel.",
+    "stoppedTooltip": "Anzeigedienst pausiert. Es werden keine Inhalte an die Anzeigetafel gesendet."
   },
   "installPrompt": {
     "title": "FiestaBoard Control installieren",

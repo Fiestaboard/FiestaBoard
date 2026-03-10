@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageBuilder } from "@/components/page-builder";
+import { PageLayout } from "@/components/page-layout";
 import { useViewTransition } from "@/hooks/use-view-transition";
 
 export default function EditPage() {
@@ -32,26 +33,20 @@ export default function EditPage() {
 
   if (!pageId) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-          <div className="text-center text-muted-foreground">Loading...</div>
-        </div>
-      </div>
+      <PageLayout>
+        <div className="text-center text-muted-foreground">Loading...</div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
-      <div 
-        className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 flex-1 flex flex-col min-h-0 max-w-full"
-      >
-        <PageBuilder
-          pageId={pageId}
-          onClose={handleClose}
-          onSave={handleSave}
-        />
-      </div>
-    </div>
+    <PageLayout outerClassName="flex flex-col" className="flex-1 flex flex-col min-h-0">
+      <PageBuilder
+        pageId={pageId}
+        onClose={handleClose}
+        onSave={handleSave}
+      />
+    </PageLayout>
   );
 }
 

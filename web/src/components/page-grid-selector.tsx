@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { LayoutTemplate, Clock, GalleryHorizontalEnd, FilePlus } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -579,19 +580,23 @@ export function PageGridSelector({
       </svg>
     );
     return (
-      <EmptyState
-        icon={FilePlus}
-        title="No pages created yet."
-        description="Create your first page to display on the board."
-        illustration={noPagesIllustration}
-        action={
-          <Button asChild variant="default" size="sm">
-            <Link href={`/pages/new${deviceTypeFilter ? `?device=${deviceTypeFilter}` : ""}`}>
-              Create your first page
-            </Link>
-          </Button>
-        }
-      />
+      <Card>
+        <CardContent className="py-6">
+          <EmptyState
+            icon={FilePlus}
+            title="No pages created yet."
+            description="Create your first page to display on the board."
+            illustration={noPagesIllustration}
+            action={
+              <Button asChild variant="brand" size="sm" className="btn-lift">
+                <Link href={`/pages/new${deviceTypeFilter ? `?device=${deviceTypeFilter}` : ""}`}>
+                  Create your first page
+                </Link>
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
     );
   }
   

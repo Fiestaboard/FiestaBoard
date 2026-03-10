@@ -323,6 +323,8 @@ import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import CountUp from "@/components/ui/react-bits/count-up";
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 
 
 /**
@@ -1337,45 +1339,38 @@ export default function IntegrationsPage() {
   }, {} as Record<string, PluginInfo[]>);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-        {/* Header - Always visible */}
-        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
-          <h1 className="page-title flex items-center gap-3">
-            <Puzzle className="h-7 w-7 text-brand-emphasis" />
-            Integrations
-          </h1>
-          <p className="page-description">
-            Enable and configure data source plugins for your FiestaBoard
-          </p>
-        </div>
-
-        {/* Stats Bar - Progressive loading */}
-        <div className="flex gap-4 mb-6 animate-card-fade-in" style={{ animationDelay: "100ms" }}>
-          {isLoading ? (
-            <>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Total:</span>
-                <Skeleton className="h-5 w-8" />
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Enabled:</span>
-                <Skeleton className="h-5 w-8" />
-              </div>
-            </>
-          ) : data ? (
-            <>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Total:</span>
-                <Badge variant="outline"><CountUp to={data.total} duration={1} /></Badge>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Enabled:</span>
-                <Badge variant="default"><CountUp to={data.enabled_count} duration={1} /></Badge>
-              </div>
-            </>
-          ) : null}
-        </div>
+    <PageLayout>
+      <PageHeader
+          icon={Puzzle}
+          title="Integrations"
+          description="Enable and configure data source plugins for your FiestaBoard"
+        >
+          <div className="flex gap-4 mt-3">
+            {isLoading ? (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Total:</span>
+                  <Skeleton className="h-5 w-8" />
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Enabled:</span>
+                  <Skeleton className="h-5 w-8" />
+                </div>
+              </>
+            ) : data ? (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Total:</span>
+                  <Badge variant="outline"><CountUp to={data.total} duration={1} /></Badge>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Enabled:</span>
+                  <Badge variant="default"><CountUp to={data.enabled_count} duration={1} /></Badge>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </PageHeader>
 
         {/* Content - Progressive loading */}
         {isLoading ? (
@@ -1394,7 +1389,7 @@ export default function IntegrationsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-8 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
+          <div className="space-y-6 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
             {(() => {
               let globalIndex = 0;
               return Object.entries(groupedPlugins || {})
@@ -1427,8 +1422,7 @@ export default function IntegrationsPage() {
             })()}
           </div>
         )}
-      </div>
-    </div>
+    </PageLayout>
   );
 }
 

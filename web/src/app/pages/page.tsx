@@ -11,6 +11,9 @@ import { useViewTransition } from "@/hooks/use-view-transition";
 import { useBoardSettings } from "@/hooks/use-board";
 import type { DeviceType } from "@/lib/api";
 import { useTranslations } from "next-intl";
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
+import { PageToolbar } from "@/components/page-toolbar";
 
 // Lazy load PageGridSelector so the header renders immediately
 const PageGridSelector = dynamic(
@@ -18,7 +21,7 @@ const PageGridSelector = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[9/16] w-full rounded-lg" />
         ))}
@@ -70,54 +73,45 @@ export default function PagesPage() {
   }, [push, activeTab]);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="page-title flex items-center gap-3">
-                <FileText className="h-7 w-7 text-brand-emphasis" />
-                {t("title")}
-              </h1>
-              <p className="page-description">
-                {t("description")}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 pt-1">
-              <div className="flex items-center border rounded-md" role="group" aria-label={t("viewModeLabel")}>
-                <Button
-                  size="sm"
-                  variant={viewMode === "grid" ? "secondary" : "ghost"}
-                  onClick={() => handleViewModeChange("grid")}
-                  className="h-8 w-8 p-0 rounded-r-none"
-                  aria-label={t("gridView")}
-                  aria-pressed={viewMode === "grid"}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode === "list" ? "secondary" : "ghost"}
-                  onClick={() => handleViewModeChange("list")}
-                  className="h-8 w-8 p-0 rounded-l-none"
-                  aria-label={t("listView")}
-                  aria-pressed={viewMode === "list"}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
+    <PageLayout>
+      <PageHeader icon={FileText} title={t("title")} description={t("description")} />
+        <PageToolbar
+          left={
+            <div className="flex items-center border rounded-md" role="group" aria-label={t("viewModeLabel")}>
               <Button
-                variant="brand"
                 size="sm"
-                onClick={handleCreateNew}
-                className="h-9 sm:h-8 px-3 text-xs btn-lift"
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                onClick={() => handleViewModeChange("grid")}
+                className="h-8 w-8 p-0 rounded-r-none"
+                aria-label={t("gridView")}
+                aria-pressed={viewMode === "grid"}
               >
-                <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
-                {t("newPage")}
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                onClick={() => handleViewModeChange("list")}
+                className="h-8 w-8 p-0 rounded-l-none"
+                aria-label={t("listView")}
+                aria-pressed={viewMode === "list"}
+              >
+                <List className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        </div>
+          }
+          right={
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={handleCreateNew}
+              className="h-9 sm:h-8 px-3 text-xs btn-lift"
+            >
+              <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
+              {t("newPage")}
+            </Button>
+          }
+        />
 
         <div className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
             {hasMultipleDevices ? (
@@ -160,7 +154,6 @@ export default function PagesPage() {
               />
             )}
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

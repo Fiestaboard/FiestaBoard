@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Не удалось переключить страницу"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Статус сервиса: Отключён",
-    "runningAriaLabel": "Статус сервиса: Работает",
-    "stoppedAriaLabel": "Статус сервиса: Остановлен",
-    "disconnectedTooltip": "Отключён",
-    "runningTooltip": "Работает",
-    "stoppedTooltip": "Остановлен"
+    "disconnectedAriaLabel": "Не удаётся подключиться к приложению. Проверьте сеть или запущен ли FiestaBoard.",
+    "runningAriaLabel": "Сервис отображения отправляет контент на доску по расписанию.",
+    "stoppedAriaLabel": "Сервис отображения приостановлен. Контент на доску не отправляется.",
+    "disconnectedTooltip": "Не удаётся подключиться к приложению. Проверьте сеть или запущен ли FiestaBoard.",
+    "runningTooltip": "Сервис отображения отправляет контент на доску по расписанию.",
+    "stoppedTooltip": "Сервис отображения приостановлен. Контент на доску не отправляется."
   },
   "installPrompt": {
     "title": "Установить FiestaBoard Control",
