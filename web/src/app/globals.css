@@ -149,8 +149,8 @@
   --tag-success: oklch(0.45 0.2 160);
   --tag-success-foreground: oklch(0.35 0.1 160);
   --overlay: oklch(0 0 0 / 80%);
-  /* Brand accent - FiestaBoard orange from taco icon (#f5a623) */
-  --brand: oklch(0.72 0.15 75);
+  /* Brand accent - darkened for WCAG 2.2 AA (≥4.5:1 on light bg) */
+  --brand: oklch(0.56 0.15 75);
   --brand-emphasis: oklch(0.52 0.16 60);
   --brand-foreground: oklch(1 0 0);
   /* Elevation - subtle card and modal shadows */

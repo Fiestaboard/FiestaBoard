@@ -110,7 +110,7 @@ export function OutputTargetSelector() {
               <div className="flex items-start gap-3">
                 <div
                   className={`p-2 rounded-md shrink-0 ${
-                    isActive ? "bg-brand text-brand-foreground" : "bg-muted"
+                    isActive ? "bg-brand-emphasis text-brand-foreground" : "bg-muted"
                   }`}
                 >
                   <Icon className="h-5 w-5" />

@@ -726,7 +726,7 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
                         className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-muted"
                         title={`Use path: ${childPath}`}
                       >
-                        {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+                        {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
                       </button>
                     </div>
                   ) : (
@@ -978,7 +978,7 @@ function GenericDataMappingHelper({ name, property, value, onChange, disabled, a
                 </div>
                 {preview !== null && (
                   <div className="grid gap-1">
-                    <Label className="text-xs text-green-600 dark:text-green-400">Preview</Label>
+                    <Label className="text-xs text-green-700 dark:text-green-400">Preview</Label>
                     <div className="h-8 flex items-center text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 rounded-md px-2 truncate border border-green-200 dark:border-green-800">
                       {preview}
                     </div>

@@ -71,7 +71,7 @@ function StatusBadge({ status }: { status: number }) {
   if (status >= 500)
     return <Badge variant="destructive">{status}</Badge>;
   if (status >= 400)
-    return <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">{status}</Badge>;
+    return <Badge className="bg-yellow-700 text-white hover:bg-yellow-800">{status}</Badge>;
   return <Badge variant="secondary">{status}</Badge>;
 }
 
@@ -276,7 +276,7 @@ export default function DebugMonitorPage() {
         {enabledQuery.data && !isEnabled && (
           <Card>
             <CardContent className="py-12 text-center">
-              <Activity className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h2 className="text-lg font-semibold mb-2">Monitoring is Disabled</h2>
               <p className="text-sm text-muted-foreground max-w-lg mx-auto">
                 To enable monitoring, set{" "}

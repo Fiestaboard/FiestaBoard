@@ -80,7 +80,7 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
       <div className="flex flex-col gap-0">
         {isMorningSplit && continuationHint && (
           <span
-            className="text-[8px] leading-tight truncate opacity-70"
+            className="text-[8px] leading-tight truncate opacity-85"
             style={{ color: activeColor }}
           >
             {continuationHint}
@@ -100,7 +100,7 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
         </span>
         {isEveningSplit && continuationHint && (
           <span
-            className="text-[8px] leading-tight truncate opacity-70"
+            className="text-[8px] leading-tight truncate opacity-85"
             style={{ color: activeColor }}
           >
             {continuationHint}
