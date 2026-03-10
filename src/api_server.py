@@ -3081,6 +3081,7 @@ async def get_all_settings():
     - transitions settings
     - output settings
     - board settings
+    - mqtt integration settings
     - service status (running)
     """
     global _service_running
@@ -3097,6 +3098,7 @@ async def get_all_settings():
     transitions = settings_service.get_transition_settings()
     output = settings_service.get_output_settings()
     board = settings_service.get_board_settings()
+    mqtt = settings_service.get_mqtt_settings()
     
     return {
         "general": general,
@@ -3107,6 +3109,7 @@ async def get_all_settings():
         "transitions": {**transitions.to_dict(), "available_strategies": VALID_STRATEGIES},
         "output": output.to_dict(),
         "board": board.to_dict(),
+        "mqtt": mqtt.to_dict(mask_secrets=True),
         "status": {
             "running": _service_running,
         }

@@ -124,6 +124,7 @@ describe("GeneralSettings extended", () => {
           transitions: { strategy: "column", step_interval_ms: 500, step_size: 2, available_strategies: [] },
           output: { target: "board", effective_target: "board", available_targets: [] },
           board: { board_type: "black", boards: [], devices: [] },
+          mqtt: { enabled: false, broker_host: "localhost", broker_port: 1883, username: "", password: "", external_url: "" },
           status: { running: false, config_summary: {} },
         })
       )

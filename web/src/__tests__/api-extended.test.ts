@@ -741,6 +741,7 @@ describe("API Extended Tests", () => {
             transitions: { strategy: "column", step_interval_ms: 500, step_size: 2 },
             output: { target: "board", effective_target: "board", available_targets: [] },
             board: { board_type: "black", boards: [], devices: [] },
+            mqtt: { enabled: false, broker_host: "localhost", broker_port: 1883, username: "", password: "", external_url: "" },
             status: { running: true },
           })
         )
@@ -748,6 +749,8 @@ describe("API Extended Tests", () => {
       const result = await api.getAllSettings();
       expect(result.general).toBeDefined();
       expect(result.board).toBeDefined();
+      expect(result.mqtt).toBeDefined();
+      expect(result.mqtt.enabled).toBe(false);
     });
   });
 

@@ -46,6 +46,14 @@ const mockAllSettings: AllSettingsResponse = {
     ],
     devices: ["flagship"],
   },
+  mqtt: {
+    enabled: false,
+    broker_host: "localhost",
+    broker_port: 1883,
+    username: "",
+    password: "",
+    external_url: "",
+  },
   status: {
     running: true,
   },
