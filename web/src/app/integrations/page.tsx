@@ -1338,39 +1338,58 @@ export default function IntegrationsPage() {
     return acc;
   }, {} as Record<string, PluginInfo[]>);
 
+  const configuredCount = data?.plugins.filter((p) => p.enabled && p.configured).length ?? 0;
+
   return (
     <PageLayout>
       <PageHeader
           icon={Puzzle}
           title="Integrations"
           description="Enable and configure data source plugins for your FiestaBoard"
-        >
-          <div className="flex gap-4 mt-3">
-            {isLoading ? (
-              <>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Total:</span>
-                  <Skeleton className="h-5 w-8" />
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Enabled:</span>
-                  <Skeleton className="h-5 w-8" />
-                </div>
-              </>
-            ) : data ? (
-              <>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Total:</span>
-                  <Badge variant="outline"><CountUp to={data.total} duration={1} /></Badge>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Enabled:</span>
-                  <Badge variant="default"><CountUp to={data.enabled_count} duration={1} /></Badge>
-                </div>
-              </>
-            ) : null}
-          </div>
-        </PageHeader>
+        />
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {isLoading ? (
+            <>
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="animate-card-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+                  <CardContent className="px-4 py-1.5 flex items-center gap-2">
+                    <Skeleton className="h-5 w-6" />
+                    <Skeleton className="h-3 w-14" />
+                  </CardContent>
+                </Card>
+              ))}
+            </>
+          ) : data ? (
+            <>
+              <Card className="animate-card-fade-in" style={{ animationDelay: "50ms" }}>
+                <CardContent className="px-4 py-1.5 flex items-center gap-2">
+                  <span className="text-lg font-semibold tabular-nums">
+                    <CountUp to={data.total} duration={1} />
+                  </span>
+                  <span className="text-sm text-muted-foreground">Total</span>
+                </CardContent>
+              </Card>
+              <Card className="animate-card-fade-in border-brand/30" style={{ animationDelay: "100ms" }}>
+                <CardContent className="px-4 py-1.5 flex items-center gap-2">
+                  <span className="text-lg font-semibold tabular-nums text-brand">
+                    <CountUp to={data.enabled_count} duration={1} />
+                  </span>
+                  <span className="text-sm text-muted-foreground">Enabled</span>
+                </CardContent>
+              </Card>
+              <Card className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
+                <CardContent className="px-4 py-1.5 flex items-center gap-2">
+                  <span className="text-lg font-semibold tabular-nums">
+                    <CountUp to={configuredCount} duration={1} />
+                  </span>
+                  <span className="text-sm text-muted-foreground">Configured</span>
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </div>
 
         {/* Content - Progressive loading */}
         {isLoading ? (

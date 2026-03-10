@@ -128,12 +128,22 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
 
   const bezelBg = isWhiteBoard ? "var(--color-board-bezel-light)" : "var(--color-board-bezel-dark)";
   const borderColor = isWhiteBoard ? "var(--color-board-bezel-border-light)" : "var(--color-board-bezel-border-dark)";
-  const boxShadow = isWhiteBoard
-    ? "0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.5)"
-    : "0 8px 32px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.03)";
-  const tileBoxShadow = isWhiteBoard
-    ? "0 2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1), inset 0 -1px 2px rgba(255,255,255,0.5), inset 1px 0 1px rgba(0,0,0,0.08), inset -1px 0 1px rgba(255,255,255,0.4)"
-    : "0 2px 4px rgba(0,0,0,0.5), inset 0 1px 2px rgba(0,0,0,0.8), inset 0 -1px 1px rgba(255,255,255,0.08), inset 1px 0 1px rgba(0,0,0,0.5), inset -1px 0 1px rgba(255,255,255,0.05)";
+  // Simplified shadows for sm previews (14×18px tiles) — complex multi-layer
+  // shadows are invisible at that scale and expensive to paint across 132+ tiles.
+  const boxShadow = size === "sm"
+    ? (isWhiteBoard
+      ? "0 2px 8px rgba(0,0,0,0.1), inset 0 1px 2px rgba(255,255,255,0.9)"
+      : "0 2px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.06)")
+    : (isWhiteBoard
+      ? "0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.5)"
+      : "0 8px 32px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.03)");
+  const tileBoxShadow = size === "sm"
+    ? (isWhiteBoard
+      ? "0 1px 2px rgba(0,0,0,0.15)"
+      : "0 1px 2px rgba(0,0,0,0.4)")
+    : (isWhiteBoard
+      ? "0 2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1), inset 0 -1px 2px rgba(255,255,255,0.5), inset 1px 0 1px rgba(0,0,0,0.08), inset -1px 0 1px rgba(255,255,255,0.4)"
+      : "0 2px 4px rgba(0,0,0,0.5), inset 0 1px 2px rgba(0,0,0,0.8), inset 0 -1px 1px rgba(255,255,255,0.08), inset 1px 0 1px rgba(0,0,0,0.5), inset -1px 0 1px rgba(255,255,255,0.05)");
 
   const borderClasses = size === "sm"
     ? "rounded-lg border-[3px]"
@@ -162,6 +172,17 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                 {row.map((token, colIdx) => {
                   if (token.type === "color") {
                     const bgColor = resolveColorCode(token.code, isWhiteBoard);
+                    // sm previews: single div with color — decorative layers
+                    // (inner shadow, separator line) are invisible at 14×18px.
+                    if (size === "sm") {
+                      return (
+                        <div
+                          key={colIdx}
+                          className={`${sizeClasses[size]} rounded-[3px]`}
+                          style={{ backgroundColor: bgColor, boxShadow: tileBoxShadow, contain: "layout style paint" }}
+                        />
+                      );
+                    }
                     return (
                       <div
                         key={colIdx}
@@ -184,6 +205,29 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
 
                   const char = token.value;
                   const isHeart = char === "♥";
+
+                  // sm previews: simplified tile — skip gradient overlay and
+                  // separator line that are invisible at 14×18px. This cuts
+                  // DOM nodes from ~4 to ~2 per tile (264→~132 fewer nodes
+                  // per flagship board).
+                  if (size === "sm") {
+                    return (
+                      <div
+                        key={colIdx}
+                        className={`${sizeClasses[size]} rounded-[3px] flex items-center justify-center`}
+                        style={{ backgroundColor: tileBg, boxShadow: tileBoxShadow, contain: "layout style paint" }}
+                      >
+                        {char !== " " && (
+                          <span
+                            className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
+                            style={{ color: isHeart ? "#eb4034" : textColor }}
+                          >
+                            {char}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
 
                   return (
                     <div
