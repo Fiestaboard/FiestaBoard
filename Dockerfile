@@ -75,16 +75,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install monitoring tools (Prometheus + Grafana) for optional in-container monitoring.
 # These add ~400MB to the image but allow LOCAL_MONITORING=true to work without
 # any external services or compose overlays.
+# Set INCLUDE_MONITORING=false to skip (e.g. for CI test images).
+ARG INCLUDE_MONITORING=true
 ARG PROMETHEUS_VERSION=2.53.4
 ARG GRAFANA_VERSION=12.4.0
-RUN ARCH="${TARGETARCH:-amd64}" && \
+RUN if [ "$INCLUDE_MONITORING" = "true" ]; then \
+    ARCH="${TARGETARCH:-amd64}" && \
     wget -qO- "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-${ARCH}.tar.gz" \
     | tar xz -C /tmp/ && \
     cp /tmp/prometheus-*/prometheus /tmp/prometheus-*/promtool /usr/local/bin/ && \
     rm -rf /tmp/prometheus-* && \
     wget -qO- "https://dl.grafana.com/oss/release/grafana-${GRAFANA_VERSION}.linux-${ARCH}.tar.gz" \
     | tar xz -C /opt/ && \
-    mv /opt/grafana-* /opt/grafana
+    mv /opt/grafana-* /opt/grafana; \
+    fi
 
 # Copy Python packages from builder
 COPY --from=python-builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
@@ -124,7 +128,8 @@ RUN mkdir -p /app/conf.d /app/data/grafana /app/data/prometheus
 
 # Create non-root user for security and transfer ownership
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app /opt/grafana /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
+    chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx && \
+    if [ -d /opt/grafana ]; then chown -R appuser:appuser /opt/grafana; fi
 
 # Expose single port
 EXPOSE 3000
