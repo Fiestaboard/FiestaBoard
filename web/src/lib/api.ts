@@ -551,6 +551,15 @@ export interface AllSettingsResponse {
   };
 }
 
+export interface MqttSettings {
+  enabled: boolean;
+  broker_host: string;
+  broker_port: number;
+  username: string;
+  password: string;
+  external_url: string;
+}
+
 export interface FullConfig {
   board: BoardConfig;
   general: GeneralConfig;
@@ -1338,4 +1347,15 @@ export const api = {
     const qs = q.toString();
     return fetchApi<ClientErrorResponse>(`/debug/client-errors${qs ? `?${qs}` : ""}`);
   },
+
+  getMqttSettings: () => fetchApi<MqttSettings>("/settings/mqtt"),
+
+  updateMqttSettings: (updates: Partial<MqttSettings>) =>
+    fetchApi<MqttSettings>("/settings/mqtt", {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    }),
+
+  getMqttStatus: () =>
+    fetchApi<{ enabled: boolean; connected: boolean; running: boolean }>("/mqtt/status"),
 };

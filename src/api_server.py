@@ -380,6 +380,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"mDNS service could not be started: {e}")
 
+    # Start MQTT client for Home Assistant discovery/control (optional)
+    try:
+        from .settings.service import get_settings_service
+        mqtt_cfg = get_settings_service().get_mqtt_settings()
+        if mqtt_cfg.enabled:
+            _apply_mqtt_config(mqtt_cfg)
+            logger.info("MQTT client started for Home Assistant")
+    except Exception as e:
+        logger.warning(f"MQTT client could not be started: {e}")
+
     yield
 
     # --- Shutdown ---
@@ -388,6 +398,17 @@ async def lifespan(app: FastAPI):
     _service_running = False
     if _service:
         _service.running = False
+
+    # Stop MQTT client
+    try:
+        from .mqtt import get_mqtt_client, set_mqtt_client_instance
+        mqtt_client = get_mqtt_client()
+        if mqtt_client:
+            mqtt_client.stop()
+            set_mqtt_client_instance(None)
+            logger.info("MQTT client stopped")
+    except Exception:
+        pass
 
     # Stop mDNS advertisement
     try:
@@ -581,6 +602,34 @@ def run_service_background():
         restart_delay = min(restart_delay * 2, max_restart_delay)
 
 
+def start_display_service_sync() -> bool:
+    """Start the display service (sync). Used by MQTT command handler. Returns True if started."""
+    global _service_thread, _service_running, _service, _shutting_down
+    if _service_running:
+        return True
+    _shutting_down = False
+    service = get_service()
+    if not service:
+        return False
+    if not service.vb_client and not service.initialize():
+        return False
+    _service_thread = threading.Thread(target=run_service_background, daemon=True)
+    _service_thread.start()
+    time.sleep(0.5)
+    return _service_running
+
+
+def stop_display_service_sync() -> bool:
+    """Stop the display service (sync). Used by MQTT command handler. Returns True if stopped."""
+    global _service_running, _service, _shutting_down
+    if not _service_running:
+        return True
+    _shutting_down = True
+    if _service:
+        _service.running = False
+    _service_running = False
+    return True
+
 
 @app.get("/", response_model=Dict[str, str])
 async def root():
@@ -601,6 +650,122 @@ async def health():
         service_running=_service_running and service is not None,
         version=__version__
     )
+
+
+@app.get("/mqtt/status")
+async def get_mqtt_status():
+    """Return the current MQTT connection status.
+
+    Useful for UI display and for tests to determine whether the live MQTT
+    client (not just the one-off discovery script) is connected and able to
+    process commands.
+    """
+    try:
+        from .mqtt import get_mqtt_client
+        client = get_mqtt_client()
+        if client is None:
+            return {"enabled": False, "connected": False, "running": False}
+        return {
+            "enabled": True,
+            "connected": client.is_connected(),
+            "running": client.is_running(),
+        }
+    except Exception:
+        return {"enabled": False, "connected": False, "running": False}
+
+
+@app.post("/mqtt/republish-discovery")
+async def mqtt_republish_discovery():
+    """Re-publish MQTT discovery messages for all entities.
+
+    Useful when the page list changes after the MQTT client first connected,
+    or to force HA to refresh entity options (e.g. Active Page select options).
+    Returns 503 if MQTT is not connected.
+    """
+    try:
+        from .mqtt import get_mqtt_client
+        client = get_mqtt_client()
+        if client is None or not client.is_connected():
+            raise HTTPException(status_code=503, detail="MQTT client not connected")
+        client._publish_discovery()
+        return {"status": "ok", "message": "Discovery messages republished"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _apply_mqtt_config(mqtt_cfg) -> None:
+    """Start or stop the MQTT client to match *mqtt_cfg.enabled*.
+
+    Safe to call at any time: stops the old client first when one is running.
+    """
+    from .mqtt import MQTTClient, get_mqtt_client, set_mqtt_client_instance
+    from .mqtt.state import StatePublisher
+    from .mqtt.commands import CommandHandler
+
+    old = get_mqtt_client()
+    if old:
+        old.stop()
+        set_mqtt_client_instance(None)
+
+    if not mqtt_cfg.enabled:
+        return
+
+    from .mqtt.config import MQTTConfig
+    config = MQTTConfig(
+        enabled=mqtt_cfg.enabled,
+        broker_host=mqtt_cfg.broker_host,
+        broker_port=mqtt_cfg.broker_port,
+        username=mqtt_cfg.username or None,
+        password=mqtt_cfg.password or None,
+        external_url=mqtt_cfg.external_url or None,
+    )
+    errors = config.validate()
+    if errors:
+        logger.warning("MQTT config invalid: %s", errors)
+        return
+
+    client = MQTTClient(config)
+    state_publisher = StatePublisher(
+        client,
+        get_display_running=lambda: _service_running,
+        get_current_message=lambda: "—",
+    )
+    command_handler = CommandHandler(
+        client,
+        start_display_service=start_display_service_sync,
+        stop_display_service=stop_display_service_sync,
+    )
+    client.set_state_publisher(state_publisher)
+    client.set_command_handler(command_handler)
+    client.start()
+    set_mqtt_client_instance(client)
+    logger.info("MQTT client (re)started")
+
+
+@app.get("/settings/mqtt")
+async def get_mqtt_settings():
+    """Return current MQTT integration settings (password masked)."""
+    from .settings.service import get_settings_service
+    s = get_settings_service().get_mqtt_settings()
+    return s.to_dict(mask_secrets=True)
+
+
+@app.put("/settings/mqtt")
+async def update_mqtt_settings(request: Request):
+    """Save MQTT settings and immediately apply them.
+
+    Enables or disables the live MQTT client based on the *enabled* flag.
+    Supply only the fields you want to change; omitted fields keep their current
+    values.  Password is only updated when a non-empty, non-masked value is sent.
+    """
+    body = await request.json()
+    from .settings.service import get_settings_service
+    svc = get_settings_service()
+    updated = svc.set_mqtt_settings(body)
+    _apply_mqtt_config(updated)
+    return updated.to_dict(mask_secrets=True)
 
 
 @app.get("/version", response_model=VersionResponse)
@@ -4279,18 +4444,17 @@ async def get_home_assistant_entities():
         response.raise_for_status()
         entities = response.json()
         
-        # Transform to simpler format for UI
-        return {
-            "entities": [
-                {
-                    "entity_id": e["entity_id"],
-                    "state": e["state"],
-                    "attributes": e["attributes"],
-                    "friendly_name": e["attributes"].get("friendly_name", e["entity_id"])
-                }
-                for e in entities
-            ]
-        }
+        # Transform to simpler format for UI (HA may omit or null attributes)
+        result_entities = []
+        for e in entities:
+            attrs = e.get("attributes") or {}
+            result_entities.append({
+                "entity_id": e["entity_id"],
+                "state": e["state"],
+                "attributes": attrs,
+                "friendly_name": attrs.get("friendly_name", e["entity_id"]),
+            })
+        return {"entities": result_entities}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Failed to fetch entities: {str(e)}")
 

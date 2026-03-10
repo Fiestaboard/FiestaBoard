@@ -182,6 +182,51 @@ class ScheduleSettings:
         return cls(enabled=data.get("enabled", False))
 
 
+@dataclass
+class MQTTSettings:
+    """MQTT integration settings for Home Assistant auto-discovery.
+
+    When enabled, FiestaBoard publishes itself as a device to an MQTT broker
+    and Home Assistant picks it up automatically via MQTT Discovery.
+
+    Attributes:
+        enabled: Whether the MQTT client should run.
+        broker_host: Hostname or IP of the MQTT broker.
+        broker_port: Port of the MQTT broker (default 1883).
+        username: Optional broker username.
+        password: Optional broker password (stored, masked in API responses).
+        external_url: Public URL of this FiestaBoard instance shown as the
+            "Visit" link on the HA device page.  None omits the link.
+    """
+    enabled: bool = False
+    broker_host: str = "localhost"
+    broker_port: int = 1883
+    username: str = ""
+    password: str = ""
+    external_url: str = ""
+
+    def to_dict(self, mask_secrets: bool = True) -> dict:
+        return {
+            "enabled": self.enabled,
+            "broker_host": self.broker_host,
+            "broker_port": self.broker_port,
+            "username": self.username,
+            "password": "***" if mask_secrets and self.password else self.password,
+            "external_url": self.external_url,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "MQTTSettings":
+        return cls(
+            enabled=bool(data.get("enabled", False)),
+            broker_host=data.get("broker_host", "localhost") or "localhost",
+            broker_port=int(data.get("broker_port", 1883) or 1883),
+            username=data.get("username", "") or "",
+            password=data.get("password", "") or "",
+            external_url=data.get("external_url", "") or "",
+        )
+
+
 class SettingsService:
     """Service for managing runtime settings.
     
@@ -211,6 +256,7 @@ class SettingsService:
         self._polling = self._load_polling_settings()
         self._board = self._load_board_settings()
         self._schedule = self._load_schedule_settings()
+        self._mqtt = self._load_mqtt_settings()
         
         if getattr(self, "_needs_migration_save", False):
             self._save_to_file()
@@ -237,7 +283,8 @@ class SettingsService:
                 "active_page": self._active_page.to_dict(),
                 "polling": self._polling.to_dict(),
                 "board": self._board.to_dict(mask_secrets=False),
-                "schedule": self._schedule.to_dict()
+                "schedule": self._schedule.to_dict(),
+                "mqtt": self._mqtt.to_dict(mask_secrets=False),
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -335,8 +382,24 @@ class SettingsService:
         file_data = self._load_from_file()
         if "schedule" in file_data:
             return ScheduleSettings.from_dict(file_data["schedule"])
-        return ScheduleSettings()  # Default to disabled
-    
+        return ScheduleSettings()
+
+    def _load_mqtt_settings(self) -> "MQTTSettings":
+        """Load MQTT settings from file, falling back to env vars."""
+        file_data = self._load_from_file()
+        if "mqtt" in file_data:
+            return MQTTSettings.from_dict(file_data["mqtt"])
+        # Fall back to env vars so existing env-based setups continue to work
+        env_enabled = os.environ.get("MQTT_ENABLED", "false").lower() in ("1", "true", "yes")
+        return MQTTSettings(
+            enabled=env_enabled,
+            broker_host=os.environ.get("MQTT_BROKER_HOST", "localhost") or "localhost",
+            broker_port=int(os.environ.get("MQTT_BROKER_PORT", "1883") or 1883),
+            username=os.environ.get("MQTT_USERNAME", "") or "",
+            password=os.environ.get("MQTT_PASSWORD", "") or "",
+            external_url=os.environ.get("FIESTABOARD_EXTERNAL_URL", "") or "",
+        )
+
     # Transition settings
     def get_transition_settings(self) -> TransitionSettings:
         """Get current transition settings."""
@@ -672,6 +735,32 @@ class SettingsService:
         self._save_to_file()
         logger.info(f"Schedule mode (default): {'enabled' if enabled else 'disabled'}")
         return self._schedule
+
+    def get_mqtt_settings(self) -> "MQTTSettings":
+        """Return current MQTT integration settings."""
+        return self._mqtt
+
+    def set_mqtt_settings(self, updates: dict) -> "MQTTSettings":
+        """Persist MQTT settings and return updated object.
+
+        Only keys present in *updates* are changed; omitted keys keep their
+        current values.  The password is only overwritten when the caller
+        supplies a non-empty, non-masked value.
+        """
+        if "enabled" in updates:
+            self._mqtt.enabled = bool(updates["enabled"])
+        if "broker_host" in updates and updates["broker_host"]:
+            self._mqtt.broker_host = updates["broker_host"]
+        if "broker_port" in updates:
+            self._mqtt.broker_port = int(updates["broker_port"] or 1883)
+        if "username" in updates:
+            self._mqtt.username = updates["username"] or ""
+        if "password" in updates and updates["password"] not in ("", "***"):
+            self._mqtt.password = updates["password"]
+        if "external_url" in updates:
+            self._mqtt.external_url = updates["external_url"] or ""
+        self._save_to_file()
+        return self._mqtt
 
 
 # Singleton instance
