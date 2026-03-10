@@ -74,7 +74,7 @@
   "pages": {
     "title": "Páginas",
     "description": "Crea y administra contenido para tu tablero",
-    "newPage": "Nueva",
+    "newPage": "Nueva página",
     "viewModeLabel": "Modo de vista",
     "gridView": "Vista de cuadrícula",
     "listView": "Vista de lista",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Error al cambiar la página"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Estado del servicio: Desconectado",
-    "runningAriaLabel": "Estado del servicio: En ejecución",
-    "stoppedAriaLabel": "Estado del servicio: Detenido",
-    "disconnectedTooltip": "Desconectado",
-    "runningTooltip": "En ejecución",
-    "stoppedTooltip": "Detenido"
+    "disconnectedAriaLabel": "No se puede conectar con la aplicación. Comprueba tu red o que FiestaBoard esté en ejecución.",
+    "runningAriaLabel": "El servicio de pantalla está enviando contenido al tablero según el horario.",
+    "stoppedAriaLabel": "El servicio de pantalla está pausado. No se está enviando contenido al tablero.",
+    "disconnectedTooltip": "No se puede conectar con la aplicación. Comprueba tu red o que FiestaBoard esté en ejecución.",
+    "runningTooltip": "El servicio de pantalla está enviando contenido al tablero según el horario.",
+    "stoppedTooltip": "El servicio de pantalla está pausado. No se está enviando contenido al tablero."
   },
   "installPrompt": {
     "title": "Instalar FiestaBoard Control",

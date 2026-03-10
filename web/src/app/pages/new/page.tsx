@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { PageBuilder } from "@/components/page-builder";
+import { PageLayout } from "@/components/page-layout";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import type { DeviceType } from "@/lib/api";
 
@@ -19,17 +20,13 @@ export default function NewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
-      <div 
-        className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 flex-1 flex flex-col min-h-0 max-w-full"
-      >
-        <PageBuilder
-          deviceType={deviceType}
-          onClose={handleClose}
-          onSave={handleSave}
-        />
-      </div>
-    </div>
+    <PageLayout outerClassName="flex flex-col" className="flex-1 flex flex-col min-h-0">
+      <PageBuilder
+        deviceType={deviceType}
+        onClose={handleClose}
+        onSave={handleSave}
+      />
+    </PageLayout>
   );
 }
 

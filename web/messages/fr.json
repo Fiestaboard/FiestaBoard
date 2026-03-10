@@ -74,7 +74,7 @@
   "pages": {
     "title": "Pages",
     "description": "Créez et gérez le contenu de votre tableau",
-    "newPage": "Nouveau",
+    "newPage": "Nouvelle page",
     "viewModeLabel": "Mode d'affichage",
     "gridView": "Vue en grille",
     "listView": "Vue en liste",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Échec du changement de page"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "État du service : Déconnecté",
-    "runningAriaLabel": "État du service : En cours d'exécution",
-    "stoppedAriaLabel": "État du service : Arrêté",
-    "disconnectedTooltip": "Déconnecté",
-    "runningTooltip": "En cours d'exécution",
-    "stoppedTooltip": "Arrêté"
+    "disconnectedAriaLabel": "Application inaccessible. Vérifiez votre réseau ou que FiestaBoard est en cours d'exécution.",
+    "runningAriaLabel": "Le service d'affichage envoie le contenu au tableau selon la planification.",
+    "stoppedAriaLabel": "Le service d'affichage est en pause. Aucun contenu n'est envoyé au tableau.",
+    "disconnectedTooltip": "Application inaccessible. Vérifiez votre réseau ou que FiestaBoard est en cours d'exécution.",
+    "runningTooltip": "Le service d'affichage envoie le contenu au tableau selon la planification.",
+    "stoppedTooltip": "Le service d'affichage est en pause. Aucun contenu n'est envoyé au tableau."
   },
   "installPrompt": {
     "title": "Installer le panneau de contrôle FiestaBoard",

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Calendar, GalleryHorizontalEnd } from "lucide-react";
+import { Edit, Trash2, Calendar, GalleryHorizontalEnd } from "lucide-react";
 import type { ScheduleEntry, Page, Carousel } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
 
@@ -13,7 +13,6 @@ interface ScheduleListViewProps {
   carousels?: Carousel[];
   onEdit: (schedule: ScheduleEntry) => void;
   onDelete: (id: string) => void;
-  onAdd: () => void;
 }
 
 function formatDays(schedule: ScheduleEntry): string {
@@ -34,7 +33,6 @@ export function ScheduleListView({
   carousels = [],
   onEdit,
   onDelete,
-  onAdd,
 }: ScheduleListViewProps) {
   const getPageName = (pageId: string): string => {
     if (isCarouselId(pageId)) {
@@ -47,20 +45,14 @@ export function ScheduleListView({
   return (
     <Card className="mb-6">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Schedule Entries</CardTitle>
-          <Button variant="brand" size="sm" onClick={onAdd} className="btn-lift">
-            <Plus className="h-4 w-4 mr-1" />
-            Add Schedule
-          </Button>
-        </div>
+        <CardTitle className="text-lg">Schedule Entries</CardTitle>
       </CardHeader>
       <CardContent>
         {schedules.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No schedules created yet</p>
-            <p className="text-sm mt-1">Click &quot;Add Schedule&quot; to get started</p>
+            <p className="text-sm mt-1">Use the toolbar above to add your first schedule</p>
           </div>
         ) : (
           <div className="space-y-3">

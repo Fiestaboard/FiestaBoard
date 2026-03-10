@@ -74,7 +74,7 @@
   "pages": {
     "title": "Pagina's",
     "description": "Maak en beheer inhoud voor je bord",
-    "newPage": "Nieuw",
+    "newPage": "Nieuwe pagina",
     "viewModeLabel": "Weergavemodus",
     "gridView": "Rasterweergave",
     "listView": "Lijstweergave",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Pagina wisselen mislukt"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Servicestatus: Niet verbonden",
-    "runningAriaLabel": "Servicestatus: Actief",
-    "stoppedAriaLabel": "Servicestatus: Gestopt",
-    "disconnectedTooltip": "Niet verbonden",
-    "runningTooltip": "Actief",
-    "stoppedTooltip": "Gestopt"
+    "disconnectedAriaLabel": "Kan de app niet bereiken. Controleer je netwerk of of FiestaBoard draait.",
+    "runningAriaLabel": "Weergaveservice stuurt inhoud volgens schema naar het bord.",
+    "stoppedAriaLabel": "Weergaveservice is gepauzeerd. Er wordt geen inhoud naar het bord gestuurd.",
+    "disconnectedTooltip": "Kan de app niet bereiken. Controleer je netwerk of of FiestaBoard draait.",
+    "runningTooltip": "Weergaveservice stuurt inhoud volgens schema naar het bord.",
+    "stoppedTooltip": "Weergaveservice is gepauzeerd. Er wordt geen inhoud naar het bord gestuurd."
   },
   "installPrompt": {
     "title": "FiestaBoard Control installeren",

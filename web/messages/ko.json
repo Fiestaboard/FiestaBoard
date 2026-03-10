@@ -368,12 +368,12 @@
     "toastSwitchFailed": "페이지 전환에 실패했습니다"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "서비스 상태: 연결 끊김",
-    "runningAriaLabel": "서비스 상태: 실행 중",
-    "stoppedAriaLabel": "서비스 상태: 중지됨",
-    "disconnectedTooltip": "연결 끊김",
-    "runningTooltip": "실행 중",
-    "stoppedTooltip": "중지됨"
+    "disconnectedAriaLabel": "앱에 연결할 수 없습니다. 네트워크 또는 FiestaBoard 실행 여부를 확인하세요.",
+    "runningAriaLabel": "디스플레이 서비스가 일정에 따라 보드에 콘텐츠를 보내고 있습니다.",
+    "stoppedAriaLabel": "디스플레이 서비스가 일시 중지되었습니다. 보드로 콘텐츠가 전송되지 않습니다.",
+    "disconnectedTooltip": "앱에 연결할 수 없습니다. 네트워크 또는 FiestaBoard 실행 여부를 확인하세요.",
+    "runningTooltip": "디스플레이 서비스가 일정에 따라 보드에 콘텐츠를 보내고 있습니다.",
+    "stoppedTooltip": "디스플레이 서비스가 일시 중지되었습니다. 보드로 콘텐츠가 전송되지 않습니다."
   },
   "installPrompt": {
     "title": "FiestaBoard 컨트롤 설치",

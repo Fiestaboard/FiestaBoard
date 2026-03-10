@@ -74,7 +74,7 @@
   "pages": {
     "title": "Páginas",
     "description": "Crie e gerencie conteúdo para o seu painel",
-    "newPage": "Nova",
+    "newPage": "Nova página",
     "viewModeLabel": "Modo de exibição",
     "gridView": "Exibição em grade",
     "listView": "Exibição em lista",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Falha ao trocar de página"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Status do serviço: Desconectado",
-    "runningAriaLabel": "Status do serviço: Em execução",
-    "stoppedAriaLabel": "Status do serviço: Parado",
-    "disconnectedTooltip": "Desconectado",
-    "runningTooltip": "Em execução",
-    "stoppedTooltip": "Parado"
+    "disconnectedAriaLabel": "Não é possível alcançar o aplicativo. Verifique sua rede ou se o FiestaBoard está em execução.",
+    "runningAriaLabel": "O serviço de exibição está enviando conteúdo para o quadro conforme o agendamento.",
+    "stoppedAriaLabel": "O serviço de exibição está pausado. Nenhum conteúdo está sendo enviado para o quadro.",
+    "disconnectedTooltip": "Não é possível alcançar o aplicativo. Verifique sua rede ou se o FiestaBoard está em execução.",
+    "runningTooltip": "O serviço de exibição está enviando conteúdo para o quadro conforme o agendamento.",
+    "stoppedTooltip": "O serviço de exibição está pausado. Nenhum conteúdo está sendo enviado para o quadro."
   },
   "installPrompt": {
     "title": "Instalar FiestaBoard Control",

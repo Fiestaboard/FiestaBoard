@@ -74,7 +74,7 @@
   "pages": {
     "title": "Strony",
     "description": "Twórz treści i zarządzaj nimi na swojej tablicy",
-    "newPage": "Nowa",
+    "newPage": "Nowa strona",
     "viewModeLabel": "Tryb widoku",
     "gridView": "Widok siatki",
     "listView": "Widok listy",
@@ -368,12 +368,12 @@
     "toastSwitchFailed": "Nie udało się przełączyć strony"
   },
   "serviceStatus": {
-    "disconnectedAriaLabel": "Status usługi: Rozłączono",
-    "runningAriaLabel": "Status usługi: Działa",
-    "stoppedAriaLabel": "Status usługi: Zatrzymano",
-    "disconnectedTooltip": "Rozłączono",
-    "runningTooltip": "Działa",
-    "stoppedTooltip": "Zatrzymano"
+    "disconnectedAriaLabel": "Nie można połączyć się z aplikacją. Sprawdź sieć lub czy FiestaBoard jest uruchomiony.",
+    "runningAriaLabel": "Usługa wyświetlania wysyła treści na tablicę według harmonogramu.",
+    "stoppedAriaLabel": "Usługa wyświetlania jest wstrzymana. Treści nie są wysyłane na tablicę.",
+    "disconnectedTooltip": "Nie można połączyć się z aplikacją. Sprawdź sieć lub czy FiestaBoard jest uruchomiony.",
+    "runningTooltip": "Usługa wyświetlania wysyła treści na tablicę według harmonogramu.",
+    "stoppedTooltip": "Usługa wyświetlania jest wstrzymana. Treści nie są wysyłane na tablicę."
   },
   "installPrompt": {
     "title": "Zainstaluj FiestaBoard Control",

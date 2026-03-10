@@ -51,6 +51,9 @@ import {
 import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays, Calendar as CalendarIcon } from "lucide-react";
 import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern, isCarouselId } from "@/lib/api";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
+import { PageToolbar } from "@/components/page-toolbar";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
 import { queryKeys as boardQueryKeys, useCarousels } from "@/hooks/use-board";
 
@@ -295,12 +298,10 @@ export default function SchedulePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background overflow-x-hidden">
-        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-          <Skeleton className="h-10 w-48 mb-4" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </div>
+      <PageLayout>
+        <Skeleton className="h-10 w-48 mb-4" />
+        <Skeleton className="h-64 w-full" />
+      </PageLayout>
     );
   }
 
@@ -312,21 +313,49 @@ export default function SchedulePage() {
   const hasGaps = (validation?.gaps?.length || 0) > 0;
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-full">
-        {/* Header */}
-        <div className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
-          <h1 className="page-title flex items-center gap-3">
-            <CalendarIcon className="h-7 w-7 text-brand-emphasis" />
-            Schedule
-          </h1>
-          <p className="page-description">
-            Automate page rotation based on time and day
-            <span className="text-xs ml-2">
-              (Times shown in: {Intl.DateTimeFormat().resolvedOptions().timeZone})
-            </span>
-          </p>
-        </div>
+    <PageLayout>
+      <PageHeader
+          icon={CalendarIcon}
+          title="Schedule"
+          description={
+            <>
+              Automate page rotation based on time and day
+              <span className="text-xs ml-2">
+                (Times shown in: {Intl.DateTimeFormat().resolvedOptions().timeZone})
+              </span>
+            </>
+          }
+        />
+        <PageToolbar
+          left={
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="px-3"
+              >
+                <List className="h-4 w-4 mr-1.5" />
+                List
+              </Button>
+              <Button
+                variant={viewMode === "calendar" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("calendar")}
+                className="px-3"
+              >
+                <CalendarDays className="h-4 w-4 mr-1.5" />
+                Calendar
+              </Button>
+            </div>
+          }
+          right={
+            <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
+              <Plus className="h-4 w-4 mr-1" />
+              Add Schedule
+            </Button>
+          }
+        />
         {/* Board selector when multiple boards */}
         {boards.length > 1 && (
           <div className="mb-6" data-testid="board-selector">
@@ -468,30 +497,6 @@ export default function SchedulePage() {
           </Alert>
         )}
 
-        {/* View Toggle */}
-        <div className="flex items-center justify-start mb-4">
-          <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              className="px-3"
-            >
-              <List className="h-4 w-4 mr-1.5" />
-              List
-            </Button>
-            <Button
-              variant={viewMode === "calendar" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("calendar")}
-              className="px-3"
-            >
-              <CalendarDays className="h-4 w-4 mr-1.5" />
-              Calendar
-            </Button>
-          </div>
-        </div>
-
         {/* Schedule View - List or Calendar */}
         {viewMode === "list" ? (
           <ScheduleListView
@@ -500,18 +505,11 @@ export default function SchedulePage() {
             carousels={carouselsData?.carousels}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            onAdd={handleAdd}
           />
         ) : (
           <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "300ms" }}>
             <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <CardTitle className="text-lg">Schedule Calendar</CardTitle>
-                <Button variant="brand" size="sm" onClick={handleAdd} className="w-full sm:w-auto btn-lift">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Schedule
-                </Button>
-              </div>
+              <CardTitle className="text-lg">Schedule Calendar</CardTitle>
             </CardHeader>
             <CardContent>
               <ScheduleCalendarView
@@ -576,7 +574,6 @@ export default function SchedulePage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </div>
+    </PageLayout>
   );
 }
