@@ -40,6 +40,8 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:integration
+          build-args: |
+            INCLUDE_MONITORING=false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -344,6 +344,7 @@ jobs:
           tags: fiestaboard:e2e
           build-args: |
             VERSION=dev
+            INCLUDE_MONITORING=false
           cache-from: |
             type=gha,scope=build-linux/amd64
             type=gha,scope=build-test
