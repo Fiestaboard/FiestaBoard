@@ -678,7 +678,7 @@ function VestaboardDiagnosticRow({
                 <div className="h-3 w-3 rounded-full border border-muted-foreground/30 flex-shrink-0" />
                 {icon}
                 <span>{label}</span>
-                <span className="text-muted-foreground/60">— skipped</span>
+                <span className="text-muted-foreground">— skipped</span>
               </div>
             );
           }
