@@ -381,7 +381,9 @@ const CarouselButton = memo(function CarouselButton({
                     transformOrigin: "top left",
                     zIndex: count - idx,
                     opacity: Math.max(0.4, 1 - idx * 0.15),
-                    filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.35))",
+                    // box-shadow is much cheaper than filter: drop-shadow()
+                    // which scans alpha pixels of the entire subtree.
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
                   }}
                 >
                   <StaticBoardDisplay

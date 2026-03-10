@@ -615,6 +615,8 @@
   .page-button-container {
     contain: layout style paint;
     transition: none !important;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 240px;
   }
   
   .hover-fast {
@@ -627,7 +629,7 @@
   }
   
   .hover-stable {
-    contain: layout;
+    contain: layout style paint;
   }
   
   .hover-smooth {
