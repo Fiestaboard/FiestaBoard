@@ -50,7 +50,7 @@ export function ScheduleListView({
       <CardContent>
         {schedules.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <Calendar className="h-12 w-12 mx-auto mb-4" />
             <p>No schedules created yet</p>
             <p className="text-sm mt-1">Use the toolbar above to add your first schedule</p>
           </div>

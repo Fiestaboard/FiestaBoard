@@ -726,7 +726,7 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
                         className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-muted"
                         title={`Use path: ${childPath}`}
                       >
-                        {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+                        {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
                       </button>
                     </div>
                   ) : (

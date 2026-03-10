@@ -71,7 +71,7 @@ function StatusBadge({ status }: { status: number }) {
   if (status >= 500)
     return <Badge variant="destructive">{status}</Badge>;
   if (status >= 400)
-    return <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">{status}</Badge>;
+    return <Badge className="bg-yellow-700 text-white hover:bg-yellow-800">{status}</Badge>;
   return <Badge variant="secondary">{status}</Badge>;
 }
 
