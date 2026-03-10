@@ -80,6 +80,23 @@ def mock_settings_service():
         ss.remove_board.return_value = board_settings
         ss.update_transition_settings.return_value = transition
 
+        mqtt = Mock()
+        mqtt.enabled = False
+        mqtt.broker_host = "localhost"
+        mqtt.broker_port = 1883
+        mqtt.username = ""
+        mqtt.password = ""
+        mqtt.external_url = ""
+        mqtt.to_dict.return_value = {
+            "enabled": False,
+            "broker_host": "localhost",
+            "broker_port": 1883,
+            "username": "",
+            "password": "",
+            "external_url": "",
+        }
+        ss.get_mqtt_settings.return_value = mqtt
+
         mock_get.return_value = ss
         yield ss
 
@@ -538,6 +555,7 @@ class TestSettingsEndpoints:
         assert "transitions" in data
         assert "output" in data
         assert "board" in data
+        assert "mqtt" in data
         assert "status" in data
 
 

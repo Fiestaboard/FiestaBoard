@@ -888,10 +888,51 @@ export const handlers = [
         boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
         devices: ["flagship"],
       },
+      mqtt: {
+        enabled: false,
+        broker_host: "localhost",
+        broker_port: 1883,
+        username: "",
+        password: "",
+        external_url: "",
+      },
       status: {
         running: true,
         config_summary: {},
       },
+    });
+  }),
+
+  // MQTT settings endpoints
+  http.get(`${API_BASE}/settings/mqtt`, () => {
+    return HttpResponse.json({
+      enabled: false,
+      broker_host: "localhost",
+      broker_port: 1883,
+      username: "",
+      password: "",
+      external_url: "",
+    });
+  }),
+
+  http.put(`${API_BASE}/settings/mqtt`, async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({
+      enabled: false,
+      broker_host: "localhost",
+      broker_port: 1883,
+      username: "",
+      password: "",
+      external_url: "",
+      ...(body as Record<string, unknown>),
+    });
+  }),
+
+  http.get(`${API_BASE}/mqtt/status`, () => {
+    return HttpResponse.json({
+      enabled: false,
+      connected: false,
+      running: false,
     });
   }),
 

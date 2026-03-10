@@ -546,6 +546,7 @@ export interface AllSettingsResponse {
   transitions: TransitionSettings;
   output: OutputSettings;
   board: BoardSettings;
+  mqtt: MqttSettings;
   status: {
     running: boolean;
   };

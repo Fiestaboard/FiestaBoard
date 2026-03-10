@@ -95,6 +95,7 @@ describe("TransitionSettings", () => {
             boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
             devices: ["flagship"],
           },
+          mqtt: { enabled: false, broker_host: "localhost", broker_port: 1883, username: "", password: "", external_url: "" },
           status: { running: true, config_summary: {} },
         });
       })
