@@ -221,12 +221,12 @@ export function NavigationSidebar() {
                   className="flex-shrink-0"
                 />
                 <h1 className={cn(
-                  "text-xl font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-100",
+                  "text-xl font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-opacity duration-100",
                   collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
                 )}>FiestaBoard</h1>
               </div>
               <div className={cn(
-                "overflow-hidden flex-shrink-0 transition-[opacity,max-width] duration-100",
+                "overflow-hidden flex-shrink-0 transition-opacity duration-100",
                 collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px] delay-150",
               )}>
                 <ServiceStatus />
@@ -257,7 +257,7 @@ export function NavigationSidebar() {
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
                     <span className={cn(
-                      "whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-100",
+                      "whitespace-nowrap overflow-hidden transition-opacity duration-100",
                       collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
                     )}>{name}</span>
                   </a>
@@ -271,7 +271,7 @@ export function NavigationSidebar() {
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
                     <span className={cn(
-                      "whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-100",
+                      "whitespace-nowrap overflow-hidden transition-opacity duration-100",
                       collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
                     )}>{name}</span>
                   </ViewTransitionLink>
@@ -295,7 +295,7 @@ export function NavigationSidebar() {
             {/* Footer */}
             <div className="border-t border-sidebar-border px-4 py-3 flex items-center justify-between">
               <div className={cn(
-                "overflow-hidden whitespace-nowrap transition-[opacity,max-width] duration-100 min-w-0",
+                "overflow-hidden whitespace-nowrap transition-opacity duration-100 min-w-0",
                 collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px] delay-150",
               )}><VersionDisplay /></div>
               <div className="flex-shrink-0"><ThemeToggle /></div>
