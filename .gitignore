@@ -79,3 +79,10 @@ docs-site/node_modules/
 docs-site/build/
 docs-site/.docusaurus/
 docs-site/.cache-loader/
+
+# Local/dev screenshots (never referenced in docs - do not commit)
+/audit-*.png
+/verify-*.png
+/mobile-menu-*.png
+/menu-*-fixed.png
+/menu-*-dimmed.png
