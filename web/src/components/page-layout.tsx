@@ -10,7 +10,7 @@ export function PageLayout({ children, className, outerClassName }: PageLayoutPr
   return (
     <div className={cn("min-h-screen bg-background overflow-x-hidden", outerClassName)}>
       <div className={cn(
-        "container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 lg:py-3 max-w-full",
+        "container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 lg:py-3 max-w-[1920px]",
         className
       )}>
         {children}
