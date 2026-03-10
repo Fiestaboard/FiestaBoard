@@ -564,15 +564,19 @@
   .sidebar-gradient-horizontal { animation: none; }
 }
 
-/* Sidebar collapse/expand transition */
+/* Sidebar collapse/expand transition.
+   Only the sidebar's width is animated — padding-left on <main> is intentionally
+   NOT transitioned. padding-left is a layout property that forces a full
+   layout-recalc + repaint on every animation frame (≈15 frames at 60fps over
+   250ms), stressing every tile in the board preview. The sidebar is position:fixed
+   so its width change never affects <main> layout; the content padding snaps in a
+   single frame while the sidebar slides smoothly. */
 .sidebar-transition {
-  transition: width 250ms cubic-bezier(0.16, 1, 0.3, 1),
-              padding-left 250ms cubic-bezier(0.16, 1, 0.3, 1),
-              padding-top 300ms ease;
+  transition: width 250ms cubic-bezier(0.16, 1, 0.3, 1);
   contain: layout style;
 }
 .sidebar-transition.is-transitioning {
-  will-change: width, padding-left;
+  will-change: width;
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar-transition { transition: none; }
