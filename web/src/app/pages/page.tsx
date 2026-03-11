@@ -129,6 +129,7 @@ export default function PagesPage() {
                     <PageGridSelector
                       onSelectPage={handleSelectPage}
                       showActiveIndicator={false}
+                      showCarousels={false}
                       deviceTypeFilter="flagship"
                       viewMode={viewMode}
                     />
@@ -139,6 +140,7 @@ export default function PagesPage() {
                     <PageGridSelector
                       onSelectPage={handleSelectPage}
                       showActiveIndicator={false}
+                      showCarousels={false}
                       deviceTypeFilter="note"
                       viewMode={viewMode}
                     />
@@ -149,6 +151,7 @@ export default function PagesPage() {
               <PageGridSelector
                 onSelectPage={handleSelectPage}
                 showActiveIndicator={false}
+                showCarousels={false}
                 deviceTypeFilter={configuredDevices[0] as DeviceType}
                 viewMode={viewMode}
               />
