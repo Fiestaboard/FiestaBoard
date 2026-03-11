@@ -62,7 +62,8 @@
     "closeMenu": "Close menu",
     "navigationMenu": "Navigation menu",
     "mobileNavigation": "Mobile navigation",
-    "mainNavigation": "Main navigation"
+    "mainNavigation": "Main navigation",
+    "notifications": "Notifications"
   },
   "home": {
     "title": "Dashboard",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Carousels",
     "pagesTab": "Pages ({count})",
     "carouselsTab": "Carousels ({count})"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Manage notification queue and history",
+    "createNotification": "New Notification",
+    "message": "Message",
+    "messagePlaceholder": "Enter notification message...",
+    "priority": "Priority",
+    "duration": "Duration",
+    "status": "Status",
+    "queued": "Queued",
+    "displayed": "Displayed",
+    "expired": "Expired",
+    "noNotifications": "No notifications yet",
+    "noQueuedNotifications": "No queued notifications",
+    "noHistory": "No notification history",
+    "deleteConfirmTitle": "Delete Notification",
+    "deleteConfirmDescription": "Are you sure you want to delete this notification? This action cannot be undone.",
+    "created": "Notification created",
+    "deleted": "Notification deleted",
+    "createFailed": "Failed to create notification",
+    "deleteFailed": "Failed to delete notification",
+    "displayNow": "Display Now",
+    "markExpired": "Mark Expired",
+    "queue": "Queue",
+    "history": "History",
+    "createdAt": "Created",
+    "displayedAt": "Displayed",
+    "expiredAt": "Expired",
+    "priorityLow": "Low",
+    "priorityMedium": "Medium",
+    "priorityHigh": "High",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 seconds",
+      "30s": "30 seconds",
+      "1m": "1 minute",
+      "2m": "2 minutes",
+      "5m": "5 minutes",
+      "10m": "10 minutes"
+    }
   }
 }

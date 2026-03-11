@@ -539,6 +539,29 @@ export interface CarouselsResponse {
   total: number;
 }
 
+// Notification types
+export interface Notification {
+  id: string;
+  message: string;
+  status: "queued" | "displayed" | "expired";
+  priority: number;
+  duration_seconds: number;
+  created_at: string;
+  displayed_at?: string | null;
+  expired_at?: string | null;
+}
+
+export interface NotificationCreate {
+  message: string;
+  priority?: number;
+  duration_seconds?: number;
+}
+
+export interface NotificationsResponse {
+  notifications: Notification[];
+  total: number;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: Record<string, unknown>;
@@ -1042,6 +1065,34 @@ export const api = {
   deleteCarousel: (carouselId: string) =>
     fetchApi<{ status: string; message: string }>(`/carousels/${carouselId}`, {
       method: "DELETE",
+    }),
+
+  // Notification endpoints
+  getNotifications: () =>
+    fetchApi<NotificationsResponse>("/notifications"),
+
+  createNotification: (data: NotificationCreate) =>
+    fetchApi<{ status: string; notification: Notification }>("/notifications", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getNotification: (notificationId: string) =>
+    fetchApi<Notification>(`/notifications/${notificationId}`),
+
+  deleteNotification: (notificationId: string) =>
+    fetchApi<{ status: string; message: string }>(`/notifications/${notificationId}`, {
+      method: "DELETE",
+    }),
+
+  displayNotification: (notificationId: string) =>
+    fetchApi<{ status: string; notification: Notification }>(`/notifications/${notificationId}/display`, {
+      method: "POST",
+    }),
+
+  expireNotification: (notificationId: string) =>
+    fetchApi<{ status: string; notification: Notification }>(`/notifications/${notificationId}/expire`, {
+      method: "POST",
     }),
 
   // Configuration endpoints

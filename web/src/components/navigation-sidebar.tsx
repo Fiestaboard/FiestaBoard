@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, Activity } from "lucide-react";
+import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, Activity, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ServiceStatus } from "@/components/service-status";
@@ -22,6 +22,7 @@ const navigationItems = [
   { key: "pages" as const, href: "/pages", icon: FileText },
   { key: "carousels" as const, href: "/carousels", icon: GalleryHorizontalEnd },
   { key: "schedule" as const, href: "/schedule", icon: Calendar },
+  { key: "notifications" as const, href: "/notifications", icon: Bell },
   { key: "integrations" as const, href: "/integrations", icon: Puzzle },
   { key: "settings" as const, href: "/settings", icon: Settings },
 ];

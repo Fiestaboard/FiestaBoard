@@ -23,6 +23,8 @@ import type {
   GeneralConfig,
   SilenceStatus,
   PluginDetailsResponse,
+  NotificationsResponse,
+  Notification,
 } from "@/lib/api";
 
 const API_BASE = "/api";
@@ -316,6 +318,34 @@ export const requestStore: {
   liveRenderCallCount: number;
 } = {
   liveRenderCallCount: 0,
+};
+
+// Notification mock data
+export const mockQueuedNotification: Notification = {
+  id: "notif-1",
+  message: "Test notification from HA",
+  status: "queued",
+  priority: 5,
+  duration_seconds: 30,
+  created_at: "2025-01-01T00:00:00Z",
+  displayed_at: null,
+  expired_at: null,
+};
+
+export const mockExpiredNotification: Notification = {
+  id: "notif-2",
+  message: "Old notification",
+  status: "expired",
+  priority: 0,
+  duration_seconds: 30,
+  created_at: "2024-12-31T00:00:00Z",
+  displayed_at: "2024-12-31T00:01:00Z",
+  expired_at: "2024-12-31T00:01:30Z",
+};
+
+export const mockNotifications: NotificationsResponse = {
+  notifications: [mockQueuedNotification, mockExpiredNotification],
+  total: 2,
 };
 
 // Handlers with request validation
@@ -1027,6 +1057,44 @@ export const handlers = [
         boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
         devices: ["flagship"]
       }
+    });
+  }),
+
+  // Notification endpoints
+  http.get(`${API_BASE}/notifications`, () => {
+    return HttpResponse.json(mockNotifications);
+  }),
+
+  http.post(`${API_BASE}/notifications`, async ({ request }) => {
+    const body = (await request.json()) as { message: string; priority?: number; duration_seconds?: number };
+    const newNotification: Notification = {
+      id: "notif-new",
+      message: body.message,
+      status: "queued",
+      priority: body.priority ?? 0,
+      duration_seconds: body.duration_seconds ?? 30,
+      created_at: new Date().toISOString(),
+      displayed_at: null,
+      expired_at: null,
+    };
+    return HttpResponse.json({ status: "success", notification: newNotification });
+  }),
+
+  http.delete(`${API_BASE}/notifications/:id`, () => {
+    return HttpResponse.json({ status: "success", message: "Notification deleted" });
+  }),
+
+  http.post(`${API_BASE}/notifications/:id/display`, ({ params }) => {
+    return HttpResponse.json({
+      status: "success",
+      notification: { ...mockQueuedNotification, id: params.id, status: "displayed", displayed_at: new Date().toISOString() },
+    });
+  }),
+
+  http.post(`${API_BASE}/notifications/:id/expire`, ({ params }) => {
+    return HttpResponse.json({
+      status: "success",
+      notification: { ...mockQueuedNotification, id: params.id, status: "expired", expired_at: new Date().toISOString() },
     });
   }),
 ];
