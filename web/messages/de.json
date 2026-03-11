@@ -62,7 +62,8 @@
     "closeMenu": "Menü schließen",
     "navigationMenu": "Navigationsmenü",
     "mobileNavigation": "Mobile Navigation",
-    "mainNavigation": "Hauptnavigation"
+    "mainNavigation": "Hauptnavigation",
+    "notifications": "Benachrichtigungen"
   },
   "home": {
     "title": "Dashboard",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Karussells",
     "pagesTab": "Seiten ({count})",
     "carouselsTab": "Karussells ({count})"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "description": "Benachrichtigungswarteschlange und -verlauf verwalten",
+    "createNotification": "Neue Benachrichtigung",
+    "message": "Nachricht",
+    "messagePlaceholder": "Benachrichtigungsnachricht eingeben...",
+    "priority": "Priorität",
+    "duration": "Dauer",
+    "status": "Status",
+    "queued": "In Warteschlange",
+    "displayed": "Angezeigt",
+    "expired": "Abgelaufen",
+    "noNotifications": "Noch keine Benachrichtigungen",
+    "noQueuedNotifications": "Keine Benachrichtigungen in der Warteschlange",
+    "noHistory": "Kein Benachrichtigungsverlauf",
+    "deleteConfirmTitle": "Benachrichtigung löschen",
+    "deleteConfirmDescription": "Sind Sie sicher, dass Sie diese Benachrichtigung löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "created": "Benachrichtigung erstellt",
+    "deleted": "Benachrichtigung gelöscht",
+    "createFailed": "Benachrichtigung konnte nicht erstellt werden",
+    "deleteFailed": "Benachrichtigung konnte nicht gelöscht werden",
+    "displayNow": "Jetzt anzeigen",
+    "markExpired": "Als abgelaufen markieren",
+    "queue": "Warteschlange",
+    "history": "Verlauf",
+    "createdAt": "Erstellt",
+    "displayedAt": "Angezeigt",
+    "expiredAt": "Abgelaufen",
+    "priorityLow": "Niedrig",
+    "priorityMedium": "Mittel",
+    "priorityHigh": "Hoch",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 Sekunden",
+      "30s": "30 Sekunden",
+      "1m": "1 Minute",
+      "2m": "2 Minuten",
+      "5m": "5 Minuten",
+      "10m": "10 Minuten"
+    }
   }
 }

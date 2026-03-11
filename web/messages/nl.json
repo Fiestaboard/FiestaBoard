@@ -62,7 +62,8 @@
     "closeMenu": "Menu sluiten",
     "navigationMenu": "Navigatiemenu",
     "mobileNavigation": "Mobiele navigatie",
-    "mainNavigation": "Hoofdnavigatie"
+    "mainNavigation": "Hoofdnavigatie",
+    "notifications": "Meldingen"
   },
   "home": {
     "title": "Dashboard",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Carrousels",
     "pagesTab": "Pagina's ({count})",
     "carouselsTab": "Carrousels ({count})"
+  },
+  "notifications": {
+    "title": "Meldingen",
+    "description": "Beheer meldingenwachtrij en geschiedenis",
+    "createNotification": "Nieuwe melding",
+    "message": "Bericht",
+    "messagePlaceholder": "Voer meldingsbericht in...",
+    "priority": "Prioriteit",
+    "duration": "Duur",
+    "status": "Status",
+    "queued": "In wachtrij",
+    "displayed": "Weergegeven",
+    "expired": "Verlopen",
+    "noNotifications": "Nog geen meldingen",
+    "noQueuedNotifications": "Geen meldingen in de wachtrij",
+    "noHistory": "Geen meldingsgeschiedenis",
+    "deleteConfirmTitle": "Melding verwijderen",
+    "deleteConfirmDescription": "Weet u zeker dat u deze melding wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.",
+    "created": "Melding aangemaakt",
+    "deleted": "Melding verwijderd",
+    "createFailed": "Melding aanmaken mislukt",
+    "deleteFailed": "Melding verwijderen mislukt",
+    "displayNow": "Nu weergeven",
+    "markExpired": "Markeren als verlopen",
+    "queue": "Wachtrij",
+    "history": "Geschiedenis",
+    "createdAt": "Aangemaakt",
+    "displayedAt": "Weergegeven",
+    "expiredAt": "Verlopen",
+    "priorityLow": "Laag",
+    "priorityMedium": "Gemiddeld",
+    "priorityHigh": "Hoog",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 seconden",
+      "30s": "30 seconden",
+      "1m": "1 minuut",
+      "2m": "2 minuten",
+      "5m": "5 minuten",
+      "10m": "10 minuten"
+    }
   }
 }

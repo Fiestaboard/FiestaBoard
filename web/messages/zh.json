@@ -62,7 +62,8 @@
     "closeMenu": "关闭菜单",
     "navigationMenu": "导航菜单",
     "mobileNavigation": "移动端导航",
-    "mainNavigation": "主导航"
+    "mainNavigation": "主导航",
+    "notifications": "通知"
   },
   "home": {
     "title": "仪表盘",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "轮播",
     "pagesTab": "页面（{count}）",
     "carouselsTab": "轮播（{count}）"
+  },
+  "notifications": {
+    "title": "通知",
+    "description": "管理通知队列和历史记录",
+    "createNotification": "新建通知",
+    "message": "消息",
+    "messagePlaceholder": "输入通知消息...",
+    "priority": "优先级",
+    "duration": "持续时间",
+    "status": "状态",
+    "queued": "排队中",
+    "displayed": "已显示",
+    "expired": "已过期",
+    "noNotifications": "暂无通知",
+    "noQueuedNotifications": "队列中没有通知",
+    "noHistory": "没有通知历史",
+    "deleteConfirmTitle": "删除通知",
+    "deleteConfirmDescription": "确定要删除此通知吗？此操作无法撤消。",
+    "created": "通知已创建",
+    "deleted": "通知已删除",
+    "createFailed": "创建通知失败",
+    "deleteFailed": "删除通知失败",
+    "displayNow": "立即显示",
+    "markExpired": "标记为已过期",
+    "queue": "队列",
+    "history": "历史",
+    "createdAt": "创建时间",
+    "displayedAt": "显示时间",
+    "expiredAt": "过期时间",
+    "priorityLow": "低",
+    "priorityMedium": "中",
+    "priorityHigh": "高",
+    "seconds": "{count}秒",
+    "minutes": "{count}分",
+    "durationPresets": {
+      "15s": "15秒",
+      "30s": "30秒",
+      "1m": "1分钟",
+      "2m": "2分钟",
+      "5m": "5分钟",
+      "10m": "10分钟"
+    }
   }
 }

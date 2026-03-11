@@ -62,7 +62,8 @@
     "closeMenu": "Закрыть меню",
     "navigationMenu": "Меню навигации",
     "mobileNavigation": "Мобильная навигация",
-    "mainNavigation": "Основная навигация"
+    "mainNavigation": "Основная навигация",
+    "notifications": "Уведомления"
   },
   "home": {
     "title": "Панель управления",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Карусели",
     "pagesTab": "Страницы ({count})",
     "carouselsTab": "Карусели ({count})"
+  },
+  "notifications": {
+    "title": "Уведомления",
+    "description": "Управление очередью и историей уведомлений",
+    "createNotification": "Новое уведомление",
+    "message": "Сообщение",
+    "messagePlaceholder": "Введите сообщение уведомления...",
+    "priority": "Приоритет",
+    "duration": "Длительность",
+    "status": "Статус",
+    "queued": "В очереди",
+    "displayed": "Отображено",
+    "expired": "Истекло",
+    "noNotifications": "Уведомлений пока нет",
+    "noQueuedNotifications": "Нет уведомлений в очереди",
+    "noHistory": "Нет истории уведомлений",
+    "deleteConfirmTitle": "Удалить уведомление",
+    "deleteConfirmDescription": "Вы уверены, что хотите удалить это уведомление? Это действие нельзя отменить.",
+    "created": "Уведомление создано",
+    "deleted": "Уведомление удалено",
+    "createFailed": "Не удалось создать уведомление",
+    "deleteFailed": "Не удалось удалить уведомление",
+    "displayNow": "Показать сейчас",
+    "markExpired": "Отметить как истекшее",
+    "queue": "Очередь",
+    "history": "История",
+    "createdAt": "Создано",
+    "displayedAt": "Отображено",
+    "expiredAt": "Истекло",
+    "priorityLow": "Низкий",
+    "priorityMedium": "Средний",
+    "priorityHigh": "Высокий",
+    "seconds": "{count}с",
+    "minutes": "{count}м",
+    "durationPresets": {
+      "15s": "15 секунд",
+      "30s": "30 секунд",
+      "1m": "1 минута",
+      "2m": "2 минуты",
+      "5m": "5 минут",
+      "10m": "10 минут"
+    }
   }
 }

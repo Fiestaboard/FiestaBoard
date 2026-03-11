@@ -62,7 +62,8 @@
     "closeMenu": "Stäng meny",
     "navigationMenu": "Navigeringsmeny",
     "mobileNavigation": "Mobilnavigering",
-    "mainNavigation": "Huvudnavigering"
+    "mainNavigation": "Huvudnavigering",
+    "notifications": "Aviseringar"
   },
   "home": {
     "title": "Instrumentpanel",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Karuseller",
     "pagesTab": "Sidor ({count})",
     "carouselsTab": "Karuseller ({count})"
+  },
+  "notifications": {
+    "title": "Aviseringar",
+    "description": "Hantera aviseringskö och historik",
+    "createNotification": "Ny avisering",
+    "message": "Meddelande",
+    "messagePlaceholder": "Ange aviseringsmeddelande...",
+    "priority": "Prioritet",
+    "duration": "Varaktighet",
+    "status": "Status",
+    "queued": "I kö",
+    "displayed": "Visad",
+    "expired": "Utgången",
+    "noNotifications": "Inga aviseringar ännu",
+    "noQueuedNotifications": "Inga aviseringar i kön",
+    "noHistory": "Ingen aviseringshistorik",
+    "deleteConfirmTitle": "Ta bort avisering",
+    "deleteConfirmDescription": "Är du säker på att du vill ta bort denna avisering? Denna åtgärd kan inte ångras.",
+    "created": "Avisering skapad",
+    "deleted": "Avisering borttagen",
+    "createFailed": "Kunde inte skapa avisering",
+    "deleteFailed": "Kunde inte ta bort avisering",
+    "displayNow": "Visa nu",
+    "markExpired": "Markera som utgången",
+    "queue": "Kö",
+    "history": "Historik",
+    "createdAt": "Skapad",
+    "displayedAt": "Visad",
+    "expiredAt": "Utgången",
+    "priorityLow": "Låg",
+    "priorityMedium": "Medel",
+    "priorityHigh": "Hög",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 sekunder",
+      "30s": "30 sekunder",
+      "1m": "1 minut",
+      "2m": "2 minuter",
+      "5m": "5 minuter",
+      "10m": "10 minuter"
+    }
   }
 }

@@ -302,19 +302,13 @@ export default function NotificationsPage() {
 
   const handleCreate = useCallback(
     async (data: NotificationCreate) => {
-      return new Promise<void>((resolve, reject) => {
-        createMutation.mutate(data, {
-          onSuccess: () => {
-            toast.success(t("created"));
-            setSheetOpen(false);
-            resolve();
-          },
-          onError: (error) => {
-            toast.error(`${t("createFailed")}: ${error.message}`);
-            reject(error);
-          },
-        });
-      });
+      try {
+        await createMutation.mutateAsync(data);
+        toast.success(t("created"));
+        setSheetOpen(false);
+      } catch (error) {
+        toast.error(`${t("createFailed")}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     },
     [createMutation, t],
   );

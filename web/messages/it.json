@@ -62,7 +62,8 @@
     "closeMenu": "Chiudi menu",
     "navigationMenu": "Menu di navigazione",
     "mobileNavigation": "Navigazione mobile",
-    "mainNavigation": "Navigazione principale"
+    "mainNavigation": "Navigazione principale",
+    "notifications": "Notifiche"
   },
   "home": {
     "title": "Dashboard",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Caroselli",
     "pagesTab": "Pagine ({count})",
     "carouselsTab": "Caroselli ({count})"
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "description": "Gestisci coda e cronologia delle notifiche",
+    "createNotification": "Nuova notifica",
+    "message": "Messaggio",
+    "messagePlaceholder": "Inserisci il messaggio di notifica...",
+    "priority": "Priorità",
+    "duration": "Durata",
+    "status": "Stato",
+    "queued": "In coda",
+    "displayed": "Visualizzata",
+    "expired": "Scaduta",
+    "noNotifications": "Nessuna notifica ancora",
+    "noQueuedNotifications": "Nessuna notifica in coda",
+    "noHistory": "Nessuna cronologia notifiche",
+    "deleteConfirmTitle": "Elimina notifica",
+    "deleteConfirmDescription": "Sei sicuro di voler eliminare questa notifica? Questa azione non può essere annullata.",
+    "created": "Notifica creata",
+    "deleted": "Notifica eliminata",
+    "createFailed": "Impossibile creare la notifica",
+    "deleteFailed": "Impossibile eliminare la notifica",
+    "displayNow": "Mostra ora",
+    "markExpired": "Segna come scaduta",
+    "queue": "Coda",
+    "history": "Cronologia",
+    "createdAt": "Creata",
+    "displayedAt": "Visualizzata",
+    "expiredAt": "Scaduta",
+    "priorityLow": "Bassa",
+    "priorityMedium": "Media",
+    "priorityHigh": "Alta",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 secondi",
+      "30s": "30 secondi",
+      "1m": "1 minuto",
+      "2m": "2 minuti",
+      "5m": "5 minuti",
+      "10m": "10 minuti"
+    }
   }
 }

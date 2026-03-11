@@ -62,7 +62,8 @@
     "closeMenu": "メニューを閉じる",
     "navigationMenu": "ナビゲーションメニュー",
     "mobileNavigation": "モバイルナビゲーション",
-    "mainNavigation": "メインナビゲーション"
+    "mainNavigation": "メインナビゲーション",
+    "notifications": "通知"
   },
   "home": {
     "title": "ダッシュボード",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "カルーセル",
     "pagesTab": "ページ（{count}）",
     "carouselsTab": "カルーセル（{count}）"
+  },
+  "notifications": {
+    "title": "通知",
+    "description": "通知キューと履歴を管理",
+    "createNotification": "新しい通知",
+    "message": "メッセージ",
+    "messagePlaceholder": "通知メッセージを入力...",
+    "priority": "優先度",
+    "duration": "表示時間",
+    "status": "ステータス",
+    "queued": "待機中",
+    "displayed": "表示済み",
+    "expired": "期限切れ",
+    "noNotifications": "通知はまだありません",
+    "noQueuedNotifications": "待機中の通知はありません",
+    "noHistory": "通知履歴はありません",
+    "deleteConfirmTitle": "通知を削除",
+    "deleteConfirmDescription": "この通知を削除しますか？この操作は元に戻せません。",
+    "created": "通知を作成しました",
+    "deleted": "通知を削除しました",
+    "createFailed": "通知の作成に失敗しました",
+    "deleteFailed": "通知の削除に失敗しました",
+    "displayNow": "今すぐ表示",
+    "markExpired": "期限切れにする",
+    "queue": "キュー",
+    "history": "履歴",
+    "createdAt": "作成日時",
+    "displayedAt": "表示日時",
+    "expiredAt": "期限切れ日時",
+    "priorityLow": "低",
+    "priorityMedium": "中",
+    "priorityHigh": "高",
+    "seconds": "{count}秒",
+    "minutes": "{count}分",
+    "durationPresets": {
+      "15s": "15秒",
+      "30s": "30秒",
+      "1m": "1分",
+      "2m": "2分",
+      "5m": "5分",
+      "10m": "10分"
+    }
   }
 }

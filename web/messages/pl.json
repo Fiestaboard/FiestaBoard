@@ -62,7 +62,8 @@
     "closeMenu": "Zamknij menu",
     "navigationMenu": "Menu nawigacji",
     "mobileNavigation": "Nawigacja mobilna",
-    "mainNavigation": "Nawigacja główna"
+    "mainNavigation": "Nawigacja główna",
+    "notifications": "Powiadomienia"
   },
   "home": {
     "title": "Panel",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Karuzele",
     "pagesTab": "Strony ({count})",
     "carouselsTab": "Karuzele ({count})"
+  },
+  "notifications": {
+    "title": "Powiadomienia",
+    "description": "Zarządzaj kolejką i historią powiadomień",
+    "createNotification": "Nowe powiadomienie",
+    "message": "Wiadomość",
+    "messagePlaceholder": "Wpisz treść powiadomienia...",
+    "priority": "Priorytet",
+    "duration": "Czas trwania",
+    "status": "Status",
+    "queued": "W kolejce",
+    "displayed": "Wyświetlone",
+    "expired": "Wygasłe",
+    "noNotifications": "Brak powiadomień",
+    "noQueuedNotifications": "Brak powiadomień w kolejce",
+    "noHistory": "Brak historii powiadomień",
+    "deleteConfirmTitle": "Usuń powiadomienie",
+    "deleteConfirmDescription": "Czy na pewno chcesz usunąć to powiadomienie? Tej czynności nie można cofnąć.",
+    "created": "Powiadomienie utworzone",
+    "deleted": "Powiadomienie usunięte",
+    "createFailed": "Nie udało się utworzyć powiadomienia",
+    "deleteFailed": "Nie udało się usunąć powiadomienia",
+    "displayNow": "Wyświetl teraz",
+    "markExpired": "Oznacz jako wygasłe",
+    "queue": "Kolejka",
+    "history": "Historia",
+    "createdAt": "Utworzono",
+    "displayedAt": "Wyświetlono",
+    "expiredAt": "Wygasło",
+    "priorityLow": "Niski",
+    "priorityMedium": "Średni",
+    "priorityHigh": "Wysoki",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 sekund",
+      "30s": "30 sekund",
+      "1m": "1 minuta",
+      "2m": "2 minuty",
+      "5m": "5 minut",
+      "10m": "10 minut"
+    }
   }
 }

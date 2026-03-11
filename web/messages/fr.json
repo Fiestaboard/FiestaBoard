@@ -62,7 +62,8 @@
     "closeMenu": "Fermer le menu",
     "navigationMenu": "Menu de navigation",
     "mobileNavigation": "Navigation mobile",
-    "mainNavigation": "Navigation principale"
+    "mainNavigation": "Navigation principale",
+    "notifications": "Notifications"
   },
   "home": {
     "title": "Tableau de bord",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Carrousels",
     "pagesTab": "Pages ({count})",
     "carouselsTab": "Carrousels ({count})"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Gérer la file d'attente et l'historique des notifications",
+    "createNotification": "Nouvelle notification",
+    "message": "Message",
+    "messagePlaceholder": "Saisissez le message de notification...",
+    "priority": "Priorité",
+    "duration": "Durée",
+    "status": "Statut",
+    "queued": "En attente",
+    "displayed": "Affichée",
+    "expired": "Expirée",
+    "noNotifications": "Aucune notification pour le moment",
+    "noQueuedNotifications": "Aucune notification en attente",
+    "noHistory": "Aucun historique de notifications",
+    "deleteConfirmTitle": "Supprimer la notification",
+    "deleteConfirmDescription": "Êtes-vous sûr de vouloir supprimer cette notification ? Cette action est irréversible.",
+    "created": "Notification créée",
+    "deleted": "Notification supprimée",
+    "createFailed": "Échec de la création de la notification",
+    "deleteFailed": "Échec de la suppression de la notification",
+    "displayNow": "Afficher maintenant",
+    "markExpired": "Marquer comme expirée",
+    "queue": "File d'attente",
+    "history": "Historique",
+    "createdAt": "Créée",
+    "displayedAt": "Affichée",
+    "expiredAt": "Expirée",
+    "priorityLow": "Basse",
+    "priorityMedium": "Moyenne",
+    "priorityHigh": "Haute",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 secondes",
+      "30s": "30 secondes",
+      "1m": "1 minute",
+      "2m": "2 minutes",
+      "5m": "5 minutes",
+      "10m": "10 minutes"
+    }
   }
 }

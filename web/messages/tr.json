@@ -62,7 +62,8 @@
     "closeMenu": "Menüyü kapat",
     "navigationMenu": "Gezinme menüsü",
     "mobileNavigation": "Mobil gezinme",
-    "mainNavigation": "Ana gezinme"
+    "mainNavigation": "Ana gezinme",
+    "notifications": "Bildirimler"
   },
   "home": {
     "title": "Gösterge Paneli",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Döngüler",
     "pagesTab": "Sayfalar ({count})",
     "carouselsTab": "Döngüler ({count})"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "description": "Bildirim kuyruğunu ve geçmişini yönetin",
+    "createNotification": "Yeni bildirim",
+    "message": "Mesaj",
+    "messagePlaceholder": "Bildirim mesajını girin...",
+    "priority": "Öncelik",
+    "duration": "Süre",
+    "status": "Durum",
+    "queued": "Kuyrukta",
+    "displayed": "Görüntülendi",
+    "expired": "Süresi doldu",
+    "noNotifications": "Henüz bildirim yok",
+    "noQueuedNotifications": "Kuyrukta bildirim yok",
+    "noHistory": "Bildirim geçmişi yok",
+    "deleteConfirmTitle": "Bildirimi sil",
+    "deleteConfirmDescription": "Bu bildirimi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "created": "Bildirim oluşturuldu",
+    "deleted": "Bildirim silindi",
+    "createFailed": "Bildirim oluşturulamadı",
+    "deleteFailed": "Bildirim silinemedi",
+    "displayNow": "Şimdi göster",
+    "markExpired": "Süresi dolmuş olarak işaretle",
+    "queue": "Kuyruk",
+    "history": "Geçmiş",
+    "createdAt": "Oluşturuldu",
+    "displayedAt": "Görüntülendi",
+    "expiredAt": "Süresi doldu",
+    "priorityLow": "Düşük",
+    "priorityMedium": "Orta",
+    "priorityHigh": "Yüksek",
+    "seconds": "{count}sn",
+    "minutes": "{count}dk",
+    "durationPresets": {
+      "15s": "15 saniye",
+      "30s": "30 saniye",
+      "1m": "1 dakika",
+      "2m": "2 dakika",
+      "5m": "5 dakika",
+      "10m": "10 dakika"
+    }
   }
 }

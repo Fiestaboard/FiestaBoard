@@ -62,7 +62,8 @@
     "closeMenu": "메뉴 닫기",
     "navigationMenu": "탐색 메뉴",
     "mobileNavigation": "모바일 탐색",
-    "mainNavigation": "메인 탐색"
+    "mainNavigation": "메인 탐색",
+    "notifications": "알림"
   },
   "home": {
     "title": "대시보드",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "캐러셀",
     "pagesTab": "페이지 ({count})",
     "carouselsTab": "캐러셀 ({count})"
+  },
+  "notifications": {
+    "title": "알림",
+    "description": "알림 대기열 및 기록 관리",
+    "createNotification": "새 알림",
+    "message": "메시지",
+    "messagePlaceholder": "알림 메시지를 입력하세요...",
+    "priority": "우선순위",
+    "duration": "표시 시간",
+    "status": "상태",
+    "queued": "대기 중",
+    "displayed": "표시됨",
+    "expired": "만료됨",
+    "noNotifications": "아직 알림이 없습니다",
+    "noQueuedNotifications": "대기 중인 알림이 없습니다",
+    "noHistory": "알림 기록이 없습니다",
+    "deleteConfirmTitle": "알림 삭제",
+    "deleteConfirmDescription": "이 알림을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
+    "created": "알림이 생성되었습니다",
+    "deleted": "알림이 삭제되었습니다",
+    "createFailed": "알림 생성에 실패했습니다",
+    "deleteFailed": "알림 삭제에 실패했습니다",
+    "displayNow": "지금 표시",
+    "markExpired": "만료로 표시",
+    "queue": "대기열",
+    "history": "기록",
+    "createdAt": "생성됨",
+    "displayedAt": "표시됨",
+    "expiredAt": "만료됨",
+    "priorityLow": "낮음",
+    "priorityMedium": "보통",
+    "priorityHigh": "높음",
+    "seconds": "{count}초",
+    "minutes": "{count}분",
+    "durationPresets": {
+      "15s": "15초",
+      "30s": "30초",
+      "1m": "1분",
+      "2m": "2분",
+      "5m": "5분",
+      "10m": "10분"
+    }
   }
 }

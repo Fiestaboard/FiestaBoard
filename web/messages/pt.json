@@ -62,7 +62,8 @@
     "closeMenu": "Fechar menu",
     "navigationMenu": "Menu de navegação",
     "mobileNavigation": "Navegação mobile",
-    "mainNavigation": "Navegação principal"
+    "mainNavigation": "Navegação principal",
+    "notifications": "Notificações"
   },
   "home": {
     "title": "Painel",
@@ -685,5 +686,47 @@
     "carouselsAriaLabel": "Carrosséis",
     "pagesTab": "Páginas ({count})",
     "carouselsTab": "Carrosséis ({count})"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "description": "Gerir fila e histórico de notificações",
+    "createNotification": "Nova notificação",
+    "message": "Mensagem",
+    "messagePlaceholder": "Digite a mensagem da notificação...",
+    "priority": "Prioridade",
+    "duration": "Duração",
+    "status": "Estado",
+    "queued": "Na fila",
+    "displayed": "Exibida",
+    "expired": "Expirada",
+    "noNotifications": "Nenhuma notificação ainda",
+    "noQueuedNotifications": "Nenhuma notificação na fila",
+    "noHistory": "Sem histórico de notificações",
+    "deleteConfirmTitle": "Eliminar notificação",
+    "deleteConfirmDescription": "Tem certeza de que deseja eliminar esta notificação? Esta ação não pode ser desfeita.",
+    "created": "Notificação criada",
+    "deleted": "Notificação eliminada",
+    "createFailed": "Falha ao criar notificação",
+    "deleteFailed": "Falha ao eliminar notificação",
+    "displayNow": "Exibir agora",
+    "markExpired": "Marcar como expirada",
+    "queue": "Fila",
+    "history": "Histórico",
+    "createdAt": "Criada",
+    "displayedAt": "Exibida",
+    "expiredAt": "Expirada",
+    "priorityLow": "Baixa",
+    "priorityMedium": "Média",
+    "priorityHigh": "Alta",
+    "seconds": "{count}s",
+    "minutes": "{count}m",
+    "durationPresets": {
+      "15s": "15 segundos",
+      "30s": "30 segundos",
+      "1m": "1 minuto",
+      "2m": "2 minutos",
+      "5m": "5 minutos",
+      "10m": "10 minutos"
+    }
   }
 }
