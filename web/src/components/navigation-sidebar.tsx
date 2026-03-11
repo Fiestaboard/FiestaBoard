@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePrefetchPagesData } from "@/hooks/use-board";
+import { FiestaLogo } from "@/components/fiesta-logo";
 import { useSidebar } from "@/components/sidebar-context";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -90,7 +91,7 @@ export function NavigationSidebar() {
               height={32}
               className="flex-shrink-0"
             />
-            <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap truncate text-sidebar-foreground">FiestaBoard</h1>
+            <FiestaLogo size="sm" className="whitespace-nowrap truncate" />
           </div>
           <div className="ml-3">
             <ServiceStatus />
@@ -220,10 +221,10 @@ export function NavigationSidebar() {
                   height={32}
                   className="flex-shrink-0"
                 />
-                <h1 className={cn(
-                  "text-xl font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                <FiestaLogo className={cn(
+                  "whitespace-nowrap overflow-hidden transition-opacity duration-100",
                   collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-                )}>FiestaBoard</h1>
+                )} />
               </div>
               <div className={cn(
                 "overflow-hidden flex-shrink-0 transition-opacity duration-100",
