@@ -35,7 +35,7 @@ def _make_msg(topic: str, payload: str) -> Mock:
 # ---------------------------------------------------------------------------
 
 class TestListenerInit:
-    """Tests for HAStateStreamListener initialisation."""
+    """Tests for HAStateStreamListener initialization."""
 
     def test_defaults(self):
         listener = HAStateStreamListener(_base_config())

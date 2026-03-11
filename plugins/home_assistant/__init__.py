@@ -215,7 +215,7 @@ class HomeAssistantPlugin(PluginBase):
             
             # Build result data structure
             # Include all entities in a flat structure for template access
-            data: Dict[str, Any] = {
+            data = {
                 "connected": "Yes",
                 "entity_count": len(all_entities),
                 "data_source": "rest",
@@ -265,7 +265,7 @@ class HomeAssistantPlugin(PluginBase):
         all_entities = self._mqtt_listener.get_entities()
         self._all_entities = all_entities
 
-        data: Dict[str, Any] = {
+        data = {
             "connected": "Yes",
             "entity_count": len(all_entities),
             "data_source": "mqtt_statestream",
@@ -280,7 +280,7 @@ class HomeAssistantPlugin(PluginBase):
 
         # Resolve configured entities
         entities_config = self.config.get("entities", [])
-        configured_entities: Dict[str, Any] = {}
+        configured_entities = {}
         for entity_conf in entities_config:
             entity_id = entity_conf.get("entity_id")
             name = entity_conf.get("name", entity_id)
