@@ -5,30 +5,28 @@ interface FiestaLogoProps {
   className?: string;
 }
 
-/**
- * CSS-based wordmark logo for FiestaBoard.
- *
- * "Fiesta" uses a warm multi-stop gradient that echoes the sidebar palette,
- * while "Board" stays solid in the current foreground color for contrast.
- * A small four-pointed star accent sits between the two words at the baseline
- * to give the mark a festive but professional feel.
- */
 export function FiestaLogo({ size = "md", className }: FiestaLogoProps) {
   const isSm = size === "sm";
 
   return (
     <span
       className={cn(
-        "fiesta-logo inline-flex items-baseline select-none leading-none",
+        "inline-flex items-baseline select-none leading-none",
         isSm ? "text-lg" : "text-xl",
         className,
       )}
     >
-      <span className="fiesta-logo-fiesta font-extrabold tracking-tight">
+      <span className="font-bold tracking-tight text-brand">
         Fiesta
       </span>
-      <span className="fiesta-logo-star" />
-      <span className="fiesta-logo-board font-medium tracking-tight">
+      <span
+        className={cn(
+          "mx-[0.1em] inline-block rounded-full bg-brand/40",
+          isSm ? "h-[0.2em] w-[0.2em]" : "h-[0.22em] w-[0.22em]",
+        )}
+        style={{ alignSelf: "center" }}
+      />
+      <span className="font-medium tracking-tight text-sidebar-foreground/80">
         Board
       </span>
     </span>
