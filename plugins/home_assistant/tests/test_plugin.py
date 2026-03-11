@@ -676,6 +676,162 @@ class TestHomeAssistantConfig:
             assert len(parts[1]) > 0
 
 
+class TestHomeAssistantMQTTMode:
+    """Tests for MQTT Statestream integration in the plugin."""
+
+    def test_validate_config_mqtt_mode_no_rest_creds_needed(self):
+        """When mqtt_statestream is enabled, base_url and access_token are not required."""
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        errors = plugin.validate_config({"mqtt_statestream": True})
+        assert len(errors) == 0
+
+    def test_validate_config_rest_mode_requires_creds(self):
+        """When mqtt_statestream is off, base_url and access_token are required."""
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        errors = plugin.validate_config({"mqtt_statestream": False})
+        assert "Home Assistant URL is required" in errors
+        assert "Access token is required" in errors
+
+    def test_init_sets_mqtt_listener_to_none(self):
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        assert plugin._mqtt_listener is None
+
+    @patch("plugins.home_assistant.mqtt_listener.HAStateStreamListener")
+    def test_fetch_data_mqtt_connected_returns_mqtt_data(self, MockListener):
+        """fetch_data uses MQTT listener data when connected."""
+        mock_listener = MagicMock()
+        mock_listener.is_connected.return_value = True
+        mock_listener.get_entities.return_value = {
+            "sensor.temperature": {
+                "state": "72",
+                "attributes": {"unit_of_measurement": "°F"},
+                "friendly_name": "Temp",
+            },
+        }
+        MockListener.return_value = mock_listener
+
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        plugin._config = {
+            "mqtt_statestream": True,
+            "statestream_broker_host": "mqtt.local",
+            "entities": [{"entity_id": "sensor.temperature", "name": "Temp"}],
+        }
+        result = plugin.fetch_data()
+
+        assert result.available
+        assert result.data["data_source"] == "mqtt_statestream"
+        assert result.data["connected"] == "Yes"
+        assert result.data["entity_count"] == 1
+        assert result.data["sensor.temperature"]["state"] == "72"
+        assert result.data["entities"]["Temp"]["state"] == "72"
+
+    @patch("plugins.home_assistant.mqtt_listener.HAStateStreamListener")
+    def test_fetch_data_mqtt_not_connected_no_rest_creds(self, MockListener):
+        """When MQTT is enabled but not connected and no REST creds, returns waiting state."""
+        mock_listener = MagicMock()
+        mock_listener.is_connected.return_value = False
+        MockListener.return_value = mock_listener
+
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        plugin._config = {"mqtt_statestream": True, "statestream_broker_host": "mqtt.local"}
+        result = plugin.fetch_data()
+
+        assert result.available
+        assert result.data["connected"] == "Waiting"
+        assert result.data["data_source"] == "mqtt_statestream"
+
+    @patch("plugins.home_assistant.mqtt_listener.HAStateStreamListener")
+    @patch("plugins.home_assistant.requests.get")
+    def test_fetch_data_mqtt_not_connected_falls_back_to_rest(self, mock_get, MockListener):
+        """When MQTT is not connected but REST creds are available, falls back to REST."""
+        mock_listener = MagicMock()
+        mock_listener.is_connected.return_value = False
+        MockListener.return_value = mock_listener
+
+        def mock_responses(url, **kwargs):
+            resp = Mock()
+            resp.raise_for_status = Mock()
+            if "/api/" in url and url.endswith("/"):
+                resp.json.return_value = {"state": "ok"}
+            else:
+                resp.json.return_value = [
+                    {"entity_id": "sensor.temperature", "state": "72", "attributes": {}},
+                ]
+            return resp
+
+        mock_get.side_effect = mock_responses
+
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        plugin._config = {
+            "mqtt_statestream": True,
+            "statestream_broker_host": "mqtt.local",
+            "base_url": "http://ha.local:8123",
+            "access_token": "token",
+            "entities": [],
+        }
+        result = plugin.fetch_data()
+
+        assert result.available
+        assert result.data["data_source"] == "rest"
+        assert result.data["connected"] == "Yes"
+
+    def test_cleanup_stops_mqtt_listener(self):
+        """cleanup() stops the MQTT listener."""
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        mock_listener = MagicMock()
+        plugin._mqtt_listener = mock_listener
+
+        plugin.cleanup()
+
+        mock_listener.stop.assert_called_once()
+        assert plugin._mqtt_listener is None
+
+    def test_on_config_change_restarts_listener_when_mqtt_keys_change(self):
+        """Config change in MQTT settings stops the old listener."""
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        mock_listener = MagicMock()
+        plugin._mqtt_listener = mock_listener
+
+        old = {"mqtt_statestream": True, "statestream_broker_host": "old.host"}
+        new = {"mqtt_statestream": True, "statestream_broker_host": "new.host"}
+        plugin.on_config_change(old, new)
+
+        mock_listener.stop.assert_called_once()
+        assert plugin._mqtt_listener is None
+
+    def test_on_config_change_no_restart_when_mqtt_keys_unchanged(self):
+        """Config change in non-MQTT settings does NOT stop the listener."""
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        mock_listener = MagicMock()
+        plugin._mqtt_listener = mock_listener
+
+        old = {"mqtt_statestream": True, "statestream_broker_host": "same.host", "timeout": 5}
+        new = {"mqtt_statestream": True, "statestream_broker_host": "same.host", "timeout": 10}
+        plugin.on_config_change(old, new)
+
+        mock_listener.stop.assert_not_called()
+
+    @patch("plugins.home_assistant.mqtt_listener.HAStateStreamListener")
+    def test_get_entity_prefers_mqtt_listener(self, MockListener):
+        """get_entity returns from MQTT listener when connected."""
+        mock_listener = MagicMock()
+        mock_listener.is_connected.return_value = True
+        mock_listener.get_entity.return_value = {
+            "state": "on",
+            "attributes": {},
+            "friendly_name": "Kitchen Light",
+        }
+        MockListener.return_value = mock_listener
+
+        plugin = HomeAssistantPlugin(_ha_manifest())
+        plugin._mqtt_listener = mock_listener
+
+        entity = plugin.get_entity("light.kitchen")
+        assert entity is not None
+        assert entity["state"] == "on"
+        mock_listener.get_entity.assert_called_with("light.kitchen")
+
+
 class TestHomeAssistantDisplay:
     """Tests for Home Assistant display formatting."""
 
