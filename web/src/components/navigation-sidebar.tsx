@@ -70,7 +70,7 @@ export function NavigationSidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 flex-shrink-0 -ml-2 text-white/90 hover:bg-white/15 hover:text-white"
+            className="h-9 w-9 flex-shrink-0 -ml-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? t("closeMenu") : t("openMenu")}
           >
@@ -90,7 +90,7 @@ export function NavigationSidebar() {
               height={32}
               className="flex-shrink-0"
             />
-            <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap truncate text-white">FiestaBoard</h1>
+            <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap truncate text-sidebar-foreground">FiestaBoard</h1>
           </div>
           <div className="ml-3">
             <ServiceStatus />
@@ -134,8 +134,8 @@ export function NavigationSidebar() {
             const mobileClassName = cn(
               "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
               isActive
-                ? "bg-white/15 text-white font-semibold"
-                : "text-white/90 hover:bg-white/10 hover:text-white active:bg-white/12"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent"
             );
 
             if (item.external) {
@@ -169,7 +169,7 @@ export function NavigationSidebar() {
             );
           })}
         </nav>
-        <div className="border-t border-white/18 px-4 py-3 flex items-center justify-between text-white/85">
+        <div className="border-t border-sidebar-border px-4 py-3 flex items-center justify-between text-sidebar-foreground">
           <VersionDisplay />
           <ThemeToggle />
         </div>
@@ -243,7 +243,7 @@ export function NavigationSidebar() {
                 const linkClassName = cn(
                   "flex items-center gap-3 py-2 pl-[14px] pr-3 rounded-lg text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-white/15 text-white font-semibold"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 );
 
