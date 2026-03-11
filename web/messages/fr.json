@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Notifications",
     "description": "Gérer la file d'attente et l'historique des notifications",
-    "createNotification": "Nouvelle notification",
+    "createNotification": "Créer une notification",
+    "createDescription": "Créer une notification à afficher sur le tableau",
     "message": "Message",
     "messagePlaceholder": "Saisissez le message de notification...",
     "priority": "Priorité",

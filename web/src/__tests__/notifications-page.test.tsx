@@ -61,11 +61,11 @@ describe("NotificationsPage", () => {
     });
   });
 
-  it("renders new notification button", async () => {
+  it("renders create notification button", async () => {
     render(<NotificationsPage />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("New Notification")).toBeInTheDocument();
+      expect(screen.getByText("Create Notification")).toBeInTheDocument();
     });
   });
 
@@ -97,10 +97,10 @@ describe("NotificationsPage", () => {
     render(<NotificationsPage />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("New Notification")).toBeInTheDocument();
+      expect(screen.getByText("Create Notification")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByText("New Notification"));
+    await user.click(screen.getByText("Create Notification"));
 
     await waitFor(() => {
       expect(screen.getByLabelText("Message")).toBeInTheDocument();

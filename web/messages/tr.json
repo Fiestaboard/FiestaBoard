@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Bildirimler",
     "description": "Bildirim kuyruğunu ve geçmişini yönetin",
-    "createNotification": "Yeni bildirim",
+    "createNotification": "Bildirim Oluştur",
+    "createDescription": "Panoda görüntülenecek bir bildirim oluşturun",
     "message": "Mesaj",
     "messagePlaceholder": "Bildirim mesajını girin...",
     "priority": "Öncelik",

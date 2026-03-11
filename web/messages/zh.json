@@ -690,7 +690,8 @@
   "notifications": {
     "title": "通知",
     "description": "管理通知队列和历史记录",
-    "createNotification": "新建通知",
+    "createNotification": "创建通知",
+    "createDescription": "创建要在面板上显示的通知",
     "message": "消息",
     "messagePlaceholder": "输入通知消息...",
     "priority": "优先级",

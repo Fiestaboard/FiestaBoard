@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Уведомления",
     "description": "Управление очередью и историей уведомлений",
-    "createNotification": "Новое уведомление",
+    "createNotification": "Создать уведомление",
+    "createDescription": "Создать уведомление для отображения на доске",
     "message": "Сообщение",
     "messagePlaceholder": "Введите сообщение уведомления...",
     "priority": "Приоритет",

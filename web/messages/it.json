@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Notifiche",
     "description": "Gestisci coda e cronologia delle notifiche",
-    "createNotification": "Nuova notifica",
+    "createNotification": "Crea notifica",
+    "createDescription": "Crea una notifica da visualizzare sulla scheda",
     "message": "Messaggio",
     "messagePlaceholder": "Inserisci il messaggio di notifica...",
     "priority": "Priorità",

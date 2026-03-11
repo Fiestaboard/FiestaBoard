@@ -690,7 +690,8 @@
   "notifications": {
     "title": "알림",
     "description": "알림 대기열 및 기록 관리",
-    "createNotification": "새 알림",
+    "createNotification": "알림 생성",
+    "createDescription": "보드에 표시할 알림 생성",
     "message": "메시지",
     "messagePlaceholder": "알림 메시지를 입력하세요...",
     "priority": "우선순위",

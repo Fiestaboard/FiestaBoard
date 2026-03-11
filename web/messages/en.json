@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Notifications",
     "description": "Manage notification queue and history",
-    "createNotification": "New Notification",
+    "createNotification": "Create Notification",
+    "createDescription": "Create a notification to display on the board",
     "message": "Message",
     "messagePlaceholder": "Enter notification message...",
     "priority": "Priority",

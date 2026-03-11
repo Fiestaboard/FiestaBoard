@@ -84,10 +84,13 @@ function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString();
 }
 
-function priorityLabel(priority: number): string {
-  if (priority >= 7) return "High";
-  if (priority >= 4) return "Medium";
-  return "Low";
+function usePriorityLabel() {
+  const t = useTranslations("notifications");
+  return (priority: number): string => {
+    if (priority >= 7) return t("priorityHigh");
+    if (priority >= 4) return t("priorityMedium");
+    return t("priorityLow");
+  };
 }
 
 function statusVariant(status: string): "default" | "secondary" | "outline" {
@@ -115,6 +118,7 @@ function NotificationForm({
 }: NotificationFormProps) {
   const t = useTranslations("notifications");
   const tc = useTranslations("common");
+  const priorityLabel = usePriorityLabel();
   const [message, setMessage] = useState("");
   const [priority, setPriority] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(30);
@@ -208,6 +212,7 @@ function NotificationCard({
   onExpire,
 }: NotificationCardProps) {
   const t = useTranslations("notifications");
+  const priorityLabel = usePriorityLabel();
 
   return (
     <Card className="animate-card-fade-in">
@@ -431,7 +436,7 @@ export default function NotificationsPage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>{t("createNotification")}</SheetTitle>
-            <SheetDescription>{t("description")}</SheetDescription>
+            <SheetDescription>{t("createDescription")}</SheetDescription>
           </SheetHeader>
           <NotificationForm
             onSubmit={handleCreate}

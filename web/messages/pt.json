@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Notificações",
     "description": "Gerir fila e histórico de notificações",
-    "createNotification": "Nova notificação",
+    "createNotification": "Criar notificação",
+    "createDescription": "Criar uma notificação para exibir no painel",
     "message": "Mensagem",
     "messagePlaceholder": "Digite a mensagem da notificação...",
     "priority": "Prioridade",

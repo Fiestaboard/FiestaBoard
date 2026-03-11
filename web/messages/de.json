@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Benachrichtigungen",
     "description": "Benachrichtigungswarteschlange und -verlauf verwalten",
-    "createNotification": "Neue Benachrichtigung",
+    "createNotification": "Benachrichtigung erstellen",
+    "createDescription": "Erstellen Sie eine Benachrichtigung zur Anzeige auf dem Board",
     "message": "Nachricht",
     "messagePlaceholder": "Benachrichtigungsnachricht eingeben...",
     "priority": "Priorität",

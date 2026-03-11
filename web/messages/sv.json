@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Aviseringar",
     "description": "Hantera aviseringskö och historik",
-    "createNotification": "Ny avisering",
+    "createNotification": "Skapa avisering",
+    "createDescription": "Skapa en avisering att visa på tavlan",
     "message": "Meddelande",
     "messagePlaceholder": "Ange aviseringsmeddelande...",
     "priority": "Prioritet",

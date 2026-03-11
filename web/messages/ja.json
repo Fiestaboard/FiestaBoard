@@ -690,7 +690,8 @@
   "notifications": {
     "title": "通知",
     "description": "通知キューと履歴を管理",
-    "createNotification": "新しい通知",
+    "createNotification": "通知を作成",
+    "createDescription": "ボードに表示する通知を作成",
     "message": "メッセージ",
     "messagePlaceholder": "通知メッセージを入力...",
     "priority": "優先度",

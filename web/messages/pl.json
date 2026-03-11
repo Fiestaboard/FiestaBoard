@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Powiadomienia",
     "description": "Zarządzaj kolejką i historią powiadomień",
-    "createNotification": "Nowe powiadomienie",
+    "createNotification": "Utwórz powiadomienie",
+    "createDescription": "Utwórz powiadomienie do wyświetlenia na tablicy",
     "message": "Wiadomość",
     "messagePlaceholder": "Wpisz treść powiadomienia...",
     "priority": "Priorytet",

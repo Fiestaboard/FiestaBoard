@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Meldingen",
     "description": "Beheer meldingenwachtrij en geschiedenis",
-    "createNotification": "Nieuwe melding",
+    "createNotification": "Melding aanmaken",
+    "createDescription": "Maak een melding aan om op het bord weer te geven",
     "message": "Bericht",
     "messagePlaceholder": "Voer meldingsbericht in...",
     "priority": "Prioriteit",

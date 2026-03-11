@@ -690,7 +690,8 @@
   "notifications": {
     "title": "Notificaciones",
     "description": "Gestionar cola y historial de notificaciones",
-    "createNotification": "Nueva notificación",
+    "createNotification": "Crear notificación",
+    "createDescription": "Crear una notificación para mostrar en el tablero",
     "message": "Mensaje",
     "messagePlaceholder": "Escriba el mensaje de notificación...",
     "priority": "Prioridad",
