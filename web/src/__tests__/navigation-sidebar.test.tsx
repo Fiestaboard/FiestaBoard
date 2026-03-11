@@ -46,8 +46,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("NavigationSidebar active state", () => {
-  // Active nav link uses bg-white/15 (sidebar gradient); desktop also uses bg-sidebar-accent in theme
-  const activeNavClass = "bg-white/15";
+  const activeNavClass = "bg-sidebar-accent";
 
   it("highlights Pages when on /pages", () => {
     mockPathname.mockReturnValue("/pages");

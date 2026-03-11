@@ -143,4 +143,23 @@ test.describe("Navigation", () => {
       expect(data).toHaveProperty("package_version");
     }
   });
+
+  test("sidebar shows Fiesta gradient (red, orange, yellow, purple)", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const sidebar = page.locator("aside").first();
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toHaveClass(/sidebar-gradient/);
+
+    // Optional: save screenshot for visual check (e.g. gradient + animation)
+    await sidebar.screenshot({
+      path: "playwright-test-results/sidebar-gradient.png",
+    });
+  });
 });
