@@ -172,6 +172,22 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         step=30,
         unit="s",
     ),
+    # Notifications
+    EntityDefinition(
+        entity_type="text",
+        object_id="send_notification",
+        name="Send Notification",
+        icon="mdi:bell-plus",
+        has_command=True,
+        min_length=1,
+        max_length=132,
+    ),
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="notification_count",
+        name="Queued Notifications",
+        icon="mdi:bell-badge",
+    ),
 ]
 
 

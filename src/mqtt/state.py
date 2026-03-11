@@ -79,6 +79,14 @@ class StatePublisher:
             # refresh_interval
             out["refresh_interval"] = str(settings.get_polling_interval())
 
+            # notification_count
+            try:
+                from src.notifications.service import get_notification_service
+                queued = get_notification_service().get_queued()
+                out["notification_count"] = str(len(queued))
+            except Exception:
+                out["notification_count"] = "0"
+
         except Exception as e:
             logger.debug("State gather error: %s", e)
         return out

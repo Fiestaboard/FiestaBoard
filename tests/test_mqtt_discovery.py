@@ -48,7 +48,7 @@ class TestEntityDefinitions:
 
     def test_entity_count(self):
         """FiestaBoard should expose 14 entities to HA."""
-        assert len(ENTITY_DEFINITIONS) == 14
+        assert len(ENTITY_DEFINITIONS) == 16
 
     def test_all_entity_types_valid(self):
         """All entity types must be valid HA entity types."""
@@ -119,7 +119,7 @@ class TestEntityDefinitions:
     def test_text_entities(self):
         """Should have text entity for sending messages."""
         texts = [e for e in ENTITY_DEFINITIONS if e.entity_type == "text"]
-        assert len(texts) == 1
+        assert len(texts) == 2
         assert texts[0].object_id == "send_message"
         assert texts[0].max_length == 132  # 22 chars × 6 rows
 

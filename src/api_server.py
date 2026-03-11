@@ -37,6 +37,8 @@ from .schedules.service import get_schedule_service
 from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .carousels.service import get_carousel_service
 from .carousels.models import CarouselCreate, CarouselUpdate, is_carousel_id
+from .notifications.service import get_notification_service
+from .notifications.models import NotificationCreate
 from .templates.engine import get_template_engine, reset_template_engine
 from .text_to_board import text_to_board_array
 from .devices import get_dimensions
@@ -4138,6 +4140,82 @@ async def delete_carousel(carousel_id: str):
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
     return {"status": "success", "message": f"Carousel {carousel_id} deleted"}
+
+
+# =============================================================================
+# Notification Endpoints
+# =============================================================================
+
+@app.get("/notifications")
+async def list_notifications():
+    """List all notifications."""
+    service = get_notification_service()
+    notifications = service.list_notifications()
+    return {
+        "notifications": [n.model_dump() for n in notifications],
+        "total": len(notifications),
+    }
+
+
+@app.post("/notifications")
+async def create_notification(data: NotificationCreate):
+    """Create a new notification and add it to the queue."""
+    service = get_notification_service()
+    try:
+        notification = service.create_notification(data)
+        return {"status": "success", "notification": notification.model_dump()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/notifications/{notification_id}")
+async def get_notification(notification_id: str):
+    """Get a notification by ID."""
+    service = get_notification_service()
+    notification = service.get_notification(notification_id)
+    if not notification:
+        raise HTTPException(status_code=404, detail=f"Notification not found: {notification_id}")
+    return notification.model_dump()
+
+
+@app.delete("/notifications/{notification_id}")
+async def delete_notification(notification_id: str):
+    """Delete a notification."""
+    service = get_notification_service()
+    deleted = service.delete_notification(notification_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Notification not found: {notification_id}")
+    return {"status": "success", "message": f"Notification {notification_id} deleted"}
+
+
+@app.post("/notifications/{notification_id}/display")
+async def display_notification(notification_id: str):
+    """Mark a notification as displayed immediately."""
+    service = get_notification_service()
+    notification = service.mark_displayed(notification_id)
+    if not notification:
+        raise HTTPException(status_code=404, detail=f"Notification not found: {notification_id}")
+    return {"status": "success", "notification": notification.model_dump()}
+
+
+@app.post("/notifications/{notification_id}/expire")
+async def expire_notification(notification_id: str):
+    """Mark a notification as expired."""
+    service = get_notification_service()
+    notification = service.mark_expired(notification_id)
+    if not notification:
+        raise HTTPException(status_code=404, detail=f"Notification not found: {notification_id}")
+    return {"status": "success", "notification": notification.model_dump()}
+
+
+@app.get("/notifications/queue/next")
+async def next_notification():
+    """Get the next notification to display."""
+    service = get_notification_service()
+    notification = service.next_notification()
+    if not notification:
+        return {"notification": None}
+    return {"notification": notification.model_dump()}
 
 
 # =============================================================================

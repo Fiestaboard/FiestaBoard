@@ -39,6 +39,8 @@ class CommandHandler:
                 self._handle_send_message(payload)
             elif object_id == "refresh_interval":
                 self._handle_refresh_interval(payload)
+            elif object_id == "send_notification":
+                self._handle_send_notification(payload)
             else:
                 logger.debug("Unknown MQTT command object_id=%s", object_id)
         except Exception as e:
@@ -140,6 +142,19 @@ class CommandHandler:
             interval = 10
         from src.settings.service import get_settings_service
         get_settings_service().set_polling_interval(interval)
+
+    def _handle_send_notification(self, payload: str) -> None:
+        if not payload:
+            return
+        from src.notifications.service import get_notification_service
+        from src.notifications.models import NotificationCreate
+        try:
+            get_notification_service().create_notification(
+                NotificationCreate(message=payload)
+            )
+            logger.info("MQTT send_notification: queued %r", payload[:50])
+        except Exception as e:
+            logger.warning("MQTT send_notification failed: %s", e)
 
 
 from typing import TYPE_CHECKING
