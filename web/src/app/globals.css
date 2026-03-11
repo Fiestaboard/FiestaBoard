@@ -496,17 +496,55 @@
 }
 
 
-/* Sidebar & mobile header brand gradient with scoped color overrides.
-   All color stops verified WCAG 2.2 AA compliant (>=4.5:1 with white text). */
+/* Sidebar & mobile header: Fiesta-brand gradient (red, orange, yellow, purple from tile color).
+   Full-area gradient that slowly animates; static when prefers-reduced-motion.
+   Purple matches board tile --color-board-violet (#9b59b6), darkened for WCAG 2.2 AA. */
+@keyframes sidebar-gradient-flow {
+  0%   { background-position: 50% 0%; }
+  100% { background-position: 50% 100%; }
+}
+
+/* Light mode: warm, soft Fiesta gradient (coral → peach → gold → lavender), dark text, WCAG AA */
 .sidebar-gradient {
-  background: linear-gradient(170deg, #7a3600 0%, #884200 40%, #944e00 100%);
-  color: oklch(1 0 0);
+  --sidebar-fiesta-red: #c97a72;
+  --sidebar-fiesta-orange: #c99662;
+  --sidebar-fiesta-yellow: #b8a244;
+  --sidebar-fiesta-purple: #9b7bb0; /* board violet hue, light */
+  background: linear-gradient(
+    170deg,
+    var(--sidebar-fiesta-red) 0%,
+    var(--sidebar-fiesta-orange) 22%,
+    var(--sidebar-fiesta-yellow) 44%,
+    var(--sidebar-fiesta-purple) 70%,
+    var(--sidebar-fiesta-red) 100%
+  );
+  background-size: 100% 400%;
+  background-position: 50% 0%;
+  animation: sidebar-gradient-flow 56s linear infinite;
+  color: oklch(0.18 0 0);
   border-radius: 14px;
   box-shadow:
-    0 0 0 1px rgba(255, 200, 120, 0.10),
-    0 1px 3px rgba(100, 50, 0, 0.06),
-    0 4px 16px -2px rgba(100, 50, 0, 0.10),
-    0 8px 32px -6px rgba(80, 40, 0, 0.10);
+    0 0 0 1px rgba(120, 80, 60, 0.12),
+    0 1px 3px rgba(80, 50, 30, 0.08),
+    0 4px 16px -2px rgba(80, 50, 30, 0.06),
+    0 8px 32px -6px rgba(60, 40, 25, 0.06);
+  --sidebar-foreground: oklch(0.18 0 0);
+  --sidebar-accent: oklch(0 0 0 / 8%);
+  --sidebar-accent-foreground: oklch(0.18 0 0);
+  --sidebar-border: oklch(0 0 0 / 12%);
+  --foreground: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.35 0 0);
+  --accent: oklch(0 0 0 / 6%);
+  --accent-foreground: oklch(0.18 0 0);
+  --border: oklch(0 0 0 / 12%);
+}
+.dark .sidebar-gradient {
+  /* Dark mode: rich Fiesta gradient, white text (unchanged – user preference) */
+  --sidebar-fiesta-red: #7a1e18;
+  --sidebar-fiesta-orange: #6d430c;
+  --sidebar-fiesta-yellow: #554a0c;
+  --sidebar-fiesta-purple: #4e3070; /* board violet, darker for dark theme */
+  color: oklch(1 0 0);
   --sidebar-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(1 0 0 / 14%);
   --sidebar-accent-foreground: oklch(1 0 0);
@@ -516,35 +554,61 @@
   --accent: oklch(1 0 0 / 12%);
   --accent-foreground: oklch(1 0 0);
   --border: oklch(1 0 0 / 18%);
-}
-.dark .sidebar-gradient {
-  background: linear-gradient(170deg, #4e1c00 0%, #5e2800 40%, #703400 100%);
   box-shadow:
-    0 0 0 1px rgba(255, 180, 80, 0.06),
-    0 1px 4px rgba(0, 0, 0, 0.20),
-    0 6px 20px -2px rgba(0, 0, 0, 0.28),
-    0 12px 40px -8px rgba(0, 0, 0, 0.20);
+    0 0 0 1px rgba(255, 180, 80, 0.08),
+    0 1px 4px rgba(0, 0, 0, 0.25),
+    0 6px 20px -2px rgba(0, 0, 0, 0.3),
+    0 12px 40px -8px rgba(0, 0, 0, 0.22);
 }
+
 .sidebar-gradient-horizontal {
-  background: linear-gradient(135deg, #7a3600 0%, #884200 50%, #944e00 100%);
-  color: oklch(1 0 0);
+  /* Light mode: same warm gradient as vertical sidebar */
+  --sidebar-fiesta-red: #c97a72;
+  --sidebar-fiesta-orange: #c99662;
+  --sidebar-fiesta-yellow: #b8a244;
+  --sidebar-fiesta-purple: #9b7bb0;
+  background: linear-gradient(
+    135deg,
+    var(--sidebar-fiesta-red) 0%,
+    var(--sidebar-fiesta-orange) 22%,
+    var(--sidebar-fiesta-yellow) 44%,
+    var(--sidebar-fiesta-purple) 70%,
+    var(--sidebar-fiesta-red) 100%
+  );
+  background-size: 400% 100%;
+  background-position: 0% 50%;
+  animation: sidebar-gradient-flow-h 56s linear infinite;
+  color: oklch(0.18 0 0);
   border-radius: 16px;
   box-shadow:
-    0 0 0 1px rgba(255, 200, 120, 0.10),
-    0 2px 8px rgba(100, 50, 0, 0.08),
-    0 6px 20px -4px rgba(80, 40, 0, 0.12);
+    0 0 0 1px rgba(120, 80, 60, 0.12),
+    0 2px 8px rgba(80, 50, 30, 0.08),
+    0 6px 20px -4px rgba(80, 50, 30, 0.06);
+  --foreground: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.35 0 0);
+  --accent: oklch(0 0 0 / 6%);
+  --accent-foreground: oklch(0.18 0 0);
+  --border: oklch(0 0 0 / 12%);
+}
+@keyframes sidebar-gradient-flow-h {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+.dark .sidebar-gradient-horizontal {
+  --sidebar-fiesta-red: #7a1e18;
+  --sidebar-fiesta-orange: #6d430c;
+  --sidebar-fiesta-yellow: #554a0c;
+  --sidebar-fiesta-purple: #4e3070;
+  color: oklch(1 0 0);
   --foreground: oklch(1 0 0);
   --muted-foreground: oklch(1 0 0 / 85%);
   --accent: oklch(1 0 0 / 12%);
   --accent-foreground: oklch(1 0 0);
   --border: oklch(1 0 0 / 18%);
-}
-.dark .sidebar-gradient-horizontal {
-  background: linear-gradient(135deg, #4e1c00 0%, #5e2800 50%, #703400 100%);
   box-shadow:
-    0 0 0 1px rgba(255, 180, 80, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.22),
-    0 8px 24px -4px rgba(0, 0, 0, 0.26);
+    0 0 0 1px rgba(255, 180, 80, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    0 8px 24px -4px rgba(0, 0, 0, 0.28);
 }
 
 /* Navigation entrance animations */
@@ -556,12 +620,22 @@
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Desktop: entrance then gradient flow (both run; gradient starts after 400ms) */
 @media (min-width: 1024px) {
-  .sidebar-gradient { animation: nav-slide-in-left 400ms ease-out both; }
+  .sidebar-gradient {
+    animation: nav-slide-in-left 400ms ease-out both,
+               sidebar-gradient-flow 56s linear 0.4s infinite;
+  }
 }
-.sidebar-gradient-horizontal { animation: nav-slide-in-top 350ms ease-out both; }
+.sidebar-gradient-horizontal {
+  animation: nav-slide-in-top 350ms ease-out both,
+             sidebar-gradient-flow-h 56s linear 0.35s infinite;
+}
 @media (min-width: 1024px) {
-  .sidebar-gradient-horizontal { animation: none; }
+  .sidebar-gradient-horizontal {
+    animation: nav-slide-in-top 350ms ease-out both,
+               sidebar-gradient-flow-h 56s linear 0.35s infinite;
+  }
 }
 
 /* Sidebar collapse/expand transition.
@@ -580,8 +654,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar-transition { transition: none; }
-  .sidebar-gradient { animation: none; }
-  .sidebar-gradient-horizontal { animation: none; }
+  .sidebar-gradient { animation: none; background-position: 50% 25%; }
+  .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
 }
 
 /* Interactive card hover feedback */
