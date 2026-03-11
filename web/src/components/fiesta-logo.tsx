@@ -18,8 +18,6 @@ export function FiestaLogo({ size = "md", className }: FiestaLogoProps) {
 
   return (
     <span
-      aria-label="FiestaBoard"
-      role="img"
       className={cn(
         "fiesta-logo inline-flex items-baseline select-none leading-none",
         isSm ? "text-lg" : "text-xl",

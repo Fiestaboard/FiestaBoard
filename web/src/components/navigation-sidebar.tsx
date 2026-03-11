@@ -91,7 +91,7 @@ export function NavigationSidebar() {
               height={32}
               className="flex-shrink-0"
             />
-            <FiestaLogo size="sm" className="whitespace-nowrap truncate" />
+            <FiestaLogo size="sm" className="whitespace-nowrap" />
           </div>
           <div className="ml-3">
             <ServiceStatus />
