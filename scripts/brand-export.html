@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FiestaBoard Brand Export</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 24px 32px;
+    font-family: 'Geist', sans-serif;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .lockup img {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+
+  .wordmark { font-size: 36px; }
+
+  .fiesta { font-weight: 900; }
+  .board  { font-weight: 300; }
+
+  /* Light variant: dark foreground, brand orange for "Fiesta" */
+  #light-lockup {
+    background: transparent;
+  }
+  #light-lockup .fiesta { color: oklch(0.56 0.15 75); }
+  #light-lockup .board  { color: oklch(0.145 0 0); }
+
+  /* Dark variant: light foreground, brighter brand orange for "Fiesta" */
+  #dark-lockup {
+    background: transparent;
+    margin-top: 48px;
+  }
+  #dark-lockup .fiesta { color: oklch(0.78 0.14 75); }
+  #dark-lockup .board  { color: oklch(0.985 0 0); }
+</style>
+</head>
+<body style="background: transparent; padding: 32px;">
+
+<div id="light-lockup" class="lockup">
+  <img src="fiesta-icon.png" alt="">
+  <span class="wordmark"><span class="fiesta">Fiesta</span><span class="board">Board</span></span>
+</div>
+
+<br>
+
+<div id="dark-lockup" class="lockup">
+  <img src="fiesta-icon.png" alt="">
+  <span class="wordmark"><span class="fiesta">Fiesta</span><span class="board">Board</span></span>
+</div>
+
+</body>
+</html>
