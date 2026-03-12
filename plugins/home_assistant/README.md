@@ -10,6 +10,13 @@ Display entity states from your Home Assistant instance.
 
 The Home Assistant plugin connects to your Home Assistant instance and allows you to display any entity state on your board. It supports dynamic entity access, so you can reference any entity by its ID.
 
+**Two data modes are available:**
+
+| Mode | How it works | Latency | Requires |
+|------|-------------|---------|----------|
+| **REST polling** (default) | Periodically calls HA REST API | 10–30 s | HA URL + access token |
+| **MQTT Statestream** | Subscribes to real-time MQTT state changes | Near-instant | MQTT broker + HA Statestream integration |
+
 ## Features
 
 - Connect to any Home Assistant instance
@@ -17,10 +24,28 @@ The Home Assistant plugin connects to your Home Assistant instance and allows yo
 - Dynamic entity access in templates
 - Support for sensors, binary sensors, switches, and more
 - Configurable entity list
+- **MQTT Statestream mode** — real-time entity updates with zero polling
+- Automatic REST fallback when MQTT is unavailable
 
 ## Quick Setup
 
 For detailed setup instructions including access token creation, see the **[Setup Guide](./docs/SETUP.md)**.
+
+### REST Mode (default)
+
+Set `base_url` and `access_token` in the plugin configuration.
+
+### MQTT Statestream Mode
+
+1. Enable the [MQTT Statestream](https://www.home-assistant.io/integrations/mqtt_statestream/) integration in Home Assistant (`configuration.yaml`):
+   ```yaml
+   mqtt_statestream:
+     base_topic: homeassistant/statestream
+     publish_attributes: true
+     publish_timestamps: false
+   ```
+2. Set `mqtt_statestream: true` in the plugin configuration.
+3. If FiestaBoard's system MQTT broker (`MQTT_BROKER_HOST`) already points at the same broker HA uses, no additional broker settings are needed. Otherwise, set `statestream_broker_host` / `statestream_broker_port`.
 
 ## Template Variables
 
@@ -29,6 +54,7 @@ For detailed setup instructions including access token creation, see the **[Setu
 ```
 {{home_assistant.connected}}      # "Yes" or connection status
 {{home_assistant.entity_count}}   # Number of entities
+{{home_assistant.data_source}}    # "rest" or "mqtt_statestream"
 ```
 
 ### Dynamic Entity Access
@@ -88,11 +114,15 @@ Windows: {{home_assistant.binary_sensor.windows.state}}
 | Setting | Type | Required | Description |
 |---------|------|----------|-------------|
 | enabled | boolean | No | Enable/disable the plugin |
-| base_url | string | Yes | HA URL (e.g., http://192.168.1.100:8123) |
-| access_token | string | Yes | Long-lived access token |
+| base_url | string | REST mode | HA URL (e.g., http://192.168.1.100:8123) |
+| access_token | string | REST mode | Long-lived access token |
 | entities | array | No | Specific entities to monitor |
 | timeout | integer | No | Request timeout (default: 5) |
 | refresh_seconds | integer | No | Update interval (default: 30) |
+| mqtt_statestream | boolean | No | Enable MQTT Statestream mode (default: false) |
+| statestream_base_topic | string | No | MQTT topic prefix (default: homeassistant/statestream) |
+| statestream_broker_host | string | No | Override MQTT broker host (defaults to MQTT_BROKER_HOST) |
+| statestream_broker_port | integer | No | Override MQTT broker port (defaults to MQTT_BROKER_PORT) |
 
 ### Entity Configuration
 
@@ -136,6 +166,7 @@ You can apply colors based on entity states:
 - Access token should be kept secure
 - Use HTTPS when possible for external access
 - Token has full API access - treat it like a password
+- MQTT broker credentials are resolved from env vars; avoid storing them in plugin config when possible
 
 ## Troubleshooting
 
@@ -151,6 +182,13 @@ You can apply colors based on entity states:
 1. Check entity_id spelling exactly
 2. Verify entity exists in HA Developer Tools → States
 3. Some entities may be hidden by default
+
+### MQTT Statestream Not Receiving Data
+
+1. Verify the **MQTT Statestream** integration is enabled in Home Assistant
+2. Check that `statestream_base_topic` matches the `base_topic` in your HA `configuration.yaml`
+3. Confirm FiestaBoard can reach the MQTT broker (same broker HA publishes to)
+4. Use an MQTT client (e.g. `mosquitto_sub -t 'homeassistant/statestream/#'`) to verify HA is publishing
 
 ## Author
 

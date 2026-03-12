@@ -1,8 +1,8 @@
 {
   "id": "home_assistant",
   "name": "Home Assistant",
-  "version": "1.0.0",
-  "description": "Display entity states from Home Assistant",
+  "version": "1.1.0",
+  "description": "Display entity states from Home Assistant via REST API or MQTT Statestream",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
@@ -65,21 +65,45 @@
         "title": "Refresh Interval (seconds)",
         "default": 30,
         "minimum": 10
+      },
+      "mqtt_statestream": {
+        "type": "boolean",
+        "title": "Enable MQTT Statestream",
+        "description": "Subscribe to HA Statestream for real-time entity updates via MQTT instead of REST polling. Requires the MQTT Statestream integration in Home Assistant.",
+        "default": false
+      },
+      "statestream_base_topic": {
+        "type": "string",
+        "title": "Statestream Base Topic",
+        "description": "MQTT topic prefix used by HA Statestream (default: homeassistant/statestream)",
+        "default": "homeassistant/statestream"
+      },
+      "statestream_broker_host": {
+        "type": "string",
+        "title": "MQTT Broker Host (optional)",
+        "description": "Overrides MQTT_BROKER_HOST env var. Leave empty to use the system MQTT broker."
+      },
+      "statestream_broker_port": {
+        "type": "integer",
+        "title": "MQTT Broker Port (optional)",
+        "description": "Overrides MQTT_BROKER_PORT env var. Leave empty to use the system MQTT broker port.",
+        "minimum": 1,
+        "maximum": 65535
       }
     },
-    "required": ["base_url", "access_token"]
+    "required": []
   },
 
   "env_vars": [
     {
       "name": "HOME_ASSISTANT_BASE_URL",
-      "required": true,
-      "description": "Home Assistant base URL"
+      "required": false,
+      "description": "Home Assistant base URL (not required when using MQTT Statestream mode)"
     },
     {
       "name": "HOME_ASSISTANT_ACCESS_TOKEN",
-      "required": true,
-      "description": "Long-lived access token"
+      "required": false,
+      "description": "Long-lived access token (not required when using MQTT Statestream mode)"
     },
     {
       "name": "HOME_ASSISTANT_TIMEOUT",
@@ -92,7 +116,8 @@
   "variables": {
     "simple": [
       "connected",
-      "entity_count"
+      "entity_count",
+      "data_source"
     ],
     "dynamic_entities": {
       "description": "Access any Home Assistant entity dynamically",
@@ -106,8 +131,9 @@
   },
 
   "max_lengths": {
-    "connected": 3,
-    "entity_count": 3
+    "connected": 7,
+    "entity_count": 5,
+    "data_source": 17
   },
 
   "color_rules_schema": {
