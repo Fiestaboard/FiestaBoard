@@ -16,9 +16,9 @@
   }
 }
 
-.heroLogo {
-  width: 120px;
-  height: 120px;
+.heroLockup {
+  height: 80px;
+  width: auto;
   margin-bottom: 1rem;
 }
 
@@ -34,9 +34,8 @@
 }
 
 @media screen and (max-width: 996px) {
-  .heroLogo {
-    width: 80px;
-    height: 80px;
+  .heroLockup {
+    height: 56px;
   }
 
   .heroDescription {
