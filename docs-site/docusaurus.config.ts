@@ -195,7 +195,7 @@ const config: Config = {
         alt: 'FiestaBoard Logo',
         src: 'img/branding/logo-lockup-light.png',
         srcDark: 'img/branding/logo-lockup-dark.png',
-        style: {height: '32px'},
+        style: {height: '40px'},
       },
       items: [
         {
