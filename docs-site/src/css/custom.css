@@ -52,6 +52,13 @@
   background: linear-gradient(135deg, #8b2d00 0%, #b35900 50%, #c07800 100%);
 }
 
+/* Align the logo-lockup text with the adjacent navbar item text.
+   The lockup image has symmetric padding around icon+text, so the text
+   visual-center sits ~4px below the nav-item center; nudge it up. */
+.navbar__logo img {
+  transform: translateY(-4px);
+}
+
 /* Hide the per-page version badge — the navbar version dropdown is sufficient */
 .theme-doc-version-badge {
   display: none;

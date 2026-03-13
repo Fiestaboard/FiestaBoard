@@ -191,10 +191,11 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'FiestaBoard',
       logo: {
         alt: 'FiestaBoard Logo',
-        src: 'img/logo.png',
+        src: 'img/branding/logo-lockup-light.png',
+        srcDark: 'img/branding/logo-lockup-dark.png',
+        style: {height: '40px'},
       },
       items: [
         {
