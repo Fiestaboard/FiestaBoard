@@ -259,7 +259,9 @@ test.describe("Localization", () => {
       document.cookie = "NEXT_LOCALE=es;path=/;max-age=31536000;SameSite=Lax";
     });
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    // Use "load" instead of "networkidle": background ReactQuery polling keeps
+    // the network busy after a full reload, so "networkidle" can time out.
+    await page.waitForLoadState("load");
 
     // Open the mobile menu
     const menuBtn = page

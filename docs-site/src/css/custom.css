@@ -52,11 +52,14 @@
   background: linear-gradient(135deg, #8b2d00 0%, #b35900 50%, #c07800 100%);
 }
 
-/* Align the logo-lockup text with the adjacent navbar item text.
-   The lockup image has symmetric padding around icon+text, so the text
-   visual-center sits ~4px below the nav-item center; nudge it up. */
+/* Align logo with nav: anchor image to bottom so text baseline matches nav links;
+   object-position crops the floating top of the taco so icon and text look aligned. */
 .navbar__logo img {
-  transform: translateY(-4px);
+  height: 48px;
+  width: auto;
+  object-fit: cover;
+  object-position: left 100%;
+  transform: translateY(-8px);
 }
 
 /* Hide the per-page version badge — the navbar version dropdown is sufficient */
