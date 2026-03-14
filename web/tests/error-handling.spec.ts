@@ -77,20 +77,21 @@ test.describe("Error Handling", () => {
 
     await page.goto("/pages/edit/nonexistent-id-12345");
 
-    // The app should either redirect, show an error, or show a 404
-    // It should NOT show a blank white screen or crash
-    await page.waitForTimeout(3_000);
-
+    // The app should either redirect, show an error, or show a 404.
+    // It should NOT show a blank white screen or crash.
+    // The sidebar <nav> is rendered outside the page-transition FadeContent wrapper
+    // (which starts at opacity:0 until IntersectionObserver fires), so it is the
+    // most reliable indicator that the app loaded correctly.
     const hasContent =
+      (await page
+        .getByRole("navigation")
+        .first()
+        .isVisible({ timeout: 15_000 })
+        .catch(() => false)) ||
       (await page
         .getByText(/not found|error|pages|dashboard/i)
         .first()
         .isVisible({ timeout: 5_000 })
-        .catch(() => false)) ||
-      (await page
-        .getByRole("heading")
-        .first()
-        .isVisible({ timeout: 3_000 })
         .catch(() => false));
 
     expect(hasContent).toBe(true);
