@@ -134,7 +134,7 @@
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.52 0.16 60);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.945 0 0);
+  --sidebar-accent: oklch(0.92 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.915 0 0);
   --sidebar-ring: oklch(0.52 0.16 60);
@@ -188,7 +188,7 @@
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.185 0 0);
+  --sidebar-accent: oklch(0.28 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.55 0 0);
@@ -203,7 +203,7 @@
   --tag-success: oklch(0.65 0.15 160);
   --tag-success-foreground: oklch(0.85 0.08 160);
   --overlay: oklch(0 0 0 / 80%);
-  --brand: oklch(0.78 0.14 75);
+  --brand: oklch(0.58 0.16 75);
   --brand-emphasis: oklch(0.55 0.16 60);
   --brand-foreground: oklch(1 0 0);
   --elevation-card: 0 1px 3px 0 rgb(0 0 0 / 0.20), 0 0 0 1px oklch(1 0 0 / 6%);
@@ -496,121 +496,116 @@
 }
 
 
-/* Sidebar & mobile header: Fiesta-brand gradient (red, orange, yellow, purple from tile color).
-   Full-area gradient that slowly animates; static when prefers-reduced-motion.
-   Purple matches board tile --color-board-violet (#9b59b6), darkened for WCAG 2.2 AA. */
+/* Sidebar & mobile header: Fiesta-brand gradient (red, orange, purple).
+   Repeating gradient for seamless loop (no flash).
+   Static when prefers-reduced-motion. */
 @keyframes sidebar-gradient-flow {
+  /* Scroll exactly one repeat period (300%) for seamless loop—no flash at end. */
   0%   { background-position: 50% 0%; }
-  100% { background-position: 50% 100%; }
+  100% { background-position: 50% 150%; }
 }
 
-/* Light mode: warm, soft Fiesta gradient (coral → peach → gold → lavender), dark text, WCAG AA */
+/* Logo in light mode: deep warm brown Fiesta + black Board for contrast across gradient */
+.sidebar-gradient:not(.dark) .logo-on-gradient,
+.sidebar-gradient-horizontal:not(.dark) .logo-on-gradient {
+  --brand: oklch(0.28 0.08 50);
+  --sidebar-foreground: oklch(0 0 0);
+}
+
+/* Logo in dark mode: white Board text, brighter brand for contrast on dark gradient */
+.dark .sidebar-gradient .logo-on-gradient,
+.dark .sidebar-gradient-horizontal .logo-on-gradient {
+  --brand: oklch(0.78 0.14 75);
+  --sidebar-foreground: oklch(1 0 0);
+}
+
+/* Light mode: soft gradient (coral → peach → lavender) */
 .sidebar-gradient {
   --sidebar-fiesta-red: #c97a72;
   --sidebar-fiesta-orange: #c99662;
-  --sidebar-fiesta-yellow: #b8a244;
   --sidebar-fiesta-purple: #9b7bb0; /* board violet hue, light */
-  background: linear-gradient(
+  background: repeating-linear-gradient(
     170deg,
     var(--sidebar-fiesta-red) 0%,
-    var(--sidebar-fiesta-orange) 22%,
-    var(--sidebar-fiesta-yellow) 44%,
-    var(--sidebar-fiesta-purple) 70%,
+    var(--sidebar-fiesta-orange) 33.33%,
+    var(--sidebar-fiesta-purple) 66.66%,
     var(--sidebar-fiesta-red) 100%
   );
-  background-size: 100% 400%;
+  background-size: 100% 300%;
   background-position: 50% 0%;
-  animation: sidebar-gradient-flow 56s linear infinite;
+  background-repeat: repeat-y;
+  animation: sidebar-gradient-flow 117s linear infinite;
   color: oklch(0 0 0);
   border-radius: 14px;
-  box-shadow:
-    0 0 0 1px rgba(120, 80, 60, 0.12),
-    0 1px 3px rgba(80, 50, 30, 0.10),
-    0 4px 16px -2px rgba(80, 50, 30, 0.10),
-    0 10px 36px -6px rgba(60, 40, 25, 0.10);
   --sidebar-foreground: oklch(0 0 0);
-  --sidebar-accent: oklch(0 0 0 / 8%);
+  --sidebar-accent: oklch(1 0 0 / 35%);
   --sidebar-accent-foreground: oklch(0 0 0);
   --sidebar-border: oklch(0 0 0 / 12%);
   --foreground: oklch(0 0 0);
   --muted-foreground: oklch(0.15 0 0);
-  --accent: oklch(0 0 0 / 6%);
+  --accent: oklch(1 0 0 / 28%);
   --accent-foreground: oklch(0 0 0);
   --border: oklch(0 0 0 / 12%);
 }
 .dark .sidebar-gradient {
-  /* Dark mode: rich Fiesta gradient, white text (unchanged – user preference) */
-  --sidebar-fiesta-red: #7a1e18;
-  --sidebar-fiesta-orange: #6d430c;
-  --sidebar-fiesta-yellow: #554a0c;
+  /* Dark mode: rich Fiesta gradient, white text */
+  --sidebar-fiesta-red: #7a2a24;
+  --sidebar-fiesta-orange: #6d5014;
   --sidebar-fiesta-purple: #4e3070; /* board violet, darker for dark theme */
   color: oklch(1 0 0);
   --sidebar-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(1 0 0 / 14%);
+  --sidebar-accent: oklch(1 0 0 / 24%);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(1 0 0 / 18%);
   --foreground: oklch(1 0 0);
   --muted-foreground: oklch(1 0 0 / 85%);
-  --accent: oklch(1 0 0 / 12%);
+  --accent: oklch(1 0 0 / 20%);
   --accent-foreground: oklch(1 0 0);
   --border: oklch(1 0 0 / 18%);
-  box-shadow:
-    0 0 0 1px rgba(255, 180, 80, 0.10),
-    0 1px 4px rgba(0, 0, 0, 0.30),
-    0 6px 20px -2px rgba(0, 0, 0, 0.35),
-    0 14px 44px -8px rgba(0, 0, 0, 0.28);
 }
 
 .sidebar-gradient-horizontal {
-  /* Light mode: same warm gradient as vertical sidebar */
-  --sidebar-fiesta-red: #c97a72;
-  --sidebar-fiesta-orange: #c99662;
-  --sidebar-fiesta-yellow: #b8a244;
+  /* Light mode: same soft gradient as vertical sidebar */
+  --sidebar-fiesta-red: #c98a82;
+  --sidebar-fiesta-orange: #c9a070;
   --sidebar-fiesta-purple: #9b7bb0;
-  background: linear-gradient(
+  background: repeating-linear-gradient(
     135deg,
-    var(--sidebar-fiesta-red) 0%,
-    var(--sidebar-fiesta-orange) 22%,
-    var(--sidebar-fiesta-yellow) 44%,
-    var(--sidebar-fiesta-purple) 70%,
+    var(--sidebar-fiesta-red) 0,
+    var(--sidebar-fiesta-orange) 33.33%,
+    var(--sidebar-fiesta-purple) 66.66%,
     var(--sidebar-fiesta-red) 100%
   );
   background-size: 400% 100%;
   background-position: 0% 50%;
-  animation: sidebar-gradient-flow-h 56s linear infinite;
+  animation: sidebar-gradient-flow-h 117s linear infinite;
   color: oklch(0 0 0);
   border-radius: 16px;
-  box-shadow:
-    0 0 0 1px rgba(120, 80, 60, 0.12),
-    0 2px 6px rgba(80, 50, 30, 0.10),
-    0 6px 20px -2px rgba(80, 50, 30, 0.10),
-    0 10px 36px -6px rgba(60, 40, 25, 0.10);
   --foreground: oklch(0 0 0);
+  --sidebar-accent: oklch(1 0 0 / 35%);
+  --sidebar-accent-foreground: oklch(0 0 0);
   --muted-foreground: oklch(0.15 0 0);
-  --accent: oklch(0 0 0 / 6%);
+  --accent: oklch(1 0 0 / 28%);
   --accent-foreground: oklch(0 0 0);
   --border: oklch(0 0 0 / 12%);
 }
 @keyframes sidebar-gradient-flow-h {
+  /* Scroll exactly one period (400% width → 33.33% position) for seamless loop */
   0%   { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
+  100% { background-position: 33.33% 50%; }
 }
 .dark .sidebar-gradient-horizontal {
-  --sidebar-fiesta-red: #7a1e18;
-  --sidebar-fiesta-orange: #6d430c;
-  --sidebar-fiesta-yellow: #554a0c;
+  --sidebar-fiesta-red: #7a2a24;
+  --sidebar-fiesta-orange: #6d5014;
   --sidebar-fiesta-purple: #4e3070;
   color: oklch(1 0 0);
   --foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(1 0 0 / 24%);
+  --sidebar-accent-foreground: oklch(1 0 0);
   --muted-foreground: oklch(1 0 0 / 85%);
-  --accent: oklch(1 0 0 / 12%);
+  --accent: oklch(1 0 0 / 24%);
   --accent-foreground: oklch(1 0 0);
   --border: oklch(1 0 0 / 18%);
-  box-shadow:
-    0 0 0 1px rgba(255, 180, 80, 0.10),
-    0 2px 6px rgba(0, 0, 0, 0.30),
-    0 6px 20px -2px rgba(0, 0, 0, 0.35),
-    0 14px 44px -8px rgba(0, 0, 0, 0.28);
 }
 
 /* Navigation entrance animations */
@@ -626,37 +621,34 @@
 @media (min-width: 1024px) {
   .sidebar-gradient {
     animation: nav-slide-in-left 400ms ease-out both,
-               sidebar-gradient-flow 56s linear 0.4s infinite;
+               sidebar-gradient-flow 117s linear 0.4s infinite;
   }
 }
 .sidebar-gradient-horizontal {
   animation: nav-slide-in-top 350ms ease-out both,
-             sidebar-gradient-flow-h 56s linear 0.35s infinite;
+             sidebar-gradient-flow-h 117s linear 0.35s infinite;
 }
 @media (min-width: 1024px) {
   .sidebar-gradient-horizontal {
     animation: nav-slide-in-top 350ms ease-out both,
-               sidebar-gradient-flow-h 56s linear 0.35s infinite;
+               sidebar-gradient-flow-h 117s linear 0.35s infinite;
   }
 }
 
 /* Sidebar collapse/expand transition.
-   Only the sidebar's width is animated — padding-left on <main> is intentionally
-   NOT transitioned. padding-left is a layout property that forces a full
-   layout-recalc + repaint on every animation frame (≈15 frames at 60fps over
-   250ms), stressing every tile in the board preview. The sidebar is position:fixed
-   so its width change never affects <main> layout; the content padding snaps in a
-   single frame while the sidebar slides smoothly. */
+   Sidebar animates width; main animates padding-left.
+   Both use the same 300ms easing so they move in sync and never collide. */
 .sidebar-transition {
-  transition: width 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 300ms cubic-bezier(0.33, 1, 0.68, 1),
+    padding-left 300ms cubic-bezier(0.33, 1, 0.68, 1);
   contain: layout style;
 }
 .sidebar-transition.is-transitioning {
-  will-change: width;
+  will-change: width, padding-left;
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar-transition { transition: none; }
-  .sidebar-gradient { animation: none; background-position: 50% 25%; }
+  .sidebar-gradient { animation: none; background-position: 0 0, 0 0, 50% 25%; }
   .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
 }
 
@@ -866,7 +858,7 @@
 /* Type scale: ratio 1.25; body 1rem (16px). Tailwind text-xs/sm/base/lg/xl/2xl/3xl/4xl align. */
 /* Page typography - consistent titles and descriptions */
 .page-title {
-  @apply text-2xl sm:text-3xl font-bold tracking-tight;
+  @apply text-lg sm:text-xl font-medium tracking-tight;
   text-wrap: balance;
 }
 .page-description {
