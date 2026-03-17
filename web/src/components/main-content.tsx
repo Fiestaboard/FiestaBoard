@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { MAX_APP_WIDTH } from "@/lib/layout-constants";
 import { useSidebar } from "@/components/sidebar-context";
 
 export function MainContent({ children }: { children: React.ReactNode }) {
@@ -9,10 +10,11 @@ export function MainContent({ children }: { children: React.ReactNode }) {
   return (
     <main
       className={cn(
-        "min-h-screen pt-[72px] lg:pt-0 overflow-x-hidden w-full max-w-[1920px] mx-auto sidebar-transition",
+        "min-h-screen pt-[72px] lg:pt-0 overflow-x-hidden w-full mx-auto sidebar-transition",
         collapsed ? "lg:pl-[76px]" : "lg:pl-[268px]",
         transitioning && "is-transitioning"
       )}
+      style={{ maxWidth: MAX_APP_WIDTH }}
       onTransitionEnd={(e) => {
         if (e.target === e.currentTarget && e.propertyName === "padding-left") {
           onTransitionEnd();

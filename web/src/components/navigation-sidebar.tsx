@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ServiceStatus } from "@/components/service-status";
 import { VersionDisplay } from "@/components/version-display";
@@ -65,7 +66,7 @@ export function NavigationSidebar() {
   }, [mobileMenuOpen]);
 
   useEffect(() => {
-    const update = () => setAppInset(Math.max(0, (document.body.clientWidth - 1920) / 2));
+    const update = () => setAppInset(Math.max(0, (document.body.clientWidth - MAX_APP_WIDTH) / 2));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -192,7 +193,7 @@ export function NavigationSidebar() {
             collapsed ? "lg:w-16" : "lg:w-64",
             transitioning && "is-transitioning"
           )}
-          style={{ left: appInset + 12 }}
+          style={{ left: appInset + SIDEBAR_INSET }}
           onTransitionEnd={(e) => {
             if (e.target === e.currentTarget && e.propertyName === "width") {
               onTransitionEnd();
