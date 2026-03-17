@@ -30,6 +30,7 @@ const navigationItems = [
 export function NavigationSidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [appInset, setAppInset] = useState(0);
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
@@ -62,6 +63,13 @@ export function NavigationSidebar() {
       document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    const update = () => setAppInset(Math.max(0, (document.body.clientWidth - 1920) / 2));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   return (
     <>
@@ -180,10 +188,11 @@ export function NavigationSidebar() {
       <TooltipProvider delayDuration={0}>
         <aside
           className={cn(
-            "hidden lg:fixed lg:top-3 lg:bottom-3 lg:left-3 lg:z-50 lg:block sidebar-gradient sidebar-transition",
+            "hidden lg:fixed lg:top-3 lg:bottom-3 lg:z-50 lg:block sidebar-gradient sidebar-transition",
             collapsed ? "lg:w-16" : "lg:w-64",
             transitioning && "is-transitioning"
           )}
+          style={{ left: appInset + 12 }}
           onTransitionEnd={(e) => {
             if (e.target === e.currentTarget && e.propertyName === "width") {
               onTransitionEnd();
