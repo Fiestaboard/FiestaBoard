@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ServiceStatus } from "@/components/service-status";
 import { VersionDisplay } from "@/components/version-display";
@@ -30,6 +31,7 @@ const navigationItems = [
 export function NavigationSidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [appInset, setAppInset] = useState(0);
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
@@ -62,6 +64,13 @@ export function NavigationSidebar() {
       document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    const update = () => setAppInset(Math.max(0, (document.body.clientWidth - MAX_APP_WIDTH) / 2));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   return (
     <>
@@ -180,10 +189,11 @@ export function NavigationSidebar() {
       <TooltipProvider delayDuration={0}>
         <aside
           className={cn(
-            "hidden lg:fixed lg:top-3 lg:bottom-3 lg:left-3 lg:z-50 lg:block sidebar-gradient sidebar-transition",
+            "hidden lg:fixed lg:top-3 lg:bottom-3 lg:z-50 lg:block sidebar-gradient sidebar-transition",
             collapsed ? "lg:w-16" : "lg:w-64",
             transitioning && "is-transitioning"
           )}
+          style={{ left: appInset + SIDEBAR_INSET }}
           onTransitionEnd={(e) => {
             if (e.target === e.currentTarget && e.propertyName === "width") {
               onTransitionEnd();
