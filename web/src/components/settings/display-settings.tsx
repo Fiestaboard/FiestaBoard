@@ -187,8 +187,9 @@ function BoardConnectionForm({
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Get your key by requesting an enablement token at{" "}
-                <a href="https://www.vestaboard.com/local-api" target="_blank" rel="noopener noreferrer" className="underline">vestaboard.com/local-api</a>
+                See our{" "}
+                <a href="https://fiestaboard.app/docs/setup/api-keys" target="_blank" rel="noopener noreferrer" className="underline">setup guide</a>
+                {" "}for how to get your Local API key
               </p>
             </div>
           ) : (
@@ -265,7 +266,7 @@ function BoardConnectionForm({
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
-            Found in your board app under Settings → Integrations → Read/Write API
+            Found in the Vestaboard app under Settings → Read/Write API
           </p>
         </div>
       )}
