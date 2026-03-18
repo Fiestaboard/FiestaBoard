@@ -168,7 +168,6 @@ export function NavigationSidebar() {
               <ViewTransitionLink
                 key={item.href}
                 href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
                 onMouseEnter={prefetchHandler}
                 onFocus={prefetchHandler}
                 className={mobileClassName}
