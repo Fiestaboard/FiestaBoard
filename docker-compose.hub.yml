@@ -4,7 +4,8 @@ services:
     image: fiestaboard/fiestaboard:latest
     container_name: fiestaboard
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       - PRODUCTION=true
     restart: unless-stopped

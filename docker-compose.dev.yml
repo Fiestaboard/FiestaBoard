@@ -6,7 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: fiestaboard-dev
     env_file:
-      - .env
+      - path: .env
+        required: false
     restart: unless-stopped
     ports:
       - "4420:3000"
