@@ -1424,9 +1424,9 @@ async def test_board_connection(request: BoardTestRequest):
                     "message": f"Your API key was rejected by the board (HTTP {response.status_code}).",
                     "error": f"HTTP {response.status_code}",
                     "troubleshooting": [
-                        "Open the Vestaboard app on your phone.",
-                        "Go to Settings → Local API and copy the API key shown there.",
-                        "Paste it into the Local API Key field and try again.",
+                        "Verify your Local API key is correct — it was provided when you enabled the Local API with your enablement token.",
+                        "If you need a new key, request an enablement token at https://www.vestaboard.com/local-api",
+                        "Paste the correct key into the Local API Key field and try again.",
                         "If the key was recently regenerated, the old key will no longer work.",
                     ]
                 }
@@ -1487,8 +1487,8 @@ async def test_board_connection(request: BoardTestRequest):
                 "troubleshooting": [
                     "Make sure the Vestaboard is powered on (check for the LED on the back).",
                     "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
-                    "Double-check the IP address — you can find it in the Vestaboard app under Settings.",
-                    "Open the Vestaboard app → Settings → Local API and make sure it is turned on.",
+                    "Double-check the board's IP address — you can find it on your router's admin page or use FiestaBoard's network scan.",
+                    "Make sure the Local API is enabled on your board (see https://docs.vestaboard.com/docs/local-api/authentication).",
                 ]
             }
     except requests.exceptions.Timeout as e:

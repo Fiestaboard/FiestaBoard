@@ -187,7 +187,8 @@ function BoardConnectionForm({
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Email support@vestaboard.com to request your Local API Key
+                Get your key by requesting an enablement token at{" "}
+                <a href="https://www.vestaboard.com/local-api" target="_blank" rel="noopener noreferrer" className="underline">vestaboard.com/local-api</a>
               </p>
             </div>
           ) : (
@@ -198,7 +199,7 @@ function BoardConnectionForm({
                   type={showSecrets.enablement_token ? "text" : "password"}
                   value={enablementToken}
                   onChange={(e) => setEnablementToken(e.target.value)}
-                  placeholder="Token from Vestaboard support"
+                  placeholder="Token from vestaboard.com/local-api"
                   className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
                 />
                 <Button
