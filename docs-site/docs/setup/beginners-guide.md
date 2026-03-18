@@ -61,9 +61,10 @@ Your board API key is what lets FiestaBoard talk to your display. You can use ei
 
 This is faster and supports transition animations. Your board and computer need to be on the same WiFi network.
 
-1. Open the **Vestaboard app** on your phone
-2. Go to **Settings** > **Local API**
-3. You'll see your **API key** and your board's **IP address** - save both of these
+1. Go to [vestaboard.com/local-api](https://www.vestaboard.com/local-api) and request a Local API enablement token
+2. After approval, Vestaboard will email you the token
+3. Use the token to enable the Local API on your board — FiestaBoard's setup wizard and **Settings** page can do this for you (select the **Enablement Token** option and enter the token), or see the [Vestaboard Local API docs](https://docs.vestaboard.com/docs/local-api/authentication) for how to do it via `curl`
+4. Save the **API key** returned in the response, and note your board's **IP address** (you can find it on your router or use FiestaBoard's network scan)
 
 ### Cloud API
 

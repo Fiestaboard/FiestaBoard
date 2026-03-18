@@ -157,9 +157,10 @@ You'll need your board's API key to finish setup. There are two options:
 
 Faster, supports transition animations, works over your local network.
 
-1. Open the board's mobile app
-2. Go to **Settings** > **Local API**
-3. Copy your API key and note the board's IP address
+1. Request a Local API enablement token at [vestaboard.com/local-api](https://www.vestaboard.com/local-api)
+2. After approval, Vestaboard emails you the token
+3. Use the token to enable the Local API on your board (see [Vestaboard Local API docs](https://docs.vestaboard.com/docs/local-api/authentication))
+4. Save the API key and note the board's IP address
 
 ### Cloud API
 

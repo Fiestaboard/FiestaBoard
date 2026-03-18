@@ -279,7 +279,7 @@ def _build_recommendations(results: dict) -> list[dict]:
                     "steps": [
                         "Make sure your Vestaboard is powered on (look for the LED on the back).",
                         "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
-                        "If you're using a name like 'vestaboard.local', try using the board's IP address instead — you can find it in the Vestaboard app under Settings.",
+                        "If you're using a name like 'vestaboard.local', try using the board's IP address instead — you can find it on your router's admin page or use FiestaBoard's network scan.",
                         "Restart FiestaBoard after updating the address.",
                     ],
                 })
@@ -289,8 +289,8 @@ def _build_recommendations(results: dict) -> list[dict]:
                     "summary": "FiestaBoard found the board's address but cannot connect to it",
                     "steps": [
                         "Make sure the Vestaboard is powered on.",
-                        f"Open the Vestaboard app on your phone → Settings → Local API and make sure it is turned on (port {port_num}).",
-                        "If you recently changed networks, the board's address may have changed — check the Vestaboard app for the new IP.",
+                        f"Make sure the Local API is enabled on your board (port {port_num}). See https://docs.vestaboard.com/docs/local-api/authentication for details.",
+                        "If you recently changed networks, the board's address may have changed — check your router's admin page for the new IP.",
                         "Try restarting the Vestaboard by unplugging it for 10 seconds.",
                     ],
                 })
@@ -300,8 +300,8 @@ def _build_recommendations(results: dict) -> list[dict]:
                     recommendations.append({
                         "summary": "FiestaBoard connected to the Vestaboard but the API key was rejected",
                         "steps": [
-                            "Open the Vestaboard app → Settings → Local API and copy the API key shown there.",
-                            "Paste it into your FiestaBoard .env file as BOARD_LOCAL_API_KEY.",
+                            "Verify your Local API key is correct — it was provided when you enabled the Local API with your enablement token.",
+                            "If you need a new key, request an enablement token at https://www.vestaboard.com/local-api and use it to re-enable the Local API.",
                             "Restart FiestaBoard after updating the key.",
                         ],
                     })

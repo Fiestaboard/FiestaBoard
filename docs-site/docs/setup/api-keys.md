@@ -16,9 +16,12 @@ The install wizard asks for this during setup. If you need to find or change you
 
 Faster updates, supports transition animations, requires same-network access.
 
-1. Open the board's mobile app
-2. Go to **Settings** → **Local API**
-3. Copy your API key and note the board's IP address
+1. Request a Local API enablement token at [vestaboard.com/local-api](https://www.vestaboard.com/local-api)
+2. After approval, Vestaboard will email you an enablement token
+3. Use the enablement token to enable the Local API on your board — you can do this through FiestaBoard's **Settings** page (select the **Enablement Token** option) or via a `curl` command (see the [Vestaboard Local API docs](https://docs.vestaboard.com/docs/local-api/authentication))
+4. Save the API key returned in the response
+
+> For full details on Local API authentication, see the [official Vestaboard documentation](https://docs.vestaboard.com/docs/local-api/authentication).
 
 ### Cloud Read/Write API Key
 
