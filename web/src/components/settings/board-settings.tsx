@@ -365,8 +365,8 @@ export function BoardSettings() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   See our{" "}
-                  <a href="https://fiestaboard.app/docs/setup/api-keys" target="_blank" rel="noopener noreferrer" className="underline">setup guide</a>
-                  {" "}for how to get your Local API key
+                  <a href="https://fiestaboard.app/docs/setup/api-keys" target="_blank" rel="noopener noreferrer" className="underline">Local API setup guide</a>
+                  {" "}for how to get your key
                 </p>
               </div>
             ) : (
