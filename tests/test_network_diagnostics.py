@@ -394,8 +394,13 @@ class TestBuildRecommendations:
         }
         recs = _build_recommendations(results)
         assert any("api key" in r["summary"].lower() for r in recs)
+        # Docs copy points users to enablement token flow (not app Settings)
         assert any(
-            any("BOARD_LOCAL_API_KEY" in s for s in r["steps"])
+            any(
+                "enablement token" in s.lower()
+                or "vestaboard.com/local-api" in s.lower()
+                for s in r["steps"]
+            )
             for r in recs
         )
 
