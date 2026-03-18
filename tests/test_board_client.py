@@ -1,10 +1,18 @@
 """Tests for Board Local API client."""
 
+import json
+
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import requests
 
-from src.board_client import BoardClient, VALID_STRATEGIES, strip_color_markers
+from src.board_client import (
+    BoardClient,
+    VALID_STRATEGIES,
+    is_successful_board_read_response,
+    parse_read_message_payload,
+    strip_color_markers,
+)
 
 
 class TestStripColorMarkers:
@@ -256,6 +264,35 @@ class TestSendCharacters:
         assert mock_post.call_count == 1
 
 
+class TestParseReadMessagePayload:
+    """Vestaboard Cloud vs Local GET body shapes."""
+
+    def test_cloud_current_message_layout_string_note(self):
+        grid = [[0] * 15 for _ in range(3)]
+        body = {"currentMessage": {"layout": json.dumps(grid), "id": "x"}}
+        assert parse_read_message_payload(body) == grid
+
+    def test_cloud_current_message_layout_list_flagship(self):
+        grid = [[0] * 22 for _ in range(6)]
+        body = {"currentMessage": {"layout": grid, "id": "x"}}
+        assert parse_read_message_payload(body) == grid
+
+    def test_legacy_message_key(self):
+        grid = [[0] * 22 for _ in range(6)]
+        assert parse_read_message_payload({"message": grid}) == grid
+
+    def test_local_raw_list_note(self):
+        grid = [[1] * 15 for _ in range(3)]
+        assert parse_read_message_payload(grid) == grid
+
+    def test_invalid_dimensions_rejected(self):
+        grid = [[0] * 10 for _ in range(4)]
+        assert parse_read_message_payload(grid) is None
+
+    def test_is_successful_empty_current_message(self):
+        assert is_successful_board_read_response({"currentMessage": None}) is True
+
+
 class TestReadCurrentMessage:
     """Tests for read_current_message method."""
     
@@ -295,6 +332,17 @@ class TestReadCurrentMessage:
         result = client.read_current_message()
         
         assert result is None
+
+    @patch('src.board_client.requests.get')
+    def test_read_current_message_cloud_current_message_shape(self, mock_get):
+        """Cloud API returns currentMessage.layout (stringified JSON)."""
+        grid = [[0] * 15 for _ in range(3)]
+        client = BoardClient(api_key="rw-key", use_cloud=True)
+        mock_get.return_value.raise_for_status = Mock()
+        mock_get.return_value.json.return_value = {
+            "currentMessage": {"layout": json.dumps(grid), "id": "u"},
+        }
+        assert client.read_current_message() == grid
 
 
 class TestCacheManagement:
