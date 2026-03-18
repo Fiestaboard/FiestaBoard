@@ -1318,8 +1318,8 @@ async def test_board_connection(request: BoardTestRequest):
         message: Human-readable status message
         error: Detailed error message if failed
     """
-    from .board_client import BoardClient
-    
+    from .board_client import BoardClient, is_successful_board_read_response
+
     api_mode = request.api_mode.lower()
     
     # Validate required fields based on mode
@@ -1369,30 +1369,30 @@ async def test_board_connection(request: BoardTestRequest):
             # Parse the response to verify it's valid board data
             try:
                 data = response.json()
-                characters = None
-                if isinstance(data, list) and len(data) > 0:
-                    characters = data
-                elif isinstance(data, dict) and "message" in data:
-                    characters = data.get("message")
-                
-                if characters is not None:
+                if is_successful_board_read_response(data):
                     logger.info(f"Board connection test successful ({api_mode} mode)")
                     return {
                         "success": True,
                         "message": "Successfully connected to your board!",
-                        "api_mode": api_mode
+                        "api_mode": api_mode,
                     }
-                else:
-                    logger.warning(f"Board connection test: HTTP 200 but unexpected response format ({api_mode} mode)")
-                    return {
-                        "success": False,
-                        "message": "Connected to the board but received an unexpected response. Your board's firmware may need to be updated.",
-                        "error": f"Unexpected response format: {type(data).__name__}",
-                        "troubleshooting": [
-                            "Check for firmware updates in the Vestaboard app.",
-                            "Make sure you're using the latest version of FiestaBoard.",
-                        ]
-                    }
+                detail = (
+                    f"JSON keys: {', '.join(sorted(data))}"
+                    if isinstance(data, dict)
+                    else f"body type: {type(data).__name__}"
+                )
+                logger.warning(
+                    f"Board connection test: HTTP 200 but unrecognized response ({api_mode} mode): {detail}"
+                )
+                return {
+                    "success": False,
+                    "message": "Connected to Vestaboard but the response shape was not recognized.",
+                    "error": f"Unrecognized read response ({detail}).",
+                    "troubleshooting": [
+                        "Update FiestaBoard to the latest version.",
+                        "If this persists, file an issue with the response keys shown above (no API keys).",
+                    ],
+                }
             except ValueError:
                 logger.warning(f"Board connection test: HTTP 200 but invalid JSON ({api_mode} mode)")
                 return {

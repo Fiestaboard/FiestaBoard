@@ -13,10 +13,11 @@ Cloud API Reference:
 - GET https://rw.vestaboard.com/ - Read current display
 """
 
+import json
 import logging
 import re
 import requests
-from typing import Optional, List, Tuple, Literal
+from typing import Any, List, Literal, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,68 @@ VALID_STRATEGIES = [
     "column", "reverse-column", "edges-to-center", 
     "row", "diagonal", "random"
 ]
+
+
+def _valid_grid_dimensions() -> set:
+    from .devices import DEVICE_DIMENSIONS
+
+    return {(d.rows, d.cols) for d in DEVICE_DIMENSIONS.values()}
+
+
+def _is_valid_character_grid(rows: Any) -> bool:
+    """True if rows is a rectangular int grid matching a known device size."""
+    if not isinstance(rows, list) or not rows:
+        return False
+    first = rows[0]
+    if not isinstance(first, list):
+        return False
+    ncols = len(first)
+    nrows = len(rows)
+    if (nrows, ncols) not in _valid_grid_dimensions():
+        return False
+    for row in rows:
+        if not isinstance(row, list) or len(row) != ncols:
+            return False
+        if not all(isinstance(c, int) for c in row):
+            return False
+    return True
+
+
+def parse_read_message_payload(data: Any) -> Optional[List[List[int]]]:
+    """Extract character grid from Local or Cloud GET /message (or cloud root) JSON.
+
+    Cloud API returns ``{"currentMessage": {"layout": "<json string>", "id": ...}}``.
+    Local API may return a raw grid list or ``{"message": ...}``.
+    """
+    if isinstance(data, list):
+        return data if _is_valid_character_grid(data) else None
+    if not isinstance(data, dict):
+        return None
+    if "message" in data:
+        m = data.get("message")
+        return m if isinstance(m, list) and _is_valid_character_grid(m) else None
+    cm = data.get("currentMessage")
+    if isinstance(cm, dict) and "layout" in cm:
+        layout = cm.get("layout")
+        if layout is None or layout == "":
+            return None
+        if isinstance(layout, str):
+            try:
+                layout = json.loads(layout)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        if isinstance(layout, list) and _is_valid_character_grid(layout):
+            return layout
+    return None
+
+
+def is_successful_board_read_response(data: Any) -> bool:
+    """True if GET body indicates a working read (grid or explicit empty state)."""
+    if parse_read_message_payload(data) is not None:
+        return True
+    if isinstance(data, dict) and "currentMessage" in data and data.get("currentMessage") is None:
+        return True
+    return False
 
 
 class BoardClient:
@@ -291,7 +354,7 @@ class BoardClient:
                         This is useful on startup to avoid unnecessary updates.
         
         Returns:
-            6x22 character array, or None if failed
+            Character grid (Flagship 6x22 or Note 3x15), or None if failed or empty.
         """
         try:
             response = requests.get(
@@ -301,13 +364,7 @@ class BoardClient:
             )
             response.raise_for_status()
             data = response.json()
-            
-            # Local API returns the character array directly
-            characters = None
-            if isinstance(data, list) and len(data) == 6:
-                characters = data
-            elif isinstance(data, dict) and "message" in data:
-                characters = data.get("message")
+            characters = parse_read_message_payload(data)
             
             # Optionally sync the cache with current board state
             if sync_cache and characters:

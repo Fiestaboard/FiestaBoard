@@ -5,6 +5,8 @@ specific, actionable error messages with troubleshooting steps for
 every failure mode instead of a generic error.
 """
 
+import json
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -357,8 +359,58 @@ class TestBoardTestUnexpectedResponse:
 
         data = response.json()
         assert data["success"] is False
-        assert "unexpected" in data["message"].lower()
+        assert "recognized" in data["message"].lower()
+        assert "status" in data.get("error", "").lower() or "keys" in data.get("error", "").lower()
         assert "troubleshooting" in data
+
+    @patch("src.api_server.requests.get")
+    @patch("src.board_client.BoardClient")
+    def test_cloud_200_current_message_note_layout(self, mock_client_cls, mock_get, client):
+        """Cloud GET returns Vestaboard currentMessage.layout string (Note 3x15)."""
+        note_grid = [[0] * 15 for _ in range(3)]
+        mock_client = Mock()
+        mock_client.base_url = "https://rw.vestaboard.com/"
+        mock_client.headers = {}
+        mock_client_cls.return_value = mock_client
+
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "currentMessage": {
+                "layout": json.dumps(note_grid),
+                "id": "test-uuid",
+                "appeared": 1,
+            }
+        }
+        mock_get.return_value = mock_resp
+
+        response = client.post(
+            "/config/board/test",
+            json={"api_mode": "cloud", "cloud_key": "rw-key"},
+        )
+        data = response.json()
+        assert data["success"] is True
+        assert data["api_mode"] == "cloud"
+
+    @patch("src.api_server.requests.get")
+    @patch("src.board_client.BoardClient")
+    def test_cloud_200_current_message_null(self, mock_client_cls, mock_get, client):
+        """Cloud GET with empty board (currentMessage null) still counts as connected."""
+        mock_client = Mock()
+        mock_client.base_url = "https://rw.vestaboard.com/"
+        mock_client.headers = {}
+        mock_client_cls.return_value = mock_client
+
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"currentMessage": None}
+        mock_get.return_value = mock_resp
+
+        response = client.post(
+            "/config/board/test",
+            json={"api_mode": "cloud", "cloud_key": "rw-key"},
+        )
+        assert response.json()["success"] is True
 
     @patch("src.api_server.requests.get")
     @patch("src.board_client.BoardClient")
