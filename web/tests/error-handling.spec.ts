@@ -79,21 +79,12 @@ test.describe("Error Handling", () => {
 
     // The app should either redirect, show an error, or show a 404.
     // It should NOT show a blank white screen or crash.
-    // The sidebar <nav> is rendered outside the page-transition FadeContent wrapper
-    // (which starts at opacity:0 until IntersectionObserver fires), so it is the
-    // most reliable indicator that the app loaded correctly.
-    const hasContent =
-      (await page
-        .getByRole("navigation")
-        .first()
-        .isVisible({ timeout: 15_000 })
-        .catch(() => false)) ||
-      (await page
-        .getByText(/not found|error|pages|dashboard/i)
-        .first()
-        .isVisible({ timeout: 5_000 })
-        .catch(() => false));
-
-    expect(hasContent).toBe(true);
+    // The sidebar <nav aria-label="Main navigation"> is rendered outside the
+    // page-transition FadeContent wrapper (which starts at opacity:0 until
+    // IntersectionObserver fires), so it is the most reliable indicator that
+    // the app loaded correctly.
+    await expect(
+      page.getByRole("navigation", { name: "Main navigation" }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
