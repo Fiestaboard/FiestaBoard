@@ -82,18 +82,13 @@ test.describe("Error Handling", () => {
     // The sidebar <nav> is rendered outside the page-transition FadeContent wrapper
     // (which starts at opacity:0 until IntersectionObserver fires), so it is the
     // most reliable indicator that the app loaded correctly.
-    const hasContent =
-      (await page
-        .getByRole("navigation")
-        .first()
-        .isVisible({ timeout: 15_000 })
-        .catch(() => false)) ||
-      (await page
-        .getByText(/not found|error|pages|dashboard/i)
-        .first()
-        .isVisible({ timeout: 5_000 })
-        .catch(() => false));
+    // Use .or() with expect().toBeVisible() — isVisible() does NOT wait despite
+    // accepting a timeout parameter.
+    const navOrError = page
+      .getByRole("navigation")
+      .first()
+      .or(page.getByText(/not found|error|pages|dashboard/i).first());
 
-    expect(hasContent).toBe(true);
+    await expect(navOrError).toBeVisible({ timeout: 15_000 });
   });
 });
