@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - INCLUDE_MONITORING=true
     container_name: fiestaboard-dev
     env_file:
       - .env

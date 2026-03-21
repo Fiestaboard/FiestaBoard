@@ -75,8 +75,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install monitoring tools (Prometheus + Grafana) for optional in-container monitoring.
 # These add ~400MB to the image but allow LOCAL_MONITORING=true to work without
 # any external services or compose overlays.
-# Set INCLUDE_MONITORING=false to skip (e.g. for CI test images).
-ARG INCLUDE_MONITORING=true
+# Set INCLUDE_MONITORING=true at build time to include them.
+ARG INCLUDE_MONITORING=false
 ARG PROMETHEUS_VERSION=2.53.4
 ARG GRAFANA_VERSION=12.4.0
 RUN if [ "$INCLUDE_MONITORING" = "true" ]; then \

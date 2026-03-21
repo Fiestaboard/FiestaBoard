@@ -483,56 +483,56 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RequestLoggingMiddleware)
 
 
-# Prometheus metrics instrumentation
+# Prometheus metrics instrumentation (only when LOCAL_MONITORING=true)
 # Exposes /metrics endpoint with request count, latency, and status code metrics
 # Used by the in-container Prometheus + Grafana stack (LOCAL_MONITORING=true)
-from prometheus_fastapi_instrumentator import Instrumentator
-import psutil
-from prometheus_client import Gauge
+if _LOCAL_MONITORING:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    import psutil
+    from prometheus_client import Gauge, REGISTRY
 
-# System-level Prometheus gauges (updated on each /metrics scrape)
-_system_cpu_gauge = Gauge("fiestaboard_system_cpu_percent", "System CPU usage percentage")
-_system_memory_gauge = Gauge("fiestaboard_system_memory_percent", "System memory usage percentage")
-_system_memory_used_gauge = Gauge("fiestaboard_system_memory_used_bytes", "System memory used in bytes")
-_system_memory_total_gauge = Gauge("fiestaboard_system_memory_total_bytes", "System total memory in bytes")
-_system_disk_gauge = Gauge("fiestaboard_system_disk_percent", "System disk usage percentage")
-_system_disk_used_gauge = Gauge("fiestaboard_system_disk_used_bytes", "System disk used in bytes")
-_system_disk_total_gauge = Gauge("fiestaboard_system_disk_total_bytes", "System total disk in bytes")
+    # System-level Prometheus gauges (updated on each /metrics scrape)
+    _system_cpu_gauge = Gauge("fiestaboard_system_cpu_percent", "System CPU usage percentage")
+    _system_memory_gauge = Gauge("fiestaboard_system_memory_percent", "System memory usage percentage")
+    _system_memory_used_gauge = Gauge("fiestaboard_system_memory_used_bytes", "System memory used in bytes")
+    _system_memory_total_gauge = Gauge("fiestaboard_system_memory_total_bytes", "System total memory in bytes")
+    _system_disk_gauge = Gauge("fiestaboard_system_disk_percent", "System disk usage percentage")
+    _system_disk_used_gauge = Gauge("fiestaboard_system_disk_used_bytes", "System disk used in bytes")
+    _system_disk_total_gauge = Gauge("fiestaboard_system_disk_total_bytes", "System total disk in bytes")
 
-# Initialize cpu_percent so subsequent non-blocking calls return meaningful values
-psutil.cpu_percent(interval=None)
+    # Initialize cpu_percent so subsequent non-blocking calls return meaningful values
+    psutil.cpu_percent(interval=None)
 
-def _update_system_metrics():
-    """Callback to update system gauges before Prometheus scrape."""
-    _system_cpu_gauge.set(psutil.cpu_percent(interval=None))
-    mem = psutil.virtual_memory()
-    _system_memory_gauge.set(mem.percent)
-    _system_memory_used_gauge.set(mem.used)
-    _system_memory_total_gauge.set(mem.total)
-    try:
-        disk = psutil.disk_usage("/")
-        _system_disk_gauge.set(disk.percent)
-        _system_disk_used_gauge.set(disk.used)
-        _system_disk_total_gauge.set(disk.total)
-    except OSError:
-        pass
+    def _update_system_metrics():
+        """Callback to update system gauges before Prometheus scrape."""
+        _system_cpu_gauge.set(psutil.cpu_percent(interval=None))
+        mem = psutil.virtual_memory()
+        _system_memory_gauge.set(mem.percent)
+        _system_memory_used_gauge.set(mem.used)
+        _system_memory_total_gauge.set(mem.total)
+        try:
+            disk = psutil.disk_usage("/")
+            _system_disk_gauge.set(disk.percent)
+            _system_disk_used_gauge.set(disk.used)
+            _system_disk_total_gauge.set(disk.total)
+        except OSError:
+            pass
 
-instrumentator = Instrumentator(
-    should_ignore_untemplated=True,
-    excluded_handlers=["/health", "/metrics"],
-    should_instrument_requests_inprogress=_LOCAL_MONITORING,
-    inprogress_name="http_requests_inprogress",
-    inprogress_labels=True,
-)
-instrumentator.instrument(app).expose(app, include_in_schema=False, should_gzip=False)
+    instrumentator = Instrumentator(
+        should_ignore_untemplated=True,
+        excluded_handlers=["/health", "/metrics"],
+        should_instrument_requests_inprogress=True,
+        inprogress_name="http_requests_inprogress",
+        inprogress_labels=True,
+    )
+    instrumentator.instrument(app).expose(app, include_in_schema=False, should_gzip=False)
 
-# Register a callback to update system metrics before each scrape
-from prometheus_client import REGISTRY
-class _SystemMetricsCollector:
-    def collect(self):
-        _update_system_metrics()
-        return []
-REGISTRY.register(_SystemMetricsCollector())
+    # Register a callback to update system metrics before each scrape
+    class _SystemMetricsCollector:
+        def collect(self):
+            _update_system_metrics()
+            return []
+    REGISTRY.register(_SystemMetricsCollector())
 
 # Set up log buffer handler
 log_buffer_handler = LogBufferHandler()

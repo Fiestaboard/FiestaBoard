@@ -27,8 +27,9 @@ zeroconf>=0.131.0
 # MQTT client for Home Assistant auto-discovery and control
 paho-mqtt>=2.0.0
 
-# Prometheus metrics exposition for Grafana monitoring
-# Automatically instruments FastAPI with request count, latency, and status metrics
+# Prometheus metrics exposition for Grafana monitoring (only loaded at runtime
+# when LOCAL_MONITORING=true; kept installed so the feature works without
+# rebuilding the image).
 prometheus-fastapi-instrumentator>=7.1.0
 
 # System metrics (CPU, memory, disk) for Prometheus /metrics endpoint
