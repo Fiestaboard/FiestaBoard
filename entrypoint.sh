@@ -1,24 +1,9 @@
 #!/bin/sh
 set -e
 
-# ---------------------------------------------------------------------------
-# Enable in-container monitoring (Prometheus + Grafana) when requested.
-# Copies the supervisord snippet into conf.d/ so that supervisord picks
-# up the extra programs.  This runs before the root/non-root branching
-# so it works regardless of the user the container runs as.
-# ---------------------------------------------------------------------------
-setup_monitoring() {
-    mkdir -p /app/conf.d /app/data/grafana /app/data/prometheus /app/data/logs
-    chown appuser:appuser /app/data/logs 2>/dev/null || true
-    LOCAL_MON=$(echo "${LOCAL_MONITORING:-false}" | tr '[:upper:]' '[:lower:]')
-    if [ "$LOCAL_MON" = "true" ] || [ "$LOCAL_MON" = "1" ] || [ "$LOCAL_MON" = "yes" ]; then
-        cp /app/supervisord-monitoring.conf /app/conf.d/monitoring.conf
-    else
-        rm -f /app/conf.d/monitoring.conf
-    fi
-}
-
-setup_monitoring
+# Ensure log directory exists
+mkdir -p /app/data/logs
+chown appuser:appuser /app/data/logs 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # If the container is already running as a non-root user (e.g. Docker

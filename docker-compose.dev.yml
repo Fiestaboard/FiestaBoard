@@ -4,8 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - INCLUDE_MONITORING=true
     container_name: fiestaboard-dev
     env_file:
       - .env
@@ -15,7 +13,6 @@ services:
     environment:
       - PRODUCTION=false
       - WATCHPACK_POLLING=true
-      - LOCAL_MONITORING=true
     volumes:
       - ./data:/app/data
       - ./src:/app/src
@@ -26,8 +23,6 @@ services:
       - web-dev-node-modules:/app/web/node_modules
       - ./start-dev.sh:/app/start-dev.sh:ro
       - ./supervisord-dev.conf:/app/supervisord-dev.conf:ro
-      - ./supervisord-monitoring.conf:/app/supervisord-monitoring.conf:ro
-      - ./monitoring:/app/monitoring:ro
       - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro
     command: ["/bin/sh", "/app/start-dev.sh"]
     networks:

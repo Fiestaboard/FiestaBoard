@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, Activity } from "lucide-react";
+import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,8 +16,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useSidebar } from "@/components/sidebar-context";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
 
 const navigationItems = [
   { key: "home" as const, href: "/", icon: Home },
@@ -35,20 +33,6 @@ export function NavigationSidebar() {
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
-
-  const debugEnabledQuery = useQuery({
-    queryKey: ["debug-monitor", "enabled"],
-    queryFn: api.getDebugMonitorEnabled,
-    staleTime: 60_000,
-    retry: 1,
-  });
-
-  const grafanaUrl = "/grafana/";
-
-  type NavItem = { key: string; href: string; icon: typeof Home; external?: boolean };
-  const navItems: NavItem[] = debugEnabledQuery.data?.enabled
-    ? [...navigationItems, { key: "monitor", href: grafanaUrl, icon: Activity, external: true }]
-    : navigationItems;
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -136,7 +120,7 @@ export function NavigationSidebar() {
         }}
       >
         <nav aria-label="Mobile navigation" className="space-y-1 px-3 py-4">
-          {navItems.map((item) => {
+          {navigationItems.map((item) => {
             const isActive = !item.external && (item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/"));
             const Icon = item.icon;
             const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
@@ -246,7 +230,7 @@ export function NavigationSidebar() {
 
             {/* Navigation */}
             <nav aria-label="Main navigation" className="flex-1 space-y-1 py-4 px-2">
-              {navItems.map((item) => {
+              {navigationItems.map((item) => {
                 const isActive = !item.external && (item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/"));
                 const Icon = item.icon;
                 const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
