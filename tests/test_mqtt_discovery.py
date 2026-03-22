@@ -47,8 +47,8 @@ class TestEntityDefinitions:
     """Tests for the entity definition registry."""
 
     def test_entity_count(self):
-        """FiestaBoard should expose 14 entities to HA."""
-        assert len(ENTITY_DEFINITIONS) == 14
+        """FiestaBoard should expose 24 entities to HA."""
+        assert len(ENTITY_DEFINITIONS) == 24
 
     def test_all_entity_types_valid(self):
         """All entity types must be valid HA entity types."""
@@ -93,13 +93,18 @@ class TestEntityDefinitions:
         assert "transition_style" in select_ids
 
     def test_sensor_entities(self):
-        """Should have sensor entities for current page, message, version, and page count."""
+        """Should have sensor entities for current page, message, version, page count, and diagnostics."""
         sensors = [e for e in ENTITY_DEFINITIONS if e.entity_type == "sensor"]
         sensor_ids = {e.object_id for e in sensors}
         assert "current_page" in sensor_ids
         assert "current_message" in sensor_ids
         assert "version" in sensor_ids
         assert "page_count" in sensor_ids
+        assert "uptime" in sensor_ids
+        assert "board_api_mode" in sensor_ids
+        assert "active_plugins" in sensor_ids
+        assert "last_display_update" in sensor_ids
+        assert "output_target" in sensor_ids
 
     def test_binary_sensor_entities(self):
         """Should have binary sensor entities for status and silence."""
@@ -109,12 +114,14 @@ class TestEntityDefinitions:
         assert "silence_mode" in binary_ids
 
     def test_button_entities(self):
-        """Should have button entities for refresh and blank board."""
+        """Should have button entities for refresh, blank board, and page navigation."""
         buttons = [e for e in ENTITY_DEFINITIONS if e.entity_type == "button"]
-        assert len(buttons) == 2
+        assert len(buttons) == 4
         button_ids = {e.object_id for e in buttons}
         assert "refresh_display" in button_ids
         assert "blank_board" in button_ids
+        assert "next_page" in button_ids
+        assert "previous_page" in button_ids
 
     def test_text_entities(self):
         """Should have text entity for sending messages."""
@@ -487,3 +494,235 @@ class TestBuildAllDiscoveryMessages:
             payload = json.loads(msg["payload"])
             assert payload["unique_id"].startswith("office_board_")
             assert "office_board" in payload["device"]["identifiers"]
+
+
+class TestEntityCategorySupport:
+    """Tests for entity_category field in discovery payloads."""
+
+    def test_diagnostic_entities_tagged(self, mqtt_config, device_info):
+        """Diagnostic entities must have entity_category='diagnostic' in payload."""
+        diagnostic_ids = {"service_status", "version", "uptime", "board_api_mode",
+                          "active_plugins", "last_display_update", "output_target"}
+        for entity in ENTITY_DEFINITIONS:
+            if entity.object_id in diagnostic_ids:
+                payload = build_discovery_payload(mqtt_config, entity, device_info)
+                assert payload.get("entity_category") == "diagnostic", (
+                    f"Entity '{entity.object_id}' should have entity_category='diagnostic'"
+                )
+
+    def test_config_entities_tagged(self, mqtt_config, device_info):
+        """Config entities must have entity_category='config' in payload."""
+        config_ids = {"refresh_interval"}
+        for entity in ENTITY_DEFINITIONS:
+            if entity.object_id in config_ids:
+                payload = build_discovery_payload(mqtt_config, entity, device_info)
+                assert payload.get("entity_category") == "config", (
+                    f"Entity '{entity.object_id}' should have entity_category='config'"
+                )
+
+    def test_non_categorized_entities_no_category(self, mqtt_config, device_info):
+        """Entities without a category must NOT include entity_category."""
+        uncategorized = {"schedule_enabled", "display_service", "active_page", "transition_style",
+                         "current_page", "current_message", "silence_mode", "page_count",
+                         "refresh_display", "blank_board", "send_message",
+                         "next_page", "previous_page"}
+        for entity in ENTITY_DEFINITIONS:
+            if entity.object_id in uncategorized:
+                payload = build_discovery_payload(mqtt_config, entity, device_info)
+                assert "entity_category" not in payload, (
+                    f"Entity '{entity.object_id}' should not have entity_category"
+                )
+
+
+class TestSensorClassSupport:
+    """Tests for device_class and state_class in sensor discovery payloads."""
+
+    def test_uptime_sensor_has_duration_class(self, mqtt_config, device_info):
+        """Uptime sensor should have device_class='duration' and unit='s'."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "uptime"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert payload["device_class"] == "duration"
+        assert payload["state_class"] == "total_increasing"
+        assert payload["unit_of_measurement"] == "s"
+
+    def test_page_count_state_class(self, mqtt_config, device_info):
+        """Page count sensor should have state_class='measurement'."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "page_count"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert payload["state_class"] == "measurement"
+
+    def test_active_plugins_state_class(self, mqtt_config, device_info):
+        """Active plugins sensor should have state_class='measurement'."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "active_plugins"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert payload["state_class"] == "measurement"
+
+    def test_version_no_state_class(self, mqtt_config, device_info):
+        """Version sensor should NOT have state_class (it's text)."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "version"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert "state_class" not in payload
+
+
+class TestJsonAttributesSupport:
+    """Tests for json_attributes_topic in discovery payloads."""
+
+    def test_current_page_has_attributes_topic(self, mqtt_config, device_info):
+        """Current page sensor should include json_attributes_topic."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "current_page"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert "json_attributes_topic" in payload
+        assert payload["json_attributes_topic"] == "fiestaboard/current_page/attributes"
+
+    def test_entities_without_attributes(self, mqtt_config, device_info):
+        """Entities without json_attributes should not have json_attributes_topic."""
+        no_attrs = {"schedule_enabled", "version", "page_count"}
+        for entity in ENTITY_DEFINITIONS:
+            if entity.object_id in no_attrs:
+                payload = build_discovery_payload(mqtt_config, entity, device_info)
+                assert "json_attributes_topic" not in payload, (
+                    f"Entity '{entity.object_id}' should not have json_attributes_topic"
+                )
+
+
+class TestEventEntitySupport:
+    """Tests for MQTT event entity discovery payloads."""
+
+    def test_event_type_is_valid(self):
+        """Event must be in VALID_ENTITY_TYPES."""
+        assert "event" in VALID_ENTITY_TYPES
+
+    def test_event_entities_exist(self):
+        """Should have event entities for display_updated, page_changed, and settings_changed."""
+        events = [e for e in ENTITY_DEFINITIONS if e.entity_type == "event"]
+        assert len(events) == 3
+        event_ids = {e.object_id for e in events}
+        assert "display_updated" in event_ids
+        assert "page_changed" in event_ids
+        assert "settings_changed" in event_ids
+
+    def test_display_updated_event_types(self, mqtt_config, device_info):
+        """display_updated event should declare its event types."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "display_updated"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert payload["event_types"] == ["message_sent", "page_refreshed", "board_blanked", "page_navigated"]
+
+    def test_page_changed_event_types(self, mqtt_config, device_info):
+        """page_changed event should declare its event types."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "page_changed"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert payload["event_types"] == ["page_switched"]
+
+    def test_event_payload_has_state_topic(self, mqtt_config, device_info):
+        """Event entities must have a state_topic for receiving event data."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "display_updated"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert payload["state_topic"] == "fiestaboard/display_updated/state"
+
+    def test_event_entity_no_command_topic(self, mqtt_config, device_info):
+        """Event entities should not have command_topic (events are read-only)."""
+        for entity in ENTITY_DEFINITIONS:
+            if entity.entity_type == "event":
+                payload = build_discovery_payload(mqtt_config, entity, device_info)
+                assert "command_topic" not in payload
+
+
+class TestDiagnosticSensors:
+    """Tests for the new diagnostic sensor entity definitions."""
+
+    def test_uptime_sensor(self):
+        """Uptime sensor should be a diagnostic sensor with duration class."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "uptime"][0]
+        assert entity.entity_type == "sensor"
+        assert entity.entity_category == "diagnostic"
+        assert entity.device_class == "duration"
+        assert entity.state_class == "total_increasing"
+        assert entity.unit == "s"
+        assert entity.has_command is False
+
+    def test_board_api_mode_sensor(self):
+        """Board API mode sensor should be a diagnostic sensor."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "board_api_mode"][0]
+        assert entity.entity_type == "sensor"
+        assert entity.entity_category == "diagnostic"
+        assert entity.has_command is False
+
+    def test_active_plugins_sensor(self):
+        """Active plugins sensor should be a diagnostic sensor with measurement class."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "active_plugins"][0]
+        assert entity.entity_type == "sensor"
+        assert entity.entity_category == "diagnostic"
+        assert entity.state_class == "measurement"
+        assert entity.has_command is False
+
+    def test_last_display_update_sensor(self):
+        """Last display update sensor should be a diagnostic sensor with timestamp class."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "last_display_update"][0]
+        assert entity.entity_type == "sensor"
+        assert entity.entity_category == "diagnostic"
+        assert entity.device_class == "timestamp"
+        assert entity.has_command is False
+
+    def test_output_target_sensor(self):
+        """Output target sensor should be a diagnostic sensor."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "output_target"][0]
+        assert entity.entity_type == "sensor"
+        assert entity.entity_category == "diagnostic"
+        assert entity.has_command is False
+
+
+class TestNavigationButtons:
+    """Tests for next_page and previous_page button entities."""
+
+    def test_next_page_button(self):
+        """Next page button should be controllable."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "next_page"][0]
+        assert entity.entity_type == "button"
+        assert entity.has_command is True
+        assert entity.icon == "mdi:page-next"
+
+    def test_previous_page_button(self):
+        """Previous page button should be controllable."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "previous_page"][0]
+        assert entity.entity_type == "button"
+        assert entity.has_command is True
+        assert entity.icon == "mdi:page-previous"
+
+
+class TestSettingsChangedEvent:
+    """Tests for the settings_changed event entity."""
+
+    def test_settings_changed_event_exists(self):
+        """settings_changed event should exist."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "settings_changed"][0]
+        assert entity.entity_type == "event"
+
+    def test_settings_changed_event_types(self, mqtt_config, device_info):
+        """settings_changed event should declare schedule, service, and silence event types."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "settings_changed"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert "schedule_toggled" in payload["event_types"]
+        assert "service_toggled" in payload["event_types"]
+        assert "silence_mode_changed" in payload["event_types"]
+
+    def test_settings_changed_no_command_topic(self, mqtt_config, device_info):
+        """settings_changed event should not have command_topic."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "settings_changed"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert "command_topic" not in payload
+
+
+class TestTransitionStrategySourceOfTruth:
+    """Tests that transition strategies come from a single source of truth."""
+
+    def test_transition_options_match_board_client(self):
+        """Transition style options must match VALID_STRATEGIES from board_client."""
+        from src.board_client import VALID_STRATEGIES
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "transition_style"][0]
+        assert entity.options == list(VALID_STRATEGIES)
+
+    def test_last_display_update_has_timestamp_class(self, mqtt_config, device_info):
+        """last_display_update sensor should have device_class='timestamp'."""
+        entity = [e for e in ENTITY_DEFINITIONS if e.object_id == "last_display_update"][0]
+        payload = build_discovery_payload(mqtt_config, entity, device_info)
+        assert payload["device_class"] == "timestamp"
