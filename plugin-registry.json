@@ -90,7 +90,7 @@
       "name": "Last.fm Now Playing",
       "description": "Display what's currently playing via Last.fm scrobbling. Works with Apple Music, Spotify, and any scrobbling source.",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--last-fm",
-      "author": "FiestaBoard",
+      "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "music",
       "category": "entertainment"
@@ -210,7 +210,7 @@
       "name": "Visual Clock",
       "description": "Displays a full-screen clock with large pixel-art style digits.",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--visual-clock",
-      "author": "FiestaBoard",
+      "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "clock",
       "category": "art"

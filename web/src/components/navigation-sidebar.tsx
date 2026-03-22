@@ -84,7 +84,7 @@ export function NavigationSidebar() {
               height={32}
               className="flex-shrink-0"
             />
-            <FiestaLogo size="sm" className="whitespace-nowrap" />
+            <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
           </div>
           <div className="ml-3">
             <ServiceStatus />
@@ -216,7 +216,7 @@ export function NavigationSidebar() {
                   className="flex-shrink-0"
                 />
                 <FiestaLogo className={cn(
-                  "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                  "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
                   collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
                 )} />
               </div>
