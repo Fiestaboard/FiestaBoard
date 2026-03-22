@@ -19,6 +19,8 @@ This feature lets Home Assistant **automatically discover** your FiestaBoard and
 - Change the transition animation style
 - See board status, current page, version, and page count on your HA dashboard
 - Start/stop the display service remotely
+- Monitor device diagnostics (uptime, API mode, active plugins)
+- Trigger automations when the board content changes or pages switch (via event entities)
 
 **No installation needed on the Home Assistant side.** FiestaBoard uses [MQTT Discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) — the same protocol used by Zigbee2MQTT, Tasmota, and ESPHome — so your board appears automatically in HA.
 
@@ -83,7 +85,7 @@ If FiestaBoard doesn't appear, check:
 
 ## What You Get in Home Assistant
 
-Once connected, FiestaBoard appears as a device with these controls and sensors:
+Once connected, FiestaBoard appears as a device with **19 entities** — controls, sensors, diagnostics, and events:
 
 ### Controls (you can change these from HA)
 
@@ -96,18 +98,37 @@ Once connected, FiestaBoard appears as a device with these controls and sensors:
 | **Send Message** | Text | Send a text message to the board (up to 132 characters) |
 | **Refresh Display** | Button | Force a display refresh |
 | **Blank Board** | Button | Clear the board display (all blank) |
-| **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds) |
+| **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds). *Categorized as config.* |
 
 ### Sensors (read-only status from FiestaBoard)
 
 | Entity | Type | Description |
 |--------|------|-------------|
-| **Current Page** | Sensor | Name of the page currently displayed |
-| **Service Status** | Binary Sensor | Whether FiestaBoard is running |
+| **Current Page** | Sensor | Name of the page currently displayed. *Includes JSON attributes (page_id, page_index).* |
 | **Board Message** | Sensor | Summary of what's currently on the board |
 | **Silence Mode** | Binary Sensor | Whether silence/quiet hours are active |
+| **Page Count** | Sensor | Number of pages configured *(state_class: measurement)* |
+
+### Diagnostics (device health and info, grouped separately in HA)
+
+These entities are tagged with `entity_category: diagnostic` so Home Assistant groups them in the **Diagnostic** section of the device page, keeping your main dashboard clean.
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| **Service Status** | Binary Sensor | Whether FiestaBoard is running *(device_class: running)* |
 | **Version** | Sensor | FiestaBoard software version |
-| **Page Count** | Sensor | Number of pages configured |
+| **Uptime** | Sensor | How long FiestaBoard has been running *(device_class: duration, unit: seconds)* |
+| **Board API Mode** | Sensor | Whether the board is using Local API or Cloud API |
+| **Active Plugins** | Sensor | Number of enabled plugins *(state_class: measurement)* |
+
+### Events (trigger automations when things happen)
+
+FiestaBoard publishes [MQTT event entities](https://www.home-assistant.io/integrations/event.mqtt/) that let you build automations based on board activity — no polling required.
+
+| Entity | Event Types | Description |
+|--------|------------|-------------|
+| **Display Updated** | `message_sent`, `page_refreshed`, `board_blanked` | Fires when the board content changes |
+| **Page Changed** | `page_switched` | Fires when the active page changes |
 
 ## Automation Examples
 
@@ -174,6 +195,42 @@ automation:
           entity_id: switch.fiestaboard_display_service
 ```
 
+### Log Board Updates (using events)
+
+Use the **Display Updated** event entity to log or react when the board content changes:
+
+```yaml
+automation:
+  - alias: "Log Board Message Sent"
+    trigger:
+      - platform: state
+        entity_id: event.fiestaboard_display_updated
+        attribute: event_type
+        to: "message_sent"
+    action:
+      - service: logbook.log
+        data:
+          name: "FiestaBoard"
+          message: "A new message was sent to the board"
+```
+
+### Notify When Page Changes (using events)
+
+Get a notification when someone switches the active page:
+
+```yaml
+automation:
+  - alias: "Notify on Page Change"
+    trigger:
+      - platform: state
+        entity_id: event.fiestaboard_page_changed
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "FiestaBoard"
+          message: "Page changed to {{ trigger.to_state.attributes.page_name }}"
+```
+
 ### Display on HA Dashboard
 
 Add FiestaBoard status and controls to your HA dashboard:
@@ -185,7 +242,6 @@ entities:
   - entity: binary_sensor.fiestaboard_service_status
   - entity: sensor.fiestaboard_current_page
   - entity: sensor.fiestaboard_board_message
-  - entity: sensor.fiestaboard_version
   - entity: sensor.fiestaboard_page_count
   - entity: switch.fiestaboard_schedule
   - entity: switch.fiestaboard_display_service
@@ -193,6 +249,20 @@ entities:
   - entity: select.fiestaboard_transition_style
   - entity: number.fiestaboard_refresh_interval
 ```
+
+:::tip Diagnostics on their own card
+Diagnostic entities (version, uptime, API mode, active plugins) are automatically grouped under the **Diagnostic** section on the device page in HA. You can also add them to a separate dashboard card:
+
+```yaml
+type: entities
+title: FiestaBoard Diagnostics
+entities:
+  - entity: sensor.fiestaboard_version
+  - entity: sensor.fiestaboard_uptime
+  - entity: sensor.fiestaboard_board_api_mode
+  - entity: sensor.fiestaboard_active_plugins
+```
+:::
 
 ## Configuration Reference
 
@@ -250,16 +320,23 @@ Each board appears as a separate device in Home Assistant.
 FiestaBoard uses [MQTT Discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) — the same mechanism used by Zigbee2MQTT, Tasmota, ESPHome, and Frigate. Here's the flow:
 
 1. FiestaBoard connects to the MQTT broker
-2. It publishes **discovery messages** to topics under `homeassistant/` — these tell HA what entities to create
+2. It publishes **discovery messages** to topics under `homeassistant/` — these tell HA what entities to create, including entity categories (diagnostic, config) and sensor classes
 3. It publishes an **availability message** (`online`) so HA knows the board is connected
-4. It publishes **current state** for all entities
-5. Home Assistant reads the discovery messages and **automatically creates the device** with all entities
+4. It publishes **current state** for all entities, plus **JSON attributes** for entities that carry extra metadata (e.g., the current page's ID and index)
+5. Home Assistant reads the discovery messages and **automatically creates the device** with all entities, properly categorized in the UI
 6. When you interact with an entity in HA (toggle a switch, send a message), HA publishes a **command** to the MQTT broker
-7. FiestaBoard receives the command, executes it, and publishes the **updated state** back
+7. FiestaBoard receives the command, executes it, publishes the **updated state** back, and fires relevant **events** (e.g., `display_updated`, `page_changed`)
 
 All state messages are **retained** — if HA restarts, it immediately gets the current state without waiting for a change.
 
 FiestaBoard sets a **Last Will and Testament (LWT)** — if FiestaBoard disconnects unexpectedly, the broker automatically publishes `offline` so HA knows the board is down.
+
+### Entity Categories
+
+FiestaBoard properly categorizes entities using Home Assistant's `entity_category` system:
+- **No category** — Main controls and sensors (Schedule, Active Page, Send Message, etc.) — shown prominently in dashboards
+- **Diagnostic** — Device health info (Version, Uptime, API Mode, Active Plugins, Service Status) — grouped in the Diagnostic section on the device page
+- **Config** — Settings (Refresh Interval) — grouped in the Configuration section
 
 ## Troubleshooting
 
@@ -299,6 +376,11 @@ Each entity in HA shows a Material Design Icon that reflects its role:
 | Silence Mode | `mdi:volume-off` | Quiet hours: no updates |
 | Blank Board | `mdi:rectangle-outline` | Clear/empty board face |
 | Send Message | `mdi:send` | Push text to the board |
+| Uptime | `mdi:clock-outline` | How long the service has been running |
+| Board API Mode | `mdi:api` | Local or Cloud API connection |
+| Active Plugins | `mdi:puzzle` | Number of enabled data sources |
+| Display Updated | `mdi:update` | Board content changed event |
+| Page Changed | `mdi:book-open-page-variant` | Active page switched event |
 
 ### Device Image
 
