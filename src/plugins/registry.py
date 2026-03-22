@@ -1,10 +1,11 @@
 """Plugin registry - singleton for managing all loaded plugins.
 
 The PluginRegistry is the central point for:
-- Loading and unloading plugins
+- Loading and unloading plugins (built-in and external)
 - Getting plugin instances by ID
 - Managing plugin configurations
 - Providing plugin data to other services
+- Installing plugins from the registry or arbitrary git URLs
 """
 
 import logging
@@ -15,6 +16,15 @@ from typing import Any, Dict, List, Optional
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
 from .manifest import PluginManifest
+from .sources import (
+    PluginSource,
+    RegistryEntry,
+    get_external_plugins_dir,
+    install_git_plugin,
+    install_registry_plugin,
+    load_registry,
+    remove_external_plugin,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -323,6 +333,7 @@ class PluginRegistry:
         
         for plugin_id, plugin in self._plugins.items():
             manifest = self._manifests.get(plugin_id)
+            source = self._loader.get_source(plugin_id)
             info = {
                 "id": plugin_id,
                 "name": manifest.name if manifest else plugin_id,
@@ -332,6 +343,7 @@ class PluginRegistry:
                 "enabled": self._enabled.get(plugin_id, False),
                 "icon": manifest.icon if manifest else "puzzle",
                 "category": manifest.category if manifest else "utility",
+                "source": source.to_dict() if source else {"source_type": "builtin"},
             }
             plugins.append(info)
         
@@ -385,6 +397,148 @@ class PluginRegistry:
             Dictionary mapping plugin directory names to error lists
         """
         return self._loader.load_errors
+
+    def get_plugin_source(self, plugin_id: str) -> Optional[PluginSource]:
+        """Get the source information for a loaded plugin.
+
+        Args:
+            plugin_id: Plugin identifier
+
+        Returns:
+            :class:`PluginSource` or *None* if not loaded.
+        """
+        return self._loader.get_source(plugin_id)
+
+    # ── external plugin management ───────────────────────────────────────
+
+    def get_registry_entries(self) -> List[Dict[str, Any]]:
+        """Return all entries from the plugin registry file.
+
+        Returns:
+            List of registry entry dictionaries.
+        """
+        entries = load_registry()
+        return [
+            {
+                "id": e.plugin_id,
+                "name": e.name,
+                "description": e.description,
+                "repository": e.repository,
+                "branch": e.branch,
+                "author": e.author,
+                "installed": e.plugin_id in self._plugins,
+            }
+            for e in entries
+        ]
+
+    def install_from_registry(self, plugin_id: str) -> List[str]:
+        """Install a plugin from the registry by its id.
+
+        Args:
+            plugin_id: The id of the registry entry to install.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        entries = load_registry()
+        entry = next((e for e in entries if e.plugin_id == plugin_id), None)
+        if entry is None:
+            return [f"Plugin '{plugin_id}' not found in the registry"]
+
+        ok, err = install_registry_plugin(entry)
+        if not ok:
+            return [err]
+
+        # Reload external dirs and load the new plugin
+        self._loader._external_dirs = [get_external_plugins_dir()]
+        plugin = self._loader.load_plugin(plugin_id)
+        if plugin is None:
+            errors = self._loader.load_errors.get(plugin_id, [])
+            return errors or [f"Failed to load plugin after install: {plugin_id}"]
+
+        manifest = self._loader.get_manifest(plugin_id)
+        if manifest:
+            self._plugins[plugin_id] = plugin
+            self._manifests[plugin_id] = manifest
+            self._enabled[plugin_id] = False
+            logger.info("Installed registry plugin: %s", plugin_id)
+
+        return []
+
+    def install_from_git(
+        self, repo_url: str, plugin_id: Optional[str] = None, branch: str = ""
+    ) -> List[str]:
+        """Install a plugin from an arbitrary public git repository.
+
+        Custom git plugins do **not** need to follow the
+        ``fiestaboard-plugin--`` naming convention.
+
+        Args:
+            repo_url: HTTPS URL of the git repository.
+            plugin_id: Override the derived plugin id.
+            branch: Optional branch or tag.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        ok, err = install_git_plugin(repo_url, plugin_id=plugin_id, branch=branch)
+        if not ok:
+            return [err]
+
+        # Determine the id if not given
+        if plugin_id is None:
+            from .sources import _repo_name_from_url, plugin_id_from_repo_name
+            repo_name = _repo_name_from_url(repo_url)
+            plugin_id = plugin_id_from_repo_name(repo_name)
+
+        # Reload external dirs and load the new plugin
+        self._loader._external_dirs = [get_external_plugins_dir()]
+        plugin = self._loader.load_plugin(plugin_id)
+        if plugin is None:
+            errors = self._loader.load_errors.get(plugin_id, [])
+            return errors or [f"Failed to load plugin after install: {plugin_id}"]
+
+        manifest = self._loader.get_manifest(plugin_id)
+        if manifest:
+            self._plugins[plugin_id] = plugin
+            self._manifests[plugin_id] = manifest
+            self._enabled[plugin_id] = False
+            logger.info("Installed git plugin: %s from %s", plugin_id, repo_url)
+
+        return []
+
+    def uninstall_external_plugin(self, plugin_id: str) -> List[str]:
+        """Remove an external (non-built-in) plugin.
+
+        Built-in plugins cannot be uninstalled via this method.
+
+        Args:
+            plugin_id: Plugin identifier to remove.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        source = self._loader.get_source(plugin_id)
+        if source is None:
+            return [f"Plugin not found: {plugin_id}"]
+        if source.source_type == "builtin":
+            return ["Cannot uninstall a built-in plugin"]
+
+        # Disable and unload
+        if plugin_id in self._plugins:
+            self._plugins[plugin_id].cleanup()
+            del self._plugins[plugin_id]
+        self._manifests.pop(plugin_id, None)
+        self._enabled.pop(plugin_id, None)
+        self._configs.pop(plugin_id, None)
+
+        self._loader.unload_plugin(plugin_id)
+
+        # Remove the directory
+        local_path = Path(source.local_path)
+        remove_external_plugin(local_path)
+        logger.info("Uninstalled external plugin: %s", plugin_id)
+        return []
     
     def build_template_context(self) -> Dict[str, Any]:
         """Build context dictionary for template rendering.

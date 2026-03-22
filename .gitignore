@@ -71,6 +71,9 @@ data/
 !data/pages.json
 # Note: data/config.json and data/settings.json contain user secrets and are NOT tracked
 
+# External plugins (cloned at runtime from registry or git URLs)
+external_plugins/
+
 # API keys reference (optional - remove if you want to track it)
 API_KEYS.md
 

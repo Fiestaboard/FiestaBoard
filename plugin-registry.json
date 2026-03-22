@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_comment": "FiestaBoard Plugin Registry - Community and official external plugins",
+  "_naming_convention": "All plugins listed here MUST use the fiestaboard-plugin--{name} repository naming convention",
+  "_docs": "See docs-site/docs/development/plugin-guide.md for plugin development details",
+  "version": "1.0.0",
+  "plugins": []
+}
