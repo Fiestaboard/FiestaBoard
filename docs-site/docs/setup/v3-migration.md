@@ -9,7 +9,7 @@ keywords: [FiestaBoard V3, migration guide, upgrade, breaking changes, external 
 FiestaBoard V3 introduces an **external plugin system** that lets you install community plugins from a curated registry or from any public git repository. This guide covers the breaking changes and what you need to do to migrate from V2.
 
 :::note
-V3 is backward compatible for all existing plugin configurations, pages, and board settings. Your built-in plugins, pages, schedules, and board connections continue to work without changes.
+V3 is backward compatible for all existing plugin configurations, pages, and board settings. When you start FiestaBoard V3 for the first time, it automatically detects any plugins you had configured in V2 and installs them from the registry — no manual steps required. Your API keys, settings, and enabled/disabled states are preserved exactly as you left them.
 :::
 
 ## What's New in V3
@@ -151,7 +151,7 @@ If you don't mount this volume, external plugins will need to be reinstalled aft
 
 ### From a running V2 instance
 
-No migration steps are required. V3 is fully backward compatible with V2 data:
+V3 upgrades are automatic. On first boot, FiestaBoard detects any plugins you had configured in V2 (weather, muni, stocks, etc.) that are no longer bundled and installs them from the registry before serving any requests.
 
 1. **Pull the latest code or image:**
 
@@ -165,9 +165,32 @@ No migration steps are required. V3 is fully backward compatible with V2 data:
    docker-compose up -d
    ```
 
-2. **Verify**: Open `http://localhost:4420` — all your existing pages, plugins, and settings are preserved.
+2. **First-boot auto-migration**: FiestaBoard scans `data/config.json` for plugin configs that don't have corresponding plugin code on disk. For each one found in the registry, it clones the plugin into `external_plugins/` and restores your stored config — including API keys, settings, and enabled/disabled state. Check the container logs to confirm:
 
-3. **Optional**: Mount the `external_plugins/` volume if you plan to install community plugins (see above).
+   ```bash
+   docker-compose logs fiestaboard | grep "V3 migration"
+   # V3 migration: auto-installing 'weather' from registry…
+   # V3 migration: restored 'weather' (enabled=True)
+   # V3 migration complete: auto-installed 2 plugin(s): ['weather', 'muni']
+   ```
+
+3. **Verify**: Open `http://localhost:4420` — all your existing pages, plugins, and settings are preserved.
+
+4. **Recommended**: Mount the `external_plugins/` volume so installed plugins survive container rebuilds without re-downloading:
+
+   ```yaml
+   volumes:
+     - ./data:/app/data
+     - ./external_plugins:/app/external_plugins
+   ```
+
+   Without this volume, auto-migration re-runs on every container restart (it re-clones the plugins). The process is idempotent and your config is never affected, but it does require a network connection each time.
+
+#### What if the migration fails?
+
+- **No network / GitHub unreachable**: FiestaBoard logs a warning and starts normally. The affected plugins won't be available until the container is restarted with network access.
+- **Plugin not in the registry** (e.g. a custom built-in you developed yourself): FiestaBoard logs a warning with the plugin ID. You can re-install it manually via the Integrations page or by running `POST /api/plugins/install` with its git URL.
+- **Nothing is ever deleted**: Your `data/config.json` and all plugin configurations are never modified by the migration — it only installs plugin code.
 
 Your existing `.env` file, `data/` directory, and all plugin configurations continue to work unchanged.
 

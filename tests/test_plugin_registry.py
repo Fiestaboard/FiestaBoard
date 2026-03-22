@@ -103,7 +103,12 @@ def test_enabled_plugins_returns_only_enabled(registry, mock_loader, mock_plugin
     plugin2.plugin_id = "plugin2"
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin, "plugin2": plugin2}
     mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else MagicMock(id=pid, name=pid, version="1.0.0", description="", author="", icon="puzzle", category="utility", variables=MagicMock(get_all_variable_names=lambda _: []), max_lengths={}, raw={})
-    registry.initialize()
+
+    # Patch config manager so the migration doesn't pull in configs from the
+    # developer's real data/config.json and auto-install external plugins.
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {}
+        registry.initialize()
 
     assert registry.enabled_plugins == {}
     registry.enable_plugin("test_plugin")
@@ -907,6 +912,231 @@ def test_install_from_git_derives_plugin_id(mock_install, mock_dir, registry, mo
     errors = registry.install_from_git("https://github.com/Org/fiestaboard-plugin--surf")
     assert errors == []
     mock_loader.load_plugin.assert_called_with("surf")
+
+
+# --- _auto_migrate_v2_plugins ---
+
+
+def test_auto_migrate_noop_when_all_configs_are_loaded(registry, mock_loader, mock_plugin, mock_manifest):
+    """_auto_migrate_v2_plugins does nothing when every configured plugin is already loaded."""
+    mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "weather" else None
+    mock_manifest.id = "weather"
+
+    with patch("src.plugins.registry.load_registry") as mock_load_reg, \
+         patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "weather": {"enabled": True, "api_key": "key"}
+        }
+        registry.initialize()
+
+    # No orphans → load_registry should never be called
+    mock_load_reg.assert_not_called()
+
+
+def test_auto_migrate_noop_when_stored_configs_empty(registry, mock_loader):
+    """_auto_migrate_v2_plugins does nothing when there are no stored plugin configs."""
+    mock_loader.load_all_plugins.return_value = {}
+
+    with patch("src.plugins.registry.load_registry") as mock_load_reg, \
+         patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {}
+        registry.initialize()
+
+    mock_load_reg.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_installs_orphaned_enabled_plugin(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """_auto_migrate_v2_plugins installs an orphaned plugin and restores its enabled=True state."""
+    mock_loader.load_all_plugins.return_value = {}
+    mock_manifest.id = "weather"
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        )
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    stored_cfg = {"enabled": True, "api_key": "secret_key", "location": "Seattle"}
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": stored_cfg}
+        registry.initialize()
+
+    assert "weather" in registry._plugins
+    assert registry._enabled["weather"] is True
+    assert registry._configs["weather"] == stored_cfg
+    assert mock_plugin.enabled is True
+    assert mock_plugin.config == stored_cfg
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_installs_orphaned_disabled_plugin(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """_auto_migrate_v2_plugins installs an orphaned plugin and preserves its enabled=False state."""
+    mock_loader.load_all_plugins.return_value = {}
+    mock_manifest.id = "muni"
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="muni",
+            name="SF Muni",
+            repository="https://github.com/Org/fiestaboard-plugin--muni",
+        )
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    stored_cfg = {"enabled": False, "api_key": "transit_key", "stop_code": "15726"}
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": stored_cfg}
+        registry.initialize()
+
+    assert "muni" in registry._plugins
+    assert registry._enabled["muni"] is False
+    assert mock_plugin.enabled is False
+
+
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_skips_plugin_not_in_registry(mock_load_reg, registry, mock_loader):
+    """_auto_migrate_v2_plugins logs a warning and skips plugins absent from the registry."""
+    mock_loader.load_all_plugins.return_value = {}
+    mock_load_reg.return_value = []  # registry is empty
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "custom_builtin": {"enabled": True}
+        }
+        registry.initialize()
+
+    assert "custom_builtin" not in registry._plugins
+
+
+@patch("src.plugins.registry.load_registry", side_effect=Exception("DNS failure"))
+def test_auto_migrate_handles_registry_load_error_gracefully(mock_load_reg, registry, mock_loader):
+    """_auto_migrate_v2_plugins catches registry-load exceptions and does not raise."""
+    mock_loader.load_all_plugins.return_value = {}
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "weather": {"enabled": True, "api_key": "key"}
+        }
+        # Should not raise despite registry failure
+        registry.initialize()
+
+    assert "weather" not in registry._plugins
+
+
+@patch("src.plugins.registry.install_registry_plugin", return_value=(False, "git clone failed"))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_handles_install_failure_gracefully(
+    mock_load_reg, mock_install, registry, mock_loader
+):
+    """_auto_migrate_v2_plugins logs an error and continues when install fails."""
+    mock_loader.load_all_plugins.return_value = {}
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="stocks",
+            name="Stocks",
+            repository="https://github.com/Org/fiestaboard-plugin--stocks",
+        )
+    ]
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "stocks": {"enabled": True, "symbols": ["AAPL"]}
+        }
+        registry.initialize()
+
+    assert "stocks" not in registry._plugins
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_processes_multiple_orphaned_plugins(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_manifest
+):
+    """_auto_migrate_v2_plugins installs all orphaned plugins in one pass."""
+    weather_plugin = MagicMock(spec=PluginBase)
+    weather_plugin.plugin_id = "weather"
+    weather_manifest = MagicMock(spec=PluginManifest)
+    weather_manifest.id = "weather"
+
+    muni_plugin = MagicMock(spec=PluginBase)
+    muni_plugin.plugin_id = "muni"
+    muni_manifest = MagicMock(spec=PluginManifest)
+    muni_manifest.id = "muni"
+
+    mock_loader.load_all_plugins.return_value = {}
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+        RegistryEntry(
+            plugin_id="muni",
+            name="SF Muni",
+            repository="https://github.com/Org/fiestaboard-plugin--muni",
+        ),
+    ]
+
+    def _load_plugin(pid):
+        return weather_plugin if pid == "weather" else muni_plugin
+
+    def _get_manifest(pid):
+        return weather_manifest if pid == "weather" else muni_manifest
+
+    mock_loader.load_plugin.side_effect = _load_plugin
+    mock_loader.get_manifest.side_effect = _get_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "weather": {"enabled": True, "api_key": "w_key"},
+            "muni": {"enabled": True, "api_key": "m_key"},
+        }
+        registry.initialize()
+
+    assert "weather" in registry._plugins
+    assert "muni" in registry._plugins
+    assert registry._enabled["weather"] is True
+    assert registry._enabled["muni"] is True
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_skips_already_installed_on_subsequent_boots(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """_auto_migrate_v2_plugins is idempotent: plugins already in _plugins are skipped."""
+    mock_manifest.id = "weather"
+    # Simulate "already installed" — weather appears in load_all_plugins output
+    mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "weather": {"enabled": True, "api_key": "key"}
+        }
+        registry.initialize()
+
+    # load_registry should never be called (no orphans to process)
+    mock_load_reg.assert_not_called()
+    # install_registry_plugin should never be called
+    mock_install.assert_not_called()
 
 
 # --- uninstall_external_plugin ---

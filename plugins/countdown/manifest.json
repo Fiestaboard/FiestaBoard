@@ -130,7 +130,7 @@
 
   "screenshots": [
     {
-      "src": "docs/board-display.png",
+      "src": "docs/countdown-display.png",
       "alt": "Countdown displayed on a Vestaboard",
       "caption": "Classic countdown template showing days remaining until an event",
       "primary": true

@@ -161,7 +161,7 @@
 
   "screenshots": [
     {
-      "src": "docs/board-display.png",
+      "src": "docs/date-time-display.png",
       "alt": "Date and Time displayed on a Vestaboard",
       "caption": "Date and time with 12-hour format and timezone",
       "primary": true

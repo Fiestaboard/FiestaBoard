@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Polling-interval bijgewerkt. Herstart de service om wijzigingen toe te passen.",
     "toastPollingFailed": "Polling-interval bijwerken mislukt: {error}",
     "languageLabel": "Taal",
-    "languageDescription": "Kies de weergavetaal van de interface"
+    "languageDescription": "Kies de weergavetaal van de interface",
+    "reduceMotionLabel": "Beweging verminderen",
+    "reduceMotionDescription": "Animaties en overgangen in de interface uitschakelen",
+    "toastDisplaySaved": "Weergave-instellingen opgeslagen",
+    "toastDisplaySaveFailed": "Kan weergave-instellingen niet opslaan: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Thema wisselen"

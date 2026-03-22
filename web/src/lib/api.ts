@@ -554,6 +554,10 @@ export interface CarouselsResponse {
   total: number;
 }
 
+export interface DisplaySettings {
+  reduce_motion: boolean;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: Record<string, unknown>;
@@ -562,6 +566,7 @@ export interface AllSettingsResponse {
   output: OutputSettings;
   board: BoardSettings;
   mqtt: MqttSettings;
+  display: DisplaySettings;
   status: {
     running: boolean;
   };
@@ -1190,6 +1195,15 @@ export const api = {
       method: "DELETE",
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
+
+  // Display settings
+  getDisplaySettings: () => fetchApi<DisplaySettings>("/settings/display"),
+  updateDisplaySettings: (settings: Partial<DisplaySettings>) =>
+    fetchApi<{ status: string; settings: DisplaySettings }>("/settings/display", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    }),
 
   // Home Assistant endpoints
   getHomeAssistantEntities: () =>

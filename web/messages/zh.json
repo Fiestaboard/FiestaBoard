@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "轮询间隔已更新。重启服务以应用更改。",
     "toastPollingFailed": "更新轮询间隔失败：{error}",
     "languageLabel": "语言",
-    "languageDescription": "选择界面显示语言"
+    "languageDescription": "选择界面显示语言",
+    "reduceMotionLabel": "减少动画",
+    "reduceMotionDescription": "禁用界面中的动画和过渡效果",
+    "toastDisplaySaved": "显示设置已保存",
+    "toastDisplaySaveFailed": "保存显示设置失败：{error}"
   },
   "themeToggle": {
     "toggleTheme": "切换主题"

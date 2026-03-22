@@ -183,6 +183,19 @@ class ScheduleSettings:
 
 
 @dataclass
+class DisplaySettings:
+    """Web UI display preferences."""
+    reduce_motion: bool = False
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "DisplaySettings":
+        return cls(reduce_motion=bool(data.get("reduce_motion", False)))
+
+
+@dataclass
 class MQTTSettings:
     """MQTT integration settings for Home Assistant auto-discovery.
 
@@ -257,6 +270,7 @@ class SettingsService:
         self._board = self._load_board_settings()
         self._schedule = self._load_schedule_settings()
         self._mqtt = self._load_mqtt_settings()
+        self._display = self._load_display_settings()
         
         if getattr(self, "_needs_migration_save", False):
             self._save_to_file()
@@ -285,6 +299,7 @@ class SettingsService:
                 "board": self._board.to_dict(mask_secrets=False),
                 "schedule": self._schedule.to_dict(),
                 "mqtt": self._mqtt.to_dict(mask_secrets=False),
+                "display": self._display.to_dict(),
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -399,6 +414,13 @@ class SettingsService:
             password=os.environ.get("MQTT_PASSWORD", "") or "",
             external_url=os.environ.get("FIESTABOARD_EXTERNAL_URL", "") or "",
         )
+
+    def _load_display_settings(self) -> "DisplaySettings":
+        """Load display settings from file."""
+        file_data = self._load_from_file()
+        if "display" in file_data:
+            return DisplaySettings.from_dict(file_data["display"])
+        return DisplaySettings()
 
     # Transition settings
     def get_transition_settings(self) -> TransitionSettings:
@@ -761,6 +783,21 @@ class SettingsService:
             self._mqtt.external_url = updates["external_url"] or ""
         self._save_to_file()
         return self._mqtt
+
+    def get_display_settings(self) -> "DisplaySettings":
+        """Return current web UI display settings."""
+        return self._display
+
+    def update_display_settings(self, updates: dict) -> "DisplaySettings":
+        """Update display settings and persist.
+
+        Only keys present in *updates* are changed.
+        """
+        if "reduce_motion" in updates:
+            self._display.reduce_motion = bool(updates["reduce_motion"])
+        self._save_to_file()
+        logger.info(f"Display settings updated: {self._display}")
+        return self._display
 
 
 # Singleton instance

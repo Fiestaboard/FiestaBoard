@@ -30,6 +30,7 @@ export function GeneralSettings() {
   const [silenceStartTime, setSilenceStartTime] = useState("20:00");
   const [silenceEndTime, setSilenceEndTime] = useState("07:00");
   const [pollingInterval, setPollingInterval] = useState(15);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   // Fetch all settings in one request
   const { data: allSettings, isLoading: isLoadingSettings } = useQuery({
@@ -41,11 +42,13 @@ export function GeneralSettings() {
   const generalConfig = allSettings?.general;
   const silenceConfig = allSettings?.silence_schedule;
   const pollingSettings = allSettings?.polling;
+  const displaySettings = allSettings?.display;
   const status = allSettings?.status;
 
   // Use deferred values for non-critical data to reduce re-render priority
   const deferredSilenceConfig = useDeferredValue(silenceConfig);
   const deferredPollingSettings = useDeferredValue(pollingSettings);
+  const deferredDisplaySettings = useDeferredValue(displaySettings);
   
   // Compute loading states
   const isLoadingConfig = isLoadingSettings;
@@ -90,6 +93,13 @@ export function GeneralSettings() {
     }
   }, [deferredPollingSettings]);
 
+  // Initialize reduce motion when settings load
+  useEffect(() => {
+    if (deferredDisplaySettings) {
+      setReduceMotion(deferredDisplaySettings.reduce_motion ?? false);
+    }
+  }, [deferredDisplaySettings]);
+
   // Update general config mutation
   const updateGeneralMutation = useMutation({
     mutationFn: api.updateGeneralConfig,
@@ -120,6 +130,18 @@ export function GeneralSettings() {
     },
   });
 
+  // Update display settings mutation
+  const updateDisplayMutation = useMutation({
+    mutationFn: (settings: { reduce_motion: boolean }) => api.updateDisplaySettings(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-settings"] });
+      toast.success(t("toastDisplaySaved"));
+    },
+    onError: (error: Error) => {
+      toast.error(t("toastDisplaySaveFailed", { error: error.message }));
+    },
+  });
+
   // Update polling settings mutation
   const updatePollingMutation = useMutation({
     mutationFn: (interval: number) => api.updatePollingSettings(interval),
@@ -138,6 +160,11 @@ export function GeneralSettings() {
       toast.error(t("toastPollingFailed", { error: error.message }));
     },
   });
+
+  const handleReduceMotionToggle = (checked: boolean) => {
+    setReduceMotion(checked);
+    updateDisplayMutation.mutate({ reduce_motion: checked });
+  };
 
   const handleTimezoneChange = (newTimezone: string) => {
     setTimezone(newTimezone);
@@ -219,7 +246,7 @@ export function GeneralSettings() {
   };
 
   const isRunning = status?.running ?? false;
-  const isSaving = updateGeneralMutation.isPending || updateSilenceMutation.isPending || updatePollingMutation.isPending;
+  const isSaving = updateGeneralMutation.isPending || updateSilenceMutation.isPending || updatePollingMutation.isPending || updateDisplayMutation.isPending;
 
   return (
     <Card>
@@ -250,6 +277,26 @@ export function GeneralSettings() {
             <Label className="text-sm font-medium">{t("languageLabel")}</Label>
             <p className="text-xs text-muted-foreground mt-1 mb-3">{t("languageDescription")}</p>
             <LanguageSelector />
+          </div>
+
+          {/* Reduce Motion */}
+          <div className="py-5">
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={reduceMotion}
+                onCheckedChange={handleReduceMotionToggle}
+                disabled={isSaving}
+                id="reduce-motion"
+              />
+              <div>
+                <label htmlFor="reduce-motion" className="text-sm font-medium cursor-pointer">
+                  {t("reduceMotionLabel")}
+                </label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("reduceMotionDescription")}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Timezone & Polling Interval */}

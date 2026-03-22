@@ -122,9 +122,90 @@ class PluginRegistry:
                 else:
                     logger.debug(f"Loaded plugin (disabled): {plugin_id}")
         
+        # Auto-install any plugins that were configured in V2 but are no longer
+        # built-in (extracted to external repos in V3).
+        self._auto_migrate_v2_plugins(stored_configs)
+
         enabled_count = sum(1 for e in self._enabled.values() if e)
         logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
-    
+
+    def _auto_migrate_v2_plugins(self, stored_configs: Dict[str, Dict[str, Any]]) -> None:
+        """Install external plugins that were configured in V2 but are no longer built-in.
+
+        When upgrading from V2 to V3, previously built-in plugins (weather, muni,
+        stocks, etc.) are extracted into standalone external repositories.  Users
+        who had those plugins configured will have entries in ``config.json`` whose
+        plugin code no longer exists on disk.
+
+        This method detects those "orphaned" configs, installs the matching plugin
+        from the registry, and restores the stored configuration and enabled state
+        — giving users a seamless, zero-data-loss upgrade experience.
+
+        The check is idempotent: once a plugin is installed it appears in
+        ``self._plugins``, so it is skipped on every subsequent startup.
+        """
+        loaded_ids = set(self._plugins.keys())
+        orphaned = [pid for pid in stored_configs if pid not in loaded_ids]
+        if not orphaned:
+            return
+
+        logger.info(
+            "V3 migration: found %d plugin config(s) with no matching installed plugin: %s",
+            len(orphaned),
+            orphaned,
+        )
+
+        try:
+            registry_entries = load_registry()
+            registry_map = {e.plugin_id: e for e in registry_entries}
+        except Exception as exc:
+            logger.warning(
+                "V3 migration: could not load plugin registry — skipping auto-install: %s", exc
+            )
+            return
+
+        migrated: list[str] = []
+        for plugin_id in orphaned:
+            if plugin_id not in registry_map:
+                logger.warning(
+                    "V3 migration: plugin '%s' has stored config but is not in the registry. "
+                    "Install it manually via the Integrations page or remove its config entry.",
+                    plugin_id,
+                )
+                continue
+
+            logger.info("V3 migration: auto-installing '%s' from registry…", plugin_id)
+            errors = self.install_from_registry(plugin_id)
+            if errors:
+                logger.error(
+                    "V3 migration: failed to install '%s' (will retry on next boot): %s",
+                    plugin_id,
+                    errors,
+                )
+                continue
+
+            # install_from_registry() registers the plugin with enabled=False and
+            # no config applied.  Restore the full stored config and enabled state.
+            plugin = self._plugins.get(plugin_id)
+            if plugin:
+                cfg = stored_configs[plugin_id]
+                is_enabled = cfg.get("enabled", False)
+                self._enabled[plugin_id] = is_enabled
+                self._configs[plugin_id] = cfg
+                plugin.config = cfg
+                plugin.enabled = is_enabled
+                migrated.append(plugin_id)
+                logger.info(
+                    "V3 migration: restored '%s' (enabled=%s)", plugin_id, is_enabled
+                )
+
+        if migrated:
+            logger.info(
+                "V3 migration complete: auto-installed %d plugin(s): %s",
+                len(migrated),
+                migrated,
+            )
+
     def get_plugin(self, plugin_id: str) -> Optional[PluginBase]:
         """Get a plugin by ID.
         

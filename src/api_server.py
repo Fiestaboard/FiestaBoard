@@ -2922,6 +2922,26 @@ async def remove_board_instance(board_id: str):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/settings/display")
+async def get_display_settings():
+    """Get current web UI display settings."""
+    settings_service = get_settings_service()
+    return settings_service.get_display_settings().to_dict()
+
+
+@app.put("/settings/display")
+async def update_display_settings(request: dict):
+    """
+    Update web UI display settings.
+
+    Body may include:
+    - reduce_motion: bool — force reduced-motion CSS behaviour in the UI
+    """
+    settings_service = get_settings_service()
+    display = settings_service.update_display_settings(request)
+    return {"status": "success", "settings": display.to_dict()}
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """
@@ -2935,6 +2955,7 @@ async def get_all_settings():
     - output settings
     - board settings
     - mqtt integration settings
+    - display settings
     - service status (running)
     """
     global _service_running
@@ -2952,6 +2973,7 @@ async def get_all_settings():
     output = settings_service.get_output_settings()
     board = settings_service.get_board_settings()
     mqtt = settings_service.get_mqtt_settings()
+    display = settings_service.get_display_settings()
     
     return {
         "general": general,
@@ -2963,6 +2985,7 @@ async def get_all_settings():
         "output": output.to_dict(),
         "board": board.to_dict(),
         "mqtt": mqtt.to_dict(mask_secrets=True),
+        "display": display.to_dict(),
         "status": {
             "running": _service_running,
         }

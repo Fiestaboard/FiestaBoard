@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Intervalo de verificação atualizado. Reinicie o serviço para aplicar as alterações.",
     "toastPollingFailed": "Falha ao atualizar intervalo de verificação: {error}",
     "languageLabel": "Idioma",
-    "languageDescription": "Escolha o idioma de exibição da interface"
+    "languageDescription": "Escolha o idioma de exibição da interface",
+    "reduceMotionLabel": "Reduzir movimento",
+    "reduceMotionDescription": "Desativar animações e transições na interface",
+    "toastDisplaySaved": "Configurações de exibição salvas",
+    "toastDisplaySaveFailed": "Falha ao salvar as configurações de exibição: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Alternar tema"

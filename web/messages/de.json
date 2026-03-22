@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Abfrageintervall aktualisiert. Starten Sie den Dienst neu, um die Änderungen zu übernehmen.",
     "toastPollingFailed": "Abfrageintervall konnte nicht aktualisiert werden: {error}",
     "languageLabel": "Sprache",
-    "languageDescription": "Wählen Sie die Anzeigesprache der Benutzeroberfläche"
+    "languageDescription": "Wählen Sie die Anzeigesprache der Benutzeroberfläche",
+    "reduceMotionLabel": "Bewegung reduzieren",
+    "reduceMotionDescription": "Animationen und Übergänge in der Benutzeroberfläche deaktivieren",
+    "toastDisplaySaved": "Anzeigeeinstellungen gespeichert",
+    "toastDisplaySaveFailed": "Anzeigeeinstellungen konnten nicht gespeichert werden: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Design wechseln"

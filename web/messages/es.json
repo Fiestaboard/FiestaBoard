@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Intervalo de consulta actualizado. Reinicia el servicio para aplicar los cambios.",
     "toastPollingFailed": "Error al actualizar el intervalo de consulta: {error}",
     "languageLabel": "Idioma",
-    "languageDescription": "Elige el idioma de la interfaz"
+    "languageDescription": "Elige el idioma de la interfaz",
+    "reduceMotionLabel": "Reducir movimiento",
+    "reduceMotionDescription": "Desactivar animaciones y transiciones en la interfaz",
+    "toastDisplaySaved": "Configuración de pantalla guardada",
+    "toastDisplaySaveFailed": "Error al guardar la configuración de pantalla: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Cambiar tema"

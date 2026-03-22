@@ -10,6 +10,7 @@ import { InstallPrompt } from "@/components/install-prompt";
 import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { MainContent } from "@/components/main-content";
 import { ThemeColorMeta } from "@/components/theme-color-meta";
+import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -60,9 +61,19 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-hidden`}
       >
+        <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
+          <defs>
+            <linearGradient id="page-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="var(--fiesta-red)" />
+              <stop offset="50%" stopColor="var(--fiesta-orange)" />
+              <stop offset="100%" stopColor="var(--fiesta-purple)" />
+            </linearGradient>
+          </defs>
+        </svg>
         <NextIntlClientProvider messages={messages}>
           <Providers>
             <ThemeColorMeta />
+            <ReduceMotionApplier />
             <WizardProvider>
               <NavigationSidebar />
               <MainContent>

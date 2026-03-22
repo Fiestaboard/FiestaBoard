@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Intervallo di polling aggiornato. Riavvia il servizio per applicare le modifiche.",
     "toastPollingFailed": "Impossibile aggiornare l'intervallo di polling: {error}",
     "languageLabel": "Lingua",
-    "languageDescription": "Scegli la lingua di visualizzazione dell'interfaccia"
+    "languageDescription": "Scegli la lingua di visualizzazione dell'interfaccia",
+    "reduceMotionLabel": "Riduci movimento",
+    "reduceMotionDescription": "Disabilita animazioni e transizioni nell'interfaccia",
+    "toastDisplaySaved": "Impostazioni di visualizzazione salvate",
+    "toastDisplaySaveFailed": "Impossibile salvare le impostazioni di visualizzazione: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Cambia tema"

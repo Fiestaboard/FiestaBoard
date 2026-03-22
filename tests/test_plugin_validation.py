@@ -595,6 +595,208 @@ class TestManifestVariablesParsing:
         assert any("simple" in e for e in errors)
 
 
+class TestManifestScreenshots:
+    """Tests for plugin screenshot configuration."""
+
+    def test_screenshots_entries_reference_existing_files(self):
+        """CI Test: All screenshot src paths in manifest must exist on disk."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing_files: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots", [])
+
+            for screenshot in screenshots:
+                src = screenshot.get("src", "")
+                if not src:
+                    continue
+                normalised = src.lstrip("./")
+                full_path = plugin_dir / normalised
+                if not full_path.exists():
+                    missing_files.append(
+                        f"{plugin_dir.name}: screenshots entry '{src}' "
+                        f"not found at {full_path}"
+                    )
+
+        assert not missing_files, (
+            "Screenshot files referenced in manifests do not exist:\n"
+            + "\n".join(f"  - {f}" for f in missing_files)
+        )
+
+    def test_screenshots_array_is_list_when_present(self):
+        """CI Test: screenshots field must be an array if provided."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        invalid: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots")
+            if screenshots is not None and not isinstance(screenshots, list):
+                invalid.append(
+                    f"{plugin_dir.name}: 'screenshots' must be an array, "
+                    f"got {type(screenshots).__name__}"
+                )
+
+        assert not invalid, (
+            "Invalid screenshots field types:\n" + "\n".join(f"  - {i}" for i in invalid)
+        )
+
+    def test_each_screenshot_entry_has_src(self):
+        """CI Test: Each screenshot entry must have a 'src' field."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing_src: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots", [])
+
+            for idx, screenshot in enumerate(screenshots):
+                if not isinstance(screenshot, dict) or "src" not in screenshot:
+                    missing_src.append(
+                        f"{plugin_dir.name}: screenshots[{idx}] missing 'src' field"
+                    )
+
+        assert not missing_src, (
+            "Screenshot entries missing 'src':\n" + "\n".join(f"  - {s}" for s in missing_src)
+        )
+
+    def test_at_most_one_primary_screenshot(self):
+        """CI Test: At most one screenshot should have primary=true."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        multiple_primary: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots", [])
+            primary_count = sum(
+                1 for s in screenshots if isinstance(s, dict) and s.get("primary") is True
+            )
+            if primary_count > 1:
+                multiple_primary.append(
+                    f"{plugin_dir.name}: {primary_count} screenshots marked as primary "
+                    f"(only one allowed)"
+                )
+
+        assert not multiple_primary, (
+            "Plugins with multiple primary screenshots:\n"
+            + "\n".join(f"  - {m}" for m in multiple_primary)
+        )
+
+
+class TestManifestCompleteness:
+    """Tests that manifests include recommended fields for full functionality."""
+
+    def test_all_manifests_have_settings_schema(self):
+        """CI Test: All plugin manifests should define a settings_schema."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            if "settings_schema" not in manifest:
+                missing.append(plugin_dir.name)
+
+        assert not missing, (
+            "Plugins missing 'settings_schema':\n"
+            + "\n".join(f"  - {m}" for m in missing)
+        )
+
+    def test_all_manifests_have_variables(self):
+        """CI Test: All plugin manifests should define a variables section."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            if "variables" not in manifest:
+                missing.append(plugin_dir.name)
+
+        assert not missing, (
+            "Plugins missing 'variables':\n"
+            + "\n".join(f"  - {m}" for m in missing)
+        )
+
+    def test_settings_schema_is_object_type(self):
+        """CI Test: settings_schema must be a JSON object with 'type': 'object'."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        invalid: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            schema = manifest.get("settings_schema")
+            if schema is None:
+                continue
+            if not isinstance(schema, dict):
+                invalid.append(f"{plugin_dir.name}: settings_schema must be a dict")
+            elif schema.get("type") != "object":
+                invalid.append(
+                    f"{plugin_dir.name}: settings_schema['type'] must be 'object', "
+                    f"got {schema.get('type')!r}"
+                )
+
+        assert not invalid, (
+            "Manifests with invalid settings_schema:\n"
+            + "\n".join(f"  - {i}" for i in invalid)
+        )
+
+
 class TestPluginIconsAndCategories:
     """Tests for plugin display configuration."""
     
