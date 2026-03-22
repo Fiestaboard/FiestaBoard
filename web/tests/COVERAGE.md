@@ -123,7 +123,7 @@ cd web && npx playwright install chromium
 **Every run:**
 
 ```bash
-# 1. Start Docker services (includes mock board on port 7000)
+# 1. Start Docker services (mock board published on host **17000** / **17001**, container ports 7000 / 7001)
 docker-compose -f docker-compose.dev.yml up -d
 
 # 2. Run tests from the web/ directory
@@ -136,7 +136,7 @@ board. In Docker, containers talk to each other by service name
 (`fiestaboard-mock-board`). In CI, everything runs on `localhost` (the default).
 
 Playwright's `reuseExistingServer: true` means it will use the already-running
-Docker services (internally on ports 3000/8000, exposed via 4420 on host, plus mock board on 7000)
+Docker services (FiestaBoard on **4420**; mock board on host **17000** and **17001**, still **7000**/**7001** inside the compose network)
 without trying to start new processes.
 
 **Run a specific test file:**
@@ -161,7 +161,7 @@ enters the merge queue. No action needed.
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌──────────────┐     ┌──────────────┐
 │  Playwright  │────▶│  Next.js UI      │────▶│   FastAPI    │────▶│  Mock Board  │
-│  (browser)   │     │  (internal:3000) │     │  (internal:  │     │  (port 7000) │
+│  (browser)   │     │  (internal:3000) │     │  (internal:  │     │ (host:17000) │
 │              │     │  (host:4420)     │     │   8000)      │     │              │
 └─────────────┘     └──────────────────┘     └──────────────┘     └──────────────┘
                                                                      ▲

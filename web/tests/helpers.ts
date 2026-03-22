@@ -19,7 +19,9 @@ const _workerMockHosts = (process.env.WORKER_MOCK_HOSTS || "").split(",").filter
 const DEFAULT_API_URL = process.env.BASE_URL
   ? `${process.env.BASE_URL}/api`
   : `http://localhost:${process.env.API_PORT || "4420"}/api`;
-const DEFAULT_MOCK_BOARD_PORT = parseInt(process.env.MOCK_BOARD_PORT || "7000", 10);
+// Default host ports match docker-compose.dev.yml (17000:7000) so local Playwright
+// can reach the mock from the host. Use MOCK_BOARD_PORT=7000 if you run server.py on the host.
+const DEFAULT_MOCK_BOARD_PORT = parseInt(process.env.MOCK_BOARD_PORT || "17000", 10);
 const DEFAULT_MOCK_BOARD_URL = process.env.MOCK_BOARD_URL || `http://localhost:${DEFAULT_MOCK_BOARD_PORT}`;
 const DEFAULT_BOARD_HOST = process.env.MOCK_BOARD_HOST || "localhost";
 
@@ -30,8 +32,8 @@ export let MOCK_BOARD_URL = DEFAULT_MOCK_BOARD_URL;
 // eslint-disable-next-line import/no-mutable-exports
 export let BOARD_HOST = DEFAULT_BOARD_HOST;
 export const MOCK_BOARD_PORT = DEFAULT_MOCK_BOARD_PORT;
-/** Second mock board port for multi-board e2e (when mock started with PORTS=7000,7001). */
-export const MOCK_BOARD_PORT_2 = 7001;
+/** Second mock board host port (docker-compose.dev.yml maps 17001:7001). */
+export const MOCK_BOARD_PORT_2 = parseInt(process.env.MOCK_BOARD_PORT_2 || "17001", 10);
 export const MOCK_BOARD_URL_2 = `http://localhost:${MOCK_BOARD_PORT_2}`;
 
 function _configureWorker(workerIndex: number) {

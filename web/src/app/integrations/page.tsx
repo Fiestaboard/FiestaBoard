@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, PluginInfo, RegistryEntry } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,14 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SchemaForm } from "@/components/plugin-settings";
 import { FIESTABOARD_COLORS, AVAILABLE_COLORS, FiestaboardColorName } from "@/lib/board-colors";
 import {
@@ -331,11 +340,11 @@ import {
   Meh,
   Angry,
   Laugh,
+  MoreHorizontal,
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import CountUp from "@/components/ui/react-bits/count-up";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 
@@ -914,13 +923,10 @@ interface PluginCardProps {
   onToggle: (pluginId: string, enabled: boolean) => void;
   isToggling: boolean;
   onConfigUpdate: () => void;
-  onInstall?: (pluginId: string) => void;
   onUninstall?: (pluginId: string) => void;
   onUpdate?: (pluginId: string) => void;
-  isInstalling?: boolean;
   isUninstalling?: boolean;
   isUpdating?: boolean;
-  index?: number;
 }
 
 function PluginCard({
@@ -928,13 +934,10 @@ function PluginCard({
   onToggle,
   isToggling,
   onConfigUpdate,
-  onInstall,
   onUninstall,
   onUpdate,
-  isInstalling,
   isUninstalling,
   isUpdating,
-  index = 0,
 }: PluginCardProps) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
@@ -943,7 +946,6 @@ function PluginCard({
 
   const isExternal = plugin.source?.source_type !== "builtin";
   const hasUpdate = plugin.update_available === true;
-  const isNotInstalled = false; // PluginInfo is always installed; uninstalled come from registry
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -982,33 +984,41 @@ function PluginCard({
     toast.success(`Copied ${templateVar}`);
   };
 
-  // Parse variables from plugin details
+  // Parse variables from plugin details - handles both array and object formats for variables.simple
   const getVariablesList = () => {
     if (!pluginDetails?.variables) return [];
     const variables = pluginDetails.variables as {
-      simple?: string[];
+      simple?: string[] | Record<string, { description?: string; max_length?: number; group?: string; example?: string }>;
       arrays?: Record<string, { label_field: string; item_fields: string[] }>;
     };
     const list: Array<{ name: string; description: string; maxChars: number }> = [];
-    
-    // Add simple variables
+
     if (variables.simple) {
-      variables.simple.forEach(name => {
-        list.push({
-          name,
-          description: name.replace(/_/g, ' '),
-          maxChars: pluginDetails.max_lengths?.[name] || 22,
+      if (Array.isArray(variables.simple)) {
+        variables.simple.forEach(name => {
+          list.push({
+            name,
+            description: name.replace(/_/g, ' '),
+            maxChars: pluginDetails.max_lengths?.[name] ?? 22,
+          });
         });
-      });
+      } else {
+        Object.entries(variables.simple).forEach(([name, meta]) => {
+          list.push({
+            name,
+            description: meta.description ?? name.replace(/_/g, ' '),
+            maxChars: pluginDetails.max_lengths?.[name] ?? meta.max_length ?? 22,
+          });
+        });
+      }
     }
-    
-    // Add array variables
+
     if (variables.arrays) {
       Object.entries(variables.arrays).forEach(([arrayName, config]) => {
         list.push({
           name: `${arrayName}.{index}.${config.label_field}`,
           description: `${arrayName} label`,
-          maxChars: pluginDetails.max_lengths?.[`${arrayName}.${config.label_field}`] || 22,
+          maxChars: pluginDetails.max_lengths?.[`${arrayName}.${config.label_field}`] ?? 22,
         });
         // Skip label_field in item_fields to avoid duplicate keys
         config.item_fields
@@ -1017,293 +1027,333 @@ function PluginCard({
             list.push({
               name: `${arrayName}.{index}.${field}`,
               description: `${arrayName} ${field.replace(/_/g, ' ')}`,
-              maxChars: pluginDetails.max_lengths?.[`${arrayName}.${field}`] || 22,
+              maxChars: pluginDetails.max_lengths?.[`${arrayName}.${field}`] ?? 22,
             });
           });
       });
     }
-    
+
     return list;
   };
 
   // Use icon from plugin manifest, falling back to Puzzle
   const Icon = getPluginIcon(plugin.icon);
-  
+
+  const sourceType = plugin.source?.source_type;
+  // "external" is what the backend returns for registry installs cloned to external_plugins/
+  // "git" is what the backend returns for custom git URL installs
+  const isMarketplace = sourceType === "registry" || sourceType === "external";
+  const isGitExternal = sourceType === "git";
+  const categoryLabel = CATEGORY_LABELS[plugin.category || "utility"] || plugin.category || "Utility";
+
+  const configSheet = (
+    <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7">
+          <Settings className="h-3.5 w-3.5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Icon className="h-5 w-5" />
+            {plugin.name}
+          </SheetTitle>
+          <SheetDescription>
+            Configure settings for this integration
+          </SheetDescription>
+        </SheetHeader>
+        <div className="py-6 space-y-6">
+          {isLoadingDetails ? (
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <>
+              {/* Settings Section */}
+              {pluginDetails?.settings_schema && Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-muted-foreground">Settings</h4>
+                  <SchemaForm
+                    schema={pluginDetails.settings_schema}
+                    values={configValues}
+                    onChange={setConfigValues}
+                    disabled={isSaving}
+                  />
+                </div>
+              )}
+
+              {/* Template Variables Section */}
+              {getVariablesList().length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Template Variables
+                    <span className="ml-2 text-xs font-normal">(click to copy)</span>
+                  </h4>
+                  <div className="rounded-md border overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium">Variable</th>
+                          <th className="text-left px-3 py-2 font-medium">Description</th>
+                          <th className="text-center px-3 py-2 font-medium">Max</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {getVariablesList().map((variable) => (
+                          <tr
+                            key={variable.name}
+                            className="hover:bg-muted/30 cursor-pointer transition-colors"
+                            onClick={() => handleCopyVar(variable.name)}
+                          >
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1.5">
+                                <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
+                                  {plugin.id}.{variable.name}
+                                </code>
+                                {copiedVar === variable.name ? (
+                                  <Check className="h-3 w-3 text-success" />
+                                ) : (
+                                  <Copy className="h-3 w-3 text-muted-foreground" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground capitalize">
+                              {variable.description}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <Badge variant="outline" className="text-[10px]">
+                                {variable.maxChars}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use in templates as <code className="bg-muted px-1 rounded">{`{{${plugin.id}.variable}}`}</code>
+                  </p>
+                </div>
+              )}
+
+              {/* Environment Variables Section */}
+              {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Environment Variables
+                  </h4>
+                  <div className="rounded-md border overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium">Variable</th>
+                          <th className="text-left px-3 py-2 font-medium">Description</th>
+                          <th className="text-center px-3 py-2 font-medium">Required</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {pluginDetails.env_vars.map((envVar) => (
+                          <tr key={envVar.name} className="hover:bg-muted/30">
+                            <td className="px-3 py-2">
+                              <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[11px]">
+                                {envVar.name}
+                              </code>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {envVar.description}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {envVar.required ? (
+                                <Badge variant="destructive" className="text-[10px]">Required</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px]">Optional</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Color Rules Section */}
+              <ColorRulesEditor
+                pluginId={plugin.id}
+                colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
+                onChange={(newRules) => {
+                  setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
+                }}
+                onCopyVar={handleCopyVar}
+                copiedVar={copiedVar}
+              />
+
+              {/* No config message */}
+              {(!pluginDetails?.settings_schema || Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
+               getVariablesList().length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No configuration options available for this plugin.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <SheetFooter className="flex-col gap-2 sm:flex-row">
+          {isExternal && onUninstall && (
+            <Button
+              variant="destructive"
+              className="sm:mr-auto"
+              size="sm"
+              onClick={() => {
+                setIsConfigOpen(false);
+                onUninstall(plugin.id);
+              }}
+              disabled={isUninstalling}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              {isUninstalling ? "Uninstalling..." : "Uninstall"}
+            </Button>
+          )}
+          <SheetClose asChild>
+            <Button variant="outline" disabled={isSaving}>
+              Cancel
+            </Button>
+          </SheetClose>
+          <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
-    <div
-      className="rounded-xl animate-card-fade-in"
-      style={{ animationDelay: `${index * 60}ms` }}
-    >
-    <Card
-      className={cn(
-        "card-interactive",
-        plugin.enabled ? "border-l-2 border-l-brand/50" : "opacity-75"
-      )}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "p-2 rounded-lg",
-              plugin.enabled 
-                ? "bg-primary/10 text-primary" 
-                : "bg-muted text-muted-foreground"
-            )}>
-              <Icon className="h-5 w-5" />
-            </div>
-            <div>
-              <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                {plugin.name}
-                <Badge variant="outline" className="text-xs font-normal">
-                  v{plugin.version}
-                </Badge>
-                {hasUpdate && (
-                  <Badge variant="secondary" className="text-xs gap-1 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-400">
-                    <ArrowDownToLine className="h-3 w-3" />
-                    Update available
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                by {plugin.author}
-              </CardDescription>
-            </div>
+    <tr className={cn(
+      "border-b last:border-b-0 transition-colors",
+      plugin.enabled ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20"
+    )}>
+      {/* Name column: icon + name + version + source badges */}
+      <td className="px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "p-1.5 rounded-md shrink-0",
+            plugin.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+          )}>
+            <Icon className="h-4 w-4" />
           </div>
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span className="font-medium text-sm whitespace-nowrap">{plugin.name}</span>
+            <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
+              v{plugin.version}
+            </Badge>
+            {isMarketplace && (
+              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700">
+                <Package className="h-2.5 w-2.5" />
+                Marketplace
+              </Badge>
+            )}
+            {isGitExternal && (
+              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-purple-300 text-purple-600 dark:text-purple-400 dark:border-purple-700">
+                <GitBranch className="h-2.5 w-2.5" />
+                External
+              </Badge>
+            )}
+            {hasUpdate && (
+              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-400">
+                <ArrowDownToLine className="h-2.5 w-2.5" />
+                Update
+              </Badge>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* Category column */}
+      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap hidden sm:table-cell">
+        {categoryLabel}
+      </td>
+
+      {/* Status column */}
+      <td className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
+        {plugin.enabled ? (
+          plugin.configured ? (
+            <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+              <CheckCircle className="h-2.5 w-2.5" />
+              Configured
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+              <AlertCircle className="h-2.5 w-2.5" />
+              Setup Required
+            </Badge>
+          )
+        ) : (
+          <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+            <XCircle className="h-2.5 w-2.5" />
+            Disabled
+          </Badge>
+        )}
+      </td>
+
+      {/* Actions column: toggle + configure + overflow */}
+      <td className="px-4 py-2.5">
+        <div className="flex items-center justify-end gap-0.5">
           <Switch
             checked={plugin.enabled}
             onCheckedChange={(checked) => onToggle(plugin.id, checked)}
             disabled={isToggling}
             aria-label={`Toggle ${plugin.name}`}
           />
+          {configSheet}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsConfigOpen(true)}>
+                <Settings className="h-3.5 w-3.5 mr-2" />
+                Configure
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
+                {plugin.enabled ? (
+                  <XCircle className="h-3.5 w-3.5 mr-2" />
+                ) : (
+                  <CheckCircle className="h-3.5 w-3.5 mr-2" />
+                )}
+                {plugin.enabled ? "Disable" : "Enable"}
+              </DropdownMenuItem>
+              {hasUpdate && onUpdate && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
+                    <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isUpdating && "animate-spin")} />
+                    {isUpdating ? "Updating..." : "Update"}
+                  </DropdownMenuItem>
+                </>
+              )}
+              {isExternal && onUninstall && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onUninstall(plugin.id)}
+                    disabled={isUninstalling}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    {isUninstalling ? "Uninstalling..." : "Uninstall"}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-          {plugin.description}
-        </p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {plugin.enabled ? (
-              plugin.configured ? (
-                <Badge variant="default" className="text-xs gap-1">
-                  <CheckCircle className="h-3 w-3" />
-                  Configured
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-xs gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Setup Required
-                </Badge>
-              )
-            ) : (
-              <Badge variant="outline" className="text-xs gap-1">
-                <XCircle className="h-3 w-3" />
-                Disabled
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-          {hasUpdate && onUpdate && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs text-amber-600 border-amber-300 hover:bg-amber-50"
-              onClick={() => onUpdate(plugin.id)}
-              disabled={isUpdating}
-            >
-              <RefreshCw className={cn("h-3 w-3 mr-1", isUpdating && "animate-spin")} />
-              {isUpdating ? "Updating..." : "Update"}
-            </Button>
-          )}
-          {plugin.enabled && (
-            <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 text-xs">
-                  <Settings className="h-3 w-3 mr-1" />
-                  Configure
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <Icon className="h-5 w-5" />
-                    {plugin.name}
-                  </SheetTitle>
-                  <SheetDescription>
-                    Configure settings for this integration
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="py-6 space-y-6">
-                  {isLoadingDetails ? (
-                    <div className="space-y-4">
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-10 w-full" />
-                    </div>
-                  ) : (
-                    <>
-                      {/* Settings Section */}
-                      {pluginDetails?.settings_schema && Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
-                        <div className="space-y-4">
-                          <h4 className="text-sm font-medium text-muted-foreground">Settings</h4>
-                          <SchemaForm
-                            schema={pluginDetails.settings_schema}
-                            values={configValues}
-                            onChange={setConfigValues}
-                            disabled={isSaving}
-                          />
-                        </div>
-                      )}
-
-                      {/* Template Variables Section */}
-                      {getVariablesList().length > 0 && (
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-medium text-muted-foreground">
-                            Template Variables
-                            <span className="ml-2 text-xs font-normal">(click to copy)</span>
-                          </h4>
-                          <div className="rounded-md border overflow-hidden">
-                            <table className="w-full text-xs">
-                              <thead className="bg-muted/50">
-                                <tr>
-                                  <th className="text-left px-3 py-2 font-medium">Variable</th>
-                                  <th className="text-left px-3 py-2 font-medium">Description</th>
-                                  <th className="text-center px-3 py-2 font-medium">Max</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {getVariablesList().map((variable) => (
-                                  <tr 
-                                    key={variable.name} 
-                                    className="hover:bg-muted/30 cursor-pointer transition-colors"
-                                    onClick={() => handleCopyVar(variable.name)}
-                                  >
-                                    <td className="px-3 py-2">
-                                      <div className="flex items-center gap-1.5">
-                                        <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
-                                          {plugin.id}.{variable.name}
-                                        </code>
-                                        {copiedVar === variable.name ? (
-                                          <Check className="h-3 w-3 text-success" />
-                                        ) : (
-                                          <Copy className="h-3 w-3 text-muted-foreground" />
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="px-3 py-2 text-muted-foreground capitalize">
-                                      {variable.description}
-                                    </td>
-                                    <td className="px-3 py-2 text-center">
-                                      <Badge variant="outline" className="text-[10px]">
-                                        {variable.maxChars}
-                                      </Badge>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Use in templates as <code className="bg-muted px-1 rounded">{`{{${plugin.id}.variable}}`}</code>
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Environment Variables Section */}
-                      {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-medium text-muted-foreground">
-                            Environment Variables
-                          </h4>
-                          <div className="rounded-md border overflow-hidden">
-                            <table className="w-full text-xs">
-                              <thead className="bg-muted/50">
-                                <tr>
-                                  <th className="text-left px-3 py-2 font-medium">Variable</th>
-                                  <th className="text-left px-3 py-2 font-medium">Description</th>
-                                  <th className="text-center px-3 py-2 font-medium">Required</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {pluginDetails.env_vars.map((envVar) => (
-                                  <tr key={envVar.name} className="hover:bg-muted/30">
-                                    <td className="px-3 py-2">
-                                      <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[11px]">
-                                        {envVar.name}
-                                      </code>
-                                    </td>
-                                    <td className="px-3 py-2 text-muted-foreground">
-                                      {envVar.description}
-                                    </td>
-                                    <td className="px-3 py-2 text-center">
-                                      {envVar.required ? (
-                                        <Badge variant="destructive" className="text-[10px]">Required</Badge>
-                                      ) : (
-                                        <Badge variant="outline" className="text-[10px]">Optional</Badge>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Color Rules Section */}
-                      <ColorRulesEditor
-                        pluginId={plugin.id}
-                        colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
-                        onChange={(newRules) => {
-                          setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
-                        }}
-                        onCopyVar={handleCopyVar}
-                        copiedVar={copiedVar}
-                      />
-
-                      {/* No config message */}
-                      {(!pluginDetails?.settings_schema || Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) && 
-                       getVariablesList().length === 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          No configuration options available for this plugin.
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-                <SheetFooter className="flex-col gap-2 sm:flex-row">
-                  {isExternal && onUninstall && (
-                    <Button
-                      variant="destructive"
-                      className="sm:mr-auto"
-                      size="sm"
-                      onClick={() => {
-                        setIsConfigOpen(false);
-                        onUninstall(plugin.id);
-                      }}
-                      disabled={isUninstalling}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      {isUninstalling ? "Uninstalling..." : "Uninstall"}
-                    </Button>
-                  )}
-                  <SheetClose asChild>
-                    <Button variant="outline" disabled={isSaving}>
-                      Cancel
-                    </Button>
-                  </SheetClose>
-                  <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
-                    {isSaving ? "Saving..." : "Save Changes"}
-                  </Button>
-                </SheetFooter>
-              </SheetContent>
-            </Sheet>
-          )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-    </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1320,72 +1370,102 @@ function RegistryPluginCard({
 }) {
   const Icon = getPluginIcon(entry.icon);
   return (
-    <div className="rounded-xl animate-card-fade-in" style={{ animationDelay: `${index * 60}ms` }}>
-      <Card className="opacity-60 hover:opacity-80 transition-opacity border-dashed">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-muted text-muted-foreground">
-                <Icon className="h-5 w-5" />
+    <div className="rounded-xl animate-card-fade-in h-full" style={{ animationDelay: `${index * 60}ms` }}>
+      <Link href={`/integrations/${entry.id}`} className="block h-full group">
+        <Card className="opacity-60 group-hover:opacity-90 transition-opacity border-dashed h-full flex flex-col">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted text-muted-foreground shrink-0">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">{entry.name}</CardTitle>
+                  <CardDescription className="text-xs mt-0.5">by {entry.author}</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-base">{entry.name}</CardTitle>
-                <CardDescription className="text-xs mt-0.5">by {entry.author}</CardDescription>
-              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs shrink-0"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(entry.id); }}
+                disabled={isInstalling}
+              >
+                <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+                {isInstalling ? "Installing..." : "Install"}
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs shrink-0"
-              onClick={() => onInstall(entry.id)}
-              disabled={isInstalling}
-            >
-              <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
-              {isInstalling ? "Installing..." : "Install"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{entry.description}</p>
-          <Badge variant="outline" className="text-xs gap-1">
-            <Download className="h-3 w-3" />
-            Not installed
-          </Badge>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="pt-0 flex flex-col flex-1">
+            <p className="text-sm text-muted-foreground mb-3 line-clamp-2 flex-1">{entry.description}</p>
+            <Badge variant="secondary" className="text-xs gap-1 self-start">
+              {CATEGORY_LABELS[entry.category || "utility"] || entry.category || "Utility"}
+            </Badge>
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }
 
-function PluginCardSkeleton() {
+function RegistryPluginRow({
+  entry,
+  onInstall,
+  isInstalling,
+}: {
+  entry: RegistryEntry;
+  onInstall: (pluginId: string) => void;
+  isInstalling: boolean;
+}) {
+  const Icon = getPluginIcon(entry.icon);
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-9 w-9 rounded-lg" />
-            <div>
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-3 w-16 mt-1" />
-            </div>
+    <tr className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+      <td className="px-4 py-2.5">
+        <Link href={`/integrations/${entry.id}`} className="flex items-center gap-3 group">
+          <div className="p-1.5 rounded-md bg-muted text-muted-foreground shrink-0">
+            <Icon className="h-4 w-4" />
           </div>
-          <Skeleton className="h-5 w-9 rounded-full" />
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4 mt-1" />
-        <div className="flex items-center justify-between mt-3">
-          <Skeleton className="h-5 w-20" />
-          <Skeleton className="h-7 w-20" />
-        </div>
-      </CardContent>
-    </Card>
+          <div>
+            <span className="font-medium text-sm group-hover:underline underline-offset-2">{entry.name}</span>
+            {entry.description && (
+              <p className="text-xs text-muted-foreground truncate max-w-xs">{entry.description}</p>
+            )}
+          </div>
+        </Link>
+      </td>
+      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
+        {CATEGORY_LABELS[entry.category || "utility"] || entry.category || "Utility"}
+      </td>
+      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
+        {entry.author}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          onClick={() => onInstall(entry.id)}
+          disabled={isInstalling}
+        >
+          <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+          {isInstalling ? "Installing..." : "Install"}
+        </Button>
+      </td>
+    </tr>
   );
 }
 
+
 export default function IntegrationsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return tab === "marketplace" || tab === "installed" ? tab : "installed";
+  });
+  const [marketplaceView, setMarketplaceView] = useState<"card" | "list">("card");
+  const [marketplaceSort, setMarketplaceSort] = useState<{ key: "name" | "category" | "author"; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
+  const [installedSort, setInstalledSort] = useState<{ key: "name" | "category" | "status"; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -1462,6 +1542,7 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} installed and enabled`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      setActiveTab("installed");
     } catch (err) {
       toast.error(`Failed to install ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -1510,6 +1591,7 @@ export default function IntegrationsPage() {
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
       setGitDialogOpen(false);
+      setActiveTab("installed");
       setGitUrl("");
       setGitPluginId("");
       setGitBranch("");
@@ -1544,15 +1626,7 @@ export default function IntegrationsPage() {
       e.id.toLowerCase().includes(query)
   );
 
-  // Group installed plugins by category
-  const groupedInstalled = filteredInstalled.reduce((acc, plugin) => {
-    const category = plugin.category || "utility";
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(plugin);
-    return acc;
-  }, {} as Record<string, PluginInfo[]>);
-
-  // Group uninstalled registry entries by category
+  // Group uninstalled registry entries by category (for Marketplace tab)
   const groupedUninstalled = filteredUninstalled.reduce((acc, entry) => {
     const category = entry.category || "utility";
     if (!acc[category]) acc[category] = [];
@@ -1560,224 +1634,350 @@ export default function IntegrationsPage() {
     return acc;
   }, {} as Record<string, RegistryEntry[]>);
 
-  // All categories across both installed and available
-  const allCategories = Array.from(
-    new Set([
-      ...Object.keys(groupedInstalled),
-      ...Object.keys(groupedUninstalled),
-    ])
-  ).sort((a, b) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b));
+  const marketplaceCategories = Object.keys(groupedUninstalled).sort(
+    (a, b) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b)
+  );
 
-  const configuredCount = data?.plugins.filter((p) => p.enabled && p.configured).length ?? 0;
   const availableCount = uninstalledRegistry.length;
+
+  // Sorted flat list for marketplace list view
+  const sortedUninstalled = [...filteredUninstalled].sort((a, b) => {
+    let valA = "";
+    let valB = "";
+    if (marketplaceSort.key === "name") { valA = a.name; valB = b.name; }
+    else if (marketplaceSort.key === "category") { valA = CATEGORY_LABELS[a.category || "utility"] || a.category || ""; valB = CATEGORY_LABELS[b.category || "utility"] || b.category || ""; }
+    else if (marketplaceSort.key === "author") { valA = a.author || ""; valB = b.author || ""; }
+    return marketplaceSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+  });
+
+  const handleMarketplaceSort = (key: "name" | "category" | "author") => {
+    setMarketplaceSort(prev =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+  };
+
+  const handleInstalledSort = (key: "name" | "category" | "status") => {
+    setInstalledSort(prev =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+  };
+
+  const sortedInstalled = [...filteredInstalled].sort((a, b) => {
+    let valA = "";
+    let valB = "";
+    if (installedSort.key === "name") { valA = a.name; valB = b.name; }
+    else if (installedSort.key === "category") {
+      valA = CATEGORY_LABELS[a.category || "utility"] || a.category || "";
+      valB = CATEGORY_LABELS[b.category || "utility"] || b.category || "";
+    } else if (installedSort.key === "status") {
+      const statusRank = (p: PluginInfo) => !p.enabled ? 2 : p.configured ? 0 : 1;
+      return installedSort.dir === "asc"
+        ? statusRank(a) - statusRank(b)
+        : statusRank(b) - statusRank(a);
+    }
+    return installedSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+  });
+
+  // Git install dialog (shared, used in Marketplace tab)
+  const gitInstallDialog = (
+    <Dialog open={gitDialogOpen} onOpenChange={setGitDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Install Plugin from Git</DialogTitle>
+          <DialogDescription>
+            Install a plugin from any public git repository. The repository should contain a valid FiestaBoard plugin with a manifest.json.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="git-url">Repository URL</Label>
+            <Input
+              id="git-url"
+              placeholder="https://github.com/user/fiestaboard-plugin-example.git"
+              value={gitUrl}
+              onChange={(e) => setGitUrl(e.target.value)}
+              disabled={isInstallingGit}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="git-plugin-id">Plugin ID (optional)</Label>
+              <Input
+                id="git-plugin-id"
+                placeholder="Auto-detected"
+                value={gitPluginId}
+                onChange={(e) => setGitPluginId(e.target.value)}
+                disabled={isInstallingGit}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="git-branch">Branch (optional)</Label>
+              <Input
+                id="git-branch"
+                placeholder="Default branch"
+                value={gitBranch}
+                onChange={(e) => setGitBranch(e.target.value)}
+                disabled={isInstallingGit}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setGitDialogOpen(false)} disabled={isInstallingGit}>
+            Cancel
+          </Button>
+          <Button onClick={handleInstallFromGit} disabled={isInstallingGit || !gitUrl.trim()}>
+            {isInstallingGit ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Installing...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Install Plugin
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   return (
     <PageLayout>
       <PageHeader
-          icon={Puzzle}
-          title="Integrations"
-          description="Enable and configure data source plugins for your FiestaBoard"
-        />
+        icon={Puzzle}
+        title="Integrations"
+        description="Enable and configure data source plugins for your FiestaBoard"
+      />
 
-        {/* Stats row */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          {isLoading ? (
-            <>
-              {[...Array(4)].map((_, i) => (
-                <Card key={i} className="animate-card-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
-                  <CardContent className="px-4 py-1.5 flex items-center gap-2">
-                    <Skeleton className="h-5 w-6" />
-                    <Skeleton className="h-3 w-14" />
-                  </CardContent>
-                </Card>
-              ))}
-            </>
-          ) : data ? (
-            <>
-              <Card className="animate-card-fade-in" style={{ animationDelay: "50ms" }}>
-                <CardContent className="px-4 py-1.5 flex items-center gap-2">
-                  <span className="text-lg font-semibold tabular-nums">
-                    <CountUp to={data.total} duration={1} />
-                  </span>
-                  <span className="text-sm text-muted-foreground">Installed</span>
-                </CardContent>
-              </Card>
-              <Card className="animate-card-fade-in border-brand/30" style={{ animationDelay: "100ms" }}>
-                <CardContent className="px-4 py-1.5 flex items-center gap-2">
-                  <span className="text-lg font-semibold tabular-nums text-brand">
-                    <CountUp to={data.enabled_count} duration={1} />
-                  </span>
-                  <span className="text-sm text-muted-foreground">Enabled</span>
-                </CardContent>
-              </Card>
-              <Card className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
-                <CardContent className="px-4 py-1.5 flex items-center gap-2">
-                  <span className="text-lg font-semibold tabular-nums">
-                    <CountUp to={configuredCount} duration={1} />
-                  </span>
-                  <span className="text-sm text-muted-foreground">Configured</span>
-                </CardContent>
-              </Card>
-              <Card className="animate-card-fade-in" style={{ animationDelay: "200ms" }}>
-                <CardContent className="px-4 py-1.5 flex items-center gap-2">
-                  <span className="text-lg font-semibold tabular-nums text-muted-foreground">
-                    <CountUp to={availableCount} duration={1} />
-                  </span>
-                  <span className="text-sm text-muted-foreground">Available</span>
-                </CardContent>
-              </Card>
-            </>
-          ) : null}
-        </div>
-
-        {/* Search & Actions bar */}
-        <div className="flex items-center gap-3 mb-6">
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex items-center gap-3 mb-4">
+          <TabsList>
+            <TabsTrigger value="installed">
+              Installed
+              {data && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                  {data.total}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="marketplace">
+              Marketplace
+              {availableCount > 0 && (
+                <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                  {availableCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search plugins by name or description..."
+              placeholder={activeTab === "installed" ? "Search installed plugins..." : "Search available plugins..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
             />
           </div>
-          <Dialog open={gitDialogOpen} onOpenChange={setGitDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="shrink-0 gap-2">
+          {activeTab === "marketplace" && (
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex rounded-md border overflow-hidden">
+                <Button
+                  variant={marketplaceView === "card" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-9 w-9 rounded-none border-0"
+                  onClick={() => setMarketplaceView("card")}
+                  aria-label="Card view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={marketplaceView === "list" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-9 w-9 rounded-none border-0"
+                  onClick={() => setMarketplaceView("list")}
+                  aria-label="List view"
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+              </div>
+              <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
                 <GitBranch className="h-4 w-4" />
                 Add from Git
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Install Plugin from Git</DialogTitle>
-                <DialogDescription>
-                  Install a plugin from any public git repository. The repository should contain a valid FiestaBoard plugin with a manifest.json.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label htmlFor="git-url">Repository URL</Label>
-                  <Input
-                    id="git-url"
-                    placeholder="https://github.com/user/fiestaboard-plugin-example.git"
-                    value={gitUrl}
-                    onChange={(e) => setGitUrl(e.target.value)}
-                    disabled={isInstallingGit}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="git-plugin-id">Plugin ID (optional)</Label>
-                    <Input
-                      id="git-plugin-id"
-                      placeholder="Auto-detected"
-                      value={gitPluginId}
-                      onChange={(e) => setGitPluginId(e.target.value)}
-                      disabled={isInstallingGit}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="git-branch">Branch (optional)</Label>
-                    <Input
-                      id="git-branch"
-                      placeholder="Default branch"
-                      value={gitBranch}
-                      onChange={(e) => setGitBranch(e.target.value)}
-                      disabled={isInstallingGit}
-                    />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setGitDialogOpen(false)} disabled={isInstallingGit}>
-                  Cancel
-                </Button>
-                <Button onClick={handleInstallFromGit} disabled={isInstallingGit || !gitUrl.trim()}>
-                  {isInstallingGit ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Installing...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Install Plugin
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </div>
+          )}
         </div>
 
-        {/* Content - Progressive loading */}
-        {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <PluginCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : error ? (
-          <Card className="border-destructive">
-            <CardContent className="flex items-center gap-3 py-6">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              <p className="text-sm text-destructive">
-                Failed to load plugins: {error instanceof Error ? error.message : 'Unknown error'}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-6 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
-            {filteredInstalled.length === 0 && filteredUninstalled.length === 0 && query ? (
-              <div className="text-center py-12">
-                <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">
-                  No plugins match &quot;{searchQuery}&quot;
+        {/* ── Installed Tab ── */}
+        <TabsContent value="installed" className="mt-0">
+          {isLoading ? (
+            <Card className="overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">Name</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell">Category</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell">Status</th>
+                    <th className="px-4 py-2.5 w-32" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...Array(5)].map((_, i) => (
+                    <tr key={i} className="border-b last:border-b-0">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-7 w-7 rounded-md shrink-0" />
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-4 w-10" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 hidden sm:table-cell">
+                        <Skeleton className="h-4 w-20" />
+                      </td>
+                      <td className="px-4 py-2.5 hidden md:table-cell">
+                        <Skeleton className="h-5 w-24 rounded-full" />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <Skeleton className="h-5 w-9 rounded-full" />
+                          <Skeleton className="h-7 w-7 rounded" />
+                          <Skeleton className="h-7 w-7 rounded" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          ) : error ? (
+            <Card className="border-destructive">
+              <CardContent className="flex items-center gap-3 py-6">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                <p className="text-sm text-destructive">
+                  Failed to load plugins: {error instanceof Error ? error.message : "Unknown error"}
                 </p>
-              </div>
-            ) : (
-              (() => {
+              </CardContent>
+            </Card>
+          ) : filteredInstalled.length === 0 ? (
+            <div className="text-center py-16">
+              {query ? (
+                <>
+                  <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No installed plugins match &quot;{searchQuery}&quot;</p>
+                </>
+              ) : (
+                <>
+                  <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="font-medium mb-1">No plugins installed yet</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Head to the Marketplace tab to discover and install plugins.
+                  </p>
+                  <Button variant="outline" onClick={() => setActiveTab("marketplace")}>
+                    Browse Marketplace
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : (
+            <Card className="overflow-hidden animate-card-fade-in">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    {(["name", "category", "status"] as const).map((col) => {
+                      const labels = { name: "Name", category: "Category", status: "Status" };
+                      const active = installedSort.key === col;
+                      return (
+                        <th
+                          key={col}
+                          className={cn(
+                            "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors",
+                            col === "category" && "hidden sm:table-cell",
+                            col === "status" && "hidden md:table-cell",
+                          )}
+                          onClick={() => handleInstalledSort(col)}
+                        >
+                          <span className="flex items-center gap-1">
+                            {labels[col]}
+                            {active ? (
+                              installedSort.dir === "asc"
+                                ? <ChevronUp className="h-3 w-3" />
+                                : <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronsUp className="h-3 w-3 opacity-30" />
+                            )}
+                          </span>
+                        </th>
+                      );
+                    })}
+                    <th className="px-4 py-2.5 w-32" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedInstalled.map((plugin) => (
+                    <PluginCard
+                      key={plugin.id}
+                      plugin={plugin}
+                      onToggle={handleToggle}
+                      isToggling={toggleMutation.isPending}
+                      onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                      onUninstall={handleUninstall}
+                      onUpdate={handleUpdate}
+                      isUninstalling={uninstallingId === plugin.id}
+                      isUpdating={updatingId === plugin.id}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── Marketplace Tab ── */}
+        <TabsContent value="marketplace" className="mt-0">
+          {filteredUninstalled.length === 0 ? (
+            <div className="text-center py-16">
+              {query ? (
+                <>
+                  <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No available plugins match &quot;{searchQuery}&quot;</p>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="font-medium mb-1">All registry plugins are installed</p>
+                  <p className="text-sm text-muted-foreground">
+                    You can still install custom plugins from any public git repository.
+                  </p>
+                </>
+              )}
+            </div>
+          ) : marketplaceView === "card" ? (
+            <div className="space-y-6 animate-card-fade-in">
+              {(() => {
                 let globalIndex = 0;
-                return allCategories.map((category) => {
-                  const installed = groupedInstalled[category] ?? [];
-                  const available = groupedUninstalled[category] ?? [];
-                  const total = installed.length + available.length;
-                  if (total === 0) return null;
+                return marketplaceCategories.map((category) => {
+                  const entries = groupedUninstalled[category] ?? [];
+                  if (entries.length === 0) return null;
                   return (
                     <section key={category}>
-                      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
                         {CATEGORY_LABELS[category] || category}
-                        <Badge variant="secondary" className="text-xs font-normal">
-                          {installed.length} installed
-                        </Badge>
-                        {available.length > 0 && (
-                          <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
-                            {available.length} available
-                          </Badge>
-                        )}
+                        <span className="text-xs font-normal normal-case tracking-normal">
+                          ({entries.length})
+                        </span>
                       </h2>
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {installed.map((plugin) => {
-                          const cardIndex = globalIndex++;
-                          return (
-                            <PluginCard
-                              key={plugin.id}
-                              plugin={plugin}
-                              onToggle={handleToggle}
-                              isToggling={toggleMutation.isPending}
-                              onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                              onInstall={handleInstall}
-                              onUninstall={handleUninstall}
-                              onUpdate={handleUpdate}
-                              isInstalling={installingId === plugin.id}
-                              isUninstalling={uninstallingId === plugin.id}
-                              isUpdating={updatingId === plugin.id}
-                              index={cardIndex}
-                            />
-                          );
-                        })}
-                        {available.map((entry) => {
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-stretch">
+                        {entries.map((entry) => {
                           const cardIndex = globalIndex++;
                           return (
                             <RegistryPluginCard
@@ -1793,10 +1993,56 @@ export default function IntegrationsPage() {
                     </section>
                   );
                 });
-              })()
-            )}
-          </div>
-        )}
+              })()}
+            </div>
+          ) : (
+            /* List view */
+            <Card className="overflow-hidden animate-card-fade-in">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    {(["name", "category", "author"] as const).map((col) => {
+                      const labels = { name: "Name", category: "Category", author: "Author" };
+                      const active = marketplaceSort.key === col;
+                      return (
+                        <th
+                          key={col}
+                          className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                          onClick={() => handleMarketplaceSort(col)}
+                        >
+                          <span className="flex items-center gap-1">
+                            {labels[col]}
+                            {active ? (
+                              marketplaceSort.dir === "asc"
+                                ? <ChevronUp className="h-3 w-3" />
+                                : <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronsUp className="h-3 w-3 opacity-30" />
+                            )}
+                          </span>
+                        </th>
+                      );
+                    })}
+                    <th className="px-4 py-2.5 w-24" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedUninstalled.map((entry) => (
+                    <RegistryPluginRow
+                      key={entry.id}
+                      entry={entry}
+                      onInstall={handleInstall}
+                      isInstalling={installingId === entry.id}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {gitInstallDialog}
     </PageLayout>
   );
 }
