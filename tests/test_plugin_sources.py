@@ -13,16 +13,20 @@ from src.plugins.sources import (
     REGISTRY_PREFIX,
     PluginSource,
     RegistryEntry,
-    repo_name_from_url,
+    check_plugin_update_available,
     clone_or_update_repo,
     get_external_plugins_dir,
+    get_local_head_sha,
+    get_remote_head_sha,
     install_git_plugin,
     install_registry_plugin,
     load_registry,
     plugin_id_from_repo_name,
     remove_external_plugin,
+    repo_name_from_url,
     validate_registry_repo_name,
 )
+from src.plugins.loader import _check_version_constraint, _parse_version
 
 
 # ── PluginSource ─────────────────────────────────────────────────────────────
@@ -326,3 +330,171 @@ class TestGetExternalPluginsDir:
         d = get_external_plugins_dir(tmp_path)
         assert d.exists()
         assert d.name == "external_plugins"
+
+
+# ── RegistryEntry fiestaboard_version ────────────────────────────────────────
+
+
+class TestRegistryEntryVersionField:
+    def test_from_dict_with_version(self):
+        entry = RegistryEntry.from_dict({
+            "id": "weather",
+            "name": "Weather",
+            "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--weather",
+            "fiestaboard_version": ">=2.10.0",
+            "icon": "cloud-sun",
+            "category": "weather",
+        })
+        assert entry.fiestaboard_version == ">=2.10.0"
+        assert entry.icon == "cloud-sun"
+        assert entry.category == "weather"
+
+    def test_from_dict_without_version_defaults_empty(self):
+        entry = RegistryEntry.from_dict({"id": "foo", "name": "Foo"})
+        assert entry.fiestaboard_version == ""
+        assert entry.icon == "puzzle"
+        assert entry.category == "utility"
+
+
+# ── Version constraint parsing & checking ────────────────────────────────────
+
+
+class TestParseVersion:
+    def test_standard_version(self):
+        assert _parse_version("2.10.0") == (2, 10, 0)
+
+    def test_leading_zeros_handled(self):
+        assert _parse_version("1.0.0") == (1, 0, 0)
+
+    def test_invalid_returns_zeros(self):
+        assert _parse_version("not-a-version") == (0, 0, 0)
+
+    def test_extracts_from_longer_string(self):
+        assert _parse_version("2.10.0-beta") == (2, 10, 0)
+
+
+class TestCheckVersionConstraint:
+    def test_gte_satisfied(self):
+        ok, _ = _check_version_constraint(">=2.10.0", "2.10.0")
+        assert ok
+
+    def test_gte_satisfied_higher(self):
+        ok, _ = _check_version_constraint(">=2.10.0", "3.0.0")
+        assert ok
+
+    def test_gte_not_satisfied(self):
+        ok, reason = _check_version_constraint(">=2.10.0", "2.9.0")
+        assert not ok
+        assert "2.9.0" in reason
+
+    def test_gt_not_satisfied_equal(self):
+        ok, _ = _check_version_constraint(">2.10.0", "2.10.0")
+        assert not ok
+
+    def test_lte_satisfied(self):
+        ok, _ = _check_version_constraint("<=3.0.0", "2.10.0")
+        assert ok
+
+    def test_eq_satisfied(self):
+        ok, _ = _check_version_constraint("==2.10.0", "2.10.0")
+        assert ok
+
+    def test_eq_not_satisfied(self):
+        ok, _ = _check_version_constraint("==2.10.0", "2.9.0")
+        assert not ok
+
+    def test_neq_satisfied(self):
+        ok, _ = _check_version_constraint("!=2.10.0", "2.9.0")
+        assert ok
+
+    def test_empty_constraint_always_passes(self):
+        ok, _ = _check_version_constraint("", "2.10.0")
+        assert ok
+
+    def test_future_version_requirement(self):
+        ok, reason = _check_version_constraint(">=99.0.0", "2.10.0")
+        assert not ok
+        assert "99.0.0" in reason
+
+    def test_unrecognised_constraint_passes_with_warning(self):
+        ok, reason = _check_version_constraint("~2.10.0", "2.10.0")
+        assert ok  # Soft failure -- unrecognised but doesn't block load
+        assert "Unrecognised" in reason
+
+
+# ── Update checking helpers ───────────────────────────────────────────────────
+
+
+class TestGetLocalHeadSha:
+    def test_returns_none_for_missing_dir(self, tmp_path):
+        assert get_local_head_sha(tmp_path / "nonexistent") is None
+
+    def test_returns_none_for_non_git_dir(self, tmp_path):
+        d = tmp_path / "not_git"
+        d.mkdir()
+        assert get_local_head_sha(d) is None
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_returns_sha_for_valid_git_repo(self, mock_run, tmp_path):
+        d = tmp_path / "plugin"
+        d.mkdir()
+        (d / ".git").mkdir()
+        mock_run.return_value = mock.Mock(returncode=0, stdout="abc123\n")
+        sha = get_local_head_sha(d)
+        assert sha == "abc123"
+
+
+class TestGetRemoteHeadSha:
+    def test_returns_none_for_missing_dir(self, tmp_path):
+        assert get_remote_head_sha(tmp_path / "nonexistent") is None
+
+    def test_returns_none_for_non_git_dir(self, tmp_path):
+        d = tmp_path / "not_git"
+        d.mkdir()
+        assert get_remote_head_sha(d) is None
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_returns_sha_from_remote(self, mock_run, tmp_path):
+        d = tmp_path / "plugin"
+        d.mkdir()
+        (d / ".git").mkdir()
+
+        def side_effect(cmd, **kwargs):
+            m = mock.Mock()
+            if "remote" in cmd:
+                m.returncode = 0
+                m.stdout = "https://github.com/Org/repo\n"
+            elif "rev-parse" in cmd:
+                m.returncode = 0
+                m.stdout = "main\n"
+            elif "ls-remote" in cmd:
+                m.returncode = 0
+                m.stdout = "deadbeef\trefs/heads/main\n"
+            return m
+
+        mock_run.side_effect = side_effect
+        sha = get_remote_head_sha(d)
+        assert sha == "deadbeef"
+
+
+class TestCheckPluginUpdateAvailable:
+    @mock.patch("src.plugins.sources.get_local_head_sha", return_value="abc")
+    @mock.patch("src.plugins.sources.get_remote_head_sha", return_value="abc")
+    def test_no_update_when_shas_match(self, _remote, _local, tmp_path):
+        d = tmp_path / "plugin"
+        d.mkdir()
+        assert not check_plugin_update_available(d)
+
+    @mock.patch("src.plugins.sources.get_local_head_sha", return_value="abc")
+    @mock.patch("src.plugins.sources.get_remote_head_sha", return_value="def")
+    def test_update_available_when_shas_differ(self, _remote, _local, tmp_path):
+        d = tmp_path / "plugin"
+        d.mkdir()
+        assert check_plugin_update_available(d)
+
+    @mock.patch("src.plugins.sources.get_local_head_sha", return_value=None)
+    @mock.patch("src.plugins.sources.get_remote_head_sha", return_value="def")
+    def test_no_update_when_local_sha_missing(self, _remote, _local, tmp_path):
+        d = tmp_path / "plugin"
+        d.mkdir()
+        assert not check_plugin_update_available(d)

@@ -130,6 +130,10 @@ MANIFEST_SCHEMA = {
             "type": "string",
             "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home"],
             "description": "Plugin category for organization"
+        },
+        "fiestaboard_version": {
+            "type": "string",
+            "description": "Minimum FiestaBoard version required (semver constraint, e.g. '>=2.10.0')"
         }
     }
 }
@@ -198,6 +202,7 @@ class PluginManifest:
     color_rules_schema: Dict[str, Any] = field(default_factory=dict)
     icon: str = "puzzle"
     category: str = "utility"
+    fiestaboard_version: str = ""
     raw: Dict[str, Any] = field(default_factory=dict)
     
     @classmethod
@@ -244,6 +249,7 @@ class PluginManifest:
             color_rules_schema=data.get("color_rules_schema", {}),
             icon=data.get("icon", "puzzle"),
             category=data.get("category", "utility"),
+            fiestaboard_version=data.get("fiestaboard_version", ""),
             raw=data,
         )
     
@@ -264,6 +270,7 @@ class PluginManifest:
             "color_rules_schema": self.color_rules_schema,
             "icon": self.icon,
             "category": self.category,
+            "fiestaboard_version": self.fiestaboard_version,
         }
 
 

@@ -163,7 +163,13 @@ jobs:
         echo "Validating plugin manifests and uniqueness..."
         python scripts/validate_plugins.py --verbose
         echo "✅ All plugins validated successfully"
-    
+
+    - name: Validate plugin registry
+      run: |
+        echo "Validating plugin-registry.json repository URLs..."
+        python scripts/validate_plugins.py --registry --verbose
+        echo "✅ All registry repositories are reachable"
+
     - name: Discover plugins with tests
       id: discover
       run: |

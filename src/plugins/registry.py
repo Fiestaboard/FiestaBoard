@@ -19,6 +19,7 @@ from .manifest import PluginManifest
 from .sources import (
     PluginSource,
     RegistryEntry,
+    check_plugin_update_available,
     get_external_plugins_dir,
     install_git_plugin,
     install_registry_plugin,
@@ -40,6 +41,7 @@ class PluginRegistry:
     - Plugin enable/disable state
     - Plugin configuration
     - Aggregated variable schemas for templates
+    - Periodic update availability checking for external plugins
     """
     
     def __init__(self, plugins_dir: Optional[Path] = None):
@@ -53,6 +55,10 @@ class PluginRegistry:
         self._manifests: Dict[str, PluginManifest] = {}
         self._configs: Dict[str, Dict[str, Any]] = {}
         self._enabled: Dict[str, bool] = {}
+
+        # Cached results from the most recent check_for_updates() call.
+        # Maps plugin_id -> bool (True = update available).
+        self._update_status: Dict[str, bool] = {}
         
         logger.info("PluginRegistry initialized")
     
@@ -343,7 +349,9 @@ class PluginRegistry:
                 "enabled": self._enabled.get(plugin_id, False),
                 "icon": manifest.icon if manifest else "puzzle",
                 "category": manifest.category if manifest else "utility",
+                "fiestaboard_version": manifest.fiestaboard_version if manifest else "",
                 "source": source.to_dict() if source else {"source_type": "builtin"},
+                "update_available": self._update_status.get(plugin_id, False),
             }
             plugins.append(info)
         
@@ -398,6 +406,34 @@ class PluginRegistry:
         """
         return self._loader.load_errors
 
+    def check_for_updates(self) -> Dict[str, bool]:
+        """Check all external plugins for available upstream updates.
+
+        Runs ``git ls-remote`` against each external plugin's origin and
+        compares with the local HEAD.  Results are cached in
+        ``_update_status`` so the ``/plugins/updates`` endpoint can return
+        instantly between checks.
+
+        Returns:
+            Mapping of plugin_id -> True if an update is available.
+        """
+        results: Dict[str, bool] = {}
+        for plugin_id, source in self._loader.plugin_sources.items():
+            if source.source_type != "external" or not source.local_path:
+                continue
+            local_path = Path(source.local_path)
+            update_available = check_plugin_update_available(local_path)
+            results[plugin_id] = update_available
+            if update_available:
+                logger.info("Update available for external plugin: %s", plugin_id)
+
+        self._update_status = results
+        return results
+
+    def get_update_status(self) -> Dict[str, bool]:
+        """Return cached update status from the last check_for_updates() call."""
+        return self._update_status.copy()
+
     def get_plugin_source(self, plugin_id: str) -> Optional[PluginSource]:
         """Get the source information for a loaded plugin.
 
@@ -426,6 +462,9 @@ class PluginRegistry:
                 "repository": e.repository,
                 "branch": e.branch,
                 "author": e.author,
+                "fiestaboard_version": e.fiestaboard_version,
+                "icon": e.icon,
+                "category": e.category,
                 "installed": e.plugin_id in self._plugins,
             }
             for e in entries

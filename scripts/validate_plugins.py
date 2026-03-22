@@ -7,6 +7,7 @@ This script is run during CI to ensure:
 3. All manifest.json files are valid
 4. Required files exist (__init__.py, manifest.json)
 5. Tests directory exists (warning if missing)
+6. (--registry) All plugin-registry.json repos are reachable and well-formed
 
 Usage:
     python scripts/validate_plugins.py [OPTIONS]
@@ -15,6 +16,7 @@ Options:
     --strict        Fail on warnings (missing tests, etc.)
     --verbose       Show detailed output
     --plugin=ID     Validate specific plugin only
+    --registry      Validate plugin-registry.json repo URLs and structure
 
 Exit codes:
     0 - All validations passed
@@ -24,6 +26,8 @@ Exit codes:
 
 import argparse
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -279,6 +283,130 @@ def validate_unique_ids(plugins: List[Path]) -> List[str]:
     return errors
 
 
+# ---------------------------------------------------------------------------
+# Registry validation
+# ---------------------------------------------------------------------------
+
+REGISTRY_FILE = PROJECT_ROOT / "plugin-registry.json"
+REGISTRY_PREFIX = "fiestaboard-plugin--"
+REGISTRY_NAME_RE = re.compile(r"^fiestaboard-plugin--[a-z][a-z0-9-]*$")
+SEMVER_CONSTRAINT_RE = re.compile(r"^(>=|>|<=|<|==|!=)\s*\d+\.\d+\.\d+$")
+
+
+def _repo_name_from_url(url: str) -> str:
+    url = url.rstrip("/")
+    if url.endswith(".git"):
+        url = url[:-4]
+    return url.rsplit("/", 1)[-1] if "/" in url else ""
+
+
+def _plugin_id_from_repo_name(repo_name: str) -> str:
+    if repo_name.startswith(REGISTRY_PREFIX):
+        return repo_name[len(REGISTRY_PREFIX):].replace("-", "_")
+    return repo_name.replace("-", "_")
+
+
+def validate_registry_entry(entry: Dict, verbose: bool) -> List[str]:
+    """Validate a single registry entry dict. Returns list of error strings."""
+    errors = []
+    plugin_id = entry.get("id", "")
+    repo_url = entry.get("repository", "")
+
+    if not plugin_id:
+        errors.append("Entry missing 'id' field")
+        return errors
+    if not repo_url:
+        errors.append(f"[{plugin_id}] Missing 'repository' field")
+        return errors
+
+    # 1. Naming convention
+    repo_name = _repo_name_from_url(repo_url)
+    if not REGISTRY_NAME_RE.match(repo_name):
+        errors.append(
+            f"[{plugin_id}] Repository name '{repo_name}' does not follow "
+            f"'{REGISTRY_PREFIX}{{name}}' convention"
+        )
+
+    # 2. ID consistency with repo name
+    derived_id = _plugin_id_from_repo_name(repo_name)
+    if derived_id != plugin_id:
+        errors.append(
+            f"[{plugin_id}] Registry id '{plugin_id}' does not match id "
+            f"derived from repo name '{repo_name}' (expected '{derived_id}')"
+        )
+
+    # 3. fiestaboard_version is a valid semver constraint if present
+    fv = entry.get("fiestaboard_version", "")
+    if fv and not SEMVER_CONSTRAINT_RE.match(fv.strip()):
+        errors.append(
+            f"[{plugin_id}] fiestaboard_version '{fv}' is not a valid semver "
+            f"constraint (expected e.g. '>=2.10.0')"
+        )
+
+    # 4. Repo reachability via git ls-remote
+    if verbose:
+        print(f"  Checking {repo_url} ...", end=" ", flush=True)
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", "--heads", repo_url],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env={**__import__("os").environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
+        if result.returncode != 0:
+            errors.append(f"[{plugin_id}] Repository unreachable: {repo_url}")
+            if verbose:
+                print("UNREACHABLE")
+        else:
+            if verbose:
+                print("OK")
+    except subprocess.TimeoutExpired:
+        errors.append(f"[{plugin_id}] Repository check timed out: {repo_url}")
+        if verbose:
+            print("TIMEOUT")
+    except Exception as exc:
+        errors.append(f"[{plugin_id}] Repository check failed: {exc}")
+        if verbose:
+            print(f"ERROR: {exc}")
+
+    return errors
+
+
+def validate_registry(verbose: bool) -> List[str]:
+    """Validate plugin-registry.json. Returns list of error strings."""
+    errors: List[str] = []
+
+    if not REGISTRY_FILE.exists():
+        return [f"Registry file not found: {REGISTRY_FILE}"]
+
+    try:
+        with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        return [f"Registry file is invalid JSON: {exc}"]
+
+    plugins = data.get("plugins", [])
+    if not isinstance(plugins, list):
+        return ["Registry 'plugins' field must be an array"]
+
+    if verbose:
+        print(f"Validating {len(plugins)} registry entries...")
+        print()
+
+    seen_ids: Dict[str, int] = {}
+    for i, entry in enumerate(plugins):
+        entry_errors = validate_registry_entry(entry, verbose)
+        errors.extend(entry_errors)
+
+        pid = entry.get("id", f"<entry {i}>")
+        if pid in seen_ids:
+            errors.append(f"Duplicate registry id '{pid}'")
+        seen_ids[pid] = i
+
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Validate FiestaBoard plugin integrity"
@@ -298,13 +426,41 @@ def main():
         type=str,
         help="Validate specific plugin only"
     )
-    
+    parser.add_argument(
+        "--registry",
+        action="store_true",
+        help="Validate plugin-registry.json repository URLs and structure",
+    )
+
     args = parser.parse_args()
     
     print("FiestaBoard Plugin Validator")
     print("=" * 50)
     print()
-    
+
+    # Registry validation mode
+    if args.registry:
+        print("Validating plugin registry...")
+        print(f"Registry: {REGISTRY_FILE}")
+        print()
+        registry_errors = validate_registry(args.verbose)
+        print()
+        print("=" * 50)
+        print("REGISTRY VALIDATION SUMMARY")
+        print("=" * 50)
+        if registry_errors:
+            print(f"Errors: {len(registry_errors)}")
+            for err in registry_errors:
+                print(f"  ERROR: {err}")
+            print()
+            print("REGISTRY VALIDATION FAILED")
+            sys.exit(1)
+        else:
+            print("Errors: 0")
+            print()
+            print("REGISTRY VALIDATION PASSED")
+            sys.exit(0)
+
     # Discover plugins
     plugins = discover_plugin_directories()
     

@@ -5,7 +5,9 @@ as well as external plugin directories (registry and custom git sources).
 """
 
 import importlib.util
+import json
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type
@@ -22,6 +24,72 @@ logger = logging.getLogger(__name__)
 
 # Default plugins directory (relative to project root)
 DEFAULT_PLUGINS_DIR = "plugins"
+
+# ---------------------------------------------------------------------------
+# FiestaBoard version compatibility helpers
+# ---------------------------------------------------------------------------
+
+_FIESTABOARD_VERSION: Optional[str] = None
+
+
+def _get_fiestaboard_version() -> str:
+    """Return the running FiestaBoard version from package.json."""
+    global _FIESTABOARD_VERSION
+    if _FIESTABOARD_VERSION is not None:
+        return _FIESTABOARD_VERSION
+
+    project_root = Path(__file__).parent.parent.parent
+    pkg_path = project_root / "package.json"
+    try:
+        with open(pkg_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        _FIESTABOARD_VERSION = data.get("version", "0.0.0")
+    except Exception:
+        _FIESTABOARD_VERSION = "0.0.0"
+
+    return _FIESTABOARD_VERSION
+
+
+def _parse_version(version_str: str) -> Tuple[int, int, int]:
+    """Parse a semver string into a (major, minor, patch) tuple."""
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", version_str)
+    if not match:
+        return (0, 0, 0)
+    return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+
+
+def _check_version_constraint(constraint: str, running_version: str) -> Tuple[bool, str]:
+    """Check whether *running_version* satisfies *constraint*.
+
+    Supports simple single-operator constraints: ``>=``, ``>``, ``<=``, ``<``,
+    ``==``, ``!=``.  Returns ``(satisfied, reason)``.
+    """
+    if not constraint:
+        return True, ""
+
+    match = re.match(r"^(>=|>|<=|<|==|!=)\s*(\d+\.\d+\.\d+)$", constraint.strip())
+    if not match:
+        return True, f"Unrecognised version constraint '{constraint}', skipping check"
+
+    op, required_str = match.group(1), match.group(2)
+    required = _parse_version(required_str)
+    running = _parse_version(running_version)
+
+    satisfied = {
+        ">=": running >= required,
+        ">":  running > required,
+        "<=": running <= required,
+        "<":  running < required,
+        "==": running == required,
+        "!=": running != required,
+    }[op]
+
+    if not satisfied:
+        return False, (
+            f"Plugin requires FiestaBoard {constraint}, "
+            f"but running version is {running_version}"
+        )
+    return True, ""
 
 
 class PluginLoadError(Exception):
@@ -209,7 +277,19 @@ class PluginLoader:
             errors.append(f"Manifest id '{manifest.id}' does not match directory name '{plugin_name}'")
             self._load_errors[plugin_name] = errors
             return None
-        
+
+        # Check FiestaBoard version compatibility (soft failure -- warn but still load)
+        if manifest.fiestaboard_version:
+            running = _get_fiestaboard_version()
+            ok, reason = _check_version_constraint(manifest.fiestaboard_version, running)
+            if not ok:
+                logger.warning(
+                    "Plugin '%s' version incompatibility: %s", plugin_name, reason
+                )
+                self._load_errors.setdefault(plugin_name, []).append(
+                    f"Version incompatibility: {reason}"
+                )
+
         # Load Python module
         init_path = plugin_dir / "__init__.py"
         if not init_path.exists():

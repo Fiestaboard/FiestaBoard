@@ -84,6 +84,15 @@ class RegistryEntry:
     #: Plugin author.
     author: str = ""
 
+    #: Minimum FiestaBoard version required (semver constraint, e.g. ">=2.10.0").
+    fiestaboard_version: str = ""
+
+    #: Lucide icon name.
+    icon: str = "puzzle"
+
+    #: Plugin category.
+    category: str = "utility"
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "RegistryEntry":
         return cls(
@@ -93,6 +102,9 @@ class RegistryEntry:
             repository=data.get("repository", ""),
             branch=data.get("branch", ""),
             author=data.get("author", ""),
+            fiestaboard_version=data.get("fiestaboard_version", ""),
+            icon=data.get("icon", "puzzle"),
+            category=data.get("category", "utility"),
         )
 
 
@@ -252,6 +264,71 @@ def clone_or_update_repo(
         return True, ""
     except subprocess.SubprocessError as exc:
         return False, f"git clone failed for {repo_url}: {exc}"
+
+
+def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
+    """Return the remote HEAD SHA for the origin of an existing clone.
+
+    Uses ``git ls-remote`` which is a lightweight network operation that does
+    not modify the local repository.  Returns *None* on any error.
+    """
+    if not dest_dir.exists() or not (dest_dir / ".git").is_dir():
+        return None
+
+    try:
+        # Get the remote URL from the local clone
+        result = subprocess.run(
+            ["git", "-C", str(dest_dir), "remote", "get-url", "origin"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0:
+            return None
+        remote_url = result.stdout.strip()
+
+        # Determine the default branch name tracked locally
+        branch_result = subprocess.run(
+            ["git", "-C", str(dest_dir), "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, timeout=10,
+        )
+        branch = branch_result.stdout.strip() or "main"
+
+        # Query the remote for the latest SHA
+        ls_result = subprocess.run(
+            ["git", "ls-remote", "--heads", remote_url, branch],
+            capture_output=True, text=True, timeout=30,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
+        if ls_result.returncode != 0 or not ls_result.stdout.strip():
+            return None
+
+        # Output format: "<sha>\trefs/heads/<branch>"
+        sha = ls_result.stdout.strip().split()[0]
+        return sha
+    except (subprocess.SubprocessError, IndexError, OSError):
+        return None
+
+
+def get_local_head_sha(dest_dir: Path) -> Optional[str]:
+    """Return the local HEAD SHA of a cloned plugin repository."""
+    if not dest_dir.exists() or not (dest_dir / ".git").is_dir():
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(dest_dir), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+    except (subprocess.SubprocessError, OSError):
+        return None
+
+
+def check_plugin_update_available(dest_dir: Path) -> bool:
+    """Return True if the remote has commits not yet pulled locally."""
+    local = get_local_head_sha(dest_dir)
+    remote = get_remote_head_sha(dest_dir)
+    if local is None or remote is None:
+        return False
+    return local != remote
 
 
 def remove_external_plugin(dest_dir: Path) -> bool:

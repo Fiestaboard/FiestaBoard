@@ -309,9 +309,41 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"MQTT client could not be started: {e}")
 
+    # Start plugin update checker background task (every 6 hours)
+    update_check_task = None
+    try:
+        import asyncio as _asyncio
+
+        async def _plugin_update_check_loop():
+            interval = 6 * 3600  # 6 hours
+            # Initial delay of 5 minutes so startup isn't burdened
+            await _asyncio.sleep(300)
+            while True:
+                try:
+                    if PLUGIN_SYSTEM_AVAILABLE:
+                        registry = get_plugin_registry()
+                        results = registry.check_for_updates()
+                        updates = [p for p, v in results.items() if v]
+                        if updates:
+                            logger.info(
+                                "Plugin updates available: %s", ", ".join(updates)
+                            )
+                        else:
+                            logger.debug("Plugin update check: all plugins up to date")
+                except Exception as exc:
+                    logger.warning("Plugin update check error: %s", exc)
+                await _asyncio.sleep(interval)
+
+        update_check_task = _asyncio.create_task(_plugin_update_check_loop())
+        logger.info("Plugin update checker scheduled (every 6 hours)")
+    except Exception as e:
+        logger.warning(f"Could not start plugin update checker: {e}")
+
     yield
 
     # --- Shutdown ---
+    if update_check_task is not None:
+        update_check_task.cancel()
     logger.info("API server shutting down...")
     _shutting_down = True
     _service_running = False
@@ -4714,6 +4746,45 @@ async def uninstall_external_plugin(plugin_id: str):
         "status": "success",
         "plugin_id": plugin_id,
         "message": f"Plugin '{plugin_id}' has been uninstalled.",
+    }
+
+
+@app.get("/plugins/updates")
+async def get_plugin_updates():
+    """
+    Return cached update availability for all installed external plugins.
+
+    Results are refreshed by a background task every 6 hours.  Call
+    ``POST /plugins/updates/check`` to trigger an immediate check.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    return {"updates": registry.get_update_status()}
+
+
+@app.post("/plugins/updates/check")
+async def trigger_plugin_update_check():
+    """
+    Trigger an immediate update check for all external plugins.
+
+    This runs synchronously and may take a few seconds per plugin
+    (one ``git ls-remote`` per installed external plugin).
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    results = registry.check_for_updates()
+    plugins_with_updates = [pid for pid, has_update in results.items() if has_update]
+    return {
+        "checked": len(results),
+        "updates_available": plugins_with_updates,
     }
 
 
