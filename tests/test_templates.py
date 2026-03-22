@@ -171,7 +171,7 @@ class TestValidation:
     
     def test_valid_template(self, engine):
         """Test valid template has no errors."""
-        errors = engine.validate_template("{{weather.temperature}} degrees")
+        errors = engine.validate_template("{{date_time.time}} today")
         assert len(errors) == 0
     
     def test_mismatched_braces(self, engine):
@@ -513,7 +513,7 @@ class TestTemplateAPIEndpoints:
     def test_validate_template_valid(self, client):
         """Test POST /templates/validate with valid template."""
         response = client.post("/templates/validate", json={
-            "template": "{{weather.temperature}}"
+            "template": "{{date_time.time}}"
         })
         
         assert response.status_code == 200
@@ -523,7 +523,7 @@ class TestTemplateAPIEndpoints:
     def test_validate_template_invalid(self, client):
         """Test POST /templates/validate with invalid template."""
         response = client.post("/templates/validate", json={
-            "template": "{{weather.temperature"  # Missing closing
+            "template": "{{date_time.time"  # Missing closing
         })
         
         assert response.status_code == 200

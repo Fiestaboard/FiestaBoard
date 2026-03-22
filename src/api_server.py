@@ -4788,6 +4788,66 @@ async def trigger_plugin_update_check():
     }
 
 
+@app.post("/plugins/{plugin_id}/update")
+async def update_plugin(plugin_id: str):
+    """
+    Pull the latest version of an external plugin from its remote and reload it.
+
+    Built-in plugins cannot be updated via this endpoint.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    source = registry.get_plugin_source(plugin_id)
+
+    if source is None:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found.")
+
+    if source.source_type == "builtin":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' is a built-in plugin and cannot be updated this way.",
+        )
+
+    if not source.local_path:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' has no local path for updating.",
+        )
+
+    from pathlib import Path as _Path
+    local_path = _Path(source.local_path)
+
+    if not (local_path / ".git").is_dir():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' is not a git repository.",
+        )
+
+    from .plugins.sources import clone_or_update_repo
+    ok, err = clone_or_update_repo(source.repository_url, local_path)
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"Update failed: {err}")
+
+    reloaded = registry.reload_plugin(plugin_id)
+    if reloaded is None:
+        errors = registry.get_load_errors().get(plugin_id, [])
+        detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
+        raise HTTPException(status_code=500, detail=detail)
+
+    # Clear the update flag for this plugin
+    registry._update_status.pop(plugin_id, None)
+
+    return {
+        "status": "success",
+        "plugin_id": plugin_id,
+        "message": f"Plugin '{plugin_id}' has been updated and reloaded.",
+    }
+
+
 # =============================================================================
 # Generic Data Plugin — Test Fetch
 # =============================================================================

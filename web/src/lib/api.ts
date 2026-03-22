@@ -1247,6 +1247,11 @@ export const api = {
       method: "DELETE",
     }),
 
+  updatePlugin: (pluginId: string) =>
+    fetchApi<PluginInstallResponse>(`/plugins/${pluginId}/update`, {
+      method: "POST",
+    }),
+
   getPluginUpdates: () =>
     fetchApi<PluginUpdatesResponse>("/plugins/updates"),
 

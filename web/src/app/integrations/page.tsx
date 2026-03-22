@@ -21,6 +21,17 @@ import {
 } from "@/components/ui/sheet";
 import { SchemaForm } from "@/components/plugin-settings";
 import { FIESTABOARD_COLORS, AVAILABLE_COLORS, FiestaboardColorName } from "@/lib/board-colors";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Cloud,
@@ -48,6 +59,7 @@ import {
   Music,
   Film,
   Gamepad2,
+  GitBranch,
   BookOpen,
   Coffee,
   ShoppingCart,
@@ -1377,6 +1389,12 @@ export default function IntegrationsPage() {
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [gitDialogOpen, setGitDialogOpen] = useState(false);
+  const [gitUrl, setGitUrl] = useState("");
+  const [gitPluginId, setGitPluginId] = useState("");
+  const [gitBranch, setGitBranch] = useState("");
+  const [isInstallingGit, setIsInstallingGit] = useState(false);
 
   // Fetch installed plugins list
   const { data, isLoading, error } = useQuery({
@@ -1468,14 +1486,37 @@ export default function IntegrationsPage() {
   const handleUpdate = async (pluginId: string) => {
     setUpdatingId(pluginId);
     try {
-      // Pull latest from git then reload
-      await api.triggerPluginUpdateCheck();
+      await api.updatePlugin(pluginId);
       toast.success(`${pluginId} updated successfully`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
     } catch (err) {
       toast.error(`Failed to update ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleInstallFromGit = async () => {
+    if (!gitUrl.trim()) return;
+    setIsInstallingGit(true);
+    try {
+      const result = await api.installGitPlugin(
+        gitUrl.trim(),
+        gitPluginId.trim() || undefined,
+        gitBranch.trim() || undefined,
+      );
+      toast.success(`${result.plugin_id} installed from git`);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      setGitDialogOpen(false);
+      setGitUrl("");
+      setGitPluginId("");
+      setGitBranch("");
+    } catch (err) {
+      toast.error(`Failed to install: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsInstallingGit(false);
     }
   };
 
@@ -1485,8 +1526,26 @@ export default function IntegrationsPage() {
     (e) => !installedIds.has(e.id)
   );
 
+  const query = searchQuery.toLowerCase().trim();
+
+  const filteredInstalled = (data?.plugins ?? []).filter(
+    (p) =>
+      !query ||
+      p.name.toLowerCase().includes(query) ||
+      p.description?.toLowerCase().includes(query) ||
+      p.id.toLowerCase().includes(query)
+  );
+
+  const filteredUninstalled = uninstalledRegistry.filter(
+    (e) =>
+      !query ||
+      e.name.toLowerCase().includes(query) ||
+      e.description?.toLowerCase().includes(query) ||
+      e.id.toLowerCase().includes(query)
+  );
+
   // Group installed plugins by category
-  const groupedInstalled = data?.plugins.reduce((acc, plugin) => {
+  const groupedInstalled = filteredInstalled.reduce((acc, plugin) => {
     const category = plugin.category || "utility";
     if (!acc[category]) acc[category] = [];
     acc[category].push(plugin);
@@ -1494,7 +1553,7 @@ export default function IntegrationsPage() {
   }, {} as Record<string, PluginInfo[]>);
 
   // Group uninstalled registry entries by category
-  const groupedUninstalled = uninstalledRegistry.reduce((acc, entry) => {
+  const groupedUninstalled = filteredUninstalled.reduce((acc, entry) => {
     const category = entry.category || "utility";
     if (!acc[category]) acc[category] = [];
     acc[category].push(entry);
@@ -1504,7 +1563,7 @@ export default function IntegrationsPage() {
   // All categories across both installed and available
   const allCategories = Array.from(
     new Set([
-      ...Object.keys(groupedInstalled ?? {}),
+      ...Object.keys(groupedInstalled),
       ...Object.keys(groupedUninstalled),
     ])
   ).sort((a, b) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b));
@@ -1571,6 +1630,87 @@ export default function IntegrationsPage() {
           ) : null}
         </div>
 
+        {/* Search & Actions bar */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search plugins by name or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Dialog open={gitDialogOpen} onOpenChange={setGitDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="shrink-0 gap-2">
+                <GitBranch className="h-4 w-4" />
+                Add from Git
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Install Plugin from Git</DialogTitle>
+                <DialogDescription>
+                  Install a plugin from any public git repository. The repository should contain a valid FiestaBoard plugin with a manifest.json.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="git-url">Repository URL</Label>
+                  <Input
+                    id="git-url"
+                    placeholder="https://github.com/user/fiestaboard-plugin-example.git"
+                    value={gitUrl}
+                    onChange={(e) => setGitUrl(e.target.value)}
+                    disabled={isInstallingGit}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="git-plugin-id">Plugin ID (optional)</Label>
+                    <Input
+                      id="git-plugin-id"
+                      placeholder="Auto-detected"
+                      value={gitPluginId}
+                      onChange={(e) => setGitPluginId(e.target.value)}
+                      disabled={isInstallingGit}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="git-branch">Branch (optional)</Label>
+                    <Input
+                      id="git-branch"
+                      placeholder="Default branch"
+                      value={gitBranch}
+                      onChange={(e) => setGitBranch(e.target.value)}
+                      disabled={isInstallingGit}
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setGitDialogOpen(false)} disabled={isInstallingGit}>
+                  Cancel
+                </Button>
+                <Button onClick={handleInstallFromGit} disabled={isInstallingGit || !gitUrl.trim()}>
+                  {isInstallingGit ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Installing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Install Plugin
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
         {/* Content - Progressive loading */}
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1589,63 +1729,72 @@ export default function IntegrationsPage() {
           </Card>
         ) : (
           <div className="space-y-6 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
-            {(() => {
-              let globalIndex = 0;
-              return allCategories.map((category) => {
-                const installed = groupedInstalled?.[category] ?? [];
-                const available = groupedUninstalled[category] ?? [];
-                const total = installed.length + available.length;
-                if (total === 0) return null;
-                return (
-                  <section key={category}>
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      {CATEGORY_LABELS[category] || category}
-                      <Badge variant="secondary" className="text-xs font-normal">
-                        {installed.length} installed
-                      </Badge>
-                      {available.length > 0 && (
-                        <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
-                          {available.length} available
+            {filteredInstalled.length === 0 && filteredUninstalled.length === 0 && query ? (
+              <div className="text-center py-12">
+                <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">
+                  No plugins match &quot;{searchQuery}&quot;
+                </p>
+              </div>
+            ) : (
+              (() => {
+                let globalIndex = 0;
+                return allCategories.map((category) => {
+                  const installed = groupedInstalled[category] ?? [];
+                  const available = groupedUninstalled[category] ?? [];
+                  const total = installed.length + available.length;
+                  if (total === 0) return null;
+                  return (
+                    <section key={category}>
+                      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        {CATEGORY_LABELS[category] || category}
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {installed.length} installed
                         </Badge>
-                      )}
-                    </h2>
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {installed.map((plugin) => {
-                        const cardIndex = globalIndex++;
-                        return (
-                          <PluginCard
-                            key={plugin.id}
-                            plugin={plugin}
-                            onToggle={handleToggle}
-                            isToggling={toggleMutation.isPending}
-                            onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                            onInstall={handleInstall}
-                            onUninstall={handleUninstall}
-                            onUpdate={handleUpdate}
-                            isInstalling={installingId === plugin.id}
-                            isUninstalling={uninstallingId === plugin.id}
-                            isUpdating={updatingId === plugin.id}
-                            index={cardIndex}
-                          />
-                        );
-                      })}
-                      {available.map((entry) => {
-                        const cardIndex = globalIndex++;
-                        return (
-                          <RegistryPluginCard
-                            key={entry.id}
-                            entry={entry}
-                            onInstall={handleInstall}
-                            isInstalling={installingId === entry.id}
-                            index={cardIndex}
-                          />
-                        );
-                      })}
-                    </div>
-                  </section>
-                );
-              });
-            })()}
+                        {available.length > 0 && (
+                          <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                            {available.length} available
+                          </Badge>
+                        )}
+                      </h2>
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {installed.map((plugin) => {
+                          const cardIndex = globalIndex++;
+                          return (
+                            <PluginCard
+                              key={plugin.id}
+                              plugin={plugin}
+                              onToggle={handleToggle}
+                              isToggling={toggleMutation.isPending}
+                              onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                              onInstall={handleInstall}
+                              onUninstall={handleUninstall}
+                              onUpdate={handleUpdate}
+                              isInstalling={installingId === plugin.id}
+                              isUninstalling={uninstallingId === plugin.id}
+                              isUpdating={updatingId === plugin.id}
+                              index={cardIndex}
+                            />
+                          );
+                        })}
+                        {available.map((entry) => {
+                          const cardIndex = globalIndex++;
+                          return (
+                            <RegistryPluginCard
+                              key={entry.id}
+                              entry={entry}
+                              onInstall={handleInstall}
+                              isInstalling={installingId === entry.id}
+                              index={cardIndex}
+                            />
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                });
+              })()
+            )}
           </div>
         )}
     </PageLayout>
