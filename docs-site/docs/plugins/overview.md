@@ -90,7 +90,7 @@ Once a plugin is enabled, its data becomes available as **template variables** i
 3. Browse variables grouped by plugin
 4. Click a variable to insert it at the cursor position
 
-Variables look like `{weather.temperature}` or `{date_time.datetime}` and are automatically replaced with live data when the page is displayed.
+Variables look like `{{weather.temperature}}` or `{{date_time.datetime}}` and are automatically replaced with live data when the page is displayed.
 
 For more details, see [Plugin Configuration](/docs/plugins/configuration).
 
@@ -118,7 +118,7 @@ Registry plugins must follow the `fiestaboard-plugin--{name}` repository naming 
 
 ### From a Git Repository
 
-You can install any public git repository as a plugin. Custom repositories do not need to follow the naming convention:
+You can install any public git repository as a plugin. Only HTTPS URLs are accepted for security. Custom repositories do not need to follow the naming convention:
 
 ```bash
 # Install from a git URL

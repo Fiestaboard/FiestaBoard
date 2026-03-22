@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. Add weather, stocks, sports, transit, and 26 more plugins to your Vestaboard Flagship or Note."
+description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. 26 plugins including weather, stocks, sports, transit, and more for your Vestaboard Flagship or Note."
 keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard open source, best software for Vestaboard, smart dashboard, live display, open source]
 ---
 

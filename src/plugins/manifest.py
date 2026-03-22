@@ -128,7 +128,7 @@ MANIFEST_SCHEMA = {
         },
         "category": {
             "type": "string",
-            "enum": ["data", "transit", "weather", "entertainment", "utility", "home"],
+            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home"],
             "description": "Plugin category for organization"
         }
     }

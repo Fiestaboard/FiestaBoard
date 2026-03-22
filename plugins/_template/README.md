@@ -49,6 +49,13 @@ plugins/my_plugin/
 | `id` | string | Unique plugin identifier (must match directory name) |
 | `name` | string | Human-readable plugin name |
 | `version` | string | Semantic version (e.g., "1.0.0") |
+
+### Recommended Fields
+
+These fields are not enforced by the validator but should be included for a complete plugin:
+
+| Field | Type | Description |
+|-------|------|-------------|
 | `description` | string | Brief description of the plugin |
 | `author` | string | Plugin author name |
 | `settings_schema` | object | JSON Schema for configuration fields |
@@ -103,6 +110,7 @@ The `settings_schema` follows [JSON Schema](https://json-schema.org/) format wit
 - `password` - Masked input for sensitive fields
 - `textarea` - Multi-line text input
 - `select` - Dropdown (auto for `enum` fields)
+- `timezone` - Timezone picker with autocomplete
 
 ### Variables Schema
 
@@ -116,15 +124,14 @@ Define template variables your plugin exposes:
       "locations": {
         "label_field": "name",
         "item_fields": ["temperature", "humidity", "condition"]
-      }
-    },
-    "nested": {
+      },
       "stops": {
         "label_field": "stop_name",
         "item_fields": ["stop_code", "arrivals"],
-        "nested_arrays": {
+        "sub_arrays": {
           "lines": {
-            "label_field": "line",
+            "key_type": "dynamic",
+            "key_field": "line",
             "item_fields": ["next_arrival", "is_delayed"]
           }
         }
@@ -158,7 +165,6 @@ class MyPlugin(PluginBase):
         return PluginResult(
             available=True,
             data={"key": "value"},
-            formatted="Display text"
         )
 ```
 
@@ -169,8 +175,9 @@ class MyPlugin(PluginBase):
 | `fetch_data()` | **Required.** Fetch and return plugin data |
 | `validate_config(config)` | Validate configuration. Return list of errors |
 | `cleanup()` | Called when plugin is disabled. Clean up resources |
-| `get_config(key, default=None)` | Get a configuration value |
-| `get_manifest()` | Get the plugin manifest |
+| `on_config_change(old, new)` | Called when configuration is updated |
+| `config` | Property. The current configuration dictionary |
+| `manifest` | Property. The raw manifest dictionary |
 
 ### PluginResult
 
@@ -179,10 +186,10 @@ Return this from `fetch_data()`:
 ```python
 @dataclass
 class PluginResult:
-    available: bool              # True if data was fetched successfully
-    data: Optional[Dict] = None  # Template variables
-    formatted: Optional[str] = None  # Pre-formatted display (6 lines)
-    error: Optional[str] = None  # Error message if failed
+    available: bool                          # True if data was fetched successfully
+    data: Optional[Dict[str, Any]] = None    # Template variables
+    error: Optional[str] = None              # Error message if fetch failed
+    formatted_lines: Optional[List[str]] = None  # Optional pre-formatted 6-line display
 ```
 
 ## Testing Your Plugin
@@ -213,14 +220,17 @@ class TestMyPlugin(PluginTestCase):
     def test_plugin_id(self):
         """Test plugin ID matches directory name."""
         from plugins.my_plugin import MyPlugin
-        plugin = MyPlugin()
+        manifest = {"id": "my_plugin", "name": "My Plugin", "version": "1.0.0"}
+        plugin = MyPlugin(manifest)
         assert plugin.plugin_id == "my_plugin"
     
     def test_fetch_data_success(self):
         """Test successful data fetch."""
         from plugins.my_plugin import MyPlugin
-        plugin = MyPlugin()
-        result = plugin.fetch_data({"api_key": "test"})
+        manifest = {"id": "my_plugin", "name": "My Plugin", "version": "1.0.0"}
+        plugin = MyPlugin(manifest)
+        plugin.config = {"api_key": "test"}
+        result = plugin.fetch_data()
         
         assert result.available is True
         assert result.error is None
@@ -232,8 +242,10 @@ class TestMyPlugin(PluginTestCase):
         mock_get.side_effect = Exception("Network error")
         
         from plugins.my_plugin import MyPlugin
-        plugin = MyPlugin()
-        result = plugin.fetch_data({"api_key": "test"})
+        manifest = {"id": "my_plugin", "name": "My Plugin", "version": "1.0.0"}
+        plugin = MyPlugin(manifest)
+        plugin.config = {"api_key": "test"}
+        result = plugin.fetch_data()
         
         assert result.available is False
         assert result.error is not None
@@ -345,7 +357,7 @@ To have your external plugin included in the curated registry:
 See these plugins for reference implementations:
 
 - `plugins/weather/` - Simple plugin with external API
-- `plugins/datetime/` - Plugin with no external dependencies
+- `plugins/date_time/` - Plugin with no external dependencies
 - `plugins/baywheels/` - Array data with multiple items
 - `plugins/muni/` - Nested arrays (stops → lines)
 - `plugins/home_assistant/` - Dynamic entity-based variables

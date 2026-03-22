@@ -39,11 +39,11 @@ Once a plugin is enabled, its data becomes available as **template variables** i
 
 ### Variable Format
 
-Variables use the format `{plugin_name.variable_name}`:
+Variables use the format `{{plugin_name.variable_name}}`:
 
 ```
-Temperature: {weather.temperature}
-Conditions:  {weather.condition}
+Temperature: {{weather.temperature}}
+Conditions:  {{weather.condition}}
 ```
 
 When the page is displayed on your board, these are replaced with live data (e.g., `72*F` and `SUNNY`).
@@ -53,8 +53,8 @@ When the page is displayed on your board, these are replaced with live data (e.g
 Some plugins provide variables that fill the entire board:
 
 ```
-{visual_clock.display}    → Fills all rows with a large clock
-{sun_art.display}         → Fills all rows with sun art
+{{visual_clock.display}}    → Fills all rows with a large clock
+{{sun_art.display}}         → Fills all rows with sun art
 ```
 
 ### Multi-Line Variables
@@ -62,8 +62,8 @@ Some plugins provide variables that fill the entire board:
 Some plugins provide array variables that expand into multiple lines:
 
 ```
-{stocks.prices}    → Multiple rows of stock data
-{muni.formatted}   → Multiple rows of transit arrivals
+{{stocks.prices}}    → Multiple rows of stock data
+{{muni.formatted}}   → Multiple rows of transit arrivals
 ```
 
 ## Alternative: Environment Variables

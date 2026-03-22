@@ -140,6 +140,13 @@ The `manifest.json` file is the heart of your plugin. It tells FiestaBoard what 
 | `id` | string | Unique identifier - lowercase letters, digits, and underscores only. Must start with a letter. Must match directory name. |
 | `name` | string | Human-readable name shown in the UI (max 50 characters). |
 | `version` | string | Semantic version in `X.Y.Z` format (e.g., `"1.0.0"`). |
+
+### Strongly Recommended Fields
+
+These fields are not enforced by the manifest validator but should be included in every plugin:
+
+| Field | Type | Description |
+|-------|------|-------------|
 | `description` | string | Short description (max 200 characters). |
 | `author` | string | Plugin author or maintainer. |
 | `settings_schema` | object | [JSON Schema](https://json-schema.org/) defining user-configurable settings. |
@@ -371,9 +378,13 @@ Your plugin inherits these from `PluginBase`:
 | `config` | property | The current configuration dictionary (set by the platform). |
 | `enabled` | property | Whether the plugin is currently enabled. |
 | `manifest` | property | The raw manifest dictionary. |
+| `refresh_seconds` | property | Effective refresh interval in seconds (from manifest + config). Returns `None` if not defined. |
+| `get_data()` | method | Get plugin data with automatic caching based on `refresh_seconds`. This is what the platform calls. |
+| `clear_cache()` | method | Clear cached data, forcing a fresh fetch on the next `get_data()` call. |
 | `get_variables_schema()` | method | Returns the `variables` section from the manifest. |
 | `get_max_lengths()` | method | Returns the `max_lengths` section from the manifest. |
 | `get_settings_schema()` | method | Returns the `settings_schema` section from the manifest. |
+| `get_env_vars()` | method | Returns environment variable definitions from the manifest. |
 
 ### PluginResult
 
@@ -797,7 +808,9 @@ def fetch_data(self) -> PluginResult:
 
 ### Caching
 
-Avoid hitting external APIs on every data refresh. Cache responses for a reasonable interval:
+`PluginBase` provides **automatic caching** via `get_data()`. When your manifest defines a `refresh_seconds` field in `settings_schema`, the platform caches the result of `fetch_data()` and reuses it until the interval expires. You do **not** need to implement caching yourself in most cases.
+
+If your plugin needs more control (e.g., different TTLs for different data), you can implement manual caching inside `fetch_data()`:
 
 ```python
 from datetime import datetime, timedelta
@@ -805,21 +818,25 @@ from datetime import datetime, timedelta
 class MyPlugin(PluginBase):
     def __init__(self, manifest):
         super().__init__(manifest)
-        self._cache = None
-        self._cache_time = None
-        self._cache_ttl = timedelta(minutes=5)
+        self._custom_cache = None
+        self._custom_cache_time = None
+        self._custom_cache_ttl = timedelta(minutes=5)
 
     def fetch_data(self) -> PluginResult:
-        if self._cache and self._cache_time:
-            if datetime.now() - self._cache_time < self._cache_ttl:
-                return self._cache
+        if self._custom_cache and self._custom_cache_time:
+            if datetime.now() - self._custom_cache_time < self._custom_cache_ttl:
+                return self._custom_cache
 
         result = self._fetch_fresh()
         if result.available:
-            self._cache = result
-            self._cache_time = datetime.now()
+            self._custom_cache = result
+            self._custom_cache_time = datetime.now()
         return result
 ```
+
+:::tip
+For most plugins, just add `refresh_seconds` to your `settings_schema` and let `get_data()` handle caching automatically. Manual caching is only needed for advanced scenarios.
+:::
 
 ### Logging
 
@@ -877,10 +894,10 @@ This naming convention is only required for the curated registry. When installin
 
 ### Installing Your External Plugin
 
-During development, install your plugin directly from your git repository:
+During development, install your plugin directly from your git repository. Only HTTPS URLs are accepted (SSH and HTTP URLs are rejected for security):
 
 ```bash
-# Install from your repo
+# Install from your repo (HTTPS only)
 curl -X POST http://localhost:4420/api/plugins/install \
   -H "Content-Type: application/json" \
   -d '{"repository": "https://github.com/yourname/fiestaboard-plugin--my-weather"}'

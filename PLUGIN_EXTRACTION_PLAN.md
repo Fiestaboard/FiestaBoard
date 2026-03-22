@@ -37,6 +37,8 @@ candidates for extraction into standalone repositories.
 | `weather` | `fiestaboard-plugin--weather` | WeatherAPI / OpenWeatherMap |
 | `traffic` | `fiestaboard-plugin--traffic` | Google Routes API |
 | `muni` | `fiestaboard-plugin--muni` | 511.org |
+| `last_fm` | `fiestaboard-plugin--last-fm` | Last.fm |
+| `wsdot` | `fiestaboard-plugin--wsdot` | WSDOT |
 
 ### Free-Tier API Key
 
@@ -49,8 +51,6 @@ candidates for extraction into standalone repositories.
 
 | Current Plugin | Target Repository | API Provider |
 |---|---|---|
-| `last_fm` | `fiestaboard-plugin--last-fm` | Last.fm |
-| `wsdot` | `fiestaboard-plugin--wsdot` | WSDOT |
 | `stocks` | `fiestaboard-plugin--stocks` | Finnhub |
 | `sports_scores` | `fiestaboard-plugin--sports-scores` | TheSportsDB |
 | `nearby_aircraft` | `fiestaboard-plugin--nearby-aircraft` | OpenSky Network |
