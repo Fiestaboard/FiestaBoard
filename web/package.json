@@ -51,6 +51,10 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0"
   },
+  "optionalDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.10",
+    "lightningcss-linux-x64-gnu": "1.31.1"
+  },
   "overrides": {
     "serialize-javascript": ">=7.0.3"
   },
