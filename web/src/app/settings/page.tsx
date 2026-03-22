@@ -9,7 +9,7 @@ import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wand2, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Wand2, ChevronDown, Settings } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import {
@@ -27,7 +27,7 @@ export default function SettingsPage() {
 
   return (
     <PageLayout>
-      <PageHeader icon={SlidersHorizontal} title={t("title")} description={t("description")} />
+      <PageHeader icon={Settings} title={t("title")} description={t("description")} />
       <div className="space-y-6">
         <div className="animate-card-fade-in" style={{ animationDelay: "0ms" }}>
           <SystemUpdate />
