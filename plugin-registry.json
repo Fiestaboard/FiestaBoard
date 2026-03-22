@@ -4,5 +4,246 @@
   "_naming_convention": "All plugins listed here MUST use the fiestaboard-plugin--{name} repository naming convention",
   "_docs": "See docs-site/docs/development/plugin-guide.md for plugin development details",
   "version": "1.0.0",
-  "plugins": []
+  "plugins": [
+    {
+      "id": "air_fog",
+      "name": "Air Quality & Fog",
+      "description": "Display air quality (AQI), fog/visibility conditions, and pollen/allergen levels",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--air-fog",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "wind",
+      "category": "weather"
+    },
+    {
+      "id": "baywheels",
+      "name": "Bay Wheels",
+      "description": "Display Bay Wheels bike share availability with electric and classic bike counts",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--baywheels",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "bike",
+      "category": "transit"
+    },
+    {
+      "id": "dad_jokes",
+      "name": "Dad Jokes",
+      "description": "Display random dad jokes from the icanhazdadjoke API",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--dad-jokes",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "laugh",
+      "category": "entertainment"
+    },
+    {
+      "id": "disney_parks_times",
+      "name": "Disney Parks Queue Times",
+      "description": "Display wait times for Disney parks (Disneyland, California Adventure, Disney World, etc.) from Queue-Times.com",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "landmark",
+      "category": "entertainment"
+    },
+    {
+      "id": "generic_data",
+      "name": "Generic Data",
+      "description": "Fetch data from any URL (JSON or XML) and map fields to template variables \u2014 supports multiple feeds",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--generic-data",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "database",
+      "category": "data"
+    },
+    {
+      "id": "guest_wifi",
+      "name": "Guest WiFi",
+      "description": "Display guest WiFi credentials on your board",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "wifi",
+      "category": "utility"
+    },
+    {
+      "id": "health",
+      "name": "Allergy & Health",
+      "description": "Display allergy levels (pollen counts) and health risk indicators for your area using Open-Meteo Air Quality data",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--health",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "heart-pulse",
+      "category": "weather"
+    },
+    {
+      "id": "home_assistant",
+      "name": "Home Assistant",
+      "description": "Display entity states from Home Assistant via REST API or MQTT Statestream",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--home-assistant",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "home",
+      "category": "home"
+    },
+    {
+      "id": "last_fm",
+      "name": "Last.fm Now Playing",
+      "description": "Display what's currently playing via Last.fm scrobbling. Works with Apple Music, Spotify, and any scrobbling source.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--last-fm",
+      "author": "FiestaBoard",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "music",
+      "category": "entertainment"
+    },
+    {
+      "id": "muni",
+      "name": "SF Muni",
+      "description": "Display San Francisco Muni transit arrival times with multi-line support",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--muni",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "train",
+      "category": "transit"
+    },
+    {
+      "id": "nearby_aircraft",
+      "name": "Nearby Aircraft",
+      "description": "Display real-time nearby aircraft information from OpenSky Network API",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--nearby-aircraft",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "plane",
+      "category": "data"
+    },
+    {
+      "id": "santa_tracker",
+      "name": "Santa Tracker",
+      "description": "Track Santa's journey around the world as midnight of December 25th hits famous locations in each timezone",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--santa-tracker",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "gift",
+      "category": "entertainment"
+    },
+    {
+      "id": "spacecraft_launches",
+      "name": "Spacecraft Launches",
+      "description": "Track upcoming spacecraft launch countdowns and statuses",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--spacecraft-launches",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "rocket",
+      "category": "data"
+    },
+    {
+      "id": "sports_scores",
+      "name": "Sports Scores",
+      "description": "Display recent sports match scores from NFL, Soccer, NHL, and NBA",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--sports-scores",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "trophy",
+      "category": "data"
+    },
+    {
+      "id": "star_trek_quotes",
+      "name": "Star Trek Quotes",
+      "description": "Display random Star Trek quotes from TNG, Voyager, and DS9",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--star-trek-quotes",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "star",
+      "category": "entertainment"
+    },
+    {
+      "id": "stardate",
+      "name": "Stardate",
+      "description": "Display the current TNG-style stardate",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--stardate",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "star",
+      "category": "entertainment"
+    },
+    {
+      "id": "stocks",
+      "name": "Stock Prices",
+      "description": "Display real-time stock prices and percentage changes from Yahoo Finance",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--stocks",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "trending-up",
+      "category": "data"
+    },
+    {
+      "id": "sun_art",
+      "name": "Sun Art",
+      "description": "Display a full-screen sun art pattern that changes based on the sun's position throughout the day",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--sun-art",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "sun",
+      "category": "art"
+    },
+    {
+      "id": "surf",
+      "name": "Surf Conditions",
+      "description": "Display surf conditions including wave height and swell period",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--surf",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "waves",
+      "category": "weather"
+    },
+    {
+      "id": "traffic",
+      "name": "Traffic",
+      "description": "Display commute times and traffic conditions using Google Routes API",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--traffic",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "car",
+      "category": "transit"
+    },
+    {
+      "id": "visual_clock",
+      "name": "Visual Clock",
+      "description": "Displays a full-screen clock with large pixel-art style digits.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--visual-clock",
+      "author": "FiestaBoard",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "clock",
+      "category": "art"
+    },
+    {
+      "id": "weather",
+      "name": "Weather",
+      "description": "Display current weather conditions with temperature, humidity, and wind speed",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--weather",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "cloud-sun",
+      "category": "weather"
+    },
+    {
+      "id": "white_noise",
+      "name": "White Noise",
+      "description": "Gentle rain / white noise mode \u2014 softly cascading tiles that create a soothing ambient pitter-patter",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--white-noise",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "cloud-rain",
+      "category": "art"
+    },
+    {
+      "id": "wsdot",
+      "name": "WSDOT",
+      "description": "Washington State Ferries: schedules, vessel names, car spots, and alerts",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--wsdot",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "ship",
+      "category": "transit"
+    }
+  ]
 }
