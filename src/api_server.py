@@ -4603,6 +4603,120 @@ async def get_plugin_errors():
     }
 
 
+# ── External Plugin Management ──────────────────────────────────────────────
+
+
+class ExternalPluginInstallRequest(BaseModel):
+    """Request body for installing an external plugin."""
+    repository: str
+    plugin_id: Optional[str] = None
+    branch: str = ""
+
+
+@app.get("/plugins/registry")
+async def list_registry_plugins():
+    """
+    List all plugins available in the curated plugin registry.
+
+    Returns registry entries with their installation status.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+
+    return {
+        "entries": registry.get_registry_entries(),
+        "plugin_system_enabled": True,
+    }
+
+
+@app.post("/plugins/registry/{plugin_id}/install")
+async def install_registry_plugin(plugin_id: str):
+    """
+    Install a plugin from the curated registry by its id.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    errors = registry.install_from_registry(plugin_id)
+
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    return {
+        "status": "success",
+        "plugin_id": plugin_id,
+        "message": f"Plugin '{plugin_id}' installed from registry.",
+    }
+
+
+@app.post("/plugins/install")
+async def install_external_plugin(request: ExternalPluginInstallRequest):
+    """
+    Install a plugin from a public git repository URL.
+
+    The repository does not need to follow the ``fiestaboard-plugin--``
+    naming convention (that requirement only applies to registry plugins).
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    errors = registry.install_from_git(
+        request.repository,
+        plugin_id=request.plugin_id,
+        branch=request.branch,
+    )
+
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    # Derive the final plugin id
+    pid = request.plugin_id
+    if pid is None:
+        from .plugins.sources import _repo_name_from_url, plugin_id_from_repo_name
+        pid = plugin_id_from_repo_name(_repo_name_from_url(request.repository))
+
+    return {
+        "status": "success",
+        "plugin_id": pid,
+        "message": f"Plugin '{pid}' installed from {request.repository}.",
+    }
+
+
+@app.delete("/plugins/{plugin_id}/uninstall")
+async def uninstall_external_plugin(plugin_id: str):
+    """
+    Uninstall an external (non-built-in) plugin.
+
+    Built-in plugins shipped with FiestaBoard cannot be uninstalled.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    errors = registry.uninstall_external_plugin(plugin_id)
+
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    return {
+        "status": "success",
+        "plugin_id": plugin_id,
+        "message": f"Plugin '{plugin_id}' has been uninstalled.",
+    }
+
+
 # =============================================================================
 # Generic Data Plugin — Test Fetch
 # =============================================================================

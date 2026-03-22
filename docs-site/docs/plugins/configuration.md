@@ -105,6 +105,26 @@ curl http://localhost:4420/api/plugins/weather/variables
 curl http://localhost:4420/api/plugins
 ```
 
+### External Plugin API
+
+You can install and remove external plugins through the API:
+
+```bash
+# List curated registry plugins
+curl http://localhost:4420/api/plugins/registry
+
+# Install a plugin from the registry
+curl -X POST http://localhost:4420/api/plugins/registry/{plugin_id}/install
+
+# Install a plugin from any public git repository
+curl -X POST http://localhost:4420/api/plugins/install \
+  -H "Content-Type: application/json" \
+  -d '{"repository": "https://github.com/someone/my-plugin"}'
+
+# Uninstall an external plugin (built-in plugins cannot be uninstalled)
+curl -X DELETE http://localhost:4420/api/plugins/{plugin_id}/uninstall
+```
+
 ## Next Steps
 
 - **[Plugins Overview](/docs/plugins/overview)** - See all available plugins and what they need

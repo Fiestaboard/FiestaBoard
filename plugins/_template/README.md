@@ -274,6 +274,72 @@ python scripts/run_plugin_tests.py --no-coverage
    - `docs/SETUP.md` - User-facing setup guide (API key registration, configuration)
 7. **Testing**: Write comprehensive tests with >80% coverage
 
+## Developing as an External Repository
+
+Instead of adding your plugin directly to the FiestaBoard repository, you can develop it as a standalone git repository. This is the recommended approach for:
+
+- Plugins that depend on paid or authenticated third-party APIs
+- Plugins you want to release independently of FiestaBoard releases
+- Community contributions that you want to maintain yourself
+
+### External Plugin Structure
+
+Your standalone repository should have the same layout as a built-in plugin, but at the repository root:
+
+```
+fiestaboard-plugin--my-weather/
+├── __init__.py
+├── manifest.json
+├── README.md
+├── docs/
+│   └── SETUP.md
+└── tests/
+    └── test_plugin.py
+```
+
+### Naming Convention for Registry Plugins
+
+If you want your plugin to be listed in the curated **plugin registry** (maintained in the FiestaBoard repository), your git repository **must** follow this naming convention:
+
+```
+fiestaboard-plugin--{name}
+```
+
+Where `{name}` uses lowercase letters and dashes (e.g. `fiestaboard-plugin--my-weather`). The plugin id in `manifest.json` is derived by stripping the prefix and converting dashes to underscores (e.g. `my_weather`).
+
+:::note
+This naming convention is only required for the curated registry. When a user installs a plugin via a custom git URL, any repository name is accepted.
+:::
+
+### Testing External Plugins Locally
+
+Install your external plugin during development:
+
+```bash
+curl -X POST http://localhost:4420/api/plugins/install \
+  -H "Content-Type: application/json" \
+  -d '{"repository": "https://github.com/yourname/fiestaboard-plugin--my-weather"}'
+```
+
+The plugin is cloned into `external_plugins/` and loaded automatically. Changes you push to the repository can be picked up by reinstalling.
+
+### Submitting to the Registry
+
+To have your external plugin included in the curated registry:
+
+1. Ensure the repository name follows the `fiestaboard-plugin--{name}` convention.
+2. Open a pull request against the FiestaBoard repository that adds an entry to `plugin-registry.json`:
+
+```json
+{
+  "id": "my_weather",
+  "name": "My Weather Plugin",
+  "description": "Custom weather data from my favorite API",
+  "repository": "https://github.com/yourname/fiestaboard-plugin--my-weather",
+  "author": "Your Name"
+}
+```
+
 ## Example Plugins
 
 See these plugins for reference implementations:

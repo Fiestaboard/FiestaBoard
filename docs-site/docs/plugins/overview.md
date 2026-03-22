@@ -8,6 +8,14 @@ keywords: [FiestaBoard plugins, plugin overview, available plugins, Vestaboard p
 
 FiestaBoard uses a **plugin architecture** to bring live data to your Vestaboard. Each data source is a self-contained plugin you can enable or disable independently. There are currently 26 built-in plugins, and many work without any API key.
 
+FiestaBoard supports three ways to add plugins:
+
+| Source | Description |
+|--------|-------------|
+| **Built-in** | Plugins that ship with FiestaBoard in the `plugins/` directory. These are always available. |
+| **Registry** | Community plugins listed in the curated `plugin-registry.json`. They are installed from public git repositories that follow the `fiestaboard-plugin--{name}` naming convention. |
+| **Custom Git** | Any public git repository can be installed as a plugin. Custom repos do not need to follow the naming convention. |
+
 ## Enabling Plugins
 
 All plugin management is done through the **Web UI**:
@@ -89,3 +97,47 @@ For more details, see [Plugin Configuration](/docs/plugins/configuration).
 ## Creating Your Own Plugins
 
 Want to add a data source that isn't built in? Check out the [Plugin Development Guide](/docs/development/plugin-guide) to learn how to create custom plugins.
+
+## Installing External Plugins
+
+External plugins can be installed from the plugin registry or from any public git repository.
+
+### From the Registry
+
+The plugin registry is a curated list of community plugins maintained in the FiestaBoard repository. Browse available plugins and install them through the API:
+
+```bash
+# List all registry plugins
+curl http://localhost:4420/api/plugins/registry
+
+# Install a registry plugin
+curl -X POST http://localhost:4420/api/plugins/registry/my_plugin/install
+```
+
+Registry plugins must follow the `fiestaboard-plugin--{name}` repository naming convention. This ensures they are easy to identify and maintain.
+
+### From a Git Repository
+
+You can install any public git repository as a plugin. Custom repositories do not need to follow the naming convention:
+
+```bash
+# Install from a git URL
+curl -X POST http://localhost:4420/api/plugins/install \
+  -H "Content-Type: application/json" \
+  -d '{"repository": "https://github.com/someone/my-custom-plugin"}'
+
+# Install with a specific branch
+curl -X POST http://localhost:4420/api/plugins/install \
+  -H "Content-Type: application/json" \
+  -d '{"repository": "https://github.com/someone/my-custom-plugin", "branch": "main"}'
+```
+
+### Uninstalling External Plugins
+
+External plugins can be removed when no longer needed. Built-in plugins cannot be uninstalled.
+
+```bash
+curl -X DELETE http://localhost:4420/api/plugins/my_plugin/uninstall
+```
+
+External plugins are cloned into the `external_plugins/` directory and persist across container restarts.

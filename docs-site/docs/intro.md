@@ -21,7 +21,7 @@ Here's a quick look at what your board can show once FiestaBoard is running:
 | **Home** | Smart home status via Home Assistant, guest WiFi credentials |
 | **Fun & Visual** | Disney park wait times, sun art, visual clock, stardate |
 
-There are **26 built-in plugins**, and many of them work without any API key at all.
+There are **26 built-in plugins**, and many of them work without any API key at all. You can also install community plugins from the [plugin registry](/docs/plugins/overview#installing-external-plugins) or from any public git repository.
 
 ## How It Works
 
