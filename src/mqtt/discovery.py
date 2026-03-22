@@ -354,8 +354,7 @@ def build_discovery_payload(
         if entity.event_types:
             payload["event_types"] = entity.event_types
 
-    # Sensor-specific fields (device_class, state_class, unit)
-    if entity.entity_type == "sensor":
+    elif entity.entity_type == "sensor":
         if entity.device_class:
             payload["device_class"] = entity.device_class
         if entity.state_class:
