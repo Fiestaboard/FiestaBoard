@@ -44,6 +44,8 @@ web/.next/
 # IDE
 .vscode/
 .idea/
+.cursor/
+.cursorrules
 *.swp
 *.swo
 *~
