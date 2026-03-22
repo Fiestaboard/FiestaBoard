@@ -83,3 +83,38 @@ jobs:
             
             console.log(`✅ PR labeled with: ${bumpType}`);
 
+      - name: Auto-label PR based on changed files
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              per_page: 100
+            });
+
+            const areaLabels = new Set();
+            for (const file of files) {
+              const p = file.filename;
+              if (p.startsWith('plugins/')) areaLabels.add('plugin');
+              else if (p.startsWith('web/')) areaLabels.add('frontend');
+              else if (p.startsWith('src/')) areaLabels.add('backend');
+              else if (p.startsWith('docs/') || p.startsWith('docs-site/')) areaLabels.add('docs');
+              if (p === 'requirements.txt' || p === 'package-lock.json' || p === 'web/package-lock.json') areaLabels.add('dependencies');
+            }
+
+            if (areaLabels.size > 0) {
+              const labels = [...areaLabels];
+              console.log(`Adding area labels: ${labels.join(', ')}`);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels
+              });
+              console.log(`✅ PR area-labeled with: ${labels.join(', ')}`);
+            }
+

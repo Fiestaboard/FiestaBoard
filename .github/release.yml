@@ -11,9 +11,24 @@ changelog:
     - title: New Features 🎉
       labels:
         - minor
+    - title: Plugin Updates 🔌
+      labels:
+        - plugin
+    - title: Frontend Improvements 🎨
+      labels:
+        - frontend
+    - title: Backend Improvements ⚙️
+      labels:
+        - backend
     - title: Bug Fixes 🐛
       labels:
         - patch
+    - title: Documentation 📖
+      labels:
+        - docs
+    - title: Dependencies 📦
+      labels:
+        - dependencies
     - title: Other Changes
       labels:
         - "*"
