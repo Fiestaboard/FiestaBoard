@@ -50,6 +50,14 @@ class CommandHandler:
             except Exception as e:
                 logger.debug("State publish after command: %s", e)
 
+    def _publish_event(self, object_id: str, event_type: str, attributes: dict | None = None) -> None:
+        """Publish an event via the state publisher if available."""
+        if self._client._state_publisher:
+            try:
+                self._client._state_publisher.publish_event(object_id, event_type, attributes)
+            except Exception as e:
+                logger.debug("Event publish failed: %s", e)
+
     def _handle_schedule_enabled(self, payload: str) -> None:
         from src.settings.service import get_settings_service
         enabled = payload.upper() in ("ON", "1", "TRUE", "YES")
@@ -71,6 +79,7 @@ class CommandHandler:
         for page in page_service.list_pages():
             if page.name == payload:
                 get_settings_service().set_active_page_id(page.id)
+                self._publish_event("page_changed", "page_switched", {"page_name": payload})
                 return
         logger.warning("MQTT active_page: no page named %r", payload)
 
@@ -93,6 +102,7 @@ class CommandHandler:
                 service.fetch_and_display()
             elif hasattr(service, "check_and_send_active_page"):
                 service.check_and_send_active_page()
+        self._publish_event("display_updated", "page_refreshed")
 
     def _handle_blank_board(self) -> None:
         from src.api_server import _get_board_client
@@ -105,6 +115,7 @@ class CommandHandler:
             return
         blank_array = [[0] * 22 for _ in range(6)]
         client.send_characters(blank_array, force=True)
+        self._publish_event("display_updated", "board_blanked")
 
     def _handle_send_message(self, payload: str) -> None:
         if not payload:
@@ -129,6 +140,7 @@ class CommandHandler:
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
         )
+        self._publish_event("display_updated", "message_sent")
 
     def _handle_refresh_interval(self, payload: str) -> None:
         try:

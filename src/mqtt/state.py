@@ -1,5 +1,6 @@
 """State publisher for MQTT: reads FiestaBoard state and publishes to broker."""
 
+import json
 import logging
 from typing import Callable, Optional
 
@@ -23,10 +24,25 @@ class StatePublisher:
     def gather_and_publish(self) -> None:
         """Read state from services and publish changed values."""
         state = self._gather_state()
+        attributes = self._gather_attributes()
         for object_id, value in state.items():
             if self._cache.get(object_id) != value:
                 self._client.publish_state(object_id, value)
                 self._cache[object_id] = value
+        # Publish JSON attributes for entities that support them
+        for object_id, attrs in attributes.items():
+            attrs_json = json.dumps(attrs)
+            cache_key = f"__attrs__{object_id}"
+            if self._cache.get(cache_key) != attrs_json:
+                self._client.publish_attributes(object_id, attrs_json)
+                self._cache[cache_key] = attrs_json
+
+    def publish_event(self, object_id: str, event_type: str, attributes: Optional[dict] = None) -> None:
+        """Publish an event entity payload (JSON with event_type key)."""
+        payload: dict = {"event_type": event_type}
+        if attributes:
+            payload.update(attributes)
+        self._client.publish_state(object_id, json.dumps(payload))
 
     def _gather_state(self) -> dict[str, str]:
         """Build a dict of object_id -> state value."""
@@ -79,9 +95,82 @@ class StatePublisher:
             # refresh_interval
             out["refresh_interval"] = str(settings.get_polling_interval())
 
+            # uptime (diagnostic)
+            out["uptime"] = self._get_uptime()
+
+            # board_api_mode (diagnostic)
+            out["board_api_mode"] = self._get_board_api_mode()
+
+            # active_plugins (diagnostic)
+            out["active_plugins"] = self._get_active_plugin_count()
+
         except Exception as e:
             logger.debug("State gather error: %s", e)
         return out
+
+    def _gather_attributes(self) -> dict[str, dict]:
+        """Build a dict of object_id -> JSON-serializable attributes."""
+        out: dict[str, dict] = {}
+        try:
+            from src.settings.service import get_settings_service
+            from src.pages.service import get_page_service
+
+            settings = get_settings_service()
+            page_service = get_page_service()
+
+            # current_page attributes: page_id and page_index
+            active_id = settings.get_active_page_id()
+            pages = page_service.list_pages()
+            page_attrs: dict = {"page_id": active_id or ""}
+            for idx, page in enumerate(pages):
+                if page.id == active_id:
+                    page_attrs["page_index"] = idx
+                    break
+            out["current_page"] = page_attrs
+
+        except Exception as e:
+            logger.debug("Attributes gather error: %s", e)
+        return out
+
+    @staticmethod
+    def _get_uptime() -> str:
+        """Get service uptime in seconds as a string."""
+        try:
+            from src.api_server import _service_start_time
+            import time
+            if _service_start_time is not None:
+                return str(int(time.time() - _service_start_time))
+        except Exception:
+            pass
+        return "0"
+
+    @staticmethod
+    def _get_board_api_mode() -> str:
+        """Get the board API mode (Local API or Cloud API)."""
+        try:
+            from src.api_server import _get_board_client
+            client = _get_board_client()
+            if client and hasattr(client, "use_cloud"):
+                return "Cloud API" if client.use_cloud else "Local API"
+        except Exception:
+            pass
+        return "Unknown"
+
+    @staticmethod
+    def _get_active_plugin_count() -> str:
+        """Get the count of active (enabled) plugins."""
+        try:
+            from src.config_manager import ConfigManager
+            cm = ConfigManager()
+            plugins = cm._config.get("plugins", {})
+            count = sum(
+                1 for p in plugins.values()
+                if isinstance(p, dict) and p.get("enabled", False)
+            )
+            return str(count)
+        except Exception:
+            pass
+        return "0"
 
 
 # Type hint

@@ -179,6 +179,11 @@ class MQTTClient:
         topic = f"{self.config.base_topic}/{object_id}/state"
         self.publish_state_raw(topic, value, retain=True)
 
+    def publish_attributes(self, object_id: str, json_payload: str) -> None:
+        """Publish JSON attributes for an entity (e.g. current_page -> {"page_id": "..."})."""
+        topic = f"{self.config.base_topic}/{object_id}/attributes"
+        self.publish_state_raw(topic, json_payload, retain=True)
+
     def publish_state_raw(self, topic: str, payload: str, retain: bool = True) -> None:
         """Publish a state payload to a topic."""
         if not self._client or not self._connected:

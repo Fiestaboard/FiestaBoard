@@ -13,6 +13,7 @@ References:
     - HA MQTT Button: https://www.home-assistant.io/integrations/button.mqtt/
     - HA MQTT Text: https://www.home-assistant.io/integrations/text.mqtt/
     - HA MQTT Number: https://www.home-assistant.io/integrations/number.mqtt/
+    - HA MQTT Event: https://www.home-assistant.io/integrations/event.mqtt/
 """
 
 import json
@@ -22,7 +23,7 @@ from typing import Any
 from src.mqtt.config import MQTTConfig
 
 # Valid entity types supported by HA MQTT Discovery
-VALID_ENTITY_TYPES = ["switch", "select", "sensor", "binary_sensor", "button", "text", "number"]
+VALID_ENTITY_TYPES = ["switch", "select", "sensor", "binary_sensor", "button", "text", "number", "event"]
 
 
 @dataclass
@@ -30,7 +31,7 @@ class EntityDefinition:
     """Definition of a single HA entity exposed via MQTT Discovery.
 
     Attributes:
-        entity_type: HA entity type (switch, sensor, select, etc.)
+        entity_type: HA entity type (switch, sensor, select, event, etc.)
         object_id: Unique object ID within the device (e.g., 'schedule_enabled')
         name: Human-readable entity name shown in HA
         icon: Material Design Icon identifier (e.g., 'mdi:calendar-clock')
@@ -41,10 +42,14 @@ class EntityDefinition:
         step: For number entities, step increment
         unit: For number/sensor entities, unit of measurement
         device_class: HA device class (e.g., 'running' for binary sensors)
+        state_class: HA state class for sensors (e.g., 'measurement', 'total_increasing')
+        entity_category: HA entity category ('diagnostic' or 'config') for UI grouping
         payload_on: Payload for ON state (switches/binary sensors)
         payload_off: Payload for OFF state (switches/binary sensors)
         min_length: For text entities, minimum text length
         max_length: For text entities, maximum text length
+        event_types: For event entities, the list of possible event type strings
+        json_attributes: Whether this entity publishes JSON attributes alongside state
     """
     entity_type: str
     object_id: str
@@ -57,10 +62,14 @@ class EntityDefinition:
     step: float | None = None
     unit: str | None = None
     device_class: str | None = None
+    state_class: str | None = None
+    entity_category: str | None = None
     payload_on: str = "ON"
     payload_off: str = "OFF"
     min_length: int | None = None
     max_length: int | None = None
+    event_types: list[str] | None = None
+    json_attributes: bool = False
 
 
 # All entities FiestaBoard exposes to Home Assistant
@@ -103,6 +112,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         object_id="current_page",
         name="Current Page",
         icon="mdi:eye",
+        json_attributes=True,
     ),
     EntityDefinition(
         entity_type="binary_sensor",
@@ -110,6 +120,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         name="Service Status",
         icon="mdi:heart-pulse",
         device_class="running",
+        entity_category="diagnostic",
     ),
     EntityDefinition(
         entity_type="sensor",
@@ -128,12 +139,14 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         object_id="version",
         name="Version",
         icon="mdi:information-outline",
+        entity_category="diagnostic",
     ),
     EntityDefinition(
         entity_type="sensor",
         object_id="page_count",
         name="Page Count",
         icon="mdi:counter",
+        state_class="measurement",
     ),
     # Buttons
     EntityDefinition(
@@ -171,6 +184,48 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         max_value=3600,
         step=30,
         unit="s",
+        entity_category="config",
+    ),
+    # Diagnostic Sensors
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="uptime",
+        name="Uptime",
+        icon="mdi:clock-outline",
+        entity_category="diagnostic",
+        device_class="duration",
+        state_class="total_increasing",
+        unit="s",
+    ),
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="board_api_mode",
+        name="Board API Mode",
+        icon="mdi:api",
+        entity_category="diagnostic",
+    ),
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="active_plugins",
+        name="Active Plugins",
+        icon="mdi:puzzle",
+        entity_category="diagnostic",
+        state_class="measurement",
+    ),
+    # Events
+    EntityDefinition(
+        entity_type="event",
+        object_id="display_updated",
+        name="Display Updated",
+        icon="mdi:update",
+        event_types=["message_sent", "page_refreshed", "board_blanked"],
+    ),
+    EntityDefinition(
+        entity_type="event",
+        object_id="page_changed",
+        name="Page Changed",
+        icon="mdi:book-open-page-variant",
+        event_types=["page_switched"],
     ),
 ]
 
@@ -257,6 +312,14 @@ def build_discovery_payload(
     if entity.has_command:
         payload["command_topic"] = f"{config.base_topic}/{entity.object_id}/set"
 
+    # Entity category (diagnostic, config) for HA UI grouping
+    if entity.entity_category:
+        payload["entity_category"] = entity.entity_category
+
+    # JSON attributes topic for richer entity data
+    if entity.json_attributes:
+        payload["json_attributes_topic"] = f"{config.base_topic}/{entity.object_id}/attributes"
+
     # Type-specific fields
     if entity.entity_type == "switch":
         payload["payload_on"] = entity.payload_on
@@ -284,6 +347,19 @@ def build_discovery_payload(
             payload["max"] = entity.max_value
         if entity.step is not None:
             payload["step"] = entity.step
+        if entity.unit:
+            payload["unit_of_measurement"] = entity.unit
+
+    elif entity.entity_type == "event":
+        if entity.event_types:
+            payload["event_types"] = entity.event_types
+
+    # Sensor-specific fields (device_class, state_class, unit)
+    if entity.entity_type == "sensor":
+        if entity.device_class:
+            payload["device_class"] = entity.device_class
+        if entity.state_class:
+            payload["state_class"] = entity.state_class
         if entity.unit:
             payload["unit_of_measurement"] = entity.unit
 

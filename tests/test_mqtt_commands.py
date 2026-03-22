@@ -38,6 +38,21 @@ def handler(mock_client):
     )
 
 
+@pytest.fixture
+def handler_with_publisher(mock_client):
+    """Handler with a mock state publisher for event testing."""
+    publisher = MagicMock()
+    mock_client._state_publisher = publisher
+    start_fn = MagicMock(return_value=True)
+    stop_fn = MagicMock(return_value=True)
+    h = CommandHandler(
+        mock_client,
+        start_display_service=start_fn,
+        stop_display_service=stop_fn,
+    )
+    return h, publisher
+
+
 class TestCommandHandlerScheduleEnabled:
     """Tests for schedule_enabled command."""
 
@@ -130,3 +145,68 @@ class TestCommandHandlerUnknown:
     def test_unknown_object_id_no_exception(self, handler):
         handler.handle("unknown_entity", "payload")
         # Should not raise
+
+
+class TestCommandHandlerEventPublishing:
+    """Tests for event publishing from command handlers."""
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_fires_page_changed_event(self, get_page, get_settings, handler_with_publisher):
+        handler, publisher = handler_with_publisher
+        page_svc = MagicMock()
+        page = MagicMock()
+        page.name = "Weather"
+        page.id = "page-weather-id"
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        settings = MagicMock()
+        get_settings.return_value = settings
+        handler.handle("active_page", "Weather")
+        publisher.publish_event.assert_called_once_with(
+            "page_changed", "page_switched", {"page_name": "Weather"}
+        )
+
+    @patch("src.api_server.get_service")
+    def test_refresh_display_fires_display_updated_event(self, get_service, handler_with_publisher):
+        handler, publisher = handler_with_publisher
+        get_service.return_value = None
+        handler.handle("refresh_display", "")
+        publisher.publish_event.assert_called_once_with(
+            "display_updated", "page_refreshed", None
+        )
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server._get_board_client")
+    def test_blank_board_fires_display_updated_event(self, get_board, get_settings, handler_with_publisher):
+        handler, publisher = handler_with_publisher
+        board_client = MagicMock()
+        get_board.return_value = board_client
+        settings = MagicMock()
+        settings.should_send_to_board.return_value = True
+        get_settings.return_value = settings
+        handler.handle("blank_board", "")
+        publisher.publish_event.assert_called_once_with(
+            "display_updated", "board_blanked", None
+        )
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.text_to_board.text_to_board_array")
+    @patch("src.api_server.get_service")
+    @patch("src.config.Config")
+    def test_send_message_fires_display_updated_event(self, mock_config, get_service, text_to_board, get_settings, handler_with_publisher):
+        handler, publisher = handler_with_publisher
+        mock_config.is_silence_mode_active.return_value = False
+        service = MagicMock()
+        service.vb_client = MagicMock()
+        get_service.return_value = service
+        text_to_board.return_value = [[0] * 22 for _ in range(6)]
+        settings = MagicMock()
+        settings.get_transition_settings.return_value = MagicMock(
+            strategy="column", step_interval_ms=100, step_size=1
+        )
+        get_settings.return_value = settings
+        handler.handle("send_message", "Hello World")
+        publisher.publish_event.assert_called_once_with(
+            "display_updated", "message_sent", None
+        )
