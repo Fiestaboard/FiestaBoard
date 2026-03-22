@@ -10,6 +10,11 @@ from src.plugins.base import PluginBase
 from src.plugins.loader import PluginLoader
 
 
+def _loader_for_tests(plugins_dir: Path) -> PluginLoader:
+    """PluginLoader scoped to *plugins_dir* only (no merge with repo ``external_plugins/``)."""
+    return PluginLoader(plugins_dir=plugins_dir, external_dirs=[])
+
+
 # --- Minimal valid plugin for testing ---
 
 VALID_MANIFEST = {
@@ -103,7 +108,7 @@ def test_discover_plugins_returns_sorted_dirs_with_manifest(tmp_path):
     (tmp_path / "plugin_c").mkdir()
     # plugin_c has no manifest
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugins = loader.discover_plugins()
     assert plugins == ["plugin_a", "plugin_b"]
 
@@ -117,7 +122,7 @@ def test_discover_plugins_skips_hidden_dirs(tmp_path):
     (tmp_path / "valid").mkdir()
     (tmp_path / "valid" / "manifest.json").write_text("{}")
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugins = loader.discover_plugins()
     assert plugins == ["valid"]
 
@@ -125,7 +130,7 @@ def test_discover_plugins_skips_hidden_dirs(tmp_path):
 def test_discover_plugins_handles_missing_dir(tmp_path):
     """discover_plugins handles missing directory."""
     missing = tmp_path / "nonexistent"
-    loader = PluginLoader(plugins_dir=missing)
+    loader = _loader_for_tests(missing)
     plugins = loader.discover_plugins()
     assert plugins == []
 
@@ -134,7 +139,7 @@ def test_discover_plugins_handles_non_dir_path(tmp_path):
     """discover_plugins handles path that is not a directory."""
     file_path = tmp_path / "file.txt"
     file_path.write_text("not a dir")
-    loader = PluginLoader(plugins_dir=file_path)
+    loader = _loader_for_tests(file_path)
     plugins = loader.discover_plugins()
     assert plugins == []
 
@@ -145,7 +150,7 @@ def test_discover_plugins_handles_non_dir_path(tmp_path):
 def test_load_plugin_loads_valid_plugin_successfully(tmp_path):
     """load_plugin loads valid plugin successfully."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
 
     plugin = loader.load_plugin("test_plugin")
     assert plugin is not None
@@ -155,7 +160,7 @@ def test_load_plugin_loads_valid_plugin_successfully(tmp_path):
 
 def test_load_plugin_handles_missing_directory(tmp_path):
     """load_plugin handles missing directory."""
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("nonexistent")
     assert plugin is None
     assert "nonexistent" in loader.load_errors
@@ -169,7 +174,7 @@ def test_load_plugin_handles_manifest_errors(tmp_path):
     (plugin_dir / "manifest.json").write_text("{ invalid json")
     (plugin_dir / "__init__.py").write_text("")
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("bad_manifest")
     assert plugin is None
     assert "bad_manifest" in loader.load_errors
@@ -192,7 +197,7 @@ class P(PluginBase):
 """
     )
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("dir_name")
     assert plugin is None
     assert "dir_name" in loader.load_errors
@@ -208,7 +213,7 @@ def test_load_plugin_handles_missing_init(tmp_path):
     )
     # No __init__.py
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("no_init")
     assert plugin is None
     assert any("__init__.py" in e for e in loader.load_errors["no_init"])
@@ -223,7 +228,7 @@ def test_load_plugin_handles_import_errors(tmp_path):
     )
     (plugin_dir / "__init__.py").write_text("raise ImportError('syntax error')")
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("import_error")
     assert plugin is None
     assert "import_error" in loader.load_errors
@@ -239,7 +244,7 @@ def test_load_plugin_handles_no_plugin_base_subclass(tmp_path):
     )
     (plugin_dir / "__init__.py").write_text("x = 42")
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("no_plugin_class")
     assert plugin is None
     assert any("PluginBase" in e for e in loader.load_errors["no_plugin_class"])
@@ -265,7 +270,7 @@ class P(PluginBase):
 """
     )
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("init_error")
     assert plugin is None
     assert any("instantiate" in e.lower() or "init failed" in e for e in loader.load_errors["init_error"])
@@ -288,7 +293,7 @@ class P(PluginBase):
 """
     )
 
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     plugin = loader.load_plugin("id_mismatch")
     assert plugin is None
     assert any("does not match" in e for e in loader.load_errors["id_mismatch"])
@@ -297,7 +302,7 @@ class P(PluginBase):
 def test_load_plugin_clears_previous_errors(tmp_path):
     """load_plugin clears previous errors for plugin."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     loader._load_errors["test_plugin"] = ["old error"]
 
     plugin = loader.load_plugin("test_plugin")
@@ -359,7 +364,7 @@ def test_load_all_plugins_discovers_and_loads_all(tmp_path):
     """load_all_plugins discovers and loads all plugins."""
     create_valid_plugin_dir(tmp_path, "plugin_a")
     create_valid_plugin_dir(tmp_path, "plugin_b")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
 
     loaded = loader.load_all_plugins()
     assert len(loaded) == 2
@@ -372,7 +377,7 @@ def test_load_all_plugins_logs_errors(tmp_path):
     create_valid_plugin_dir(tmp_path, "good")
     (tmp_path / "bad").mkdir()
     (tmp_path / "bad" / "manifest.json").write_text("{ invalid")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
 
     loaded = loader.load_all_plugins()
     assert "good" in loaded
@@ -385,7 +390,7 @@ def test_load_all_plugins_logs_errors(tmp_path):
 def test_reload_plugin_unloads_and_loads_again(tmp_path):
     """reload_plugin unloads old, removes from sys.modules, loads again."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     loader.load_plugin("test_plugin")
 
     module_name = "plugins.test_plugin"
@@ -398,7 +403,7 @@ def test_reload_plugin_unloads_and_loads_again(tmp_path):
 def test_reload_plugin_loads_if_not_loaded(tmp_path):
     """reload_plugin loads plugin if not previously loaded."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
 
     plugin = loader.reload_plugin("test_plugin")
     assert plugin is not None
@@ -411,7 +416,7 @@ def test_reload_plugin_loads_if_not_loaded(tmp_path):
 def test_unload_plugin_cleans_up_and_removes_from_sys_modules(tmp_path):
     """unload_plugin cleans up, removes from sys.modules."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     loader.load_plugin("test_plugin")
 
     result = loader.unload_plugin("test_plugin")
@@ -433,7 +438,7 @@ def test_unload_plugin_returns_false_if_not_loaded():
 def test_get_manifest_returns_manifest_for_loaded(tmp_path):
     """get_manifest returns manifest for loaded plugin."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     loader.load_plugin("test_plugin")
 
     manifest = loader.get_manifest("test_plugin")
@@ -461,7 +466,7 @@ def test_load_plugin_handles_none_spec(tmp_path):
     (plugin_dir / "__init__.py").write_text("x = 1")
 
     with patch("importlib.util.spec_from_file_location", return_value=None):
-        loader = PluginLoader(plugins_dir=tmp_path)
+        loader = _loader_for_tests(tmp_path)
         plugin = loader.load_plugin("spec_error")
     assert plugin is None
     assert any("spec" in e.lower() for e in loader.load_errors["spec_error"])
@@ -473,7 +478,7 @@ def test_load_plugin_handles_none_spec(tmp_path):
 def test_get_source_returns_source_for_loaded_plugin(tmp_path):
     """get_source returns a PluginSource for a loaded plugin."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     loader.load_plugin("test_plugin")
 
     source = loader.get_source("test_plugin")
@@ -494,7 +499,7 @@ def test_get_source_returns_none_for_unknown():
 def test_plugin_sources_returns_loaded_sources(tmp_path):
     """plugin_sources property returns sources for all loaded plugins."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
-    loader = PluginLoader(plugins_dir=tmp_path)
+    loader = _loader_for_tests(tmp_path)
     loader.load_plugin("test_plugin")
 
     sources = loader.plugin_sources

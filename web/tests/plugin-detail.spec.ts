@@ -202,12 +202,14 @@ test.describe("Plugin Detail Page", () => {
   test("unknown plugin ID shows an error or empty state, not a server error", async ({ page }) => {
     await page.goto("/integrations/totally-unknown-plugin-xyz-12345");
 
-    // Should not see an unhandled server error (Next.js 500 page)
+    // Wait for client hydration; use innerText — textContent() includes RSC payloads
+    // where chunk IDs like I[80503,...] falsely match substring "500".
     await page.waitForTimeout(2000);
-    
-    const bodyText = await page.locator("body").textContent();
-    expect(bodyText).not.toContain("500");
-    expect(bodyText).not.toContain("Internal Server Error");
+
+    const visibleText = await page.evaluate(() => document.body?.innerText ?? "");
+    expect(visibleText).not.toContain("Internal Server Error");
+    // Next.js generic error page title pattern (visible text only)
+    expect(visibleText).not.toMatch(/\b500\b.*Something went wrong/i);
 
     // The page should still render the layout (Back link should be present)
     const backLink = page.getByRole("link", { name: /back to marketplace/i });
