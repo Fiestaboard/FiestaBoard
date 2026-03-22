@@ -37,47 +37,134 @@
   ],
 
   "variables": {
-    "simple": [
-      "time",
-      "date",
-      "datetime",
-      "day",
-      "day_of_week",
-      "month",
-      "year",
-      "hour",
-      "minute",
-      "timezone_abbr",
-      "time_12h",
-      "time_24h",
-      "date_us",
-      "date_us_short",
-      "month_number",
-      "month_number_padded",
-      "month_abbr",
-      "timezone"
-    ]
+    "groups": {
+      "time": { "label": "Time" },
+      "date": { "label": "Date" },
+      "formatting": { "label": "Formatted" }
+    },
+    "simple": {
+      "time": {
+        "description": "Current time (HH:MM)",
+        "group": "time",
+        "max_length": 5,
+        "example": "14:30"
+      },
+      "hour": {
+        "description": "Current hour (0-23)",
+        "type": "number",
+        "group": "time",
+        "max_length": 2,
+        "example": "14"
+      },
+      "minute": {
+        "description": "Current minute (00-59)",
+        "type": "number",
+        "group": "time",
+        "max_length": 2,
+        "example": "30"
+      },
+      "time_12h": {
+        "description": "12-hour time with AM/PM",
+        "group": "time",
+        "max_length": 8,
+        "example": "2:30 PM"
+      },
+      "time_24h": {
+        "description": "24-hour time (HH:MM)",
+        "group": "time",
+        "max_length": 5,
+        "example": "14:30"
+      },
+      "timezone_abbr": {
+        "description": "Timezone abbreviation",
+        "group": "time",
+        "max_length": 5,
+        "example": "PST"
+      },
+      "timezone": {
+        "description": "Full IANA timezone name",
+        "group": "time",
+        "max_length": 30,
+        "example": "America/Los_Angeles"
+      },
+      "date": {
+        "description": "Full date (YYYY-MM-DD)",
+        "group": "date",
+        "max_length": 10,
+        "example": "2025-03-21"
+      },
+      "day": {
+        "description": "Day of month (1-31)",
+        "type": "number",
+        "group": "date",
+        "max_length": 2,
+        "example": "21"
+      },
+      "day_of_week": {
+        "description": "Day name (e.g. Tuesday)",
+        "group": "date",
+        "max_length": 9,
+        "example": "Friday"
+      },
+      "month": {
+        "description": "Full month name",
+        "group": "date",
+        "max_length": 9,
+        "example": "March"
+      },
+      "month_number": {
+        "description": "Month number (1-12)",
+        "type": "number",
+        "group": "date",
+        "max_length": 2,
+        "example": "3"
+      },
+      "month_number_padded": {
+        "description": "Zero-padded month (01-12)",
+        "group": "date",
+        "max_length": 2,
+        "example": "03"
+      },
+      "month_abbr": {
+        "description": "Abbreviated month (e.g. Mar)",
+        "group": "date",
+        "max_length": 3,
+        "example": "Mar"
+      },
+      "year": {
+        "description": "Four-digit year",
+        "type": "number",
+        "group": "date",
+        "max_length": 4,
+        "example": "2025"
+      },
+      "datetime": {
+        "description": "Combined date and time",
+        "group": "formatting",
+        "max_length": 16,
+        "example": "2025-03-21 14:30"
+      },
+      "date_us": {
+        "description": "US date format (MM/DD/YYYY)",
+        "group": "formatting",
+        "max_length": 10,
+        "example": "03/21/2025"
+      },
+      "date_us_short": {
+        "description": "Short US date (M/D/YY)",
+        "group": "formatting",
+        "max_length": 8,
+        "example": "3/21/25"
+      }
+    }
   },
 
-  "max_lengths": {
-    "time": 5,
-    "date": 10,
-    "datetime": 16,
-    "day": 2,
-    "day_of_week": 9,
-    "month": 9,
-    "year": 4,
-    "hour": 2,
-    "minute": 2,
-    "timezone_abbr": 5,
-    "time_12h": 8,
-    "time_24h": 5,
-    "date_us": 10,
-    "date_us_short": 8,
-    "month_number": 2,
-    "month_number_padded": 2,
-    "month_abbr": 3,
-    "timezone": 30
-  }
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Date and Time displayed on a Vestaboard",
+      "caption": "Date and time with 12-hour format and timezone",
+      "primary": true
+    }
+  ]
 }
-

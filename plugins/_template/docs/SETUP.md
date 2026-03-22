@@ -1,85 +1,88 @@
-# [Plugin Name] Setup Guide
+# My Plugin Name Setup Guide
 
-> This is a template for plugin setup documentation. Replace the content below with your plugin's setup instructions.
+The My Plugin Name plugin fetches data from [service] and displays it on your board.
 
 ## Overview
 
 **What it does:**
-- Feature 1
-- Feature 2
-- Feature 3
+- Feature one
+- Feature two
+- Feature three
 
 **Prerequisites:**
-- ✅ API key from [service] (required/optional)
-- ✅ Account at [service]
-- ✅ Other requirements
+- API key from [service website](https://example.com) (free tier available)
 
 ## Quick Setup
 
-### 1. Get Your API Key
-
-1. Go to [service website](https://example.com)
-2. Create an account
-3. Navigate to API settings
-4. Copy your API key
-
-### 2. Configure the Plugin
+### 1. Enable the Plugin
 
 In the FiestaBoard web UI:
-1. Go to **Integrations** and enable the plugin
-2. Click **Configure**
-3. Enter your API key
-4. Configure other settings as needed
-5. Click **Save Changes**
+1. Go to **Integrations**
+2. Find **My Plugin Name** and toggle it **On**
 
-### 3. Use in Templates
+![My Plugin Name in Integrations list](./integrations.png)
 
-Available variables:
-- `{plugin_name.variable1}` - Description
-- `{plugin_name.variable2}` - Description
+### 2. Configure My Plugin Name
+
+1. Click the **Configure** button
+2. Enter your **API Key**
+3. Adjust other settings as needed
+4. Click **Save Changes**
+
+![My Plugin Name configuration dialog](./configuration.png)
+
+### 3. Create a Board Template
+
+1. Go to **Pages** in the web UI
+2. Click **Create Page** or edit an existing page
+3. Add plugin variables using the variable picker or type them directly
 
 Example template:
+
 ```
-{plugin_name.variable1} - {plugin_name.variable2}
+{center}MY PLUGIN
+{{my_plugin.value}}
+{{my_plugin.status}}
 ```
+
+### 4. View on Your Board
+
+Once configured, the plugin output displays on your board when the page is active:
+
+![My Plugin Name on Vestaboard](./board-display.png)
+
+## Template Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{my_plugin.value}}` | The primary data value | `123` |
+| `{{my_plugin.status}}` | Current status text | `OK` |
+| `{{my_plugin.formatted}}` | Pre-formatted display string | `Value: 123` |
 
 ## Configuration Reference
 
-| Setting | Type | Required | Description |
-|---------|------|----------|-------------|
-| `api_key` | string | Yes | Your API key from [service] |
-| `option1` | string | No | Description of option |
-| `option2` | boolean | No | Description of option |
+| Setting | Type | Required | Default | Description |
+|---------|------|----------|---------|-------------|
+| `enabled` | boolean | No | false | Enable/disable the plugin |
+| `api_key` | string | Yes | — | Your API key from [service] |
+| `refresh_seconds` | integer | No | 300 | How often to fetch new data (seconds) |
+
+### Environment Variables
+
+You can also configure the plugin via environment variables:
+
+```bash
+MY_PLUGIN_API_KEY=your-api-key-here
+```
 
 ## Troubleshooting
 
-### Common Issues
-
 **Issue: Plugin shows "Not Available"**
-- Ensure your API key is correct
-- Check that the service is accessible
-- Verify your account has API access
+- Ensure your API key is correct and active
+- Check that the service is reachable from your network
+- Verify your account has API access enabled
 
 **Issue: Data not updating**
 - Check the refresh interval setting
-- Verify the API isn't rate limited
-
-## API Limits
-
-| Plan | Requests | Notes |
-|------|----------|-------|
-| Free | X/month | Suitable for basic use |
-| Paid | Unlimited | For frequent updates |
-
-## Screenshots
-
-<!-- Add screenshots of your plugin in action -->
-<!-- Place images in this docs/ directory and reference them: -->
-<!-- ![Description](./screenshot.png) -->
-
-## Support
-
-- Plugin Repository: [GitHub URL]
-- Issues: [GitHub Issues URL]
-- Author: [Your Name]
-
+- Verify the API is not rate-limited
+- Check the Docker logs for error messages: `docker-compose logs -f`

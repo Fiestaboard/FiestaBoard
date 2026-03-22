@@ -76,7 +76,7 @@ class MyPlugin(PluginBase):
             return PluginResult(
                 available=True,
                 data=example_data,
-                formatted=self._format_display(example_data)
+                formatted_lines=self._format_display(example_data)
             )
             
         except Exception as e:
@@ -109,36 +109,30 @@ class MyPlugin(PluginBase):
         
         return errors
     
-    def _format_display(self, data: Dict[str, Any]) -> str:
+    def _format_display(self, data: Dict[str, Any]) -> List[str]:
         """
         Format data for display on the board.
-        
-        This method creates a pre-formatted string that can be
-        displayed directly on the board.
         
         Args:
             data: The fetched data
             
         Returns:
-            Formatted display string (max 22 chars per line, 6 lines)
+            List of display lines (max 22 chars per line, up to 6 lines)
         """
-        # Create a formatted display
-        lines = []
+        lines: List[str] = []
         lines.append(f"Status: {data.get('status', 'N/A')}")
         lines.append(f"Value: {data.get('value', 'N/A')}")
         
-        # Add item info if available
         items = data.get("items", [])
         if items:
             lines.append(f"Items: {len(items)}")
-            for item in items[:2]:  # Show first 2 items
+            for item in items[:2]:
                 lines.append(f"  {item['name']}: {item['value']}")
         
-        # Pad to 6 lines and join
         while len(lines) < 6:
             lines.append("")
         
-        return "\n".join(lines[:6])
+        return lines[:6]
     
     def cleanup(self) -> None:
         """

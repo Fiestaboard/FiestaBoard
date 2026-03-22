@@ -155,6 +155,35 @@ export const mockTemplateVariables: TemplateVariables = {
     "datetime.date": 10,
     "datetime.day": 2,
   },
+  variable_metadata: {
+    weather: {
+      temperature: { description: "Current temperature in configured units", type: "number", group: "current", preview: "72" },
+      condition: { description: "Current weather condition text", type: "string", group: "current", preview: "Sunny" },
+      location: { description: "Configured location name", type: "string", group: "current", preview: "San Francisco" },
+      humidity: { description: "Relative humidity percentage", type: "number", group: "current" },
+      wind_speed: { description: "Wind speed in mph", type: "number", group: "current" },
+      feels_like: { description: "Feels-like temperature", type: "number", group: "current" },
+      uv_index: { description: "UV index value", type: "number", group: "current" },
+      pressure: { description: "Atmospheric pressure", type: "number", group: "current" },
+      visibility: { description: "Visibility in miles", type: "number", group: "current" },
+      dew_point: { description: "Dew point temperature", type: "number", group: "current" },
+      cloud_cover: { description: "Cloud cover percentage", type: "number", group: "current" },
+    },
+    datetime: {
+      time: { description: "Current time (HH:MM)", group: "time", preview: "14:30" },
+      date: { description: "Full date (YYYY-MM-DD)", group: "date", preview: "2025-03-21" },
+      day: { description: "Day of month", group: "date", preview: "21" },
+    },
+  },
+  variable_groups: {
+    weather: {
+      current: { label: "Current Conditions" },
+    },
+    datetime: {
+      time: { label: "Time" },
+      date: { label: "Date" },
+    },
+  },
   colors: { red: 63, orange: 64, yellow: 65, green: 66, blue: 67, violet: 68, white: 69, black: 70 },
   symbols: ["sun", "cloud", "rain", "star", "heart"],
   filters: ["pad:N", "truncate:N", "wrap"],
@@ -771,25 +800,43 @@ export const handlers = [
 
   http.get(`${API_BASE}/plugins/:pluginId/manifest`, ({ params }) => {
     const { pluginId } = params;
-    // Return mock manifest for weather plugin
     if (pluginId === "weather") {
       return HttpResponse.json({
         id: "weather",
         name: "Weather",
         version: "1.0.0",
+        icon: "cloud",
+        category: "weather",
+        description: "Weather conditions and forecasts",
+        author: "FiestaBoard",
+        settings_schema: {},
+        max_lengths: {},
         variables: {
-          simple: ["temperature", "condition", "location", "humidity", "wind_speed", "feels_like", "uv_index", "pressure", "visibility", "dew_point", "cloud_cover"],
+          groups: { current: { label: "Current Conditions" } },
+          simple: {
+            temperature: { description: "Current temperature", type: "number", group: "current", max_length: 3 },
+            condition: { description: "Weather condition text", type: "string", group: "current" },
+            location: { description: "Location name", type: "string", group: "current" },
+            humidity: { description: "Humidity percentage", type: "number", group: "current" },
+            wind_speed: { description: "Wind speed", type: "number", group: "current" },
+            feels_like: { description: "Feels-like temp", type: "number", group: "current" },
+            uv_index: { description: "UV index", type: "number", group: "current" },
+            pressure: { description: "Pressure", type: "number", group: "current" },
+            visibility: { description: "Visibility", type: "number", group: "current" },
+            dew_point: { description: "Dew point", type: "number", group: "current" },
+            cloud_cover: { description: "Cloud cover", type: "number", group: "current" },
+          },
         },
       });
     }
-    // Return generic manifest for other plugins
     return HttpResponse.json({
       id: String(pluginId),
       name: String(pluginId),
       version: "1.0.0",
-      variables: {
-        simple: [],
-      },
+      icon: "puzzle",
+      settings_schema: {},
+      max_lengths: {},
+      variables: { simple: [] },
     });
   }),
 

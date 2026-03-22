@@ -1,141 +1,117 @@
-"""Example tests for the template plugin.
+"""Tests for the template plugin.
 
-This file demonstrates how to write tests for a FiestaBoard plugin.
-Copy and modify this file for your own plugin.
-
-Coverage requirement: 80% minimum
+Validates the plugin template showcases the new rich metadata format
+correctly and that the formatted_lines bug fix is in place.
 """
 
+import json
 import pytest
-from unittest.mock import patch, MagicMock
+from pathlib import Path
 
-# Import the plugin class - adjust the import for your plugin
-# from plugins._template import TemplatePlugin
+from plugins._template import MyPlugin
 from src.plugins.base import PluginResult
-from src.plugins.testing import PluginTestCase
+from src.plugins.manifest import PluginManifest
+
+
+MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
+
+
+@pytest.fixture
+def manifest_data():
+    with open(MANIFEST_PATH) as f:
+        return json.load(f)
+
+
+@pytest.fixture
+def manifest(manifest_data):
+    return PluginManifest.from_dict(manifest_data)
 
 
 class TestTemplatePlugin:
-    """Example test class for a plugin.
-    
-    Replace 'Template' with your plugin name.
-    """
-    
-    def test_plugin_id(self):
-        """Test that plugin ID matches the directory name."""
-        # Example: for a plugin in plugins/my_plugin/, the ID should be "my_plugin"
-        # from plugins.my_plugin import MyPlugin
-        # plugin = MyPlugin()
-        # assert plugin.plugin_id == "my_plugin"
-        pass  # Replace with actual test
-    
-    def test_fetch_data_success(self):
-        """Test successful data fetch.
-        
-        This test should verify that:
-        1. The plugin returns a PluginResult with available=True
-        2. The data contains expected fields
-        3. No error is present
-        """
-        # Example:
-        # plugin = MyPlugin()
-        # config = {"api_key": "test_key", "setting": "value"}
-        # result = plugin.fetch_data(config)
-        # 
-        # assert result.available is True
-        # assert result.error is None
-        # assert "expected_field" in result.data
-        pass  # Replace with actual test
-    
-    def test_fetch_data_missing_config(self):
-        """Test behavior when required config is missing.
-        
-        This test should verify that:
-        1. The plugin handles missing config gracefully
-        2. Returns available=False or appropriate error
-        """
-        # Example:
-        # plugin = MyPlugin()
-        # result = plugin.fetch_data({})  # Empty config
-        # 
-        # assert result.available is False
-        # assert result.error is not None
-        pass  # Replace with actual test
-    
-    def test_fetch_data_api_error(self):
-        """Test handling of API errors.
-        
-        This test should verify that:
-        1. Network/API errors are caught
-        2. Plugin returns available=False with error message
-        """
-        # Example with mocking:
-        # with patch('requests.get') as mock_get:
-        #     mock_get.side_effect = Exception("Network error")
-        #     
-        #     plugin = MyPlugin()
-        #     result = plugin.fetch_data({"api_key": "test"})
-        #     
-        #     assert result.available is False
-        #     assert "error" in result.error.lower()
-        pass  # Replace with actual test
-    
-    def test_validate_config_valid(self):
-        """Test config validation with valid config."""
-        # Example:
-        # plugin = MyPlugin()
-        # errors = plugin.validate_config({"required_field": "value"})
-        # assert len(errors) == 0
-        pass  # Replace with actual test
-    
-    def test_validate_config_invalid(self):
-        """Test config validation catches invalid config."""
-        # Example:
-        # plugin = MyPlugin()
-        # errors = plugin.validate_config({})  # Missing required fields
-        # assert len(errors) > 0
-        pass  # Replace with actual test
-    
-    def test_data_variables_match_manifest(self):
-        """Test that returned data includes variables declared in manifest.
-        
-        This test ensures consistency between manifest.json and actual output.
-        """
-        # Example:
-        # Load manifest.json and compare with fetch_data() output
-        # import json
-        # from pathlib import Path
-        # 
-        # manifest_path = Path(__file__).parent.parent / "manifest.json"
-        # with open(manifest_path) as f:
-        #     manifest = json.load(f)
-        # 
-        # declared_vars = manifest["variables"]["simple"]
-        # 
-        # plugin = MyPlugin()
-        # result = plugin.fetch_data({"api_key": "test"})
-        # 
-        # for var in declared_vars:
-        #     assert var in result.data, f"Variable '{var}' declared in manifest but not in data"
-        pass  # Replace with actual test
+    """Core plugin functionality tests."""
+
+    def test_plugin_id(self, manifest):
+        plugin = MyPlugin(manifest)
+        assert plugin.plugin_id == "my_plugin"
+
+    def test_fetch_data_missing_api_key(self, manifest):
+        plugin = MyPlugin(manifest)
+        plugin.config = {}
+        result = plugin.fetch_data()
+        assert result.available is False
+        assert result.error is not None
+
+    def test_fetch_data_returns_formatted_lines_list(self, manifest):
+        """The bug fix: formatted_lines must be a list, not a string."""
+        plugin = MyPlugin(manifest)
+        plugin.config = {"api_key": "test_key_123"}
+        result = plugin.fetch_data()
+        assert result.available is True
+        assert isinstance(result.formatted_lines, list)
+        assert len(result.formatted_lines) == 6
+
+    def test_fetch_data_returns_expected_data_keys(self, manifest):
+        plugin = MyPlugin(manifest)
+        plugin.config = {"api_key": "test_key_123"}
+        result = plugin.fetch_data()
+        assert result.available is True
+        assert "value" in result.data
+        assert "status" in result.data
+        assert "formatted" in result.data
+        assert "items" in result.data
+
+    def test_validate_config_missing_api_key(self, manifest):
+        plugin = MyPlugin(manifest)
+        errors = plugin.validate_config({})
+        assert len(errors) > 0
+
+    def test_validate_config_valid(self, manifest):
+        plugin = MyPlugin(manifest)
+        errors = plugin.validate_config({"api_key": "test_key_123"})
+        assert len(errors) == 0
 
 
-class TestPluginEdgeCases:
-    """Tests for edge cases and error handling."""
-    
-    def test_empty_response_handling(self):
-        """Test handling of empty API responses."""
-        pass  # Replace with actual test
-    
-    def test_malformed_response_handling(self):
-        """Test handling of malformed API responses."""
-        pass  # Replace with actual test
-    
-    def test_timeout_handling(self):
-        """Test handling of request timeouts."""
-        pass  # Replace with actual test
+class TestTemplateManifestMetadata:
+    """Tests for the rich metadata format in the template manifest."""
 
+    def test_manifest_uses_dict_simple_format(self, manifest_data):
+        simple = manifest_data["variables"]["simple"]
+        assert isinstance(simple, dict), "simple should use the rich dict format"
 
-# When you have enough tests, coverage should be >= 80%
-# Run: python scripts/run_plugin_tests.py --plugin=_template
+    def test_all_variables_have_descriptions(self, manifest_data):
+        simple = manifest_data["variables"]["simple"]
+        for var_name, meta in simple.items():
+            assert "description" in meta and meta["description"], \
+                f"Variable '{var_name}' missing description"
 
+    def test_groups_are_defined(self, manifest_data):
+        groups = manifest_data["variables"].get("groups", {})
+        assert len(groups) > 0
+        for group_id, group_def in groups.items():
+            assert "label" in group_def, f"Group '{group_id}' missing label"
+
+    def test_all_variables_have_valid_groups(self, manifest_data):
+        groups = set(manifest_data["variables"].get("groups", {}).keys())
+        simple = manifest_data["variables"]["simple"]
+        for var_name, meta in simple.items():
+            group = meta.get("group", "")
+            if group:
+                assert group in groups, \
+                    f"Variable '{var_name}' references undefined group '{group}'"
+
+    def test_manifest_has_arrays(self, manifest_data):
+        arrays = manifest_data["variables"].get("arrays", {})
+        assert "items" in arrays
+
+    def test_manifest_parses_successfully(self, manifest_data):
+        manifest = PluginManifest.from_dict(manifest_data)
+        assert manifest.id == "my_plugin"
+        assert len(manifest.variables.simple) == 3
+        assert "value" in manifest.variables.metadata
+        assert manifest.variables.metadata["value"].type == "number"
+        assert manifest.variables.groups["main"].label == "Main Data"
+
+    def test_max_lengths_merged_from_metadata(self, manifest_data):
+        manifest = PluginManifest.from_dict(manifest_data)
+        assert manifest.max_lengths.get("value") == 10
+        assert manifest.max_lengths.get("status") == 15

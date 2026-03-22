@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
-from .manifest import PluginManifest
+from .manifest import PluginManifest, VariableGroupSchema, VariableMetadata
 from .sources import (
     PluginSource,
     RegistryEntry,
@@ -59,6 +59,9 @@ class PluginRegistry:
         # Cached results from the most recent check_for_updates() call.
         # Maps plugin_id -> bool (True = update available).
         self._update_status: Dict[str, bool] = {}
+
+        # Auto-discovery cache: maps plugin_id -> discovered variable names
+        self._discovered_vars: Dict[str, List[str]] = {}
         
         logger.info("PluginRegistry initialized")
     
@@ -269,28 +272,139 @@ class PluginRegistry:
                 error=str(e)
             )
     
+    def _discover_variables(self, plugin_id: str) -> List[str]:
+        """Introspect a plugin's live data to discover top-level variable names.
+
+        Only scalar values (str, int, float, bool) are surfaced; lists and
+        dicts are skipped (those should be declared as arrays in the manifest).
+        Results are cached so the discovery fetch only happens once per
+        plugin lifecycle.
+        """
+        if plugin_id in self._discovered_vars:
+            return self._discovered_vars[plugin_id]
+
+        try:
+            result = self.fetch_plugin_data(plugin_id)
+            if result.available and result.data:
+                discovered = [
+                    key for key, val in result.data.items()
+                    if isinstance(val, (str, int, float, bool))
+                ]
+                self._discovered_vars[plugin_id] = discovered
+                return discovered
+        except Exception:
+            logger.debug("Auto-discovery fetch failed for %s", plugin_id)
+
+        self._discovered_vars[plugin_id] = []
+        return []
+
+    def clear_discovered_cache(self, plugin_id: Optional[str] = None) -> None:
+        """Clear auto-discovery cache for one or all plugins."""
+        if plugin_id:
+            self._discovered_vars.pop(plugin_id, None)
+        else:
+            self._discovered_vars.clear()
+
     def get_all_variables(self) -> Dict[str, List[str]]:
         """Get all template variables from enabled plugins.
-        
+
+        When a plugin has ``auto_discover`` enabled, the manifest-declared
+        variable list is merged with keys discovered from live data so that
+        beginners who omit a ``variables`` section still see their data.
+
         Returns:
             Dictionary mapping plugin_id to list of variable names
         """
         variables: Dict[str, List[str]] = {}
-        
+
         for plugin_id, plugin in self._plugins.items():
             if not self._enabled.get(plugin_id, False):
                 continue
-            
+
             manifest = self._manifests.get(plugin_id)
             if not manifest:
                 continue
-            
-            # Get variable names from manifest
+
             var_names = manifest.variables.get_all_variable_names(plugin_id)
+
+            if manifest.variables.auto_discover:
+                discovered = self._discover_variables(plugin_id)
+                existing = set(var_names)
+                for name in discovered:
+                    if name not in existing:
+                        var_names.append(name)
+
             if var_names:
                 variables[plugin_id] = var_names
-        
+
         return variables
+
+    def get_all_variables_with_metadata(
+        self,
+    ) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """Get variables with rich metadata for every enabled plugin.
+
+        Returns:
+            ``{plugin_id: {var_name: {description, type, max_length, group, example, preview}}}``
+        """
+        all_vars = self.get_all_variables()
+        context = self.build_template_context()
+        result: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+        for plugin_id, var_names in all_vars.items():
+            manifest = self._manifests.get(plugin_id)
+            plugin_data = context.get(plugin_id, {})
+            var_dict: Dict[str, Dict[str, Any]] = {}
+
+            for name in var_names:
+                # Skip array path patterns (e.g. "stops.*.field")
+                if ".*." in name:
+                    continue
+                # Skip array aggregate names (they match an array key)
+                if manifest and name in manifest.variables.arrays:
+                    continue
+
+                meta = (
+                    manifest.variables.get_variable_metadata(name)
+                    if manifest
+                    else VariableMetadata()
+                )
+                preview = ""
+                raw_val = plugin_data.get(name)
+                if raw_val is not None and isinstance(raw_val, (str, int, float, bool)):
+                    preview = str(raw_val)
+
+                var_dict[name] = {
+                    "description": meta.description,
+                    "type": meta.type,
+                    "max_length": meta.max_length,
+                    "group": meta.group,
+                    "example": meta.example,
+                    "preview": preview,
+                }
+
+            if var_dict:
+                result[plugin_id] = var_dict
+
+        return result
+
+    def get_all_variable_groups(self) -> Dict[str, Dict[str, Dict[str, str]]]:
+        """Get variable groups for every enabled plugin.
+
+        Returns:
+            ``{plugin_id: {group_id: {"label": "..."}}}``
+        """
+        result: Dict[str, Dict[str, Dict[str, str]]] = {}
+        for plugin_id in self._plugins:
+            if not self._enabled.get(plugin_id, False):
+                continue
+            manifest = self._manifests.get(plugin_id)
+            if manifest and manifest.variables.groups:
+                result[plugin_id] = {
+                    gid: {"label": g.label}
+                    for gid, g in manifest.variables.groups.items()
+                }
+        return result
     
     def get_all_max_lengths(self) -> Dict[str, int]:
         """Get all max lengths from enabled plugins.

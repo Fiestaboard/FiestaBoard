@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Fiestaboard/FiestaBoard
+          path: fiestaboard-core
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r fiestaboard-core/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Validate manifest
+        run: |
+          python -c "
+          import json, sys
+          with open('manifest.json') as f:
+              m = json.load(f)
+          for field in ['id', 'name', 'version']:
+              assert field in m, f'Missing required field: {field}'
+          print('manifest.json is valid')
+          "
+
+      - name: Run tests
+        env:
+          PYTHONPATH: "fiestaboard-core:${{ github.workspace }}:fiestaboard-core/plugins"
+          BOARD_READ_WRITE_KEY: test_key
+        run: |
+          cat > .coveragerc << 'RCEOF'
+          [run]
+          omit = fiestaboard-core/*
+          RCEOF
+          pytest tests/ -v \
+            --cov=. \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            --ignore=fiestaboard-core

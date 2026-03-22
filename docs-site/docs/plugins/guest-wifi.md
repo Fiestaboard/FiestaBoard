@@ -8,7 +8,7 @@ keywords: [FiestaBoard WiFi, guest WiFi display, WiFi credentials, split-flap Wi
 
 Display your guest WiFi network name and password on the board for visitors. **No API key required.**
 
-<BoardScreenshot src="/img/guest-wifi-display.png" alt="Guest WiFi on split-flap board" />
+<BoardScreenshot src="/img/plugins/guest_wifi-board-display.png" alt="Guest WiFi on split-flap board" />
 
 ## Overview
 

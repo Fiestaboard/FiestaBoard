@@ -1386,7 +1386,7 @@ class TemplateEngine:
                     pass
             
             # Get max length for this variable
-            max_len = max_lengths.get(var_part, 10)  # Default 10 if unknown
+            max_len = max_lengths.get(var_part, 22)  # Default to full board width
             return 'X' * (max_len + color_prefix_len)
         
         result = VAR_PATTERN.sub(replace_with_max_length, result)

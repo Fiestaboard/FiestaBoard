@@ -21,7 +21,7 @@ In the FiestaBoard web UI:
 1. Go to **Integrations**
 2. Find **Countdown** and toggle it **On**
 
-![Countdown plugin in Integrations list](./integrations-list.png)
+![Countdown plugin in Integrations list](./integrations.png)
 
 ### 2. Configure the Countdown
 
@@ -32,7 +32,7 @@ In the FiestaBoard web UI:
 5. Optionally set the **Timezone** (defaults to America/Los_Angeles)
 6. Click **Save Changes**
 
-![Countdown plugin configuration dialog](./configuration-dialog.png)
+![Countdown plugin configuration dialog](./configuration.png)
 
 ### 3. Create a Board Template
 

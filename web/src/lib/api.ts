@@ -277,9 +277,24 @@ export interface FormattingVariable {
   description: string;
 }
 
+export interface VariableMetadataEntry {
+  description?: string;
+  type?: "string" | "number" | "boolean";
+  max_length?: number;
+  group?: string;
+  preview?: string;
+  example?: string;
+}
+
+export interface VariableGroup {
+  label: string;
+}
+
 export interface TemplateVariables {
   variables: Record<string, string[]>;
   max_lengths: Record<string, number>;
+  variable_metadata?: Record<string, Record<string, VariableMetadataEntry>>;
+  variable_groups?: Record<string, Record<string, VariableGroup>>;
   colors: Record<string, number>;
   symbols: string[];
   filters: string[];
@@ -660,13 +675,16 @@ export interface PluginManifest {
   documentation?: string;
   settings_schema: Record<string, unknown>;
   variables: {
-    simple?: string[];
+    auto_discover?: boolean;
+    groups?: Record<string, VariableGroup>;
+    simple?: string[] | Record<string, VariableMetadataEntry>;
     arrays?: Record<string, {
       label_field: string;
       item_fields: string[];
       sub_arrays?: Record<string, {
         key_type?: "index" | "dynamic";
         key_field?: string;
+        label_field?: string;
         item_fields: string[];
       }>;
     }>;
@@ -674,6 +692,8 @@ export interface PluginManifest {
     dynamic?: boolean;
   };
   max_lengths: Record<string, number>;
+  variable_metadata?: Record<string, VariableMetadataEntry>;
+  variable_groups?: Record<string, VariableGroup>;
   color_rules_schema?: Record<string, unknown>;
   env_vars?: Array<{
     name: string;

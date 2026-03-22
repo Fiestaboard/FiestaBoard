@@ -3915,12 +3915,17 @@ async def get_template_variables():
     
     Returns a dictionary mapping source names to available field names.
     Use these in templates as {{source.field}}, e.g., {{weather.temperature}}.
-    Also includes max character lengths for validation.
+    Also includes rich metadata (descriptions, types, previews) and variable
+    groups when declared by the plugin.
     """
     template_engine = get_template_engine()
-    return {
+    registry = get_plugin_registry()
+
+    result = {
         "variables": template_engine.get_available_variables(),
         "max_lengths": template_engine.get_variable_max_lengths(),
+        "variable_metadata": registry.get_all_variables_with_metadata(),
+        "variable_groups": registry.get_all_variable_groups(),
         "colors": {
             "red": 63,
             "orange": 64,
@@ -3954,6 +3959,7 @@ async def get_template_variables():
             "fill_space_three_columns": "A{{fill_space}}B{{fill_space}}C",
         }
     }
+    return result
 
 
 @app.post("/templates/validate")

@@ -1,101 +1,421 @@
 # FiestaBoard Plugin Development Guide
 
-This guide explains how to create plugins for FiestaBoard. Plugins are self-contained data source integrations that expose variables for use in templates.
+This guide explains how to create plugins for FiestaBoard. Whether you're building a quick display for personal data or an advanced multi-variable integration, this guide has you covered.
 
-## Overview
+## Your First Plugin in 5 Minutes
 
-FiestaBoard uses a plugin architecture inspired by Home Assistant's HACS. Each plugin:
+The fastest way to get started: return a dictionary from `fetch_data()` and every key automatically appears in the editor. No variable declarations needed.
 
-- Lives in its own directory under `plugins/`
-- Has a `manifest.json` describing its metadata and configuration
-- Implements the `PluginBase` class to fetch data
-- Exposes template variables for use in board displays
+### 1. Copy the template
 
-## Quick Start
-
-1. Copy the template plugin:
-   ```bash
-   cp -r plugins/_template plugins/my_plugin
-   ```
-
-2. Update `manifest.json` with your plugin's details
-
-3. Implement your data fetching logic in `__init__.py`
-
-4. Test your plugin:
-   ```bash
-   docker-compose up -d
-   ```
-   Your plugin should appear in the Integrations page.
-
-## Plugin Structure
-
-```
-plugins/
-├── _template/           # Template (ignored by loader)
-│   ├── __init__.py
-│   ├── manifest.json
-│   ├── README.md
-│   ├── docs/            # User-facing documentation
-│   │   └── SETUP.md     # Setup guide
-│   └── tests/           # Test directory
-│       ├── __init__.py
-│       ├── conftest.py
-│       └── test_plugin.py
-├── weather/             # Example plugin
-│   ├── __init__.py
-│   ├── manifest.json
-│   ├── README.md
-│   ├── docs/
-│   │   └── SETUP.md
-│   └── tests/           # Plugin tests
-└── my_plugin/           # Your plugin
-    ├── __init__.py      # Required: Plugin implementation
-    ├── manifest.json    # Required: Plugin metadata
-    ├── README.md        # Required: Developer documentation
-    ├── docs/            # Required: User documentation
-    │   └── SETUP.md     # Setup guide (API keys, configuration)
-    └── tests/           # Required: Plugin tests
-        ├── __init__.py
-        ├── conftest.py
-        └── test_plugin.py
+```bash
+cp -r plugins/_template plugins/my_plugin
 ```
 
-### Documentation Requirements
+### 2. Write a minimal manifest
 
-Each plugin has two types of documentation:
-
-1. **README.md** (Developer-focused)
-   - How the plugin works internally
-   - API reference and implementation details
-   - Contributing guidelines
-
-2. **docs/SETUP.md** (User-focused)
-   - How to get API keys
-   - Configuration instructions
-   - Examples and screenshots
-   - Troubleshooting tips
-
-## manifest.json
-
-The manifest file describes your plugin's metadata, configuration schema, and exposed variables.
-
-### Basic Structure
+Only three fields are required:
 
 ```json
 {
   "id": "my_plugin",
   "name": "My Plugin",
-  "version": "1.0.0",
-  "description": "A description of what this plugin does",
-  "author": "Your Name",
-  "icon": "puzzle",
-  "category": "utility",
-  "settings_schema": { ... },
-  "variables": { ... },
-  "max_lengths": { ... }
+  "version": "1.0.0"
 }
 ```
+
+That's it. No `variables` section, no `max_lengths`. FiestaBoard auto-discovers everything.
+
+### 3. Implement `fetch_data()`
+
+```python
+from src.plugins.base import PluginBase, PluginResult
+
+class MyPlugin(PluginBase):
+    @property
+    def plugin_id(self) -> str:
+        return "my_plugin"
+
+    def fetch_data(self) -> PluginResult:
+        return PluginResult(
+            available=True,
+            data={
+                "score": 42,
+                "status": "All systems go",
+                "label": "My Widget",
+            }
+        )
+```
+
+### 4. Use it in a template
+
+Every key in your `data` dictionary becomes a variable:
+
+```
+{{my_plugin.score}}
+{{my_plugin.status}}
+{{my_plugin.label}}
+```
+
+They also appear in the editor's variable picker automatically.
+
+### 5. Run the dev container
+
+```bash
+docker-compose -f docker-compose.dev.yml up
+```
+
+Your plugin shows up in Integrations and your variables appear in the editor.
+
+---
+
+## How Auto-Discovery Works
+
+When your manifest has **no** `variables` section (or it's empty), FiestaBoard automatically:
+
+1. Calls your `fetch_data()` method
+2. Inspects the top-level keys in `data`
+3. Exposes every scalar value (strings, numbers, booleans) as a template variable
+4. Uses a default `max_length` of 22 (full board width)
+
+This means beginners can skip the entire `variables` and `max_lengths` configuration and just focus on returning data.
+
+### When auto-discovery is active
+
+| Manifest state | Auto-discover? |
+|---|---|
+| No `variables` section at all | **Yes** |
+| Empty `variables: {}` | **Yes** |
+| `variables` with `simple` or `arrays` declared | **No** (but undeclared data keys still appear in an "Other" group) |
+| Explicit `"auto_discover": true` | **Yes** (even with declared variables) |
+| Explicit `"auto_discover": false` | **No** (strict mode -- only declared variables) |
+
+---
+
+## Adding Variable Metadata
+
+As your plugin matures, you'll want to add descriptions, types, and examples to make the editor experience richer. The `variables.simple` field accepts two formats:
+
+### List format (basic)
+
+```json
+"variables": {
+    "simple": ["temperature", "humidity", "status"]
+}
+```
+
+This is backward-compatible with the original format. Variables show up in the editor with their raw field names.
+
+### Dict format (rich metadata)
+
+```json
+"variables": {
+    "simple": {
+        "temperature": {
+            "description": "Current temperature in configured units",
+            "type": "number",
+            "max_length": 3,
+            "group": "current",
+            "example": "72"
+        },
+        "humidity": {
+            "description": "Relative humidity percentage",
+            "type": "number",
+            "max_length": 3,
+            "group": "current",
+            "example": "65"
+        }
+    }
+}
+```
+
+With this format, the editor shows:
+- **Descriptions** as tooltips when hovering over variable pills
+- **Live preview values** next to each variable
+- **Type hints** for validation
+
+### Metadata fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Tooltip text shown in the editor |
+| `type` | string | `"string"`, `"number"`, or `"boolean"` |
+| `max_length` | integer | Max characters this variable can produce |
+| `group` | string | Group ID to organise this variable under |
+| `example` | string | Example value shown in documentation |
+
+All fields are optional. You can mix and match -- add just `description` if that's all you need.
+
+The `max_length` field in metadata replaces the need for a separate top-level `max_lengths` section. If both are present, the top-level `max_lengths` takes precedence.
+
+---
+
+## Organizing with Groups
+
+When a plugin has many variables, groups help users find what they need:
+
+```json
+"variables": {
+    "groups": {
+        "current": { "label": "Current Conditions" },
+        "forecast": { "label": "Forecast" }
+    },
+    "simple": {
+        "temperature": {
+            "description": "Current temperature",
+            "group": "current"
+        },
+        "high_temp": {
+            "description": "Today's high",
+            "group": "forecast"
+        }
+    }
+}
+```
+
+In the editor, variables render under their group headings:
+
+```
+▼ Weather
+  Current Conditions
+    [temperature] [humidity] [condition]
+  Forecast
+    [high_temp] [low_temp] [chance_rain]
+```
+
+Variables without a group (or with an unrecognized group ID) appear under "General".
+
+---
+
+## Array Variables
+
+For plugins that expose lists of items (transit stops, stock tickers, locations), use the `arrays` schema:
+
+```json
+"variables": {
+    "simple": {
+        "last_updated": { "description": "Last data refresh time" }
+    },
+    "arrays": {
+        "locations": {
+            "label_field": "name",
+            "item_fields": ["name", "temperature", "humidity", "condition"]
+        }
+    }
+}
+```
+
+In templates, arrays are accessed by index:
+
+```
+{{my_plugin.locations.0.name}}: {{my_plugin.locations.0.temperature}}°F
+{{my_plugin.locations.1.name}}: {{my_plugin.locations.1.temperature}}°F
+```
+
+The editor shows an expandable list of items with their label field as the heading.
+
+### Sub-arrays (nested)
+
+For deeply nested data (e.g., transit stops with multiple lines):
+
+```json
+"arrays": {
+    "stops": {
+        "label_field": "stop_name",
+        "item_fields": ["stop_name", "stop_code"],
+        "sub_arrays": {
+            "lines": {
+                "key_type": "dynamic",
+                "key_field": "line",
+                "item_fields": ["line", "next_arrival", "is_delayed"]
+            }
+        }
+    }
+}
+```
+
+Template usage:
+
+```
+{{my_plugin.stops.0.lines.N.next_arrival}}
+{{my_plugin.stops.0.lines.KT.is_delayed}}
+```
+
+---
+
+## Auto-Discovery Deep Dive
+
+### How it works under the hood
+
+1. When `auto_discover` is active, the plugin registry calls `fetch_data()` once during startup
+2. It inspects `PluginResult.data` for top-level keys
+3. Scalar values (string, int, float, bool) become simple variables
+4. Lists and dicts are skipped (those should be declared as arrays in the manifest)
+5. Results are cached per plugin lifecycle
+
+### Mixing declared and undeclared variables
+
+When your manifest declares some variables but your `fetch_data()` returns extra keys, those extras appear in the editor under an "Other" group by default. This is by design -- it means you can declare metadata for your main variables while still allowing new keys to be discovered.
+
+### Strict mode
+
+If you want only your declared variables to appear (hiding any extra data keys):
+
+```json
+"variables": {
+    "auto_discover": false,
+    "simple": { ... }
+}
+```
+
+### Best practice
+
+- **Getting started**: Omit `variables` entirely. Let auto-discovery handle everything.
+- **Polishing**: Add metadata to your most important variables. Keep auto-discovery on.
+- **Publishing**: Consider declaring all variables with descriptions for the best editor experience.
+
+---
+
+## Plugin Structure
+
+```
+plugins/my_plugin/
+├── __init__.py           # Required: Plugin implementation
+├── manifest.json         # Required: Plugin metadata + screenshots
+├── README.md             # Required: Developer documentation
+├── docs/                 # Required: User documentation + images
+│   ├── SETUP.md          # Setup guide (API keys, configuration)
+│   ├── board-display.png # Required: Primary screenshot (hero image)
+│   ├── configuration.png # Optional: Config dialog screenshot
+│   └── integrations.png  # Optional: Integrations list screenshot
+└── tests/                # Required: Plugin tests (>80% coverage)
+    ├── __init__.py
+    └── test_plugin.py
+```
+
+## Documentation Standards
+
+Each plugin has three documentation layers:
+
+| Layer | File | Audience | Purpose |
+|-------|------|----------|---------|
+| README | `README.md` | Developers, GitHub browsing | How the plugin works, variables, examples |
+| Setup guide | `docs/SETUP.md` | End users | Step-by-step setup, screenshots, troubleshooting |
+| Docs site | `docs-site/docs/plugins/<name>.md` | Public website | Published documentation at fiestaboard.app |
+
+### README.md Format
+
+Every plugin README must follow this section order:
+
+```markdown
+# {Plugin Name} Plugin
+
+{One-sentence description.}
+
+![{Plugin Name} Display](./docs/board-display.png)
+
+**→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
+
+## Overview
+{2-3 sentences on what the plugin does and why it is useful.}
+
+## Template Variables
+### {Group Name}
+{Variable table or code block, grouped to match manifest groups}
+
+## Example Templates
+### {Template Name}
+{Code block with template content}
+
+## Configuration
+{Table of settings from settings_schema}
+
+## Features
+{Bullet list of key capabilities}
+
+## Author
+{Author name}
+```
+
+The hero image is always `./docs/board-display.png`, matching the `primary: true` screenshot in the manifest.
+
+### docs/SETUP.md Format
+
+Every plugin setup guide must follow this section order:
+
+```markdown
+# {Plugin Name} Setup Guide
+
+{One-sentence description.}
+
+## Overview
+**What it does:** {bullet list}
+**Prerequisites:** {requirements, or "None - works out of the box!"}
+
+## Quick Setup
+### 1. Enable the Plugin
+{Steps with optional screenshot: integrations.png}
+### 2. Configure {Plugin Name}
+{Steps with optional screenshot: configuration.png}
+### 3. Create a Board Template
+{Example template}
+### 4. View on Your Board
+{Reference to board-display.png}
+
+## Template Variables
+{Variable table}
+
+## Configuration Reference
+{Full settings table}
+
+### Environment Variables
+{Env var code block if applicable}
+
+## Troubleshooting
+{Common issues and solutions}
+```
+
+### Image Naming Convention
+
+All plugin images live in `plugins/<id>/docs/` with standardized names:
+
+| Filename | Purpose | Required? |
+|----------|---------|-----------|
+| `board-display.png` | Primary hero image showing the board output | Yes (for published plugins) |
+| `configuration.png` | Plugin config dialog in the web UI | No |
+| `integrations.png` | Plugin card on the Integrations page | No |
+
+Additional screenshots use descriptive kebab-case names (e.g., `color-rules.png`, `symbol-picker.png`).
+
+### Screenshots in the Manifest
+
+The `screenshots` field in `manifest.json` makes images programmatically discoverable. Any tool, API, or build process can read the manifest to find a plugin's images without parsing markdown.
+
+```json
+{
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "My Plugin displayed on a Vestaboard",
+      "caption": "Default template showing the main output",
+      "primary": true
+    }
+  ]
+}
+```
+
+| Property | Required | Description |
+|----------|----------|-------------|
+| `src` | Yes | Relative path from the plugin directory |
+| `alt` | Yes | Alt text for accessibility |
+| `caption` | No | Human-readable description |
+| `primary` | No | Exactly one screenshot should be `true` (used as hero image in galleries and the registry) |
+
+The docs-site build process copies the primary screenshot from `plugins/<id>/docs/board-display.png` to `docs-site/static/img/plugins/<id>-board-display.png` for use in the `<BoardScreenshot>` component.
+
+---
+
+## Manifest Reference
 
 ### Required Fields
 
@@ -104,22 +424,29 @@ The manifest file describes your plugin's metadata, configuration schema, and ex
 | `id` | Unique identifier (must match directory name) |
 | `name` | Human-readable name |
 | `version` | Semantic version (e.g., "1.0.0") |
-| `description` | Brief description |
+
+### Recommended Fields
+
+| Field | Description |
+|-------|-------------|
+| `description` | Brief description of the plugin |
 | `author` | Author name |
-| `settings_schema` | JSON Schema for configuration |
-| `variables` | Template variables exposed |
-| `max_lengths` | Max character lengths for variables |
+| `icon` | Lucide icon name (default: "puzzle") -- shown in the editor |
+| `category` | Category for grouping: `art`, `data`, `entertainment`, `home`, `transit`, `utility`, `weather` |
 
 ### Optional Fields
 
 | Field | Description |
 |-------|-------------|
-| `icon` | Lucide icon name (default: "puzzle") |
-| `category` | Category for grouping ("weather", "transit", "home", etc.) |
 | `repository` | GitHub repository URL |
 | `documentation` | Path to documentation file |
 | `env_vars` | Environment variables the plugin uses |
+| `settings_schema` | JSON Schema for configuration UI |
+| `variables` | Variable declarations with optional metadata and groups |
+| `max_lengths` | Max character lengths (alternative to per-variable `max_length`) |
 | `color_rules_schema` | Schema for dynamic color rules |
+| `min_refresh_seconds` | Hard floor for refresh interval |
+| `screenshots` | Array of screenshot entries for galleries, docs, and the registry (see Documentation Standards) |
 
 ### Settings Schema
 
@@ -135,24 +462,6 @@ Use JSON Schema to define configuration fields:
         "title": "API Key",
         "description": "Get your key from example.com",
         "ui:widget": "password"
-      },
-      "provider": {
-        "type": "string",
-        "title": "Provider",
-        "enum": ["option1", "option2"],
-        "default": "option1"
-      },
-      "locations": {
-        "type": "array",
-        "title": "Locations",
-        "items": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string", "title": "Name" },
-            "value": { "type": "string", "title": "Value" }
-          },
-          "required": ["name", "value"]
-        }
       },
       "refresh_seconds": {
         "type": "integer",
@@ -172,98 +481,12 @@ Use JSON Schema to define configuration fields:
 - `textarea` - Multi-line text
 - `select` - Dropdown (automatic for `enum` fields)
 - `array-input` - Array of items
-
-### Variables Schema
-
-Define what template variables your plugin exposes:
-
-```json
-{
-  "variables": {
-    "simple": ["temperature", "humidity", "status"],
-    "arrays": {
-      "locations": {
-        "label_field": "name",
-        "item_fields": ["temperature", "humidity", "condition"]
-      }
-    },
-    "nested": {
-      "stops": {
-        "label_field": "stop_name",
-        "item_fields": ["stop_code", "arrivals"],
-        "nested_arrays": {
-          "lines": {
-            "label_field": "line",
-            "item_fields": ["next_arrival", "is_delayed"]
-          }
-        }
-      }
-    },
-    "dynamic": false
-  }
-}
-```
-
-#### Variable Types
-
-1. **Simple Variables** - Top-level values
-   ```
-   {{my_plugin.temperature}}
-   {{my_plugin.status}}
-   ```
-
-2. **Array Variables** - Indexed access to array items
-   ```
-   {{my_plugin.locations.0.temperature}}
-   {{my_plugin.locations.1.name}}
-   ```
-
-3. **Nested Variables** - Arrays within arrays
-   ```
-   {{my_plugin.stops.0.lines.N.next_arrival}}
-   {{my_plugin.stops.1.lines.KT.is_delayed}}
-   ```
-
-4. **Dynamic Variables** - Entity-based (like Home Assistant)
-   ```
-   {{home_assistant.sensor_temperature.state}}
-   {{home_assistant.light_living_room.brightness}}
-   ```
-
-### Max Lengths
-
-Define maximum character lengths for variables (used for template validation):
-
-```json
-{
-  "max_lengths": {
-    "temperature": 3,
-    "status": 15,
-    "formatted": 22,
-    "locations.*.temperature": 3,
-    "locations.*.name": 10
-  }
-}
-```
-
-The `*` wildcard matches any array index.
+- `datetime` - Date/time picker
+- `timezone` - Timezone selector
 
 ## Plugin Implementation
 
 Your plugin must inherit from `PluginBase`:
-
-```python
-from src.plugins.base import PluginBase, PluginResult
-
-class MyPlugin(PluginBase):
-    @property
-    def plugin_id(self) -> str:
-        return "my_plugin"
-    
-    def fetch_data(self) -> PluginResult:
-        # Your implementation
-        pass
-```
 
 ### PluginBase Methods
 
@@ -289,77 +512,10 @@ Return this from `fetch_data()`:
 ```python
 @dataclass
 class PluginResult:
-    available: bool              # True if data fetched successfully
-    data: Optional[Dict] = None  # Template variables
-    formatted: Optional[str] = None  # Pre-formatted display
-    error: Optional[str] = None  # Error message
-```
-
-### Example Implementation
-
-```python
-import logging
-import requests
-from typing import Any, Dict, List
-
-from src.plugins.base import PluginBase, PluginResult
-
-logger = logging.getLogger(__name__)
-
-
-class WeatherPlugin(PluginBase):
-    @property
-    def plugin_id(self) -> str:
-        return "weather"
-    
-    def fetch_data(self) -> PluginResult:
-        api_key = self.get_config("api_key")
-        location = self.get_config("location", "San Francisco")
-        
-        if not api_key:
-            return PluginResult(
-                available=False,
-                error="API key not configured"
-            )
-        
-        try:
-            response = requests.get(
-                "https://api.weatherapi.com/v1/current.json",
-                params={"key": api_key, "q": location}
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            current = data.get("current", {})
-            
-            return PluginResult(
-                available=True,
-                data={
-                    "temperature": int(current.get("temp_f", 0)),
-                    "condition": current.get("condition", {}).get("text", ""),
-                    "humidity": current.get("humidity", 0),
-                    "location": location,
-                },
-                formatted=self._format_display(current, location)
-            )
-            
-        except Exception as e:
-            logger.error(f"Weather fetch failed: {e}")
-            return PluginResult(
-                available=False,
-                error=str(e)
-            )
-    
-    def validate_config(self, config: Dict[str, Any]) -> List[str]:
-        errors = []
-        if not config.get("api_key"):
-            errors.append("API key is required")
-        return errors
-    
-    def _format_display(self, current: dict, location: str) -> str:
-        temp = current.get("temp_f", "N/A")
-        cond = current.get("condition", {}).get("text", "Unknown")
-        return f"{location}\\n{temp}°F {cond}"
+    available: bool                        # True if data fetched successfully
+    data: Optional[Dict] = None            # Template variables
+    error: Optional[str] = None            # Error message
+    formatted_lines: Optional[List[str]] = None  # Pre-formatted display lines
 ```
 
 ## Testing Your Plugin
@@ -368,8 +524,6 @@ class WeatherPlugin(PluginBase):
 
 ### Test Directory Structure
 
-Every plugin must have a `tests/` directory:
-
 ```
 plugins/my_plugin/tests/
 ├── __init__.py       # Required (can be empty)
@@ -377,151 +531,23 @@ plugins/my_plugin/tests/
 └── test_plugin.py    # Test cases (must start with test_)
 ```
 
-### Writing Tests
+### What to Test
 
-Use the shared test utilities from `src.plugins.testing`:
+1. **Plugin ID** matches directory name
+2. **Successful data fetch** returns expected variables
+3. **Missing/invalid config** returns appropriate errors
+4. **Network errors** are handled gracefully
+5. **Config validation** catches invalid input
+6. **Variable output** matches manifest declarations
+7. **Manifest metadata** has descriptions and valid groups (if using rich format)
 
-```python
-"""Tests for my_plugin."""
-
-import pytest
-from unittest.mock import patch, Mock
-
-from src.plugins.testing import PluginTestCase, create_mock_response
-from plugins.my_plugin import MyPlugin
-
-
-class TestMyPlugin(PluginTestCase):
-    """Test suite for MyPlugin."""
-    
-    def test_plugin_id(self):
-        """Test plugin ID matches directory name."""
-        plugin = MyPlugin()
-        assert plugin.plugin_id == "my_plugin"
-    
-    def test_fetch_data_success(self):
-        """Test successful data fetch."""
-        plugin = MyPlugin()
-        config = {"api_key": "test_key", "location": "SF"}
-        
-        with patch('requests.get') as mock_get:
-            mock_get.return_value = create_mock_response(
-                data={"temperature": 72, "condition": "Sunny"}
-            )
-            
-            result = plugin.fetch_data(config)
-            
-            assert result.available is True
-            assert result.error is None
-            assert result.data["temperature"] == 72
-    
-    def test_fetch_data_missing_config(self):
-        """Test error handling for missing config."""
-        plugin = MyPlugin()
-        result = plugin.fetch_data({})
-        
-        assert result.available is False
-        assert result.error is not None
-    
-    @patch('requests.get')
-    def test_fetch_data_network_error(self, mock_get):
-        """Test handling of network errors."""
-        mock_get.side_effect = Exception("Network error")
-        
-        plugin = MyPlugin()
-        result = plugin.fetch_data({"api_key": "test"})
-        
-        assert result.available is False
-        assert "error" in result.error.lower()
-    
-    def test_validate_config_valid(self):
-        """Test config validation with valid config."""
-        plugin = MyPlugin()
-        errors = plugin.validate_config({"api_key": "key123"})
-        assert len(errors) == 0
-    
-    def test_validate_config_missing_required(self):
-        """Test config validation detects missing fields."""
-        plugin = MyPlugin()
-        errors = plugin.validate_config({})
-        assert len(errors) > 0
-        assert any("api_key" in e.lower() for e in errors)
-
-
-class TestMyPluginEdgeCases:
-    """Edge case tests."""
-    
-    def test_empty_response_handling(self):
-        """Test handling of empty API response."""
-        plugin = MyPlugin()
-        with patch('requests.get') as mock_get:
-            mock_get.return_value = create_mock_response(data={})
-            result = plugin.fetch_data({"api_key": "test"})
-            # Should handle gracefully
-            assert result is not None
-    
-    def test_timeout_handling(self):
-        """Test handling of request timeout."""
-        from requests.exceptions import Timeout
-        
-        plugin = MyPlugin()
-        with patch('requests.get') as mock_get:
-            mock_get.side_effect = Timeout()
-            result = plugin.fetch_data({"api_key": "test"})
-            assert result.available is False
-```
-
-### conftest.py Template
-
-Create a `conftest.py` with shared fixtures:
-
-```python
-"""Plugin test fixtures and configuration."""
-
-import pytest
-from unittest.mock import patch, MagicMock
-
-from src.plugins.testing import PluginTestCase, create_mock_response
-
-
-@pytest.fixture(autouse=True)
-def reset_plugin_singletons():
-    """Reset plugin singletons before each test."""
-    yield
-
-
-@pytest.fixture
-def mock_api_response():
-    """Fixture to create mock API responses."""
-    return create_mock_response
-
-
-@pytest.fixture
-def sample_config():
-    """Sample configuration for testing."""
-    return {
-        "api_key": "test_api_key_12345",
-        "location": "San Francisco, CA",
-        "refresh_seconds": 300
-    }
-```
-
-### Running Plugin Tests
-
-#### Run Tests for a Single Plugin
+### Running Tests
 
 ```bash
-# Using the plugin test runner
+# Single plugin
 python scripts/run_plugin_tests.py --plugin=my_plugin
 
-# Using pytest directly
-pytest plugins/my_plugin/tests/ -v
-```
-
-#### Run All Plugin Tests
-
-```bash
-# Using the plugin test runner (enforces 80% coverage)
+# All plugins
 python scripts/run_plugin_tests.py
 
 # With verbose output
@@ -529,19 +555,6 @@ python scripts/run_plugin_tests.py --verbose
 
 # Without coverage enforcement (for development)
 python scripts/run_plugin_tests.py --no-coverage
-
-# Dry run (show what would be tested)
-python scripts/run_plugin_tests.py --dry-run
-```
-
-#### Run with Coverage Report
-
-```bash
-# Generate coverage report
-pytest plugins/my_plugin/tests/ --cov=plugins/my_plugin --cov-report=term-missing
-
-# With HTML report
-pytest plugins/my_plugin/tests/ --cov=plugins/my_plugin --cov-report=html
 ```
 
 ### Coverage Requirements
@@ -552,80 +565,14 @@ pytest plugins/my_plugin/tests/ --cov=plugins/my_plugin --cov-report=html
 | Coverage scope | Per-plugin (not global) |
 | CI enforcement | Yes - builds fail below threshold |
 
-#### Excluding Code from Coverage
-
-Use `# pragma: no cover` sparingly for legitimately untestable code:
-
-```python
-def fetch_data(self) -> PluginResult:
-    if not self.api_key:  # pragma: no cover
-        # This is only hit in production with misconfiguration
-        return PluginResult(available=False, error="API key missing")
-```
-
-### CI/CD Integration
-
-When you submit a PR with a new plugin:
-
-1. **Discovery**: CI automatically discovers plugins with `tests/` directories
-2. **Test Execution**: Tests run with pytest and coverage
-3. **Coverage Check**: Build fails if any plugin is below 80% coverage
-4. **Report**: Coverage report uploaded to Codecov
-
-### Testing Best Practices
-
-1. **Test the Happy Path**: Ensure successful data fetch works
-2. **Test Error Conditions**: API errors, network failures, invalid responses
-3. **Test Configuration**: Valid and invalid config validation
-4. **Test Edge Cases**: Empty responses, extreme values, missing fields
-5. **Mock External APIs**: Never make real API calls in tests
-6. **Test Variable Output**: Verify returned data matches manifest variables
-7. **Use Descriptive Names**: `test_fetch_data_network_timeout` not `test_fetch_1`
-
-### Local Development
-
-1. Set any required environment variables for your plugin:
-   ```bash
-   export MY_PLUGIN_API_KEY=your_key
-   ```
-
-2. Run the service:
-   ```bash
-   docker-compose -f docker-compose.dev.yml up
-   ```
-
-3. Check the plugin loaded:
-   ```bash
-   curl http://localhost:4420/api/plugins
-   ```
-
-4. Test data fetching:
-   ```bash
-   curl http://localhost:4420/api/plugins/my_plugin/data
-   ```
-
-### Plugin API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/plugins` | GET | List all plugins |
-| `/plugins/{id}` | GET | Get plugin details |
-| `/plugins/{id}/config` | PUT | Update configuration |
-| `/plugins/{id}/enable` | POST | Enable plugin |
-| `/plugins/{id}/disable` | POST | Disable plugin |
-| `/plugins/{id}/data` | GET | Fetch plugin data |
-| `/plugins/{id}/variables` | GET | Get variable schema |
-
 ## Best Practices
 
 ### Error Handling
 
-Always handle errors gracefully:
-
 ```python
 def fetch_data(self) -> PluginResult:
     try:
-        # Your logic
+        data = self._call_api()
         return PluginResult(available=True, data=data)
     except requests.RequestException as e:
         logger.warning(f"Network error: {e}")
@@ -635,109 +582,45 @@ def fetch_data(self) -> PluginResult:
         return PluginResult(available=False, error=str(e))
 ```
 
-### Caching
-
-Cache responses to reduce API calls:
-
-```python
-from datetime import datetime, timedelta
-
-class MyPlugin(PluginBase):
-    def __init__(self):
-        super().__init__()
-        self._cache = None
-        self._cache_time = None
-        self._cache_duration = timedelta(minutes=5)
-    
-    def fetch_data(self) -> PluginResult:
-        # Return cache if valid
-        if self._cache and self._cache_time:
-            if datetime.now() - self._cache_time < self._cache_duration:
-                return self._cache
-        
-        # Fetch fresh data
-        result = self._fetch_fresh_data()
-        
-        # Update cache
-        if result.available:
-            self._cache = result
-            self._cache_time = datetime.now()
-        
-        return result
-```
-
-### Logging
-
-Use appropriate log levels:
-
-```python
-logger.debug("Detailed info for debugging")
-logger.info("Plugin initialized successfully")
-logger.warning("Non-critical issue occurred")
-logger.error("Failed to fetch data")
-logger.exception("Unexpected error with traceback")
-```
-
 ### Configuration
 
 Prefer UI configuration over environment variables:
 
 ```python
 def fetch_data(self) -> PluginResult:
-    # Check config first, then fall back to env var
     api_key = self.get_config("api_key") or os.getenv("MY_PLUGIN_API_KEY")
+```
+
+### Logging
+
+```python
+logger.debug("Detailed info for debugging")
+logger.info("Plugin initialized successfully")
+logger.warning("Non-critical issue occurred")
+logger.error("Failed to fetch data")
 ```
 
 ## Contributing Plugins
 
 To contribute a plugin to the FiestaBoard repository:
 
-1. Create a new directory under `plugins/`
-2. Implement your plugin following this guide
-3. **Add tests with >80% coverage** in `tests/` directory
-4. Add comprehensive documentation in `README.md`
-5. Submit a pull request
+1. Create a feature branch: `git checkout -b feat-plugin-name`
+2. Copy the template: `cp -r plugins/_template plugins/my_plugin`
+3. Implement your plugin following this guide
+4. Add tests with >80% coverage
+5. Add documentation in `README.md` and `docs/SETUP.md`
+6. Add your plugin to the main `README.md` "Available Plugins" list
+7. Submit a pull request
 
 ### PR Checklist
 
-Before submitting your PR, ensure:
-
 - [ ] Plugin ID matches directory name
-- [ ] `manifest.json` is complete and valid
+- [ ] `manifest.json` has at least `id`, `name`, `version`
+- [ ] `manifest.json` includes `screenshots` array with `primary: true` entry
 - [ ] `__init__.py` implements `PluginBase` correctly
-- [ ] Tests exist in `tests/` directory
-- [ ] Test coverage is >80%
-- [ ] All tests pass locally
-- [ ] `README.md` documents setup and usage
-- [ ] No hardcoded secrets or API keys
-- [ ] Appropriate error handling
-- [ ] Logging uses appropriate levels
-
-### Review Criteria
-
-Your plugin will be reviewed for:
-
-| Criteria | Description |
-|----------|-------------|
-| **Code Quality** | Clean code, error handling, follows patterns |
-| **Test Coverage** | Minimum 80% coverage, meaningful tests |
-| **Documentation** | Clear README with setup instructions |
-| **Security** | No hardcoded secrets, input validation |
-| **Performance** | Appropriate caching, rate limiting |
-| **Compatibility** | Works with plugin system, valid manifest |
-
-### Running CI Locally
-
-Before submitting, run the full CI check locally:
-
-```bash
-# Run plugin tests with coverage enforcement
-python scripts/run_plugin_tests.py --plugin=your_plugin
-
-# Run all tests
-pytest tests/ plugins/ -v
-
-# Check linting
-pylint plugins/your_plugin/
-```
-
+- [ ] Tests exist in `tests/` with >80% coverage
+- [ ] `README.md` follows the canonical section order (see Documentation Standards)
+- [ ] `docs/SETUP.md` follows the canonical section order (see Documentation Standards)
+- [ ] `docs/board-display.png` exists (primary screenshot)
+- [ ] No hardcoded secrets or personal information
+- [ ] Plugin added to main README.md "Available Plugins" list

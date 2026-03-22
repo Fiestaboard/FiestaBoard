@@ -421,6 +421,180 @@ class TestPluginRateLimits:
         )
 
 
+class TestManifestVariablesParsing:
+    """Tests for the enhanced variables schema parsing (list/dict, groups, auto_discover)."""
+
+    def test_manifest_parses_simple_list_format(self):
+        """PluginManifest.from_dict handles the legacy list format for simple variables."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"simple": ["a", "b", "c"]}}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.simple == ["a", "b", "c"]
+        assert manifest.variables.metadata == {}
+
+    def test_manifest_parses_simple_dict_format(self):
+        """PluginManifest.from_dict handles the rich dict format for simple variables."""
+        from src.plugins.manifest import PluginManifest, VariableMetadata
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "temperature": {
+                        "description": "Current temp",
+                        "type": "number",
+                        "max_length": 3,
+                        "group": "current",
+                        "example": "72",
+                    },
+                    "status": {"description": "Status text"},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.simple == ["temperature", "status"]
+        assert "temperature" in manifest.variables.metadata
+        meta = manifest.variables.metadata["temperature"]
+        assert meta.description == "Current temp"
+        assert meta.type == "number"
+        assert meta.max_length == 3
+        assert meta.group == "current"
+        assert meta.example == "72"
+
+    def test_manifest_parses_groups(self):
+        """PluginManifest.from_dict parses the groups section."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "groups": {
+                    "time": {"label": "Time"},
+                    "date": {"label": "Date"},
+                },
+                "simple": ["hour", "minute"],
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert "time" in manifest.variables.groups
+        assert manifest.variables.groups["time"].label == "Time"
+        assert "date" in manifest.variables.groups
+
+    def test_manifest_auto_discover_default_true_when_no_vars(self):
+        """auto_discover defaults to True when no variables section exists."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0"}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.auto_discover is True
+
+    def test_manifest_auto_discover_default_false_when_vars_present(self):
+        """auto_discover defaults to False when variables.simple is declared."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"simple": ["a"]}}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.auto_discover is False
+
+    def test_manifest_auto_discover_explicit_override(self):
+        """Explicit auto_discover flag overrides the smart default."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"auto_discover": True, "simple": ["a"]}}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.auto_discover is True
+
+    def test_variable_metadata_defaults(self):
+        """VariableMetadata has sensible defaults."""
+        from src.plugins.manifest import VariableMetadata
+
+        meta = VariableMetadata()
+        assert meta.description == ""
+        assert meta.type == "string"
+        assert meta.max_length is None
+        assert meta.group == ""
+        assert meta.example == ""
+
+    def test_variable_metadata_from_dict_format(self):
+        """get_variable_metadata returns metadata for declared vars, defaults for unknown."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "temp": {"description": "Temperature", "type": "number"},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        meta = manifest.variables.get_variable_metadata("temp")
+        assert meta.description == "Temperature"
+        assert meta.type == "number"
+
+        unknown = manifest.variables.get_variable_metadata("unknown_field")
+        assert unknown.description == ""
+        assert unknown.type == "string"
+
+    def test_dict_format_max_length_merges_into_top_level(self):
+        """max_length in variable metadata is merged into the top-level max_lengths dict."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "temp": {"max_length": 3},
+                    "status": {"max_length": 10},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.max_lengths["temp"] == 3
+        assert manifest.max_lengths["status"] == 10
+
+    def test_top_level_max_lengths_take_precedence(self):
+        """Explicit top-level max_lengths override per-variable metadata max_length."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "max_lengths": {"temp": 5},
+            "variables": {
+                "simple": {"temp": {"max_length": 3}},
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.max_lengths["temp"] == 5
+
+    def test_validate_manifest_accepts_dict_simple(self):
+        """validate_manifest accepts dict format for variables.simple."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {"simple": {"a": {"description": "A var"}}},
+        }
+        is_valid, errors = validate_manifest(data)
+        assert is_valid, errors
+
+    def test_validate_manifest_rejects_invalid_simple_type(self):
+        """validate_manifest rejects non-list/non-dict simple."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {"simple": "not_valid"},
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("simple" in e for e in errors)
+
+
 class TestPluginIconsAndCategories:
     """Tests for plugin display configuration."""
     
