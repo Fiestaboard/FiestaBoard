@@ -17,6 +17,7 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./plugins:/app/plugins
+      - ./external_plugins:/app/external_plugins
       - ./tests:/app/tests
       - ./scripts:/app/scripts
       - ./web:/app/web
