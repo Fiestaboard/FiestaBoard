@@ -61,10 +61,12 @@ LABEL org.opencontainers.image.title="FiestaBoard" \
 
 WORKDIR /app
 
-# Install Node.js, nginx, wget, and gosu (for entrypoint privilege dropping)
+# Install Node.js, nginx, wget, git, and gosu (for entrypoint privilege dropping)
+# git is required for the external plugin install/update system (git clone, git pull)
 ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    git \
     gosu \
     nginx \
     wget \
