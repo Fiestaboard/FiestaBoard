@@ -4290,6 +4290,89 @@ async def list_plugins():
     }
 
 
+@app.get("/plugins/variables/all")
+async def get_all_plugin_variables():
+    """
+    Get all template variables from enabled plugins.
+    
+    Returns a combined view of all variables for the template editor.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        # Fall back to legacy variables
+        template_engine = get_template_engine()
+        return {
+            "variables": template_engine.get_available_variables(),
+            "max_lengths": template_engine.get_variable_max_lengths(),
+            "plugin_system_enabled": False
+        }
+    
+    registry = get_plugin_registry()
+    
+    return {
+        "variables": registry.get_all_variables(),
+        "max_lengths": registry.get_all_max_lengths(),
+        "plugin_system_enabled": True
+    }
+
+
+@app.get("/plugins/errors")
+async def get_plugin_errors():
+    """
+    Get any plugin load errors.
+    
+    Returns errors from plugins that failed to load.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        return {
+            "errors": {},
+            "plugin_system_enabled": False
+        }
+    
+    registry = get_plugin_registry()
+    
+    return {
+        "errors": registry.get_load_errors(),
+        "plugin_system_enabled": True
+    }
+
+
+@app.get("/plugins/registry")
+async def list_registry_plugins():
+    """
+    List all plugins available in the curated plugin registry.
+
+    Returns registry entries with their installation status.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+
+    return {
+        "entries": registry.get_registry_entries(),
+        "plugin_system_enabled": True,
+    }
+
+
+@app.get("/plugins/updates")
+async def get_plugin_updates():
+    """
+    Return cached update availability for all installed external plugins.
+
+    Results are refreshed by a background task every 6 hours.  Call
+    ``POST /plugins/updates/check`` to trigger an immediate check.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    return {"updates": registry.get_update_status()}
+
+
 @app.get("/plugins/{plugin_id}")
 async def get_plugin(plugin_id: str):
     """
@@ -4589,52 +4672,6 @@ async def get_plugin_variables(plugin_id: str):
     }
 
 
-@app.get("/plugins/variables/all")
-async def get_all_plugin_variables():
-    """
-    Get all template variables from enabled plugins.
-    
-    Returns a combined view of all variables for the template editor.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        # Fall back to legacy variables
-        template_engine = get_template_engine()
-        return {
-            "variables": template_engine.get_available_variables(),
-            "max_lengths": template_engine.get_variable_max_lengths(),
-            "plugin_system_enabled": False
-        }
-    
-    registry = get_plugin_registry()
-    
-    return {
-        "variables": registry.get_all_variables(),
-        "max_lengths": registry.get_all_max_lengths(),
-        "plugin_system_enabled": True
-    }
-
-
-@app.get("/plugins/errors")
-async def get_plugin_errors():
-    """
-    Get any plugin load errors.
-    
-    Returns errors from plugins that failed to load.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        return {
-            "errors": {},
-            "plugin_system_enabled": False
-        }
-    
-    registry = get_plugin_registry()
-    
-    return {
-        "errors": registry.get_load_errors(),
-        "plugin_system_enabled": True
-    }
-
-
 # ── External Plugin Management ──────────────────────────────────────────────
 
 
@@ -4643,26 +4680,6 @@ class ExternalPluginInstallRequest(BaseModel):
     repository: str
     plugin_id: Optional[str] = None
     branch: str = ""
-
-
-@app.get("/plugins/registry")
-async def list_registry_plugins():
-    """
-    List all plugins available in the curated plugin registry.
-
-    Returns registry entries with their installation status.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(
-            status_code=503, detail="Plugin system is not available."
-        )
-
-    registry = get_plugin_registry()
-
-    return {
-        "entries": registry.get_registry_entries(),
-        "plugin_system_enabled": True,
-    }
 
 
 @app.post("/plugins/registry/{plugin_id}/install")
@@ -4747,23 +4764,6 @@ async def uninstall_external_plugin(plugin_id: str):
         "plugin_id": plugin_id,
         "message": f"Plugin '{plugin_id}' has been uninstalled.",
     }
-
-
-@app.get("/plugins/updates")
-async def get_plugin_updates():
-    """
-    Return cached update availability for all installed external plugins.
-
-    Results are refreshed by a background task every 6 hours.  Call
-    ``POST /plugins/updates/check`` to trigger an immediate check.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(
-            status_code=503, detail="Plugin system is not available."
-        )
-
-    registry = get_plugin_registry()
-    return {"updates": registry.get_update_status()}
 
 
 @app.post("/plugins/updates/check")

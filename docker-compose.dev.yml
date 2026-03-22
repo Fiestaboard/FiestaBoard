@@ -18,6 +18,7 @@ services:
       - ./src:/app/src
       - ./plugins:/app/plugins
       - ./external_plugins:/app/external_plugins
+      - ./plugin-registry.json:/app/plugin-registry.json:ro
       - ./tests:/app/tests
       - ./scripts:/app/scripts
       - ./web:/app/web
