@@ -20,6 +20,7 @@ import json
 from dataclasses import dataclass, replace
 from typing import Any
 
+from src.board_client import VALID_STRATEGIES
 from src.mqtt.config import MQTTConfig
 
 # Valid entity types supported by HA MQTT Discovery
@@ -104,7 +105,7 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         name="Transition Style",
         icon="mdi:animation-play",
         has_command=True,
-        options=["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"],
+        options=list(VALID_STRATEGIES),
     ),
     # Sensors
     EntityDefinition(
@@ -212,13 +213,43 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         entity_category="diagnostic",
         state_class="measurement",
     ),
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="last_display_update",
+        name="Last Display Update",
+        icon="mdi:clock-check-outline",
+        entity_category="diagnostic",
+        device_class="timestamp",
+    ),
+    EntityDefinition(
+        entity_type="sensor",
+        object_id="output_target",
+        name="Output Target",
+        icon="mdi:monitor-speaker",
+        entity_category="diagnostic",
+    ),
+    # Navigation Buttons
+    EntityDefinition(
+        entity_type="button",
+        object_id="next_page",
+        name="Next Page",
+        icon="mdi:page-next",
+        has_command=True,
+    ),
+    EntityDefinition(
+        entity_type="button",
+        object_id="previous_page",
+        name="Previous Page",
+        icon="mdi:page-previous",
+        has_command=True,
+    ),
     # Events
     EntityDefinition(
         entity_type="event",
         object_id="display_updated",
         name="Display Updated",
         icon="mdi:update",
-        event_types=["message_sent", "page_refreshed", "board_blanked"],
+        event_types=["message_sent", "page_refreshed", "board_blanked", "page_navigated"],
     ),
     EntityDefinition(
         entity_type="event",
@@ -226,6 +257,13 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         name="Page Changed",
         icon="mdi:book-open-page-variant",
         event_types=["page_switched"],
+    ),
+    EntityDefinition(
+        entity_type="event",
+        object_id="settings_changed",
+        name="Settings Changed",
+        icon="mdi:cog",
+        event_types=["schedule_toggled", "service_toggled", "silence_mode_changed"],
     ),
 ]
 

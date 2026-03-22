@@ -14,13 +14,15 @@ This feature lets Home Assistant **automatically discover** your FiestaBoard and
 
 - Turn the schedule on/off from HA
 - Switch active pages from HA automations
+- Navigate pages sequentially with Next/Previous page buttons
 - Send messages to the board when events happen (doorbell, weather alerts, etc.)
 - Blank the board or refresh the display remotely
 - Change the transition animation style
 - See board status, current page, version, and page count on your HA dashboard
 - Start/stop the display service remotely
-- Monitor device diagnostics (uptime, API mode, active plugins)
-- Trigger automations when the board content changes or pages switch (via event entities)
+- Monitor device diagnostics (uptime, API mode, active plugins, last display update, output target)
+- Trigger automations when the board content changes, pages switch, or settings change (via event entities)
+- Track when the board was last updated via a `timestamp` sensor for HA history/statistics
 
 **No installation needed on the Home Assistant side.** FiestaBoard uses [MQTT Discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) — the same protocol used by Zigbee2MQTT, Tasmota, and ESPHome — so your board appears automatically in HA.
 
@@ -85,7 +87,7 @@ If FiestaBoard doesn't appear, check:
 
 ## What You Get in Home Assistant
 
-Once connected, FiestaBoard appears as a device with **19 entities** — controls, sensors, diagnostics, and events:
+Once connected, FiestaBoard appears as a device with **24 entities** — controls, sensors, diagnostics, and events:
 
 ### Controls (you can change these from HA)
 
@@ -98,6 +100,8 @@ Once connected, FiestaBoard appears as a device with **19 entities** — control
 | **Send Message** | Text | Send a text message to the board (up to 132 characters) |
 | **Refresh Display** | Button | Force a display refresh |
 | **Blank Board** | Button | Clear the board display (all blank) |
+| **Next Page** | Button | Navigate to the next page in the page list (wraps around) |
+| **Previous Page** | Button | Navigate to the previous page in the page list (wraps around) |
 | **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds). *Categorized as config.* |
 
 ### Sensors (read-only status from FiestaBoard)
@@ -120,6 +124,8 @@ These entities are tagged with `entity_category: diagnostic` so Home Assistant g
 | **Uptime** | Sensor | How long FiestaBoard has been running *(device_class: duration, unit: seconds)* |
 | **Board API Mode** | Sensor | Whether the board is using Local API or Cloud API |
 | **Active Plugins** | Sensor | Number of enabled plugins *(state_class: measurement)* |
+| **Last Display Update** | Sensor | ISO timestamp of when the board content was last changed *(device_class: timestamp)* |
+| **Output Target** | Sensor | Current output mode: `ui`, `board`, or `both` |
 
 ### Events (trigger automations when things happen)
 
@@ -127,8 +133,11 @@ FiestaBoard publishes [MQTT event entities](https://www.home-assistant.io/integr
 
 | Entity | Event Types | Description |
 |--------|------------|-------------|
-| **Display Updated** | `message_sent`, `page_refreshed`, `board_blanked` | Fires when the board content changes |
+| **Display Updated** | `message_sent`, `page_refreshed`, `board_blanked`, `page_navigated` | Fires when the board content changes |
 | **Page Changed** | `page_switched` | Fires when the active page changes |
+| **Settings Changed** | `schedule_toggled`, `service_toggled`, `silence_mode_changed` | Fires when schedule, display service, or silence mode state changes |
+
+All events include a `timestamp` field with the UTC ISO 8601 time of the event.
 
 ## Automation Examples
 
@@ -231,6 +240,44 @@ automation:
           message: "Page changed to {{ trigger.to_state.attributes.page_name }}"
 ```
 
+### Cycle Pages Every Hour
+
+Use the Next Page button to rotate through your pages on a schedule:
+
+```yaml
+automation:
+  - alias: "Cycle Pages Hourly"
+    trigger:
+      - platform: time_pattern
+        minutes: 0
+    action:
+      - service: button.press
+        target:
+          entity_id: button.fiestaboard_next_page
+```
+
+### React to Silence Mode Changes (using events)
+
+Turn off smart lights when silence mode activates (e.g., at bedtime):
+
+```yaml
+automation:
+  - alias: "Silence Mode Bedtime"
+    trigger:
+      - platform: state
+        entity_id: event.fiestaboard_settings_changed
+        attribute: event_type
+        to: "silence_mode_changed"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.fiestaboard_silence_mode
+        state: "on"
+    action:
+      - service: light.turn_off
+        target:
+          entity_id: light.living_room
+```
+
 ### Display on HA Dashboard
 
 Add FiestaBoard status and controls to your HA dashboard:
@@ -246,6 +293,8 @@ entities:
   - entity: switch.fiestaboard_schedule
   - entity: switch.fiestaboard_display_service
   - entity: select.fiestaboard_active_page
+  - entity: button.fiestaboard_next_page
+  - entity: button.fiestaboard_previous_page
   - entity: select.fiestaboard_transition_style
   - entity: number.fiestaboard_refresh_interval
 ```
@@ -261,6 +310,8 @@ entities:
   - entity: sensor.fiestaboard_uptime
   - entity: sensor.fiestaboard_board_api_mode
   - entity: sensor.fiestaboard_active_plugins
+  - entity: sensor.fiestaboard_last_display_update
+  - entity: sensor.fiestaboard_output_target
 ```
 :::
 
@@ -376,11 +427,16 @@ Each entity in HA shows a Material Design Icon that reflects its role:
 | Silence Mode | `mdi:volume-off` | Quiet hours: no updates |
 | Blank Board | `mdi:rectangle-outline` | Clear/empty board face |
 | Send Message | `mdi:send` | Push text to the board |
+| Next Page | `mdi:page-next` | Navigate to the next page |
+| Previous Page | `mdi:page-previous` | Navigate to the previous page |
 | Uptime | `mdi:clock-outline` | How long the service has been running |
 | Board API Mode | `mdi:api` | Local or Cloud API connection |
 | Active Plugins | `mdi:puzzle` | Number of enabled data sources |
+| Last Display Update | `mdi:clock-check-outline` | When the board was last updated |
+| Output Target | `mdi:monitor-speaker` | Where output is sent (ui/board/both) |
 | Display Updated | `mdi:update` | Board content changed event |
 | Page Changed | `mdi:book-open-page-variant` | Active page switched event |
+| Settings Changed | `mdi:cog` | Schedule/service/silence state changed |
 
 ### Device Image
 

@@ -1,6 +1,7 @@
 """Command handler: dispatch MQTT commands to FiestaBoard services."""
 
 import logging
+from datetime import datetime, timezone
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,10 @@ class CommandHandler:
                 self._handle_send_message(payload)
             elif object_id == "refresh_interval":
                 self._handle_refresh_interval(payload)
+            elif object_id == "next_page":
+                self._handle_next_page()
+            elif object_id == "previous_page":
+                self._handle_previous_page()
             else:
                 logger.debug("Unknown MQTT command object_id=%s", object_id)
         except Exception as e:
@@ -54,9 +59,20 @@ class CommandHandler:
         """Publish an event via the state publisher if available."""
         if self._client._state_publisher:
             try:
-                self._client._state_publisher.publish_event(object_id, event_type, attributes)
+                # Enrich all events with a UTC timestamp
+                enriched = dict(attributes) if attributes else {}
+                enriched.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+                self._client._state_publisher.publish_event(object_id, event_type, enriched)
             except Exception as e:
                 logger.debug("Event publish failed: %s", e)
+
+    def _mark_display_updated(self) -> None:
+        """Record a display update timestamp in the state publisher."""
+        if self._client._state_publisher:
+            try:
+                self._client._state_publisher.mark_display_updated()
+            except Exception as e:
+                logger.debug("Mark display updated failed: %s", e)
 
     def _handle_schedule_enabled(self, payload: str) -> None:
         from src.settings.service import get_settings_service
@@ -76,10 +92,11 @@ class CommandHandler:
         from src.settings.service import get_settings_service
         from src.pages.service import get_page_service
         page_service = get_page_service()
+        payload_lower = payload.lower()
         for page in page_service.list_pages():
-            if page.name == payload:
+            if page.name.lower() == payload_lower:
                 get_settings_service().set_active_page_id(page.id)
-                self._publish_event("page_changed", "page_switched", {"page_name": payload})
+                self._publish_event("page_changed", "page_switched", {"page_name": page.name})
                 return
         logger.warning("MQTT active_page: no page named %r", payload)
 
@@ -87,7 +104,7 @@ class CommandHandler:
         if not payload:
             return
         from src.settings.service import get_settings_service
-        from src.settings.service import VALID_STRATEGIES
+        from src.board_client import VALID_STRATEGIES
         if payload not in VALID_STRATEGIES:
             logger.warning("MQTT transition_style: invalid %r", payload)
             return
@@ -102,6 +119,7 @@ class CommandHandler:
                 service.fetch_and_display()
             elif hasattr(service, "check_and_send_active_page"):
                 service.check_and_send_active_page()
+        self._mark_display_updated()
         self._publish_event("display_updated", "page_refreshed")
 
     def _handle_blank_board(self) -> None:
@@ -115,6 +133,7 @@ class CommandHandler:
             return
         blank_array = [[0] * 22 for _ in range(6)]
         client.send_characters(blank_array, force=True)
+        self._mark_display_updated()
         self._publish_event("display_updated", "board_blanked")
 
     def _handle_send_message(self, payload: str) -> None:
@@ -140,6 +159,7 @@ class CommandHandler:
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
         )
+        self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 
     def _handle_refresh_interval(self, payload: str) -> None:
@@ -148,10 +168,50 @@ class CommandHandler:
         except ValueError:
             logger.warning("MQTT refresh_interval: invalid number %r", payload)
             return
-        if interval < 10:
-            interval = 10
+        # Clamp to the range defined in the entity (30–3600)
+        interval = max(30, min(3600, interval))
         from src.settings.service import get_settings_service
         get_settings_service().set_polling_interval(interval)
+
+    def _handle_next_page(self) -> None:
+        """Navigate to the next page in the page list."""
+        from src.settings.service import get_settings_service
+        from src.pages.service import get_page_service
+        page_service = get_page_service()
+        settings = get_settings_service()
+        pages = page_service.list_pages()
+        if not pages:
+            return
+        active_id = settings.get_active_page_id()
+        current_idx = 0
+        for idx, page in enumerate(pages):
+            if page.id == active_id:
+                current_idx = idx
+                break
+        next_idx = (current_idx + 1) % len(pages)
+        next_page = pages[next_idx]
+        settings.set_active_page_id(next_page.id)
+        self._publish_event("display_updated", "page_navigated", {"page_name": next_page.name, "direction": "next"})
+
+    def _handle_previous_page(self) -> None:
+        """Navigate to the previous page in the page list."""
+        from src.settings.service import get_settings_service
+        from src.pages.service import get_page_service
+        page_service = get_page_service()
+        settings = get_settings_service()
+        pages = page_service.list_pages()
+        if not pages:
+            return
+        active_id = settings.get_active_page_id()
+        current_idx = 0
+        for idx, page in enumerate(pages):
+            if page.id == active_id:
+                current_idx = idx
+                break
+        prev_idx = (current_idx - 1) % len(pages)
+        prev_page = pages[prev_idx]
+        settings.set_active_page_id(prev_page.id)
+        self._publish_event("display_updated", "page_navigated", {"page_name": prev_page.name, "direction": "previous"})
 
 
 from typing import TYPE_CHECKING

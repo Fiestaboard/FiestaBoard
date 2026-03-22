@@ -47,6 +47,7 @@ class TestStatePublisherGather:
         settings.get_active_page_id.return_value = "page-1"
         settings.get_transition_settings.return_value = MagicMock(strategy="column")
         settings.get_polling_interval.return_value = 300
+        settings.get_output_settings.return_value = MagicMock(target="both")
         get_settings.return_value = settings
         page_svc = MagicMock()
         page_svc.get_page.return_value = MagicMock(name="Weather")
@@ -81,6 +82,7 @@ class TestStatePublisherGather:
         settings.get_active_page_id.return_value = None
         settings.get_transition_settings.return_value = MagicMock(strategy="")
         settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
         get_settings.return_value = settings
         page_svc = MagicMock()
         page_svc.get_page.return_value = None
@@ -112,7 +114,7 @@ class TestStatePublisherGather:
 
 
 class TestStatePublisherDiagnostics:
-    """Tests for diagnostic state values (uptime, board_api_mode, active_plugins)."""
+    """Tests for diagnostic state values (uptime, board_api_mode, active_plugins, output_target)."""
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
@@ -129,6 +131,7 @@ class TestStatePublisherDiagnostics:
         settings.get_active_page_id.return_value = None
         settings.get_transition_settings.return_value = MagicMock(strategy="")
         settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
         get_settings.return_value = settings
         page_svc = MagicMock()
         page_svc.get_page.return_value = None
@@ -157,6 +160,7 @@ class TestStatePublisherDiagnostics:
         settings.get_active_page_id.return_value = None
         settings.get_transition_settings.return_value = MagicMock(strategy="")
         settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
         get_settings.return_value = settings
         page_svc = MagicMock()
         page_svc.get_page.return_value = None
@@ -189,6 +193,7 @@ class TestStatePublisherDiagnostics:
         settings.get_active_page_id.return_value = None
         settings.get_transition_settings.return_value = MagicMock(strategy="")
         settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
         get_settings.return_value = settings
         page_svc = MagicMock()
         page_svc.get_page.return_value = None
@@ -209,6 +214,115 @@ class TestStatePublisherDiagnostics:
         assert "active_plugins" in topics
         idx = topics.index("active_plugins")
         assert calls[idx][0][1] == "2"
+
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_gather_publishes_output_target(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = None
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="board")
+        get_settings.return_value = settings
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = None
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        calls = mock_client.publish_state.call_args_list
+        topics = [c[0][0] for c in calls]
+        assert "output_target" in topics
+        idx = topics.index("output_target")
+        assert calls[idx][0][1] == "board"
+
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_gather_publishes_last_display_update(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = None
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = None
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        pub = StatePublisher(mock_client)
+        pub.mark_display_updated()
+        pub.gather_and_publish()
+        calls = mock_client.publish_state.call_args_list
+        topics = [c[0][0] for c in calls]
+        assert "last_display_update" in topics
+        idx = topics.index("last_display_update")
+        # Should be an ISO timestamp
+        assert "T" in calls[idx][0][1]
+
+
+class TestStatePublisherTransitions:
+    """Tests for state transition event firing."""
+
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_silence_mode_transition_fires_event(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
+    ):
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = None
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = None
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+
+        mock_config.is_silence_mode_active.return_value = False
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+
+        # Change silence mode to ON
+        mock_config.is_silence_mode_active.return_value = True
+        mock_client.reset_mock()
+        pub._cache.clear()
+        pub.gather_and_publish()
+
+        # Check that an event was fired for silence_mode_changed
+        state_calls = mock_client.publish_state.call_args_list
+        event_calls = [c for c in state_calls if c[0][0] == "settings_changed"]
+        assert len(event_calls) == 1
+        event_payload = json.loads(event_calls[0][0][1])
+        assert event_payload["event_type"] == "silence_mode_changed"
+        assert event_payload["active"] is True
 
 
 class TestStatePublisherAttributes:
@@ -269,3 +383,11 @@ class TestStatePublisherEvents:
         event_data = json.loads(args[1])
         assert event_data["event_type"] == "page_switched"
         assert event_data["page_name"] == "Weather"
+
+    def test_mark_display_updated_sets_timestamp(self, mock_client):
+        """mark_display_updated should set _last_display_update to an ISO timestamp."""
+        pub = StatePublisher(mock_client)
+        assert pub._last_display_update == ""
+        pub.mark_display_updated()
+        assert pub._last_display_update != ""
+        assert "T" in pub._last_display_update
