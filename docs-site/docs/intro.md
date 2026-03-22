@@ -83,6 +83,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Schedule Mode](/docs/features/schedule)** | Automating when pages display |
 | **[Silence Schedule](/docs/features/silence-schedule)** | Setting quiet hours for your board |
 | **[Raspberry Pi](/docs/deployment/raspberry-pi)** | Always-on deployment on a Pi |
+| **[V3 Migration](/docs/setup/v3-migration)** | Upgrading from FiestaBoard V2 (external plugins) |
 | **[V2 Migration](/docs/setup/v2-migration)** | Upgrading from FiestaBoard V1 |
 | **[Troubleshooting](/docs/troubleshooting)** | Common issues and solutions |
 | **[Plugin Development](/docs/development/plugin-guide)** | Creating your own plugins |
