@@ -465,3 +465,81 @@ def test_load_plugin_handles_none_spec(tmp_path):
         plugin = loader.load_plugin("spec_error")
     assert plugin is None
     assert any("spec" in e.lower() for e in loader.load_errors["spec_error"])
+
+
+# --- get_source ---
+
+
+def test_get_source_returns_source_for_loaded_plugin(tmp_path):
+    """get_source returns a PluginSource for a loaded plugin."""
+    create_valid_plugin_dir(tmp_path, "test_plugin")
+    loader = PluginLoader(plugins_dir=tmp_path)
+    loader.load_plugin("test_plugin")
+
+    source = loader.get_source("test_plugin")
+    assert source is not None
+    assert source.source_type == "builtin"
+    assert "test_plugin" in source.local_path
+
+
+def test_get_source_returns_none_for_unknown():
+    """get_source returns None for unknown plugin."""
+    loader = PluginLoader(plugins_dir=Path("/fake"))
+    assert loader.get_source("nonexistent") is None
+
+
+# --- plugin_sources property ---
+
+
+def test_plugin_sources_returns_loaded_sources(tmp_path):
+    """plugin_sources property returns sources for all loaded plugins."""
+    create_valid_plugin_dir(tmp_path, "test_plugin")
+    loader = PluginLoader(plugins_dir=tmp_path)
+    loader.load_plugin("test_plugin")
+
+    sources = loader.plugin_sources
+    assert "test_plugin" in sources
+    assert sources["test_plugin"].source_type == "builtin"
+
+
+# --- _get_fiestaboard_version ---
+
+
+def test_get_fiestaboard_version():
+    """_get_fiestaboard_version reads version from package.json."""
+    import src.plugins.loader as loader_mod
+
+    old = loader_mod._FIESTABOARD_VERSION
+    try:
+        loader_mod._FIESTABOARD_VERSION = None
+        version = loader_mod._get_fiestaboard_version()
+        assert version != ""
+        assert "." in version
+    finally:
+        loader_mod._FIESTABOARD_VERSION = old
+
+
+def test_get_fiestaboard_version_caches():
+    """_get_fiestaboard_version caches the result."""
+    import src.plugins.loader as loader_mod
+
+    old = loader_mod._FIESTABOARD_VERSION
+    try:
+        loader_mod._FIESTABOARD_VERSION = "1.2.3"
+        assert loader_mod._get_fiestaboard_version() == "1.2.3"
+    finally:
+        loader_mod._FIESTABOARD_VERSION = old
+
+
+def test_get_fiestaboard_version_fallback_on_error():
+    """_get_fiestaboard_version returns 0.0.0 when file can't be read."""
+    import src.plugins.loader as loader_mod
+
+    old = loader_mod._FIESTABOARD_VERSION
+    try:
+        loader_mod._FIESTABOARD_VERSION = None
+        with patch("builtins.open", side_effect=OSError("not found")):
+            version = loader_mod._get_fiestaboard_version()
+        assert version == "0.0.0"
+    finally:
+        loader_mod._FIESTABOARD_VERSION = old
