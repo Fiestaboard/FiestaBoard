@@ -26,9 +26,9 @@ from . import __version__
 from .main import DisplayService
 from .config import Config
 from .config_manager import get_config_manager
-from .displays.service import get_display_service, reset_display_service, DisplayResult
+from .displays.service import get_display_service, reset_display_service
 from .settings.service import get_settings_service, VALID_STRATEGIES, VALID_OUTPUT_TARGETS
-from .pages.service import get_page_service, DeleteResult
+from .pages.service import get_page_service
 from .pages.models import PageCreate, PageUpdate
 from .schedules.service import get_schedule_service
 from .schedules.models import ScheduleCreate, ScheduleUpdate

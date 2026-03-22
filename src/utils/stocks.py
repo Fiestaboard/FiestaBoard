@@ -7,7 +7,7 @@ Optional Finnhub integration for symbol search and autocomplete.
 import logging
 import yfinance as yf
 from typing import Optional, Dict, List, Any
-from datetime import datetime, timedelta
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
