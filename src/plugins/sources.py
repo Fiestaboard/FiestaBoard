@@ -152,7 +152,7 @@ def validate_registry_repo_name(repo_url: str) -> Tuple[bool, str]:
     Returns:
         ``(True, "")`` when valid, ``(False, reason)`` otherwise.
     """
-    repo_name = _repo_name_from_url(repo_url)
+    repo_name = repo_name_from_url(repo_url)
     if not repo_name:
         return False, f"Cannot extract repository name from URL: {repo_url}"
     if not REGISTRY_NAME_RE.match(repo_name):
@@ -179,10 +179,10 @@ def plugin_id_from_repo_name(repo_name: str) -> str:
     return repo_name.replace("-", "_")
 
 
-def _repo_name_from_url(url: str) -> str:
+def repo_name_from_url(url: str) -> str:
     """Extract the repository name from a git URL.
 
-    >>> _repo_name_from_url("https://github.com/Org/fiestaboard-plugin--foo.git")
+    >>> repo_name_from_url("https://github.com/Org/fiestaboard-plugin--foo.git")
     'fiestaboard-plugin--foo'
     """
     url = url.rstrip("/")
@@ -328,7 +328,7 @@ def install_git_plugin(
     if external_dir is None:
         external_dir = get_external_plugins_dir()
 
-    repo_name = _repo_name_from_url(repo_url)
+    repo_name = repo_name_from_url(repo_url)
     if not repo_name:
         return False, f"Cannot determine repository name from URL: {repo_url}"
 

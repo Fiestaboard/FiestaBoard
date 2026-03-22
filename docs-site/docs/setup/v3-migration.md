@@ -1,6 +1,6 @@
 ---
 sidebar_position: 6
-description: "Upgrade guide for migrating from FiestaBoard V2 to V3. Covers the new external plugin system, plugin registry, git-based plugin installs, and API changes."
+description: "Upgrade guide for migrating from FiestaBoard V2 to V3. Covers the new external plugin system, plugin registry, Git-based plugin installs, and API changes."
 keywords: [FiestaBoard V3, migration guide, upgrade, breaking changes, external plugins, plugin registry, plugin install]
 ---
 

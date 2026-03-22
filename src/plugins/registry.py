@@ -487,8 +487,8 @@ class PluginRegistry:
 
         # Determine the id if not given
         if plugin_id is None:
-            from .sources import _repo_name_from_url, plugin_id_from_repo_name
-            repo_name = _repo_name_from_url(repo_url)
+            from .sources import repo_name_from_url, plugin_id_from_repo_name
+            repo_name = repo_name_from_url(repo_url)
             plugin_id = plugin_id_from_repo_name(repo_name)
 
         # Reload external dirs and load the new plugin

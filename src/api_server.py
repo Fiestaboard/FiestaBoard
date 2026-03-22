@@ -4682,8 +4682,8 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
     # Derive the final plugin id
     pid = request.plugin_id
     if pid is None:
-        from .plugins.sources import _repo_name_from_url, plugin_id_from_repo_name
-        pid = plugin_id_from_repo_name(_repo_name_from_url(request.repository))
+        from .plugins.sources import repo_name_from_url, plugin_id_from_repo_name
+        pid = plugin_id_from_repo_name(repo_name_from_url(request.repository))
 
     return {
         "status": "success",

@@ -13,7 +13,7 @@ from src.plugins.sources import (
     REGISTRY_PREFIX,
     PluginSource,
     RegistryEntry,
-    _repo_name_from_url,
+    repo_name_from_url,
     clone_or_update_repo,
     get_external_plugins_dir,
     install_git_plugin,
@@ -101,7 +101,7 @@ class TestNamingConvention:
 
     def test_repo_name_extraction(self):
         assert (
-            _repo_name_from_url(
+            repo_name_from_url(
                 "https://github.com/FiestaBoard/fiestaboard-plugin--foo.git"
             )
             == "fiestaboard-plugin--foo"
@@ -109,7 +109,7 @@ class TestNamingConvention:
 
     def test_repo_name_no_git_suffix(self):
         assert (
-            _repo_name_from_url(
+            repo_name_from_url(
                 "https://github.com/FiestaBoard/fiestaboard-plugin--bar"
             )
             == "fiestaboard-plugin--bar"
@@ -117,7 +117,7 @@ class TestNamingConvention:
 
     def test_repo_name_trailing_slash(self):
         assert (
-            _repo_name_from_url(
+            repo_name_from_url(
                 "https://github.com/FiestaBoard/fiestaboard-plugin--baz/"
             )
             == "fiestaboard-plugin--baz"
