@@ -60,7 +60,7 @@ class CommandHandler:
         if self._client._state_publisher:
             try:
                 # Enrich all events with a UTC timestamp
-                enriched = dict(attributes) if attributes else {}
+                enriched = attributes.copy() if attributes else {}
                 enriched.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
                 self._client._state_publisher.publish_event(object_id, event_type, enriched)
             except Exception as e:
@@ -173,6 +173,13 @@ class CommandHandler:
         from src.settings.service import get_settings_service
         get_settings_service().set_polling_interval(interval)
 
+    def _get_current_page_index(self, pages: list, active_id: str | None) -> int:
+        """Find the index of the currently active page in the page list."""
+        for idx, page in enumerate(pages):
+            if page.id == active_id:
+                return idx
+        return 0
+
     def _handle_next_page(self) -> None:
         """Navigate to the next page in the page list."""
         from src.settings.service import get_settings_service
@@ -182,12 +189,7 @@ class CommandHandler:
         pages = page_service.list_pages()
         if not pages:
             return
-        active_id = settings.get_active_page_id()
-        current_idx = 0
-        for idx, page in enumerate(pages):
-            if page.id == active_id:
-                current_idx = idx
-                break
+        current_idx = self._get_current_page_index(pages, settings.get_active_page_id())
         next_idx = (current_idx + 1) % len(pages)
         next_page = pages[next_idx]
         settings.set_active_page_id(next_page.id)
@@ -202,12 +204,7 @@ class CommandHandler:
         pages = page_service.list_pages()
         if not pages:
             return
-        active_id = settings.get_active_page_id()
-        current_idx = 0
-        for idx, page in enumerate(pages):
-            if page.id == active_id:
-                current_idx = idx
-                break
+        current_idx = self._get_current_page_index(pages, settings.get_active_page_id())
         prev_idx = (current_idx - 1) % len(pages)
         prev_page = pages[prev_idx]
         settings.set_active_page_id(prev_page.id)
