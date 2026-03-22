@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. Add weather, stocks, sports, transit, and 26 more plugins to your Vestaboard Flagship or Note."
+description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. 26 plugins including weather, stocks, sports, transit, and more for your Vestaboard Flagship or Note."
 keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard open source, best software for Vestaboard, smart dashboard, live display, open source]
 ---
 
@@ -21,7 +21,7 @@ Here's a quick look at what your board can show once FiestaBoard is running:
 | **Home** | Smart home status via Home Assistant, guest WiFi credentials |
 | **Fun & Visual** | Disney park wait times, sun art, visual clock, stardate |
 
-There are **26 built-in plugins**, and many of them work without any API key at all.
+There are **26 built-in plugins**, and many of them work without any API key at all. You can also install community plugins from the [plugin registry](/docs/plugins/overview#installing-external-plugins) or from any public git repository.
 
 ## How It Works
 
@@ -83,6 +83,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Schedule Mode](/docs/features/schedule)** | Automating when pages display |
 | **[Silence Schedule](/docs/features/silence-schedule)** | Setting quiet hours for your board |
 | **[Raspberry Pi](/docs/deployment/raspberry-pi)** | Always-on deployment on a Pi |
+| **[V3 Migration](/docs/setup/v3-migration)** | Upgrading from FiestaBoard V2 (external plugins) |
 | **[V2 Migration](/docs/setup/v2-migration)** | Upgrading from FiestaBoard V1 |
 | **[Troubleshooting](/docs/troubleshooting)** | Common issues and solutions |
 | **[Plugin Development](/docs/development/plugin-guide)** | Creating your own plugins |

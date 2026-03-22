@@ -2,7 +2,7 @@
 
 The Date & Time plugin displays the current date and time on your board with comprehensive formatting options. This is one of the simplest plugins - no API key required!
 
-![Date & Time Display](./date-time-display.png)
+![Date & Time Display](./board-display.png)
 
 ## Overview
 

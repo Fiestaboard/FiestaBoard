@@ -153,6 +153,10 @@
   --brand: oklch(0.56 0.15 75);
   --brand-emphasis: oklch(0.52 0.16 60);
   --brand-foreground: oklch(1 0 0);
+  /* Fiesta gradient palette — used by sidebar and page icon gradient */
+  --fiesta-red: #c97a72;
+  --fiesta-orange: #c99662;
+  --fiesta-purple: #9b7bb0;
   /* Elevation - subtle card and modal shadows */
   --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.06);
   --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 4px 16px -4px rgb(0 0 0 / 0.06);
@@ -206,6 +210,10 @@
   --brand: oklch(0.78 0.14 75);
   --brand-emphasis: oklch(0.55 0.16 60);
   --brand-foreground: oklch(1 0 0);
+  /* Fiesta gradient palette — lighter for visibility on dark card backgrounds */
+  --fiesta-red: #e08a82;
+  --fiesta-orange: #d4a870;
+  --fiesta-purple: #b08ec8;
   --elevation-card: 0 1px 3px 0 rgb(0 0 0 / 0.20), 0 0 0 1px oklch(1 0 0 / 6%);
   --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.30), 0 0 0 1px oklch(1 0 0 / 10%);
   --elevation-modal: 0 8px 24px -4px rgb(0 0 0 / 0.25), 0 4px 8px -4px rgb(0 0 0 / 0.15);
@@ -448,6 +456,9 @@
       animation: none !important;
     }
   }
+  .reduce-motion main {
+    animation: none !important;
+  }
 }
 
 /* Page Transition Keyframes */
@@ -651,6 +662,9 @@
   .sidebar-gradient { animation: none; background-position: 0 0, 0 0, 50% 25%; }
   .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
 }
+.reduce-motion .sidebar-transition { transition: none; }
+.reduce-motion .sidebar-gradient { animation: none; background-position: 0 0, 0 0, 50% 25%; }
+.reduce-motion .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
 
 /* Interactive card hover feedback */
 @layer utilities {
@@ -671,6 +685,9 @@
   .card-interactive {
     transition: none;
   }
+}
+.reduce-motion .card-interactive {
+  transition: none;
 }
 
 /* Performance optimizations for interactive elements */
@@ -888,6 +905,11 @@
     transform: none;
   }
 }
+.reduce-motion .btn-lift,
+.reduce-motion .btn-lift:hover,
+.reduce-motion .btn-lift:active {
+  transform: none;
+}
 
 
 /* Respect reduced motion preferences */
@@ -900,4 +922,12 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

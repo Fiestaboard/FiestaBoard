@@ -309,17 +309,25 @@ test.describe("Note pages – Send to Board", () => {
     expect(sendData.sent_to_board).toBe(true);
 
     const state = await getMockBoardState();
-    const last = state.history[state.history.length - 1];
-    expect(last.dimensions).toEqual([3, 15]);
+    const history = state.history ?? [];
+    // Prefer the Note-sized payload — another send (e.g. active page) may append a Flagship message after ours.
+    const noteMsg = [...history].reverse().find(
+      (h: { dimensions?: number[]; characters?: number[][] }) =>
+        Array.isArray(h.dimensions) && h.dimensions[0] === 3 && h.dimensions[1] === 15,
+    );
+    expect(noteMsg, "expected a 3×15 (note) message in mock history").toBeDefined();
+    if (!noteMsg?.characters) {
+      throw new Error("mock history entry missing characters");
+    }
 
     // H=8, I=9, rest are blank (0)
-    expect(last.characters[0][0]).toBe(8);
-    expect(last.characters[0][1]).toBe(9);
+    expect(noteMsg.characters[0][0]).toBe(8);
+    expect(noteMsg.characters[0][1]).toBe(9);
     for (let c = 2; c < 15; c++) {
-      expect(last.characters[0][c]).toBe(0);
+      expect(noteMsg.characters[0][c]).toBe(0);
     }
     // Rows 2+3 are blank
-    for (const row of [last.characters[1], last.characters[2]]) {
+    for (const row of [noteMsg.characters[1], noteMsg.characters[2]]) {
       for (const code of row) {
         expect(code).toBe(0);
       }

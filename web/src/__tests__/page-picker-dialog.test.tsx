@@ -1,0 +1,171 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { PagePickerDialog } from "@/components/page-picker-dialog";
+
+const PAGES = [
+  { id: "page-1", name: "Morning Report", type: "template" },
+  { id: "page-2", name: "Weather Now", type: "template" },
+  { id: "page-3", name: "Countdown", type: "template" },
+];
+
+// Carousel IDs must use the "carousel:" prefix (see lib/api.ts CAROUSEL_ID_PREFIX)
+const CAROUSEL_ID = "carousel:abc";
+
+describe("PagePickerDialog", () => {
+  it("renders all provided page names", () => {
+    render(
+      <PagePickerDialog pages={PAGES} selectedPageId={null} onSelect={vi.fn()} />
+    );
+
+    expect(screen.getByText("Morning Report")).toBeInTheDocument();
+    expect(screen.getByText("Weather Now")).toBeInTheDocument();
+    expect(screen.getByText("Countdown")).toBeInTheDocument();
+  });
+
+  it("marks the currently selected page as aria-selected", () => {
+    render(
+      <PagePickerDialog pages={PAGES} selectedPageId="page-2" onSelect={vi.fn()} />
+    );
+
+    const options = screen.getAllByRole("option");
+    const selected = options.find((o) => o.getAttribute("aria-selected") === "true");
+    expect(selected).toBeDefined();
+    expect(selected).toHaveTextContent("Weather Now");
+  });
+
+  it("calls onSelect with the page id when a page button is clicked", () => {
+    const onSelect = vi.fn();
+    render(
+      <PagePickerDialog pages={PAGES} selectedPageId={null} onSelect={onSelect} />
+    );
+
+    fireEvent.click(screen.getByText("Morning Report"));
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onSelect).toHaveBeenCalledWith("page-1");
+  });
+
+  it("calls onSelect when a different page is clicked while one is selected", () => {
+    const onSelect = vi.fn();
+    render(
+      <PagePickerDialog pages={PAGES} selectedPageId="page-1" onSelect={onSelect} />
+    );
+
+    fireEvent.click(screen.getByText("Countdown"));
+    expect(onSelect).toHaveBeenCalledWith("page-3");
+  });
+
+  it("shows 'None' option when allowNone is true", () => {
+    render(
+      <PagePickerDialog
+        pages={PAGES}
+        selectedPageId="page-1"
+        onSelect={vi.fn()}
+        allowNone
+      />
+    );
+
+    expect(screen.getByText("None (no default)")).toBeInTheDocument();
+  });
+
+  it("does not show 'None' option when allowNone is false (default)", () => {
+    render(
+      <PagePickerDialog pages={PAGES} selectedPageId={null} onSelect={vi.fn()} />
+    );
+
+    expect(screen.queryByText("None (no default)")).not.toBeInTheDocument();
+  });
+
+  it("calls onSelect(null) when None option is clicked", () => {
+    const onSelect = vi.fn();
+    render(
+      <PagePickerDialog
+        pages={PAGES}
+        selectedPageId="page-1"
+        onSelect={onSelect}
+        allowNone
+      />
+    );
+
+    fireEvent.click(screen.getByText("None (no default)"));
+    expect(onSelect).toHaveBeenCalledWith(null);
+  });
+
+  it("shows an empty state when no pages are provided", () => {
+    render(
+      <PagePickerDialog pages={[]} selectedPageId={null} onSelect={vi.fn()} />
+    );
+
+    expect(screen.getByText("No pages yet")).toBeInTheDocument();
+  });
+
+  it("shows page type badges when type is provided", () => {
+    render(
+      <PagePickerDialog pages={PAGES} selectedPageId={null} onSelect={vi.fn()} />
+    );
+
+    const templateBadges = screen.getAllByText("template");
+    expect(templateBadges.length).toBeGreaterThan(0);
+  });
+
+  it("renders a listbox with aria-label for accessibility", () => {
+    render(
+      <PagePickerDialog pages={PAGES} selectedPageId={null} onSelect={vi.fn()} />
+    );
+
+    expect(screen.getByRole("listbox", { name: /pages/i })).toBeInTheDocument();
+  });
+
+  it("shows tabs when carousels are provided", () => {
+    const carousels = [
+      { id: CAROUSEL_ID, name: "Rotating Display", page_ids: ["page-1", "page-2"] },
+    ];
+    render(
+      <PagePickerDialog
+        pages={PAGES}
+        carousels={carousels}
+        selectedPageId={null}
+        onSelect={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: /pages/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /carousels/i })).toBeInTheDocument();
+  });
+
+  it("renders carousel tab with correct count when carousels are provided", () => {
+    const carousels = [
+      { id: CAROUSEL_ID, name: "Morning Carousel", page_ids: ["page-1"] },
+    ];
+    render(
+      <PagePickerDialog
+        pages={PAGES}
+        carousels={carousels}
+        selectedPageId={null}
+        onSelect={vi.fn()}
+      />
+    );
+
+    const carouselsTab = screen.getByRole("tab", { name: /carousels/i });
+    expect(carouselsTab).toBeInTheDocument();
+    // Tab label should include the count "1"
+    expect(carouselsTab).toHaveTextContent("1");
+  });
+
+  it("defaults to carousels tab when a carousel id is selected", () => {
+    const carousels = [
+      { id: CAROUSEL_ID, name: "Morning Carousel", page_ids: ["page-1"] },
+    ];
+    render(
+      <PagePickerDialog
+        pages={PAGES}
+        carousels={carousels}
+        selectedPageId={CAROUSEL_ID}
+        onSelect={vi.fn()}
+      />
+    );
+
+    // When a carousel ID is selected, the carousels tab should be active
+    const carouselsTab = screen.getByRole("tab", { name: /carousels/i });
+    expect(carouselsTab).toHaveAttribute("data-state", "active");
+  });
+});

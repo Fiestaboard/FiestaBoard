@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Polling interval updated. Restart service to apply changes.",
     "toastPollingFailed": "Failed to update polling interval: {error}",
     "languageLabel": "Language",
-    "languageDescription": "Choose the display language for the interface"
+    "languageDescription": "Choose the display language for the interface",
+    "reduceMotionLabel": "Reduce Motion",
+    "reduceMotionDescription": "Disable animations and transitions in the interface",
+    "toastDisplaySaved": "Display settings saved",
+    "toastDisplaySaveFailed": "Failed to save display settings: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Toggle theme"

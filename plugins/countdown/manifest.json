@@ -60,28 +60,80 @@
   ],
 
   "variables": {
-    "simple": [
-      "event_name",
-      "target_datetime",
-      "days",
-      "hours",
-      "minutes",
-      "seconds",
-      "total_seconds",
-      "is_expired",
-      "formatted"
-    ]
+    "groups": {
+      "event": { "label": "Event Info" },
+      "countdown": { "label": "Countdown Values" }
+    },
+    "simple": {
+      "event_name": {
+        "description": "Name of the countdown event",
+        "group": "event",
+        "max_length": 22,
+        "example": "Last Day of School"
+      },
+      "target_datetime": {
+        "description": "Target date and time (ISO format)",
+        "group": "event",
+        "max_length": 19,
+        "example": "2025-06-15T00:00:00"
+      },
+      "is_expired": {
+        "description": "Whether the countdown has reached zero",
+        "type": "boolean",
+        "group": "event",
+        "max_length": 5,
+        "example": "false"
+      },
+      "days": {
+        "description": "Days remaining",
+        "type": "number",
+        "group": "countdown",
+        "max_length": 5,
+        "example": "86"
+      },
+      "hours": {
+        "description": "Hours remaining (0-23)",
+        "type": "number",
+        "group": "countdown",
+        "max_length": 2,
+        "example": "14"
+      },
+      "minutes": {
+        "description": "Minutes remaining (0-59)",
+        "type": "number",
+        "group": "countdown",
+        "max_length": 2,
+        "example": "30"
+      },
+      "seconds": {
+        "description": "Seconds remaining (0-59)",
+        "type": "number",
+        "group": "countdown",
+        "max_length": 2,
+        "example": "45"
+      },
+      "total_seconds": {
+        "description": "Total seconds until target",
+        "type": "number",
+        "group": "countdown",
+        "max_length": 10,
+        "example": "7473045"
+      },
+      "formatted": {
+        "description": "Pre-formatted countdown display",
+        "group": "countdown",
+        "max_length": 22,
+        "example": "86d 14h 30m 45s"
+      }
+    }
   },
 
-  "max_lengths": {
-    "event_name": 22,
-    "target_datetime": 19,
-    "days": 5,
-    "hours": 2,
-    "minutes": 2,
-    "seconds": 2,
-    "total_seconds": 10,
-    "is_expired": 5,
-    "formatted": 22
-  }
+  "screenshots": [
+    {
+      "src": "docs/countdown-display.png",
+      "alt": "Countdown displayed on a Vestaboard",
+      "caption": "Classic countdown template showing days remaining until an event",
+      "primary": true
+    }
+  ]
 }

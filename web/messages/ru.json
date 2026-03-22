@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Интервал опроса обновлён. Перезапустите сервис для применения изменений.",
     "toastPollingFailed": "Не удалось обновить интервал опроса: {error}",
     "languageLabel": "Язык",
-    "languageDescription": "Выберите язык интерфейса"
+    "languageDescription": "Выберите язык интерфейса",
+    "reduceMotionLabel": "Уменьшить анимацию",
+    "reduceMotionDescription": "Отключить анимации и переходы в интерфейсе",
+    "toastDisplaySaved": "Настройки отображения сохранены",
+    "toastDisplaySaveFailed": "Не удалось сохранить настройки отображения: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Переключить тему"

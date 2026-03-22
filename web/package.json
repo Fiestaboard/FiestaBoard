@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "2.11.0",
+  "version": "3.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
@@ -42,11 +42,20 @@
     "next-intl": "^4.8.3",
     "next-themes": "^0.4.6",
     "ogl": "^1.0.11",
+    "radix-ui": "^1.4.3",
     "react": "19.2.4",
     "react-big-calendar": "^1.17.0",
     "react-dom": "19.2.4",
+    "react-markdown": "^9.0.3",
+    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.10",
+    "@swc/core-linux-x64-gnu": "1.15.18",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.2.1",
+    "lightningcss-linux-x64-gnu": "1.31.1"
   },
   "overrides": {
     "serialize-javascript": ">=7.0.3"

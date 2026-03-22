@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "ポーリング間隔を更新しました。変更を適用するにはサービスを再起動してください。",
     "toastPollingFailed": "ポーリング間隔の更新に失敗しました: {error}",
     "languageLabel": "言語",
-    "languageDescription": "インターフェースの表示言語を選択してください"
+    "languageDescription": "インターフェースの表示言語を選択してください",
+    "reduceMotionLabel": "モーションを減らす",
+    "reduceMotionDescription": "インターフェースのアニメーションとトランジションを無効にする",
+    "toastDisplaySaved": "表示設定を保存しました",
+    "toastDisplaySaveFailed": "表示設定の保存に失敗しました: {error}"
   },
   "themeToggle": {
     "toggleTheme": "テーマを切り替え"

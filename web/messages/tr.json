@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Yoklama aralığı güncellendi. Değişikliklerin uygulanması için hizmeti yeniden başlatın.",
     "toastPollingFailed": "Yoklama aralığı güncellenemedi: {error}",
     "languageLabel": "Dil",
-    "languageDescription": "Arayüz görüntüleme dilini seçin"
+    "languageDescription": "Arayüz görüntüleme dilini seçin",
+    "reduceMotionLabel": "Hareketi azalt",
+    "reduceMotionDescription": "Arayüzdeki animasyonları ve geçişleri devre dışı bırak",
+    "toastDisplaySaved": "Görüntüleme ayarları kaydedildi",
+    "toastDisplaySaveFailed": "Görüntüleme ayarları kaydedilemedi: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Temayı değiştir"

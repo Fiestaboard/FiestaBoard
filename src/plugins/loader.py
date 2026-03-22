@@ -1,22 +1,95 @@
 """Plugin discovery and loading.
 
-The PluginLoader discovers plugins from the plugins/ directory,
-validates their manifests, and loads their Python modules.
+The PluginLoader discovers plugins from the built-in ``plugins/`` directory
+as well as external plugin directories (registry and custom git sources).
 """
 
 import importlib.util
+import json
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 from .base import PluginBase
 from .manifest import PluginManifest, load_manifest
+from .sources import (
+    EXTERNAL_PLUGINS_DIR,
+    PluginSource,
+    get_external_plugins_dir,
+)
 
 logger = logging.getLogger(__name__)
 
 # Default plugins directory (relative to project root)
 DEFAULT_PLUGINS_DIR = "plugins"
+
+# ---------------------------------------------------------------------------
+# FiestaBoard version compatibility helpers
+# ---------------------------------------------------------------------------
+
+_FIESTABOARD_VERSION: Optional[str] = None
+
+
+def _get_fiestaboard_version() -> str:
+    """Return the running FiestaBoard version from package.json."""
+    global _FIESTABOARD_VERSION
+    if _FIESTABOARD_VERSION is not None:
+        return _FIESTABOARD_VERSION
+
+    project_root = Path(__file__).parent.parent.parent
+    pkg_path = project_root / "package.json"
+    try:
+        with open(pkg_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        _FIESTABOARD_VERSION = data.get("version", "0.0.0")
+    except Exception:
+        _FIESTABOARD_VERSION = "0.0.0"
+
+    return _FIESTABOARD_VERSION
+
+
+def _parse_version(version_str: str) -> Tuple[int, int, int]:
+    """Parse a semver string into a (major, minor, patch) tuple."""
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", version_str)
+    if not match:
+        return (0, 0, 0)
+    return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+
+
+def _check_version_constraint(constraint: str, running_version: str) -> Tuple[bool, str]:
+    """Check whether *running_version* satisfies *constraint*.
+
+    Supports simple single-operator constraints: ``>=``, ``>``, ``<=``, ``<``,
+    ``==``, ``!=``.  Returns ``(satisfied, reason)``.
+    """
+    if not constraint:
+        return True, ""
+
+    match = re.match(r"^(>=|>|<=|<|==|!=)\s*(\d+\.\d+\.\d+)$", constraint.strip())
+    if not match:
+        return True, f"Unrecognised version constraint '{constraint}', skipping check"
+
+    op, required_str = match.group(1), match.group(2)
+    required = _parse_version(required_str)
+    running = _parse_version(running_version)
+
+    satisfied = {
+        ">=": running >= required,
+        ">":  running > required,
+        "<=": running <= required,
+        "<":  running < required,
+        "==": running == required,
+        "!=": running != required,
+    }[op]
+
+    if not satisfied:
+        return False, (
+            f"Plugin requires FiestaBoard {constraint}, "
+            f"but running version is {running_version}"
+        )
+    return True, ""
 
 
 class PluginLoadError(Exception):
@@ -25,70 +98,147 @@ class PluginLoadError(Exception):
 
 
 class PluginLoader:
-    """Discovers and loads plugins from the plugins directory.
-    
-    The loader:
-    1. Scans the plugins directory for subdirectories
-    2. Validates each plugin's manifest.json
-    3. Dynamically imports the plugin's __init__.py
-    4. Finds and instantiates the PluginBase subclass
+    """Discovers and loads plugins from multiple directories.
+
+    The loader supports three plugin sources:
+
+    1. **Built-in** – plugins shipped in the repository's ``plugins/``
+       directory.
+    2. **Registry / Git** – external plugins cloned into the
+       ``external_plugins/`` directory (managed by :mod:`sources`).
+
+    Both directories are scanned during discovery.  The built-in directory
+    always takes precedence when a plugin id exists in both locations.
     """
-    
-    def __init__(self, plugins_dir: Optional[Path] = None):
+
+    def __init__(
+        self,
+        plugins_dir: Optional[Path] = None,
+        external_dirs: Optional[List[Path]] = None,
+    ):
         """Initialize the plugin loader.
-        
+
         Args:
-            plugins_dir: Path to plugins directory. If None, uses default.
+            plugins_dir: Path to the built-in plugins directory.  When
+                *None* the default ``plugins/`` relative to the project
+                root is used.
+            external_dirs: Additional directories to scan for plugins
+                (e.g. ``external_plugins/``).  When *None* the default
+                external directory is included automatically.
         """
         if plugins_dir is None:
-            # Find project root (where plugins/ should be)
-            # Go up from src/plugins/ to project root
             project_root = Path(__file__).parent.parent.parent
             plugins_dir = project_root / DEFAULT_PLUGINS_DIR
-        
+
         self.plugins_dir = Path(plugins_dir)
+
+        if external_dirs is None:
+            project_root = Path(__file__).parent.parent.parent
+            ext_dir = project_root / EXTERNAL_PLUGINS_DIR
+            self._external_dirs: List[Path] = [ext_dir] if ext_dir.is_dir() else []
+        else:
+            self._external_dirs = list(external_dirs)
+
         self._loaded_plugins: Dict[str, Tuple[PluginBase, PluginManifest]] = {}
         self._load_errors: Dict[str, List[str]] = {}
-        
-        logger.info(f"PluginLoader initialized with directory: {self.plugins_dir}")
+        self._plugin_sources: Dict[str, PluginSource] = {}
+
+        logger.info(
+            "PluginLoader initialized – built-in: %s, external dirs: %s",
+            self.plugins_dir,
+            [str(d) for d in self._external_dirs],
+        )
     
     @property
     def loaded_plugins(self) -> Dict[str, Tuple[PluginBase, PluginManifest]]:
         """Return all successfully loaded plugins."""
         return self._loaded_plugins.copy()
-    
+
     @property
     def load_errors(self) -> Dict[str, List[str]]:
         """Return load errors by plugin directory name."""
         return self._load_errors.copy()
-    
-    def discover_plugins(self) -> List[str]:
-        """Discover available plugin directories.
-        
-        Returns:
-            List of plugin directory names (not full paths)
-        """
-        if not self.plugins_dir.exists():
-            logger.warning(f"Plugins directory does not exist: {self.plugins_dir}")
+
+    @property
+    def plugin_sources(self) -> Dict[str, PluginSource]:
+        """Return source information for every loaded plugin."""
+        return self._plugin_sources.copy()
+
+    # ── discovery ────────────────────────────────────────────────────────
+
+    def _discover_from_dir(self, directory: Path) -> List[str]:
+        """Discover valid plugin directories inside *directory*."""
+        if not directory.exists() or not directory.is_dir():
             return []
-        
-        if not self.plugins_dir.is_dir():
-            logger.warning(f"Plugins path is not a directory: {self.plugins_dir}")
-            return []
-        
-        plugins = []
-        for item in self.plugins_dir.iterdir():
-            # Skip hidden directories and files
+
+        found: List[str] = []
+        for item in directory.iterdir():
             if item.name.startswith(".") or item.name.startswith("_"):
                 continue
-            
-            # Must be a directory with manifest.json
             if item.is_dir() and (item / "manifest.json").exists():
-                plugins.append(item.name)
-                logger.debug(f"Discovered plugin directory: {item.name}")
-        
-        return sorted(plugins)
+                found.append(item.name)
+                logger.debug("Discovered plugin directory: %s", item.name)
+        return found
+
+    def discover_plugins(self) -> List[str]:
+        """Discover available plugin directories.
+
+        Scans the built-in ``plugins/`` directory first, then any
+        external directories.  Built-in plugins take precedence –
+        if the same directory name appears in both locations only the
+        built-in copy is returned.
+
+        Returns:
+            Sorted list of unique plugin directory names.
+        """
+        seen: Dict[str, Path] = {}
+
+        # Built-in directory first (takes precedence)
+        for name in self._discover_from_dir(self.plugins_dir):
+            seen[name] = self.plugins_dir / name
+
+        # External directories
+        for ext_dir in self._external_dirs:
+            for name in self._discover_from_dir(ext_dir):
+                if name not in seen:
+                    seen[name] = ext_dir / name
+
+        return sorted(seen.keys())
     
+    # ── resolution ──────────────────────────────────────────────────────
+
+    def _resolve_plugin_dir(self, plugin_name: str) -> Optional[Path]:
+        """Find the on-disk directory for *plugin_name*.
+
+        Checks built-in first, then external directories.
+        """
+        # Built-in takes precedence
+        candidate = self.plugins_dir / plugin_name
+        if candidate.is_dir():
+            return candidate
+
+        for ext_dir in self._external_dirs:
+            candidate = ext_dir / plugin_name
+            if candidate.is_dir():
+                return candidate
+
+        return None
+
+    def _source_for_dir(self, plugin_dir: Path) -> PluginSource:
+        """Determine the :class:`PluginSource` for a plugin directory."""
+        for ext_dir in self._external_dirs:
+            try:
+                plugin_dir.relative_to(ext_dir)
+                return PluginSource(
+                    source_type="external",
+                    local_path=str(plugin_dir),
+                )
+            except ValueError:
+                continue
+        return PluginSource(source_type="builtin", local_path=str(plugin_dir))
+
+    # ── loading ──────────────────────────────────────────────────────────
+
     def load_plugin(self, plugin_name: str) -> Optional[PluginBase]:
         """Load a single plugin by directory name.
         
@@ -98,15 +248,15 @@ class PluginLoader:
         Returns:
             Loaded plugin instance, or None if loading failed
         """
-        plugin_dir = self.plugins_dir / plugin_name
+        plugin_dir = self._resolve_plugin_dir(plugin_name)
         errors: List[str] = []
         
         # Clear previous errors
         self._load_errors.pop(plugin_name, None)
         
         # Check directory exists
-        if not plugin_dir.exists():
-            errors.append(f"Plugin directory not found: {plugin_dir}")
+        if plugin_dir is None or not plugin_dir.exists():
+            errors.append(f"Plugin directory not found: {plugin_name}")
             self._load_errors[plugin_name] = errors
             return None
         
@@ -127,7 +277,19 @@ class PluginLoader:
             errors.append(f"Manifest id '{manifest.id}' does not match directory name '{plugin_name}'")
             self._load_errors[plugin_name] = errors
             return None
-        
+
+        # Check FiestaBoard version compatibility (soft failure -- warn but still load)
+        if manifest.fiestaboard_version:
+            running = _get_fiestaboard_version()
+            ok, reason = _check_version_constraint(manifest.fiestaboard_version, running)
+            if not ok:
+                logger.warning(
+                    "Plugin '%s' version incompatibility: %s", plugin_name, reason
+                )
+                self._load_errors.setdefault(plugin_name, []).append(
+                    f"Version incompatibility: {reason}"
+                )
+
         # Load Python module
         init_path = plugin_dir / "__init__.py"
         if not init_path.exists():
@@ -177,6 +339,7 @@ class PluginLoader:
             
             # Store loaded plugin
             self._loaded_plugins[manifest.id] = (plugin_instance, manifest)
+            self._plugin_sources[manifest.id] = self._source_for_dir(plugin_dir)
             logger.info(f"Successfully loaded plugin: {manifest.id} v{manifest.version}")
             
             return plugin_instance
@@ -298,4 +461,15 @@ class PluginLoader:
             _, manifest = self._loaded_plugins[plugin_id]
             return manifest
         return None
+
+    def get_source(self, plugin_id: str) -> Optional[PluginSource]:
+        """Get the source information for a loaded plugin.
+
+        Args:
+            plugin_id: Plugin ID
+
+        Returns:
+            :class:`PluginSource` or *None* if not loaded.
+        """
+        return self._plugin_sources.get(plugin_id)
 

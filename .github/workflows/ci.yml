@@ -115,13 +115,21 @@ jobs:
     
     - name: Run platform tests with coverage
       run: |
-        # Run tests with coverage, explicitly omitting legacy code
-        coverage run --source=src --omit='src/utils/*,src/formatters/*,src/main.py,src/system/*,src/text_to_board.py,src/plugins/testing.py' -m pytest tests/ -v
+        # Exclude integration tests (network-dependent, run in a separate step)
+        coverage run --source=src --omit='src/utils/*,src/formatters/*,src/main.py,src/system/*,src/text_to_board.py,src/plugins/testing.py' -m pytest tests/ -v -m "not integration"
         coverage xml
         coverage report -m --fail-under=80
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
+
+    - name: Run plugin install integration tests
+      run: |
+        # Real git clone/pull/uninstall against live Fiestaboard plugin repos on GitHub.
+        # Requires network access and git binary (both available on ubuntu-latest).
+        pytest -m integration tests/test_plugin_install_integration.py -v
+      env:
+        BOARD_READ_WRITE_KEY: test_key
     
     - name: Upload platform coverage
       uses: codecov/codecov-action@v5
@@ -163,7 +171,13 @@ jobs:
         echo "Validating plugin manifests and uniqueness..."
         python scripts/validate_plugins.py --verbose
         echo "✅ All plugins validated successfully"
-    
+
+    - name: Validate plugin registry
+      run: |
+        echo "Validating plugin-registry.json repository URLs..."
+        python scripts/validate_plugins.py --registry --verbose
+        echo "✅ All registry repositories are reachable"
+
     - name: Discover plugins with tests
       id: discover
       run: |

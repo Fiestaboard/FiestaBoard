@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Intervalle de vérification mis à jour. Redémarrez le service pour appliquer les changements.",
     "toastPollingFailed": "Échec de la mise à jour de l'intervalle de vérification : {error}",
     "languageLabel": "Langue",
-    "languageDescription": "Choisissez la langue d'affichage de l'interface"
+    "languageDescription": "Choisissez la langue d'affichage de l'interface",
+    "reduceMotionLabel": "Réduire les animations",
+    "reduceMotionDescription": "Désactiver les animations et transitions dans l'interface",
+    "toastDisplaySaved": "Paramètres d'affichage enregistrés",
+    "toastDisplaySaveFailed": "Échec de l'enregistrement des paramètres d'affichage : {error}"
   },
   "themeToggle": {
     "toggleTheme": "Changer de thème"

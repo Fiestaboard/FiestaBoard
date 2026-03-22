@@ -210,6 +210,28 @@ class TestDateTimePlugin:
         assert result.data["day"] == "15"
         assert result.data["year"] == "2025"
     
+    @patch('plugins.date_time.datetime')
+    def test_fetch_data_variables_match_manifest(self, mock_datetime, sample_manifest, sample_config):
+        """Test that fetch_data() output keys match the manifest-declared variables."""
+        mock_now = datetime(2025, 1, 15, 14, 30, 0)
+        tz = pytz.timezone("America/Los_Angeles")
+        mock_now = tz.localize(mock_now)
+        mock_datetime.now.return_value = mock_now
+
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+        result = plugin.fetch_data()
+        assert result.available is True
+
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        simple = manifest["variables"]["simple"]
+        var_names = list(simple.keys()) if isinstance(simple, dict) else list(simple)
+        for var in var_names:
+            assert var in result.data, f"Variable '{var}' declared in manifest but not in data"
+
     def test_fetch_data_invalid_timezone(self, sample_manifest):
         """Test fetch_data handles invalid timezone gracefully."""
         plugin = DateTimePlugin(sample_manifest)
@@ -260,3 +282,68 @@ class TestDateTimePlugin:
         lines = plugin.get_formatted_display()
         
         assert lines is None  # Should return None when fetch fails
+
+
+class TestDateTimeManifestMetadata:
+    """Tests for the rich metadata format in the date_time manifest."""
+
+    def test_manifest_uses_dict_simple_format(self):
+        """Manifest uses the dict format for simple variables with metadata."""
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        simple = manifest["variables"]["simple"]
+        assert isinstance(simple, dict), "simple should use the rich dict format"
+
+    def test_all_variables_have_descriptions(self):
+        """Every variable in the manifest has a description."""
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        simple = manifest["variables"]["simple"]
+        for var_name, meta in simple.items():
+            assert "description" in meta and meta["description"], \
+                f"Variable '{var_name}' missing description"
+
+    def test_all_variables_have_valid_groups(self):
+        """Every variable references a group that is defined."""
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        groups = set(manifest["variables"].get("groups", {}).keys())
+        simple = manifest["variables"]["simple"]
+        for var_name, meta in simple.items():
+            group = meta.get("group", "")
+            if group:
+                assert group in groups, \
+                    f"Variable '{var_name}' references undefined group '{group}'"
+
+    def test_groups_are_defined(self):
+        """Manifest defines variable groups."""
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        groups = manifest["variables"].get("groups", {})
+        assert len(groups) > 0, "Manifest should define at least one group"
+        for group_id, group_def in groups.items():
+            assert "label" in group_def, f"Group '{group_id}' missing label"
+
+    def test_all_18_variables_present(self):
+        """All 18 date_time variables are declared in the manifest."""
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        simple = manifest["variables"]["simple"]
+        expected = [
+            "time", "date", "datetime", "day", "day_of_week", "month",
+            "year", "hour", "minute", "timezone_abbr", "time_12h", "time_24h",
+            "date_us", "date_us_short", "month_number", "month_number_padded",
+            "month_abbr", "timezone",
+        ]
+        for var in expected:
+            assert var in simple, f"Expected variable '{var}' not in manifest"

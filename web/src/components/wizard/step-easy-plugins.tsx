@@ -1,26 +1,139 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Clock, Star, Wifi, Eye, EyeOff } from "lucide-react";
+import {
+  Clock,
+  Timer,
+  Cloud,
+  TrendingUp,
+  Trophy,
+  Laugh,
+  Wifi,
+  Star,
+  Waves,
+  Rocket,
+  LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
 
-interface PluginConfig {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface WizardPluginConfig {
   date_time: { enabled: boolean; timezone: string };
-  star_trek_quotes: { enabled: boolean; ratio: string };
-  guest_wifi: { enabled: boolean; ssid: string; password: string };
+  // Registry plugins to install-and-enable on proceed
+  registry_selected: string[];
 }
 
 interface StepEasyPluginsProps {
-  config: PluginConfig;
-  onConfigChange: (config: PluginConfig) => void;
+  config: WizardPluginConfig;
+  onConfigChange: (config: WizardPluginConfig) => void;
   onValidChange: (valid: boolean) => void;
 }
+
+// ---------------------------------------------------------------------------
+// Curated pick list
+// ---------------------------------------------------------------------------
+
+interface CuratedPlugin {
+  id: string;
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  builtin: boolean;
+  badge?: string;
+}
+
+const CURATED_PLUGINS: CuratedPlugin[] = [
+  {
+    id: "date_time",
+    name: "Date & Time",
+    description: "Display the current date and time on your board.",
+    icon: Clock,
+    builtin: true,
+  },
+  {
+    id: "countdown",
+    name: "Countdown",
+    description: "Countdown timer to any date or event.",
+    icon: Timer,
+    builtin: true,
+  },
+  {
+    id: "weather",
+    name: "Weather",
+    description: "Current conditions, temperature, and humidity.",
+    icon: Cloud,
+    builtin: false,
+    badge: "Popular",
+  },
+  {
+    id: "stocks",
+    name: "Stock Prices",
+    description: "Real-time stock prices and percentage changes.",
+    icon: TrendingUp,
+    builtin: false,
+  },
+  {
+    id: "sports_scores",
+    name: "Sports Scores",
+    description: "Recent match scores for NFL, Soccer, NHL, and more.",
+    icon: Trophy,
+    builtin: false,
+    badge: "Popular",
+  },
+  {
+    id: "dad_jokes",
+    name: "Dad Jokes",
+    description: "Random dad jokes. No API key needed.",
+    icon: Laugh,
+    builtin: false,
+    badge: "No setup",
+  },
+  {
+    id: "guest_wifi",
+    name: "Guest WiFi",
+    description: "Display guest WiFi credentials on your board.",
+    icon: Wifi,
+    builtin: false,
+    badge: "No setup",
+  },
+  {
+    id: "star_trek_quotes",
+    name: "Star Trek Quotes",
+    description: "Wisdom from the Federation. No API key needed.",
+    icon: Star,
+    builtin: false,
+    badge: "No setup",
+  },
+  {
+    id: "surf",
+    name: "Surf Conditions",
+    description: "Wave height and swell period for your local break.",
+    icon: Waves,
+    builtin: false,
+  },
+  {
+    id: "spacecraft_launches",
+    name: "Spacecraft Launches",
+    description: "Track upcoming launch countdowns and statuses.",
+    icon: Rocket,
+    builtin: false,
+    badge: "No setup",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function StepEasyPlugins({
   config,
@@ -28,22 +141,19 @@ export function StepEasyPlugins({
   onValidChange,
 }: StepEasyPluginsProps) {
   const t = useTranslations("wizard.easyPlugins");
-  const tc = useTranslations("common");
-  const [showPassword, setShowPassword] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
 
-  // This step is always valid (all plugins are optional)
+  // This step is always valid (all choices are optional)
   useEffect(() => {
     onValidChange(true);
   }, [onValidChange]);
 
-  // Update current time preview for timezone
+  // Live clock preview for timezone
   useEffect(() => {
     const updateTime = () => {
       try {
-        const now = new Date();
         setCurrentTime(
-          now.toLocaleTimeString("en-US", {
+          new Date().toLocaleTimeString("en-US", {
             timeZone: config.date_time.timezone,
             hour: "numeric",
             minute: "2-digit",
@@ -59,214 +169,115 @@ export function StepEasyPlugins({
     return () => clearInterval(interval);
   }, [config.date_time.timezone]);
 
-  // Note: Feature configs are saved in step-welcome.tsx when the user completes the wizard
-  // This step just tracks state locally
+  const isSelected = (id: string) => {
+    if (id === "date_time") return config.date_time.enabled;
+    if (id === "countdown") return config.registry_selected.includes("countdown");
+    return config.registry_selected.includes(id);
+  };
 
-  // Random Star Trek quote for preview
-  const sampleQuotes = useMemo(() => [
-    { quote: "Make it so.", character: "PICARD", series: "TNG" },
-    { quote: "Live long and prosper.", character: "SPOCK", series: "TNG" },
-    { quote: "Resistance is futile.", character: "BORG", series: "TNG" },
-    { quote: "I'm a doctor, not a...", character: "DOCTOR", series: "VOY" },
-  ], []);
-
-  const [sampleQuote] = useState(() => 
-    sampleQuotes[Math.floor(Math.random() * sampleQuotes.length)]
-  );
+  const handleToggle = (plugin: CuratedPlugin, checked: boolean) => {
+    if (plugin.id === "date_time") {
+      onConfigChange({ ...config, date_time: { ...config.date_time, enabled: checked } });
+      return;
+    }
+    const next = checked
+      ? [...config.registry_selected.filter((x) => x !== plugin.id), plugin.id]
+      : config.registry_selected.filter((x) => x !== plugin.id);
+    onConfigChange({ ...config, registry_selected: next });
+  };
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground mb-4">
+      <p className="text-sm text-muted-foreground mb-1">
         {t("description")}
       </p>
+      <p className="text-xs text-muted-foreground mb-4">
+        You can add more from the{" "}
+        <Link href="/integrations" className="underline hover:text-foreground">
+          Integrations
+        </Link>{" "}
+        page at any time.
+      </p>
 
-      {/* Date & Time */}
-      <Card className={cn(
-        "transition-all",
-        config.date_time.enabled && "ring-2 ring-primary"
-      )}>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "p-2 rounded-lg",
-                config.date_time.enabled ? "bg-primary/10" : "bg-muted"
-              )}>
-                <Clock className={cn(
-                  "h-5 w-5",
-                  config.date_time.enabled ? "text-primary" : "text-muted-foreground"
-                )} />
-              </div>
-              <div>
-                <CardTitle className="text-base">{t("dateTimeTitle")}</CardTitle>
-                <CardDescription className="text-xs">
-                  {t("dateTimeDescription")}
-                </CardDescription>
-              </div>
-            </div>
-            <Switch
-              checked={config.date_time.enabled}
-              onCheckedChange={(enabled) =>
-                onConfigChange({
-                  ...config,
-                  date_time: { ...config.date_time, enabled },
-                })
-              }
-            />
-          </div>
-        </CardHeader>
-        {config.date_time.enabled && (
-          <CardContent className="pt-2 space-y-3">
-            <div className="space-y-2">
-              <Label className="text-sm">{t("timezoneLabel")}</Label>
-              <TimezonePicker
-                value={config.date_time.timezone}
-                onChange={(timezone) =>
-                  onConfigChange({
-                    ...config,
-                    date_time: { ...config.date_time, timezone },
-                  })
-                }
-              />
-            </div>
-            <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-              {tc("preview")}: <span className="font-mono">{currentTime}</span>
-            </div>
-          </CardContent>
-        )}
-      </Card>
+      <div className="space-y-3">
+        {CURATED_PLUGINS.map((plugin) => {
+          const Icon = plugin.icon;
+          const selected = isSelected(plugin.id);
+          return (
+            <Card
+              key={plugin.id}
+              className={cn(
+                "transition-all cursor-pointer select-none",
+                selected && "ring-2 ring-primary"
+              )}
+              onClick={() => handleToggle(plugin, !selected)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "p-2 rounded-lg",
+                        selected ? "bg-primary/10" : "bg-muted"
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          "h-5 w-5",
+                          selected ? "text-primary" : "text-muted-foreground"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {plugin.name}
+                        {plugin.badge && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                            {plugin.badge}
+                          </Badge>
+                        )}
+                        {plugin.builtin && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground">
+                            Built-in
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="text-xs">{plugin.description}</CardDescription>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={selected}
+                    onCheckedChange={(checked) => handleToggle(plugin, checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Toggle ${plugin.name}`}
+                  />
+                </div>
+              </CardHeader>
 
-      {/* Star Trek Quotes */}
-      <Card className={cn(
-        "transition-all",
-        config.star_trek_quotes.enabled && "ring-2 ring-primary"
-      )}>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "p-2 rounded-lg",
-                config.star_trek_quotes.enabled ? "bg-primary/10" : "bg-muted"
-              )}>
-                <Star className={cn(
-                  "h-5 w-5",
-                  config.star_trek_quotes.enabled ? "text-primary" : "text-muted-foreground"
-                )} />
-              </div>
-              <div>
-                <CardTitle className="text-base">{t("starTrekTitle")}</CardTitle>
-                <CardDescription className="text-xs">
-                  {t("starTrekDescription")}
-                </CardDescription>
-              </div>
-            </div>
-            <Switch
-              checked={config.star_trek_quotes.enabled}
-              onCheckedChange={(enabled) =>
-                onConfigChange({
-                  ...config,
-                  star_trek_quotes: { ...config.star_trek_quotes, enabled },
-                })
-              }
-            />
-          </div>
-        </CardHeader>
-        {config.star_trek_quotes.enabled && (
-          <CardContent className="pt-2">
-            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded font-mono text-center">
-              <p className="italic">"{sampleQuote.quote}"</p>
-              <p className="text-xs mt-1">— {sampleQuote.character}, {sampleQuote.series}</p>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Guest WiFi */}
-      <Card className={cn(
-        "transition-all",
-        config.guest_wifi.enabled && "ring-2 ring-primary"
-      )}>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "p-2 rounded-lg",
-                config.guest_wifi.enabled ? "bg-primary/10" : "bg-muted"
-              )}>
-                <Wifi className={cn(
-                  "h-5 w-5",
-                  config.guest_wifi.enabled ? "text-primary" : "text-muted-foreground"
-                )} />
-              </div>
-              <div>
-                <CardTitle className="text-base">{t("guestWifiTitle")}</CardTitle>
-                <CardDescription className="text-xs">
-                  {t("guestWifiDescription")}
-                </CardDescription>
-              </div>
-            </div>
-            <Switch
-              checked={config.guest_wifi.enabled}
-              onCheckedChange={(enabled) =>
-                onConfigChange({
-                  ...config,
-                  guest_wifi: { ...config.guest_wifi, enabled },
-                })
-              }
-            />
-          </div>
-        </CardHeader>
-        {config.guest_wifi.enabled && (
-          <CardContent className="pt-2 space-y-3">
-            <div className="space-y-2">
-              <Label className="text-sm">{t("networkNameLabel")}</Label>
-              <Input
-                placeholder={t("networkNamePlaceholder")}
-                value={config.guest_wifi.ssid}
-                onChange={(e) =>
-                  onConfigChange({
-                    ...config,
-                    guest_wifi: { ...config.guest_wifi, ssid: e.target.value },
-                  })
-                }
-                maxLength={22}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm">{t("passwordLabel")}</Label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder={t("passwordPlaceholder")}
-                  value={config.guest_wifi.password}
-                  onChange={(e) =>
-                    onConfigChange({
-                      ...config,
-                      guest_wifi: { ...config.guest_wifi, password: e.target.value },
-                    })
-                  }
-                  maxLength={22}
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            {config.guest_wifi.ssid && (
-              <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded font-mono text-center">
-                <p>{t("wifiPreview", { ssid: config.guest_wifi.ssid })}</p>
-                <p>{t("passPreview", { password: config.guest_wifi.password ? "••••••••" : t("noPassword") })}</p>
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
+              {/* Inline timezone picker for date_time */}
+              {plugin.id === "date_time" && selected && (
+                <CardContent className="pt-2 space-y-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="space-y-2">
+                    <Label className="text-sm">{t("timezoneLabel")}</Label>
+                    <TimezonePicker
+                      value={config.date_time.timezone}
+                      onChange={(timezone) =>
+                        onConfigChange({
+                          ...config,
+                          date_time: { ...config.date_time, timezone },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                    Preview: <span className="font-mono">{currentTime}</span>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
-

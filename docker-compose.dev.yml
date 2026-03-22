@@ -17,6 +17,8 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./plugins:/app/plugins
+      - ./external_plugins:/app/external_plugins
+      - ./plugin-registry.json:/app/plugin-registry.json:ro
       - ./tests:/app/tests
       - ./scripts:/app/scripts
       - ./web:/app/web
@@ -54,8 +56,13 @@ services:
     container_name: fiestaboard-mock-board
     volumes:
       - ./integration-tests/mock-board/server.py:/server.py:ro
+    # Host ports avoid macOS AirPlay / Control Center (often binds :7000).
+    # Inside the container the mock still listens on 7000/7001 (Vestaboard Local API).
     ports:
-      - "7000:7000"
+      - "17000:7000"
+      - "17001:7001"
+    environment:
+      - PORTS=7000,7001
     command: python /server.py
     networks:
       - fiestaboard-dev

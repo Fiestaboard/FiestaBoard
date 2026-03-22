@@ -17,7 +17,7 @@ import {
 import { Aurora } from "@/components/ui/aurora";
 import { LanguageSelector } from "@/components/language-selector";
 import { StepBoardSetup } from "./step-board-setup";
-import { StepEasyPlugins } from "./step-easy-plugins";
+import { StepEasyPlugins, WizardPluginConfig } from "./step-easy-plugins";
 import { StepWelcome } from "./step-welcome";
 
 interface SetupWizardProps {
@@ -54,14 +54,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   });
 
   // Plugin config state
-  const [pluginConfig, setPluginConfig] = useState<{
-    date_time: { enabled: boolean; timezone: string };
-    star_trek_quotes: { enabled: boolean; ratio: string };
-    guest_wifi: { enabled: boolean; ssid: string; password: string };
-  }>({
+  const [pluginConfig, setPluginConfig] = useState<WizardPluginConfig>({
     date_time: { enabled: true, timezone: "America/Los_Angeles" },
-    star_trek_quotes: { enabled: false, ratio: "3:5:9" },
-    guest_wifi: { enabled: false, ssid: "", password: "" },
+    registry_selected: [],
   });
 
   // Restore progress on mount

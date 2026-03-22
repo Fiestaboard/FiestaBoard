@@ -39,11 +39,11 @@ Once a plugin is enabled, its data becomes available as **template variables** i
 
 ### Variable Format
 
-Variables use the format `{plugin_name.variable_name}`:
+Variables use the format `{{plugin_name.variable_name}}`:
 
 ```
-Temperature: {weather.temperature}
-Conditions:  {weather.condition}
+Temperature: {{weather.temperature}}
+Conditions:  {{weather.condition}}
 ```
 
 When the page is displayed on your board, these are replaced with live data (e.g., `72*F` and `SUNNY`).
@@ -53,8 +53,8 @@ When the page is displayed on your board, these are replaced with live data (e.g
 Some plugins provide variables that fill the entire board:
 
 ```
-{visual_clock.display}    → Fills all rows with a large clock
-{sun_art.display}         → Fills all rows with sun art
+{{visual_clock.display}}    → Fills all rows with a large clock
+{{sun_art.display}}         → Fills all rows with sun art
 ```
 
 ### Multi-Line Variables
@@ -62,8 +62,8 @@ Some plugins provide variables that fill the entire board:
 Some plugins provide array variables that expand into multiple lines:
 
 ```
-{stocks.prices}    → Multiple rows of stock data
-{muni.formatted}   → Multiple rows of transit arrivals
+{{stocks.prices}}    → Multiple rows of stock data
+{{muni.formatted}}   → Multiple rows of transit arrivals
 ```
 
 ## Alternative: Environment Variables
@@ -103,6 +103,26 @@ curl http://localhost:4420/api/plugins/weather/variables
 
 # List all plugins and their status
 curl http://localhost:4420/api/plugins
+```
+
+### External Plugin API
+
+You can install and remove external plugins through the API:
+
+```bash
+# List curated registry plugins
+curl http://localhost:4420/api/plugins/registry
+
+# Install a plugin from the registry
+curl -X POST http://localhost:4420/api/plugins/registry/{plugin_id}/install
+
+# Install a plugin from any public git repository
+curl -X POST http://localhost:4420/api/plugins/install \
+  -H "Content-Type: application/json" \
+  -d '{"repository": "https://github.com/someone/my-plugin"}'
+
+# Uninstall an external plugin (built-in plugins cannot be uninstalled)
+curl -X DELETE http://localhost:4420/api/plugins/{plugin_id}/uninstall
 ```
 
 ## Next Steps

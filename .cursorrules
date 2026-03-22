@@ -105,9 +105,43 @@ When creating or modifying a plugin:
 - **NEW plugins MUST be added** to the main `README.md` "Available Plugins" list (alphabetically)
 - **Modifying existing plugins** does NOT require updating main README.md
 - Plugin documentation goes in the plugin's own directory:
-  - `plugins/PLUGIN_NAME/README.md` - Developer documentation (how plugin works)
-  - `plugins/PLUGIN_NAME/docs/SETUP.md` - User-facing setup guide (API keys, etc.)
-  - `plugins/PLUGIN_NAME/manifest.json` - Configuration schema and env vars
+  - `plugins/PLUGIN_NAME/README.md` - Developer documentation (canonical format, see below)
+  - `plugins/PLUGIN_NAME/docs/SETUP.md` - User-facing setup guide (canonical format, see below)
+  - `plugins/PLUGIN_NAME/docs/board-display.png` - Primary screenshot (required for published plugins)
+  - `plugins/PLUGIN_NAME/manifest.json` - Configuration schema, env vars, and screenshots
+
+### Plugin Documentation Formats
+
+**README.md** must follow this section order:
+1. `# {Plugin Name} Plugin` — title
+2. One-sentence description
+3. `![{Name} Display](./docs/board-display.png)` — hero image (always `board-display.png`)
+4. `**→ [Setup Guide](./docs/SETUP.md)**` — setup link
+5. `## Overview` — 2-3 sentence description
+6. `## Template Variables` — grouped to match manifest `variables.groups`
+7. `## Example Templates` — code blocks with template content
+8. `## Configuration` — table mirroring `settings_schema`
+9. `## Features` — bullet list of capabilities
+10. `## Author` — author name
+
+**docs/SETUP.md** must follow this section order:
+1. `# {Plugin Name} Setup Guide` — title
+2. One-sentence description
+3. `## Overview` — What it does + Prerequisites
+4. `## Quick Setup` — numbered steps (Enable, Configure, Template, View)
+5. `## Template Variables` — variable table
+6. `## Configuration Reference` — full settings table + env vars
+7. `## Troubleshooting` — common issues
+
+### Plugin Image Conventions
+
+All plugin images live in `plugins/PLUGIN_NAME/docs/` with standardized names:
+- `board-display.png` — **Required.** Primary hero image showing board output
+- `configuration.png` — Optional. Config dialog screenshot
+- `integrations.png` — Optional. Plugin card on Integrations page
+- Additional images use descriptive kebab-case names (e.g., `color-rules.png`)
+
+All images referenced in the manifest `screenshots` array must exist in `plugins/PLUGIN_NAME/docs/`.
 
 ### User-Facing Setup Guides
 
@@ -210,28 +244,33 @@ When creating a new plugin:
 1. **Create a feature branch**: `git checkout -b feat-plugin-name` (e.g., `feat-lastfm`, `feat-weather`)
 2. Copy the template: `cp -r plugins/_template plugins/my_plugin`
 3. Update `manifest.json` with unique ID matching directory name
-4. Implement `PluginBase` class in `__init__.py`
-5. Create tests in `tests/` directory with >80% coverage
-6. Write user-facing setup guide in `docs/SETUP.md`
-7. **Add screenshot placeholder** to plugin's `README.md`: `![Plugin Name Display](./docs/plugin-name-display.png)`
-8. **Add plugin to project README.md** under "Available Plugins" section (alphabetically ordered)
-9. Push branch and create a pull request for review
+4. Add `screenshots` array to `manifest.json` with at least one `primary: true` entry
+5. Implement `PluginBase` class in `__init__.py`
+6. Create tests in `tests/` directory with >80% coverage
+7. Write `README.md` following the canonical section order (see Plugin Documentation Formats)
+8. Write `docs/SETUP.md` following the canonical section order
+9. Add `docs/board-display.png` screenshot (required for published plugins)
+10. **Add plugin to project README.md** under "Available Plugins" section (alphabetically ordered)
+11. Push branch and create a pull request for review
 
 ### Required Plugin Files
 
 Every plugin MUST have:
 - `__init__.py` - Plugin implementation (PluginBase subclass)
-- `manifest.json` - Plugin metadata, settings schema, variables
-- `README.md` - Plugin documentation (developer-focused, **must include screenshot placeholder**)
+- `manifest.json` - Plugin metadata, settings schema, variables, screenshots
+- `README.md` - Plugin documentation (canonical format with `./docs/board-display.png` hero image)
 - `tests/` - Test directory with test files
-- `docs/SETUP.md` - User-facing setup guide
+- `docs/SETUP.md` - User-facing setup guide (canonical format)
+- `docs/board-display.png` - Primary screenshot (required for published plugins)
 
 ### Plugin Documentation Checklist
 
 When a new plugin is complete, verify:
-- [ ] Plugin's `README.md` has screenshot placeholder: `![Name Display](./docs/name-display.png)`
+- [ ] `README.md` follows canonical section order with hero image `./docs/board-display.png`
+- [ ] `docs/SETUP.md` follows canonical section order
+- [ ] `docs/board-display.png` exists (primary screenshot)
+- [ ] `manifest.json` includes `screenshots` array with `primary: true` entry
 - [ ] Plugin is added to main `README.md` "Available Plugins" list (alphabetically)
-- [ ] Setup guide exists at `docs/SETUP.md`
 - [ ] Tests pass with >80% coverage
 
 ### Plugin Manifest Requirements
@@ -248,6 +287,7 @@ Optional but recommended:
 - `category` - Category for grouping (MUST use an existing category - see below)
 - `description` - Brief description
 - `author` - Plugin author/maintainer
+- `screenshots` - Array of screenshot entries with `src`, `alt`, and `primary` flag
 
 ### Plugin Categories
 

@@ -77,10 +77,26 @@ MANIFEST_SCHEMA = {
         "variables": {
             "type": "object",
             "properties": {
+                "auto_discover": {
+                    "type": "boolean",
+                    "description": "Auto-expose all data keys as variables (default: true when no variables declared)"
+                },
+                "groups": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "label": {"type": "string"}
+                        }
+                    },
+                    "description": "Named groups for organising variables in the UI"
+                },
                 "simple": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Simple key-value variables"
+                    "oneOf": [
+                        {"type": "array", "items": {"type": "string"}},
+                        {"type": "object", "additionalProperties": {"type": "object"}}
+                    ],
+                    "description": "Simple key-value variables (list or dict with metadata)"
                 },
                 "arrays": {
                     "type": "object",
@@ -128,11 +144,72 @@ MANIFEST_SCHEMA = {
         },
         "category": {
             "type": "string",
-            "enum": ["data", "transit", "weather", "entertainment", "utility", "home"],
+            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home"],
             "description": "Plugin category for organization"
+        },
+        "fiestaboard_version": {
+            "type": "string",
+            "description": "Minimum FiestaBoard version required (semver constraint, e.g. '>=2.10.0')"
+        },
+        "screenshots": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["src", "alt"],
+                "properties": {
+                    "src": {
+                        "type": "string",
+                        "description": "Relative path from plugin directory (e.g., docs/board-display.png)"
+                    },
+                    "alt": {
+                        "type": "string",
+                        "description": "Alt text for accessibility"
+                    },
+                    "caption": {
+                        "type": "string",
+                        "description": "Human-readable caption"
+                    },
+                    "primary": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Whether this is the hero image for galleries and registries"
+                    }
+                }
+            },
+            "description": "Screenshots for plugin galleries, docs, and the registry"
         }
     }
 }
+
+
+@dataclass
+class VariableMetadata:
+    """Rich metadata for a single variable.
+
+    All fields are optional -- when omitted, sensible defaults apply.
+    This powers descriptions, type hints, grouping, and examples
+    shown in the editor's variable picker.
+    """
+    description: str = ""
+    type: str = "string"  # "string", "number", "boolean"
+    max_length: Optional[int] = None
+    group: str = ""
+    example: str = ""
+
+
+@dataclass
+class Screenshot:
+    """A plugin screenshot entry for galleries, docs, and the registry."""
+    src: str
+    alt: str
+    caption: str = ""
+    primary: bool = False
+
+
+@dataclass
+class VariableGroupSchema:
+    """A named group used to organise variables in the UI."""
+    label: str = ""
 
 
 @dataclass
@@ -148,37 +225,50 @@ class VariableArraySchema:
 
 @dataclass
 class VariablesSchema:
-    """Complete variables schema from manifest."""
+    """Complete variables schema from manifest.
+
+    Supports two formats for ``simple``:
+    - **List** (legacy/beginner): ``["temperature", "humidity"]``
+    - **Dict** (rich metadata):  ``{"temperature": {"description": "...", ...}}``
+
+    When the manifest omits the ``variables`` section entirely,
+    ``auto_discover`` defaults to ``True`` so that every key returned
+    by ``fetch_data()`` is automatically surfaced in the editor.
+    """
     simple: List[str] = field(default_factory=list)
     arrays: Dict[str, VariableArraySchema] = field(default_factory=dict)
-    
+    metadata: Dict[str, VariableMetadata] = field(default_factory=dict)
+    groups: Dict[str, VariableGroupSchema] = field(default_factory=dict)
+    auto_discover: bool = True
+
     def get_all_variable_names(self, plugin_id: str) -> List[str]:
         """Get all variable names for template engine.
-        
+
         Returns flattened list like:
-        - plugin_id.simple_var
-        - plugin_id.array_name (for aggregate access)
-        - plugin_id.array_name.N.field (documented pattern)
+        - simple_var
+        - array_name (for aggregate access)
+        - array_name.*.field (documented pattern)
         """
         names = []
-        
-        # Simple variables
+
         for var in self.simple:
             names.append(var)
-        
-        # Array variables
+
         for array_name, schema in self.arrays.items():
             names.append(array_name)
             for field_name in schema.item_fields:
                 names.append(f"{array_name}.*.{field_name}")
-            
-            # Sub-arrays
+
             for sub_name, sub_schema in schema.sub_arrays.items():
                 names.append(f"{array_name}.*.{sub_name}")
                 for sub_field in sub_schema.item_fields:
                     names.append(f"{array_name}.*.{sub_name}.*.{sub_field}")
-        
+
         return names
+
+    def get_variable_metadata(self, var_name: str) -> VariableMetadata:
+        """Return metadata for *var_name*, falling back to defaults."""
+        return self.metadata.get(var_name, VariableMetadata())
 
 
 @dataclass
@@ -198,21 +288,68 @@ class PluginManifest:
     color_rules_schema: Dict[str, Any] = field(default_factory=dict)
     icon: str = "puzzle"
     category: str = "utility"
+    fiestaboard_version: str = ""
+    screenshots: List[Screenshot] = field(default_factory=list)
     raw: Dict[str, Any] = field(default_factory=dict)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PluginManifest":
-        """Create PluginManifest from dictionary."""
-        # Parse variables schema
+        """Create PluginManifest from dictionary.
+
+        The ``variables.simple`` field accepts two formats:
+        - **List** (legacy): ``["temperature", "humidity"]``
+        - **Dict** (rich):   ``{"temperature": {"description": "...", ...}}``
+
+        When the manifest has no ``variables`` section at all,
+        ``auto_discover`` defaults to ``True``.
+        """
         variables_data = data.get("variables", {})
+
+        # --- parse simple (list or dict) ---
+        simple_raw = variables_data.get("simple", [])
+        simple_names: List[str] = []
+        var_metadata: Dict[str, VariableMetadata] = {}
+
+        if isinstance(simple_raw, list):
+            simple_names = list(simple_raw)
+        elif isinstance(simple_raw, dict):
+            for var_name, meta_dict in simple_raw.items():
+                simple_names.append(var_name)
+                if isinstance(meta_dict, dict):
+                    var_metadata[var_name] = VariableMetadata(
+                        description=meta_dict.get("description", ""),
+                        type=meta_dict.get("type", "string"),
+                        max_length=meta_dict.get("max_length"),
+                        group=meta_dict.get("group", ""),
+                        example=meta_dict.get("example", ""),
+                    )
+
+        # --- parse groups ---
+        groups_raw = variables_data.get("groups", {})
+        groups: Dict[str, VariableGroupSchema] = {}
+        if isinstance(groups_raw, dict):
+            for group_id, group_data in groups_raw.items():
+                label = group_data.get("label", group_id) if isinstance(group_data, dict) else str(group_data)
+                groups[group_id] = VariableGroupSchema(label=label)
+
+        # --- auto_discover ---
+        has_declared_vars = bool(simple_names) or bool(variables_data.get("arrays"))
+        if "auto_discover" in variables_data:
+            auto_discover = bool(variables_data["auto_discover"])
+        else:
+            auto_discover = not has_declared_vars
+
         variables = VariablesSchema(
-            simple=variables_data.get("simple", []),
-            arrays={}
+            simple=simple_names,
+            arrays={},
+            metadata=var_metadata,
+            groups=groups,
+            auto_discover=auto_discover,
         )
-        
-        # Parse array schemas
+
+        # --- parse array schemas ---
         for array_name, array_data in variables_data.get("arrays", {}).items():
-            sub_arrays = {}
+            sub_arrays: Dict[str, VariableArraySchema] = {}
             for sub_name, sub_data in array_data.get("sub_arrays", {}).items():
                 sub_arrays[sub_name] = VariableArraySchema(
                     name=sub_name,
@@ -221,14 +358,31 @@ class PluginManifest:
                     key_type=sub_data.get("key_type", "index"),
                     key_field=sub_data.get("key_field"),
                 )
-            
+
             variables.arrays[array_name] = VariableArraySchema(
                 name=array_name,
                 label_field=array_data.get("label_field", ""),
                 item_fields=array_data.get("item_fields", []),
                 sub_arrays=sub_arrays,
             )
-        
+
+        # Merge per-variable max_length from metadata into top-level max_lengths
+        top_max_lengths = dict(data.get("max_lengths", {}))
+        for var_name, meta in var_metadata.items():
+            if meta.max_length is not None and var_name not in top_max_lengths:
+                top_max_lengths[var_name] = meta.max_length
+
+        # --- parse screenshots ---
+        screenshots: List[Screenshot] = []
+        for entry in data.get("screenshots", []):
+            if isinstance(entry, dict) and "src" in entry and "alt" in entry:
+                screenshots.append(Screenshot(
+                    src=entry["src"],
+                    alt=entry["alt"],
+                    caption=entry.get("caption", ""),
+                    primary=bool(entry.get("primary", False)),
+                ))
+
         return cls(
             id=data["id"],
             name=data["name"],
@@ -240,16 +394,18 @@ class PluginManifest:
             settings_schema=data.get("settings_schema", {}),
             env_vars=data.get("env_vars", []),
             variables=variables,
-            max_lengths=data.get("max_lengths", {}),
+            max_lengths=top_max_lengths,
             color_rules_schema=data.get("color_rules_schema", {}),
             icon=data.get("icon", "puzzle"),
             category=data.get("category", "utility"),
+            fiestaboard_version=data.get("fiestaboard_version", ""),
+            screenshots=screenshots,
             raw=data,
         )
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
-        return {
+        result = {
             "id": self.id,
             "name": self.name,
             "version": self.version,
@@ -264,7 +420,36 @@ class PluginManifest:
             "color_rules_schema": self.color_rules_schema,
             "icon": self.icon,
             "category": self.category,
+            "fiestaboard_version": self.fiestaboard_version,
+            "screenshots": [
+                {
+                    "src": s.src,
+                    "alt": s.alt,
+                    "caption": s.caption,
+                    "primary": s.primary,
+                }
+                for s in self.screenshots
+            ],
         }
+        # Include parsed metadata and groups so the frontend can use them
+        # even when the raw variables section uses list format.
+        if self.variables.metadata:
+            result["variable_metadata"] = {
+                name: {
+                    "description": m.description,
+                    "type": m.type,
+                    "max_length": m.max_length,
+                    "group": m.group,
+                    "example": m.example,
+                }
+                for name, m in self.variables.metadata.items()
+            }
+        if self.variables.groups:
+            result["variable_groups"] = {
+                gid: {"label": g.label}
+                for gid, g in self.variables.groups.items()
+            }
+        return result
 
 
 def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
@@ -329,11 +514,16 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
         if not isinstance(variables, dict):
             errors.append("variables must be an object")
         else:
-            # Validate simple variables
+            # Validate simple variables (list or dict format)
             simple = variables.get("simple", [])
-            if not isinstance(simple, list):
-                errors.append("variables.simple must be an array")
-            
+            if not isinstance(simple, (list, dict)):
+                errors.append("variables.simple must be an array or object")
+
+            # Validate groups if present
+            groups = variables.get("groups", {})
+            if groups and not isinstance(groups, dict):
+                errors.append("variables.groups must be an object")
+
             # Validate arrays
             arrays = variables.get("arrays", {})
             if not isinstance(arrays, dict):

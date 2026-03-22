@@ -1,173 +1,161 @@
-# E2E / Integration Test Coverage
+# Test Coverage
 
-This document describes every use case covered by the FiestaBoard end-to-end
-integration tests. Tests exercise the **full stack**:
+This document describes the full test suite for the FiestaBoard web layer,
+covering both Playwright E2E tests and Vitest unit tests.
+
+---
+
+## E2E Tests (Playwright)
+
+Tests exercise the full stack:
 
 ```
 Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 ```
 
-## Test Files
+### Playwright Spec Files (24 files)
 
-| File | Area | Description |
-|------|------|-------------|
-| `integration.spec.ts` | Core flows | Infrastructure, setup wizard, navigation, pages, schedules |
-| `settings.spec.ts` | Settings | Settings page, output target, debug tools |
-| `api.spec.ts` | Backend API | Direct API endpoint tests for config, pages, schedules, settings, templates |
-| `pages-crud.spec.ts` | Page management | Create, edit, and delete pages via the UI |
-| `schedule-crud.spec.ts` | Schedule management | Create, validate, and delete schedules via the UI |
-| `integrations.spec.ts` | Integrations | Plugin listing and plugin enable/disable |
+| File | Area | What's Covered |
+|------|------|----------------|
+| `api.spec.ts` | Backend API | Core endpoint contracts: version, config, settings CRUD, pages CRUD, schedules CRUD, plugins, template validation, displays, debug |
+| `api-extended.spec.ts` | Backend API | Deeper API coverage: full config, board config test, page preview/send/batch, schedule active/validate/default/enable, plugin config/variables, settings transitions/active-page/board, template render, service start/stop |
+| `calendar-alignment.spec.ts` | Schedule UI | Time gutter label alignment with hour grid, desktop + mobile viewports |
+| `dashboard.spec.ts` | Dashboard | Board display visible, active page name, manual mode badge |
+| `error-handling.spec.ts` | Error handling | 404 for missing page/schedule, invalid POST/template data, API error states, invalid routes, graceful degradation |
+| `generate-screenshots.spec.ts` | Docs | Screenshot generation for documentation (skipped in CI) |
+| `home-assistant-controls.spec.ts` | HA integration | HA REST API round-trips: schedule switch, active page select, refresh display/blank board buttons, send message, refresh interval, sensor state reads, transition style select |
+| `home-assistant-discovery.spec.ts` | HA integration | FiestaBoard entities discoverable in Home Assistant via MQTT |
+| `integration.spec.ts` | Core flows | Setup wizard, navigation, page creation, schedule creation |
+| `integrations.spec.ts` | Plugin UI | Installed + Marketplace tabs, plugin cards, "Add from Git" dialog (open/URL entry/cancel/disabled state validation) |
+| `localization.spec.ts` | i18n | Default English, switching to Spanish/French/German/Japanese, locale persistence across navigation + reload, mobile menu |
+| `mock-board.spec.ts` | Mock server | Accepts valid 6×22 and 3×15 arrays, rejects codes >71, validates dimensions |
+| `multi-board.spec.ts` | Multi-board | Board card display, board CRUD (add/rename/type/color/toggle/delete), wizard board type/color picker, cross-feature config |
+| `multi-board-schedule.spec.ts` | Multi-board scheduling | Single-board schedule page, two-board board selector, schedule mode toggle, per-board CRUD, filtering by board_id |
+| `navigation.spec.ts` | Navigation | Mobile hamburger menu, sidebar links, theme toggle, version display, sidebar gradient |
+| `note-pages.spec.ts` | Note pages | Note (3×15) API CRUD, UI creation, 3-line editor, preview dimensions, pages list tabs, send to board with encoding verification |
+| `page-builder.spec.ts` | Page builder | Create/edit pages through the visual page builder UI |
+| `pages-crud.spec.ts` | Page management | Create, edit, delete pages via UI |
+| `plugin-detail.spec.ts` | Plugin detail | `/integrations/[pluginId]` route: navigation from Marketplace, plugin name/category visible, Install/Installed button, Back to Marketplace link, README section present, unknown plugin error state, GitHub link |
+| `plugin-management.spec.ts` | Plugin management | Plugin listing by category, enable/disable via API+UI, config sheet open, API key password field, status badge |
+| `schedule-crud.spec.ts` | Schedules | Create with page/time/day selection, delete via UI |
+| `schedule-management.spec.ts` | Schedules | Toggle, form interactions, validation, calendar/list view modes, day patterns |
+| `settings.spec.ts` | Settings | Settings page loads with all sections (General, Boards, Advanced/Debug/Wizard), navigate to integrations |
+| `settings-full.spec.ts` | Settings | Timezone picker, refresh interval, output target, board type, service control, silence schedule, wizard rerun, debug tools, system info |
+
+> Note: `generate-screenshots.spec.ts` is excluded from CI runs via playwright config.
 
 ---
 
-## Coverage Matrix
+### App Routes Covered by E2E Tests
 
-### Infrastructure & Health (`integration.spec.ts`)
+| Route | Spec File(s) |
+|-------|-------------|
+| `/` (Dashboard) | `dashboard.spec.ts`, `integration.spec.ts` |
+| `/pages` | `pages-crud.spec.ts`, `integration.spec.ts` |
+| `/pages/new` | `pages-crud.spec.ts`, `page-builder.spec.ts` |
+| `/pages/edit/[id]` | `pages-crud.spec.ts`, `page-builder.spec.ts` |
+| `/carousels` | `api.spec.ts` (API only) |
+| `/schedule` | `schedule-crud.spec.ts`, `schedule-management.spec.ts`, `calendar-alignment.spec.ts` |
+| `/integrations` | `integrations.spec.ts`, `plugin-management.spec.ts` |
+| `/integrations/[pluginId]` | `plugin-detail.spec.ts` |
+| `/settings` | `settings.spec.ts`, `settings-full.spec.ts` |
+| `/debug` | `settings-full.spec.ts` (debug tools section) |
 
-| # | Use Case | Test |
-|---|----------|------|
-| 1 | Mock board server responds with correct board dimensions | `mock board server is running and responsive` |
-| 2 | API health endpoint returns OK status | `API health check responds OK` |
+---
 
-### Setup Wizard (`integration.spec.ts`)
+## Unit Tests (Vitest)
 
-| # | Use Case | Test |
-|---|----------|------|
-| 3 | Wizard appears on first run | `completes the wizard using Local API mode` |
-| 4 | User can select Local API connection mode | `completes the wizard using Local API mode` |
-| 5 | User can fill in board host and API key | `completes the wizard using Local API mode` |
-| 6 | Test Connection succeeds against mock board | `completes the wizard using Local API mode` |
-| 7 | User can skip data sources step | `completes the wizard using Local API mode` |
-| 8 | Wizard completion redirects to Dashboard | `completes the wizard using Local API mode` |
+Unit tests run in Node with jsdom + MSW mocks for API calls.
 
-### Navigation (`integration.spec.ts`)
+### Vitest Test Files
 
-| # | Use Case | Test |
-|---|----------|------|
-| 9 | Navigate to Dashboard | `navigates between main sections` |
-| 10 | Navigate to Pages | `navigates between main sections` |
-| 11 | Navigate to Schedule | `navigates between main sections` |
-| 12 | Navigate to Settings | `navigates between main sections` |
-| 13 | Navigate back to Dashboard from Settings | `navigates between main sections` |
-
-### Page Management – UI (`integration.spec.ts`, `pages-crud.spec.ts`)
-
-| # | Use Case | Test |
-|---|----------|------|
-| 14 | Create a new template page with name and content | `creates a new template page` |
-| 15 | Saved page appears in page list | `newly created page appears in the page list` |
-| 16 | Delete a page from the page list | `can delete a page` |
-
-### Schedule Management – UI (`integration.spec.ts`, `schedule-crud.spec.ts`)
-
-| # | Use Case | Test |
-|---|----------|------|
-| 17 | Open Add Schedule dialog | `creates a schedule entry` |
-| 18 | Select a page, start time, and end time | `creates a schedule entry` |
-| 19 | Submit schedule entry | `creates a schedule entry` |
-| 20 | Schedule page remains visible after creation | `creates a schedule entry` |
-| 21 | Create a schedule and see it listed | `can create a schedule and see it listed` |
-| 22 | Delete a schedule entry | `can delete a schedule` |
-
-### Settings – UI (`settings.spec.ts`)
-
-| # | Use Case | Test |
-|---|----------|------|
-| 23 | Settings page loads with all sections | `loads settings page with all sections visible` |
-| 24 | Navigate to Integrations from Settings | `can navigate to integrations from settings` |
-| 26 | Run Setup Wizard button is available | `loads settings page with all sections visible` |
-
-### Integrations – UI (`integrations.spec.ts`)
-
-| # | Use Case | Test |
-|---|----------|------|
-| 27 | Integrations page loads with plugin list | `loads the integrations page with plugin list` |
-| 28 | Plugin cards display name and description | `loads the integrations page with plugin list` |
-
-### API – Backend Direct (`api.spec.ts`)
-
-| # | Use Case | Test |
-|---|----------|------|
-| 29 | `GET /version` returns package and build versions | `returns version information` |
-| 30 | `GET /config` returns configuration summary | `returns configuration summary` |
-| 31 | `GET /settings/all` returns all settings groups | `returns all settings` |
-| 32 | `PUT /settings/output` changes output target | `can update output target` |
-| 33 | `PUT /settings/polling` changes polling interval | `can update polling interval` |
-| 34 | `PUT /settings/polling` rejects invalid interval | `rejects invalid polling interval` |
-| 35 | `GET /pages` lists pages | `can list pages` |
-| 36 | `POST /pages` + `DELETE /pages/:id` round-trip | `can create and delete a page` |
-| 37 | `GET /schedules` lists schedules | `can list schedules` |
-| 38 | `POST /schedules` + `DELETE /schedules/:id` round-trip | `can create and delete a schedule` |
-| 39 | `GET /plugins` lists available plugins | `can list plugins` |
-| 40 | `GET /templates/variables` returns variable catalog | `returns template variables` |
-| 41 | `POST /templates/validate` validates correct template | `validates a correct template` |
-| 42 | `GET /displays` lists display sources | `can list displays` |
-| 43 | `POST /debug/test-connection` tests board connection | `can test board connection` |
-| 46 | `GET /debug/system-info` returns system information | `returns system information` |
+| File | What's Covered |
+|------|----------------|
+| `api.test.ts` | `lib/api.ts` function contracts (rotation, page, settings API calls) |
+| `api-extended.test.ts` | Extended `lib/api.ts` coverage: plugin API, schedule API, carousel API |
+| `active-page-display.test.tsx` | `ActivePageDisplay` component states (loading, active page, no page) |
+| `board-colors-extended.test.ts` | `lib/board-colors.ts` — extended color mapping edge cases |
+| `board-display-colors.test.tsx` | Board display component color rendering |
+| `board-display-transition.test.tsx` | Board display component transition logic |
+| `carousel-integration.test.tsx` | Carousel integration component |
+| `carousels.test.ts` | `lib/carousels` utility functions |
+| `components.test.tsx` | Miscellaneous UI components |
+| `config-display.test.tsx` | `ConfigDisplay` component: renders items, On/Off badges, toggle behavior, loading state |
+| `general-settings.test.tsx` | `GeneralSettings` component |
+| `general-settings-extended.test.tsx` | `GeneralSettings` extended coverage |
+| `github.test.ts` | `lib/github.ts` — all 6 exported functions: `getGitHubRawBaseUrl`, `resolveGitHubRawUrl`, `fetchPluginReadme`, `fetchPluginManifest`, `resolveHeroImageUrl`, `rewriteMarkdownImageUrls` |
+| `home-page-banner.test.tsx` | Home page banner component |
+| `hooks.test.ts` | Custom React hooks (useStatus, useConfig, useActivePage, usePages) |
+| `hooks-extended.test.ts` | Custom React hooks extended coverage |
+| `i18n-config.test.ts` | i18n configuration |
+| `language-selector.test.tsx` | `LanguageSelector` component |
+| `live-output.test.tsx` | Live output display component |
+| `mqtt-settings.test.tsx` | MQTT settings component |
+| `navigation-sidebar.test.tsx` | `NavigationSidebar` active state, mobile menu, links |
+| `new-components.test.tsx` | Additional UI components |
+| `output-target-selector.test.tsx` | `OutputTargetSelector` component |
+| `page-grid-selector.test.tsx` | `PageGridSelector` component |
+| `page-picker-dialog.test.tsx` | `PagePickerDialog`: renders pages, selected state, onSelect callback, None option, empty state, carousels tab, accessibility |
+| `preview-cache.test.ts` | `lib/preview-cache.ts` |
+| `schedule-calendar.test.ts` | `lib/schedule-calendar.ts` |
+| `schedule-calendar-extended.test.ts` | `lib/schedule-calendar.ts` extended |
+| `schedule-components.test.tsx` | Schedule form components |
+| `schedule-entry-form-validation.test.tsx` | Schedule entry form validation |
+| `service-controls.test.tsx` | `ServiceControls` + `ServiceStatus`: loading state, running/stopped badge, green dot indicator |
+| `setup-detection.test.ts` | `lib/setup-detection.ts` |
+| `silence-mode-status.test.tsx` | `SilenceModeStatus` component |
+| `silence-mode-status-branches.test.tsx` | `SilenceModeStatus` branch coverage |
+| `system-update.test.tsx` | `SystemUpdate` component |
+| `theme-toggle.test.tsx` | Theme toggle component |
+| `time-picker.test.tsx` | `TimePicker` UI component |
+| `timezone-picker.test.tsx` | Timezone picker component |
+| `timezone-utils.test.ts` | Timezone utility functions |
+| `tiptap-length-calculator.test.ts` | TipTap editor character length calculation |
+| `tiptap-serialization.test.ts` | TipTap editor serialization |
+| `tiptap-template-editor-enter.test.ts` | TipTap editor Enter key behavior |
+| `transition-settings.test.tsx` | Transition settings component |
+| `variable-picker-content.test.tsx` | Variable picker in TipTap toolbar |
 
 ---
 
 ## Running the Tests
 
-### Local development (Docker + host Playwright)
-
-This is the recommended local workflow. Docker provides all backend services;
-Playwright runs on the host and connects to them.
-
-**One-time setup** (install Playwright's Chromium browser):
+### E2E Tests (Playwright)
 
 ```bash
-cd web && npx playwright install chromium
-```
-
-**Every run:**
-
-```bash
-# 1. Start Docker services (includes mock board on port 7000)
+# Start Docker services
 docker-compose -f docker-compose.dev.yml up -d
 
-# 2. Run tests from the web/ directory
-#    MOCK_BOARD_HOST tells the API container where to find the mock board
+# Run all E2E tests
 cd web && MOCK_BOARD_HOST=fiestaboard-mock-board npm run test:integration
-```
 
-`MOCK_BOARD_HOST` is the hostname the API container uses to reach the mock
-board. In Docker, containers talk to each other by service name
-(`fiestaboard-mock-board`). In CI, everything runs on `localhost` (the default).
+# Run a specific spec file
+cd web && npx playwright test tests/integrations.spec.ts
 
-Playwright's `reuseExistingServer: true` means it will use the already-running
-Docker services (internally on ports 3000/8000, exposed via 4420 on host, plus mock board on 7000)
-without trying to start new processes.
-
-**Run a specific test file:**
-
-```bash
-cd web && npx playwright test tests/api.spec.ts
-```
-
-**Run with headed browser for debugging:**
-
-```bash
+# Run with headed browser for debugging
 cd web && npx playwright test --headed
 ```
 
-### CI (merge queue)
+### Unit Tests (Vitest)
 
-Tests run automatically via `.github/workflows/integration-tests.yml` when a PR
-enters the merge queue. No action needed.
+```bash
+# Run unit tests (inside Docker)
+docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+
+# Run with coverage
+cd web && npm run test:coverage
+```
+
+---
 
 ## Architecture
 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌──────────────┐     ┌──────────────┐
 │  Playwright  │────▶│  Next.js UI      │────▶│   FastAPI    │────▶│  Mock Board  │
-│  (browser)   │     │  (internal:3000) │     │  (internal:  │     │  (port 7000) │
-│              │     │  (host:4420)     │     │   8000)      │     │              │
+│  (browser)   │     │  (host:4420)     │     │  (internal)  │     │ (host:17000) │
 └─────────────┘     └──────────────────┘     └──────────────┘     └──────────────┘
-                                                                     ▲
-                    API-only tests hit the FastAPI server directly ───┘
 ```
 
-All three servers are started automatically by Playwright's `webServer`
-configuration. The mock board server simulates the Vestaboard Local API
-so no real hardware is needed.
+The mock board server simulates the Vestaboard Local API so no real hardware
+is needed for any test in this suite.

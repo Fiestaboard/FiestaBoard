@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Pollningsintervall uppdaterat. Starta om tjänsten för att tillämpa ändringar.",
     "toastPollingFailed": "Kunde inte uppdatera pollningsintervall: {error}",
     "languageLabel": "Språk",
-    "languageDescription": "Välj visningsspråk för gränssnittet"
+    "languageDescription": "Välj visningsspråk för gränssnittet",
+    "reduceMotionLabel": "Minska rörelse",
+    "reduceMotionDescription": "Inaktivera animationer och övergångar i gränssnittet",
+    "toastDisplaySaved": "Visningsinställningar sparade",
+    "toastDisplaySaveFailed": "Det gick inte att spara visningsinställningar: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Växla tema"

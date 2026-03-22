@@ -2,7 +2,7 @@
 
 Display current date and time on your board with comprehensive formatting options.
 
-![Date & Time Display](./docs/date-time-display.png)
+![Date & Time Display](./docs/board-display.png)
 
 **→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
 
@@ -133,14 +133,6 @@ The Date & Time plugin provides various date and time variables that update auto
 - **Timezone Support**: Configurable timezone with autocomplete picker
 - **Real-time Updates**: Automatically updates based on configured refresh interval
 - **No API Key Required**: Works out of the box with no external dependencies
-
-## Configuration UI
-
-The plugin includes an enhanced timezone picker in the Integrations settings:
-- **Autocomplete**: Type to filter timezones as you search
-- **Arrow Key Navigation**: Use arrow keys to cycle through suggestions
-- **Validation**: Real-time validation with error messages for invalid timezones
-- **Default Timezone**: Pre-configured to "America/Los_Angeles"
 
 ## Author
 

@@ -421,6 +421,382 @@ class TestPluginRateLimits:
         )
 
 
+class TestManifestVariablesParsing:
+    """Tests for the enhanced variables schema parsing (list/dict, groups, auto_discover)."""
+
+    def test_manifest_parses_simple_list_format(self):
+        """PluginManifest.from_dict handles the legacy list format for simple variables."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"simple": ["a", "b", "c"]}}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.simple == ["a", "b", "c"]
+        assert manifest.variables.metadata == {}
+
+    def test_manifest_parses_simple_dict_format(self):
+        """PluginManifest.from_dict handles the rich dict format for simple variables."""
+        from src.plugins.manifest import PluginManifest, VariableMetadata
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "temperature": {
+                        "description": "Current temp",
+                        "type": "number",
+                        "max_length": 3,
+                        "group": "current",
+                        "example": "72",
+                    },
+                    "status": {"description": "Status text"},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.simple == ["temperature", "status"]
+        assert "temperature" in manifest.variables.metadata
+        meta = manifest.variables.metadata["temperature"]
+        assert meta.description == "Current temp"
+        assert meta.type == "number"
+        assert meta.max_length == 3
+        assert meta.group == "current"
+        assert meta.example == "72"
+
+    def test_manifest_parses_groups(self):
+        """PluginManifest.from_dict parses the groups section."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "groups": {
+                    "time": {"label": "Time"},
+                    "date": {"label": "Date"},
+                },
+                "simple": ["hour", "minute"],
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert "time" in manifest.variables.groups
+        assert manifest.variables.groups["time"].label == "Time"
+        assert "date" in manifest.variables.groups
+
+    def test_manifest_auto_discover_default_true_when_no_vars(self):
+        """auto_discover defaults to True when no variables section exists."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0"}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.auto_discover is True
+
+    def test_manifest_auto_discover_default_false_when_vars_present(self):
+        """auto_discover defaults to False when variables.simple is declared."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"simple": ["a"]}}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.auto_discover is False
+
+    def test_manifest_auto_discover_explicit_override(self):
+        """Explicit auto_discover flag overrides the smart default."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"auto_discover": True, "simple": ["a"]}}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.auto_discover is True
+
+    def test_variable_metadata_defaults(self):
+        """VariableMetadata has sensible defaults."""
+        from src.plugins.manifest import VariableMetadata
+
+        meta = VariableMetadata()
+        assert meta.description == ""
+        assert meta.type == "string"
+        assert meta.max_length is None
+        assert meta.group == ""
+        assert meta.example == ""
+
+    def test_variable_metadata_from_dict_format(self):
+        """get_variable_metadata returns metadata for declared vars, defaults for unknown."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "temp": {"description": "Temperature", "type": "number"},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        meta = manifest.variables.get_variable_metadata("temp")
+        assert meta.description == "Temperature"
+        assert meta.type == "number"
+
+        unknown = manifest.variables.get_variable_metadata("unknown_field")
+        assert unknown.description == ""
+        assert unknown.type == "string"
+
+    def test_dict_format_max_length_merges_into_top_level(self):
+        """max_length in variable metadata is merged into the top-level max_lengths dict."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "temp": {"max_length": 3},
+                    "status": {"max_length": 10},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.max_lengths["temp"] == 3
+        assert manifest.max_lengths["status"] == 10
+
+    def test_top_level_max_lengths_take_precedence(self):
+        """Explicit top-level max_lengths override per-variable metadata max_length."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "max_lengths": {"temp": 5},
+            "variables": {
+                "simple": {"temp": {"max_length": 3}},
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.max_lengths["temp"] == 5
+
+    def test_validate_manifest_accepts_dict_simple(self):
+        """validate_manifest accepts dict format for variables.simple."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {"simple": {"a": {"description": "A var"}}},
+        }
+        is_valid, errors = validate_manifest(data)
+        assert is_valid, errors
+
+    def test_validate_manifest_rejects_invalid_simple_type(self):
+        """validate_manifest rejects non-list/non-dict simple."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {"simple": "not_valid"},
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("simple" in e for e in errors)
+
+
+class TestManifestScreenshots:
+    """Tests for plugin screenshot configuration."""
+
+    def test_screenshots_entries_reference_existing_files(self):
+        """CI Test: All screenshot src paths in manifest must exist on disk."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing_files: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots", [])
+
+            for screenshot in screenshots:
+                src = screenshot.get("src", "")
+                if not src:
+                    continue
+                normalised = src.lstrip("./")
+                full_path = plugin_dir / normalised
+                if not full_path.exists():
+                    missing_files.append(
+                        f"{plugin_dir.name}: screenshots entry '{src}' "
+                        f"not found at {full_path}"
+                    )
+
+        assert not missing_files, (
+            "Screenshot files referenced in manifests do not exist:\n"
+            + "\n".join(f"  - {f}" for f in missing_files)
+        )
+
+    def test_screenshots_array_is_list_when_present(self):
+        """CI Test: screenshots field must be an array if provided."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        invalid: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots")
+            if screenshots is not None and not isinstance(screenshots, list):
+                invalid.append(
+                    f"{plugin_dir.name}: 'screenshots' must be an array, "
+                    f"got {type(screenshots).__name__}"
+                )
+
+        assert not invalid, (
+            "Invalid screenshots field types:\n" + "\n".join(f"  - {i}" for i in invalid)
+        )
+
+    def test_each_screenshot_entry_has_src(self):
+        """CI Test: Each screenshot entry must have a 'src' field."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing_src: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots", [])
+
+            for idx, screenshot in enumerate(screenshots):
+                if not isinstance(screenshot, dict) or "src" not in screenshot:
+                    missing_src.append(
+                        f"{plugin_dir.name}: screenshots[{idx}] missing 'src' field"
+                    )
+
+        assert not missing_src, (
+            "Screenshot entries missing 'src':\n" + "\n".join(f"  - {s}" for s in missing_src)
+        )
+
+    def test_at_most_one_primary_screenshot(self):
+        """CI Test: At most one screenshot should have primary=true."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        multiple_primary: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            screenshots = manifest.get("screenshots", [])
+            primary_count = sum(
+                1 for s in screenshots if isinstance(s, dict) and s.get("primary") is True
+            )
+            if primary_count > 1:
+                multiple_primary.append(
+                    f"{plugin_dir.name}: {primary_count} screenshots marked as primary "
+                    f"(only one allowed)"
+                )
+
+        assert not multiple_primary, (
+            "Plugins with multiple primary screenshots:\n"
+            + "\n".join(f"  - {m}" for m in multiple_primary)
+        )
+
+
+class TestManifestCompleteness:
+    """Tests that manifests include recommended fields for full functionality."""
+
+    def test_all_manifests_have_settings_schema(self):
+        """CI Test: All plugin manifests should define a settings_schema."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            if "settings_schema" not in manifest:
+                missing.append(plugin_dir.name)
+
+        assert not missing, (
+            "Plugins missing 'settings_schema':\n"
+            + "\n".join(f"  - {m}" for m in missing)
+        )
+
+    def test_all_manifests_have_variables(self):
+        """CI Test: All plugin manifests should define a variables section."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        missing: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            if "variables" not in manifest:
+                missing.append(plugin_dir.name)
+
+        assert not missing, (
+            "Plugins missing 'variables':\n"
+            + "\n".join(f"  - {m}" for m in missing)
+        )
+
+    def test_settings_schema_is_object_type(self):
+        """CI Test: settings_schema must be a JSON object with 'type': 'object'."""
+        plugins = get_plugin_directories()
+
+        if not plugins:
+            pytest.skip("No plugins found")
+
+        invalid: List[str] = []
+
+        for plugin_dir in plugins:
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            manifest = load_manifest(plugin_dir)
+            schema = manifest.get("settings_schema")
+            if schema is None:
+                continue
+            if not isinstance(schema, dict):
+                invalid.append(f"{plugin_dir.name}: settings_schema must be a dict")
+            elif schema.get("type") != "object":
+                invalid.append(
+                    f"{plugin_dir.name}: settings_schema['type'] must be 'object', "
+                    f"got {schema.get('type')!r}"
+                )
+
+        assert not invalid, (
+            "Manifests with invalid settings_schema:\n"
+            + "\n".join(f"  - {i}" for i in invalid)
+        )
+
+
 class TestPluginIconsAndCategories:
     """Tests for plugin display configuration."""
     

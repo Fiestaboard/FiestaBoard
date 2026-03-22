@@ -604,7 +604,11 @@
     "toastPollingUpdatedRestart": "Interwał odpytywania zaktualizowany. Uruchom ponownie usługę, aby zastosować zmiany.",
     "toastPollingFailed": "Nie udało się zaktualizować interwału odpytywania: {error}",
     "languageLabel": "Język",
-    "languageDescription": "Wybierz język wyświetlania interfejsu"
+    "languageDescription": "Wybierz język wyświetlania interfejsu",
+    "reduceMotionLabel": "Zmniejsz ruch",
+    "reduceMotionDescription": "Wyłącz animacje i przejścia w interfejsie",
+    "toastDisplaySaved": "Ustawienia wyświetlania zapisane",
+    "toastDisplaySaveFailed": "Nie udało się zapisać ustawień wyświetlania: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Przełącz motyw"

@@ -1,10 +1,11 @@
 """Plugin registry - singleton for managing all loaded plugins.
 
 The PluginRegistry is the central point for:
-- Loading and unloading plugins
+- Loading and unloading plugins (built-in and external)
 - Getting plugin instances by ID
 - Managing plugin configurations
 - Providing plugin data to other services
+- Installing plugins from the registry or arbitrary git URLs
 """
 
 import logging
@@ -14,7 +15,17 @@ from typing import Any, Dict, List, Optional
 
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
-from .manifest import PluginManifest
+from .manifest import PluginManifest, VariableGroupSchema, VariableMetadata
+from .sources import (
+    PluginSource,
+    RegistryEntry,
+    check_plugin_update_available,
+    get_external_plugins_dir,
+    install_git_plugin,
+    install_registry_plugin,
+    load_registry,
+    remove_external_plugin,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +41,7 @@ class PluginRegistry:
     - Plugin enable/disable state
     - Plugin configuration
     - Aggregated variable schemas for templates
+    - Periodic update availability checking for external plugins
     """
     
     def __init__(self, plugins_dir: Optional[Path] = None):
@@ -43,6 +55,13 @@ class PluginRegistry:
         self._manifests: Dict[str, PluginManifest] = {}
         self._configs: Dict[str, Dict[str, Any]] = {}
         self._enabled: Dict[str, bool] = {}
+
+        # Cached results from the most recent check_for_updates() call.
+        # Maps plugin_id -> bool (True = update available).
+        self._update_status: Dict[str, bool] = {}
+
+        # Auto-discovery cache: maps plugin_id -> discovered variable names
+        self._discovered_vars: Dict[str, List[str]] = {}
         
         logger.info("PluginRegistry initialized")
     
@@ -103,9 +122,90 @@ class PluginRegistry:
                 else:
                     logger.debug(f"Loaded plugin (disabled): {plugin_id}")
         
+        # Auto-install any plugins that were configured in V2 but are no longer
+        # built-in (extracted to external repos in V3).
+        self._auto_migrate_v2_plugins(stored_configs)
+
         enabled_count = sum(1 for e in self._enabled.values() if e)
         logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
-    
+
+    def _auto_migrate_v2_plugins(self, stored_configs: Dict[str, Dict[str, Any]]) -> None:
+        """Install external plugins that were configured in V2 but are no longer built-in.
+
+        When upgrading from V2 to V3, previously built-in plugins (weather, muni,
+        stocks, etc.) are extracted into standalone external repositories.  Users
+        who had those plugins configured will have entries in ``config.json`` whose
+        plugin code no longer exists on disk.
+
+        This method detects those "orphaned" configs, installs the matching plugin
+        from the registry, and restores the stored configuration and enabled state
+        — giving users a seamless, zero-data-loss upgrade experience.
+
+        The check is idempotent: once a plugin is installed it appears in
+        ``self._plugins``, so it is skipped on every subsequent startup.
+        """
+        loaded_ids = set(self._plugins.keys())
+        orphaned = [pid for pid in stored_configs if pid not in loaded_ids]
+        if not orphaned:
+            return
+
+        logger.info(
+            "V3 migration: found %d plugin config(s) with no matching installed plugin: %s",
+            len(orphaned),
+            orphaned,
+        )
+
+        try:
+            registry_entries = load_registry()
+            registry_map = {e.plugin_id: e for e in registry_entries}
+        except Exception as exc:
+            logger.warning(
+                "V3 migration: could not load plugin registry — skipping auto-install: %s", exc
+            )
+            return
+
+        migrated: list[str] = []
+        for plugin_id in orphaned:
+            if plugin_id not in registry_map:
+                logger.warning(
+                    "V3 migration: plugin '%s' has stored config but is not in the registry. "
+                    "Install it manually via the Integrations page or remove its config entry.",
+                    plugin_id,
+                )
+                continue
+
+            logger.info("V3 migration: auto-installing '%s' from registry…", plugin_id)
+            errors = self.install_from_registry(plugin_id)
+            if errors:
+                logger.error(
+                    "V3 migration: failed to install '%s' (will retry on next boot): %s",
+                    plugin_id,
+                    errors,
+                )
+                continue
+
+            # install_from_registry() registers the plugin with enabled=False and
+            # no config applied.  Restore the full stored config and enabled state.
+            plugin = self._plugins.get(plugin_id)
+            if plugin:
+                cfg = stored_configs[plugin_id]
+                is_enabled = cfg.get("enabled", False)
+                self._enabled[plugin_id] = is_enabled
+                self._configs[plugin_id] = cfg
+                plugin.config = cfg
+                plugin.enabled = is_enabled
+                migrated.append(plugin_id)
+                logger.info(
+                    "V3 migration: restored '%s' (enabled=%s)", plugin_id, is_enabled
+                )
+
+        if migrated:
+            logger.info(
+                "V3 migration complete: auto-installed %d plugin(s): %s",
+                len(migrated),
+                migrated,
+            )
+
     def get_plugin(self, plugin_id: str) -> Optional[PluginBase]:
         """Get a plugin by ID.
         
@@ -253,28 +353,139 @@ class PluginRegistry:
                 error=str(e)
             )
     
+    def _discover_variables(self, plugin_id: str) -> List[str]:
+        """Introspect a plugin's live data to discover top-level variable names.
+
+        Only scalar values (str, int, float, bool) are surfaced; lists and
+        dicts are skipped (those should be declared as arrays in the manifest).
+        Results are cached so the discovery fetch only happens once per
+        plugin lifecycle.
+        """
+        if plugin_id in self._discovered_vars:
+            return self._discovered_vars[plugin_id]
+
+        try:
+            result = self.fetch_plugin_data(plugin_id)
+            if result.available and result.data:
+                discovered = [
+                    key for key, val in result.data.items()
+                    if isinstance(val, (str, int, float, bool))
+                ]
+                self._discovered_vars[plugin_id] = discovered
+                return discovered
+        except Exception:
+            logger.debug("Auto-discovery fetch failed for %s", plugin_id)
+
+        self._discovered_vars[plugin_id] = []
+        return []
+
+    def clear_discovered_cache(self, plugin_id: Optional[str] = None) -> None:
+        """Clear auto-discovery cache for one or all plugins."""
+        if plugin_id:
+            self._discovered_vars.pop(plugin_id, None)
+        else:
+            self._discovered_vars.clear()
+
     def get_all_variables(self) -> Dict[str, List[str]]:
         """Get all template variables from enabled plugins.
-        
+
+        When a plugin has ``auto_discover`` enabled, the manifest-declared
+        variable list is merged with keys discovered from live data so that
+        beginners who omit a ``variables`` section still see their data.
+
         Returns:
             Dictionary mapping plugin_id to list of variable names
         """
         variables: Dict[str, List[str]] = {}
-        
+
         for plugin_id, plugin in self._plugins.items():
             if not self._enabled.get(plugin_id, False):
                 continue
-            
+
             manifest = self._manifests.get(plugin_id)
             if not manifest:
                 continue
-            
-            # Get variable names from manifest
+
             var_names = manifest.variables.get_all_variable_names(plugin_id)
+
+            if manifest.variables.auto_discover:
+                discovered = self._discover_variables(plugin_id)
+                existing = set(var_names)
+                for name in discovered:
+                    if name not in existing:
+                        var_names.append(name)
+
             if var_names:
                 variables[plugin_id] = var_names
-        
+
         return variables
+
+    def get_all_variables_with_metadata(
+        self,
+    ) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """Get variables with rich metadata for every enabled plugin.
+
+        Returns:
+            ``{plugin_id: {var_name: {description, type, max_length, group, example, preview}}}``
+        """
+        all_vars = self.get_all_variables()
+        context = self.build_template_context()
+        result: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+        for plugin_id, var_names in all_vars.items():
+            manifest = self._manifests.get(plugin_id)
+            plugin_data = context.get(plugin_id, {})
+            var_dict: Dict[str, Dict[str, Any]] = {}
+
+            for name in var_names:
+                # Skip array path patterns (e.g. "stops.*.field")
+                if ".*." in name:
+                    continue
+                # Skip array aggregate names (they match an array key)
+                if manifest and name in manifest.variables.arrays:
+                    continue
+
+                meta = (
+                    manifest.variables.get_variable_metadata(name)
+                    if manifest
+                    else VariableMetadata()
+                )
+                preview = ""
+                raw_val = plugin_data.get(name)
+                if raw_val is not None and isinstance(raw_val, (str, int, float, bool)):
+                    preview = str(raw_val)
+
+                var_dict[name] = {
+                    "description": meta.description,
+                    "type": meta.type,
+                    "max_length": meta.max_length,
+                    "group": meta.group,
+                    "example": meta.example,
+                    "preview": preview,
+                }
+
+            if var_dict:
+                result[plugin_id] = var_dict
+
+        return result
+
+    def get_all_variable_groups(self) -> Dict[str, Dict[str, Dict[str, str]]]:
+        """Get variable groups for every enabled plugin.
+
+        Returns:
+            ``{plugin_id: {group_id: {"label": "..."}}}``
+        """
+        result: Dict[str, Dict[str, Dict[str, str]]] = {}
+        for plugin_id in self._plugins:
+            if not self._enabled.get(plugin_id, False):
+                continue
+            manifest = self._manifests.get(plugin_id)
+            if manifest and manifest.variables.groups:
+                result[plugin_id] = {
+                    gid: {"label": g.label}
+                    for gid, g in manifest.variables.groups.items()
+                }
+        return result
     
     def get_all_max_lengths(self) -> Dict[str, int]:
         """Get all max lengths from enabled plugins.
@@ -323,6 +534,7 @@ class PluginRegistry:
         
         for plugin_id, plugin in self._plugins.items():
             manifest = self._manifests.get(plugin_id)
+            source = self._loader.get_source(plugin_id)
             info = {
                 "id": plugin_id,
                 "name": manifest.name if manifest else plugin_id,
@@ -332,6 +544,9 @@ class PluginRegistry:
                 "enabled": self._enabled.get(plugin_id, False),
                 "icon": manifest.icon if manifest else "puzzle",
                 "category": manifest.category if manifest else "utility",
+                "fiestaboard_version": manifest.fiestaboard_version if manifest else "",
+                "source": source.to_dict() if source else {"source_type": "builtin"},
+                "update_available": self._update_status.get(plugin_id, False),
             }
             plugins.append(info)
         
@@ -385,6 +600,179 @@ class PluginRegistry:
             Dictionary mapping plugin directory names to error lists
         """
         return self._loader.load_errors
+
+    def check_for_updates(self) -> Dict[str, bool]:
+        """Check all external plugins for available upstream updates.
+
+        Runs ``git ls-remote`` against each external plugin's origin and
+        compares with the local HEAD.  Results are cached in
+        ``_update_status`` so the ``/plugins/updates`` endpoint can return
+        instantly between checks.
+
+        Returns:
+            Mapping of plugin_id -> True if an update is available.
+        """
+        results: Dict[str, bool] = {}
+        for plugin_id, source in self._loader.plugin_sources.items():
+            if source.source_type != "external" or not source.local_path:
+                continue
+            local_path = Path(source.local_path)
+            update_available = check_plugin_update_available(local_path)
+            results[plugin_id] = update_available
+            if update_available:
+                logger.info("Update available for external plugin: %s", plugin_id)
+
+        self._update_status = results
+        return results
+
+    def get_update_status(self) -> Dict[str, bool]:
+        """Return cached update status from the last check_for_updates() call."""
+        return self._update_status.copy()
+
+    def get_plugin_source(self, plugin_id: str) -> Optional[PluginSource]:
+        """Get the source information for a loaded plugin.
+
+        Args:
+            plugin_id: Plugin identifier
+
+        Returns:
+            :class:`PluginSource` or *None* if not loaded.
+        """
+        return self._loader.get_source(plugin_id)
+
+    # ── external plugin management ───────────────────────────────────────
+
+    def get_registry_entries(self) -> List[Dict[str, Any]]:
+        """Return all entries from the plugin registry file.
+
+        Returns:
+            List of registry entry dictionaries.
+        """
+        entries = load_registry()
+        return [
+            {
+                "id": e.plugin_id,
+                "name": e.name,
+                "description": e.description,
+                "repository": e.repository,
+                "branch": e.branch,
+                "author": e.author,
+                "fiestaboard_version": e.fiestaboard_version,
+                "icon": e.icon,
+                "category": e.category,
+                "installed": e.plugin_id in self._plugins,
+            }
+            for e in entries
+        ]
+
+    def install_from_registry(self, plugin_id: str) -> List[str]:
+        """Install a plugin from the registry by its id.
+
+        Args:
+            plugin_id: The id of the registry entry to install.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        entries = load_registry()
+        entry = next((e for e in entries if e.plugin_id == plugin_id), None)
+        if entry is None:
+            return [f"Plugin '{plugin_id}' not found in the registry"]
+
+        ok, err = install_registry_plugin(entry)
+        if not ok:
+            return [err]
+
+        # Reload external dirs and load the new plugin
+        self._loader._external_dirs = [get_external_plugins_dir()]
+        plugin = self._loader.load_plugin(plugin_id)
+        if plugin is None:
+            errors = self._loader.load_errors.get(plugin_id, [])
+            return errors or [f"Failed to load plugin after install: {plugin_id}"]
+
+        manifest = self._loader.get_manifest(plugin_id)
+        if manifest:
+            self._plugins[plugin_id] = plugin
+            self._manifests[plugin_id] = manifest
+            self._enabled[plugin_id] = False
+            logger.info("Installed registry plugin: %s", plugin_id)
+
+        return []
+
+    def install_from_git(
+        self, repo_url: str, plugin_id: Optional[str] = None, branch: str = ""
+    ) -> List[str]:
+        """Install a plugin from an arbitrary public git repository.
+
+        Custom git plugins do **not** need to follow the
+        ``fiestaboard-plugin--`` naming convention.
+
+        Args:
+            repo_url: HTTPS URL of the git repository.
+            plugin_id: Override the derived plugin id.
+            branch: Optional branch or tag.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        ok, err = install_git_plugin(repo_url, plugin_id=plugin_id, branch=branch)
+        if not ok:
+            return [err]
+
+        # Determine the id if not given
+        if plugin_id is None:
+            from .sources import repo_name_from_url, plugin_id_from_repo_name
+            repo_name = repo_name_from_url(repo_url)
+            plugin_id = plugin_id_from_repo_name(repo_name)
+
+        # Reload external dirs and load the new plugin
+        self._loader._external_dirs = [get_external_plugins_dir()]
+        plugin = self._loader.load_plugin(plugin_id)
+        if plugin is None:
+            errors = self._loader.load_errors.get(plugin_id, [])
+            return errors or [f"Failed to load plugin after install: {plugin_id}"]
+
+        manifest = self._loader.get_manifest(plugin_id)
+        if manifest:
+            self._plugins[plugin_id] = plugin
+            self._manifests[plugin_id] = manifest
+            self._enabled[plugin_id] = False
+            logger.info("Installed git plugin: %s from %s", plugin_id, repo_url)
+
+        return []
+
+    def uninstall_external_plugin(self, plugin_id: str) -> List[str]:
+        """Remove an external (non-built-in) plugin.
+
+        Built-in plugins cannot be uninstalled via this method.
+
+        Args:
+            plugin_id: Plugin identifier to remove.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        source = self._loader.get_source(plugin_id)
+        if source is None:
+            return [f"Plugin not found: {plugin_id}"]
+        if source.source_type == "builtin":
+            return ["Cannot uninstall a built-in plugin"]
+
+        # Disable and unload
+        if plugin_id in self._plugins:
+            self._plugins[plugin_id].cleanup()
+            del self._plugins[plugin_id]
+        self._manifests.pop(plugin_id, None)
+        self._enabled.pop(plugin_id, None)
+        self._configs.pop(plugin_id, None)
+
+        self._loader.unload_plugin(plugin_id)
+
+        # Remove the directory
+        local_path = Path(source.local_path)
+        remove_external_plugin(local_path)
+        logger.info("Uninstalled external plugin: %s", plugin_id)
+        return []
     
     def build_template_context(self) -> Dict[str, Any]:
         """Build context dictionary for template rendering.

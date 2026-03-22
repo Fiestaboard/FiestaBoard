@@ -21,7 +21,21 @@ Every plugin has four required components:
 | **Tests** | `tests/test_plugin.py` | Automated tests with ≥80% code coverage |
 | **Documentation** | `README.md` + `docs/SETUP.md` | Developer docs and user-facing setup guide |
 
-Plugins are **auto-discovered** - drop a valid plugin directory into `plugins/` and FiestaBoard finds it at startup. No registration step is needed.
+### Where Plugins Live
+
+FiestaBoard discovers plugins from three sources:
+
+| Source | Location | Naming Convention |
+|--------|----------|-------------------|
+| **Built-in** | `plugins/` directory | Directory name must match `manifest.json` `id` field |
+| **Registry** | Cloned into `external_plugins/` | Repository must be named `fiestaboard-plugin--{name}` |
+| **Custom Git** | Cloned into `external_plugins/` | No naming convention required |
+
+Built-in plugins are auto-discovered at startup. External plugins (registry and custom git) are cloned into the `external_plugins/` directory and also auto-discovered.
+
+:::info Plugin Sources
+If you want your plugin included in the curated **plugin registry**, the git repository must follow the `fiestaboard-plugin--{name}` naming convention (e.g. `fiestaboard-plugin--my-weather`). This is **not** required for personal or custom plugins you install via a git URL.
+:::
 
 ---
 
@@ -126,6 +140,13 @@ The `manifest.json` file is the heart of your plugin. It tells FiestaBoard what 
 | `id` | string | Unique identifier - lowercase letters, digits, and underscores only. Must start with a letter. Must match directory name. |
 | `name` | string | Human-readable name shown in the UI (max 50 characters). |
 | `version` | string | Semantic version in `X.Y.Z` format (e.g., `"1.0.0"`). |
+
+### Strongly Recommended Fields
+
+These fields are not enforced by the manifest validator but should be included in every plugin:
+
+| Field | Type | Description |
+|-------|------|-------------|
 | `description` | string | Short description (max 200 characters). |
 | `author` | string | Plugin author or maintainer. |
 | `settings_schema` | object | [JSON Schema](https://json-schema.org/) defining user-configurable settings. |
@@ -357,9 +378,13 @@ Your plugin inherits these from `PluginBase`:
 | `config` | property | The current configuration dictionary (set by the platform). |
 | `enabled` | property | Whether the plugin is currently enabled. |
 | `manifest` | property | The raw manifest dictionary. |
+| `refresh_seconds` | property | Effective refresh interval in seconds (from manifest + config). Returns `None` if not defined. |
+| `get_data()` | method | Get plugin data with automatic caching based on `refresh_seconds`. This is what the platform calls. |
+| `clear_cache()` | method | Clear cached data, forcing a fresh fetch on the next `get_data()` call. |
 | `get_variables_schema()` | method | Returns the `variables` section from the manifest. |
 | `get_max_lengths()` | method | Returns the `max_lengths` section from the manifest. |
 | `get_settings_schema()` | method | Returns the `settings_schema` section from the manifest. |
+| `get_env_vars()` | method | Returns environment variable definitions from the manifest. |
 
 ### PluginResult
 
@@ -783,7 +808,9 @@ def fetch_data(self) -> PluginResult:
 
 ### Caching
 
-Avoid hitting external APIs on every data refresh. Cache responses for a reasonable interval:
+`PluginBase` provides **automatic caching** via `get_data()`. When your manifest defines a `refresh_seconds` field in `settings_schema`, the platform caches the result of `fetch_data()` and reuses it until the interval expires. You do **not** need to implement caching yourself in most cases.
+
+If your plugin needs more control (e.g., different TTLs for different data), you can implement manual caching inside `fetch_data()`:
 
 ```python
 from datetime import datetime, timedelta
@@ -791,21 +818,25 @@ from datetime import datetime, timedelta
 class MyPlugin(PluginBase):
     def __init__(self, manifest):
         super().__init__(manifest)
-        self._cache = None
-        self._cache_time = None
-        self._cache_ttl = timedelta(minutes=5)
+        self._custom_cache = None
+        self._custom_cache_time = None
+        self._custom_cache_ttl = timedelta(minutes=5)
 
     def fetch_data(self) -> PluginResult:
-        if self._cache and self._cache_time:
-            if datetime.now() - self._cache_time < self._cache_ttl:
-                return self._cache
+        if self._custom_cache and self._custom_cache_time:
+            if datetime.now() - self._custom_cache_time < self._custom_cache_ttl:
+                return self._custom_cache
 
         result = self._fetch_fresh()
         if result.available:
-            self._cache = result
-            self._cache_time = datetime.now()
+            self._custom_cache = result
+            self._custom_cache_time = datetime.now()
         return result
 ```
+
+:::tip
+For most plugins, just add `refresh_seconds` to your `settings_schema` and let `get_data()` handle caching automatically. Manual caching is only needed for advanced scenarios.
+:::
 
 ### Logging
 
@@ -828,6 +859,72 @@ logger.exception("Unexpected error with traceback")
 
 ---
 
+## Developing an External Plugin
+
+You can also develop a plugin as a standalone git repository instead of adding it directly to the FiestaBoard repo. This is the recommended approach for plugins that depend on paid or authenticated APIs.
+
+### Repository Structure
+
+Your external plugin repository should have the same structure as a built-in plugin, but at the repository root:
+
+```
+fiestaboard-plugin--my-weather/
+├── __init__.py          # Plugin class (PluginBase subclass)
+├── manifest.json        # Plugin metadata and configuration schema
+├── README.md            # Documentation
+├── docs/
+│   └── SETUP.md         # User-facing setup guide
+└── tests/
+    └── test_plugin.py   # Plugin tests
+```
+
+### Naming Convention
+
+If you want your plugin listed in the official **plugin registry**, your repository **must** follow this naming convention:
+
+```
+fiestaboard-plugin--{name}
+```
+
+Where `{name}` is lowercase and uses dashes for separators (e.g. `fiestaboard-plugin--my-weather`). The plugin id in `manifest.json` is derived by removing the prefix and converting dashes to underscores (e.g. `my_weather`).
+
+:::note
+This naming convention is only required for the curated registry. When installing a plugin from a custom git URL, any repository name is accepted.
+:::
+
+### Installing Your External Plugin
+
+During development, install your plugin directly from your git repository. Only HTTPS URLs are accepted (SSH and HTTP URLs are rejected for security):
+
+```bash
+# Install from your repo (HTTPS only)
+curl -X POST http://localhost:4420/api/plugins/install \
+  -H "Content-Type: application/json" \
+  -d '{"repository": "https://github.com/yourname/fiestaboard-plugin--my-weather"}'
+```
+
+The plugin will be cloned into the `external_plugins/` directory and loaded automatically.
+
+### Submitting to the Registry
+
+To get your plugin into the curated registry:
+
+1. Ensure your repository follows the `fiestaboard-plugin--{name}` naming convention.
+2. Open a pull request against the FiestaBoard repository that adds your plugin to `plugin-registry.json`.
+3. Your entry should include the plugin id, name, description, repository URL, and author.
+
+```json
+{
+  "id": "my_weather",
+  "name": "My Weather Plugin",
+  "description": "Custom weather data from my favorite API",
+  "repository": "https://github.com/yourname/fiestaboard-plugin--my-weather",
+  "author": "Your Name"
+}
+```
+
+---
+
 ## Reference: Plugin API Endpoints
 
 These REST endpoints are available for testing and debugging your plugin:
@@ -841,6 +938,10 @@ These REST endpoints are available for testing and debugging your plugin:
 | `/plugins/{id}/disable` | POST | Disable a plugin |
 | `/plugins/{id}/data` | GET | Fetch current plugin data |
 | `/plugins/{id}/variables` | GET | Get the plugin's variable schema |
+| `/plugins/registry` | GET | List curated registry plugins |
+| `/plugins/registry/{id}/install` | POST | Install a registry plugin |
+| `/plugins/install` | POST | Install a plugin from a git URL |
+| `/plugins/{id}/uninstall` | DELETE | Uninstall an external plugin |
 
 ---
 

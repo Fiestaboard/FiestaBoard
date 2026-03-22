@@ -8,7 +8,7 @@ keywords: [FiestaBoard aircraft tracking, nearby planes, OpenSky, flight trackin
 
 Display real-time aircraft information from the OpenSky Network, showing flights near your location.
 
-<BoardScreenshot src="/img/nearby-aircraft-display.png" alt="Nearby Aircraft on split-flap board" />
+<BoardScreenshot src="/img/plugins/nearby_aircraft-board-display.png" alt="Nearby Aircraft on split-flap board" />
 
 ## Overview
 

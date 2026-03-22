@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { VariablePickerContent } from "@/components/tiptap-template-editor/components/VariablePickerContent";
 
-// Test wrapper with providers
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -47,20 +46,16 @@ describe("VariablePickerContent", () => {
     );
 
     await waitFor(() => {
-      // Should see weather variables (mock has 11 variables)
       const weatherCategory = screen.getByText(/weather/i);
       expect(weatherCategory).toBeInTheDocument();
     });
 
-    // Check that all weather variables are shown (not just 10)
     const weatherSection = screen.getByText(/weather/i).closest("div")?.parentElement;
     if (weatherSection) {
       const variablePills = within(weatherSection).getAllByRole("button");
-      // Should show all 11 variables, not just 10
       expect(variablePills.length).toBeGreaterThanOrEqual(11);
     }
 
-    // Should NOT see "+ X more" text
     expect(screen.queryByText(/\+ \d+ more/i)).not.toBeInTheDocument();
   });
 
@@ -79,7 +74,6 @@ describe("VariablePickerContent", () => {
     await user.type(searchInput, "temp");
 
     await waitFor(() => {
-      // Should show variables matching "temp"
       const temperaturePill = screen.getByText("temperature");
       expect(temperaturePill).toBeInTheDocument();
     });
@@ -100,16 +94,13 @@ describe("VariablePickerContent", () => {
     await user.type(searchInput, "weather");
 
     await waitFor(() => {
-      // Should show weather category
       const weatherCategory = screen.getByText(/weather/i);
       expect(weatherCategory).toBeInTheDocument();
     });
 
-    // All weather variables should be shown when category matches
     const weatherSection = screen.getByText(/weather/i).closest("div")?.parentElement;
     if (weatherSection) {
       const variablePills = within(weatherSection).getAllByRole("button");
-      // Should show all variables, not filtered
       expect(variablePills.length).toBeGreaterThanOrEqual(11);
     }
   });
@@ -165,7 +156,6 @@ describe("VariablePickerContent", () => {
     await user.type(searchInput, "TEMP");
 
     await waitFor(() => {
-      // Should match "temperature" even with different case
       const temperaturePill = screen.getByText("temperature");
       expect(temperaturePill).toBeInTheDocument();
     });
@@ -186,9 +176,67 @@ describe("VariablePickerContent", () => {
     await user.type(searchInput, "cond");
 
     await waitFor(() => {
-      // Should match "condition"
       const conditionPill = screen.getByText("condition");
       expect(conditionPill).toBeInTheDocument();
+    });
+  });
+
+  it("renders preview values from metadata", async () => {
+    render(
+      <VariablePickerContent onInsert={mockOnInsert} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("temperature")).toBeInTheDocument();
+    });
+
+    // The mock metadata for temperature has preview "72"
+    await waitFor(() => {
+      expect(screen.getByText("72")).toBeInTheDocument();
+    });
+  });
+
+  it("renders variable groups when defined", async () => {
+    render(
+      <VariablePickerContent onInsert={mockOnInsert} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("temperature")).toBeInTheDocument();
+    });
+
+    // The mock has variable_groups for weather with "Current Conditions"
+    await waitFor(() => {
+      expect(screen.getByText("Current Conditions")).toBeInTheDocument();
+    });
+  });
+
+  it("renders group headings for datetime plugin", async () => {
+    render(
+      <VariablePickerContent onInsert={mockOnInsert} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      // datetime mock has groups "Time" and "Date"
+      expect(screen.getByText("Time")).toBeInTheDocument();
+      expect(screen.getByText("Date")).toBeInTheDocument();
+    });
+  });
+
+  it("works with no metadata (backward compat)", async () => {
+    // Even without metadata, the component should still render variable pills
+    render(
+      <VariablePickerContent onInsert={mockOnInsert} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      // datetime variables should still render
+      expect(screen.getByText("time")).toBeInTheDocument();
+      expect(screen.getByText("date")).toBeInTheDocument();
     });
   });
 });

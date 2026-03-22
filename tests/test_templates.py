@@ -171,7 +171,7 @@ class TestValidation:
     
     def test_valid_template(self, engine):
         """Test valid template has no errors."""
-        errors = engine.validate_template("{{weather.temperature}} degrees")
+        errors = engine.validate_template("{{date_time.time}} today")
         assert len(errors) == 0
     
     def test_mismatched_braces(self, engine):
@@ -491,6 +491,27 @@ class TestAlignmentWithFillSpace:
         assert abs(left_pad - right_pad) <= 1
 
 
+class TestTemplateEngineDefaults:
+    """Tests for template engine default settings."""
+
+    def test_default_max_length_is_22(self):
+        """Unknown variables should default to max_length 22 (full board width)."""
+        from unittest.mock import MagicMock, patch
+
+        with patch("src.templates.engine.get_plugin_registry") as mock_reg:
+            mock_registry = MagicMock()
+            mock_reg.return_value = mock_registry
+            mock_registry._manifests = {}
+
+            from src.templates.engine import TemplateEngine
+            engine = TemplateEngine()
+
+            max_lengths = engine._get_max_lengths_for_validation()
+            line = "{{unknown_plugin.field}}"
+            max_len = engine._calculate_max_line_length(line)
+            assert max_len == 22
+
+
 class TestTemplateAPIEndpoints:
     """Tests for template API endpoints."""
     
@@ -513,7 +534,7 @@ class TestTemplateAPIEndpoints:
     def test_validate_template_valid(self, client):
         """Test POST /templates/validate with valid template."""
         response = client.post("/templates/validate", json={
-            "template": "{{weather.temperature}}"
+            "template": "{{date_time.time}}"
         })
         
         assert response.status_code == 200
@@ -523,7 +544,7 @@ class TestTemplateAPIEndpoints:
     def test_validate_template_invalid(self, client):
         """Test POST /templates/validate with invalid template."""
         response = client.post("/templates/validate", json={
-            "template": "{{weather.temperature"  # Missing closing
+            "template": "{{date_time.time"  # Missing closing
         })
         
         assert response.status_code == 200

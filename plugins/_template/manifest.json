@@ -43,7 +43,33 @@
     }
   ],
   "variables": {
-    "simple": ["value", "status", "formatted"],
+    "groups": {
+      "main": { "label": "Main Data" },
+      "display": { "label": "Display" }
+    },
+    "simple": {
+      "value": {
+        "description": "The primary data value",
+        "type": "number",
+        "max_length": 10,
+        "group": "main",
+        "example": "123"
+      },
+      "status": {
+        "description": "Current status text",
+        "type": "string",
+        "max_length": 15,
+        "group": "main",
+        "example": "OK"
+      },
+      "formatted": {
+        "description": "Pre-formatted display string",
+        "type": "string",
+        "max_length": 22,
+        "group": "display",
+        "example": "Value: 123"
+      }
+    },
     "arrays": {
       "items": {
         "label_field": "name",
@@ -52,9 +78,6 @@
     }
   },
   "max_lengths": {
-    "value": 10,
-    "status": 15,
-    "formatted": 22,
     "items.*.name": 10,
     "items.*.value": 8,
     "items.*.status": 12
@@ -64,6 +87,14 @@
       "type": "threshold",
       "description": "Color based on status value"
     }
-  }
-}
+  },
 
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "My Plugin Name displayed on a Vestaboard",
+      "caption": "Example board output using the default template",
+      "primary": true
+    }
+  ]
+}

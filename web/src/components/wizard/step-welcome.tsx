@@ -12,10 +12,10 @@ import {
   Loader2, 
   Send,
   Clock,
-  Star,
-  Wifi
+  Puzzle,
 } from "lucide-react";
 import DecryptedText from "@/components/ui/react-bits/decrypted-text";
+import type { WizardPluginConfig } from "./step-easy-plugins";
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -27,15 +27,9 @@ interface BoardConfig {
   board_color: "black" | "white";
 }
 
-interface PluginConfig {
-  date_time: { enabled: boolean; timezone: string };
-  star_trek_quotes: { enabled: boolean; ratio: string };
-  guest_wifi: { enabled: boolean; ssid: string; password: string };
-}
-
 interface StepWelcomeProps {
   boardConfig: BoardConfig;
-  pluginConfig: PluginConfig;
+  pluginConfig: WizardPluginConfig;
   onComplete: () => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
@@ -60,42 +54,28 @@ export function StepWelcome({
     setSendMessage("");
 
     try {
-      // First, save all the plugin configurations
+      // Save and activate selected plugins
       if (!configSaved) {
-        // Save date_time config
+        // Built-in: date_time
         if (pluginConfig.date_time.enabled) {
           try {
             await api.updatePluginConfig("date_time", {
               enabled: true,
               timezone: pluginConfig.date_time.timezone,
             });
+            await api.enablePlugin("date_time");
           } catch (e) {
             console.warn("Failed to save date_time config:", e);
           }
         }
 
-        // Save star_trek_quotes config
-        if (pluginConfig.star_trek_quotes.enabled) {
+        // Registry plugins: install then enable each selected one
+        for (const pluginId of pluginConfig.registry_selected) {
           try {
-            await api.updatePluginConfig("star_trek_quotes", {
-              enabled: true,
-              ratio: pluginConfig.star_trek_quotes.ratio,
-            });
+            await api.installRegistryPlugin(pluginId);
+            await api.enablePlugin(pluginId);
           } catch (e) {
-            console.warn("Failed to save star_trek_quotes config:", e);
-          }
-        }
-
-        // Save guest_wifi config
-        if (pluginConfig.guest_wifi.enabled && pluginConfig.guest_wifi.ssid) {
-          try {
-            await api.updatePluginConfig("guest_wifi", {
-              enabled: true,
-              ssid: pluginConfig.guest_wifi.ssid,
-              password: pluginConfig.guest_wifi.password,
-            });
-          } catch (e) {
-            console.warn("Failed to save guest_wifi config:", e);
+            console.warn(`Failed to install/enable ${pluginId}:`, e);
           }
         }
 
@@ -125,8 +105,10 @@ export function StepWelcome({
 
   const enabledPlugins = [
     pluginConfig.date_time.enabled && { name: t("dateTimeName"), icon: Clock },
-    pluginConfig.star_trek_quotes.enabled && { name: t("starTrekName"), icon: Star },
-    pluginConfig.guest_wifi.enabled && pluginConfig.guest_wifi.ssid && { name: t("guestWifiName"), icon: Wifi },
+    ...pluginConfig.registry_selected.map((id) => ({
+      name: id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      icon: Puzzle,
+    })),
   ].filter(Boolean) as { name: string; icon: typeof Clock }[];
 
   return (

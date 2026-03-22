@@ -97,6 +97,10 @@ def mock_settings_service():
         }
         ss.get_mqtt_settings.return_value = mqtt
 
+        display = Mock()
+        display.to_dict.return_value = {"reduce_motion": False}
+        ss.get_display_settings.return_value = display
+
         mock_get.return_value = ss
         yield ss
 
@@ -556,6 +560,8 @@ class TestSettingsEndpoints:
         assert "output" in data
         assert "board" in data
         assert "mqtt" in data
+        assert "display" in data
+        assert data["display"] == {"reduce_motion": False}
         assert "status" in data
 
 

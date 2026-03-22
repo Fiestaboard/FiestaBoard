@@ -309,9 +309,41 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"MQTT client could not be started: {e}")
 
+    # Start plugin update checker background task (every 6 hours)
+    update_check_task = None
+    try:
+        import asyncio as _asyncio
+
+        async def _plugin_update_check_loop():
+            interval = 6 * 3600  # 6 hours
+            # Initial delay of 5 minutes so startup isn't burdened
+            await _asyncio.sleep(300)
+            while True:
+                try:
+                    if PLUGIN_SYSTEM_AVAILABLE:
+                        registry = get_plugin_registry()
+                        results = registry.check_for_updates()
+                        updates = [p for p, v in results.items() if v]
+                        if updates:
+                            logger.info(
+                                "Plugin updates available: %s", ", ".join(updates)
+                            )
+                        else:
+                            logger.debug("Plugin update check: all plugins up to date")
+                except Exception as exc:
+                    logger.warning("Plugin update check error: %s", exc)
+                await _asyncio.sleep(interval)
+
+        update_check_task = _asyncio.create_task(_plugin_update_check_loop())
+        logger.info("Plugin update checker scheduled (every 6 hours)")
+    except Exception as e:
+        logger.warning(f"Could not start plugin update checker: {e}")
+
     yield
 
     # --- Shutdown ---
+    if update_check_task is not None:
+        update_check_task.cancel()
     logger.info("API server shutting down...")
     _shutting_down = True
     _service_running = False
@@ -2890,6 +2922,26 @@ async def remove_board_instance(board_id: str):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/settings/display")
+async def get_display_settings():
+    """Get current web UI display settings."""
+    settings_service = get_settings_service()
+    return settings_service.get_display_settings().to_dict()
+
+
+@app.put("/settings/display")
+async def update_display_settings(request: dict):
+    """
+    Update web UI display settings.
+
+    Body may include:
+    - reduce_motion: bool — force reduced-motion CSS behaviour in the UI
+    """
+    settings_service = get_settings_service()
+    display = settings_service.update_display_settings(request)
+    return {"status": "success", "settings": display.to_dict()}
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """
@@ -2903,6 +2955,7 @@ async def get_all_settings():
     - output settings
     - board settings
     - mqtt integration settings
+    - display settings
     - service status (running)
     """
     global _service_running
@@ -2920,6 +2973,7 @@ async def get_all_settings():
     output = settings_service.get_output_settings()
     board = settings_service.get_board_settings()
     mqtt = settings_service.get_mqtt_settings()
+    display = settings_service.get_display_settings()
     
     return {
         "general": general,
@@ -2931,6 +2985,7 @@ async def get_all_settings():
         "output": output.to_dict(),
         "board": board.to_dict(),
         "mqtt": mqtt.to_dict(mask_secrets=True),
+        "display": display.to_dict(),
         "status": {
             "running": _service_running,
         }
@@ -3883,12 +3938,17 @@ async def get_template_variables():
     
     Returns a dictionary mapping source names to available field names.
     Use these in templates as {{source.field}}, e.g., {{weather.temperature}}.
-    Also includes max character lengths for validation.
+    Also includes rich metadata (descriptions, types, previews) and variable
+    groups when declared by the plugin.
     """
     template_engine = get_template_engine()
-    return {
+    registry = get_plugin_registry()
+
+    result = {
         "variables": template_engine.get_available_variables(),
         "max_lengths": template_engine.get_variable_max_lengths(),
+        "variable_metadata": registry.get_all_variables_with_metadata(),
+        "variable_groups": registry.get_all_variable_groups(),
         "colors": {
             "red": 63,
             "orange": 64,
@@ -3922,6 +3982,7 @@ async def get_template_variables():
             "fill_space_three_columns": "A{{fill_space}}B{{fill_space}}C",
         }
     }
+    return result
 
 
 @app.post("/templates/validate")
@@ -4258,6 +4319,89 @@ async def list_plugins():
     }
 
 
+@app.get("/plugins/variables/all")
+async def get_all_plugin_variables():
+    """
+    Get all template variables from enabled plugins.
+    
+    Returns a combined view of all variables for the template editor.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        # Fall back to legacy variables
+        template_engine = get_template_engine()
+        return {
+            "variables": template_engine.get_available_variables(),
+            "max_lengths": template_engine.get_variable_max_lengths(),
+            "plugin_system_enabled": False
+        }
+    
+    registry = get_plugin_registry()
+    
+    return {
+        "variables": registry.get_all_variables(),
+        "max_lengths": registry.get_all_max_lengths(),
+        "plugin_system_enabled": True
+    }
+
+
+@app.get("/plugins/errors")
+async def get_plugin_errors():
+    """
+    Get any plugin load errors.
+    
+    Returns errors from plugins that failed to load.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        return {
+            "errors": {},
+            "plugin_system_enabled": False
+        }
+    
+    registry = get_plugin_registry()
+    
+    return {
+        "errors": registry.get_load_errors(),
+        "plugin_system_enabled": True
+    }
+
+
+@app.get("/plugins/registry")
+async def list_registry_plugins():
+    """
+    List all plugins available in the curated plugin registry.
+
+    Returns registry entries with their installation status.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+
+    return {
+        "entries": registry.get_registry_entries(),
+        "plugin_system_enabled": True,
+    }
+
+
+@app.get("/plugins/updates")
+async def get_plugin_updates():
+    """
+    Return cached update availability for all installed external plugins.
+
+    Results are refreshed by a background task every 6 hours.  Call
+    ``POST /plugins/updates/check`` to trigger an immediate check.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    return {"updates": registry.get_update_status()}
+
+
 @app.get("/plugins/{plugin_id}")
 async def get_plugin(plugin_id: str):
     """
@@ -4557,49 +4701,179 @@ async def get_plugin_variables(plugin_id: str):
     }
 
 
-@app.get("/plugins/variables/all")
-async def get_all_plugin_variables():
+# ── External Plugin Management ──────────────────────────────────────────────
+
+
+class ExternalPluginInstallRequest(BaseModel):
+    """Request body for installing an external plugin."""
+    repository: str
+    plugin_id: Optional[str] = None
+    branch: str = ""
+
+
+@app.post("/plugins/registry/{plugin_id}/install")
+async def install_registry_plugin(plugin_id: str):
     """
-    Get all template variables from enabled plugins.
-    
-    Returns a combined view of all variables for the template editor.
+    Install a plugin from the curated registry by its id.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        # Fall back to legacy variables
-        template_engine = get_template_engine()
-        return {
-            "variables": template_engine.get_available_variables(),
-            "max_lengths": template_engine.get_variable_max_lengths(),
-            "plugin_system_enabled": False
-        }
-    
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
     registry = get_plugin_registry()
-    
+    errors = registry.install_from_registry(plugin_id)
+
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
     return {
-        "variables": registry.get_all_variables(),
-        "max_lengths": registry.get_all_max_lengths(),
-        "plugin_system_enabled": True
+        "status": "success",
+        "plugin_id": plugin_id,
+        "message": f"Plugin '{plugin_id}' installed from registry.",
     }
 
 
-@app.get("/plugins/errors")
-async def get_plugin_errors():
+@app.post("/plugins/install")
+async def install_external_plugin(request: ExternalPluginInstallRequest):
     """
-    Get any plugin load errors.
-    
-    Returns errors from plugins that failed to load.
+    Install a plugin from a public git repository URL.
+
+    The repository does not need to follow the ``fiestaboard-plugin--``
+    naming convention (that requirement only applies to registry plugins).
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        return {
-            "errors": {},
-            "plugin_system_enabled": False
-        }
-    
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
     registry = get_plugin_registry()
-    
+    errors = registry.install_from_git(
+        request.repository,
+        plugin_id=request.plugin_id,
+        branch=request.branch,
+    )
+
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    # Derive the final plugin id
+    pid = request.plugin_id
+    if pid is None:
+        from .plugins.sources import repo_name_from_url, plugin_id_from_repo_name
+        pid = plugin_id_from_repo_name(repo_name_from_url(request.repository))
+
     return {
-        "errors": registry.get_load_errors(),
-        "plugin_system_enabled": True
+        "status": "success",
+        "plugin_id": pid,
+        "message": f"Plugin '{pid}' installed from {request.repository}.",
+    }
+
+
+@app.delete("/plugins/{plugin_id}/uninstall")
+async def uninstall_external_plugin(plugin_id: str):
+    """
+    Uninstall an external (non-built-in) plugin.
+
+    Built-in plugins shipped with FiestaBoard cannot be uninstalled.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    errors = registry.uninstall_external_plugin(plugin_id)
+
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    return {
+        "status": "success",
+        "plugin_id": plugin_id,
+        "message": f"Plugin '{plugin_id}' has been uninstalled.",
+    }
+
+
+@app.post("/plugins/updates/check")
+async def trigger_plugin_update_check():
+    """
+    Trigger an immediate update check for all external plugins.
+
+    This runs synchronously and may take a few seconds per plugin
+    (one ``git ls-remote`` per installed external plugin).
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    results = registry.check_for_updates()
+    plugins_with_updates = [pid for pid, has_update in results.items() if has_update]
+    return {
+        "checked": len(results),
+        "updates_available": plugins_with_updates,
+    }
+
+
+@app.post("/plugins/{plugin_id}/update")
+async def update_plugin(plugin_id: str):
+    """
+    Pull the latest version of an external plugin from its remote and reload it.
+
+    Built-in plugins cannot be updated via this endpoint.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    source = registry.get_plugin_source(plugin_id)
+
+    if source is None:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found.")
+
+    if source.source_type == "builtin":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' is a built-in plugin and cannot be updated this way.",
+        )
+
+    if not source.local_path:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' has no local path for updating.",
+        )
+
+    from pathlib import Path as _Path
+    local_path = _Path(source.local_path)
+
+    if not (local_path / ".git").is_dir():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' is not a git repository.",
+        )
+
+    from .plugins.sources import clone_or_update_repo
+    ok, err = clone_or_update_repo(source.repository_url, local_path)
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"Update failed: {err}")
+
+    reloaded = registry.reload_plugin(plugin_id)
+    if reloaded is None:
+        errors = registry.get_load_errors().get(plugin_id, [])
+        detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
+        raise HTTPException(status_code=500, detail=detail)
+
+    # Clear the update flag for this plugin
+    registry._update_status.pop(plugin_id, None)
+
+    return {
+        "status": "success",
+        "plugin_id": plugin_id,
+        "message": f"Plugin '{plugin_id}' has been updated and reloaded.",
     }
 
 

@@ -277,9 +277,24 @@ export interface FormattingVariable {
   description: string;
 }
 
+export interface VariableMetadataEntry {
+  description?: string;
+  type?: "string" | "number" | "boolean";
+  max_length?: number;
+  group?: string;
+  preview?: string;
+  example?: string;
+}
+
+export interface VariableGroup {
+  label: string;
+}
+
 export interface TemplateVariables {
   variables: Record<string, string[]>;
   max_lengths: Record<string, number>;
+  variable_metadata?: Record<string, Record<string, VariableMetadataEntry>>;
+  variable_groups?: Record<string, Record<string, VariableGroup>>;
   colors: Record<string, number>;
   symbols: string[];
   filters: string[];
@@ -539,6 +554,10 @@ export interface CarouselsResponse {
   total: number;
 }
 
+export interface DisplaySettings {
+  reduce_motion: boolean;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: Record<string, unknown>;
@@ -547,6 +566,7 @@ export interface AllSettingsResponse {
   output: OutputSettings;
   board: BoardSettings;
   mqtt: MqttSettings;
+  display: DisplaySettings;
   status: {
     running: boolean;
   };
@@ -634,7 +654,10 @@ export interface PluginInfo {
   configured: boolean;
   icon: string;
   category: string;
+  fiestaboard_version?: string;
   config: Record<string, unknown>;
+  source?: { source_type: "builtin" | "registry" | "external" | "git"; repository_url?: string; local_path?: string };
+  update_available?: boolean;
 }
 
 export interface PluginsListResponse {
@@ -657,13 +680,16 @@ export interface PluginManifest {
   documentation?: string;
   settings_schema: Record<string, unknown>;
   variables: {
-    simple?: string[];
+    auto_discover?: boolean;
+    groups?: Record<string, VariableGroup>;
+    simple?: string[] | Record<string, VariableMetadataEntry>;
     arrays?: Record<string, {
       label_field: string;
       item_fields: string[];
       sub_arrays?: Record<string, {
         key_type?: "index" | "dynamic";
         key_field?: string;
+        label_field?: string;
         item_fields: string[];
       }>;
     }>;
@@ -671,6 +697,8 @@ export interface PluginManifest {
     dynamic?: boolean;
   };
   max_lengths: Record<string, number>;
+  variable_metadata?: Record<string, VariableMetadataEntry>;
+  variable_groups?: Record<string, VariableGroup>;
   color_rules_schema?: Record<string, unknown>;
   env_vars?: Array<{
     name: string;
@@ -736,6 +764,44 @@ export interface AllPluginVariablesResponse {
 export interface PluginErrorsResponse {
   errors: Record<string, string[]>;
   plugin_system_enabled: boolean;
+}
+
+export interface RegistryEntry {
+  id: string;
+  name: string;
+  description: string;
+  repository: string;
+  branch: string;
+  author: string;
+  fiestaboard_version: string;
+  icon: string;
+  category: string;
+  installed: boolean;
+}
+
+export interface RegistryListResponse {
+  entries: RegistryEntry[];
+}
+
+export interface PluginInstallResponse {
+  status: string;
+  plugin_id: string;
+  message: string;
+}
+
+export interface PluginUninstallResponse {
+  status: string;
+  plugin_id: string;
+  message: string;
+}
+
+export interface PluginUpdatesResponse {
+  updates: Record<string, boolean>;
+}
+
+export interface PluginUpdateCheckResponse {
+  checked: number;
+  updates_available: string[];
 }
 
 export interface VersionResponse {
@@ -1130,6 +1196,15 @@ export const api = {
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 
+  // Display settings
+  getDisplaySettings: () => fetchApi<DisplaySettings>("/settings/display"),
+  updateDisplaySettings: (settings: Partial<DisplaySettings>) =>
+    fetchApi<{ status: string; settings: DisplaySettings }>("/settings/display", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    }),
+
   // Home Assistant endpoints
   getHomeAssistantEntities: () =>
     fetchApi<HomeAssistantEntitiesResponse>("/home-assistant/entities"),
@@ -1185,6 +1260,39 @@ export const api = {
   
   getPluginErrors: () =>
     fetchApi<PluginErrorsResponse>("/plugins/errors"),
+
+  // Plugin registry endpoints
+  listRegistryPlugins: () =>
+    fetchApi<RegistryListResponse>("/plugins/registry"),
+
+  installRegistryPlugin: (pluginId: string) =>
+    fetchApi<PluginInstallResponse>(`/plugins/registry/${pluginId}/install`, {
+      method: "POST",
+    }),
+
+  installGitPlugin: (repoUrl: string, pluginId?: string, branch?: string) =>
+    fetchApi<PluginInstallResponse>("/plugins/install", {
+      method: "POST",
+      body: JSON.stringify({ repository: repoUrl, plugin_id: pluginId, branch: branch ?? "" }),
+    }),
+
+  uninstallPlugin: (pluginId: string) =>
+    fetchApi<PluginUninstallResponse>(`/plugins/${pluginId}/uninstall`, {
+      method: "DELETE",
+    }),
+
+  updatePlugin: (pluginId: string) =>
+    fetchApi<PluginInstallResponse>(`/plugins/${pluginId}/update`, {
+      method: "POST",
+    }),
+
+  getPluginUpdates: () =>
+    fetchApi<PluginUpdatesResponse>("/plugins/updates"),
+
+  triggerPluginUpdateCheck: () =>
+    fetchApi<PluginUpdateCheckResponse>("/plugins/updates/check", {
+      method: "POST",
+    }),
 
   // Generic Data helper
   genericDataTestFetch: (request: {
