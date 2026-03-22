@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, PluginInfo } from "@/lib/api";
+import { api, PluginInfo, RegistryEntry } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -172,6 +172,7 @@ import {
   Download,
   Upload,
   RefreshCw,
+  ArrowDownToLine,
   RotateCcw,
   Repeat,
   Shuffle,
@@ -901,14 +902,36 @@ interface PluginCardProps {
   onToggle: (pluginId: string, enabled: boolean) => void;
   isToggling: boolean;
   onConfigUpdate: () => void;
+  onInstall?: (pluginId: string) => void;
+  onUninstall?: (pluginId: string) => void;
+  onUpdate?: (pluginId: string) => void;
+  isInstalling?: boolean;
+  isUninstalling?: boolean;
+  isUpdating?: boolean;
   index?: number;
 }
 
-function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }: PluginCardProps) {
+function PluginCard({
+  plugin,
+  onToggle,
+  isToggling,
+  onConfigUpdate,
+  onInstall,
+  onUninstall,
+  onUpdate,
+  isInstalling,
+  isUninstalling,
+  isUpdating,
+  index = 0,
+}: PluginCardProps) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
+
+  const isExternal = plugin.source?.source_type !== "builtin";
+  const hasUpdate = plugin.update_available === true;
+  const isNotInstalled = false; // PluginInfo is always installed; uninstalled come from registry
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -1017,11 +1040,17 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
               <Icon className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                 {plugin.name}
                 <Badge variant="outline" className="text-xs font-normal">
                   v{plugin.version}
                 </Badge>
+                {hasUpdate && (
+                  <Badge variant="secondary" className="text-xs gap-1 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-400">
+                    <ArrowDownToLine className="h-3 w-3" />
+                    Update available
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="text-xs mt-0.5">
                 by {plugin.author}
@@ -1061,6 +1090,19 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
               </Badge>
             )}
           </div>
+          <div className="flex items-center gap-1">
+          {hasUpdate && onUpdate && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs text-amber-600 border-amber-300 hover:bg-amber-50"
+              onClick={() => onUpdate(plugin.id)}
+              disabled={isUpdating}
+            >
+              <RefreshCw className={cn("h-3 w-3 mr-1", isUpdating && "animate-spin")} />
+              {isUpdating ? "Updating..." : "Update"}
+            </Button>
+          )}
           {plugin.enabled && (
             <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
               <SheetTrigger asChild>
@@ -1217,7 +1259,22 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
                     </>
                   )}
                 </div>
-                <SheetFooter>
+                <SheetFooter className="flex-col gap-2 sm:flex-row">
+                  {isExternal && onUninstall && (
+                    <Button
+                      variant="destructive"
+                      className="sm:mr-auto"
+                      size="sm"
+                      onClick={() => {
+                        setIsConfigOpen(false);
+                        onUninstall(plugin.id);
+                      }}
+                      disabled={isUninstalling}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      {isUninstalling ? "Uninstalling..." : "Uninstall"}
+                    </Button>
+                  )}
                   <SheetClose asChild>
                     <Button variant="outline" disabled={isSaving}>
                       Cancel
@@ -1230,9 +1287,60 @@ function PluginCard({ plugin, onToggle, isToggling, onConfigUpdate, index = 0 }:
               </SheetContent>
             </Sheet>
           )}
+          </div>
         </div>
       </CardContent>
     </Card>
+    </div>
+  );
+}
+
+function RegistryPluginCard({
+  entry,
+  onInstall,
+  isInstalling,
+  index = 0,
+}: {
+  entry: RegistryEntry;
+  onInstall: (pluginId: string) => void;
+  isInstalling: boolean;
+  index?: number;
+}) {
+  const Icon = getPluginIcon(entry.icon);
+  return (
+    <div className="rounded-xl animate-card-fade-in" style={{ animationDelay: `${index * 60}ms` }}>
+      <Card className="opacity-60 hover:opacity-80 transition-opacity border-dashed">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                <Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base">{entry.name}</CardTitle>
+                <CardDescription className="text-xs mt-0.5">by {entry.author}</CardDescription>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs shrink-0"
+              onClick={() => onInstall(entry.id)}
+              disabled={isInstalling}
+            >
+              <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+              {isInstalling ? "Installing..." : "Install"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{entry.description}</p>
+          <Badge variant="outline" className="text-xs gap-1">
+            <Download className="h-3 w-3" />
+            Not installed
+          </Badge>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1266,12 +1374,21 @@ function PluginCardSkeleton() {
 
 export default function IntegrationsPage() {
   const queryClient = useQueryClient();
+  const [installingId, setInstallingId] = useState<string | null>(null);
+  const [uninstallingId, setUninstallingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // Fetch plugins list
+  // Fetch installed plugins list
   const { data, isLoading, error } = useQuery({
     queryKey: ["plugins"],
     queryFn: api.listPlugins,
-    // No refetchInterval needed - already using optimistic updates
+  });
+
+  // Fetch registry (available but not necessarily installed)
+  const { data: registryData } = useQuery({
+    queryKey: ["plugin-registry"],
+    queryFn: api.listRegistryPlugins,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Toggle plugin mutation
@@ -1284,13 +1401,8 @@ export default function IntegrationsPage() {
       }
     },
     onMutate: async ({ pluginId, enabled }) => {
-      // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["plugins"] });
-
-      // Snapshot previous value
       const previousPlugins = queryClient.getQueryData(["plugins"]);
-
-      // Optimistically update
       queryClient.setQueryData(["plugins"], (old: typeof data) => {
         if (!old) return old;
         return {
@@ -1303,11 +1415,9 @@ export default function IntegrationsPage() {
             : old.enabled_count - 1,
         };
       });
-
       return { previousPlugins };
     },
     onError: (err, { pluginId }, context) => {
-      // Roll back on error
       queryClient.setQueryData(["plugins"], context?.previousPlugins);
       toast.error(`Failed to toggle ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     },
@@ -1315,13 +1425,9 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} ${enabled ? 'enabled' : 'disabled'}`);
     },
     onSettled: () => {
-      // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["plugins"], refetchType: 'active' });
-      // Invalidate template variables since plugin availability changed
       queryClient.invalidateQueries({ queryKey: ["template-variables"], refetchType: 'active' });
-      // Invalidate plugin display data
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"], refetchType: 'active' });
-      // Invalidate page previews since they may use plugin variables
       queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: 'active' });
     },
   });
@@ -1330,15 +1436,81 @@ export default function IntegrationsPage() {
     toggleMutation.mutate({ pluginId, enabled });
   };
 
-  // Group plugins by category
-  const groupedPlugins = data?.plugins.reduce((acc, plugin) => {
+  const handleInstall = async (pluginId: string) => {
+    setInstallingId(pluginId);
+    try {
+      await api.installRegistryPlugin(pluginId);
+      await api.enablePlugin(pluginId);
+      toast.success(`${pluginId} installed and enabled`);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+    } catch (err) {
+      toast.error(`Failed to install ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setInstallingId(null);
+    }
+  };
+
+  const handleUninstall = async (pluginId: string) => {
+    setUninstallingId(pluginId);
+    try {
+      await api.uninstallPlugin(pluginId);
+      toast.success(`${pluginId} uninstalled`);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+    } catch (err) {
+      toast.error(`Failed to uninstall ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setUninstallingId(null);
+    }
+  };
+
+  const handleUpdate = async (pluginId: string) => {
+    setUpdatingId(pluginId);
+    try {
+      // Pull latest from git then reload
+      await api.triggerPluginUpdateCheck();
+      toast.success(`${pluginId} updated successfully`);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+    } catch (err) {
+      toast.error(`Failed to update ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Build a merged view: installed plugins + uninstalled registry entries
+  const installedIds = new Set(data?.plugins.map((p) => p.id) ?? []);
+  const uninstalledRegistry = (registryData?.entries ?? []).filter(
+    (e) => !installedIds.has(e.id)
+  );
+
+  // Group installed plugins by category
+  const groupedInstalled = data?.plugins.reduce((acc, plugin) => {
     const category = plugin.category || "utility";
     if (!acc[category]) acc[category] = [];
     acc[category].push(plugin);
     return acc;
   }, {} as Record<string, PluginInfo[]>);
 
+  // Group uninstalled registry entries by category
+  const groupedUninstalled = uninstalledRegistry.reduce((acc, entry) => {
+    const category = entry.category || "utility";
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(entry);
+    return acc;
+  }, {} as Record<string, RegistryEntry[]>);
+
+  // All categories across both installed and available
+  const allCategories = Array.from(
+    new Set([
+      ...Object.keys(groupedInstalled ?? {}),
+      ...Object.keys(groupedUninstalled),
+    ])
+  ).sort((a, b) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b));
+
   const configuredCount = data?.plugins.filter((p) => p.enabled && p.configured).length ?? 0;
+  const availableCount = uninstalledRegistry.length;
 
   return (
     <PageLayout>
@@ -1349,10 +1521,10 @@ export default function IntegrationsPage() {
         />
 
         {/* Stats row */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-4 gap-4 mb-6">
           {isLoading ? (
             <>
-              {[...Array(3)].map((_, i) => (
+              {[...Array(4)].map((_, i) => (
                 <Card key={i} className="animate-card-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
                   <CardContent className="px-4 py-1.5 flex items-center gap-2">
                     <Skeleton className="h-5 w-6" />
@@ -1368,7 +1540,7 @@ export default function IntegrationsPage() {
                   <span className="text-lg font-semibold tabular-nums">
                     <CountUp to={data.total} duration={1} />
                   </span>
-                  <span className="text-sm text-muted-foreground">Total</span>
+                  <span className="text-sm text-muted-foreground">Installed</span>
                 </CardContent>
               </Card>
               <Card className="animate-card-fade-in border-brand/30" style={{ animationDelay: "100ms" }}>
@@ -1385,6 +1557,14 @@ export default function IntegrationsPage() {
                     <CountUp to={configuredCount} duration={1} />
                   </span>
                   <span className="text-sm text-muted-foreground">Configured</span>
+                </CardContent>
+              </Card>
+              <Card className="animate-card-fade-in" style={{ animationDelay: "200ms" }}>
+                <CardContent className="px-4 py-1.5 flex items-center gap-2">
+                  <span className="text-lg font-semibold tabular-nums text-muted-foreground">
+                    <CountUp to={availableCount} duration={1} />
+                  </span>
+                  <span className="text-sm text-muted-foreground">Available</span>
                 </CardContent>
               </Card>
             </>
@@ -1411,33 +1591,60 @@ export default function IntegrationsPage() {
           <div className="space-y-6 animate-card-fade-in" style={{ animationDelay: "150ms" }}>
             {(() => {
               let globalIndex = 0;
-              return Object.entries(groupedPlugins || {})
-                .sort(([a], [b]) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b))
-                .map(([category, plugins]) => (
-                <section key={category}>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    {CATEGORY_LABELS[category] || category}
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      {plugins.length}
-                    </Badge>
-                  </h2>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {plugins.map((plugin) => {
-                      const cardIndex = globalIndex++;
-                      return (
-                        <PluginCard
-                          key={plugin.id}
-                          plugin={plugin}
-                          onToggle={handleToggle}
-                          isToggling={toggleMutation.isPending}
-                          onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                          index={cardIndex}
-                        />
-                      );
-                    })}
-                  </div>
-                </section>
-              ));
+              return allCategories.map((category) => {
+                const installed = groupedInstalled?.[category] ?? [];
+                const available = groupedUninstalled[category] ?? [];
+                const total = installed.length + available.length;
+                if (total === 0) return null;
+                return (
+                  <section key={category}>
+                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      {CATEGORY_LABELS[category] || category}
+                      <Badge variant="secondary" className="text-xs font-normal">
+                        {installed.length} installed
+                      </Badge>
+                      {available.length > 0 && (
+                        <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                          {available.length} available
+                        </Badge>
+                      )}
+                    </h2>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {installed.map((plugin) => {
+                        const cardIndex = globalIndex++;
+                        return (
+                          <PluginCard
+                            key={plugin.id}
+                            plugin={plugin}
+                            onToggle={handleToggle}
+                            isToggling={toggleMutation.isPending}
+                            onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                            onInstall={handleInstall}
+                            onUninstall={handleUninstall}
+                            onUpdate={handleUpdate}
+                            isInstalling={installingId === plugin.id}
+                            isUninstalling={uninstallingId === plugin.id}
+                            isUpdating={updatingId === plugin.id}
+                            index={cardIndex}
+                          />
+                        );
+                      })}
+                      {available.map((entry) => {
+                        const cardIndex = globalIndex++;
+                        return (
+                          <RegistryPluginCard
+                            key={entry.id}
+                            entry={entry}
+                            onInstall={handleInstall}
+                            isInstalling={installingId === entry.id}
+                            index={cardIndex}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              });
             })()}
           </div>
         )}

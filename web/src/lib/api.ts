@@ -634,7 +634,10 @@ export interface PluginInfo {
   configured: boolean;
   icon: string;
   category: string;
+  fiestaboard_version?: string;
   config: Record<string, unknown>;
+  source?: { source_type: "builtin" | "registry" | "external" | "git"; repository_url?: string; local_path?: string };
+  update_available?: boolean;
 }
 
 export interface PluginsListResponse {
@@ -736,6 +739,44 @@ export interface AllPluginVariablesResponse {
 export interface PluginErrorsResponse {
   errors: Record<string, string[]>;
   plugin_system_enabled: boolean;
+}
+
+export interface RegistryEntry {
+  id: string;
+  name: string;
+  description: string;
+  repository: string;
+  branch: string;
+  author: string;
+  fiestaboard_version: string;
+  icon: string;
+  category: string;
+  installed: boolean;
+}
+
+export interface RegistryListResponse {
+  entries: RegistryEntry[];
+}
+
+export interface PluginInstallResponse {
+  status: string;
+  plugin_id: string;
+  message: string;
+}
+
+export interface PluginUninstallResponse {
+  status: string;
+  plugin_id: string;
+  message: string;
+}
+
+export interface PluginUpdatesResponse {
+  updates: Record<string, boolean>;
+}
+
+export interface PluginUpdateCheckResponse {
+  checked: number;
+  updates_available: string[];
 }
 
 export interface VersionResponse {
@@ -1185,6 +1226,34 @@ export const api = {
   
   getPluginErrors: () =>
     fetchApi<PluginErrorsResponse>("/plugins/errors"),
+
+  // Plugin registry endpoints
+  listRegistryPlugins: () =>
+    fetchApi<RegistryListResponse>("/plugins/registry"),
+
+  installRegistryPlugin: (pluginId: string) =>
+    fetchApi<PluginInstallResponse>(`/plugins/registry/${pluginId}/install`, {
+      method: "POST",
+    }),
+
+  installGitPlugin: (repoUrl: string, pluginId?: string, branch?: string) =>
+    fetchApi<PluginInstallResponse>("/plugins/install", {
+      method: "POST",
+      body: JSON.stringify({ repository: repoUrl, plugin_id: pluginId, branch: branch ?? "" }),
+    }),
+
+  uninstallPlugin: (pluginId: string) =>
+    fetchApi<PluginUninstallResponse>(`/plugins/${pluginId}/uninstall`, {
+      method: "DELETE",
+    }),
+
+  getPluginUpdates: () =>
+    fetchApi<PluginUpdatesResponse>("/plugins/updates"),
+
+  triggerPluginUpdateCheck: () =>
+    fetchApi<PluginUpdateCheckResponse>("/plugins/updates/check", {
+      method: "POST",
+    }),
 
   // Generic Data helper
   genericDataTestFetch: (request: {
