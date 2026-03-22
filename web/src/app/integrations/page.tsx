@@ -1758,8 +1758,14 @@ export default function IntegrationsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center gap-3 mb-4">
-          <TabsList>
+        <div
+          className={
+            activeTab === "marketplace"
+              ? "mb-4 grid grid-cols-1 gap-3 items-center md:grid-cols-[auto_minmax(12rem,1fr)_auto]"
+              : "mb-4 grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)]"
+          }
+        >
+          <TabsList className="w-fit">
             <TabsTrigger value="installed">
               Installed
               {data && (
@@ -1777,17 +1783,17 @@ export default function IntegrationsPage() {
               )}
             </TabsTrigger>
           </TabsList>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative min-w-0 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder={activeTab === "installed" ? "Search installed plugins..." : "Search available plugins..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 w-full"
             />
           </div>
           {activeTab === "marketplace" && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 md:justify-self-end">
               <div className="flex rounded-md border overflow-hidden">
                 <Button
                   variant={marketplaceView === "card" ? "secondary" : "ghost"}
