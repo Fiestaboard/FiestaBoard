@@ -4,6 +4,10 @@ import Link from '@docusaurus/Link';
 import {useColorMode} from '@docusaurus/theme-common';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
+import {plugins} from '../../plugin-data';
+
+/** Plugins that ship inside the container (countdown, date_time). */
+const BUNDLED_PLUGIN_COUNT = 2;
 
 type FeatureItem = {
   title: string;
@@ -385,7 +389,7 @@ export default function HomepageFeatures(): ReactNode {
         <div className="container">
           <div className="text--center margin-bottom--lg">
             <Heading as="h2" className={styles.sectionTitle}>
-              23 Plugins and Counting
+              {plugins.length + BUNDLED_PLUGIN_COUNT}+ Plugins and Counting
             </Heading>
             <p className={styles.sectionSubtitle}>
               From weather and stocks to Disney park wait times—there's a plugin for everything
