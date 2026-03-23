@@ -1,7 +1,6 @@
 import {useState, useMemo, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
-import {useColorMode} from '@docusaurus/theme-common';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import {plugins, CATEGORY_LABELS, CATEGORIES, pluginBoardImagePath} from '@site/src/plugin-data';
@@ -18,9 +17,8 @@ function CategoryBadge({category}: {category: string}) {
   );
 }
 
-function PluginCard({plugin}: {plugin: PluginEntry}) {
-  const {colorMode} = useColorMode();
-  const imgSrc = pluginBoardImagePath(plugin.id, colorMode);
+function PluginCard({plugin, boardColor}: {plugin: PluginEntry; boardColor: 'black' | 'white'}) {
+  const imgSrc = pluginBoardImagePath(plugin.id, boardColor === 'white' ? 'light' : 'dark');
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
@@ -51,6 +49,7 @@ function PluginCard({plugin}: {plugin: PluginEntry}) {
 export default function PluginDirectory(): ReactNode {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [boardColor, setBoardColor] = useState<'black' | 'white'>('black');
 
   const filtered = useMemo(() => {
     return plugins.filter((p) => {
@@ -119,11 +118,37 @@ export default function PluginDirectory(): ReactNode {
             </div>
           </div>
 
+          {/* Board color toggle */}
+          <div className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
+            <button
+              type="button"
+              role="radio"
+              className={clsx(
+                styles.boardColorOption,
+                boardColor === 'black' && styles.boardColorOptionActive,
+              )}
+              onClick={() => setBoardColor('black')}
+              aria-checked={boardColor === 'black'}>
+              Black Board
+            </button>
+            <button
+              type="button"
+              role="radio"
+              className={clsx(
+                styles.boardColorOption,
+                boardColor === 'white' && styles.boardColorOptionActive,
+              )}
+              onClick={() => setBoardColor('white')}
+              aria-checked={boardColor === 'white'}>
+              White Board
+            </button>
+          </div>
+
           {/* Results */}
           {filtered.length > 0 ? (
             <div className={styles.pluginGrid}>
               {filtered.map((plugin) => (
-                <PluginCard key={plugin.id} plugin={plugin} />
+                <PluginCard key={plugin.id} plugin={plugin} boardColor={boardColor} />
               ))}
             </div>
           ) : (
