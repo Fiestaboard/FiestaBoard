@@ -4,8 +4,8 @@ import Link from '@docusaurus/Link';
 import {useColorMode} from '@docusaurus/theme-common';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
-import {plugins, CATEGORY_LABELS, CATEGORIES, pluginBoardImagePath} from '@site/src/data/plugins';
-import type {PluginEntry} from '@site/src/data/plugins';
+import {plugins, CATEGORY_LABELS, CATEGORIES, pluginBoardImagePath} from '@site/src/plugin-data';
+import type {PluginEntry} from '@site/src/plugin-data';
 
 import styles from './index.module.css';
 

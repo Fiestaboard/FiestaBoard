@@ -5,8 +5,8 @@ import {useColorMode} from '@docusaurus/theme-common';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import BrowserOnly from '@docusaurus/BrowserOnly';
-import {plugins, CATEGORY_LABELS, pluginBoardImagePath} from '@site/src/data/plugins';
-import type {PluginEntry} from '@site/src/data/plugins';
+import {plugins, CATEGORY_LABELS, pluginBoardImagePath} from '@site/src/plugin-data';
+import type {PluginEntry} from '@site/src/plugin-data';
 
 import styles from './detail.module.css';
 
