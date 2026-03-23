@@ -1,8 +1,14 @@
 /**
  * Utilities for fetching plugin content directly from GitHub's raw content CDN.
- * All FiestaBoard external plugins live under github.com/Fiestaboard/fiestaboard-plugin--{name}.
- * raw.githubusercontent.com supports CORS, so these fetches work client-side.
+ * FiestaBoard registry plugins are expected to use github.com; raw.githubusercontent.com
+ * supports CORS, so these fetches work client-side.
  */
+
+const FETCH_TIMEOUT_MS = 10000;
+
+function fetchReadmeSignal(): AbortSignal {
+  return AbortSignal.timeout(FETCH_TIMEOUT_MS);
+}
 
 /**
  * Converts a GitHub repo URL to the raw content base URL.
@@ -16,6 +22,13 @@ export function getGitHubRawBaseUrl(repoUrl: string, branch = "main"): string {
   return `https://raw.githubusercontent.com/${match[1]}/${branch}`;
 }
 
+/** Returns `owner/repo` for a github.com HTTPS URL, or null if not GitHub. */
+export function parseGitHubRepoPath(repoUrl: string): string | null {
+  const cleaned = repoUrl.replace(/\.git$/, "").replace(/\/$/, "");
+  const match = cleaned.match(/github\.com\/(.+)/);
+  return match ? match[1] : null;
+}
+
 /**
  * Converts a relative path (e.g. "./docs/board-display.png" or "docs/board-display.png")
  * to a fully-qualified raw GitHub URL.
@@ -27,20 +40,50 @@ export function resolveGitHubRawUrl(repoUrl: string, relativePath: string, branc
   return `${base}/${normalised}`;
 }
 
-/**
- * Fetches the raw README.md content from a GitHub repo.
- * Returns null on failure (network error, 404, etc.).
- */
-export async function fetchPluginReadme(repoUrl: string, branch = "main"): Promise<string | null> {
+async function tryFetchReadmeAtBranch(repoUrl: string, branch: string): Promise<string | null> {
   const base = getGitHubRawBaseUrl(repoUrl, branch);
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/README.md`, { signal: AbortSignal.timeout(10000) });
+    const res = await fetch(`${base}/README.md`, { signal: fetchReadmeSignal() });
     if (!res.ok) return null;
     return await res.text();
   } catch {
     return null;
   }
+}
+
+export interface FetchPluginReadmeResult {
+  markdown: string;
+  /** Branch used for raw/blob URLs (registry branch, or main/master fallback). */
+  resolvedBranch: string;
+}
+
+/**
+ * Fetches README.md from a GitHub repo.
+ * - If `registryBranch` is non-empty, only that branch is tried.
+ * - If empty, tries `main` then `master` (common default branches).
+ * Returns null on failure (network, 404, non-GitHub URL).
+ */
+export async function fetchPluginReadme(
+  repoUrl: string,
+  registryBranch = ""
+): Promise<FetchPluginReadmeResult | null> {
+  if (!parseGitHubRepoPath(repoUrl)) return null;
+
+  const explicit = registryBranch.trim();
+  if (explicit) {
+    const markdown = await tryFetchReadmeAtBranch(repoUrl, explicit);
+    if (markdown === null) return null;
+    return { markdown, resolvedBranch: explicit };
+  }
+
+  for (const branch of ["main", "master"] as const) {
+    const markdown = await tryFetchReadmeAtBranch(repoUrl, branch);
+    if (markdown !== null) {
+      return { markdown, resolvedBranch: branch };
+    }
+  }
+  return null;
 }
 
 /**
@@ -51,7 +94,7 @@ export async function fetchPluginManifest(repoUrl: string, branch = "main"): Pro
   const base = getGitHubRawBaseUrl(repoUrl, branch);
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/manifest.json`, { signal: AbortSignal.timeout(10000) });
+    const res = await fetch(`${base}/manifest.json`, { signal: fetchReadmeSignal() });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -99,4 +142,37 @@ export function rewriteMarkdownImageUrls(markdown: string, repoUrl: string, bran
       return `![${alt}](${base}/${normalised})`;
     }
   );
+}
+
+/**
+ * Rewrites relative markdown links (not images) to github.com blob URLs so they open
+ * the correct file on GitHub instead of resolving against the app origin.
+ * Skips http(s), mailto, #anchors-only, and javascript: URLs.
+ */
+export function rewriteMarkdownRepoLinks(markdown: string, repoUrl: string, branch: string): string {
+  const repoPath = parseGitHubRepoPath(repoUrl);
+  if (!repoPath) return markdown;
+
+  const blobBase = `https://github.com/${repoPath}/blob/${branch}/`;
+
+  return markdown.replace(/(?<!\!)\[([^\]]*)\]\(([^)]+)\)/g, (full, label: string, hrefRaw: string) => {
+    const href = hrefRaw.trim();
+    if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href) || /^javascript:/i.test(href)) {
+      return full;
+    }
+    if (/^#/.test(href)) {
+      return full;
+    }
+
+    const hashIdx = href.indexOf("#");
+    const pathPart = hashIdx === -1 ? href : href.slice(0, hashIdx);
+    const hash = hashIdx === -1 ? "" : href.slice(hashIdx);
+    const pathOnly = pathPart.trim();
+    if (!pathOnly) {
+      return full;
+    }
+
+    const normalised = pathOnly.replace(/^\.\//, "");
+    return `[${label}](${blobBase}${normalised}${hash})`;
+  });
 }

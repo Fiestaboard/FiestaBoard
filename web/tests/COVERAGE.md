@@ -83,7 +83,7 @@ Unit tests run in Node with jsdom + MSW mocks for API calls.
 | `config-display.test.tsx` | `ConfigDisplay` component: renders items, On/Off badges, toggle behavior, loading state |
 | `general-settings.test.tsx` | `GeneralSettings` component |
 | `general-settings-extended.test.tsx` | `GeneralSettings` extended coverage |
-| `github.test.ts` | `lib/github.ts` — all 6 exported functions: `getGitHubRawBaseUrl`, `resolveGitHubRawUrl`, `fetchPluginReadme`, `fetchPluginManifest`, `resolveHeroImageUrl`, `rewriteMarkdownImageUrls` |
+| `github.test.ts` | `lib/github.ts` — GitHub raw/README helpers (`fetchPluginReadme`, `rewriteMarkdownImageUrls`, `rewriteMarkdownRepoLinks`, etc.) |
 | `home-page-banner.test.tsx` | Home page banner component |
 | `hooks.test.ts` | Custom React hooks (useStatus, useConfig, useActivePage, usePages) |
 | `hooks-extended.test.ts` | Custom React hooks extended coverage |

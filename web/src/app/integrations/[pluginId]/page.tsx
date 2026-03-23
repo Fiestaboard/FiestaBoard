@@ -8,8 +8,8 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import {
   fetchPluginReadme,
-  fetchPluginManifest,
   rewriteMarkdownImageUrls,
+  rewriteMarkdownRepoLinks,
 } from "@/lib/github";
 import { PageLayout } from "@/components/page-layout";
 import { Button } from "@/components/ui/button";
@@ -46,16 +46,22 @@ export default function PluginDetailPage() {
   const entry = registryData?.entries.find((e) => e.id === pluginId);
   const repoUrl = entry?.repository ?? "";
 
-  // Fetch README from GitHub raw CDN
+  // Fetch README from GitHub raw CDN (registry branch, or main/master fallback)
   const { data: readmeRaw, isLoading: isLoadingReadme } = useQuery({
-    queryKey: ["plugin-remote-readme", pluginId],
-    queryFn: () => fetchPluginReadme(repoUrl),
+    queryKey: ["plugin-remote-readme", pluginId, entry?.branch ?? ""],
+    queryFn: () => fetchPluginReadme(repoUrl, entry?.branch ?? ""),
     enabled: !!repoUrl,
     staleTime: 10 * 60 * 1000,
     retry: 1,
   });
 
-  const readme = readmeRaw ? rewriteMarkdownImageUrls(readmeRaw, repoUrl) : null;
+  const readme = readmeRaw
+    ? rewriteMarkdownRepoLinks(
+        rewriteMarkdownImageUrls(readmeRaw.markdown, repoUrl, readmeRaw.resolvedBranch),
+        repoUrl,
+        readmeRaw.resolvedBranch
+      )
+    : null;
   const categoryLabel =
     CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? "Utility";
 

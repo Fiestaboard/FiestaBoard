@@ -1,0 +1,273 @@
+/* Plugin Directory page styles */
+
+.directoryPage {
+  padding: 2rem 0 4rem;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--ifm-color-emphasis-600);
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* Search & filter controls */
+.controls {
+  margin-bottom: 2rem;
+}
+
+.searchInput {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 1rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+}
+
+.searchInput:focus {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.15);
+}
+
+.categoryFilters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.filterButton {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.filterButton:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.filterButtonActive {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.filterButtonActive:hover {
+  color: #fff;
+}
+
+/* Plugin grid */
+.pluginGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media screen and (max-width: 996px) {
+  .pluginGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .pluginGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Plugin card */
+.pluginCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ifm-color-emphasis-100);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.pluginCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  color: inherit;
+}
+
+[data-theme='dark'] .pluginCard:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.pluginCardImage {
+  overflow: hidden;
+  aspect-ratio: 5 / 2;
+  background: var(--ifm-color-emphasis-200);
+}
+
+.pluginCardImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pluginCardBody {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.pluginCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.pluginCardTitle {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.pluginCardDescription {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.5rem;
+  flex: 1;
+  line-height: 1.45;
+}
+
+.pluginCardAuthor {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-500);
+}
+
+/* Category badge */
+.categoryBadge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.category_weather {
+  background: rgba(74, 144, 217, 0.15);
+  color: #2d6faa;
+}
+
+[data-theme='dark'] .category_weather {
+  background: rgba(74, 144, 217, 0.25);
+  color: #7ab3e8;
+}
+
+.category_transit {
+  background: rgba(126, 211, 33, 0.15);
+  color: #4a8f10;
+}
+
+[data-theme='dark'] .category_transit {
+  background: rgba(126, 211, 33, 0.25);
+  color: #9ee04d;
+}
+
+.category_data {
+  background: rgba(155, 89, 182, 0.15);
+  color: #7d3c98;
+}
+
+[data-theme='dark'] .category_data {
+  background: rgba(155, 89, 182, 0.25);
+  color: #c39bd3;
+}
+
+.category_entertainment {
+  background: rgba(245, 166, 35, 0.15);
+  color: #c07800;
+}
+
+[data-theme='dark'] .category_entertainment {
+  background: rgba(245, 166, 35, 0.25);
+  color: #f5b94e;
+}
+
+.category_art {
+  background: rgba(235, 64, 52, 0.15);
+  color: #c0392b;
+}
+
+[data-theme='dark'] .category_art {
+  background: rgba(235, 64, 52, 0.25);
+  color: #f1948a;
+}
+
+.category_utility {
+  background: rgba(149, 165, 166, 0.15);
+  color: #5d6d7e;
+}
+
+[data-theme='dark'] .category_utility {
+  background: rgba(149, 165, 166, 0.25);
+  color: #aeb6bf;
+}
+
+.category_home {
+  background: rgba(22, 160, 133, 0.15);
+  color: #117a65;
+}
+
+[data-theme='dark'] .category_home {
+  background: rgba(22, 160, 133, 0.25);
+  color: #48c9b0;
+}
+
+/* Empty state */
+.emptyState {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--ifm-color-emphasis-500);
+  font-size: 1.05rem;
+}
+
+/* CTA */
+.cta {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-600);
+  font-size: 1rem;
+}

@@ -214,6 +214,11 @@ const config: Config = {
           ],
         },
         {
+          to: '/plugins',
+          label: 'Plugins',
+          position: 'left',
+        },
+        {
           type: 'docsVersionDropdown',
           position: 'left',
         },
@@ -251,6 +256,10 @@ const config: Config = {
             {
               label: 'Plugins',
               to: '/docs/plugins/overview',
+            },
+            {
+              label: 'Plugin Directory',
+              to: '/plugins',
             },
           ],
         },
