@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
   Cloud,
@@ -1692,6 +1693,13 @@ export default function IntegrationsPage() {
             Install a plugin from any public git repository. The repository should contain a valid FiestaBoard plugin with a manifest.json.
           </DialogDescription>
         </DialogHeader>
+        <Alert className="border-yellow-600 text-yellow-700 [&>svg]:text-yellow-600 dark:border-yellow-500 dark:text-yellow-400 dark:[&>svg]:text-yellow-500">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Security Warning</AlertTitle>
+          <AlertDescription>
+            Only install plugins from sources you trust. External code runs on your device — review the repository before installing.
+          </AlertDescription>
+        </Alert>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="git-url">Repository URL</Label>
