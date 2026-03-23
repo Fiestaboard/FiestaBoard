@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   getGitHubRawBaseUrl,
+  parseGitHubRepoPath,
   resolveGitHubRawUrl,
   fetchPluginReadme,
   fetchPluginManifest,
   resolveHeroImageUrl,
   rewriteMarkdownImageUrls,
+  rewriteMarkdownRepoLinks,
 } from "@/lib/github";
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,20 @@ describe("getGitHubRawBaseUrl", () => {
 });
 
 // ---------------------------------------------------------------------------
+// parseGitHubRepoPath
+// ---------------------------------------------------------------------------
+
+describe("parseGitHubRepoPath", () => {
+  it("returns owner/repo for a github.com URL", () => {
+    expect(parseGitHubRepoPath("https://github.com/Org/my-plugin")).toBe("Org/my-plugin");
+  });
+
+  it("returns null for non-GitHub URLs", () => {
+    expect(parseGitHubRepoPath("https://gitlab.com/Org/repo")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // resolveGitHubRawUrl
 // ---------------------------------------------------------------------------
 
@@ -123,7 +139,7 @@ describe("fetchPluginReadme", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns README text on a successful fetch", async () => {
+  it("returns README text and resolved branch on a successful fetch", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -133,7 +149,9 @@ describe("fetchPluginReadme", () => {
     );
 
     const result = await fetchPluginReadme(REPO);
-    expect(result).toBe("# My Plugin\nThis is the README.");
+    expect(result).not.toBeNull();
+    expect(result!.markdown).toBe("# My Plugin\nThis is the README.");
+    expect(result!.resolvedBranch).toBe("main");
   });
 
   it("fetches from the correct raw.githubusercontent.com URL", async () => {
@@ -151,7 +169,43 @@ describe("fetchPluginReadme", () => {
     expect(calledUrl).toContain("README.md");
   });
 
-  it("returns null when the response is not ok (404)", async () => {
+  it("uses only the registry branch when provided (no main/master fallback)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "from develop",
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await fetchPluginReadme(REPO, "develop");
+
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const calledUrl = mockFetch.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("/develop/");
+    expect(calledUrl).toContain("README.md");
+    expect(result?.markdown).toBe("from develop");
+    expect(result?.resolvedBranch).toBe("develop");
+  });
+
+  it("falls back from main to master when registry branch is empty", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => "# Legacy default branch",
+      });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await fetchPluginReadme(REPO);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(String(mockFetch.mock.calls[0][0])).toContain("/main/");
+    expect(String(mockFetch.mock.calls[1][0])).toContain("/master/");
+    expect(result?.markdown).toBe("# Legacy default branch");
+    expect(result?.resolvedBranch).toBe("master");
+  });
+
+  it("returns null when the response is not ok on both main and master", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ ok: false, status: 404 })
@@ -381,5 +435,63 @@ Some text.
     const result = rewriteMarkdownImageUrls(markdown, REPO);
     expect(result).toContain("raw.githubusercontent.com");
     expect(result).toContain("Board display");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// rewriteMarkdownRepoLinks
+// ---------------------------------------------------------------------------
+
+describe("rewriteMarkdownRepoLinks", () => {
+  const REPO = "https://github.com/Org/plugin-name";
+
+  it("rewrites a relative .md link to a GitHub blob URL", () => {
+    const markdown = "[Setup guide](./docs/SETUP.md)";
+    const result = rewriteMarkdownRepoLinks(markdown, REPO, "main");
+    expect(result).toBe(
+      "[Setup guide](https://github.com/Org/plugin-name/blob/main/docs/SETUP.md)"
+    );
+  });
+
+  it("uses the resolved branch in the blob path", () => {
+    const markdown = "[Readme](README.md)";
+    const result = rewriteMarkdownRepoLinks(markdown, REPO, "master");
+    expect(result).toBe(
+      "[Readme](https://github.com/Org/plugin-name/blob/master/README.md)"
+    );
+  });
+
+  it("preserves hash fragments on relative paths", () => {
+    const markdown = "[Section](./docs/SETUP.md#troubleshooting)";
+    const result = rewriteMarkdownRepoLinks(markdown, REPO, "main");
+    expect(result).toBe(
+      "[Section](https://github.com/Org/plugin-name/blob/main/docs/SETUP.md#troubleshooting)"
+    );
+  });
+
+  it("does not rewrite https links", () => {
+    const markdown = "[External](https://example.com/page)";
+    expect(rewriteMarkdownRepoLinks(markdown, REPO, "main")).toBe(markdown);
+  });
+
+  it("does not rewrite mailto links", () => {
+    const markdown = "[Email](mailto:a@example.com)";
+    expect(rewriteMarkdownRepoLinks(markdown, REPO, "main")).toBe(markdown);
+  });
+
+  it("does not rewrite hash-only anchor links", () => {
+    const markdown = "[TOC](#configuration)";
+    expect(rewriteMarkdownRepoLinks(markdown, REPO, "main")).toBe(markdown);
+  });
+
+  it("does not rewrite javascript: URLs", () => {
+    const markdown = "[X](javascript:alert(1))";
+    expect(rewriteMarkdownRepoLinks(markdown, REPO, "main")).toBe(markdown);
+  });
+
+  it("returns markdown unchanged when repo URL is not GitHub", () => {
+    const markdown = "[Setup](./docs/SETUP.md)";
+    const result = rewriteMarkdownRepoLinks(markdown, "https://gitlab.com/Org/repo", "main");
+    expect(result).toBe(markdown);
   });
 });

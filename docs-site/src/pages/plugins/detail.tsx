@@ -7,29 +7,13 @@ import Heading from '@theme/Heading';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import {plugins, CATEGORY_LABELS, pluginBoardImagePath} from '@site/src/plugin-data';
 import type {PluginEntry} from '@site/src/plugin-data';
+import {
+  fetchPluginReadme,
+  rewriteMarkdownImageUrls,
+  rewriteMarkdownRepoLinks,
+} from '@site/src/lib/github-readme';
 
 import styles from './detail.module.css';
-
-/* ── GitHub raw-content helpers ── */
-
-function getGitHubRawBaseUrl(repoUrl: string, branch = 'main'): string {
-  const cleaned = repoUrl.replace(/\.git$/, '').replace(/\/$/, '');
-  const match = cleaned.match(/github\.com\/(.+)/);
-  if (!match) return '';
-  return `https://raw.githubusercontent.com/${match[1]}/${branch}`;
-}
-
-function rewriteMarkdownImageUrls(markdown: string, repoUrl: string, branch = 'main'): string {
-  const base = getGitHubRawBaseUrl(repoUrl, branch);
-  if (!base) return markdown;
-  return markdown.replace(
-    /!\[([^\]]*)\]\(((?!https?:\/\/)\.?\/?\S+)\)/g,
-    (_, alt, src) => {
-      const normalised = src.replace(/^\.\//, '');
-      return `![${alt}](${base}/${normalised})`;
-    },
-  );
-}
 
 /* ── README renderer (client-only) ── */
 
@@ -147,24 +131,29 @@ function DetailContent() {
       setLoadingReadme(false);
       return;
     }
-    const base = getGitHubRawBaseUrl(plugin.repository);
-    if (!base) {
-      setLoadingReadme(false);
-      return;
-    }
     let cancelled = false;
-    fetch(`${base}/README.md`, {signal: AbortSignal.timeout(10000)})
-      .then((res) => (res.ok ? res.text() : null))
-      .then((text) => {
+    fetchPluginReadme(plugin.repository, plugin.branch ?? '')
+      .then((result) => {
         if (cancelled) return;
-        setReadme(text ? rewriteMarkdownImageUrls(text, plugin.repository) : null);
-        setLoadingReadme(false);
+        if (!result) {
+          setReadme(null);
+          return;
+        }
+        const processed = rewriteMarkdownRepoLinks(
+          rewriteMarkdownImageUrls(result.markdown, plugin.repository, result.resolvedBranch),
+          plugin.repository,
+          result.resolvedBranch,
+        );
+        setReadme(processed);
       })
       .catch(() => {
+        if (!cancelled) setReadme(null);
+      })
+      .finally(() => {
         if (!cancelled) setLoadingReadme(false);
       });
     return () => { cancelled = true; };
-  }, [plugin?.repository]);
+  }, [plugin?.repository, plugin?.branch]);
 
   if (!plugin) {
     return (

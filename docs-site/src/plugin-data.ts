@@ -9,6 +9,8 @@ export interface PluginEntry {
   name: string;
   description: string;
   repository: string;
+  /** When set, README is fetched from this branch only (matches plugin-registry.json). */
+  branch?: string;
   author: string;
   fiestaboard_version: string;
   icon: string;
