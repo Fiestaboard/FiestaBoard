@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
@@ -18,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowDownToLine, ExternalLink, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 
 const CATEGORY_LABELS: Record<string, string> = {
   art: "Display Art",
@@ -35,6 +37,12 @@ export default function PluginDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const pluginId = params.pluginId as string;
+
+  // Board color: default to the user's effective board color
+  const { data: boardSettings } = useBoardSettings();
+  const effectiveColor = getEffectiveBoardColor(boardSettings);
+  const [boardColor, setBoardColor] = useState<"black" | "white" | null>(null);
+  const selectedColor = boardColor ?? effectiveColor;
 
   // Find the registry entry for this plugin
   const { data: registryData, isLoading: isLoadingRegistry } = useQuery({
@@ -98,6 +106,46 @@ export default function PluginDetailPage() {
       </div>
 
       <div className="max-w-3xl mx-auto space-y-6 animate-card-fade-in">
+        {/* Hero board image */}
+        <div className="max-w-[720px] mx-auto rounded-xl overflow-hidden shadow-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/img/${selectedColor}/${pluginId.replace(/_/g, "-")}-display.png`}
+            alt={`${entry?.name ?? pluginId} displayed on a ${selectedColor} split-flap board`}
+            className="w-full block"
+            onError={(e) => {
+              (e.target as HTMLImageElement).parentElement!.style.display = "none";
+            }}
+          />
+        </div>
+
+        {/* Board color selector */}
+        <div className="flex items-center gap-2 max-w-[720px] mx-auto">
+          <span className="text-[11px] text-muted-foreground">Board Color</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setBoardColor("black")}
+              aria-label="Black board"
+              className={cn(
+                "h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors",
+                selectedColor === "black"
+                  ? "border-primary ring-2 ring-primary/30"
+                  : "border-border hover:border-muted-foreground"
+              )}
+            />
+            <button
+              onClick={() => setBoardColor("white")}
+              aria-label="White board"
+              className={cn(
+                "h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors",
+                selectedColor === "white"
+                  ? "border-primary ring-2 ring-primary/30"
+                  : "border-border hover:border-muted-foreground"
+              )}
+            />
+          </div>
+        </div>
+
         {/* Plugin header card */}
         <div className="rounded-xl border bg-card px-6 py-5">
           <div className="flex items-start justify-between gap-4">

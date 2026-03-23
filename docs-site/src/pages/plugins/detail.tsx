@@ -1,11 +1,10 @@
 import {useState, useEffect, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
-import {useColorMode} from '@docusaurus/theme-common';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import BrowserOnly from '@docusaurus/BrowserOnly';
-import {plugins, CATEGORY_LABELS, pluginBoardImagePath} from '@site/src/plugin-data';
+import {plugins, CATEGORY_LABELS} from '@site/src/plugin-data';
 import type {PluginEntry} from '@site/src/plugin-data';
 import {
   fetchPluginReadme,
@@ -117,7 +116,7 @@ function ReadmeContent({markdown}: {markdown: string}) {
 /* ── Detail page content (uses browser APIs) ── */
 
 function DetailContent() {
-  const {colorMode} = useColorMode();
+  const [boardColor, setBoardColor] = useState<'black' | 'white'>('black');
   const [readme, setReadme] = useState<string | null>(null);
   const [loadingReadme, setLoadingReadme] = useState(true);
 
@@ -168,7 +167,7 @@ function DetailContent() {
   }
 
   const categoryLabel = CATEGORY_LABELS[plugin.category] ?? plugin.category;
-  const heroImage = pluginBoardImagePath(plugin.id, colorMode);
+  const heroImage = `/img/${boardColor}/${plugin.id.replace(/_/g, '-')}-display.png`;
 
   return (
     <>
@@ -183,11 +182,36 @@ function DetailContent() {
       <div className={styles.heroImage}>
         <img
           src={heroImage}
-          alt={`${plugin.name} displayed on a split-flap board`}
+          alt={`${plugin.name} displayed on a ${boardColor} split-flap board`}
           onError={(e) => {
             (e.target as HTMLImageElement).parentElement!.style.display = 'none';
           }}
         />
+      </div>
+
+      {/* Board color selector */}
+      <div className={styles.boardColorSelector}>
+        <span className={styles.boardColorLabel}>Board Color</span>
+        <div className={styles.boardColorOptions}>
+          <button
+            onClick={() => setBoardColor('black')}
+            aria-label="Black board"
+            className={clsx(
+              styles.boardColorButton,
+              styles.boardColorBlack,
+              boardColor === 'black' && styles.boardColorActive,
+            )}
+          />
+          <button
+            onClick={() => setBoardColor('white')}
+            aria-label="White board"
+            className={clsx(
+              styles.boardColorButton,
+              styles.boardColorWhite,
+              boardColor === 'white' && styles.boardColorActive,
+            )}
+          />
+        </div>
       </div>
 
       {/* Plugin header */}

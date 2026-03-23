@@ -39,6 +39,51 @@
   display: block;
 }
 
+/* Board color selector */
+.boardColorSelector {
+  max-width: 720px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.boardColorLabel {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.boardColorOptions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.boardColorButton {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 2px solid var(--ifm-color-emphasis-300);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.boardColorButton:hover {
+  border-color: var(--ifm-color-emphasis-500);
+}
+
+.boardColorActive {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--ifm-color-primary-rgb, 62, 175, 124), 0.3);
+}
+
+.boardColorBlack {
+  background-color: #1a1a1a;
+}
+
+.boardColorWhite {
+  background-color: #f5f5f0;
+}
+
 /* Plugin header */
 .pluginHeader {
   max-width: 720px;
