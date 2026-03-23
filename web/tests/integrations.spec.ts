@@ -110,6 +110,21 @@ test.describe("Integrations Page", () => {
     await expect(installBtn).toBeDisabled();
   });
 
+  test("Add from Git dialog shows security warning", async ({ page }) => {
+    await page.goto("/integrations");
+
+    await expect(page.getByRole("tab", { name: /marketplace/i })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("tab", { name: /marketplace/i }).click();
+
+    await page.getByRole("button", { name: /add from git/i }).first().click();
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
+
+    // Security warning should be visible inside the dialog
+    await expect(page.getByRole("alert")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/security warning/i)).toBeVisible();
+    await expect(page.getByText(/only install plugins from sources you trust/i)).toBeVisible();
+  });
+
   test("Add from Git dialog can be cancelled", async ({ page }) => {
     await page.goto("/integrations");
 
