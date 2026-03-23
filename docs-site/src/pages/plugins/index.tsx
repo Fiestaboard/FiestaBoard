@@ -122,22 +122,24 @@ export default function PluginDirectory(): ReactNode {
           <div className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
             <button
               type="button"
+              role="radio"
               className={clsx(
                 styles.boardColorOption,
                 boardColor === 'black' && styles.boardColorOptionActive,
               )}
               onClick={() => setBoardColor('black')}
-              aria-pressed={boardColor === 'black'}>
+              aria-checked={boardColor === 'black'}>
               Black Board
             </button>
             <button
               type="button"
+              role="radio"
               className={clsx(
                 styles.boardColorOption,
                 boardColor === 'white' && styles.boardColorOptionActive,
               )}
               onClick={() => setBoardColor('white')}
-              aria-pressed={boardColor === 'white'}>
+              aria-checked={boardColor === 'white'}>
               White Board
             </button>
           </div>
