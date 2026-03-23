@@ -1,7 +1,6 @@
 import {useState, useEffect, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
-import {useColorMode} from '@docusaurus/theme-common';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import BrowserOnly from '@docusaurus/BrowserOnly';
@@ -117,7 +116,7 @@ function ReadmeContent({markdown}: {markdown: string}) {
 /* ── Detail page content (uses browser APIs) ── */
 
 function DetailContent() {
-  const {colorMode} = useColorMode();
+  const [boardColor, setBoardColor] = useState<'black' | 'white'>('black');
   const [readme, setReadme] = useState<string | null>(null);
   const [loadingReadme, setLoadingReadme] = useState(true);
 
@@ -168,7 +167,7 @@ function DetailContent() {
   }
 
   const categoryLabel = CATEGORY_LABELS[plugin.category] ?? plugin.category;
-  const heroImage = pluginBoardImagePath(plugin.id, colorMode);
+  const heroImage = pluginBoardImagePath(plugin.id, boardColor === 'white' ? 'light' : 'dark');
 
   return (
     <>
@@ -188,6 +187,30 @@ function DetailContent() {
             (e.target as HTMLImageElement).parentElement!.style.display = 'none';
           }}
         />
+      </div>
+
+      {/* Board color toggle */}
+      <div className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
+        <button
+          type="button"
+          className={clsx(
+            styles.boardColorOption,
+            boardColor === 'black' && styles.boardColorOptionActive,
+          )}
+          onClick={() => setBoardColor('black')}
+          aria-pressed={boardColor === 'black'}>
+          Black Board
+        </button>
+        <button
+          type="button"
+          className={clsx(
+            styles.boardColorOption,
+            boardColor === 'white' && styles.boardColorOptionActive,
+          )}
+          onClick={() => setBoardColor('white')}
+          aria-pressed={boardColor === 'white'}>
+          White Board
+        </button>
       </div>
 
       {/* Plugin header */}

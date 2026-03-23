@@ -271,3 +271,48 @@
   color: var(--ifm-color-emphasis-600);
   font-size: 1rem;
 }
+
+/* Board color toggle */
+.boardColorToggle {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 1.5rem;
+}
+
+.boardColorOption {
+  padding: 0.35rem 1rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.boardColorOption:first-child {
+  border-radius: 20px 0 0 20px;
+  border-right: none;
+}
+
+.boardColorOption:last-child {
+  border-radius: 0 20px 20px 0;
+}
+
+.boardColorOption:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.boardColorOptionActive {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.boardColorOptionActive:hover {
+  color: #fff;
+}
