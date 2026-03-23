@@ -399,7 +399,7 @@ export default function HomepageFeatures(): ReactNode {
           <div className="text--center margin-top--lg">
             <Link
               className="button button--primary button--lg"
-              to="/docs/plugins/overview">
+              to="/plugins">
               Explore All Plugins
             </Link>
           </div>
