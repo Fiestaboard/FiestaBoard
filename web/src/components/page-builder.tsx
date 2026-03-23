@@ -968,9 +968,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
               {/* Live preview */}
               <div className="mt-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
                   <label className="text-xs sm:text-sm font-medium">Preview</label>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-[10px] text-muted-foreground mr-0.5">Board color</span>
                     <button
                       onClick={() => setPreviewBoardColor("black")}
