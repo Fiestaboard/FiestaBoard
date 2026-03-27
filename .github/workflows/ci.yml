@@ -300,8 +300,7 @@ jobs:
 
   e2e-tests:
     name: E2E Tests
-    runs-on:
-      - codebuild-Fiestaboard-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     needs: detect-changes
     if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 15
