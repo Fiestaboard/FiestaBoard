@@ -25,20 +25,21 @@ jobs:
           HOOKS_URL: ${{ secrets.OPENCLAW_HOOKS_URL }}
           HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
           GH_EVENT: ${{ github.event_name }}
+          EVENT_JSON: ${{ toJSON(github.event) }}
         run: |
-          # Skip if secrets aren't configured yet
           if [ -z "$HOOKS_URL" ] || [ -z "$HOOKS_TOKEN" ]; then
             echo "Hooks not configured, skipping"
             exit 0
           fi
 
-          # Inject the event name into the payload so the transform knows what it is
-          EVENT_PAYLOAD=$(echo '${{ toJSON(github.event) }}' | jq --arg evt "$GH_EVENT" '. + {_ghEvent: $evt}')
+          # Write event payload to file to avoid bash parsing issues
+          echo "$EVENT_JSON" > /tmp/event.json
+          jq --arg evt "$GH_EVENT" '. + {_ghEvent: $evt}' /tmp/event.json > /tmp/payload.json
 
           curl -sf -X POST "${HOOKS_URL}/hooks/github" \
             -H "Authorization: Bearer ${HOOKS_TOKEN}" \
             -H "Content-Type: application/json" \
             -H "X-GitHub-Event: ${GH_EVENT}" \
-            -d "$EVENT_PAYLOAD" \
+            -d @/tmp/payload.json \
             --max-time 10 \
             || echo "Hook delivery failed (non-fatal)"
