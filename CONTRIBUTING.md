@@ -24,10 +24,10 @@ Thank you for your interest in contributing to FiestaBoard. This document explai
 
 ### 1. Create a new branch
 
-Do your work on a branch instead of `main` or `develop`:
+Do your work on a branch instead of `main`:
 
 ```bash
-# Update your local main (or develop)
+# Update your local main
 git fetch origin
 git checkout main
 git pull origin main
@@ -78,7 +78,7 @@ CI runs on push/PR; make sure the same commands (or their CI equivalents) pass l
 
 ### 1. Open a pull request
 
-- **Target branch**: Open your PR against `main` (or `develop` if the project is using that for integration).
+- **Target branch**: Open your PR against `main`.
 - **Description**: Explain what changed and why. Reference any related issues.
 - **Scope**: Keep the PR focused. One feature or fix per PR is easier to review.
 
@@ -103,7 +103,7 @@ If the repo is set to “Squash and merge” on GitHub, the maintainer can squas
 ### 3. After your PR is merged
 
 - Delete your branch (or it may be auto-deleted).
-- Pull the latest `main` (or `develop`) before starting your next branch.
+- Pull the latest `main` before starting your next branch.
 
 ---
 
