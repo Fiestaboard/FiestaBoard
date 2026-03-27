@@ -87,6 +87,9 @@ jobs:
 
             function preamble() {
               return [
+                `REACTIVE SESSION — this is NOT a cron/heartbeat session. Do NOT end your response with HEARTBEAT_OK.`,
+                `Your primary output is a GitHub comment/action. Post a reply on GitHub (gh pr comment / gh issue comment) as your response.`,
+                ``,
                 `Read workspace/skills/fiestaboard/SKILL.md, workspace/memory/fiestaboard-state.json, and workspace/memory/repos/fiestaboard-learnings.md.`,
                 `cd /Users/arthuranderson/projects/FiestaBoard && git checkout main && git pull origin main.`,
                 `Check your open PR count: gh pr list --author @me -R ${REPO} --state open | wc -l.`,
@@ -158,7 +161,8 @@ jobs:
                 '', `By: ${comment.user?.login}`,
                 `Comment:\n${body.slice(0, 2000)}`,
                 '', preamble(), '',
-                `Read the full context (gh ${isPR ? 'pr' : 'issue'} view ${issue.number} -R ${REPO} --comments) and respond appropriately.`,
+                `Read the full context: gh ${isPR ? 'pr' : 'issue'} view ${issue.number} -R ${REPO} --comments`,
+                `Then post a reply on GitHub: gh ${isPR ? 'pr' : 'issue'} comment ${issue.number} -R ${REPO} --body "your response here"`,
                 'If action is needed, take it. If it is a question, answer it.',
                 'Update fiestaboard-state.json when done.',
               ].join('\n');
@@ -178,7 +182,9 @@ jobs:
                 message = [
                   `[GitHub Event] PR #${pr.number} "${pr.title}" was APPROVED by ${reviewer}.`,
                   '', preamble(), '',
-                  `Check CI (gh pr checks ${pr.number} -R ${REPO}). If passing, merge (gh pr merge ${pr.number} -R ${REPO} --merge). If failing, fix first.`,
+                  `Check CI: gh pr checks ${pr.number} -R ${REPO}`,
+                  `If all checks pass, merge: gh pr merge ${pr.number} -R ${REPO} --merge`,
+                  'If checks are still running, wait. If failing, fix first.',
                   'Update fiestaboard-state.json when done.',
                 ].join('\n');
                 sessionKey = `hook:github:pr-approved:${pr.number}`;
@@ -188,7 +194,7 @@ jobs:
                   `[GitHub Event] ${reviewer} left a ${state.toLowerCase()} review on your PR #${pr.number} "${pr.title}".`,
                   '', `Review body:\n${(review.body || '(no body)').slice(0, 2000)}`,
                   '', preamble(), '',
-                  `Read the full review: gh pr view ${pr.number} -R ${REPO} --comments.`,
+                  `Read the full review: gh pr view ${pr.number} -R ${REPO} --comments`,
                   'Address the feedback. Push fixes to your branch, then respond to the review comments.',
                   state === 'CHANGES_REQUESTED' ? 'This is a changes-requested review — address all points before re-requesting review.' : '',
                   'Update fiestaboard-state.json when done.',
@@ -237,6 +243,8 @@ jobs:
                 'Update fiestaboard-state.json when done.',
               ].join('\n');
               sessionKey = `hook:github:review-req:${pr.number}`;
+              timeout = 600;
+              model = 'ollama/qwen3-coder-next:cloud';
             }
 
             // --- CI failure ---
@@ -283,8 +291,7 @@ jobs:
               name: 'GitHub',
               sessionKey,
               wakeMode,
-              deliver: true,
-              channel: 'slack',
+              deliver: false,
               model,
               timeoutSeconds: timeout,
             };
