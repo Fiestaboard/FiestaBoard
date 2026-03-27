@@ -8,7 +8,7 @@ keywords: [FiestaBoard surf, wave height, surf conditions, swell period, split-f
 
 Display real-time surf conditions including wave height, swell period, wind, and quality ratings. **No API key required.**
 
-<BoardScreenshot src="/img/plugins/surf-board-display.png" alt="Surf Conditions on split-flap board" />
+<BoardScreenshot src="/img/surf-display.png" alt="Surf Conditions on split-flap board" />
 
 ## Overview
 
