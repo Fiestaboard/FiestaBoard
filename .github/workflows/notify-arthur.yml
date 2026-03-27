@@ -28,6 +28,7 @@ jobs:
           script: |
             const ARTHUR = 'arthurandersonbot';
             const REPO = 'Fiestaboard/FiestaBoard';
+            const [OWNER, REPO_NAME] = REPO.split('/');
             const MAX_PRS = 4;
 
             const hooksUrl = process.env.HOOKS_URL;
@@ -40,6 +41,46 @@ jobs:
             const event = context.eventName;
             const action = context.payload.action;
             const payload = context.payload;
+
+            // Drop a 👀 on the triggering object so the author gets instant feedback
+            async function acknowledge() {
+              try {
+                if (event === 'issue_comment') {
+                  await github.rest.reactions.createForIssueComment({
+                    owner: OWNER, repo: REPO_NAME,
+                    comment_id: payload.comment.id,
+                    content: 'eyes',
+                  });
+                } else if (event === 'pull_request_review_comment') {
+                  await github.rest.reactions.createForPullRequestReviewComment({
+                    owner: OWNER, repo: REPO_NAME,
+                    comment_id: payload.comment.id,
+                    content: 'eyes',
+                  });
+                } else if (event === 'issues') {
+                  await github.rest.reactions.createForIssue({
+                    owner: OWNER, repo: REPO_NAME,
+                    issue_number: payload.issue.number,
+                    content: 'eyes',
+                  });
+                } else if (event === 'pull_request_review') {
+                  // No direct reaction API for reviews; react to the PR itself
+                  await github.rest.reactions.createForIssue({
+                    owner: OWNER, repo: REPO_NAME,
+                    issue_number: payload.pull_request.number,
+                    content: 'eyes',
+                  });
+                } else if (event === 'pull_request') {
+                  await github.rest.reactions.createForIssue({
+                    owner: OWNER, repo: REPO_NAME,
+                    issue_number: payload.pull_request.number,
+                    content: 'eyes',
+                  });
+                }
+              } catch (err) {
+                core.warning(`Failed to add reaction: ${err.message}`);
+              }
+            }
 
             function preamble() {
               return [
@@ -62,6 +103,7 @@ jobs:
               const isBug = labels.includes('bug');
               const assignee = issue.assignee?.login;
               if (!isBug && assignee !== ARTHUR) { core.info('Not relevant'); return; }
+              await acknowledge();
               const what = isBug
                 ? `New bug filed: #${issue.number} "${issue.title}".`
                 : `Issue #${issue.number} "${issue.title}" assigned to you.`;
@@ -84,6 +126,7 @@ jobs:
               const issue = payload.issue || {};
               const assignee = payload.assignee?.login || issue.assignee?.login;
               if (assignee !== ARTHUR) { core.info('Not assigned to Arthur'); return; }
+              await acknowledge();
               message = [
                 `[GitHub Event] Issue #${issue.number} "${issue.title}" was just assigned to you.`,
                 '', `Issue body:\n${(issue.body || '').slice(0, 2000)}`,
@@ -103,6 +146,7 @@ jobs:
               if (!body.toLowerCase().includes(`@${ARTHUR.toLowerCase()}`)) {
                 core.info('Arthur not mentioned'); return;
               }
+              await acknowledge();
               const issue = payload.issue || {};
               const isPR = !!issue.pull_request;
               const kind = isPR ? 'PR' : 'issue';
@@ -125,6 +169,7 @@ jobs:
               const reviewer = review.user?.login;
               if (pr.user?.login !== ARTHUR) { core.info('Not Arthur PR'); return; }
               if (reviewer === ARTHUR) { core.info('Self-review'); return; }
+              await acknowledge();
               const state = (review.state || '').toUpperCase();
               if (state === 'APPROVED') {
                 message = [
@@ -157,6 +202,7 @@ jobs:
               const comment = payload.comment || {};
               if (pr.user?.login !== ARTHUR) { core.info('Not Arthur PR'); return; }
               if (comment.user?.login === ARTHUR) { core.info('Self-comment'); return; }
+              await acknowledge();
               message = [
                 `[GitHub Event] ${comment.user?.login} left an inline review comment on your PR #${pr.number} "${pr.title}".`,
                 '', `File: ${comment.path || 'unknown'}, line ${comment.line || '?'}`,
@@ -175,6 +221,7 @@ jobs:
               const pr = payload.pull_request || {};
               const requestedReviewer = payload.requested_reviewer?.login;
               if (requestedReviewer !== ARTHUR) { core.info('Review not for Arthur'); return; }
+              await acknowledge();
               message = [
                 `[GitHub Event] Review requested from you on PR #${pr.number} "${pr.title}" by ${pr.user?.login}.`,
                 '', preamble(), '',
