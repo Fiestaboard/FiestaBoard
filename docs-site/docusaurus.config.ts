@@ -158,6 +158,18 @@ const config: Config = {
     ],
   ],
 
+  plugins: [
+    [
+      'docusaurus-plugin-mcp-server',
+      {
+        server: {
+          name: 'fiestaboard-docs',
+          version: '1.0.0',
+        },
+      },
+    ],
+  ],
+
   presets: [
     [
       'classic',
