@@ -1,0 +1,44 @@
+name: Notify Arthur
+
+on:
+  issues:
+    types: [opened, assigned, labeled]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [review_requested]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+  check_suite:
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    # Don't notify on bot-authored events (avoid self-loops)
+    if: github.actor != 'arthurandersonbot' || github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment'
+    steps:
+      - name: Forward event to Arthur
+        env:
+          HOOKS_URL: ${{ secrets.OPENCLAW_HOOKS_URL }}
+          HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
+          GH_EVENT: ${{ github.event_name }}
+        run: |
+          # Skip if secrets aren't configured yet
+          if [ -z "$HOOKS_URL" ] || [ -z "$HOOKS_TOKEN" ]; then
+            echo "Hooks not configured, skipping"
+            exit 0
+          fi
+
+          # Inject the event name into the payload so the transform knows what it is
+          EVENT_PAYLOAD=$(echo '${{ toJSON(github.event) }}' | jq --arg evt "$GH_EVENT" '. + {_ghEvent: $evt}')
+
+          curl -sf -X POST "${HOOKS_URL}/hooks/github" \
+            -H "Authorization: Bearer ${HOOKS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: ${GH_EVENT}" \
+            -d "$EVENT_PAYLOAD" \
+            --max-time 10 \
+            || echo "Hook delivery failed (non-fatal)"
