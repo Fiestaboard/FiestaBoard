@@ -24,6 +24,7 @@ jobs:
         env:
           HOOKS_URL: ${{ secrets.OPENCLAW_HOOKS_URL }}
           HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
+          ARTHUR_TOKEN: ${{ secrets.ARTHUR_GH_TOKEN }}
         with:
           script: |
             const ARTHUR = 'arthurandersonbot';
@@ -33,6 +34,7 @@ jobs:
 
             const hooksUrl = process.env.HOOKS_URL;
             const hooksToken = process.env.HOOKS_TOKEN;
+            const arthurToken = process.env.ARTHUR_TOKEN;
             if (!hooksUrl || !hooksToken) {
               core.info('Hooks not configured, skipping');
               return;
@@ -42,36 +44,37 @@ jobs:
             const action = context.payload.action;
             const payload = context.payload;
 
-            // Drop a 👀 on the triggering object so the author gets instant feedback
+            // React as Arthur (👀) using his own token so it shows up as arthurandersonbot
             async function acknowledge() {
+              if (!arthurToken) return;
               try {
+                const arthurOctokit = github.getOctokit(arthurToken);
                 if (event === 'issue_comment') {
-                  await github.rest.reactions.createForIssueComment({
+                  await arthurOctokit.rest.reactions.createForIssueComment({
                     owner: OWNER, repo: REPO_NAME,
                     comment_id: payload.comment.id,
                     content: 'eyes',
                   });
                 } else if (event === 'pull_request_review_comment') {
-                  await github.rest.reactions.createForPullRequestReviewComment({
+                  await arthurOctokit.rest.reactions.createForPullRequestReviewComment({
                     owner: OWNER, repo: REPO_NAME,
                     comment_id: payload.comment.id,
                     content: 'eyes',
                   });
                 } else if (event === 'issues') {
-                  await github.rest.reactions.createForIssue({
+                  await arthurOctokit.rest.reactions.createForIssue({
                     owner: OWNER, repo: REPO_NAME,
                     issue_number: payload.issue.number,
                     content: 'eyes',
                   });
                 } else if (event === 'pull_request_review') {
-                  // No direct reaction API for reviews; react to the PR itself
-                  await github.rest.reactions.createForIssue({
+                  await arthurOctokit.rest.reactions.createForIssue({
                     owner: OWNER, repo: REPO_NAME,
                     issue_number: payload.pull_request.number,
                     content: 'eyes',
                   });
                 } else if (event === 'pull_request') {
-                  await github.rest.reactions.createForIssue({
+                  await arthurOctokit.rest.reactions.createForIssue({
                     owner: OWNER, repo: REPO_NAME,
                     issue_number: payload.pull_request.number,
                     content: 'eyes',
