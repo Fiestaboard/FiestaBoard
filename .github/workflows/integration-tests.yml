@@ -113,6 +113,7 @@ jobs:
         run: npx playwright test integration.spec.ts --reporter=github
         env:
           CI: true
+          MOCK_BOARD_PORT: 7000
 
       - name: Run integration tests (full suite on merge queue)
         if: github.event_name == 'merge_group'
@@ -120,6 +121,7 @@ jobs:
         run: npx playwright test --reporter=github
         env:
           CI: true
+          MOCK_BOARD_PORT: 7000
 
       - name: Stop FiestaBoard container
         if: always()
