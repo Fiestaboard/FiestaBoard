@@ -78,13 +78,12 @@ omit = [
     "*/__pycache__/*",
     "*/_template/*",
     "*/conftest.py",
-    # Legacy code (documented in GitHub issues #58-61)
-    "src/utils/*",
-    "src/formatters/*",
-    "src/system/*",
-    "src/main.py",
-    "src/text_to_board.py",
+    # Untestable without hardware/network (documented in GitHub issues #58-61)
+    "src/utils/*",         # Requires external APIs (weather, stocks, transit, HA)
+    "src/main.py",         # Application entrypoint
     "src/plugins/testing.py",  # Test infrastructure
+    # NOTE: src/formatters/*, src/text_to_board.py, and src/system/* are now
+    # tested and have been removed from the omit list (issue #505).
 ]
 branch = true
 
