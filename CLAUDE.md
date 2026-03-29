@@ -1,0 +1,56 @@
+# FiestaBoard — Claude Code Context
+
+## Page Schema Versioning
+
+> Applies to: `src/pages/**/*.py`
+
+`pages.json` uses a `schema_version` integer for ordered migrations.
+When changing the stored format of pages (adding/removing/renaming fields,
+changing how data is encoded), you MUST use this system instead of ad-hoc
+detection.
+
+### How It Works
+
+- `src/pages/storage.py` has `CURRENT_SCHEMA_VERSION` and a `MIGRATIONS` list
+- Each migration is a `(target_version, function)` tuple
+- On startup `_load()` reads `schema_version` (default 0), runs pending
+  migrations in order, bumps the version, and resaves once
+
+### Adding a New Migration
+
+1. Write a migration function in `storage.py`:
+
+```python
+def _migrate_v1_to_v2(pages_data: List[dict]) -> int:
+    """Migration 1 -> 2: describe what changes."""
+    migrated = 0
+    for page_data in pages_data:
+        # mutate page_data in place
+        migrated += 1
+    return migrated
+```
+
+2. Append to `MIGRATIONS`:
+
+```python
+MIGRATIONS: List[Tuple[int, Callable[[List[dict]], int]]] = [
+    (1, _migrate_v0_to_v1),
+    (2, _migrate_v1_to_v2),  # NEW
+]
+```
+
+3. Bump `CURRENT_SCHEMA_VERSION`:
+
+```python
+CURRENT_SCHEMA_VERSION = 2  # was 1
+```
+
+### Rules
+
+- NEVER use heuristic detection (key presence, string length, etc.) to
+  decide if a page needs migrating — use schema_version
+- NEVER modify the stored format without adding a migration
+- Migrations MUST be idempotent and safe to re-run
+- Migrations operate on raw dicts (before Pydantic validation)
+- Always log how many pages were affected
+- A backup is created automatically before the first migration runs
