@@ -18,6 +18,9 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
+  // Create missing visual-regression baselines on first run instead of failing.
+  // Snapshots are not committed; each CI run generates its own baselines.
+  updateSnapshots: "missing",
   workers: process.env.CI ? 4 : 1,
   reporter: process.env.CI ? "github" : "list",
   timeout: 30_000,
