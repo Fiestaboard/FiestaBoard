@@ -195,7 +195,7 @@ test.describe("Visual — Settings", () => {
   test("settings general section", async ({ page }) => {
     await page.goto("/settings");
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     await expect(page).toHaveScreenshot(snap("settings-general"), {
@@ -211,7 +211,7 @@ test.describe("Visual — Settings", () => {
   test("settings page scrolled to board configuration", async ({ page }) => {
     await page.goto("/settings");
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Scroll to board config section

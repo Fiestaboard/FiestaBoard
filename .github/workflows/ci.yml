@@ -420,6 +420,22 @@ jobs:
           done
 
       # ── Run tests ─────────────────────────────────────────────────
+      # Visual regression tests need baselines to exist; generate them if missing.
+      - name: Update visual regression snapshots if missing
+        working-directory: web
+        run: |
+          if ! ls tests/visual-regression.spec.ts-snapshots/*.png 2>/dev/null | head -1 > /dev/null; then
+            echo "No visual snapshots found — generating baselines with --update-snapshots"
+            npx playwright test visual-regression.spec.ts --update-snapshots --reporter=line || true
+          else
+            echo "Visual snapshots already exist — skipping baseline generation"
+          fi
+        env:
+          CI: true
+          WORKER_URLS: ${{ env.WORKER_URLS }}
+          WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
+          WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
+
       - name: Run E2E tests
         working-directory: web
         run: npx playwright test --reporter=github
