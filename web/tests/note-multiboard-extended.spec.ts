@@ -239,8 +239,9 @@ test.describe("Multi-Board — One Board Offline", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Both board cards should still render (offline one may show error badge)
-    const boardCards = page.locator("[data-testid='board-card'], .board-card");
+    // Both board cards should still render (offline one may show error badge).
+    // Boards are rendered as Collapsible elements with data-testid="board-card".
+    const boardCards = page.locator("[data-testid='board-card']");
     const count = await boardCards.count();
     // At minimum one card; with two boards at least two
     expect(count).toBeGreaterThanOrEqual(1);
@@ -455,7 +456,11 @@ test.describe("Note UI — Display Rendering", () => {
   });
 
   test("pages list shows Note tab when Note pages exist", async ({ page }) => {
-    // Create both a flagship and a note page — tabs appear based on page types present
+    // The Note tab is only shown when the board config has multiple device types.
+    // Ensure we have both a flagship board and a note board configured.
+    await ensureTwoBoards();
+
+    // Create both a flagship and a note page
     await createPage("Flagship Page", ["LINE 1", "LINE 2", "LINE 3", "LINE 4", "LINE 5", "LINE 6"]);
     await createNotePage("Note Page", ["ROW 1", "ROW 2", "ROW 3"]);
 
@@ -464,7 +469,7 @@ test.describe("Note UI — Display Rendering", () => {
       page.getByRole("heading", { name: "Pages", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Note tab should appear when note pages exist
+    // Note tab should appear when a Note board is configured alongside a Flagship board
     const noteTab = page.getByRole("tab", { name: "Note" });
     await expect(noteTab).toBeVisible({ timeout: 10_000 });
   });

@@ -392,6 +392,7 @@ export function DisplaySettings() {
             return (
               <Collapsible
                 key={board.id}
+                data-testid="board-card"
                 className={`rounded-lg border overflow-hidden ${
                   isEnabled ? "" : "bg-muted/30"
                 }`}
