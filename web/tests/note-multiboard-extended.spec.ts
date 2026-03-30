@@ -32,6 +32,14 @@ import {
   MOCK_BOARD_PORT_2,
 } from "./helpers";
 
+// Always reset to a single board before AND after each test to avoid
+// state pollution with other spec files that check board counts.
+test.beforeEach(async () => {
+  await resetToSingleBoard();
+  await deleteAllSchedules();
+  await deleteAllPages();
+});
+
 test.afterEach(async () => {
   await resetToSingleBoard();
   await deleteAllSchedules();
@@ -228,7 +236,7 @@ test.describe("Multi-Board — One Board Offline", () => {
 
     await page.goto("/settings");
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Both board cards should still render (offline one may show error badge)
@@ -446,34 +454,18 @@ test.describe("Note UI — Display Rendering", () => {
     }
   });
 
-  test("pages list shows Note tab when a Note board is configured", async ({ page }) => {
-    // Configure a Note board
-    await fetch(`${API_URL}/settings/board`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        boards: [{
-          name: "Note Board",
-          device_type: "note",
-          board_color: "black",
-          enabled: true,
-          api_mode: "local",
-          host: BOARD_HOST,
-          local_api_key: "test-key",
-        }],
-      }),
-    });
+  test("pages list shows Note tab when Note pages exist", async ({ page }) => {
+    // Create both a flagship and a note page — tabs appear based on page types present
+    await createPage("Flagship Page", ["LINE 1", "LINE 2", "LINE 3", "LINE 4", "LINE 5", "LINE 6"]);
+    await createNotePage("Note Page", ["ROW 1", "ROW 2", "ROW 3"]);
 
     await page.goto("/pages");
     await expect(
       page.getByRole("heading", { name: "Pages", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Note tab should appear
-    const noteTab = page
-      .getByRole("tab", { name: /note/i })
-      .or(page.getByText(/note pages|note/i).first());
-
+    // Note tab should appear when note pages exist
+    const noteTab = page.getByRole("tab", { name: "Note" });
     await expect(noteTab).toBeVisible({ timeout: 10_000 });
   });
 });
