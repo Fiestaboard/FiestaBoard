@@ -114,6 +114,10 @@ jobs:
         env:
           CI: true
           MOCK_BOARD_PORT: 7000
+          # MOCK_BOARD_HOST is the host the FiestaBoard *container* uses to reach the
+          # mock server running on the GitHub Actions runner host. From inside Docker,
+          # the host is reachable at host.docker.internal, not localhost.
+          MOCK_BOARD_HOST: host.docker.internal
 
       - name: Run integration tests (full suite on merge queue)
         if: github.event_name == 'merge_group'
@@ -122,6 +126,7 @@ jobs:
         env:
           CI: true
           MOCK_BOARD_PORT: 7000
+          MOCK_BOARD_HOST: host.docker.internal
 
       - name: Stop FiestaBoard container
         if: always()
