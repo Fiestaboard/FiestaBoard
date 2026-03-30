@@ -97,7 +97,7 @@ test.describe("Error Recovery — Board Unreachable", () => {
     // Settings should still load — it's config, not board-dependent
     await page.goto("/settings");
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Restore
@@ -236,7 +236,7 @@ test.describe("Error Recovery — Network Simulation", () => {
 
     await page.goto("/settings");
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     await page.goto("/");

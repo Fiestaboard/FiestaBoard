@@ -48,7 +48,7 @@ test.describe("Schedule — Midnight Rollover", () => {
         page_id: pageId,
         start_time: "22:00",
         end_time: "06:00",
-        day_pattern: "daily",
+        day_pattern: "all",
       }),
     });
 
@@ -61,7 +61,7 @@ test.describe("Schedule — Midnight Rollover", () => {
 
   test("midnight-spanning schedule appears in the schedule list UI", async ({ page }) => {
     const pageId = await createPage("Late Night", ["LATE NIGHT", "", "", "", "", ""]);
-    await createSchedule(pageId, "23:00", "05:00", "daily");
+    await createSchedule(pageId, "23:00", "05:00", "all");
 
     await page.goto("/schedule");
     await expect(
@@ -109,7 +109,7 @@ test.describe("Schedule — Midnight Rollover", () => {
         page_id: pageId,
         start_time: "12:00",
         end_time: "12:00",
-        day_pattern: "daily",
+        day_pattern: "all",
       }),
     });
 
@@ -137,7 +137,7 @@ test.describe("Schedule — Midnight Rollover", () => {
     page,
   }) => {
     const pageId = await createPage("Calendar Night", ["NIGHT", "", "", "", "", ""]);
-    await createSchedule(pageId, "22:00", "06:00", "daily");
+    await createSchedule(pageId, "22:00", "06:00", "all");
 
     await page.goto("/schedule");
     await expect(
