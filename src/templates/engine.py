@@ -267,8 +267,10 @@ class TemplateEngine:
         - The {{fill_space}} variable for flexible spacing
         
         Args:
-            template_lines: List of template lines (pure content when
-                line_metadata is provided; may contain legacy prefixes otherwise)
+            template_lines: List of template lines, padded or truncated to
+                match the device's row count (6 for flagship, 3 for note).
+                Pure content when line_metadata is provided; may contain
+                legacy prefixes otherwise.
             context: Optional pre-fetched context
             line_metadata: Optional per-line metadata dicts with 'alignment' and
                 'wrap' keys.  When provided, template_lines are treated as pure
