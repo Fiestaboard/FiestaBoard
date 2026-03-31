@@ -4048,11 +4048,12 @@ async def render_template(request: dict):
     
     template_engine = get_template_engine()
     line_metadata = request.get("line_metadata")
+    device_type = request.get("device_type")
     
     try:
         if isinstance(template, list):
             logger.info(f"Rendering template lines: {template}")
-            rendered = template_engine.render_lines(template, line_metadata=line_metadata)
+            rendered = template_engine.render_lines(template, line_metadata=line_metadata, device_type=device_type)
         else:
             logger.info(f"Rendering template string: {template}")
             rendered = template_engine.render(template)
@@ -4087,6 +4088,7 @@ async def render_template_live(request: dict):
     template_engine = get_template_engine()
     settings_service = get_settings_service()
     line_metadata = request.get("line_metadata")
+    device_type = request.get("device_type")
 
     # Render the template
     try:
@@ -4099,7 +4101,7 @@ async def render_template_live(request: dict):
                     "sent_to_board": False,
                     "board_id": board_id,
                 }
-            rendered = template_engine.render_lines(template, line_metadata=line_metadata)
+            rendered = template_engine.render_lines(template, line_metadata=line_metadata, device_type=device_type)
         else:
             if not template.strip():
                 return {

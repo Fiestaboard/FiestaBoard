@@ -503,7 +503,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         };
       }
       
-      return api.renderTemplate(cleanedLines, metadata);
+      return api.renderTemplate(cleanedLines, metadata, deviceType);
     },
     onSuccess: (data) => {
       if (shouldIgnoreNextResponse.current) {
@@ -614,7 +614,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const liveSendMutation = useMutation({
     mutationFn: async (rendered: string) => {
       const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
-      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata);
+      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata, undefined, deviceType);
     },
     onSuccess: (data) => {
       if (data.sent_to_board) {
@@ -691,7 +691,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
           cleanedLines,
           selectedBoardId || undefined,
           metadata,
-          controller.signal
+          controller.signal,
+          deviceType
         );
 
         if (controller.signal.aborted) return;
