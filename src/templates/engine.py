@@ -32,6 +32,7 @@ from dataclasses import dataclass
 
 from ..plugins import get_plugin_registry
 from ..text_utils import extract_alignment_from_line
+from ..devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +257,7 @@ class TemplateEngine:
         template_lines: List[str],
         context: Optional[Dict[str, Any]] = None,
         line_metadata: Optional[List[dict]] = None,
+        device_type: Optional[str] = None,
     ) -> str:
         """Render a list of template lines (for template pages).
         
@@ -265,12 +267,16 @@ class TemplateEngine:
         - The {{fill_space}} variable for flexible spacing
         
         Args:
-            template_lines: List of up to 6 template lines (pure content when
-                line_metadata is provided; may contain legacy prefixes otherwise)
+            template_lines: List of template lines, padded or truncated to
+                match the device's row count (6 for flagship, 3 for note).
+                Pure content when line_metadata is provided; may contain
+                legacy prefixes otherwise.
             context: Optional pre-fetched context
             line_metadata: Optional per-line metadata dicts with 'alignment' and
                 'wrap' keys.  When provided, template_lines are treated as pure
                 content (no prefix parsing).
+            device_type: Device type ('flagship' or 'note') to determine board
+                dimensions. Defaults to flagship (22 cols, 6 rows).
             
         Returns:
             Rendered string with newlines
@@ -278,9 +284,14 @@ class TemplateEngine:
         if context is None:
             context = self._build_context()
         
-        # Pad to 6 lines
-        lines = list(template_lines[:6])
-        while len(lines) < 6:
+        dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                      DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+        num_rows = dims.rows
+        board_width = dims.cols
+
+        # Pad to num_rows lines
+        lines = list(template_lines[:num_rows])
+        while len(lines) < num_rows:
             lines.append("")
 
         # Build per-line alignment/wrap arrays from metadata or legacy parsing
@@ -301,10 +312,10 @@ class TemplateEngine:
                 contents.append(content)
         
         # Process lines, handling |wrap specially
-        rendered = [""] * 6
+        rendered = [""] * num_rows
         skip_until = -1  # Track lines filled by wrap overflow
         
-        for i in range(6):
+        for i in range(num_rows):
             if i <= skip_until:
                 continue
 
@@ -316,7 +327,7 @@ class TemplateEngine:
             
             if has_wrap:
                 empty_count = 0
-                for j in range(i, 6):
+                for j in range(i, num_rows):
                     if j == i:
                         empty_count = 1
                     else:
@@ -325,12 +336,12 @@ class TemplateEngine:
                         else:
                             break
                 
-                wrapped_lines = self._render_with_wrap(content, context, max_lines=empty_count)
+                wrapped_lines = self._render_with_wrap(content, context, max_lines=empty_count, board_width=board_width)
                 
                 for k, wrapped_line in enumerate(wrapped_lines):
-                    if i + k < 6:
-                        processed = self._process_fill_space(wrapped_line, width=22)
-                        rendered[i + k] = self._apply_alignment(processed, alignment, width=22)
+                    if i + k < num_rows:
+                        processed = self._process_fill_space(wrapped_line, width=board_width)
+                        rendered[i + k] = self._apply_alignment(processed, alignment, width=board_width)
                 
                 skip_until = i + len(wrapped_lines) - 1
             else:
@@ -339,19 +350,19 @@ class TemplateEngine:
                 if '\n' in rendered_line:
                     split_lines = rendered_line.split('\n')
                     for line_idx, split_line in enumerate(split_lines):
-                        if i + line_idx >= 6:
+                        if i + line_idx >= num_rows:
                             break
-                        processed_line = self._process_fill_space(split_line, width=22)
-                        rendered[i + line_idx] = self._apply_alignment(processed_line, alignment, width=22)
+                        processed_line = self._process_fill_space(split_line, width=board_width)
+                        rendered[i + line_idx] = self._apply_alignment(processed_line, alignment, width=board_width)
                     if len(split_lines) > 1:
-                        skip_until = min(i + len(split_lines) - 1, 5)
+                        skip_until = min(i + len(split_lines) - 1, num_rows - 1)
                 else:
-                    rendered_line = self._process_fill_space(rendered_line, width=22)
-                    rendered[i] = self._apply_alignment(rendered_line, alignment, width=22)
+                    rendered_line = self._process_fill_space(rendered_line, width=board_width)
+                    rendered[i] = self._apply_alignment(rendered_line, alignment, width=board_width)
         
         return '\n'.join(rendered)
     
-    def _render_with_wrap(self, template: str, context: Dict[str, Any], max_lines: int = 1) -> List[str]:
+    def _render_with_wrap(self, template: str, context: Dict[str, Any], max_lines: int = 1, board_width: int = 22) -> List[str]:
         """Render a template line that should wrap across multiple lines.
         
         Handles two cases:
@@ -362,6 +373,7 @@ class TemplateEngine:
             template: Template string that may contain |wrap filter or should be wrapped entirely
             context: Data context
             max_lines: Maximum number of lines to fill
+            board_width: Board width in columns (default 22 for flagship)
             
         Returns:
             List of rendered lines (up to max_lines)
@@ -400,9 +412,9 @@ class TemplateEngine:
             suffix_tiles = self._count_tiles(suffix)
             
             # First line has prefix and suffix
-            first_line_width = max(1, 22 - prefix_tiles - suffix_tiles)  # Ensure at least 1 tile available
+            first_line_width = max(1, board_width - prefix_tiles - suffix_tiles)  # Ensure at least 1 tile available
             # Subsequent lines have full width
-            subsequent_width = 22
+            subsequent_width = board_width
             
             # Word-wrap the value
             wrapped = self._word_wrap(value, first_line_width, subsequent_width, max_lines)
@@ -422,7 +434,7 @@ class TemplateEngine:
             
             # Use tile-based wrapping for the entire rendered content
             # Full width available on all lines
-            wrapped = self._word_wrap_tiles(rendered, first_width=22, subsequent_width=22, max_lines=max_lines)
+            wrapped = self._word_wrap_tiles(rendered, first_width=board_width, subsequent_width=board_width, max_lines=max_lines)
             
             return wrapped
     

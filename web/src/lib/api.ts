@@ -932,15 +932,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ template }),
     }),
-  renderTemplate: (template: string | string[], lineMetadata?: LineMetadata[]) =>
+  renderTemplate: (template: string | string[], lineMetadata?: LineMetadata[], deviceType?: string) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
-      body: JSON.stringify({ template, ...(lineMetadata && { line_metadata: lineMetadata }) }),
+      body: JSON.stringify({ template, ...(lineMetadata && { line_metadata: lineMetadata }), ...(deviceType && { device_type: deviceType }) }),
     }),
-  renderTemplateLive: (template: string | string[], boardId?: string, lineMetadata?: LineMetadata[], signal?: AbortSignal) =>
+  renderTemplateLive: (template: string | string[], boardId?: string, lineMetadata?: LineMetadata[], deviceType?: string, signal?: AbortSignal) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
-      body: JSON.stringify({ template, ...(boardId && { board_id: boardId }), ...(lineMetadata && { line_metadata: lineMetadata }) }),
+      body: JSON.stringify({ template, ...(boardId && { board_id: boardId }), ...(lineMetadata && { line_metadata: lineMetadata }), ...(deviceType && { device_type: deviceType }) }),
       signal,
     }),
   forceRefresh: () =>

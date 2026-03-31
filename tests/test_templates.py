@@ -389,6 +389,83 @@ class TestAlignment:
         assert output_lines[0].startswith("{center}TEST")
 
 
+class TestNoteAlignment:
+    """Tests for alignment on Note boards (15 columns, 3 rows)."""
+
+    @pytest.fixture
+    def engine(self):
+        return TemplateEngine()
+
+    def test_render_lines_note_center_alignment(self, engine):
+        """Test center alignment uses 15-char width for Note boards."""
+        lines = ["HELLO WORLD"]
+        metadata = [{"alignment": "center", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata, device_type="note")
+        output_lines = result.split('\n')
+        # "HELLO WORLD" is 11 chars, centered in 15: 2 left + 11 + 2 right
+        assert output_lines[0].strip() == "HELLO WORLD"
+        assert len(output_lines[0]) == 15
+        left_pad = len(output_lines[0]) - len(output_lines[0].lstrip())
+        right_pad = len(output_lines[0]) - len(output_lines[0].rstrip())
+        assert abs(left_pad - right_pad) <= 1
+
+    def test_render_lines_note_right_alignment(self, engine):
+        """Test right alignment uses 15-char width for Note boards."""
+        lines = ["TEST"]
+        metadata = [{"alignment": "right", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata, device_type="note")
+        output_lines = result.split('\n')
+        assert output_lines[0].endswith("TEST")
+        assert len(output_lines[0]) == 15
+
+    def test_render_lines_note_left_alignment(self, engine):
+        """Test left alignment uses 15-char width for Note boards."""
+        lines = ["TEST"]
+        metadata = [{"alignment": "left", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata, device_type="note")
+        output_lines = result.split('\n')
+        assert output_lines[0].startswith("TEST")
+        assert len(output_lines[0]) == 15
+
+    def test_render_lines_note_rows(self, engine):
+        """Test Note boards produce 3 rows, not 6."""
+        lines = ["LINE1"]
+        metadata = [{"alignment": "left", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata, device_type="note")
+        output_lines = result.split('\n')
+        assert len(output_lines) == 3
+
+    def test_render_lines_note_center_prefix(self, engine):
+        """Test center alignment via inline prefix on Note boards."""
+        lines = ["{center}HI"]
+        result = engine.render_lines(lines, {}, device_type="note")
+        output_lines = result.split('\n')
+        # "HI" is 2 chars, centered in 15: 6 left + 2 + 7 right (or 7+6)
+        assert output_lines[0].strip() == "HI"
+        assert len(output_lines[0]) == 15
+        left_pad = len(output_lines[0]) - len(output_lines[0].lstrip())
+        right_pad = len(output_lines[0]) - len(output_lines[0].rstrip())
+        assert abs(left_pad - right_pad) <= 1
+
+    def test_render_lines_flagship_still_22_cols(self, engine):
+        """Test that Flagship boards still use 22-char width and 6 rows."""
+        lines = ["TEST"]
+        metadata = [{"alignment": "center", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata, device_type="flagship")
+        output_lines = result.split('\n')
+        assert len(output_lines) == 6
+        assert len(output_lines[0]) == 22
+
+    def test_render_lines_default_is_flagship(self, engine):
+        """Test that omitting device_type defaults to Flagship dimensions."""
+        lines = ["TEST"]
+        metadata = [{"alignment": "center", "wrap": False}]
+        result = engine.render_lines(lines, {}, line_metadata=metadata)
+        output_lines = result.split('\n')
+        assert len(output_lines) == 6
+        assert len(output_lines[0]) == 22
+
+
 class TestFillSpace:
     """Tests for {{fill_space}} variable."""
     
