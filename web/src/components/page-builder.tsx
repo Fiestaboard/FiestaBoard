@@ -614,7 +614,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const liveSendMutation = useMutation({
     mutationFn: async (rendered: string) => {
       const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
-      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata, undefined, deviceType);
+      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata, deviceType);
     },
     onSuccess: (data) => {
       if (data.sent_to_board) {
@@ -691,8 +691,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
           cleanedLines,
           selectedBoardId || undefined,
           metadata,
-          controller.signal,
-          deviceType
+          deviceType,
+          controller.signal
         );
 
         if (controller.signal.aborted) return;
