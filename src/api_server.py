@@ -1008,6 +1008,23 @@ async def send_welcome_message():
         if success:
             if was_sent:
                 logger.info("Welcome message sent to board")
+            
+            # Create a welcome page and set it as the active page
+            try:
+                page_service = get_page_service()
+                page_data = PageCreate(
+                    name="Hello from FiestaBoard",
+                    type="template",
+                    template=welcome_template,
+                    duration_seconds=300,
+                )
+                welcome_page = page_service.create_page(page_data)
+                settings_service.set_active_page_id(welcome_page.id)
+                logger.info(f"Created welcome page {welcome_page.id} and set as active")
+            except Exception as page_err:
+                logger.warning(f"Welcome message sent but failed to create welcome page: {page_err}")
+            
+            if was_sent:
                 return {"status": "success", "message": "Welcome message sent to your board!"}
             else:
                 return {"status": "success", "message": "Welcome message unchanged", "skipped": True}

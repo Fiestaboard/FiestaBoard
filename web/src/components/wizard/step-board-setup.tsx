@@ -663,7 +663,10 @@ export function StepBoardSetup({
 
         {/* Live board preview */}
         <div className="space-y-2 pt-3">
-          <Label className="text-sm font-medium text-muted-foreground">{tc("preview")}</Label>
+          <div>
+            <Label className="text-sm font-medium text-muted-foreground">{tc("preview")}</Label>
+            <p className="text-[11px] text-muted-foreground/60">{t("boardSetup.previewDisclaimer")}</p>
+          </div>
           <BoardDisplay
             message={previewMessage}
             size="sm"

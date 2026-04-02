@@ -277,6 +277,14 @@ export function StepEasyPlugins({
             </Card>
           );
         })}
+
+        {/* Link to integrations page for more plugins */}
+        <p className="text-sm text-muted-foreground text-center pt-2">
+          {t("moreOnIntegrations")}{" "}
+          <Link href="/integrations" className="underline hover:text-foreground">
+            {t("integrationsPage")}
+          </Link>
+        </p>
       </div>
     </div>
   );
