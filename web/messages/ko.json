@@ -175,6 +175,8 @@
       "enabledDescription": "활성화되면 스케줄이 적용됩니다",
       "createSchedule": "스케줄 생성",
       "updateSchedule": "스케줄 업데이트",
+      "setEndTime": "종료 시간 설정",
+      "openEndedHint": "다음 일정 또는 하루 끝까지 실행",
       "validationSelectPage": "페이지를 선택해 주세요",
       "validationEndTimeDifferent": "종료 시간은 시작 시간과 달라야 합니다",
       "validationSelectDay": "사용자 지정 패턴에 최소 하루를 선택해 주세요",

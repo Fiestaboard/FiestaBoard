@@ -175,6 +175,8 @@
       "enabledDescription": "Planning is actief wanneer ingeschakeld",
       "createSchedule": "Planning aanmaken",
       "updateSchedule": "Planning bijwerken",
+      "setEndTime": "Eindtijd instellen",
+      "openEndedHint": "Loopt tot volgend schema of einde van de dag",
       "validationSelectPage": "Selecteer een pagina",
       "validationEndTimeDifferent": "Eindtijd moet verschillen van de starttijd",
       "validationSelectDay": "Selecteer minstens één dag voor een aangepast patroon",

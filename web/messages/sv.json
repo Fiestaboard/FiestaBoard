@@ -175,6 +175,8 @@
       "enabledDescription": "Schemat är aktivt när det är aktiverat",
       "createSchedule": "Skapa schema",
       "updateSchedule": "Uppdatera schema",
+      "setEndTime": "Ange sluttid",
+      "openEndedHint": "Körs till nästa schema eller dagens slut",
       "validationSelectPage": "Vänligen välj en sida",
       "validationEndTimeDifferent": "Sluttiden måste skilja sig från starttiden",
       "validationSelectDay": "Vänligen välj minst en dag för anpassat mönster",

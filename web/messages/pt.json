@@ -175,6 +175,8 @@
       "enabledDescription": "A agenda ficará ativa quando ativada",
       "createSchedule": "Criar Agenda",
       "updateSchedule": "Atualizar Agenda",
+      "setEndTime": "Definir hora de término",
+      "openEndedHint": "Executa até o próximo agendamento ou fim do dia",
       "validationSelectPage": "Selecione uma página",
       "validationEndTimeDifferent": "O horário de término deve ser diferente do horário de início",
       "validationSelectDay": "Selecione pelo menos um dia para o padrão personalizado",

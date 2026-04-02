@@ -175,6 +175,8 @@
       "enabledDescription": "Zeitplan ist aktiv, wenn aktiviert",
       "createSchedule": "Zeitplan erstellen",
       "updateSchedule": "Zeitplan aktualisieren",
+      "setEndTime": "Endzeit festlegen",
+      "openEndedHint": "Läuft bis zum nächsten Zeitplan oder Tagesende",
       "validationSelectPage": "Bitte wählen Sie eine Seite aus",
       "validationEndTimeDifferent": "Die Endzeit muss sich von der Startzeit unterscheiden",
       "validationSelectDay": "Bitte wählen Sie mindestens einen Tag für das benutzerdefinierte Muster",

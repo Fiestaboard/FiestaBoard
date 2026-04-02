@@ -175,6 +175,8 @@
       "enabledDescription": "Harmonogram będzie aktywny po włączeniu",
       "createSchedule": "Utwórz harmonogram",
       "updateSchedule": "Zaktualizuj harmonogram",
+      "setEndTime": "Ustaw czas zakończenia",
+      "openEndedHint": "Działa do następnego harmonogramu lub końca dnia",
       "validationSelectPage": "Proszę wybrać stronę",
       "validationEndTimeDifferent": "Godzina zakończenia musi się różnić od godziny rozpoczęcia",
       "validationSelectDay": "Proszę wybrać co najmniej jeden dzień dla niestandardowego wzorca",

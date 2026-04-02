@@ -175,6 +175,8 @@
       "enabledDescription": "La planification sera active une fois activée",
       "createSchedule": "Créer la planification",
       "updateSchedule": "Mettre à jour la planification",
+      "setEndTime": "Définir l'heure de fin",
+      "openEndedHint": "S'exécute jusqu'au prochain horaire ou fin de journée",
       "validationSelectPage": "Veuillez sélectionner une page",
       "validationEndTimeDifferent": "L'heure de fin doit être différente de l'heure de début",
       "validationSelectDay": "Veuillez sélectionner au moins un jour pour un motif personnalisé",

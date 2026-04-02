@@ -175,6 +175,8 @@
       "enabledDescription": "La programmazione sarà attiva quando è abilitata",
       "createSchedule": "Crea programmazione",
       "updateSchedule": "Aggiorna programmazione",
+      "setEndTime": "Imposta ora di fine",
+      "openEndedHint": "Eseguito fino al prossimo programma o fine giornata",
       "validationSelectPage": "Seleziona una pagina",
       "validationEndTimeDifferent": "L'ora di fine deve essere diversa dall'ora di inizio",
       "validationSelectDay": "Seleziona almeno un giorno per il pattern personalizzato",

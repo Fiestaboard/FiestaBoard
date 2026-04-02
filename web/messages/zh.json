@@ -175,6 +175,8 @@
       "enabledDescription": "启用后日程将生效",
       "createSchedule": "创建日程",
       "updateSchedule": "更新日程",
+      "setEndTime": "设置结束时间",
+      "openEndedHint": "运行直到下一个计划或当天结束",
       "validationSelectPage": "请选择一个页面",
       "validationEndTimeDifferent": "结束时间必须与开始时间不同",
       "validationSelectDay": "请为自定义模式选择至少一天",

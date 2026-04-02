@@ -175,6 +175,8 @@
       "enabledDescription": "有効にするとスケジュールがアクティブになります",
       "createSchedule": "スケジュールを作成",
       "updateSchedule": "スケジュールを更新",
+      "setEndTime": "終了時刻を設定",
+      "openEndedHint": "次のスケジュールまたは1日の終わりまで実行",
       "validationSelectPage": "ページを選択してください",
       "validationEndTimeDifferent": "終了時刻は開始時刻と異なる必要があります",
       "validationSelectDay": "カスタムパターンには少なくとも1つの曜日を選択してください",
