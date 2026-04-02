@@ -151,6 +151,11 @@ MANIFEST_SCHEMA = {
             "type": "string",
             "description": "Minimum FiestaBoard version required (semver constraint, e.g. '>=2.10.0')"
         },
+        "supports_triggers": {
+            "type": "boolean",
+            "default": False,
+            "description": "Whether this plugin supports event-based triggers via check_triggers()"
+        },
         "screenshots": {
             "type": "array",
             "items": {
@@ -289,6 +294,7 @@ class PluginManifest:
     icon: str = "puzzle"
     category: str = "utility"
     fiestaboard_version: str = ""
+    supports_triggers: bool = False
     screenshots: List[Screenshot] = field(default_factory=list)
     raw: Dict[str, Any] = field(default_factory=dict)
     
@@ -399,6 +405,7 @@ class PluginManifest:
             icon=data.get("icon", "puzzle"),
             category=data.get("category", "utility"),
             fiestaboard_version=data.get("fiestaboard_version", ""),
+            supports_triggers=bool(data.get("supports_triggers", False)),
             screenshots=screenshots,
             raw=data,
         )
@@ -421,6 +428,7 @@ class PluginManifest:
             "icon": self.icon,
             "category": self.category,
             "fiestaboard_version": self.fiestaboard_version,
+            "supports_triggers": self.supports_triggers,
             "screenshots": [
                 {
                     "src": s.src,

@@ -42,6 +42,44 @@ class PluginResult:
 
 
 @dataclass
+class TriggerResult:
+    """Result from a plugin trigger check.
+
+    Plugins that support event-based triggers return a list of these
+    from ``check_triggers()``.  Only results with ``triggered=True``
+    cause the board to display the associated message.
+
+    Attributes:
+        triggered: Whether this trigger has fired.
+        trigger_id: Stable identifier for this trigger (used for dedup/dismiss).
+        message: Simple text message to display on the board.
+        formatted_lines: Pre-formatted display lines (6 lines for board).
+        priority: Higher values take precedence when multiple triggers fire.
+        duration_seconds: How long the triggered message should be shown.
+        data: Raw data dict available for template rendering.
+    """
+    triggered: bool
+    trigger_id: str = ""
+    message: Optional[str] = None
+    formatted_lines: Optional[List[str]] = None
+    priority: int = 0
+    duration_seconds: int = 30
+    data: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses."""
+        return {
+            "triggered": self.triggered,
+            "trigger_id": self.trigger_id,
+            "message": self.message,
+            "formatted_lines": self.formatted_lines,
+            "priority": self.priority,
+            "duration_seconds": self.duration_seconds,
+            "data": self.data,
+        }
+
+
+@dataclass
 class PluginInfo:
     """Plugin metadata from manifest.
     
@@ -343,6 +381,28 @@ class PluginBase(ABC):
         """
         return self._manifest.get("settings_schema", {})
     
+    @property
+    def supports_triggers(self) -> bool:
+        """Whether this plugin supports event-based triggers.
+
+        Determined by the ``supports_triggers`` flag in the plugin manifest.
+        """
+        return bool(self._manifest.get("supports_triggers", False))
+
+    def check_triggers(self) -> List["TriggerResult"]:
+        """Check whether any event-based triggers should fire.
+
+        Plugins that support triggers override this method to evaluate
+        conditions and return one or more :class:`TriggerResult` objects.
+        Only results where ``triggered`` is ``True`` will be activated.
+
+        The method is called periodically by the trigger service.
+
+        Returns:
+            List of TriggerResult objects (empty by default).
+        """
+        return []
+
     def get_env_vars(self) -> List[Dict[str, Any]]:
         """Return required/optional environment variables from manifest.
         

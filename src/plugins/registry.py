@@ -547,6 +547,7 @@ class PluginRegistry:
                 "fiestaboard_version": manifest.fiestaboard_version if manifest else "",
                 "source": source.to_dict() if source else {"source_type": "builtin"},
                 "update_available": self._update_status.get(plugin_id, False),
+                "supports_triggers": manifest.supports_triggers if manifest else False,
             }
             plugins.append(info)
         
@@ -774,6 +775,15 @@ class PluginRegistry:
         logger.info("Uninstalled external plugin: %s", plugin_id)
         return []
     
+    @property
+    def trigger_plugins(self) -> Dict[str, PluginBase]:
+        """Return enabled plugins that support event-based triggers."""
+        return {
+            pid: plugin
+            for pid, plugin in self._plugins.items()
+            if self._enabled.get(pid, False) and plugin.supports_triggers
+        }
+
     def build_template_context(self) -> Dict[str, Any]:
         """Build context dictionary for template rendering.
 

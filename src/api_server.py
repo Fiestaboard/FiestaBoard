@@ -4880,6 +4880,82 @@ async def update_plugin(plugin_id: str):
 
 
 # =============================================================================
+# Triggers — Event-based plugin messages
+# =============================================================================
+
+@app.get("/triggers")
+async def list_triggers():
+    """List all active triggers with their status."""
+    from .triggers.service import get_trigger_service
+    trigger_service = get_trigger_service()
+    active = trigger_service.list_active_triggers()
+    return {
+        "triggers": [t.to_dict() for t in active],
+        "count": len(active),
+    }
+
+
+@app.get("/triggers/active")
+async def get_active_trigger():
+    """Get the current highest-priority active trigger, if any."""
+    from .triggers.service import get_trigger_service
+    trigger_service = get_trigger_service()
+    active = trigger_service.get_active_trigger()
+    if active is None:
+        return {"trigger": None}
+    return {"trigger": active.to_dict()}
+
+
+@app.post("/triggers/{trigger_id}/dismiss")
+async def dismiss_trigger(trigger_id: str):
+    """Dismiss (remove) a specific trigger by its id."""
+    from .triggers.service import get_trigger_service
+    trigger_service = get_trigger_service()
+    dismissed = trigger_service.dismiss_trigger(trigger_id)
+    if not dismissed:
+        raise HTTPException(status_code=404, detail=f"Trigger not found: {trigger_id}")
+    return {"status": "dismissed", "trigger_id": trigger_id}
+
+
+@app.post("/triggers/clear")
+async def clear_triggers():
+    """Clear all active triggers."""
+    from .triggers.service import get_trigger_service
+    trigger_service = get_trigger_service()
+    trigger_service.clear_all()
+    return {"status": "cleared"}
+
+
+@app.post("/triggers/check")
+async def check_triggers():
+    """Manually trigger a check of all trigger-capable plugins.
+
+    This is normally done automatically by the display loop, but this
+    endpoint allows the UI or external systems to force an immediate check.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    from .triggers.service import get_trigger_service
+    registry = get_plugin_registry()
+    trigger_service = get_trigger_service()
+
+    checked = 0
+    for plugin_id, plugin in registry.trigger_plugins.items():
+        trigger_service.check_plugin_triggers(plugin)
+        checked += 1
+
+    active = trigger_service.list_active_triggers()
+    return {
+        "plugins_checked": checked,
+        "active_triggers": [t.to_dict() for t in active],
+        "count": len(active),
+    }
+
+
+# =============================================================================
 # Generic Data Plugin — Test Fetch
 # =============================================================================
 
