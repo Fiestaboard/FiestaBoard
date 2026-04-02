@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 个字符",
       "boardColor": "看板颜色",
       "connectionTestFailed": "连接测试失败",
-      "failedToEnableLocalApi": "启用本地API失败"
+      "failedToEnableLocalApi": "启用本地API失败",
+      "previewDisclaimer": "仅用于展示效果"
     },
     "easyPlugins": {
       "description": "这些功能无需任何外部 API 密钥即可使用。启用您想要的功能吧！",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "YourPassword",
       "wifiPreview": "WIFI：{ssid}",
       "passPreview": "密码：{password}",
-      "noPassword": "（无密码）"
+      "noPassword": "（无密码）",
+      "moreOnIntegrations": "……更多内容请访问",
+      "integrationsPage": "集成页面"
     },
     "welcome": {
       "setupComplete": "设置完成！",

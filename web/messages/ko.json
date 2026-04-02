@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 문자",
       "boardColor": "보드 색상",
       "connectionTestFailed": "연결 테스트 실패",
-      "failedToEnableLocalApi": "로컬 API 활성화 실패"
+      "failedToEnableLocalApi": "로컬 API 활성화 실패",
+      "previewDisclaimer": "시각화 전용"
     },
     "easyPlugins": {
       "description": "이 기능들은 외부 API 키 없이 바로 사용할 수 있습니다. 원하는 기능을 활성화하세요!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "YourPassword",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(비밀번호 없음)"
+      "noPassword": "(비밀번호 없음)",
+      "moreOnIntegrations": "...그 외에도",
+      "integrationsPage": "연동 페이지"
     },
     "welcome": {
       "setupComplete": "설정 완료!",

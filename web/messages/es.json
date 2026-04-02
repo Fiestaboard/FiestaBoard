@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 caracteres",
       "boardColor": "Color del tablero",
       "connectionTestFailed": "Prueba de conexión fallida",
-      "failedToEnableLocalApi": "Error al habilitar la API local"
+      "failedToEnableLocalApi": "Error al habilitar la API local",
+      "previewDisclaimer": "Solo para visualización"
     },
     "easyPlugins": {
       "description": "Estas funciones funcionan de inmediato sin necesidad de claves API externas. ¡Habilita las que quieras!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "TuContraseña",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "CLAVE: {password}",
-      "noPassword": "(sin contraseña)"
+      "noPassword": "(sin contraseña)",
+      "moreOnIntegrations": "...y más en la",
+      "integrationsPage": "página de Integraciones"
     },
     "welcome": {
       "setupComplete": "¡Configuración completa!",

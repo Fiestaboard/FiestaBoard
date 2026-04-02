@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 tekens",
       "boardColor": "Bordkleur",
       "connectionTestFailed": "Verbindingstest mislukt",
-      "failedToEnableLocalApi": "Lokale API activeren mislukt"
+      "failedToEnableLocalApi": "Lokale API activeren mislukt",
+      "previewDisclaimer": "Alleen ter illustratie"
     },
     "easyPlugins": {
       "description": "Deze functies werken direct zonder externe API-sleutels. Schakel in wat je wilt!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "JeWachtwoord",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(geen wachtwoord)"
+      "noPassword": "(geen wachtwoord)",
+      "moreOnIntegrations": "...en meer op de",
+      "integrationsPage": "Integratiepagina"
     },
     "welcome": {
       "setupComplete": "Installatie voltooid!",

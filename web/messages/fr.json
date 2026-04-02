@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 caractères",
       "boardColor": "Couleur du tableau",
       "connectionTestFailed": "Échec du test de connexion",
-      "failedToEnableLocalApi": "Échec de l'activation de l'API locale"
+      "failedToEnableLocalApi": "Échec de l'activation de l'API locale",
+      "previewDisclaimer": "Aperçu à titre indicatif"
     },
     "easyPlugins": {
       "description": "Ces fonctionnalités sont opérationnelles immédiatement sans clé API externe. Activez celles qui vous intéressent !",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "VotreMotDePasse",
       "wifiPreview": "WIFI : {ssid}",
       "passPreview": "MDP : {password}",
-      "noPassword": "(pas de mot de passe)"
+      "noPassword": "(pas de mot de passe)",
+      "moreOnIntegrations": "...et plus sur la",
+      "integrationsPage": "page Intégrations"
     },
     "welcome": {
       "setupComplete": "Configuration terminée !",

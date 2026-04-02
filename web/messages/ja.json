@@ -309,7 +309,8 @@
       "noteDimensions": "15×3 文字",
       "boardColor": "ボードカラー",
       "connectionTestFailed": "接続テストに失敗しました",
-      "failedToEnableLocalApi": "ローカルAPIの有効化に失敗しました"
+      "failedToEnableLocalApi": "ローカルAPIの有効化に失敗しました",
+      "previewDisclaimer": "表示イメージです"
     },
     "easyPlugins": {
       "description": "以下の機能は外部 API キーなしですぐに使えます。使いたい機能を有効にしましょう！",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "YourPassword",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "（パスワードなし）"
+      "noPassword": "（パスワードなし）",
+      "moreOnIntegrations": "...その他は",
+      "integrationsPage": "インテグレーションページ"
     },
     "welcome": {
       "setupComplete": "セットアップ完了！",

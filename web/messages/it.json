@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 caratteri",
       "boardColor": "Colore della bacheca",
       "connectionTestFailed": "Test di connessione fallito",
-      "failedToEnableLocalApi": "Impossibile abilitare l'API locale"
+      "failedToEnableLocalApi": "Impossibile abilitare l'API locale",
+      "previewDisclaimer": "Solo a scopo illustrativo"
     },
     "easyPlugins": {
       "description": "Queste funzionalità sono pronte all'uso senza chiavi API esterne. Attiva quelle che desideri!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "LaTuaPassword",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(nessuna password)"
+      "noPassword": "(nessuna password)",
+      "moreOnIntegrations": "...e altro nella",
+      "integrationsPage": "pagina Integrazioni"
     },
     "welcome": {
       "setupComplete": "Configurazione completata!",

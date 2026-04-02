@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 characters",
       "boardColor": "Board Color",
       "connectionTestFailed": "Connection test failed",
-      "failedToEnableLocalApi": "Failed to enable local API"
+      "failedToEnableLocalApi": "Failed to enable local API",
+      "previewDisclaimer": "For visualization only"
     },
     "easyPlugins": {
       "description": "These features work right away without any external API keys. Enable what you'd like!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "YourPassword",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(no password)"
+      "noPassword": "(no password)",
+      "moreOnIntegrations": "...and more on the",
+      "integrationsPage": "Integrations page"
     },
     "welcome": {
       "setupComplete": "Setup Complete!",

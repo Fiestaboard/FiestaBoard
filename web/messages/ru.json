@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 символов",
       "boardColor": "Цвет доски",
       "connectionTestFailed": "Ошибка проверки подключения",
-      "failedToEnableLocalApi": "Не удалось включить локальный API"
+      "failedToEnableLocalApi": "Не удалось включить локальный API",
+      "previewDisclaimer": "Только для визуализации"
     },
     "easyPlugins": {
       "description": "Эти функции работают сразу без внешних API-ключей. Включите то, что вам нравится!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "ВашПароль",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(без пароля)"
+      "noPassword": "(без пароля)",
+      "moreOnIntegrations": "...и ещё больше на",
+      "integrationsPage": "странице интеграций"
     },
     "welcome": {
       "setupComplete": "Настройка завершена!",

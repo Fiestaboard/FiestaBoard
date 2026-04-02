@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 karakter",
       "boardColor": "Pano Rengi",
       "connectionTestFailed": "Bağlantı testi başarısız",
-      "failedToEnableLocalApi": "Yerel API etkinleştirilemedi"
+      "failedToEnableLocalApi": "Yerel API etkinleştirilemedi",
+      "previewDisclaimer": "Yalnızca görselleştirme amaçlıdır"
     },
     "easyPlugins": {
       "description": "Bu özellikler harici API anahtarı gerektirmeden hemen çalışır. İstediğinizi etkinleştirin!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "SifrenizBurada",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "ŞİFRE: {password}",
-      "noPassword": "(şifresiz)"
+      "noPassword": "(şifresiz)",
+      "moreOnIntegrations": "...ve daha fazlası",
+      "integrationsPage": "Entegrasyonlar sayfasında"
     },
     "welcome": {
       "setupComplete": "Kurulum Tamamlandı!",

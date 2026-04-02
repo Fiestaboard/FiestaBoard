@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 Zeichen",
       "boardColor": "Boardfarbe",
       "connectionTestFailed": "Verbindungstest fehlgeschlagen",
-      "failedToEnableLocalApi": "Lokale API konnte nicht aktiviert werden"
+      "failedToEnableLocalApi": "Lokale API konnte nicht aktiviert werden",
+      "previewDisclaimer": "Nur zur Veranschaulichung"
     },
     "easyPlugins": {
       "description": "Diese Funktionen sind sofort einsatzbereit, ohne externe API-Schlüssel. Aktivieren Sie, was Ihnen gefällt!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "IhrPasswort",
       "wifiPreview": "WLAN: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(kein Passwort)"
+      "noPassword": "(kein Passwort)",
+      "moreOnIntegrations": "...und mehr auf der",
+      "integrationsPage": "Integrationen-Seite"
     },
     "welcome": {
       "setupComplete": "Einrichtung abgeschlossen!",

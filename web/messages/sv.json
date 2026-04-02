@@ -309,7 +309,8 @@
       "noteDimensions": "15 × 3 tecken",
       "boardColor": "Tavlans färg",
       "connectionTestFailed": "Anslutningstest misslyckades",
-      "failedToEnableLocalApi": "Kunde inte aktivera lokalt API"
+      "failedToEnableLocalApi": "Kunde inte aktivera lokalt API",
+      "previewDisclaimer": "Endast för visualisering"
     },
     "easyPlugins": {
       "description": "Dessa funktioner fungerar direkt utan externa API-nycklar. Aktivera det du vill!",
@@ -326,7 +327,9 @@
       "passwordPlaceholder": "DittLösenord",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(inget lösenord)"
+      "noPassword": "(inget lösenord)",
+      "moreOnIntegrations": "...och mer på",
+      "integrationsPage": "Integrationssidan"
     },
     "welcome": {
       "setupComplete": "Installationen är klar!",
