@@ -187,10 +187,12 @@ class ScheduleService:
                 ):
                     # Build description
                     days_str = ", ".join(sorted(common_days))
+                    end1_str = schedule1.end_time or "open"
+                    end2_str = schedule2.end_time or "open"
                     conflict_desc = (
                         f"Schedules overlap on {days_str}: "
-                        f"{schedule1.start_time}-{schedule1.end_time} and "
-                        f"{schedule2.start_time}-{schedule2.end_time}"
+                        f"{schedule1.start_time}-{end1_str} and "
+                        f"{schedule2.start_time}-{end2_str}"
                     )
                     
                     overlaps.append(Overlap(
@@ -204,33 +206,37 @@ class ScheduleService:
     def _times_overlap(
         self,
         start1: str,
-        end1: str,
+        end1: Optional[str],
         start2: str,
-        end2: str
+        end2: Optional[str]
     ) -> bool:
         """Check if two time ranges overlap.
         
-        Handles midnight rollover schedules where end_time < start_time.
+        Handles midnight rollover schedules where end_time < start_time,
+        and open-ended schedules where end_time is None.
         
         Args:
             start1: Start time of first range (HH:MM)
-            end1: End time of first range (HH:MM, exclusive)
+            end1: End time of first range (HH:MM, exclusive) or None (open-ended)
             start2: Start time of second range (HH:MM)
-            end2: End time of second range (HH:MM, exclusive)
+            end2: End time of second range (HH:MM, exclusive) or None (open-ended)
             
         Returns:
             True if times overlap
         """
+        TOTAL_MINUTES = 24 * 60  # 1440
         s1 = self._time_to_minutes(start1)
-        e1 = self._time_to_minutes(end1)
         s2 = self._time_to_minutes(start2)
-        e2 = self._time_to_minutes(end2)
         
-        wrap1 = e1 <= s1  # Schedule 1 crosses midnight
-        wrap2 = e2 <= s2  # Schedule 2 crosses midnight
+        # Treat None end_time as end-of-day (open-ended → runs to 23:59 = 1440)
+        e1 = self._time_to_minutes(end1) if end1 is not None else TOTAL_MINUTES
+        e2 = self._time_to_minutes(end2) if end2 is not None else TOTAL_MINUTES
+        
+        wrap1 = end1 is not None and e1 <= s1  # Schedule 1 crosses midnight
+        wrap2 = end2 is not None and e2 <= s2  # Schedule 2 crosses midnight
         
         if not wrap1 and not wrap2:
-            # Both normal ranges: standard overlap check
+            # Both normal ranges (or open-ended): standard overlap check
             return s1 < e2 and s2 < e1
         elif wrap1 and wrap2:
             # Both cross midnight: they always overlap (both cover midnight)
@@ -251,8 +257,8 @@ class ScheduleService:
         
         For each day of the week, find time periods with no scheduled page.
         Only report gaps larger than 15 minutes (single time slot).
-        Handles midnight rollover schedules by converting them to minute-level
-        coverage bitmaps.
+        Handles midnight rollover schedules and open-ended schedules
+        (end_time=None treated as running to end-of-day).
         
         Args:
             schedules: List of enabled schedules
@@ -281,17 +287,22 @@ class ScheduleService:
             covered = [False] * TOTAL_MINUTES
             for sched in day_schedules:
                 s = self._time_to_minutes(sched.start_time)
-                e = self._time_to_minutes(sched.end_time)
-                if e <= s:
-                    # Wraparound: covers [s, 1440) and [0, e)
+                if sched.end_time is None:
+                    # Open-ended: covers from start to end of day
                     for m in range(s, TOTAL_MINUTES):
                         covered[m] = True
-                    for m in range(0, e):
-                        covered[m] = True
                 else:
-                    # Normal: covers [s, e)
-                    for m in range(s, e):
-                        covered[m] = True
+                    e = self._time_to_minutes(sched.end_time)
+                    if e <= s:
+                        # Wraparound: covers [s, 1440) and [0, e)
+                        for m in range(s, TOTAL_MINUTES):
+                            covered[m] = True
+                        for m in range(0, e):
+                            covered[m] = True
+                    else:
+                        # Normal: covers [s, e)
+                        for m in range(s, e):
+                            covered[m] = True
             
             # Find uncovered ranges
             gap_start = None
