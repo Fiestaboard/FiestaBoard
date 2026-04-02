@@ -129,31 +129,19 @@ class TestScheduleEntry:
                 enabled=True
             )
     
-    def test_validate_15_minute_intervals(self):
-        """Test validation enforces 15-minute intervals."""
-        # Valid intervals
-        for minute in ["00", "15", "30", "45"]:
+    def test_validate_any_minute_value(self):
+        """Test validation accepts any minute value (0-59)."""
+        # All minutes should now be valid (15-min restriction removed)
+        for minute in [0, 5, 10, 15, 22, 30, 37, 45, 59]:
             entry = ScheduleEntry(
                 page_id="page-123",
-                start_time=f"09:{minute}",
+                start_time=f"09:{minute:02d}",
                 end_time="17:00",
                 day_pattern="all",
                 enabled=True
             )
             errors = entry.validate_config()
-            assert len(errors) == 0
-        
-        # Invalid intervals
-        entry = ScheduleEntry(
-            page_id="page-123",
-            start_time="09:05",  # Not 15-min interval
-            end_time="17:00",
-            day_pattern="all",
-            enabled=True
-        )
-        errors = entry.validate_config()
-        assert len(errors) > 0
-        assert any("15-minute" in err.lower() for err in errors)
+            assert len(errors) == 0, f"Minute {minute} should be valid but got: {errors}"
     
     def test_validate_end_after_start_allows_midnight_rollover(self):
         """Test that end_time before start_time is valid (midnight rollover)."""

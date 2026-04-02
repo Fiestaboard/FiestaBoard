@@ -175,6 +175,8 @@
       "enabledDescription": "Schedule will be active when enabled",
       "createSchedule": "Create Schedule",
       "updateSchedule": "Update Schedule",
+      "setEndTime": "Set end time",
+      "openEndedHint": "Runs until next schedule or end of day",
       "validationSelectPage": "Please select a page",
       "validationEndTimeDifferent": "End time must be different from start time",
       "validationSelectDay": "Please select at least one day for custom pattern",

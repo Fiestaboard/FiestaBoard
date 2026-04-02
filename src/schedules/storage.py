@@ -172,9 +172,12 @@ class ScheduleStorage:
         
         # Apply updates
         schedule_dict = schedule.model_dump()
+        # Fields that are allowed to be set to None explicitly
+        nullable_fields = {"end_time"}
         for key, value in updates.items():
-            if value is not None and key in schedule_dict:
-                schedule_dict[key] = value
+            if key in schedule_dict:
+                if value is not None or key in nullable_fields:
+                    schedule_dict[key] = value
         
         # Update timestamp
         schedule_dict["updated_at"] = datetime.now(timezone.utc)

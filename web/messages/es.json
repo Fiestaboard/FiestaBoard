@@ -175,6 +175,8 @@
       "enabledDescription": "El horario estará activo cuando esté habilitado",
       "createSchedule": "Crear horario",
       "updateSchedule": "Actualizar horario",
+      "setEndTime": "Establecer hora de fin",
+      "openEndedHint": "Se ejecuta hasta el siguiente horario o fin del día",
       "validationSelectPage": "Por favor selecciona una página",
       "validationEndTimeDifferent": "La hora de fin debe ser diferente a la hora de inicio",
       "validationSelectDay": "Por favor selecciona al menos un día para el patrón personalizado",

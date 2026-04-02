@@ -175,6 +175,8 @@
       "enabledDescription": "Etkinleştirildiğinde zamanlama aktif olacak",
       "createSchedule": "Zamanlama Oluştur",
       "updateSchedule": "Zamanlamayı Güncelle",
+      "setEndTime": "Bitiş saati belirle",
+      "openEndedHint": "Sonraki programa veya gün sonuna kadar çalışır",
       "validationSelectPage": "Lütfen bir sayfa seçin",
       "validationEndTimeDifferent": "Bitiş saati başlangıç saatinden farklı olmalıdır",
       "validationSelectDay": "Lütfen özel düzen için en az bir gün seçin",

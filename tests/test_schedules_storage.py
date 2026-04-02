@@ -1,12 +1,13 @@
 """Tests for schedule storage."""
 
+import builtins
 import pytest
 import json
 import tempfile
 from pathlib import Path
 from datetime import datetime
 
-from src.schedules.models import ScheduleEntry
+from src.schedules.models import ScheduleEntry, DEFAULT_BOARD_ID
 from src.schedules.storage import ScheduleStorage
 
 
@@ -271,3 +272,126 @@ class TestScheduleStorage:
         
         assert isinstance(retrieved.created_at, datetime)
         assert isinstance(retrieved.updated_at, datetime)
+
+    # ── New coverage gap tests ────────────────────────────────────────────────
+
+    def test_init_default_path_uses_data_directory(self):
+        """Default constructor should resolve storage_file to data/schedules.json."""
+        storage = ScheduleStorage()
+        assert storage.storage_file.name == "schedules.json"
+        assert storage.storage_file.parent.name == "data"
+
+    def test_init_fresh_when_file_absent(self, tmp_path):
+        """Storage initialises to empty state when the file does not exist yet."""
+        storage = ScheduleStorage(storage_file=str(tmp_path / "nonexistent.json"))
+        assert storage.count() == 0
+        assert storage.get_default_page_id() is None
+
+    def test_list_all_wildcard_returns_all_boards(self, temp_storage_file):
+        """list_all('*') returns schedules from every board_id."""
+        storage = ScheduleStorage(storage_file=temp_storage_file)
+        s1 = ScheduleEntry(
+            board_id="board-a", page_id="p1",
+            start_time="09:00", end_time="12:00", day_pattern="all", enabled=True,
+        )
+        s2 = ScheduleEntry(
+            board_id="board-b", page_id="p2",
+            start_time="12:00", end_time="17:00", day_pattern="all", enabled=True,
+        )
+        storage.create(s1)
+        storage.create(s2)
+
+        assert len(storage.list_all(board_id="board-a")) == 1
+        assert len(storage.list_all(board_id="*")) == 2
+
+    def test_create_raises_on_invalid_config(self, storage):
+        """create() raises ValueError when validate_config() finds errors."""
+        # day_pattern=custom with custom_days=None passes Pydantic but fails validate_config
+        invalid = ScheduleEntry(
+            page_id="p1",
+            start_time="09:00",
+            end_time="17:00",
+            day_pattern="custom",
+            custom_days=None,
+            enabled=True,
+        )
+        with pytest.raises(ValueError, match="Invalid schedule configuration"):
+            storage.create(invalid)
+
+    def test_update_raises_on_invalid_config(self, storage, sample_schedule):
+        """update() raises ValueError when the resulting state fails validate_config()."""
+        storage.create(sample_schedule)
+        # Switching to custom pattern without custom_days makes config invalid
+        with pytest.raises(ValueError, match="Invalid schedule configuration"):
+            storage.update(sample_schedule.id, {"day_pattern": "custom"})
+
+    def test_load_backfills_missing_board_id(self, temp_storage_file):
+        """Schedules stored without board_id are assigned DEFAULT_BOARD_ID on load."""
+        data = {
+            "schedules": [{
+                "id": "legacy-id",
+                "page_id": "p1",
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "day_pattern": "all",
+                "enabled": True,
+                "created_at": "2024-01-01T00:00:00+00:00",
+                "updated_at": None,
+                # board_id intentionally absent
+            }],
+            "default_page_id": None,
+            "default_page_by_board": {},
+        }
+        with open(temp_storage_file, "w") as f:
+            json.dump(data, f)
+
+        storage = ScheduleStorage(storage_file=temp_storage_file)
+        assert storage.count() == 1
+        assert storage.get("legacy-id").board_id == DEFAULT_BOARD_ID
+
+    def test_load_skips_corrupt_schedule_entry(self, temp_storage_file):
+        """A malformed entry in the JSON file is skipped; valid entries still load."""
+        data = {
+            "schedules": [
+                {
+                    "id": "good-id",
+                    "page_id": "p1",
+                    "start_time": "09:00",
+                    "end_time": "17:00",
+                    "day_pattern": "all",
+                    "enabled": True,
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                },
+                {"id": "bad-id", "broken_field": True},  # Missing required fields
+            ],
+            "default_page_id": None,
+            "default_page_by_board": {},
+        }
+        with open(temp_storage_file, "w") as f:
+            json.dump(data, f)
+
+        storage = ScheduleStorage(storage_file=temp_storage_file)
+        assert storage.count() == 1
+        assert storage.get("good-id") is not None
+        assert storage.get("bad-id") is None
+
+    def test_save_raises_on_io_error(self, storage, monkeypatch):
+        """_save() propagates IOError when the file cannot be written."""
+        original_open = builtins.open
+
+        def failing_open(path, mode="r", **kwargs):
+            if "w" in str(mode):
+                raise IOError("disk full")
+            return original_open(path, mode, **kwargs)
+
+        monkeypatch.setattr(builtins, "open", failing_open)
+
+        new_schedule = ScheduleEntry(
+            page_id="p2",
+            start_time="18:00",
+            end_time="22:00",
+            day_pattern="all",
+            enabled=True,
+        )
+        with pytest.raises(IOError):
+            storage.create(new_schedule)

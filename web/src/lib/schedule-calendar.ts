@@ -122,12 +122,15 @@ export function scheduleToCalendarEvents(
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const startTime = parseTime(schedule.start_time);
-  const endTime = parseTime(schedule.end_time);
   const pageName = getPageName(schedule.page_id, pages, carousels);
 
-  const isMidnightRollover =
-    endTime.hours < startTime.hours ||
-    (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes);
+  // When end_time is null/undefined (open-ended), treat as end-of-day (23:59)
+  const endTime = schedule.end_time ? parseTime(schedule.end_time) : null;
+
+  const isMidnightRollover = endTime
+    ? (endTime.hours < startTime.hours ||
+       (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes))
+    : false;
 
   for (const day of daysInWeek) {
     const dayOfWeek = getDay(day);
@@ -138,7 +141,7 @@ export function scheduleToCalendarEvents(
         startTime.minutes
       );
 
-      if (isMidnightRollover) {
+      if (isMidnightRollover && endTime) {
         // Split into two events at the midnight boundary
         const nextDay = addDays(day, 1);
 
@@ -190,11 +193,10 @@ export function scheduleToCalendarEvents(
           },
         });
       } else {
-        // Normal same-day event
-        const eventEnd = setMinutes(
-          setHours(day, endTime.hours),
-          endTime.minutes
-        );
+        // Normal same-day event (or open-ended — use end-of-day when no end_time)
+        const eventEnd = endTime
+          ? setMinutes(setHours(day, endTime.hours), endTime.minutes)
+          : endOfDay(day);
         events.push({
           id: `${schedule.id}-${format(day, "yyyy-MM-dd")}`,
           title: pageName,
@@ -332,7 +334,7 @@ export function isEventOnDay(event: CalendarEvent, date: Date): boolean {
  */
 export function extractTimeFromDate(date: Date): string {
   const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = Math.floor(date.getMinutes() / 15) * 15;
+  const minutes = date.getMinutes();
   return `${hours}:${minutes.toString().padStart(2, "0")}`;
 }
 

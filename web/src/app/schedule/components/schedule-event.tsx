@@ -40,7 +40,8 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
     if (resource.isMidnightSplit) {
       const orig = resource.originalSchedule;
       const [startH, startM] = orig.start_time.split(":").map(Number);
-      const [endH, endM] = orig.end_time.split(":").map(Number);
+      const endTimeStr = orig.end_time || "23:59";
+      const [endH, endM] = endTimeStr.split(":").map(Number);
       const startDate = new Date(2000, 0, 1, startH, startM);
       const endDate = new Date(2000, 0, 1, endH, endM);
       const fullStart = format(startDate, "h:mma").toLowerCase();

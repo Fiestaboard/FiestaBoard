@@ -37,7 +37,8 @@ test.describe("Multi-Board and Schedule", () => {
     await expect(
       page.getByRole("heading", { name: "Schedule", exact: true })
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Schedule Mode").first()).toBeVisible({
+    // Schedule toggle is always visible (replaces the old Schedule Mode card)
+    await expect(page.getByTestId("schedule-enabled-toggle")).toBeVisible({
       timeout: 5_000,
     });
   });
@@ -50,10 +51,12 @@ test.describe("Multi-Board and Schedule", () => {
     await expect(
       page.getByRole("heading", { name: "Schedule", exact: true })
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("My Board").first()).toBeVisible({
+    // The board selector dropdown should appear in the toolbar
+    await expect(page.getByTestId("board-selector")).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText("Schedule Mode").first()).toBeVisible({
+    // The schedule enabled toggle should also be visible
+    await expect(page.getByTestId("schedule-enabled-toggle")).toBeVisible({
       timeout: 5_000,
     });
   });
@@ -164,10 +167,11 @@ test.describe("Multi-Board and Schedule", () => {
     // First board selected: should show 09:00–12:00
     await expect(page.getByText("09:00").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("12:00").first()).toBeVisible({ timeout: 5_000 });
-    // Switch to second board (second button in the board selector)
-    const boardButtons = page.getByTestId("board-selector").getByRole("button");
-    await expect(boardButtons).toHaveCount(2);
-    await boardButtons.nth(1).click();
+    // Switch to second board using the compact board selector dropdown
+    const boardSelector = page.getByTestId("board-selector");
+    await boardSelector.click();
+    // Pick the second option in the dropdown
+    await page.getByRole("option").nth(1).click();
     // After switch: should show 14:00–18:00 for board 2
     await expect(page.getByText("14:00").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("18:00").first()).toBeVisible({ timeout: 5_000 });

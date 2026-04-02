@@ -41,32 +41,23 @@ test.describe("Schedule Management", () => {
       page.getByRole("heading", { name: "Schedule", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Find the schedule mode toggle
-    const toggle = page.getByText("Schedule Mode").first();
-    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    // Find the schedule enabled toggle pill in the toolbar
+    const toggleEl = page.getByTestId("schedule-enabled-toggle");
+    await expect(toggleEl).toBeVisible({ timeout: 10_000 });
 
-    // Find the switch near "Schedule Mode"
-    const switchEl = page
-      .locator("section, div")
-      .filter({ hasText: "Schedule Mode" })
-      .getByRole("switch")
-      .first();
+    // Toggle on
+    const apiResponse = page.waitForResponse(
+      (r) => r.url().includes("/schedules/enabled") && r.status() === 200,
+    );
+    await toggleEl.click();
+    await apiResponse;
 
-    if (await switchEl.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      // Toggle on
-      const apiResponse = page.waitForResponse(
-        (r) => r.url().includes("/schedules/enabled") && r.status() === 200,
-      );
-      await switchEl.click();
-      await apiResponse;
-
-      // Toggle back off
-      const revertResponse = page.waitForResponse(
-        (r) => r.url().includes("/schedules/enabled") && r.status() === 200,
-      );
-      await switchEl.click();
-      await revertResponse;
-    }
+    // Toggle back off
+    const revertResponse = page.waitForResponse(
+      (r) => r.url().includes("/schedules/enabled") && r.status() === 200,
+    );
+    await toggleEl.click();
+    await revertResponse;
   });
 
   test("can create a schedule via the UI form", async ({ page }) => {
@@ -246,31 +237,22 @@ test.describe("Schedule Management", () => {
   });
 
   test("can set the default page", async ({ page }) => {
-    const pageId = await createPage("Default Page Candidate");
+    await createPage("Default Page Candidate");
 
     await page.goto("/schedule");
     await expect(
       page.getByRole("heading", { name: "Schedule", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Look for "Default Page" section
-    const defaultSection = page.getByText("Default Page").first();
-    await expect(defaultSection).toBeVisible({ timeout: 10_000 });
+    // Find the gap-default select in the toolbar
+    const gapDefaultSelect = page.getByTestId("gap-default-select");
+    await expect(gapDefaultSelect).toBeVisible({ timeout: 10_000 });
 
-    // Click "Change" button to open page picker
-    const changeBtn = page
-      .getByRole("button", { name: /change/i })
-      .first();
-    if (await changeBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await changeBtn.click();
-
-      // Select the page
-      const pageOption = page.getByText("Default Page Candidate").first();
-      if (
-        await pageOption.isVisible({ timeout: 5_000 }).catch(() => false)
-      ) {
-        await pageOption.click();
-      }
+    // Open the select and pick the page
+    await gapDefaultSelect.click();
+    const pageOption = page.getByRole("option", { name: "Default Page Candidate" });
+    if (await pageOption.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await pageOption.click();
     }
 
     // Verify via API
@@ -278,7 +260,6 @@ test.describe("Schedule Management", () => {
     const res = await fetch(`${API_URL}/schedules/default-page`);
     if (res.ok) {
       const data = await res.json();
-      // The default page should be set (could be our page or another)
       expect(data).toHaveProperty("default_page_id");
     }
   });
@@ -360,10 +341,10 @@ test.describe("Schedule Management", () => {
       page.getByRole("heading", { name: "Schedule", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The schedule mode toggle description changes when enabled
-    await expect(
-      page.getByText("Pages automatically rotate based on schedule").first(),
-    ).toBeVisible({ timeout: 10_000 });
+    // When schedule mode is enabled the toggle pill shows "On"
+    const scheduleToggle = page.getByTestId("schedule-enabled-toggle");
+    await expect(scheduleToggle).toBeVisible({ timeout: 10_000 });
+    await expect(scheduleToggle.getByText("On")).toBeVisible();
 
     // Disable schedule mode
     await fetch(`${API_URL}/schedules/enabled`, {

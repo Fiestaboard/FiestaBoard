@@ -66,6 +66,14 @@ class Carousel(BaseModel):
     def current_page_id(self, now_unix: float) -> str:
         return self.page_ids[self.current_page_index(now_unix)]
 
+    def total_cycle_seconds(self) -> int:
+        """Total duration of one complete cycle through all pages.
+
+        Returns:
+            Number of seconds for one full rotation (num_pages * interval_seconds).
+        """
+        return len(self.page_ids) * self.interval_seconds
+
 
 class CarouselCreate(BaseModel):
     """Request model for creating a new carousel."""

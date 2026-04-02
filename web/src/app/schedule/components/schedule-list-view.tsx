@@ -74,7 +74,7 @@ export function ScheduleListView({
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {schedule.start_time} - {schedule.end_time} • {formatDays(schedule)}
+                      {schedule.start_time} - {schedule.end_time || "open"} • {formatDays(schedule)}
                     </div>
                   </div>
                   <div className="flex gap-2">

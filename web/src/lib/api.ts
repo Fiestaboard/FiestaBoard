@@ -451,7 +451,7 @@ export interface ScheduleEntry {
   board_id?: string; // Optional; "" or omitted = default board
   page_id: string;
   start_time: string; // HH:MM format
-  end_time: string;   // HH:MM format
+  end_time?: string | null;  // HH:MM format or null (open-ended)
   day_pattern: DayPattern;
   custom_days?: string[]; // Only used when day_pattern is "custom"
   enabled: boolean;
@@ -463,7 +463,7 @@ export interface ScheduleCreate {
   board_id?: string;
   page_id: string;
   start_time: string;
-  end_time: string;
+  end_time?: string | null; // null for open-ended schedule
   day_pattern: DayPattern;
   custom_days?: string[];
   enabled?: boolean; // Defaults to true
@@ -473,7 +473,7 @@ export interface ScheduleUpdate {
   board_id?: string;
   page_id?: string;
   start_time?: string;
-  end_time?: string;
+  end_time?: string | null; // null to clear end_time
   day_pattern?: DayPattern;
   custom_days?: string[];
   enabled?: boolean;
