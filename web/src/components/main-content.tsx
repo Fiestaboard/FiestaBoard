@@ -10,7 +10,7 @@ export function MainContent({ children }: { children: React.ReactNode }) {
   return (
     <main
       className={cn(
-        "min-h-screen pt-[72px] lg:pt-0 overflow-x-hidden w-full mx-auto sidebar-transition",
+        "h-screen flex flex-col pt-[72px] lg:pt-0 overflow-hidden w-full mx-auto sidebar-transition",
         collapsed ? "lg:pl-[76px]" : "lg:pl-[268px]",
         transitioning && "is-transitioning"
       )}

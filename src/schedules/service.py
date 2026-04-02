@@ -20,6 +20,7 @@ from .models import (
     DEFAULT_BOARD_ID,
 )
 from .storage import ScheduleStorage
+from ..settings.service import get_settings_service
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,27 @@ class ScheduleService:
     
     def list_schedules(self, board_id: Optional[str] = None) -> List[ScheduleEntry]:
         """List schedules, optionally filtered by board_id."""
-        return self.storage.list_all(board_id=board_id)
+        if board_id == "*":
+            return self.storage.list_all(board_id="*")
+
+        schedules = self.storage.list_all(board_id=board_id)
+
+        # Legacy schedules use board_id "" (DEFAULT_BOARD_ID) for the default board
+        # slot. When the UI requests the first board by its concrete id (multi-board
+        # mode), include those rows so pre-migration and API-created entries still
+        # appear for the primary board.
+        if board_id:
+            boards = get_settings_service().get_board_settings().boards or []
+            first_id = boards[0].get("id") if boards else None
+            if first_id and board_id == first_id:
+                legacy = self.storage.list_all(board_id=None)
+                seen = {s.id for s in schedules}
+                for s in legacy:
+                    if s.id not in seen:
+                        schedules.append(s)
+                schedules.sort(key=lambda s: s.created_at)
+
+        return schedules
     
     def get_schedule(self, schedule_id: str) -> Optional[ScheduleEntry]:
         """Get a schedule by ID."""

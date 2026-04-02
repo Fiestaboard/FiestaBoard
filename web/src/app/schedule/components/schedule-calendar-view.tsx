@@ -13,8 +13,10 @@ import {
   addDays,
 } from "date-fns";
 import { enUS } from "date-fns/locale/en-US";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import type { ScheduleEntry, Page, Overlap, Carousel } from "@/lib/api";
 import {
   schedulesToCalendarEvents,
@@ -45,6 +47,26 @@ const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 // Day names for mobile navigation indicator
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// Zoom presets: [label, px-per-hour, step-minutes, timeslots]
+// step × timeslots = minutes per visual group.
+// We keep step=15 at lower zoom levels (4 timeslots = 1 hour group) to limit
+// DOM nodes. Only the highest levels drop to step=5 or step=1 where the grid
+// is expanded enough to justify per-minute resolution.
+const ZOOM_PRESETS: [string, number, number, number][] = [
+  ["1×",  28,  15, 4],   // compact — 7 px / slot
+  ["2×",  48,  15, 4],
+  ["3×",  72,  15, 4],
+  ["4×",  100, 15, 4],
+  ["6×",  150, 5,  3],   // switch to 5-min grid
+  ["8×",  240, 5,  3],
+  ["12×", 360, 5,  3],
+  ["16×", 480, 1,  1],   // minute-level
+  ["24×", 720, 1,  1],
+];
+const DEFAULT_ZOOM = 0;
+const MAX_ZOOM = ZOOM_PRESETS.length - 1;
+const ZOOM_STORAGE_KEY = "schedule-calendar-zoom";
+
 interface ScheduleCalendarViewProps {
   schedules: ScheduleEntry[];
   pages: Page[];
@@ -68,6 +90,36 @@ export function ScheduleCalendarView({
   const [isMobile, setIsMobile] = useState(false);
   const [mobileStartDay, setMobileStartDay] = useState(0); // 0 = Sunday
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Zoom state – persisted to localStorage
+  const [zoomIndex, setZoomIndex] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(ZOOM_STORAGE_KEY);
+      const n = saved !== null ? parseInt(saved, 10) : NaN;
+      if (!isNaN(n) && n >= 0 && n < ZOOM_PRESETS.length) return n;
+    }
+    return DEFAULT_ZOOM;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(ZOOM_STORAGE_KEY, String(zoomIndex));
+  }, [zoomIndex]);
+
+  const [, hourHeight, zoomStep, zoomTimeslots] = ZOOM_PRESETS[zoomIndex];
+  const slotHeight = Math.round(hourHeight / zoomTimeslots);
+
+  const handleZoomIn = useCallback(
+    () => setZoomIndex((i) => Math.min(i + 1, MAX_ZOOM)),
+    []
+  );
+  const handleZoomOut = useCallback(
+    () => setZoomIndex((i) => Math.max(i - 1, 0)),
+    []
+  );
+  const handleSliderChange = useCallback(
+    (values: number[]) => setZoomIndex(values[0]),
+    []
+  );
 
   // Check for mobile viewport
   useEffect(() => {
@@ -203,6 +255,12 @@ export function ScheduleCalendarView({
     return date;
   }, []);
 
+  // CSS variable overrides derived from current zoom level
+  const calendarStyle = useMemo<React.CSSProperties>(() => ({
+    "--rbc-hour-height": `${hourHeight}px`,
+    "--rbc-slot-height": `${slotHeight}px`,
+  } as React.CSSProperties), [hourHeight, slotHeight]);
+
   // Get visible days label for mobile
   const visibleDaysLabel = useMemo(() => {
     const endDay = Math.min(mobileStartDay + 2, 6);
@@ -210,50 +268,97 @@ export function ScheduleCalendarView({
   }, [mobileStartDay]);
 
   return (
-    <div className="schedule-calendar-wrapper">
-      {/* Mobile Navigation */}
-      {isMobile && (
-        <div className="flex items-center justify-between mb-2 px-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handlePrevDays}
-            disabled={mobileStartDay === 0}
-            className="h-8 px-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex gap-1">
-            {DAY_NAMES.map((day, idx) => (
-              <button
-                key={day}
-                onClick={() => setMobileStartDay(Math.min(idx, 4))}
-                className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${
-                  idx >= mobileStartDay && idx < mobileStartDay + 3
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {day[0]}
-              </button>
-            ))}
+    <TooltipProvider>
+    <div className="schedule-calendar-wrapper h-full flex flex-col">
+      {/* Top bar: mobile day navigation (left) + zoom slider (right) */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        {/* Mobile day navigation */}
+        {isMobile ? (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePrevDays}
+              disabled={mobileStartDay === 0}
+              className="h-8 px-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex gap-1">
+              {DAY_NAMES.map((day, idx) => (
+                <button
+                  key={day}
+                  onClick={() => setMobileStartDay(Math.min(idx, 4))}
+                  className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${
+                    idx >= mobileStartDay && idx < mobileStartDay + 3
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {day[0]}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNextDays}
+              disabled={mobileStartDay >= 4}
+              className="h-8 px-2"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleNextDays}
-            disabled={mobileStartDay >= 4}
-            className="h-8 px-2"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+        ) : (
+          <div />
+        )}
+
+        {/* Zoom slider */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleZoomOut}
+                disabled={zoomIndex === 0}
+                className="h-7 w-7 p-0"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <Slider
+                value={[zoomIndex]}
+                min={0}
+                max={MAX_ZOOM}
+                step={1}
+                onValueChange={handleSliderChange}
+                className="w-24"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleZoomIn}
+                disabled={zoomIndex === MAX_ZOOM}
+                className="h-7 w-7 p-0"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-[10px] font-medium text-muted-foreground w-8 tabular-nums">
+                {ZOOM_PRESETS[zoomIndex][0]}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {zoomStep === 1 ? "1-minute grid" : `${zoomStep}-minute grid`}
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
       <div 
         ref={containerRef}
-        className={`schedule-calendar-container ${isMobile ? "schedule-calendar-mobile" : ""}`}
+        className={`schedule-calendar-container flex-1 min-h-0 ${isMobile ? "schedule-calendar-mobile" : ""}`}
         data-start-day={mobileStartDay}
+        style={calendarStyle}
       >
         <DnDCalendar
           localizer={localizer}
@@ -270,16 +375,19 @@ export function ScheduleCalendarView({
           onEventResize={handleEventDropOrResize}
           selectable
           resizable
-          step={15}
-          timeslots={4}
-        min={minTime}
-        max={maxTime}
-        eventPropGetter={eventPropGetter}
+          step={zoomStep}
+          timeslots={zoomTimeslots}
+          min={minTime}
+          max={maxTime}
+          eventPropGetter={eventPropGetter}
           slotPropGetter={slotPropGetter}
           components={components}
           toolbar={false}
           formats={{
-            timeGutterFormat: (date: Date) => format(date, "ha").toLowerCase(),
+            timeGutterFormat: (date: Date) =>
+              zoomStep <= 5
+                ? format(date, "h:mma").toLowerCase()
+                : format(date, "ha").toLowerCase(),
             eventTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
               `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
             dayHeaderFormat: (date: Date) => format(date, "EEE"),
@@ -293,5 +401,6 @@ export function ScheduleCalendarView({
         />
       </div>
     </div>
+    </TooltipProvider>
   );
 }

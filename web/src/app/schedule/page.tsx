@@ -3,11 +3,19 @@
 import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,7 +56,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, AlertCircle, CheckCircle2, AlertTriangle, List, CalendarDays, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, AlertCircle, AlertTriangle, List, CalendarDays, Calendar as CalendarIcon, Power } from "lucide-react";
 import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern, isCarouselId } from "@/lib/api";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -312,22 +320,27 @@ export default function SchedulePage() {
   const hasOverlaps = (validation?.overlaps?.length || 0) > 0;
   const hasGaps = (validation?.gaps?.length || 0) > 0;
 
+  const isCalendarMode = viewMode === "calendar";
+  const issueCount = hasOverlaps
+    ? (validation?.overlaps?.length ?? 0)
+    : (validation?.gaps?.length ?? 0);
+
   return (
-    <PageLayout>
+    <PageLayout fillHeight={isCalendarMode}>
+      {/* ── Page header ── */}
       <PageHeader
-          icon={CalendarIcon}
-          title="Schedule"
-          description={
-            <>
-              Automate page rotation based on time and day
-              <span className="text-xs ml-2">
-                (Times shown in: {Intl.DateTimeFormat().resolvedOptions().timeZone})
-              </span>
-            </>
-          }
-        />
+        icon={CalendarIcon}
+        title="Schedule"
+        className="flex-shrink-0"
+        description={`Automate page rotation by time and day · ${Intl.DateTimeFormat().resolvedOptions().timeZone}`}
+      />
+
+      {/* ── Compact toolbar: everything in one row ── */}
+      <TooltipProvider>
         <PageToolbar
+          className="flex-shrink-0"
           left={
+            /* View toggle */
             <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
               <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
@@ -350,180 +363,167 @@ export default function SchedulePage() {
             </div>
           }
           right={
-            <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
-              <Plus className="h-4 w-4 mr-1" />
-              Add Schedule
-            </Button>
-          }
-        />
-        {/* Board selector when multiple boards */}
-        {boards.length > 1 && (
-          <div className="mb-6" data-testid="board-selector">
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">Board</label>
-            {boards.length <= 3 ? (
-              <div className="flex flex-wrap gap-2">
-                {boards.map((b: { id: string; name?: string }) => (
-                  <Button
-                    key={b.id}
-                    variant={selectedBoardId === b.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedBoardId(b.id)}
-                  >
-                    {b.name || `Board ${b.id.slice(0, 8)}`}
-                  </Button>
-                ))}
-              </div>
-            ) : (
-              <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Select a board" />
-                </SelectTrigger>
-                <SelectContent>
-                  {boards.map((b: { id: string; name?: string }) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name || `Board ${b.id.slice(0, 8)}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        )}
-
-        {/* Schedule Toggle + Default Page */}
-        <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "0ms" }}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">Schedule Mode</CardTitle>
-                <CardDescription>
-                  {scheduleEnabled
-                    ? "Enabled — pages automatically rotate based on schedule"
-                    : "Disabled — pages are controlled manually"}
-                </CardDescription>
-              </div>
-              <Switch
-                checked={scheduleEnabled}
-                onCheckedChange={toggleSchedule.mutate}
-                disabled={toggleSchedule.isPending}
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <label className="text-sm text-muted-foreground whitespace-nowrap">
-                Default page for gaps:
-              </label>
-              {pagesData && (
-                <Select
-                  value={defaultPageId || NO_DEFAULT_PAGE}
-                  onValueChange={(value) => {
-                    setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value);
-                  }}
-                >
-                  <SelectTrigger className="w-full sm:w-[240px]">
-                    <SelectValue placeholder="Select a default page" />
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {/* Board selector (multi-board only) */}
+              {boards.length > 1 && (
+                <Select value={selectedBoardId} onValueChange={setSelectedBoardId} data-testid="board-selector">
+                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                    <SelectValue placeholder="Board" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NO_DEFAULT_PAGE}>None (no default)</SelectItem>
-                    {pagesData.pages.map((page) => (
-                      <SelectItem key={page.id} value={page.id}>
-                        {page.name}
-                      </SelectItem>
-                    ))}
-                    {carouselsData?.carousels?.map((carousel) => (
-                      <SelectItem key={carousel.id} value={carousel.id}>
-                        {carousel.name} (carousel)
+                    {boards.map((b: { id: string; name?: string }) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name || `Board ${b.id.slice(0, 8)}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
+
+              {/* Schedule on/off toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer" onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}>
+                    <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
+                    <span className="text-xs font-medium">{scheduleEnabled ? "On" : "Off"}</span>
+                    <Switch
+                      checked={scheduleEnabled}
+                      onCheckedChange={toggleSchedule.mutate}
+                      disabled={toggleSchedule.isPending}
+                      className="scale-75 pointer-events-none"
+                      tabIndex={-1}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {scheduleEnabled ? "Disable schedule mode" : "Enable schedule mode"}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Default page for gaps */}
+              <Select
+                value={defaultPageId || NO_DEFAULT_PAGE}
+                onValueChange={(value) => setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value)}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SelectTrigger className="h-8 w-[150px] text-xs">
+                      <SelectValue placeholder="Gap default…" />
+                    </SelectTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Default page shown during schedule gaps</TooltipContent>
+                </Tooltip>
+                <SelectContent>
+                  <SelectItem value={NO_DEFAULT_PAGE}>No default</SelectItem>
+                  {pagesData?.pages.map((page) => (
+                    <SelectItem key={page.id} value={page.id}>{page.name}</SelectItem>
+                  ))}
+                  {carouselsData?.carousels?.map((carousel) => (
+                    <SelectItem key={carousel.id} value={carousel.id}>{carousel.name} (carousel)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Validation indicator — floating icon that opens a detail dropdown */}
+              {(hasOverlaps || hasGaps) && (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-yellow-500 hover:text-yellow-500"}`}
+                        >
+                          {hasOverlaps
+                            ? <AlertCircle className="h-4 w-4" />
+                            : <AlertTriangle className="h-4 w-4" />}
+                          <span className={`absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-[9px] font-bold rounded-full flex items-center justify-center text-white ${hasOverlaps ? "bg-destructive" : "bg-yellow-500"}`}>
+                            {issueCount}
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {hasOverlaps ? `${issueCount} schedule conflict${issueCount !== 1 ? "s" : ""}` : `${issueCount} schedule gap${issueCount !== 1 ? "s" : ""}`}
+                    </TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}>
+                      {hasOverlaps ? "Schedule Conflicts" : "Schedule Gaps"}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {hasOverlaps
+                      ? validation?.overlaps?.map((overlap, i) => (
+                          <DropdownMenuItem key={i} className="text-xs whitespace-normal cursor-default focus:bg-transparent" variant="destructive">
+                            {overlap?.conflict_description || "Unknown conflict"}
+                          </DropdownMenuItem>
+                        ))
+                      : (
+                        <>
+                          <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
+                            {issueCount} gap{issueCount !== 1 ? "s" : ""} in schedule.{" "}
+                            {defaultPageId
+                              ? <>Default: <span className="font-medium">{getPageName(defaultPageId)}</span></>
+                              : <span className="text-muted-foreground">No default page set.</span>}
+                          </DropdownMenuItem>
+                          {validation?.gaps && validation.gaps.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {validation.gaps.map((gap, i) => {
+                                if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
+                                return (
+                                  <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
+                                    <span className="text-muted-foreground mr-2">{formatDaysCompact(gap.days)}</span>
+                                    {gap.start_time} – {gap.end_time}
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                            </>
+                          )}
+                        </>
+                      )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
+                <Plus className="h-4 w-4 mr-1" />
+                Add Schedule
+              </Button>
             </div>
+          }
+        />
+      </TooltipProvider>
+
+      {/* ── Schedule View ── */}
+      {viewMode === "list" ? (
+        <ScheduleListView
+          schedules={schedules}
+          pages={pages}
+          carousels={carouselsData?.carousels}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      ) : (
+        /* Calendar card: grows to fill remaining space in the pinned layout */
+        <Card className="flex-1 min-h-0 flex flex-col overflow-hidden animate-card-fade-in" style={{ animationDelay: "300ms" }}>
+          <CardHeader className="flex-shrink-0 py-3">
+            <CardTitle className="text-base">Schedule Calendar</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 overflow-hidden pt-0">
+            <ScheduleCalendarView
+              schedules={schedules}
+              pages={pages}
+              carousels={carouselsData?.carousels}
+              overlaps={validation?.overlaps}
+              onEventClick={handleEventClick}
+              onSlotSelect={handleSlotSelect}
+              onEventTimeChange={handleEventTimeChange}
+            />
           </CardContent>
         </Card>
-
-        {/* Validation Status */}
-        {(hasOverlaps || hasGaps) && (
-          <Alert 
-            variant={hasOverlaps ? "destructive" : "default"} 
-            className={`mb-6 ${hasGaps && !hasOverlaps && defaultPageId ? "border-info/50 bg-info/10" : ""}`}
-          >
-            {hasOverlaps ? (
-              <AlertCircle className="h-4 w-4" />
-            ) : hasGaps && defaultPageId ? (
-              <CheckCircle2 className="h-4 w-4 text-info" />
-            ) : (
-              <AlertTriangle className="h-4 w-4" />
-            )}
-            <AlertDescription>
-              {hasOverlaps && (
-                <div className="font-semibold mb-2">Schedule Conflicts Detected</div>
-              )}
-              {validation?.overlaps?.map((overlap, i) => (
-                <div key={i} className="text-sm">
-                  {overlap?.conflict_description || "Unknown conflict"}
-                </div>
-              ))}
-              {hasGaps && !hasOverlaps && (
-                <div className="text-sm space-y-2">
-                  <div>
-                    {validation?.gaps?.length || 0} time gap(s) in schedule.{" "}
-                    {defaultPageId ? (
-                      <span className="text-info">
-                        Default page &quot;{getPageName(defaultPageId)}&quot; will be shown.
-                      </span>
-                    ) : (
-                      <span>Consider setting a default page.</span>
-                    )}
-                  </div>
-                  {validation?.gaps && validation.gaps.length > 0 && (
-                    <div className="mt-2 space-y-1 text-xs opacity-90">
-                      <div className="font-semibold">Time gaps:</div>
-                      {validation.gaps.map((gap, i) => {
-                        if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
-                        
-                        return (
-                          <div key={i} className="pl-2">
-                            • {formatDaysCompact(gap.days)}: {gap.start_time} - {gap.end_time}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Schedule View - List or Calendar */}
-        {viewMode === "list" ? (
-          <ScheduleListView
-            schedules={schedules}
-            pages={pages}
-            carousels={carouselsData?.carousels}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        ) : (
-          <Card className="mb-6 animate-card-fade-in" style={{ animationDelay: "300ms" }}>
-            <CardHeader>
-              <CardTitle className="text-lg">Schedule Calendar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScheduleCalendarView
-                schedules={schedules}
-                pages={pages}
-                carousels={carouselsData?.carousels}
-                overlaps={validation?.overlaps}
-                onEventClick={handleEventClick}
-                onSlotSelect={handleSlotSelect}
-                onEventTimeChange={handleEventTimeChange}
-              />
-            </CardContent>
-          </Card>
-        )}
+      )}
 
         {/* Form Tray */}
         <Sheet open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>

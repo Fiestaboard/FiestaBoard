@@ -3,6 +3,7 @@
 import pytest
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
 from datetime import datetime, time
 
 from src.schedules.models import ScheduleEntry, ScheduleCreate
@@ -33,7 +34,37 @@ class TestScheduleServiceCRUD:
         """Test listing schedules when empty."""
         schedules = service.list_schedules()
         assert len(schedules) == 0
-    
+
+    def test_list_schedules_by_first_board_id_includes_legacy_default_board(
+        self, service, monkeypatch
+    ):
+        """Schedules with board_id '' must show when UI filters by first board id."""
+        create_data = ScheduleCreate(
+            page_id="page-legacy",
+            start_time="09:00",
+            end_time="10:00",
+            day_pattern="all",
+            enabled=True,
+        )
+        created = service.create_schedule(create_data)
+
+        mock_gs = MagicMock()
+        mock_gs.get_board_settings.return_value.boards = [
+            {"id": "first-board-uuid", "name": "A"},
+            {"id": "second-board-uuid", "name": "B"},
+        ]
+        monkeypatch.setattr(
+            "src.schedules.service.get_settings_service",
+            lambda: mock_gs,
+        )
+
+        by_first = service.list_schedules(board_id="first-board-uuid")
+        assert len(by_first) == 1
+        assert by_first[0].id == created.id
+
+        by_second = service.list_schedules(board_id="second-board-uuid")
+        assert len(by_second) == 0
+
     def test_create_schedule(self, service):
         """Test creating a schedule."""
         create_data = ScheduleCreate(
@@ -438,6 +469,66 @@ class TestValidation:
         # (might have tiny gap for 23:45-24:00)
         gaps_larger_than_15min = [g for g in result.gaps if service._time_diff_minutes(g.start_time, g.end_time) > 15]
         assert len(gaps_larger_than_15min) == 0
+
+    def test_detect_gaps_entire_day_uncovered(self, service):
+        """Days with zero schedules produce an all-day gap entry."""
+        # Weekdays-only schedule leaves Saturday and Sunday fully uncovered
+        service.create_schedule(ScheduleCreate(
+            page_id="work-page",
+            start_time="00:00",
+            end_time="23:59",
+            day_pattern="weekdays",
+            enabled=True,
+        ))
+
+        result = service.validate_schedules()
+        gap_days = {day for gap in result.gaps for day in gap.days}
+        assert "saturday" in gap_days
+        assert "sunday" in gap_days
+
+
+class TestHelpers:
+    """Tests for internal helper methods and module-level utilities."""
+
+    def test_list_schedules_wildcard_returns_all_boards(self, service):
+        """list_schedules('*') returns schedules from all board_ids."""
+        s1 = service.create_schedule(ScheduleCreate(
+            board_id="board-a",
+            page_id="p1",
+            start_time="09:00",
+            end_time="17:00",
+            day_pattern="all",
+            enabled=True,
+        ))
+        s2 = service.create_schedule(ScheduleCreate(
+            board_id="board-b",
+            page_id="p2",
+            start_time="09:00",
+            end_time="17:00",
+            day_pattern="all",
+            enabled=True,
+        ))
+        all_schedules = service.list_schedules(board_id="*")
+        ids = {s.id for s in all_schedules}
+        assert s1.id in ids
+        assert s2.id in ids
+
+    def test_time_diff_minutes(self, service):
+        """_time_diff_minutes returns correct minute count."""
+        assert service._time_diff_minutes("09:00", "17:00") == 480
+        assert service._time_diff_minutes("00:00", "23:59") == 1439
+        assert service._time_diff_minutes("12:30", "12:45") == 15
+
+    def test_get_schedule_service_singleton(self):
+        """get_schedule_service() returns the same instance on repeated calls."""
+        from src.schedules import service as svc_module
+        svc_module._schedule_service = None  # Reset so we get a fresh one
+        try:
+            svc1 = svc_module.get_schedule_service()
+            svc2 = svc_module.get_schedule_service()
+            assert svc1 is svc2
+        finally:
+            svc_module._schedule_service = None  # Clean up singleton
 
 
 class TestDefaultPage:

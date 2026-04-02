@@ -6,10 +6,27 @@
 /* ===== Wrapper ===== */
 .schedule-calendar-wrapper {
   width: 100%;
+  /* height is supplied by the parent flex chain when inside the pinned layout */
 }
 
 /* ===== Container & General ===== */
 /* Single source of truth for time slot heights - ensures gutter numbers align with grid ticks */
+
+/* Thread flex layout through react-big-calendar internals so rbc-time-content
+   fills the parent height instead of overflowing it. */
+.schedule-calendar-container,
+.schedule-calendar-container .rbc-calendar,
+.schedule-calendar-container .rbc-time-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.schedule-calendar-container .rbc-calendar,
+.schedule-calendar-container .rbc-time-view {
+  flex: 1;
+}
+
 .schedule-calendar-container {
   --rbc-border-color: var(--border);
   --rbc-grid-line: color-mix(in oklch, currentColor 15%, transparent);
@@ -35,7 +52,6 @@
   --schedule-color-5: color-mix(in oklch, var(--color-board-yellow), black 45%);
   --schedule-bg-5: color-mix(in oklch, var(--color-board-yellow) 14%, transparent);
   
-  /* Full height - no scrolling */
   width: 100%;
 }
 
@@ -128,7 +144,12 @@
 /* ===== Time Content Area ===== */
 .schedule-calendar-container .rbc-time-content {
   border-top: 1px solid var(--rbc-grid-line-hour);
-  overflow: visible !important;
+  /* flex-1 + min-h-0 lets this fill whatever height the parent flex chain
+     allocates. overflow-y-auto provides scrolling when zoomed in. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
   max-height: none !important;
 }
 
