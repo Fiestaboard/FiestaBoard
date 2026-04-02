@@ -26,8 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Match {{ variable_name }} with optional whitespace inside braces.
 # The variable name can contain alphanumerics, underscores, dots, colons,
-# percent signs, and hyphens (to support date format strings like date:%Y%m%d
-# and dotted plugin references like weather.temperature).
+# percent signs, hyphens, and forward slashes (to support date format strings
+# like date:%Y%m%d, dotted plugin references like weather.temperature, and
+# date formats containing slashes like date:%m/%d/%Y).
 _VAR_PATTERN = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_.:%/-]*)\s*\}\}")
 
 # Common date formats that are pre-computed for convenience.

@@ -502,8 +502,6 @@ class TestEdgeCases:
         assert result == "http://localhost:8080/api"
 
     def test_large_config(self):
-        config = {f"key_{i}": f"value_{{{{date}}}}" for i in range(100)}
-        # Fix the double-brace escaping: we want actual {{date}} in the value
         config = {f"key_{i}": "value_{{date}}" for i in range(100)}
         variables = {"date": "2025-01-01"}
         result = interpolate_config(config, variables)
