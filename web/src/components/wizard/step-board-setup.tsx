@@ -665,7 +665,7 @@ export function StepBoardSetup({
         <div className="space-y-2 pt-3">
           <div>
             <Label className="text-sm font-medium text-muted-foreground">{tc("preview")}</Label>
-            <p className="text-[11px] text-muted-foreground/60">{t("boardSetup.previewDisclaimer")}</p>
+            <p className="text-[11px] text-muted-foreground/60">{t("previewDisclaimer")}</p>
           </div>
           <BoardDisplay
             message={previewMessage}
