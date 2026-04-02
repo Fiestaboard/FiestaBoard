@@ -366,8 +366,8 @@ export default function SchedulePage() {
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {/* Board selector (multi-board only) */}
               {boards.length > 1 && (
-                <Select value={selectedBoardId} onValueChange={setSelectedBoardId} data-testid="board-selector">
-                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                  <SelectTrigger data-testid="board-selector" className="h-8 w-[130px] text-xs">
                     <SelectValue placeholder="Board" />
                   </SelectTrigger>
                   <SelectContent>
@@ -383,7 +383,7 @@ export default function SchedulePage() {
               {/* Schedule on/off toggle */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer" onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}>
+                  <div data-testid="schedule-enabled-toggle" className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer" onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}>
                     <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
                     <span className="text-xs font-medium">{scheduleEnabled ? "On" : "Off"}</span>
                     <Switch
@@ -407,7 +407,7 @@ export default function SchedulePage() {
               >
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <SelectTrigger className="h-8 w-[150px] text-xs">
+                    <SelectTrigger data-testid="gap-default-select" className="h-8 w-[150px] text-xs">
                       <SelectValue placeholder="Gap default…" />
                     </SelectTrigger>
                   </TooltipTrigger>
