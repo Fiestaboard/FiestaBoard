@@ -25,11 +25,11 @@ interface ScheduleEntryFormProps {
   prefillCustomDays?: string[];
 }
 
-// Generate 15-minute interval times
+// Generate 1-minute interval times for full scheduling flexibility
 const generateTimeOptions = () => {
   const times: string[] = [];
   for (let hour = 0; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 15) {
+    for (let minute = 0; minute < 60; minute++) {
       const h = hour.toString().padStart(2, "0");
       const m = minute.toString().padStart(2, "0");
       times.push(`${h}:${m}`);
@@ -64,6 +64,9 @@ export function ScheduleEntryForm({
   const [endTime, setEndTime] = useState(
     schedule?.end_time || prefillEndTime || "17:00"
   );
+  const [hasEndTime, setHasEndTime] = useState(
+    schedule ? schedule.end_time != null : true
+  );
   const [dayPattern, setDayPattern] = useState<DayPattern>(
     schedule?.day_pattern || prefillDayPattern || "all"
   );
@@ -87,10 +90,13 @@ export function ScheduleEntryForm({
     
     // Validate times are not identical (zero-duration schedule)
     // Note: endMinutes < startMinutes is valid (midnight rollover, e.g. 23:00-03:00)
-    const startMinutes = timeToMinutes(startTime);
-    const endMinutes = timeToMinutes(endTime);
-    if (startMinutes === endMinutes) {
-      errors.push(t("scheduleEntryForm.validationEndTimeDifferent"));
+    // Only check when end time is set
+    if (hasEndTime) {
+      const startMinutes = timeToMinutes(startTime);
+      const endMinutes = timeToMinutes(endTime);
+      if (startMinutes === endMinutes) {
+        errors.push(t("scheduleEntryForm.validationEndTimeDifferent"));
+      }
     }
     
     // Validate custom days
@@ -99,7 +105,7 @@ export function ScheduleEntryForm({
     }
     
     setValidationErrors(errors);
-  }, [pageId, startTime, endTime, dayPattern, customDays]);
+  }, [pageId, startTime, endTime, hasEndTime, dayPattern, customDays]);
 
   const timeToMinutes = (time: string): number => {
     const [h, m] = time.split(":").map(Number);
@@ -120,7 +126,7 @@ export function ScheduleEntryForm({
       const data = {
         page_id: pageId,
         start_time: startTime,
-        end_time: endTime,
+        end_time: hasEndTime ? endTime : null,
         day_pattern: dayPattern,
         custom_days: dayPattern === "custom" ? customDays : undefined,
         enabled,
@@ -181,37 +187,58 @@ export function ScheduleEntryForm({
       </div>
 
       {/* Time Selection */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
-          <Select value={startTime} onValueChange={setStartTime}>
-            <SelectTrigger id="start-time">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {TIME_OPTIONS.map((time) => (
-                <SelectItem key={`start-${time}`} value={time}>
-                  {time}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
+            <Select value={startTime} onValueChange={setStartTime}>
+              <SelectTrigger id="start-time">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {TIME_OPTIONS.map((time) => (
+                  <SelectItem key={`start-${time}`} value={time}>
+                    {time}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {hasEndTime && (
+            <div className="space-y-2">
+              <Label htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
+              <Select value={endTime} onValueChange={setEndTime}>
+                <SelectTrigger id="end-time">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {TIME_OPTIONS.map((time) => (
+                    <SelectItem key={`end-${time}`} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
-          <Select value={endTime} onValueChange={setEndTime}>
-            <SelectTrigger id="end-time">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {TIME_OPTIONS.map((time) => (
-                <SelectItem key={`end-${time}`} value={time}>
-                  {time}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* End time toggle */}
+        <div className="flex items-center gap-2">
+          <Switch
+            id="has-end-time"
+            checked={hasEndTime}
+            onCheckedChange={setHasEndTime}
+          />
+          <Label htmlFor="has-end-time" className="text-sm text-muted-foreground">
+            {t("scheduleEntryForm.setEndTime")}
+          </Label>
+          {!hasEndTime && (
+            <span className="text-xs text-muted-foreground">
+              ({t("scheduleEntryForm.openEndedHint")})
+            </span>
+          )}
         </div>
       </div>
 

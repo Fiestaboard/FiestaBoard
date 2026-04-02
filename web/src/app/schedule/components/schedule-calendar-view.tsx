@@ -52,7 +52,7 @@ interface ScheduleCalendarViewProps {
   overlaps?: Overlap[];
   onEventClick: (schedule: ScheduleEntry) => void;
   onSlotSelect: (start: Date, end: Date) => void;
-  onEventTimeChange: (scheduleId: string, startTime: string, endTime: string) => void;
+  onEventTimeChange: (scheduleId: string, startTime: string, endTime: string | null) => void;
 }
 
 export function ScheduleCalendarView({
@@ -135,7 +135,7 @@ export function ScheduleCalendarView({
         if (event.resource.splitPart === "evening") {
           // Evening part: end is always pinned to the midnight boundary.
           // Only the start time can be changed; orig.end_time is always preserved.
-          onEventTimeChange(event.resource.scheduleId, startTime, orig.end_time);
+          onEventTimeChange(event.resource.scheduleId, startTime, orig.end_time ?? null);
         } else {
           // Morning part: start must stay at midnight (00:00)
           if (startTime !== "00:00") {

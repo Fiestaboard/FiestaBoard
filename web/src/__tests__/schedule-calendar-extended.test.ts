@@ -318,15 +318,15 @@ describe("schedule-calendar extended", () => {
   });
 
   describe("extractTimeFromDate", () => {
-    it("extracts time rounded to 15-minute intervals", () => {
+    it("extracts exact time with 1-minute precision", () => {
       expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 0))).toBe("14:00");
-      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 7))).toBe("14:00");
+      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 7))).toBe("14:07");
       expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 15))).toBe("14:15");
-      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 29))).toBe("14:15");
+      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 29))).toBe("14:29");
       expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 30))).toBe("14:30");
-      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 44))).toBe("14:30");
+      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 44))).toBe("14:44");
       expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 45))).toBe("14:45");
-      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 59))).toBe("14:45");
+      expect(extractTimeFromDate(new Date(2025, 0, 1, 14, 59))).toBe("14:59");
     });
 
     it("pads single-digit hours", () => {

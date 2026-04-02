@@ -259,7 +259,7 @@ export default function SchedulePage() {
 
   // Handle calendar event time change (drag/resize)
   const handleEventTimeChange = useCallback(
-    (scheduleId: string, startTime: string, endTime: string) => {
+    (scheduleId: string, startTime: string, endTime: string | null) => {
       updateSchedule.mutate({
         id: scheduleId,
         data: { start_time: startTime, end_time: endTime },
