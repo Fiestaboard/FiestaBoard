@@ -318,7 +318,37 @@ class PluginBase(ABC):
         Override this method to clean up resources, close connections, etc.
         """
         pass
-    
+
+    def resolve_config_variables(
+        self,
+        extra_variables: Optional[Dict[str, str]] = None,
+        timezone: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return a copy of the plugin config with ``{{variable}}`` patterns resolved.
+
+        Built-in system variables (date, year, month, day, hour, minute,
+        timestamp, etc.) are always available.  Additional variables can be
+        supplied via *extra_variables* (e.g. cross-plugin references).
+
+        The original ``self.config`` is **never** mutated.
+
+        Args:
+            extra_variables: Optional mapping of additional variable names
+                to string values.  These take precedence over built-in
+                variables when names collide.
+            timezone: Optional IANA timezone name for date/time variables.
+
+        Returns:
+            A new configuration dictionary with variables resolved.
+        """
+        from .config_interpolation import get_builtin_variables, interpolate_config
+
+        variables = get_builtin_variables(timezone=timezone)
+        if extra_variables:
+            variables.update(extra_variables)
+
+        return interpolate_config(self._config, variables)
+
     def get_variables_schema(self) -> Dict[str, Any]:
         """Return the variables schema from manifest.
         
