@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/__tests__/setup.ts"],
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
+    // ScheduleEntryForm renders 1440 SelectItems (one per minute of the day).
+    // jsdom creating ~2880 Radix UI nodes per render exceeds the 5000ms default.
+    testTimeout: 20000,
     environmentOptions: {
       jsdom: {
         resources: "usable",
