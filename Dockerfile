@@ -112,6 +112,11 @@ RUN mkdir -p /app/conf.d
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
 
+# Declare persistent data volume so Docker always creates a volume for /app/data,
+# even when the container is run without an explicit -v mount (e.g. plain docker run).
+# Compose bind-mounts (./data:/app/data) override this automatically.
+VOLUME /app/data
+
 # Expose single port
 EXPOSE 3000
 

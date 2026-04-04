@@ -16,6 +16,8 @@ services:
     volumes:
       # Persist data (including config) to local filesystem
       - ./data:/app/data
+      # Persist marketplace-installed (external) plugins across rebuilds
+      - ./external_plugins:/app/external_plugins
     logging:
       driver: "json-file"
       options:

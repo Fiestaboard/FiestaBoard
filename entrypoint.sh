@@ -1,9 +1,14 @@
 #!/bin/sh
 set -e
 
-# Ensure log directory exists
+# Ensure data and log directories exist and are owned by the app user.
+# This handles bind-mounted host directories that may be owned by root (common on Linux).
 mkdir -p /app/data/logs
-chown appuser:appuser /app/data/logs 2>/dev/null || true
+chown -R appuser:appuser /app/data 2>/dev/null || true
+
+# Ensure external_plugins directory exists and is writable for marketplace installs.
+mkdir -p /app/external_plugins
+chown appuser:appuser /app/external_plugins 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # If the container is already running as a non-root user (e.g. Docker

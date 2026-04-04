@@ -35,15 +35,43 @@ SILENCE_SCHEDULE_END_TIME=07:00
 
 ### Data Backup
 
-Back up the `data/` directory regularly to preserve your pages, schedules, and settings:
+FiestaBoard stores all persistent state in two directories on the host:
+
+| Directory | Contents |
+|-----------|----------|
+| `data/` | Config, pages, schedules, carousels, settings, logs, and migration backups |
+| `external_plugins/` | Marketplace plugins installed via the Integrations page |
+
+Both directories are automatically bind-mounted by Docker Compose. Back up both to fully preserve your setup:
 
 ```bash
-# Simple backup
-cp -r data/ data-backup-$(date +%Y%m%d)/
+# One-shot backup (run from the directory containing your docker-compose file)
+tar -czf fiestaboard-backup-$(date +%Y%m%d).tar.gz data/ external_plugins/
 
-# Or use a cron job
-0 2 * * * tar -czf /backups/fiestaboard-$(date +\%Y\%m\%d).tar.gz /path/to/FiestaBoard/data/
+# Automated daily backup via cron (runs at 2 AM)
+0 2 * * * tar -czf /backups/fiestaboard-$(date +\%Y\%m\%d).tar.gz /path/to/FiestaBoard/data/ /path/to/FiestaBoard/external_plugins/
 ```
+
+**Restore from backup:**
+
+```bash
+# Stop the container before restoring
+docker-compose down
+
+# Extract the backup (overwrites existing data/ and external_plugins/)
+tar -xzf fiestaboard-backup-20240101.tar.gz
+
+# Start again — all pages, settings, and plugins are restored
+docker-compose up -d
+```
+
+:::tip What each file contains
+- `data/config.json` — Board API key and connection settings
+- `data/settings.json` — Display preferences, active page, schedule
+- `data/pages.json` — All board pages
+- `data/schedules.json` / `data/carousels.json` — Automation rules
+- `data/*.backup` — Automatic pre-migration snapshots (safe to delete after confirming an upgrade works)
+:::
 
 ## Updating
 
