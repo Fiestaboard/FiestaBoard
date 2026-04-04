@@ -1,16 +1,40 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import coreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
+import i18nextPlugin from "eslint-plugin-i18next";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Explicit React version to avoid context.getFilename() deprecation in flat config mode
+// (eslint-plugin-react's version detection calls getFilename which was removed in ESLint 9+)
+const REACT_VERSION = "19";
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+const coreWebVitalsConfigured = coreWebVitals.map((config) =>
+  config.settings?.react
+    ? { ...config, settings: { ...config.settings, react: { ...config.settings.react, version: REACT_VERSION } } }
+    : config
+);
+
+// Wrap eslint-plugin-i18next rules with a getSourceCode shim for flat config compatibility
+// (eslint-plugin-i18next uses the legacy context.getSourceCode() API removed in ESLint 9+)
+const i18nextPluginFlatConfigAdapter = {
+  ...i18nextPlugin,
+  rules: Object.fromEntries(
+    Object.entries(i18nextPlugin.rules).map(([name, rule]) => [
+      name,
+      {
+        ...rule,
+        create(context) {
+          const patchedContext = Object.assign(Object.create(context), {
+            getSourceCode: () => context.sourceCode,
+          });
+          return rule.create(patchedContext);
+        },
+      },
+    ])
+  ),
+};
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...coreWebVitalsConfigured,
+  ...nextTypescript,
   {
     ignores: [
       "node_modules/**",
@@ -18,6 +42,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "public/**",
+      "storybook-static/**",
     ],
   },
   {
@@ -33,9 +59,7 @@ const eslintConfig = [
   {
     // i18n: catch hardcoded user-facing strings in JSX that should be translated
     plugins: {
-      get i18next() {
-        return require("eslint-plugin-i18next");
-      },
+      i18next: i18nextPluginFlatConfigAdapter,
     },
     rules: {
       "i18next/no-literal-string": ["warn", {
