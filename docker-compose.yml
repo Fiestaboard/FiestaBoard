@@ -21,6 +21,8 @@ services:
     volumes:
       # Persist data (including config) to local filesystem
       - ./data:/app/data
+      # Persist marketplace-installed (external) plugins across rebuilds
+      - ./external_plugins:/app/external_plugins
       # Docker socket for container management (restart/upgrade from UI)
       # Note: Required for self-update and restart features. Grants container
       # access to the host Docker daemon. Remove this line if you do not need

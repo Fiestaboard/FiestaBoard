@@ -104,22 +104,66 @@ See the [API Endpoints](/docs/reference/api-endpoints) reference for the complet
 
 ## Data Persistence
 
-FiestaBoard stores its data in a `data/` directory that is mounted as a Docker volume:
+FiestaBoard stores all runtime state on disk so that configuration, pages, and schedules survive container restarts and image upgrades.
+
+### What is persisted
+
+Two host directories are bind-mounted into the container:
+
+| Host path | Container path | Contents |
+|-----------|---------------|----------|
+| `./data/` | `/app/data/` | All application state (see table below) |
+| `./external_plugins/` | `/app/external_plugins/` | Marketplace plugins installed via the Integrations page |
+
+Files inside `data/`:
+
+| File | Description |
+|------|-------------|
+| `config.json` | Board connection settings, API keys, plugin configuration |
+| `settings.json` | Display preferences, transitions, schedule, MQTT, active page |
+| `pages.json` | All board pages you have created |
+| `schedules.json` | Time-based scheduling rules |
+| `carousels.json` | Carousel display settings |
+| `logs/` | Application, API, and nginx log files |
+| `*.backup` | Pre-migration backups created automatically before schema upgrades |
+
+This is configured in every Docker Compose file:
 
 ```yaml
 volumes:
   - ./data:/app/data
+  - ./external_plugins:/app/external_plugins
 ```
 
-This includes:
-- Page configurations
-- Schedule entries
-- Plugin settings
-- Service configuration
+### Running with plain `docker run`
 
-:::tip
-Back up the `data/` directory to preserve your configuration when updating FiestaBoard.
+If you start the container directly without Docker Compose, pass the volume flags explicitly — otherwise data is lost when the container is removed:
+
+```bash
+docker run -d \
+  --name fiestaboard \
+  -p 4420:3000 \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/external_plugins:/app/external_plugins" \
+  fiestaboard/fiestaboard:latest
+```
+
+:::warning Data loss without volume mounts
+If you run `docker run` without `-v` flags, Docker creates an anonymous volume for `/app/data` (from the `VOLUME` directive in the image). The data still persists between restarts of the **same container**, but is permanently lost when you run `docker rm`. Always use explicit bind-mounts or named volumes for anything you want to keep.
 :::
+
+### Backup and restore
+
+```bash
+# Backup (from the directory containing your docker-compose file)
+tar -czf fiestaboard-backup-$(date +%Y%m%d).tar.gz data/ external_plugins/
+
+# Restore
+tar -xzf fiestaboard-backup-20240101.tar.gz
+docker-compose up -d
+```
+
+All configuration, pages, schedules, and installed plugins are captured in a single archive.
 
 ## Updating FiestaBoard
 
