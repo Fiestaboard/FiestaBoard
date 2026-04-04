@@ -7,6 +7,7 @@ Thank you for your interest in contributing to FiestaBoard. This document explai
 - [Getting started](#getting-started)
 - [Development workflow](#development-workflow)
 - [Submitting changes](#submitting-changes)
+- [Unsupervised and automated pull requests](#unsupervised-and-automated-pull-requests)
 - [Code and documentation standards](#code-and-documentation-standards)
 - [Plugins](#plugins)
 - [Security](#security)
@@ -75,6 +76,12 @@ CI runs on push/PR; make sure the same commands (or their CI equivalents) pass l
 ---
 
 ## Submitting changes
+
+### Unsupervised and automated pull requests
+
+**These are not allowed.** Pull requests must reflect **real work you understand and have reviewed**. Submissions that are effectively unsupervised—such as fully automated output from a language model or other tool pointed at an issue with little or no human verification, copy-paste churn, or similarly low-effort “drive-by” changes—are not acceptable contributions. They often introduce incorrect or harmful changes and consume maintainer time.
+
+If you open PRs of that nature, we may **close them without merge** and **ban your account from this repository permanently**, including for repeat or coordinated spam of this kind.
 
 ### 1. Open a pull request
 
