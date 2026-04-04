@@ -115,17 +115,17 @@ export async function configureBoard() {
 /**
  * Clear the board configuration so the backend returns to first-run mode.
  * Use this before tests that need the setup wizard to appear.
+ *
+ * Uses DELETE /api/config/board which resets to defaults without re-applying
+ * environment-variable overrides (BOARD_HOST, BOARD_LOCAL_API_KEY, etc.).
+ * This is important in CI where those env vars are always set; a plain PUT
+ * with empty strings would be immediately overwritten by Config.reload().
  */
 export async function clearBoardConfig() {
-  await fetch(`${API_URL}/config/board`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_mode: "local",
-      local_api_key: "",
-      host: "",
-    }),
-  });
+  const res = await fetch(`${API_URL}/config/board`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`clearBoardConfig failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 /** Wait until the API server is ready. */

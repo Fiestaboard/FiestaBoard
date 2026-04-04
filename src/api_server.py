@@ -1099,6 +1099,29 @@ async def update_board_config_compat(request: dict, response: Response):
     return await update_board_config(request)
 
 
+@app.delete("/config/board")
+async def reset_board_config():
+    """
+    Reset board configuration to defaults (first-run / wizard mode).
+
+    Clears all board credentials and connection settings without re-applying
+    environment-variable defaults.  This puts the backend into first-run mode
+    so that ``GET /config/validate`` returns ``is_first_run: true`` even when
+    ``BOARD_HOST`` / ``BOARD_LOCAL_API_KEY`` env vars are present.
+
+    Primarily used by integration-test helpers to set up wizard test scenarios.
+    """
+    config_manager = get_config_manager()
+    config_manager.reset_board_config()
+
+    # Reinitialize the board client (will be unconfigured)
+    service = get_service()
+    if service:
+        service.reinitialize_board_client()
+
+    return {"status": "reset", "message": "Board config cleared; backend is in first-run mode"}
+
+
 @app.get("/config/validate")
 async def validate_config():
     """

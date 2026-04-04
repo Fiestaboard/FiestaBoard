@@ -1,10 +1,19 @@
 name: Integration Tests
 
-# Run ONLY on merge queue to gate changes before they land on main.
-# If integration tests fail, the merge queue automatically removes the
-# failing PR so it never reaches the target branch.
+# Full integration suite runs on merge queue to gate changes before they land on main.
+# A smoke subset also runs on PRs to catch critical breakage early.
+# If integration tests fail in the merge queue, the PR is automatically removed.
 on:
   merge_group:
+  pull_request:
+    branches: [ '**' ]
+    paths:
+      - 'src/**'
+      - 'web/**'
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - 'requirements*.txt'
+      - '.github/workflows/integration-tests.yml'
 
 permissions:
   contents: read
@@ -15,7 +24,7 @@ concurrency:
 
 jobs:
   integration-tests:
-    name: Integration Tests
+    name: Integration Tests (${{ github.event_name == 'pull_request' && 'smoke' || 'full' }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -94,11 +103,30 @@ jobs:
             sleep 1
           done
 
-      - name: Run integration tests
+      # On PRs: run only the core integration smoke suite (integration.spec.ts).
+      # This covers health checks, the setup wizard, navigation, basic page &
+      # schedule management — the flows most likely to break on any PR.
+      # On merge queue: run the full integration suite as the final gate.
+      - name: Run integration tests (smoke subset on PRs)
+        if: github.event_name == 'pull_request'
+        working-directory: web
+        run: npx playwright test integration.spec.ts --reporter=github
+        env:
+          CI: true
+          MOCK_BOARD_PORT: 7000
+          # MOCK_BOARD_HOST is the host the FiestaBoard *container* uses to reach the
+          # mock server running on the GitHub Actions runner host. From inside Docker,
+          # the host is reachable at host.docker.internal, not localhost.
+          MOCK_BOARD_HOST: host.docker.internal
+
+      - name: Run integration tests (full suite on merge queue)
+        if: github.event_name == 'merge_group'
         working-directory: web
         run: npx playwright test --reporter=github
         env:
           CI: true
+          MOCK_BOARD_PORT: 7000
+          MOCK_BOARD_HOST: host.docker.internal
 
       - name: Stop FiestaBoard container
         if: always()
@@ -108,6 +136,6 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: integration-results
+          name: integration-results-${{ github.event_name }}
           path: web/test-results/
           retention-days: 14

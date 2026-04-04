@@ -658,6 +658,20 @@ class ConfigManager:
         """Backward compatibility alias for set_board()."""
         self.set_board(settings)
 
+    def reset_board_config(self) -> None:
+        """Reset board configuration to defaults, bypassing env-var re-application.
+
+        Unlike calling ``set_board`` with empty fields followed by ``Config.reload()``,
+        this method writes the default board values and does **not** re-apply
+        ``_apply_env_overrides``.  This puts the backend back into first-run mode
+        regardless of what ``BOARD_HOST``/``BOARD_LOCAL_API_KEY`` env vars are set to,
+        which is the behaviour the setup-wizard integration test needs.
+        """
+        with self._file_lock:
+            self._config["board"] = {k: v for k, v in DEFAULT_CONFIG["board"].items()}
+            self._save_internal()
+        logger.info("Board config reset to defaults (first-run mode, env overrides skipped)")
+
     def get_feature(self, feature_name: str) -> Optional[Dict[str, Any]]:
         """Get configuration for a specific feature.
         
