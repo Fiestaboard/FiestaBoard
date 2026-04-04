@@ -349,6 +349,43 @@ class PluginBase(ABC):
 
         return interpolate_config(self._config, variables)
 
+    def get_resolved_config_value(
+        self,
+        key: str,
+        default: Any = None,
+        extra_variables: Optional[Dict[str, str]] = None,
+        timezone: Optional[str] = None,
+    ) -> Any:
+        """Return a single config value from a resolved copy (see ``resolve_config_variables``)."""
+        resolved = self.resolve_config_variables(
+            extra_variables=extra_variables, timezone=timezone
+        )
+        return resolved.get(key, default)
+
+    def get_url(
+        self,
+        key: str = "url",
+        default: str = "",
+        extra_variables: Optional[Dict[str, str]] = None,
+        timezone: Optional[str] = None,
+    ) -> str:
+        """Return a string setting with ``{{variable}}`` patterns resolved.
+
+        Intended for HTTP endpoint fields (e.g. Generic Data ``url``). Non-string
+        values fall back to *default*.
+        """
+        raw = self.get_resolved_config_value(
+            key,
+            default=default,
+            extra_variables=extra_variables,
+            timezone=timezone,
+        )
+        if raw is None:
+            return default
+        if isinstance(raw, str):
+            return raw
+        return default
+
     def get_variables_schema(self) -> Dict[str, Any]:
         """Return the variables schema from manifest.
         

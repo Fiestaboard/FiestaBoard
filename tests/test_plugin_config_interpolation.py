@@ -430,6 +430,40 @@ class TestPluginBaseResolveConfigVariables:
             # name should be unchanged
             assert "Feed" in feed["name"]
 
+    def test_get_url_default_key(self):
+        plugin = InterpolatingPlugin()
+        plugin._config = {"url": "https://api.example.com/data?d={{date}}"}
+        got = plugin.get_url()
+        assert re.match(r"https://api\.example\.com/data\?d=\d{4}-\d{2}-\d{2}", got)
+
+    def test_get_url_custom_key(self):
+        plugin = InterpolatingPlugin()
+        plugin._config = {"api_url": "https://api.example.com/{{date}}"}
+        got = plugin.get_url(key="api_url")
+        assert re.match(r"https://api\.example\.com/\d{4}-\d{2}-\d{2}", got)
+
+    def test_get_url_missing_returns_default(self):
+        plugin = InterpolatingPlugin()
+        plugin._config = {}
+        assert plugin.get_url() == ""
+
+    def test_get_url_non_string_returns_default(self):
+        plugin = InterpolatingPlugin()
+        plugin._config = {"url": 12345}
+        assert plugin.get_url(default="fallback") == "fallback"
+
+    def test_get_resolved_config_value(self):
+        plugin = InterpolatingPlugin()
+        plugin._config = {
+            "url": "https://x/{{date}}",
+            "token": "abc-{{year}}",
+        }
+        u = plugin.get_resolved_config_value("url")
+        assert isinstance(u, str)
+        assert "{{date}}" not in u
+        t = plugin.get_resolved_config_value("token")
+        assert "{{year}}" not in t
+
 
 # ── Cross-plugin variable references ──────────────────────────
 
