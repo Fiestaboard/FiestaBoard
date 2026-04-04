@@ -241,7 +241,9 @@ test.describe("Multi-Board — One Board Offline", () => {
 
     // Both board cards should still render (offline one may show error badge).
     // Boards are rendered as Collapsible elements with data-testid="board-card".
+    // Wait for board data to load (populated from an async fetch after heading renders).
     const boardCards = page.locator("[data-testid='board-card']");
+    await expect(boardCards.first()).toBeVisible({ timeout: 10_000 });
     const count = await boardCards.count();
     // At minimum one card; with two boards at least two
     expect(count).toBeGreaterThanOrEqual(1);
