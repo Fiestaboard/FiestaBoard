@@ -51,7 +51,7 @@
       "description": "Fetch data from any URL (JSON or XML) and map fields to template variables \u2014 supports multiple feeds",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--generic-data",
       "author": "FiestaBoard Team",
-      "fiestaboard_version": ">=2.10.0",
+      "fiestaboard_version": ">=4.2.0",
       "icon": "database",
       "category": "data"
     },
