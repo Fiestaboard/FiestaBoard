@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.0.0",
-    "@eslint/plugin-kit": "^0.6.1",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-dialog": "^1.1.4",
