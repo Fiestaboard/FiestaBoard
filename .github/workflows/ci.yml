@@ -132,7 +132,7 @@ jobs:
         BOARD_READ_WRITE_KEY: test_key
     
     - name: Upload platform coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         files: coverage.xml
         flags: platform
@@ -205,7 +205,7 @@ jobs:
     
     - name: Upload plugin coverage
       if: steps.discover.outputs.has_plugins == 'true'
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         files: coverage-plugins.xml
         flags: plugins
@@ -240,7 +240,7 @@ jobs:
       run: npm run test:coverage
 
     - name: Upload UI coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         files: web/coverage/lcov.info
         flags: ui
