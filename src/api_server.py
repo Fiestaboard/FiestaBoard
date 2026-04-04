@@ -4916,7 +4916,15 @@ async def generic_data_test_fetch(request: dict):
     import requests as req
     from xml.etree import ElementTree
 
-    url = (request.get("url") or "").strip()
+    from .plugins.config_interpolation import get_builtin_variables, interpolate_string
+
+    try:
+        _tz = get_config_manager().get_general().get("timezone") or "America/Los_Angeles"
+        _interp_vars = get_builtin_variables(timezone=_tz)
+    except Exception:
+        _interp_vars = get_builtin_variables()
+
+    url = interpolate_string((request.get("url") or "").strip(), _interp_vars)
     fmt = request.get("format", "json")
     method = request.get("method", "GET")
     headers_list = request.get("headers", [])
@@ -4934,12 +4942,16 @@ async def generic_data_test_fetch(request: dict):
         n = (h.get("name") or "").strip()
         v = (h.get("value") or "").strip()
         if n and v:
-            headers[n] = v
+            headers[n] = interpolate_string(v, _interp_vars)
 
     try:
         kwargs: dict = {"headers": headers, "timeout": 15}
         if method == "POST" and body:
-            kwargs["data"] = body
+            kwargs["data"] = (
+                interpolate_string(body, _interp_vars)
+                if isinstance(body, str)
+                else body
+            )
 
         resp = req.request(method, url, **kwargs)
         resp.raise_for_status()

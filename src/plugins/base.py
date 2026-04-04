@@ -318,7 +318,74 @@ class PluginBase(ABC):
         Override this method to clean up resources, close connections, etc.
         """
         pass
-    
+
+    def resolve_config_variables(
+        self,
+        extra_variables: Optional[Dict[str, str]] = None,
+        timezone: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return a copy of the plugin config with ``{{variable}}`` patterns resolved.
+
+        Built-in system variables (date, year, month, day, hour, minute,
+        timestamp, etc.) are always available.  Additional variables can be
+        supplied via *extra_variables* (e.g. cross-plugin references).
+
+        The original ``self.config`` is **never** mutated.
+
+        Args:
+            extra_variables: Optional mapping of additional variable names
+                to string values.  These take precedence over built-in
+                variables when names collide.
+            timezone: Optional IANA timezone name for date/time variables.
+
+        Returns:
+            A new configuration dictionary with variables resolved.
+        """
+        from .config_interpolation import get_builtin_variables, interpolate_config
+
+        variables = get_builtin_variables(timezone=timezone)
+        if extra_variables:
+            variables.update(extra_variables)
+
+        return interpolate_config(self._config, variables)
+
+    def get_resolved_config_value(
+        self,
+        key: str,
+        default: Any = None,
+        extra_variables: Optional[Dict[str, str]] = None,
+        timezone: Optional[str] = None,
+    ) -> Any:
+        """Return a single config value from a resolved copy (see ``resolve_config_variables``)."""
+        resolved = self.resolve_config_variables(
+            extra_variables=extra_variables, timezone=timezone
+        )
+        return resolved.get(key, default)
+
+    def get_url(
+        self,
+        key: str = "url",
+        default: str = "",
+        extra_variables: Optional[Dict[str, str]] = None,
+        timezone: Optional[str] = None,
+    ) -> str:
+        """Return a string setting with ``{{variable}}`` patterns resolved.
+
+        Intended for HTTP endpoint fields (e.g. Generic Data ``url``). Non-string
+        values fall back to *default*.
+        """
+        raw = self.get_resolved_config_value(
+            key,
+            default=default,
+            extra_variables=extra_variables,
+            timezone=timezone,
+        )
+        if raw is None:
+            return default
+        if isinstance(raw, str):
+            return raw
+        return default
+
     def get_variables_schema(self) -> Dict[str, Any]:
         """Return the variables schema from manifest.
         

@@ -150,6 +150,49 @@ The `max_length` field in metadata replaces the need for a separate top-level `m
 
 ---
 
+## Config variable interpolation (dynamic URLs and strings)
+
+Related: [GitHub issue #537](https://github.com/Fiestaboard/FiestaBoard/issues/537) (Generic Data and other plugins that call HTTP APIs with non-static URLs).
+
+Board templates use `{{plugin_id.field}}` syntax, but **plugin settings** are plain JSON until your code resolves them. FiestaBoard provides **`{{variable}}` placeholders inside string settings** so URLs and headers can include the current date, time, and other built-ins.
+
+### Built-in placeholders
+
+Use double braces in any string field in your plugin config (same style as templates, but resolved in Python when you ask for it):
+
+| Placeholder | Meaning |
+|-------------|---------|
+| `{{date}}` | Current date `YYYY-MM-DD` (board timezone when available) |
+| `{{year}}`, `{{month}}`, `{{day}}`, `{{hour}}`, `{{minute}}` | Calendar / clock parts |
+| `{{timestamp}}` | Unix epoch seconds |
+| `{{date:%Y%m%d}}`, `{{date:%m/%d/%Y}}`, … | `strftime` after `date:` (see `src/plugins/config_interpolation.py`) |
+
+Unknown placeholders are **left unchanged** so you can detect typos or missing context.
+
+### API on `PluginBase`
+
+- **`resolve_config_variables(extra_variables=None, timezone=None)`** — deep copy of `self.config` with every string interpolated.
+- **`get_resolved_config_value(key, default=None, ...)`** — one key from that resolved dict.
+- **`get_url(key="url", default="", ...)`** — convenience for a single URL-like string (e.g. Generic Data’s `url` field).
+
+Optional **`extra_variables`** is a `dict` of name → string for values you compute in code (e.g. `{"weather.location": "sf"}` for a placeholder `{{weather.location}}`). There is **no** automatic wiring from other plugins’ live data into these placeholders unless your plugin supplies that map.
+
+### What you must do in the plugin
+
+Before `requests.get` / `httpx` / etc., resolve strings:
+
+```python
+def fetch_data(self) -> PluginResult:
+    url = self.get_url()  # or self.get_url("api_url") if your schema uses another key
+    # ...
+```
+
+If you read nested structures, call `resolved = self.resolve_config_variables()` and walk the dict/list you need.
+
+The **`POST /generic-data/test-fetch`** endpoint applies the same built-in interpolation to the URL, header values, and string POST body so the Integrations UI preview matches date-aware URLs.
+
+---
+
 ## Organizing with Groups
 
 When a plugin has many variables, groups help users find what they need:
