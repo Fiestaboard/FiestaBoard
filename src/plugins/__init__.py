@@ -12,7 +12,7 @@ Plugins can be loaded from three sources:
 3. **Git URL** – arbitrary public git repositories specified by the user.
 """
 
-from .base import PluginBase, PluginResult
+from .base import PluginBase, PluginResult, TriggerResult
 from .registry import PluginRegistry, get_plugin_registry
 from .loader import PluginLoader
 from .manifest import PluginManifest, validate_manifest
@@ -27,6 +27,7 @@ from .sources import (
 __all__ = [
     "PluginBase",
     "PluginResult",
+    "TriggerResult",
     "PluginRegistry",
     "get_plugin_registry",
     "PluginLoader",

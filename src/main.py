@@ -18,6 +18,7 @@ from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
 from .carousels.service import get_carousel_service
 from .carousels.models import is_carousel_id
+from .triggers.service import get_trigger_service
 
 # Configure logging
 logging.basicConfig(
@@ -121,6 +122,7 @@ class DisplayService:
         
         Respects schedule mode - uses schedule-based page selection when enabled,
         otherwise falls back to manual active page setting.
+        Active triggers take priority over scheduled/manual pages.
             
         Returns:
             True if content was sent to board, False otherwise
@@ -130,6 +132,11 @@ class DisplayService:
             page_service = get_page_service()
             schedule_service = get_schedule_service()
             
+            # --- Check for active triggers (highest priority) ---
+            trigger_content = self._check_trigger_override()
+            if trigger_content is not None:
+                return self._send_trigger_content(trigger_content)
+
             # Determine active page based on schedule mode
             if settings_service.is_schedule_enabled():
                 # Schedule mode: Use schedule service to determine page
@@ -302,6 +309,73 @@ class DisplayService:
             logger.error(f"Error checking active page: {e}")
             return False
     
+    def _check_trigger_override(self) -> Optional[str]:
+        """Check all trigger-capable plugins and return content if a trigger is active.
+
+        Returns:
+            Formatted text content from the highest-priority active trigger,
+            or None if no triggers are active.
+        """
+        try:
+            from .plugins.registry import get_plugin_registry
+            registry = get_plugin_registry()
+            trigger_service = get_trigger_service()
+
+            # Evaluate triggers for all enabled trigger-capable plugins
+            for plugin_id, plugin in registry.trigger_plugins.items():
+                trigger_service.check_plugin_triggers(plugin)
+
+            active = trigger_service.get_active_trigger()
+            if active is None:
+                return None
+
+            # Build display content from the trigger
+            if active.formatted_lines:
+                return "\n".join(active.formatted_lines)
+            if active.message:
+                return active.message
+            return None
+        except Exception as e:
+            logger.error(f"Error checking triggers: {e}")
+            return None
+
+    def _send_trigger_content(self, content: str) -> bool:
+        """Send trigger content to the board.
+
+        Returns True if the content was sent successfully.
+        """
+        if not self.vb_client:
+            logger.warning("Board client not initialized")
+            return False
+
+        if content == self._last_active_page_content:
+            logger.debug("Trigger content unchanged, skipping send")
+            return False
+
+        logger.info("Sending triggered message to board")
+        settings_service = get_settings_service()
+        system_transition = settings_service.get_transition_settings()
+
+        dims = get_dimensions()
+        board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
+
+        success, was_sent = self.vb_client.send_characters(
+            board_array,
+            strategy=system_transition.strategy,
+            step_interval_ms=system_transition.step_interval_ms,
+            step_size=system_transition.step_size,
+        )
+
+        if success:
+            self._last_active_page_content = content
+            self._last_active_page_id = "__trigger__"
+            if was_sent:
+                logger.info("Triggered message sent to board")
+            return was_sent
+        else:
+            logger.error("Failed to send triggered message to board")
+            return False
+
     def _get_active_ref_id(self) -> Optional[str]:
         """Return the raw active-page/carousel reference (before carousel resolution)."""
         settings_service = get_settings_service()
