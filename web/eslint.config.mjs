@@ -2,15 +2,19 @@ import coreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 import i18nextPlugin from "eslint-plugin-i18next";
 
-// Pin React version explicitly to avoid context.getFilename() deprecation in flat config
-const coreWebVitalsFixed = coreWebVitals.map((config) =>
+// Explicit React version to avoid context.getFilename() deprecation in flat config mode
+// (eslint-plugin-react's version detection calls getFilename which was removed in ESLint 9+)
+const REACT_VERSION = "19";
+
+const coreWebVitalsConfigured = coreWebVitals.map((config) =>
   config.settings?.react
-    ? { ...config, settings: { ...config.settings, react: { ...config.settings.react, version: "19" } } }
+    ? { ...config, settings: { ...config.settings, react: { ...config.settings.react, version: REACT_VERSION } } }
     : config
 );
 
 // Wrap eslint-plugin-i18next rules with a getSourceCode shim for flat config compatibility
-const i18nextPluginCompat = {
+// (eslint-plugin-i18next uses the legacy context.getSourceCode() API removed in ESLint 9+)
+const i18nextPluginFlatConfigAdapter = {
   ...i18nextPlugin,
   rules: Object.fromEntries(
     Object.entries(i18nextPlugin.rules).map(([name, rule]) => [
@@ -29,7 +33,7 @@ const i18nextPluginCompat = {
 };
 
 const eslintConfig = [
-  ...coreWebVitalsFixed,
+  ...coreWebVitalsConfigured,
   ...nextTypescript,
   {
     ignores: [
@@ -55,7 +59,7 @@ const eslintConfig = [
   {
     // i18n: catch hardcoded user-facing strings in JSX that should be translated
     plugins: {
-      i18next: i18nextPluginCompat,
+      i18next: i18nextPluginFlatConfigAdapter,
     },
     rules: {
       "i18next/no-literal-string": ["warn", {
