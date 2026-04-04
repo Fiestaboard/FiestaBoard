@@ -26,6 +26,16 @@
       "category": "transit"
     },
     {
+      "id": "calendar_sub",
+      "name": "Calendar Subscription",
+      "description": "Subscribe to any public iCalendar (.ics) URL and display upcoming events with automatic board alerts before each event starts",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--calendar-sub",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "calendar",
+      "category": "utility"
+    },
+    {
       "id": "dad_jokes",
       "name": "Dad Jokes",
       "description": "Display random dad jokes from the icanhazdadjoke API",
