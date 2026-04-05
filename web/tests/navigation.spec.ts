@@ -172,12 +172,13 @@ test.describe("Navigation", () => {
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Verify primary section with key items
-    const primaryNav = page.getByLabel("Primary navigation").first();
+    // Desktop sidebar is in <aside>; mobile menu also contains duplicate nav labels
+    // (hidden when the menu is closed), so scope to the fixed sidebar.
+    const sidebar = page.locator("aside").first();
+    const primaryNav = sidebar.getByLabel("Primary navigation");
     await expect(primaryNav).toBeVisible();
 
-    // Verify secondary section with Settings
-    const secondaryNav = page.getByLabel("Secondary navigation").first();
+    const secondaryNav = sidebar.getByLabel("Secondary navigation");
     await expect(secondaryNav).toBeVisible();
 
     // Settings should be in secondary section

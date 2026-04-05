@@ -269,10 +269,11 @@ export function NavigationSidebar() {
             ? "opacity-100"
             : "opacity-0 pointer-events-none"
         )}
-        role="dialog"
-        aria-modal={mobileMenuOpen}
-        aria-label="Navigation menu"
+        role={mobileMenuOpen ? "dialog" : undefined}
+        aria-modal={mobileMenuOpen ? true : undefined}
+        aria-label={mobileMenuOpen ? t("navigationMenu") : undefined}
         aria-hidden={!mobileMenuOpen}
+        inert={!mobileMenuOpen ? true : undefined}
         style={{
           clipPath: mobileMenuOpen ? 'inset(0 0 0 0 round 16px)' : 'inset(0 0 100% 0 round 16px)',
           transition: 'clip-path 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 250ms ease',
@@ -294,6 +295,7 @@ export function NavigationSidebar() {
       {/* Desktop Sidebar */}
       <TooltipProvider delayDuration={0}>
         <aside
+          aria-label={t("mainNavigation")}
           className={cn(
             "hidden lg:fixed lg:top-3 lg:bottom-3 lg:z-50 lg:block sidebar-gradient sidebar-transition",
             collapsed ? "lg:w-16" : "lg:w-64",
