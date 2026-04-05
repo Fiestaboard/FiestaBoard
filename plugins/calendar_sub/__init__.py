@@ -65,7 +65,7 @@ def _event_trigger_id(event: Dict[str, Any]) -> str:
     """Build a stable dedup key from the event UID and start time."""
     uid = str(event.get("uid", ""))
     start = str(event.get("start_raw", ""))
-    return "cal_" + hashlib.md5(f"{uid}:{start}".encode(), usedforsecurity=False).hexdigest()[:12]
+    return "cal_" + hashlib.sha256(f"{uid}:{start}".encode()).hexdigest()[:12]
 
 
 class CalendarSubPlugin(PluginBase):

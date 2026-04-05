@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from unittest.mock import patch, MagicMock, Mock
 
+import defusedxml.ElementTree as ElementTree
 import pytest
 
 from plugins.generic_data import (
@@ -79,27 +80,23 @@ class TestXmlToDict:
     """Tests for XML to dict conversion."""
 
     def test_simple_element(self):
-        import defusedxml.ElementTree as ElementTree
         root = ElementTree.fromstring("<root><name>Test</name></root>")
         result = _xml_to_dict(root)
         assert result == {"name": "Test"}
 
     def test_nested_elements(self):
-        import defusedxml.ElementTree as ElementTree
         xml = "<root><parent><child>value</child></parent></root>"
         root = ElementTree.fromstring(xml)
         result = _xml_to_dict(root)
         assert result == {"parent": {"child": "value"}}
 
     def test_repeated_tags_become_list(self):
-        import defusedxml.ElementTree as ElementTree
         xml = "<root><item>a</item><item>b</item><item>c</item></root>"
         root = ElementTree.fromstring(xml)
         result = _xml_to_dict(root)
         assert result == {"item": ["a", "b", "c"]}
 
     def test_empty_element(self):
-        import defusedxml.ElementTree as ElementTree
         root = ElementTree.fromstring("<root><empty/></root>")
         result = _xml_to_dict(root)
         assert result == {"empty": ""}
