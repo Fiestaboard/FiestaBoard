@@ -237,3 +237,112 @@ class TestDisplayAPIEndpoints:
         
         # Raw endpoint returns 503 for any unavailable display
         assert response.status_code == 503
+
+
+class TestDisplayServiceEdgeCases:
+    """Tests for edge cases and error paths in DisplayService."""
+
+    def test_import_error_handling(self):
+        """Test module-level ImportError handling for plugin system (lines 17-20)."""
+        import importlib
+        import sys
+        import src.displays.service as svc
+
+        orig_plugins_module = sys.modules.get('src.plugins')
+
+        try:
+            # Setting a module to None in sys.modules causes ImportError on import
+            sys.modules['src.plugins'] = None
+            importlib.reload(svc)
+
+            assert svc.PLUGIN_SYSTEM_AVAILABLE is False
+            assert svc.get_plugin_registry is None
+            assert svc.PluginRegistry is None
+        finally:
+            # Restore the plugins module and reload to reset state
+            if orig_plugins_module is not None:
+                sys.modules['src.plugins'] = orig_plugins_module
+            else:
+                sys.modules.pop('src.plugins', None)
+            importlib.reload(svc)
+
+    def test_init_plugin_registry_init_exception(self):
+        """Test __init__ when plugin registry raises during initialization (lines 56-58)."""
+        with patch('src.displays.service.PLUGIN_SYSTEM_AVAILABLE', True), \
+             patch('src.displays.service.get_plugin_registry') as mock_get:
+            mock_get.side_effect = Exception("Registry init failed")
+            service = DisplayService()
+            assert service._plugin_registry is None
+
+    def test_init_plugin_system_unavailable(self):
+        """Test __init__ when plugin system is not available (lines 59-60)."""
+        with patch('src.displays.service.PLUGIN_SYSTEM_AVAILABLE', False):
+            service = DisplayService()
+            assert service._plugin_registry is None
+
+    def test_get_plugin_registry_returns_registry(self):
+        """Test get_plugin_registry returns the registry when set (line 66)."""
+        mock_registry = Mock()
+        with patch('src.displays.service.PLUGIN_SYSTEM_AVAILABLE', True), \
+             patch('src.displays.service.get_plugin_registry') as mock_get:
+            mock_get.return_value = mock_registry
+            service = DisplayService()
+            assert service.get_plugin_registry() is mock_registry
+
+    def test_get_plugin_registry_returns_none_when_unavailable(self):
+        """Test get_plugin_registry returns None when no registry (line 66)."""
+        with patch('src.displays.service.PLUGIN_SYSTEM_AVAILABLE', False):
+            service = DisplayService()
+            assert service.get_plugin_registry() is None
+
+    def test_get_available_displays_no_registry(self):
+        """Test get_available_displays returns empty list when no registry (line 79)."""
+        with patch('src.displays.service.PLUGIN_SYSTEM_AVAILABLE', False):
+            service = DisplayService()
+            assert service.get_available_displays() == []
+
+    def test_get_display_no_registry(self):
+        """Test get_display returns error result when no registry (lines 102-108)."""
+        with patch('src.displays.service.PLUGIN_SYSTEM_AVAILABLE', False):
+            service = DisplayService()
+            result = service.get_display("weather")
+            assert result.available is False
+            assert result.error == "Plugin system not initialized."
+            assert result.display_type == "weather"
+            assert result.formatted == ""
+            assert result.raw == {}
+
+    def test_get_display_fetch_exception(self):
+        """Test get_display handles exception during plugin data fetch (lines 147-149)."""
+        mock_registry = Mock()
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.fetch_plugin_data.side_effect = RuntimeError("Connection timeout")
+
+        with patch('src.displays.service.PLUGIN_SYSTEM_AVAILABLE', True), \
+             patch('src.displays.service.get_plugin_registry') as mock_get:
+            mock_get.return_value = mock_registry
+            service = DisplayService()
+            result = service.get_display("weather")
+
+            assert result.available is False
+            assert "Error fetching data" in result.error
+            assert "Connection timeout" in result.error
+            assert result.display_type == "weather"
+
+
+class TestResetDisplayService:
+    """Tests for reset_display_service singleton management."""
+
+    def test_reset_when_no_instance(self):
+        """Test reset_display_service when no instance exists (lines 177-178)."""
+        from src.displays.service import reset_display_service
+        import src.displays.service as svc
+
+        original = svc._display_service
+        try:
+            svc._display_service = None
+            # Should not raise even when already None
+            reset_display_service()
+            assert svc._display_service is None
+        finally:
+            svc._display_service = original
