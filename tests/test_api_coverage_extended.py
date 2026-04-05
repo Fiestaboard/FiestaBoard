@@ -350,16 +350,9 @@ class TestTrafficEndpoints:
         assert resp.status_code == 400
 
     def test_validate_route_no_api_key(self, client):
-        with patch.object(type(Mock()), 'GOOGLE_ROUTES_API_KEY', None, create=True):
-            # Simplify: just test the endpoint rejects when key is missing
-            import src.config
-            original = getattr(src.config.Config, 'GOOGLE_ROUTES_API_KEY', None)
-            try:
-                src.config.Config.GOOGLE_ROUTES_API_KEY = None
-                resp = client.post("/traffic/routes/validate", json={"origin": "a", "destination": "b"})
-                assert resp.status_code in (200, 400)
-            finally:
-                src.config.Config.GOOGLE_ROUTES_API_KEY = original
+        with patch("src.config.Config.GOOGLE_ROUTES_API_KEY", None):
+            resp = client.post("/traffic/routes/validate", json={"origin": "a", "destination": "b"})
+            assert resp.status_code in (200, 400)
 
     def test_validate_route_empty_data(self, client):
         mock_ts = Mock()
