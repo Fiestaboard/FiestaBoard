@@ -55,7 +55,6 @@ BUILTIN_ONLY = {"date_time", "countdown", "_template"}
 ALL_PLUGINS = [
     "air_fog",
     "baywheels",
-    "calendar_sub",
     "dad_jokes",
     "disney_parks_times",
     "generic_data",

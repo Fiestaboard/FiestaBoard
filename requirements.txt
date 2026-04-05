@@ -6,10 +6,6 @@ schedule>=1.2.2
 pytz>=2024.2
 defusedxml>=0.7.1
 
-# Calendar Subscription plugin
-icalendar>=6.0.0
-recurring-ical-events>=3.0.0
-
 # API Server dependencies
 fastapi>=0.125.0
 uvicorn[standard]>=0.34.0
