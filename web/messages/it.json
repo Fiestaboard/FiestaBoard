@@ -53,16 +53,21 @@
     "home": "Home",
     "pages": "Pagine",
     "carousels": "Caroselli",
+    "projects": "Projects",
     "schedule": "Programmazione",
     "integrations": "Integrazioni",
     "settings": "Impostazioni",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "Espandi barra laterale",
     "collapseSidebar": "Comprimi barra laterale",
     "openMenu": "Apri menu",
     "closeMenu": "Chiudi menu",
     "navigationMenu": "Menu di navigazione",
     "mobileNavigation": "Navigazione mobile",
-    "mainNavigation": "Navigazione principale"
+    "mainNavigation": "Navigazione principale",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "Dashboard",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "Impossibile creare il carosello",
     "toastUpdateFailed": "Impossibile aggiornare il carosello",
     "toastDeleteFailed": "Impossibile eliminare il carosello"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "Programmazione",

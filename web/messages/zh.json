@@ -53,16 +53,21 @@
     "home": "首页",
     "pages": "页面",
     "carousels": "轮播",
+    "projects": "Projects",
     "schedule": "日程",
     "integrations": "集成",
     "settings": "设置",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "展开侧栏",
     "collapseSidebar": "收起侧栏",
     "openMenu": "打开菜单",
     "closeMenu": "关闭菜单",
     "navigationMenu": "导航菜单",
     "mobileNavigation": "移动端导航",
-    "mainNavigation": "主导航"
+    "mainNavigation": "主导航",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "仪表盘",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "创建轮播失败",
     "toastUpdateFailed": "更新轮播失败",
     "toastDeleteFailed": "删除轮播失败"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "日程",

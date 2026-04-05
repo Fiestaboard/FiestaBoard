@@ -53,16 +53,21 @@
     "home": "홈",
     "pages": "페이지",
     "carousels": "캐러셀",
+    "projects": "Projects",
     "schedule": "스케줄",
     "integrations": "연동",
     "settings": "설정",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "사이드바 펼치기",
     "collapseSidebar": "사이드바 접기",
     "openMenu": "메뉴 열기",
     "closeMenu": "메뉴 닫기",
     "navigationMenu": "탐색 메뉴",
     "mobileNavigation": "모바일 탐색",
-    "mainNavigation": "메인 탐색"
+    "mainNavigation": "메인 탐색",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "대시보드",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "캐러셀 생성에 실패했습니다",
     "toastUpdateFailed": "캐러셀 업데이트에 실패했습니다",
     "toastDeleteFailed": "캐러셀 삭제에 실패했습니다"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "스케줄",

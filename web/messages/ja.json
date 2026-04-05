@@ -53,16 +53,21 @@
     "home": "ホーム",
     "pages": "ページ",
     "carousels": "カルーセル",
+    "projects": "Projects",
     "schedule": "スケジュール",
     "integrations": "連携",
     "settings": "設定",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "サイドバーを展開",
     "collapseSidebar": "サイドバーを折りたたむ",
     "openMenu": "メニューを開く",
     "closeMenu": "メニューを閉じる",
     "navigationMenu": "ナビゲーションメニュー",
     "mobileNavigation": "モバイルナビゲーション",
-    "mainNavigation": "メインナビゲーション"
+    "mainNavigation": "メインナビゲーション",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "ダッシュボード",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "カルーセルの作成に失敗しました",
     "toastUpdateFailed": "カルーセルの更新に失敗しました",
     "toastDeleteFailed": "カルーセルの削除に失敗しました"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "スケジュール",

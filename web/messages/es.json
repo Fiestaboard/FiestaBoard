@@ -53,16 +53,21 @@
     "home": "Inicio",
     "pages": "Páginas",
     "carousels": "Carruseles",
+    "projects": "Projects",
     "schedule": "Horario",
     "integrations": "Integraciones",
     "settings": "Configuración",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "Expandir barra lateral",
     "collapseSidebar": "Contraer barra lateral",
     "openMenu": "Abrir menú",
     "closeMenu": "Cerrar menú",
     "navigationMenu": "Menú de navegación",
     "mobileNavigation": "Navegación móvil",
-    "mainNavigation": "Navegación principal"
+    "mainNavigation": "Navegación principal",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "Panel",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "Error al crear el carrusel",
     "toastUpdateFailed": "Error al actualizar el carrusel",
     "toastDeleteFailed": "Error al eliminar el carrusel"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "Horario",

@@ -53,16 +53,21 @@
     "home": "Hem",
     "pages": "Sidor",
     "carousels": "Karuseller",
+    "projects": "Projects",
     "schedule": "Schema",
     "integrations": "Integrationer",
     "settings": "Inställningar",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "Expandera sidofält",
     "collapseSidebar": "Minimera sidofält",
     "openMenu": "Öppna meny",
     "closeMenu": "Stäng meny",
     "navigationMenu": "Navigeringsmeny",
     "mobileNavigation": "Mobilnavigering",
-    "mainNavigation": "Huvudnavigering"
+    "mainNavigation": "Huvudnavigering",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "Instrumentpanel",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "Kunde inte skapa karusell",
     "toastUpdateFailed": "Kunde inte uppdatera karusell",
     "toastDeleteFailed": "Kunde inte ta bort karusell"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "Schema",

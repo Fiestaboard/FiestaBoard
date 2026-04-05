@@ -53,16 +53,21 @@
     "home": "Start",
     "pages": "Pagina's",
     "carousels": "Carrousels",
+    "projects": "Projects",
     "schedule": "Planning",
     "integrations": "Integraties",
     "settings": "Instellingen",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "Zijbalk uitklappen",
     "collapseSidebar": "Zijbalk inklappen",
     "openMenu": "Menu openen",
     "closeMenu": "Menu sluiten",
     "navigationMenu": "Navigatiemenu",
     "mobileNavigation": "Mobiele navigatie",
-    "mainNavigation": "Hoofdnavigatie"
+    "mainNavigation": "Hoofdnavigatie",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "Dashboard",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "Carrousel aanmaken mislukt",
     "toastUpdateFailed": "Carrousel bijwerken mislukt",
     "toastDeleteFailed": "Carrousel verwijderen mislukt"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "Planning",

@@ -53,16 +53,21 @@
     "home": "Início",
     "pages": "Páginas",
     "carousels": "Carrosséis",
+    "projects": "Projects",
     "schedule": "Agenda",
     "integrations": "Integrações",
     "settings": "Configurações",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "Expandir barra lateral",
     "collapseSidebar": "Recolher barra lateral",
     "openMenu": "Abrir menu",
     "closeMenu": "Fechar menu",
     "navigationMenu": "Menu de navegação",
     "mobileNavigation": "Navegação mobile",
-    "mainNavigation": "Navegação principal"
+    "mainNavigation": "Navegação principal",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "Painel",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "Falha ao criar carrossel",
     "toastUpdateFailed": "Falha ao atualizar carrossel",
     "toastDeleteFailed": "Falha ao excluir carrossel"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "Agenda",

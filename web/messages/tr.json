@@ -53,16 +53,21 @@
     "home": "Ana Sayfa",
     "pages": "Sayfalar",
     "carousels": "Döngüler",
+    "projects": "Projects",
     "schedule": "Zamanlama",
     "integrations": "Entegrasyonlar",
     "settings": "Ayarlar",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "Kenar çubuğunu genişlet",
     "collapseSidebar": "Kenar çubuğunu daralt",
     "openMenu": "Menüyü aç",
     "closeMenu": "Menüyü kapat",
     "navigationMenu": "Gezinme menüsü",
     "mobileNavigation": "Mobil gezinme",
-    "mainNavigation": "Ana gezinme"
+    "mainNavigation": "Ana gezinme",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "Gösterge Paneli",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "Döngü oluşturulamadı",
     "toastUpdateFailed": "Döngü güncellenemedi",
     "toastDeleteFailed": "Döngü silinemedi"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "Zamanlama",
