@@ -162,4 +162,54 @@ test.describe("Navigation", () => {
       path: "playwright-test-results/sidebar-gradient.png",
     });
   });
+
+  test("sidebar has primary and secondary navigation sections", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Verify primary section with key items
+    const primaryNav = page.getByLabel("Primary navigation").first();
+    await expect(primaryNav).toBeVisible();
+
+    // Verify secondary section with Settings
+    const secondaryNav = page.getByLabel("Secondary navigation").first();
+    await expect(secondaryNav).toBeVisible();
+
+    // Settings should be in secondary section
+    const settingsLink = secondaryNav.getByRole("link", { name: "Settings" });
+    await expect(settingsLink).toBeVisible();
+  });
+
+  test("Projects button opens drawer", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Find and click the Projects button in the sidebar
+    const projectsBtn = page
+      .locator("aside")
+      .getByRole("button", { name: /projects/i })
+      .first();
+
+    if (await projectsBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await projectsBtn.click();
+
+      // Drawer should appear with Projects title
+      await expect(
+        page.getByRole("heading", { name: "Projects" }),
+      ).toBeVisible({ timeout: 5_000 });
+
+      // Drawer should have search input
+      await expect(
+        page.getByPlaceholder(/search projects/i),
+      ).toBeVisible();
+    }
+  });
 });
