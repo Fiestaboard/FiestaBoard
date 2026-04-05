@@ -75,50 +75,50 @@ FiestaBoard has **26 built-in plugins** covering weather, finance, transit, spor
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
-![Weather Display](./plugins/weather/docs/weather-display.png)
+![Weather Display](./docs-site/static/img/weather-display.png)
 
 **Stocks** - Real-time prices with color-coded change indicators
 
-![Stocks Display](./images/stocks-display.png)
+![Stocks Display](./docs-site/static/img/stocks-display.png)
 
 **Sports Scores** - Recent match scores from NFL, Soccer, NHL, and NBA
 
-![Sports Scores Display](./plugins/sports_scores/docs/sports-scores-display.png)
+![Sports Scores Display](./docs-site/static/img/sports-scores-display.png)
 
 **Nearby Aircraft** - Real-time aircraft info with call signs, altitude, and speed
 
-![Nearby Aircraft Display](./plugins/nearby_aircraft/docs/nearby-aircraft-display.png)
+![Nearby Aircraft Display](./docs-site/static/img/nearby-aircraft-display.png)
 
 ### All Available Plugins
 
 | Plugin | What It Shows | API Key? |
 |--------|--------------|----------|
-| [Weather](./plugins/weather/README.md) | Temperature, UV, precipitation, high/low | Yes (free) |
-| [Stocks](./plugins/stocks/README.md) | Stock prices with color indicators | Optional |
-| [Sports Scores](./plugins/sports_scores/README.md) | NFL, Soccer, NHL, NBA scores | Optional |
-| [Traffic](./plugins/traffic/README.md) | Travel time with live traffic | Yes (free tier) |
-| [Muni Transit](./plugins/muni/README.md) | Real-time SF Muni arrivals | Yes (free) |
-| [Home Assistant](./plugins/home_assistant/README.md) | Smart home status (doors, locks, garage) | Yes (self-hosted) |
-| [Last.fm Now Playing](./plugins/last_fm/README.md) | Currently playing music | Yes (free) |
-| [Surf Conditions](./plugins/surf/README.md) | Wave height and quality ratings | No |
-| [Air Quality & Fog](./plugins/air_fog/README.md) | AQI and fog conditions | Yes |
-| [Nearby Aircraft](./plugins/nearby_aircraft/README.md) | Real-time aircraft tracking | Optional |
-| [Disney Park Queue Times](./plugins/disney_parks_times/README.md) | Wait times for Disney rides | No |
-| [WSDOT Ferries](./plugins/wsdot/README.md) | WA State ferry schedules and alerts | Yes (free) |
-| [Bay Wheels](./plugins/baywheels/README.md) | Bike availability at stations | No |
+| [Weather](https://github.com/Fiestaboard/fiestaboard-plugin--weather) | Temperature, UV, precipitation, high/low | Yes (free) |
+| [Stocks](https://github.com/Fiestaboard/fiestaboard-plugin--stocks) | Stock prices with color indicators | Optional |
+| [Sports Scores](https://github.com/Fiestaboard/fiestaboard-plugin--sports-scores) | NFL, Soccer, NHL, NBA scores | Optional |
+| [Traffic](https://github.com/Fiestaboard/fiestaboard-plugin--traffic) | Travel time with live traffic | Yes (free tier) |
+| [Muni Transit](https://github.com/Fiestaboard/fiestaboard-plugin--muni) | Real-time SF Muni arrivals | Yes (free) |
+| [Home Assistant](https://github.com/Fiestaboard/fiestaboard-plugin--home-assistant) | Smart home status (doors, locks, garage) | Yes (self-hosted) |
+| [Last.fm Now Playing](https://github.com/Fiestaboard/fiestaboard-plugin--last-fm) | Currently playing music | Yes (free) |
+| [Surf Conditions](https://github.com/Fiestaboard/fiestaboard-plugin--surf) | Wave height and quality ratings | No |
+| [Air Quality & Fog](https://github.com/Fiestaboard/fiestaboard-plugin--air-fog) | AQI and fog conditions | Yes |
+| [Nearby Aircraft](https://github.com/Fiestaboard/fiestaboard-plugin--nearby-aircraft) | Real-time aircraft tracking | Optional |
+| [Disney Park Queue Times](https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times) | Wait times for Disney rides | No |
+| [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
+| [Bay Wheels](https://github.com/Fiestaboard/fiestaboard-plugin--baywheels) | Bike availability at stations | No |
 | [Countdown](./plugins/countdown/README.md) | Time remaining until an event | No |
 | [Date & Time](./plugins/date_time/README.md) | Current date/time in many formats | No |
-| [Generic Data](./plugins/generic_data/README.md) | Custom data from any JSON/XML URL | No |
-| [Guest WiFi](./plugins/guest_wifi/README.md) | WiFi credentials for guests | No |
-| [Allergy & Health](./plugins/health/README.md) | Allergy levels and health risk indicators | No |
-| [Star Trek Quotes](./plugins/star_trek_quotes/README.md) | Quotes from TNG, Voyager, DS9 | No |
-| [Dad Jokes](./plugins/dad_jokes/README.md) | Random dad jokes | No |
-| [Santa Tracker](./plugins/santa_tracker/README.md) | Track Santa's journey on Christmas | No |
-| [Spacecraft Launches](./plugins/spacecraft_launches/README.md) | Upcoming rocket launch countdowns | No |
-| [Stardate](./plugins/stardate/README.md) | Current TNG-era stardate | No |
-| [Sun Art](./plugins/sun_art/README.md) | Art pattern that follows the sun | No |
-| [Visual Clock](./plugins/visual_clock/README.md) | Large pixel-art style clock | No |
-| [White Noise](./plugins/white_noise/README.md) | Ambient rain/white noise effect | No |
+| [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
+| [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
+| [Allergy & Health](https://github.com/Fiestaboard/fiestaboard-plugin--health) | Allergy levels and health risk indicators | No |
+| [Star Trek Quotes](https://github.com/Fiestaboard/fiestaboard-plugin--star-trek-quotes) | Quotes from TNG, Voyager, DS9 | No |
+| [Dad Jokes](https://github.com/Fiestaboard/fiestaboard-plugin--dad-jokes) | Random dad jokes | No |
+| [Santa Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--santa-tracker) | Track Santa's journey on Christmas | No |
+| [Spacecraft Launches](https://github.com/Fiestaboard/fiestaboard-plugin--spacecraft-launches) | Upcoming rocket launch countdowns | No |
+| [Stardate](https://github.com/Fiestaboard/fiestaboard-plugin--stardate) | Current TNG-era stardate | No |
+| [Sun Art](https://github.com/Fiestaboard/fiestaboard-plugin--sun-art) | Art pattern that follows the sun | No |
+| [Visual Clock](https://github.com/Fiestaboard/fiestaboard-plugin--visual-clock) | Large pixel-art style clock | No |
+| [White Noise](https://github.com/Fiestaboard/fiestaboard-plugin--white-noise) | Ambient rain/white noise effect | No |
 
 ---
 
