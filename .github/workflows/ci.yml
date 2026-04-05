@@ -444,6 +444,15 @@ jobs:
           path: web/playwright-test-results/
           retention-days: 7
 
+      - name: Upload visual regression snapshots
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: visual-regression-snapshots
+          path: web/tests/__snapshots__/
+          retention-days: 30
+          if-no-files-found: ignore
+
   build:
     name: Build Verification
     runs-on: ubuntu-latest

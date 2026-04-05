@@ -139,3 +139,12 @@ jobs:
           name: integration-results-${{ github.event_name }}
           path: web/test-results/
           retention-days: 14
+
+      - name: Upload visual regression snapshots
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: visual-regression-snapshots-integration
+          path: web/tests/__snapshots__/
+          retention-days: 30
+          if-no-files-found: ignore

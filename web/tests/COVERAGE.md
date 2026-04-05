@@ -13,7 +13,7 @@ Tests exercise the full stack:
 Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 ```
 
-### Playwright Spec Files (24 files)
+### Playwright Spec Files (25 files)
 
 | File | Area | What's Covered |
 |------|------|----------------|
@@ -41,6 +41,7 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 | `schedule-management.spec.ts` | Schedules | Toggle, form interactions, validation, calendar/list view modes, day patterns |
 | `settings.spec.ts` | Settings | Settings page loads with all sections (General, Boards, Advanced/Debug/Wizard), navigate to integrations |
 | `settings-full.spec.ts` | Settings | Timezone picker, refresh interval, output target, board type, service control, silence schedule, wizard rerun, debug tools, system info |
+| `visual-regression.spec.ts` | Visual regression | Screenshot comparison tests for Dashboard (default/dark/light), Page Editor (empty/content/template vars), Schedule Calendar (empty/entries), Settings (general/board config), Plugin Integrations (installed/marketplace), Pages List (empty/with pages), Navigation Sidebar |
 
 > Note: `generate-screenshots.spec.ts` is excluded from CI runs via playwright config.
 
@@ -50,15 +51,15 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 
 | Route | Spec File(s) |
 |-------|-------------|
-| `/` (Dashboard) | `dashboard.spec.ts`, `integration.spec.ts` |
-| `/pages` | `pages-crud.spec.ts`, `integration.spec.ts` |
-| `/pages/new` | `pages-crud.spec.ts`, `page-builder.spec.ts` |
+| `/` (Dashboard) | `dashboard.spec.ts`, `integration.spec.ts`, `visual-regression.spec.ts` |
+| `/pages` | `pages-crud.spec.ts`, `integration.spec.ts`, `visual-regression.spec.ts` |
+| `/pages/new` | `pages-crud.spec.ts`, `page-builder.spec.ts`, `visual-regression.spec.ts` |
 | `/pages/edit/[id]` | `pages-crud.spec.ts`, `page-builder.spec.ts` |
 | `/carousels` | `api.spec.ts` (API only) |
-| `/schedule` | `schedule-crud.spec.ts`, `schedule-management.spec.ts`, `calendar-alignment.spec.ts` |
-| `/integrations` | `integrations.spec.ts`, `plugin-management.spec.ts` |
+| `/schedule` | `schedule-crud.spec.ts`, `schedule-management.spec.ts`, `calendar-alignment.spec.ts`, `visual-regression.spec.ts` |
+| `/integrations` | `integrations.spec.ts`, `plugin-management.spec.ts`, `visual-regression.spec.ts` |
 | `/integrations/[pluginId]` | `plugin-detail.spec.ts` |
-| `/settings` | `settings.spec.ts`, `settings-full.spec.ts` |
+| `/settings` | `settings.spec.ts`, `settings-full.spec.ts`, `visual-regression.spec.ts` |
 | `/debug` | `settings-full.spec.ts` (debug tools section) |
 
 ---
@@ -145,6 +146,32 @@ docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm 
 # Run with coverage
 cd web && npm run test:coverage
 ```
+
+### Visual Regression Tests
+
+Visual regression tests use Playwright `toHaveScreenshot()` to compare
+screenshots against baseline images. On the first run, baselines are generated
+automatically (`updateSnapshots: "missing"` in `playwright.config.ts`).
+Subsequent runs compare against those baselines using a **0.3% pixel threshold**
+to allow for minor anti-aliasing differences.
+
+```bash
+# Run visual regression tests only
+cd web && npx playwright test visual-regression
+
+# Update baselines after intentional UI changes
+cd web && npx playwright test --update-snapshots visual-regression
+
+# Run with headed browser for debugging
+cd web && npx playwright test --headed visual-regression
+```
+
+**Reducing false positives:**
+- Schedule calendar tests freeze `Date.now()` via Playwright's clock API
+- WYSIWYG editor tests hide the blinking cursor and selection highlights
+- Settings tests mask version numbers and system info
+- Dashboard tests mask uptime counters and timestamps
+- Calendar today-highlighting is neutralised via injected CSS
 
 ---
 
