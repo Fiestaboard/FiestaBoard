@@ -110,7 +110,12 @@ test.describe("Visual — Dashboard", () => {
 
     if (await themeToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await themeToggle.click();
-      await page.waitForTimeout(500); // CSS transition
+      // Wait for dark mode class to be applied
+      await page.waitForFunction(
+        () => document.documentElement.classList.contains("dark")
+          || document.documentElement.getAttribute("data-theme") === "dark",
+        { timeout: 5_000 },
+      );
     } else {
       // Fallback: force dark mode on <html>
       await page.evaluate(() => {
@@ -135,7 +140,11 @@ test.describe("Visual — Dashboard", () => {
       document.documentElement.setAttribute("data-theme", "light");
       localStorage.setItem("theme", "light");
     });
-    await page.waitForTimeout(300);
+    // Wait for light mode to take effect
+    await page.waitForFunction(
+      () => !document.documentElement.classList.contains("dark"),
+      { timeout: 5_000 },
+    );
 
     await expect(page).toHaveScreenshot(snap("dashboard-light"), {
       ...SCREENSHOT_OPTIONS,
@@ -188,9 +197,9 @@ test.describe("Visual — Page Editor", () => {
     if (await editor.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await editor.click();
       await page.keyboard.type("HELLO VISUAL WORLD");
-      // Blur to dismiss cursor before screenshot
+      // Blur editor to dismiss cursor before screenshot
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(200);
+      await editor.evaluate((el) => (el as HTMLElement).blur());
     }
 
     await expect(page).toHaveScreenshot(snap("page-editor-with-content"), {
@@ -217,7 +226,7 @@ test.describe("Visual — Page Editor", () => {
       await editor.click();
       await page.keyboard.type("{date} {time}");
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(200);
+      await editor.evaluate((el) => (el as HTMLElement).blur());
     }
 
     await expect(page).toHaveScreenshot(snap("page-editor-template-vars"), {
@@ -283,8 +292,13 @@ test.describe("Visual — Schedule Calendar", () => {
     await expect(
       page.getByRole("heading", { name: /schedule/i }),
     ).toBeVisible({ timeout: 15_000 });
-    // Wait for schedule data to render
-    await page.waitForTimeout(1_000);
+    // Wait for schedule data to render (look for page names in the list)
+    await expect(
+      page.getByText("Morning News").or(page.getByText("07:00")),
+    ).toBeVisible({ timeout: 10_000 }).catch(() => {
+      // Schedule might render differently; fall back to networkidle
+    });
+    await page.waitForLoadState("networkidle");
 
     await expect(page).toHaveScreenshot(snap("schedule-with-entries"), {
       ...SCREENSHOT_OPTIONS,
@@ -326,7 +340,8 @@ test.describe("Visual — Settings", () => {
       .first();
     if (await boardSection.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await boardSection.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(300);
+      // Wait for the element to be in view
+      await expect(boardSection).toBeInViewport();
     }
 
     await expect(page).toHaveScreenshot(snap("settings-board-config"), {
@@ -355,7 +370,7 @@ test.describe("Visual — Plugin Integrations", () => {
     if (await installedTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await installedTab.click();
     }
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle");
 
     await expect(page).toHaveScreenshot(snap("integrations-installed"), {
       ...SCREENSHOT_OPTIONS,
@@ -373,7 +388,7 @@ test.describe("Visual — Plugin Integrations", () => {
       await marketplaceTab.isVisible({ timeout: 5_000 }).catch(() => false)
     ) {
       await marketplaceTab.click();
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle");
     }
 
     await expect(page).toHaveScreenshot(snap("integrations-marketplace"), {
@@ -397,7 +412,7 @@ test.describe("Visual — Pages List", () => {
     await expect(
       page.getByRole("heading", { name: /pages/i }),
     ).toBeVisible({ timeout: 15_000 });
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle");
 
     await expect(page).toHaveScreenshot(snap("pages-list-empty"), {
       ...SCREENSHOT_OPTIONS,
@@ -413,7 +428,10 @@ test.describe("Visual — Pages List", () => {
     await expect(
       page.getByRole("heading", { name: /pages/i }),
     ).toBeVisible({ timeout: 15_000 });
-    await page.waitForTimeout(500);
+    // Wait for page cards to render
+    await expect(
+      page.getByText("Morning Dashboard").or(page.getByText("Evening Update")),
+    ).toBeVisible({ timeout: 10_000 });
 
     await expect(page).toHaveScreenshot(snap("pages-list-with-pages"), {
       ...SCREENSHOT_OPTIONS,
