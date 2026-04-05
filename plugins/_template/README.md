@@ -172,14 +172,103 @@ class MyPlugin(PluginBase):
 
 ### Testing
 
-All plugins must have tests with >80% code coverage.
+All plugins must have tests with **≥85% code coverage**. Tests are enforced in CI
+and will block merges if coverage falls below the threshold.
 
 ```bash
-# Run tests for a single plugin
+# Run tests for a single plugin (with coverage)
 python scripts/run_plugin_tests.py --plugin=my_plugin
 
 # Run all plugin tests
 python scripts/run_plugin_tests.py
+```
+
+#### What to Test
+
+- **Plugin ID** matches the directory name
+- **Config validation** — missing required fields, valid config
+- **fetch_data()** — success, API errors, edge cases
+- **Manifest variables** — all declared variables are returned in data
+- **Formatted output** — `formatted_lines` is a list with expected line count
+- **Error handling** — graceful degradation on API failures
+
+#### Test File Template
+
+```python
+"""Tests for the my_plugin plugin."""
+import json, pytest
+from pathlib import Path
+from plugins.my_plugin import MyPlugin
+from src.plugins.base import PluginResult
+from src.plugins.manifest import PluginManifest
+
+MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
+
+@pytest.fixture
+def manifest():
+    with open(MANIFEST_PATH) as f:
+        return PluginManifest.from_dict(json.load(f))
+
+class TestMyPlugin:
+    def test_plugin_id(self, manifest):
+        assert MyPlugin(manifest).plugin_id == "my_plugin"
+
+    def test_fetch_data_success(self, manifest):
+        plugin = MyPlugin(manifest)
+        plugin.config = {"api_key": "test_key_123"}
+        result = plugin.fetch_data()
+        assert result.available is True
+        assert isinstance(result.formatted_lines, list)
+```
+
+### GitHub Actions CI for Plugins
+
+External plugin repositories should add a CI workflow to enforce tests on every
+PR. Create `.github/workflows/ci.yml` in your plugin repository:
+
+```yaml
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FiestaBoard (test dependency)
+        run: |
+          git clone --depth 1 https://github.com/Fiestaboard/FiestaBoard.git /tmp/fb
+          pip install -r /tmp/fb/requirements.txt
+          pip install -r /tmp/fb/requirements-dev.txt
+
+      - name: Run plugin tests with coverage
+        run: |
+          PYTHONPATH=/tmp/fb:$PYTHONPATH \
+          python -m pytest tests/ -v \
+            --cov=. --cov-branch \
+            --cov-report=term-missing \
+            --cov-fail-under=85
+
+      - name: Validate manifest
+        run: |
+          python -c "
+          import json, sys
+          m = json.load(open('manifest.json'))
+          required = ['id', 'name', 'version']
+          missing = [f for f in required if f not in m]
+          if missing:
+              print(f'Missing required fields: {missing}')
+              sys.exit(1)
+          print('Manifest valid')
+          "
 ```
 
 ### Developing as an External Repository
@@ -195,6 +284,8 @@ fiestaboard-plugin--my-weather/
 │   ├── SETUP.md
 │   └── board-display.png
 └── tests/
+    ├── __init__.py
+    ├── conftest.py
     └── test_plugin.py
 ```
 
@@ -204,5 +295,5 @@ Registry plugins must follow the `fiestaboard-plugin--{name}` naming convention.
 
 See these plugins for reference implementations:
 
-- `plugins/date_time/` — Plugin with no external dependencies
-- `plugins/countdown/` — Event countdown with timezone support
+- `plugins/date_time/` — Plugin with no external dependencies (100% coverage)
+- `plugins/countdown/` — Event countdown with timezone support (98% coverage)

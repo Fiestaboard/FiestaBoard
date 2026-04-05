@@ -13,12 +13,13 @@ Tests exercise the full stack:
 Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 ```
 
-### Playwright Spec Files (25 files)
+### Playwright Spec Files (27 files)
 
 | File | Area | What's Covered |
 |------|------|----------------|
 | `api.spec.ts` | Backend API | Core endpoint contracts: version, config, settings CRUD, pages CRUD, schedules CRUD, plugins, template validation, displays, debug |
 | `api-extended.spec.ts` | Backend API | Deeper API coverage: full config, board config test, page preview/send/batch, schedule active/validate/default/enable, plugin config/variables, settings transitions/active-page/board, template render, service start/stop |
+| `board-discovery-offline.spec.ts` | Board discovery & offline | Board scan/discovery endpoint, connection test (online/offline/missing creds), per-board schedule active page resolution, per-board schedule enable/disable independence, Note template rendering dimensions, offline board send handling, multi-board state independence |
 | `calendar-alignment.spec.ts` | Schedule UI | Time gutter label alignment with hour grid, desktop + mobile viewports |
 | `dashboard.spec.ts` | Dashboard | Board display visible, active page name, manual mode badge |
 | `error-handling.spec.ts` | Error handling | 404 for missing page/schedule, invalid POST/template data, API error states, invalid routes, graceful degradation |
@@ -33,6 +34,7 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 | `multi-board-schedule.spec.ts` | Multi-board scheduling | Single-board schedule page, two-board board selector, schedule mode toggle, per-board CRUD, filtering by board_id |
 | `navigation.spec.ts` | Navigation | Mobile hamburger menu, sidebar links, theme toggle, version display, sidebar gradient |
 | `note-pages.spec.ts` | Note pages | Note (3×15) API CRUD, UI creation, 3-line editor, preview dimensions, pages list tabs, send to board with encoding verification |
+| `note-multiboard-extended.spec.ts` | Note & multi-board | Device type mismatch (Flagship↔Note), Note 3×15 grid enforcement, one board offline handling, per-board schedule isolation, multi-board UI switching, Note display rendering |
 | `page-builder.spec.ts` | Page builder | Create/edit pages through the visual page builder UI |
 | `pages-crud.spec.ts` | Page management | Create, edit, delete pages via UI |
 | `plugin-detail.spec.ts` | Plugin detail | `/integrations/[pluginId]` route: navigation from Marketplace, plugin name/category visible, Install/Installed button, Back to Marketplace link, README section present, unknown plugin error state, GitHub link |
