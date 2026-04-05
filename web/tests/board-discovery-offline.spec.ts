@@ -18,7 +18,6 @@ import {
   configureBoard,
   createPage,
   createNotePage,
-  createSchedule,
   deleteAllPages,
   deleteAllSchedules,
   ensureTwoBoards,
@@ -26,6 +25,9 @@ import {
   API_URL,
   BOARD_HOST,
 } from "./helpers";
+
+/** RFC 5737 TEST-NET-1 address — guaranteed unreachable, used for offline board tests. */
+const UNREACHABLE_HOST = "192.0.2.99";
 
 test.beforeEach(async () => {
   await configureBoard();
@@ -116,7 +118,7 @@ test.describe("Board Connection Test — Offline Detection", () => {
       body: JSON.stringify({
         api_mode: "local",
         local_api_key: "test-key",
-        host: "192.0.2.99",
+        host: UNREACHABLE_HOST,
       }),
     });
     expect(res.ok).toBe(true); // endpoint itself doesn't 500
@@ -332,7 +334,7 @@ test.describe("Board Offline — Send Error Handling", () => {
           board_color: "black",
           enabled: true,
           api_mode: "local",
-          host: "192.0.2.99",
+          host: UNREACHABLE_HOST,
           local_api_key: "test-key",
         }],
       }),
@@ -367,7 +369,7 @@ test.describe("Board Offline — Send Error Handling", () => {
           board_color: "black",
           enabled: true,
           api_mode: "local",
-          host: "192.0.2.99",
+          host: UNREACHABLE_HOST,
           local_api_key: "test-key",
         }],
       }),
@@ -401,7 +403,7 @@ test.describe("Board Offline — Send Error Handling", () => {
           board_color: "black",
           enabled: true,
           api_mode: "local",
-          host: "192.0.2.99",
+          host: UNREACHABLE_HOST,
           local_api_key: "test-key",
         }],
       }),
