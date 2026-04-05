@@ -1,0 +1,179 @@
+{
+  "id": "calendar_sub",
+  "name": "Calendar Subscription",
+  "version": "1.0.0",
+  "description": "Subscribe to a public iCalendar (.ics) URL and display upcoming events on your board.",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "calendar",
+  "category": "utility",
+  "supports_triggers": true,
+
+  "min_refresh_seconds": 60,
+
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "calendar_url": {
+        "type": "string",
+        "title": "Calendar URL",
+        "description": "Public iCalendar (.ics) subscription URL. Supports https:// and webcal:// formats.",
+        "ui:widget": "url"
+      },
+      "minutes_before": {
+        "type": "integer",
+        "title": "Minutes Before Event",
+        "description": "How many minutes before an event starts to trigger the board display.",
+        "default": 15,
+        "minimum": 1,
+        "maximum": 1440
+      },
+      "display_duration_minutes": {
+        "type": "integer",
+        "title": "Display Duration (minutes)",
+        "description": "How long to keep the event on the board after triggering. Set to 0 to stay until something else overwrites it.",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 120
+      },
+      "timezone": {
+        "type": "string",
+        "title": "Timezone",
+        "description": "IANA timezone for interpreting all-day events and formatting display times.",
+        "default": "America/Los_Angeles",
+        "ui:widget": "timezone"
+      },
+      "max_events": {
+        "type": "integer",
+        "title": "Max Events to Show",
+        "description": "Maximum number of upcoming events to expose as template variables.",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 20
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "How often to re-fetch the calendar URL.",
+        "default": 300,
+        "minimum": 60
+      },
+      "enabled": {
+        "type": "boolean",
+        "title": "Enabled",
+        "default": false
+      }
+    },
+    "required": ["calendar_url"]
+  },
+
+  "env_vars": [
+    {
+      "name": "CALENDAR_SUB_URL",
+      "required": false,
+      "description": "Calendar subscription URL (can also be set in UI)"
+    },
+    {
+      "name": "TIMEZONE",
+      "required": false,
+      "description": "IANA timezone (e.g., America/Los_Angeles)",
+      "default": "America/Los_Angeles"
+    }
+  ],
+
+  "variables": {
+    "groups": {
+      "next_event": { "label": "Next Event" },
+      "upcoming": { "label": "Upcoming Events" }
+    },
+    "simple": {
+      "event_name": {
+        "description": "Name/title of the next upcoming event",
+        "type": "string",
+        "group": "next_event",
+        "max_length": 22,
+        "example": "Parent Teacher Conference"
+      },
+      "event_start": {
+        "description": "Formatted start time of the next event (e.g., '3:30 PM')",
+        "type": "string",
+        "group": "next_event",
+        "max_length": 10,
+        "example": "3:30 PM"
+      },
+      "event_start_date": {
+        "description": "Formatted start date of the next event (e.g., 'Apr 3')",
+        "type": "string",
+        "group": "next_event",
+        "max_length": 10,
+        "example": "Apr 3"
+      },
+      "event_end": {
+        "description": "Formatted end time of the next event",
+        "type": "string",
+        "group": "next_event",
+        "max_length": 10,
+        "example": "4:30 PM"
+      },
+      "event_location": {
+        "description": "Location of the next event (if set in calendar)",
+        "type": "string",
+        "group": "next_event",
+        "max_length": 22,
+        "example": "Room 204"
+      },
+      "event_description": {
+        "description": "Description of the next event (truncated to 22 chars)",
+        "type": "string",
+        "group": "next_event",
+        "max_length": 22,
+        "example": "Bring report card"
+      },
+      "minutes_until": {
+        "description": "Minutes until the next event starts (negative if in progress)",
+        "type": "number",
+        "group": "next_event",
+        "max_length": 6,
+        "example": "10"
+      },
+      "is_now": {
+        "description": "Whether an event is currently in progress",
+        "type": "boolean",
+        "group": "next_event",
+        "max_length": 5,
+        "example": "false"
+      },
+      "event_count": {
+        "description": "Number of upcoming events loaded from the calendar",
+        "type": "number",
+        "group": "upcoming",
+        "max_length": 3,
+        "example": "3"
+      }
+    },
+    "arrays": {
+      "events": {
+        "label_field": "name",
+        "item_fields": ["name", "start", "start_date", "end", "location"]
+      }
+    }
+  },
+
+  "max_lengths": {
+    "events.*.name": 22,
+    "events.*.start": 10,
+    "events.*.start_date": 10,
+    "events.*.end": 10,
+    "events.*.location": 22
+  },
+
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Calendar Subscription displayed on a Vestaboard",
+      "caption": "Upcoming event triggered on the board before the event starts",
+      "primary": true
+    }
+  ]
+}
