@@ -52,17 +52,22 @@
   "navigation": {
     "home": "Home",
     "pages": "Pages",
+    "projects": "Projects",
     "carousels": "Carousels",
     "schedule": "Schedule",
     "integrations": "Integrations",
     "settings": "Settings",
+    "helpDocs": "Help & Docs",
+    "userProfile": "Profile",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "navigationMenu": "Navigation menu",
     "mobileNavigation": "Mobile navigation",
-    "mainNavigation": "Main navigation"
+    "mainNavigation": "Main navigation",
+    "primaryNavigation": "Primary navigation",
+    "secondaryNavigation": "Secondary navigation"
   },
   "home": {
     "title": "Dashboard",
@@ -122,6 +127,16 @@
     "toastCreateFailed": "Failed to create carousel",
     "toastUpdateFailed": "Failed to update carousel",
     "toastDeleteFailed": "Failed to delete carousel"
+  },
+  "projectsDrawer": {
+    "title": "Projects",
+    "description": "Quick access to your carousel projects",
+    "searchPlaceholder": "Search projects...",
+    "noResults": "No projects match your search",
+    "noProjects": "No projects yet",
+    "manageProjects": "Manage All Projects",
+    "page": "page",
+    "pages": "pages"
   },
   "schedule": {
     "title": "Schedule",

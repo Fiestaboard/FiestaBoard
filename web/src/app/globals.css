@@ -68,6 +68,11 @@
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-emphasis: var(--brand-emphasis);
 
+  /* Navigation active state (indigo) */
+  --color-nav-active: var(--nav-active);
+  --color-nav-active-foreground: var(--nav-active-foreground);
+  --color-nav-active-hover: var(--nav-active-hover);
+
   /* Board Official Colors - use these for all status/tile colors */
   --color-board-red: #eb4034;
   --color-board-orange: #f5a623;
@@ -153,6 +158,10 @@
   --brand: oklch(0.56 0.15 75);
   --brand-emphasis: oklch(0.52 0.16 60);
   --brand-foreground: oklch(1 0 0);
+  /* Navigation active state — indigo palette */
+  --nav-active: oklch(0.44 0.19 265);            /* indigo-600 */
+  --nav-active-foreground: oklch(1 0 0);          /* white */
+  --nav-active-hover: oklch(0.50 0.17 265 / 15%); /* indigo tint hover */
   /* Fiesta gradient palette — used by sidebar and page icon gradient */
   --fiesta-red: #c97a72;
   --fiesta-orange: #c99662;
@@ -210,6 +219,10 @@
   --brand: oklch(0.78 0.14 75);
   --brand-emphasis: oklch(0.55 0.16 60);
   --brand-foreground: oklch(1 0 0);
+  /* Navigation active state — indigo palette (lighter for dark mode) */
+  --nav-active: oklch(0.59 0.19 265);            /* indigo-500 */
+  --nav-active-foreground: oklch(1 0 0);          /* white */
+  --nav-active-hover: oklch(0.59 0.19 265 / 20%); /* indigo tint hover */
   /* Fiesta gradient palette — lighter for visibility on dark card backgrounds */
   --fiesta-red: #e08a82;
   --fiesta-orange: #d4a870;
@@ -665,6 +678,15 @@
 .reduce-motion .sidebar-transition { transition: none; }
 .reduce-motion .sidebar-gradient { animation: none; background-position: 0 0, 0 0, 50% 25%; }
 .reduce-motion .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
+
+/* Navigation active state — indigo background on sidebar gradient */
+.nav-active {
+  background: var(--nav-active);
+  color: var(--nav-active-foreground);
+}
+.nav-active-hover:hover {
+  background: var(--nav-active-hover);
+}
 
 /* Interactive card hover feedback */
 @layer utilities {

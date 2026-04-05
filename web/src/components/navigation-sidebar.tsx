@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, FileText, Settings, Calendar, Menu, Puzzle, FolderKanban, ChevronLeft, ChevronRight, HelpCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,14 +16,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useSidebar } from "@/components/sidebar-context";
+import { ProjectsDrawer } from "@/components/projects-drawer";
 
-const navigationItems = [
-  { key: "home" as const, href: "/", icon: Home },
-  { key: "pages" as const, href: "/pages", icon: FileText },
-  { key: "carousels" as const, href: "/carousels", icon: GalleryHorizontalEnd },
-  { key: "schedule" as const, href: "/schedule", icon: Calendar },
-  { key: "integrations" as const, href: "/integrations", icon: Puzzle },
-  { key: "settings" as const, href: "/settings", icon: Settings },
+interface NavItem {
+  key: string;
+  href?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  action?: "projects-drawer";
+  external?: boolean;
+}
+
+const primaryItems: NavItem[] = [
+  { key: "home", href: "/", icon: Home },
+  { key: "pages", href: "/pages", icon: FileText },
+  { key: "projects", icon: FolderKanban, action: "projects-drawer" },
+  { key: "schedule", href: "/schedule", icon: Calendar },
+  { key: "integrations", href: "/integrations", icon: Puzzle },
+];
+
+const secondaryItems: NavItem[] = [
+  { key: "settings", href: "/settings", icon: Settings },
+  { key: "helpDocs", href: "https://fiestaboard.com/docs", icon: HelpCircle, external: true },
+  { key: "userProfile", href: "/settings", icon: User },
 ];
 
 export function NavigationSidebar() {
@@ -31,7 +45,7 @@ export function NavigationSidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [appInset, setAppInset] = useState(0);
   const prefetchPages = usePrefetchPagesData();
-  const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
+  const { collapsed, transitioning, toggle, onTransitionEnd, setProjectsDrawerOpen } = useSidebar();
   const t = useTranslations("navigation");
 
   useEffect(() => {
@@ -55,6 +69,151 @@ export function NavigationSidebar() {
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  const isActive = (item: NavItem) => {
+    if (item.external || item.action) return false;
+    if (!item.href) return false;
+    return item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
+  };
+
+  const handleNavClick = (item: NavItem) => {
+    if (item.action === "projects-drawer") {
+      setProjectsDrawerOpen(true);
+    }
+    setMobileMenuOpen(false);
+  };
+
+  function renderMobileNavItem(item: NavItem) {
+    const active = isActive(item);
+    const Icon = item.icon;
+    const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
+    const name = t(item.key);
+    const mobileClassName = cn(
+      "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
+      active
+        ? "nav-active font-semibold"
+        : "text-sidebar-foreground nav-active-hover"
+    );
+
+    if (item.action) {
+      return (
+        <button
+          key={item.key}
+          onClick={() => handleNavClick(item)}
+          className={mobileClassName}
+        >
+          <Icon className="h-5 w-5" />
+          {name}
+        </button>
+      );
+    }
+
+    if (item.external) {
+      return (
+        <a
+          key={item.key}
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => setMobileMenuOpen(false)}
+          className={mobileClassName}
+        >
+          <Icon className="h-5 w-5" />
+          {name}
+        </a>
+      );
+    }
+
+    return (
+      <ViewTransitionLink
+        key={item.key}
+        href={item.href!}
+        onClick={() => setMobileMenuOpen(false)}
+        onMouseEnter={prefetchHandler}
+        onFocus={prefetchHandler}
+        className={mobileClassName}
+      >
+        <Icon className="h-5 w-5" />
+        {name}
+      </ViewTransitionLink>
+    );
+  }
+
+  function renderDesktopNavItem(item: NavItem) {
+    const active = isActive(item);
+    const Icon = item.icon;
+    const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
+    const name = t(item.key);
+    const linkClassName = cn(
+      "flex items-center gap-3 py-2 pl-[14px] pr-3 rounded-lg text-sm font-medium transition-colors",
+      active
+        ? "nav-active font-semibold"
+        : "text-sidebar-foreground nav-active-hover"
+    );
+
+    let link: React.ReactElement;
+
+    if (item.action) {
+      link = (
+        <button
+          onClick={() => handleNavClick(item)}
+          className={linkClassName}
+          aria-label={collapsed ? name : undefined}
+        >
+          <Icon className="h-5 w-5 flex-shrink-0" />
+          <span className={cn(
+            "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+          )}>{name}</span>
+        </button>
+      );
+    } else if (item.external) {
+      link = (
+        <a
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={linkClassName}
+          aria-label={collapsed ? name : undefined}
+        >
+          <Icon className="h-5 w-5 flex-shrink-0" />
+          <span className={cn(
+            "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+          )}>{name}</span>
+        </a>
+      );
+    } else {
+      link = (
+        <ViewTransitionLink
+          href={item.href!}
+          onMouseEnter={prefetchHandler}
+          onFocus={prefetchHandler}
+          className={linkClassName}
+          aria-label={collapsed ? name : undefined}
+        >
+          <Icon className="h-5 w-5 flex-shrink-0" />
+          <span className={cn(
+            "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+          )}>{name}</span>
+        </ViewTransitionLink>
+      );
+    }
+
+    return (
+      <Tooltip key={item.key}>
+        <TooltipTrigger asChild>
+          {link}
+        </TooltipTrigger>
+        {collapsed && (
+          <TooltipContent side="right" className="font-medium">
+            {name}
+          </TooltipContent>
+        )}
+      </Tooltip>
+    );
+  }
 
   return (
     <>
@@ -119,49 +278,12 @@ export function NavigationSidebar() {
           transition: 'clip-path 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 250ms ease',
         }}
       >
-        <nav aria-label="Mobile navigation" className="space-y-1 px-3 py-4">
-          {navigationItems.map((item) => {
-            const isActive = !item.external && (item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/"));
-            const Icon = item.icon;
-            const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
-            const name = item.external ? item.key.charAt(0).toUpperCase() + item.key.slice(1) : t(item.key);
-            const mobileClassName = cn(
-              "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
-              isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent"
-            );
-
-            if (item.external) {
-              return (
-                <a
-                  key={item.key}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={mobileClassName}
-                >
-                  <Icon className="h-5 w-5" />
-                  {name}
-                </a>
-              );
-            }
-
-            return (
-              <ViewTransitionLink
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                onMouseEnter={prefetchHandler}
-                onFocus={prefetchHandler}
-                className={mobileClassName}
-              >
-                <Icon className="h-5 w-5" />
-                {name}
-              </ViewTransitionLink>
-            );
-          })}
+        <nav aria-label={t("primaryNavigation")} className="space-y-1 px-3 py-4">
+          {primaryItems.map(renderMobileNavItem)}
+        </nav>
+        <div className="border-t border-sidebar-border mx-3" />
+        <nav aria-label={t("secondaryNavigation")} className="space-y-1 px-3 py-3">
+          {secondaryItems.map(renderMobileNavItem)}
         </nav>
         <div className="border-t border-sidebar-border px-4 py-3 flex items-center justify-between text-sidebar-foreground">
           <VersionDisplay />
@@ -228,63 +350,14 @@ export function NavigationSidebar() {
               </div>
             </div>
 
-            {/* Navigation */}
-            <nav aria-label="Main navigation" className="flex-1 space-y-1 py-4 px-2">
-              {navigationItems.map((item) => {
-                const isActive = !item.external && (item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/"));
-                const Icon = item.icon;
-                const prefetchHandler = !item.external && item.href === "/pages" ? prefetchPages : undefined;
-                const name = item.external ? item.key.charAt(0).toUpperCase() + item.key.slice(1) : t(item.key);
-                const linkClassName = cn(
-                  "flex items-center gap-3 py-2 pl-[14px] pr-3 rounded-lg text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                );
+            {/* Primary Navigation */}
+            <nav aria-label={t("primaryNavigation")} className="flex-1 space-y-1 py-4 px-2">
+              {primaryItems.map(renderDesktopNavItem)}
+            </nav>
 
-                const link = item.external ? (
-                  <a
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={linkClassName}
-                    aria-label={collapsed ? name : undefined}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className={cn(
-                      "whitespace-nowrap overflow-hidden transition-opacity duration-100",
-                      collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-                    )}>{name}</span>
-                  </a>
-                ) : (
-                  <ViewTransitionLink
-                    href={item.href}
-                    onMouseEnter={prefetchHandler}
-                    onFocus={prefetchHandler}
-                    className={linkClassName}
-                    aria-label={collapsed ? name : undefined}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className={cn(
-                      "whitespace-nowrap overflow-hidden transition-opacity duration-100",
-                      collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-                    )}>{name}</span>
-                  </ViewTransitionLink>
-                );
-
-                return (
-                  <Tooltip key={item.external ? item.key : item.href}>
-                    <TooltipTrigger asChild>
-                      {link}
-                    </TooltipTrigger>
-                    {collapsed && (
-                      <TooltipContent side="right" className="font-medium">
-                        {name}
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                );
-              })}
+            {/* Secondary Navigation */}
+            <nav aria-label={t("secondaryNavigation")} className="space-y-1 px-2 pb-2 border-t border-sidebar-border pt-2">
+              {secondaryItems.map(renderDesktopNavItem)}
             </nav>
 
             {/* Footer */}
@@ -298,6 +371,9 @@ export function NavigationSidebar() {
           </div>
         </aside>
       </TooltipProvider>
+
+      {/* Projects Drawer */}
+      <ProjectsDrawer />
     </>
   );
 }

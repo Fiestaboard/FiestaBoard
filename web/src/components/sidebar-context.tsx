@@ -9,6 +9,8 @@ interface SidebarContextValue {
   transitioning: boolean;
   toggle: () => void;
   onTransitionEnd: () => void;
+  projectsDrawerOpen: boolean;
+  setProjectsDrawerOpen: (open: boolean) => void;
 }
 
 const SidebarContext = createContext<SidebarContextValue>({
@@ -16,11 +18,14 @@ const SidebarContext = createContext<SidebarContextValue>({
   transitioning: false,
   toggle: () => {},
   onTransitionEnd: () => {},
+  projectsDrawerOpen: false,
+  setProjectsDrawerOpen: () => {},
 });
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
+  const [projectsDrawerOpen, setProjectsDrawerOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -45,7 +50,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SidebarContext.Provider value={{ collapsed, transitioning, toggle, onTransitionEnd }}>
+    <SidebarContext.Provider value={{ collapsed, transitioning, toggle, onTransitionEnd, projectsDrawerOpen, setProjectsDrawerOpen }}>
       {children}
     </SidebarContext.Provider>
   );
