@@ -853,3 +853,504 @@ class TestPluginIconsAndCategories:
             "Invalid category values:\n" + "\n".join(f"  - {i}" for i in invalid)
         )
 
+
+# ---------------------------------------------------------------------------
+# Unit tests for manifest.py internals (not CI plugin-directory scans)
+# ---------------------------------------------------------------------------
+
+class TestVariableNamesSubArrays:
+    """Tests for VariablesSchema.get_all_variable_names with sub-arrays."""
+
+    def test_get_all_variable_names_with_sub_arrays(self):
+        """get_all_variable_names includes sub-array field patterns."""
+        from src.plugins.manifest import VariablesSchema, VariableArraySchema
+
+        sub = VariableArraySchema(
+            name="legs",
+            label_field="carrier",
+            item_fields=["carrier", "duration"],
+        )
+        array_schema = VariableArraySchema(
+            name="routes",
+            label_field="name",
+            item_fields=["name", "eta"],
+            sub_arrays={"legs": sub},
+        )
+        schema = VariablesSchema(
+            simple=["status"],
+            arrays={"routes": array_schema},
+        )
+        names = schema.get_all_variable_names("test")
+        assert "status" in names
+        assert "routes" in names
+        assert "routes.*.name" in names
+        assert "routes.*.eta" in names
+        assert "routes.*.legs" in names
+        assert "routes.*.legs.*.carrier" in names
+        assert "routes.*.legs.*.duration" in names
+
+    def test_get_all_variable_names_empty(self):
+        """get_all_variable_names returns empty list when no variables defined."""
+        from src.plugins.manifest import VariablesSchema
+
+        schema = VariablesSchema()
+        assert schema.get_all_variable_names("test") == []
+
+
+class TestFromDictEdgeCases:
+    """Tests for PluginManifest.from_dict edge cases and branch coverage."""
+
+    def test_dict_simple_with_non_dict_meta(self):
+        """from_dict handles dict simple where a value is not a dict (skips metadata)."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "alpha": "just_a_string",
+                    "beta": {"description": "Beta var"},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert "alpha" in manifest.variables.simple
+        assert "beta" in manifest.variables.simple
+        assert "alpha" not in manifest.variables.metadata
+        assert "beta" in manifest.variables.metadata
+
+    def test_simple_neither_list_nor_dict(self):
+        """from_dict treats non-list/non-dict simple as empty."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {"simple": 42},
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.simple == []
+
+    def test_groups_with_non_dict_group_data(self):
+        """from_dict handles a group value that is not a dict (uses str fallback)."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "groups": {
+                    "misc": "Miscellaneous",
+                },
+                "simple": ["a"],
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.groups["misc"].label == "Miscellaneous"
+
+    def test_groups_non_dict_raw_skipped(self):
+        """from_dict skips groups parsing when groups_raw is not a dict."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {"groups": "invalid", "simple": ["a"]},
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.groups == {}
+
+    def test_screenshots_parsed_from_dict(self):
+        """from_dict parses valid screenshot entries."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "screenshots": [
+                {"src": "docs/board.png", "alt": "Board", "caption": "Main", "primary": True},
+                {"src": "docs/config.png", "alt": "Config"},
+            ],
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert len(manifest.screenshots) == 2
+        assert manifest.screenshots[0].src == "docs/board.png"
+        assert manifest.screenshots[0].primary is True
+        assert manifest.screenshots[0].caption == "Main"
+        assert manifest.screenshots[1].caption == ""
+        assert manifest.screenshots[1].primary is False
+
+    def test_screenshots_skips_invalid_entries(self):
+        """from_dict skips screenshot entries missing required fields."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "screenshots": [
+                {"src": "docs/board.png"},
+                "not_a_dict",
+                {"alt": "Missing src"},
+                {"src": "docs/ok.png", "alt": "Valid"},
+            ],
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert len(manifest.screenshots) == 1
+        assert manifest.screenshots[0].alt == "Valid"
+
+    def test_from_dict_parses_arrays_with_sub_arrays(self):
+        """from_dict parses array schemas including sub_arrays."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "arrays": {
+                    "routes": {
+                        "label_field": "name",
+                        "item_fields": ["name", "eta"],
+                        "sub_arrays": {
+                            "stops": {
+                                "key_type": "dynamic",
+                                "key_field": "stop_id",
+                                "item_fields": ["stop_name", "arrival"],
+                                "label_field": "stop_name",
+                            }
+                        }
+                    }
+                }
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert "routes" in manifest.variables.arrays
+        routes = manifest.variables.arrays["routes"]
+        assert routes.item_fields == ["name", "eta"]
+        assert routes.label_field == "name"
+        assert "stops" in routes.sub_arrays
+        stops = routes.sub_arrays["stops"]
+        assert stops.key_type == "dynamic"
+        assert stops.key_field == "stop_id"
+        assert stops.item_fields == ["stop_name", "arrival"]
+
+
+class TestToDictSerialization:
+    """Tests for PluginManifest.to_dict serialization."""
+
+    def test_to_dict_basic_fields(self):
+        """to_dict includes all basic manifest fields."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test_plugin", "name": "Test Plugin", "version": "2.0.0",
+            "description": "A test", "author": "Tester",
+            "repository": "https://example.com", "documentation": "DOCS.md",
+            "settings_schema": {"type": "object"},
+            "env_vars": [{"name": "API_KEY"}],
+            "variables": {"simple": ["temp"]},
+            "max_lengths": {"temp": 5},
+            "color_rules_schema": {"rules": []},
+            "icon": "thermometer", "category": "weather",
+            "fiestaboard_version": ">=2.0.0",
+            "supports_triggers": True,
+            "screenshots": [
+                {"src": "docs/board.png", "alt": "Board", "primary": True},
+            ],
+        }
+        manifest = PluginManifest.from_dict(data)
+        result = manifest.to_dict()
+
+        assert result["id"] == "test_plugin"
+        assert result["name"] == "Test Plugin"
+        assert result["version"] == "2.0.0"
+        assert result["description"] == "A test"
+        assert result["author"] == "Tester"
+        assert result["repository"] == "https://example.com"
+        assert result["documentation"] == "DOCS.md"
+        assert result["settings_schema"] == {"type": "object"}
+        assert result["env_vars"] == [{"name": "API_KEY"}]
+        assert result["max_lengths"] == {"temp": 5}
+        assert result["icon"] == "thermometer"
+        assert result["category"] == "weather"
+        assert result["fiestaboard_version"] == ">=2.0.0"
+        assert result["supports_triggers"] is True
+        assert len(result["screenshots"]) == 1
+        assert result["screenshots"][0]["src"] == "docs/board.png"
+        assert result["screenshots"][0]["primary"] is True
+
+    def test_to_dict_includes_variable_metadata(self):
+        """to_dict includes variable_metadata when metadata is present."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "simple": {
+                    "temp": {"description": "Temperature", "type": "number",
+                             "max_length": 5, "group": "current", "example": "72"},
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        result = manifest.to_dict()
+
+        assert "variable_metadata" in result
+        meta = result["variable_metadata"]["temp"]
+        assert meta["description"] == "Temperature"
+        assert meta["type"] == "number"
+        assert meta["max_length"] == 5
+        assert meta["group"] == "current"
+        assert meta["example"] == "72"
+
+    def test_to_dict_includes_variable_groups(self):
+        """to_dict includes variable_groups when groups are present."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {
+                "groups": {"time": {"label": "Time Info"}},
+                "simple": ["hour"],
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        result = manifest.to_dict()
+
+        assert "variable_groups" in result
+        assert result["variable_groups"]["time"]["label"] == "Time Info"
+
+    def test_to_dict_omits_metadata_and_groups_when_empty(self):
+        """to_dict omits variable_metadata and variable_groups when not present."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test", "name": "Test", "version": "1.0.0",
+            "variables": {"simple": ["a"]},
+        }
+        manifest = PluginManifest.from_dict(data)
+        result = manifest.to_dict()
+
+        assert "variable_metadata" not in result
+        assert "variable_groups" not in result
+
+
+class TestValidateManifestEdgeCases:
+    """Tests for validate_manifest covering remaining branches."""
+
+    def test_missing_required_fields(self):
+        """validate_manifest returns early when required fields are missing."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"description": "no required fields"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("Missing required field: id" in e for e in errors)
+        assert any("Missing required field: name" in e for e in errors)
+        assert any("Missing required field: version" in e for e in errors)
+
+    def test_empty_plugin_id(self):
+        """validate_manifest rejects empty plugin id."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "", "name": "Test", "version": "1.0.0"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("cannot be empty" in e for e in errors)
+
+    def test_id_invalid_characters(self):
+        """validate_manifest rejects id with uppercase or special chars."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "my-Plugin", "name": "Test", "version": "1.0.0"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("lowercase letters" in e for e in errors)
+
+    def test_version_wrong_part_count(self):
+        """validate_manifest rejects version with wrong number of parts."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("X.Y.Z" in e for e in errors)
+
+    def test_version_non_digit_parts(self):
+        """validate_manifest rejects version with non-digit parts."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.beta"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("integers" in e for e in errors)
+
+    def test_settings_schema_not_dict(self):
+        """validate_manifest rejects non-dict settings_schema."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "settings_schema": "invalid"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("settings_schema must be an object" in e for e in errors)
+
+    def test_env_vars_not_list(self):
+        """validate_manifest rejects non-list env_vars."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "env_vars": "invalid"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("env_vars must be an array" in e for e in errors)
+
+    def test_env_vars_item_not_dict(self):
+        """validate_manifest rejects env_vars item that is not a dict."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "env_vars": ["not_a_dict"]}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("must be an object" in e for e in errors)
+
+    def test_env_vars_item_missing_name(self):
+        """validate_manifest rejects env_vars item missing name field."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "env_vars": [{"description": "no name"}]}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("missing required field: name" in e for e in errors)
+
+    def test_variables_not_dict(self):
+        """validate_manifest rejects non-dict variables."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": "invalid"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("variables must be an object" in e for e in errors)
+
+    def test_variables_groups_not_dict(self):
+        """validate_manifest rejects non-dict variables.groups."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"groups": "invalid"}}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("variables.groups must be an object" in e for e in errors)
+
+    def test_variables_arrays_not_dict(self):
+        """validate_manifest rejects non-dict variables.arrays."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"arrays": "invalid"}}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("variables.arrays must be an object" in e for e in errors)
+
+    def test_variables_array_item_not_dict(self):
+        """validate_manifest rejects array schema that is not a dict."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"arrays": {"routes": "invalid"}}}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("routes must be an object" in e for e in errors)
+
+    def test_variables_array_missing_item_fields(self):
+        """validate_manifest rejects array schema missing item_fields."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "variables": {"arrays": {"routes": {"label_field": "name"}}}}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("missing item_fields" in e for e in errors)
+
+    def test_max_lengths_not_dict(self):
+        """validate_manifest rejects non-dict max_lengths."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "max_lengths": "invalid"}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("max_lengths must be an object" in e for e in errors)
+
+    def test_max_lengths_non_positive_integer(self):
+        """validate_manifest rejects max_lengths with non-positive integer values."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "max_lengths": {"temp": 0}}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("positive integer" in e for e in errors)
+
+    def test_max_lengths_non_int_value(self):
+        """validate_manifest rejects max_lengths with non-integer values."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {"id": "test", "name": "Test", "version": "1.0.0",
+                "max_lengths": {"temp": "five"}}
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("positive integer" in e for e in errors)
+
+
+class TestLoadManifestFunction:
+    """Tests for the load_manifest function."""
+
+    def test_load_manifest_file_not_found(self):
+        """load_manifest returns error when file doesn't exist."""
+        from src.plugins.manifest import load_manifest as _load_manifest
+
+        result, errors = _load_manifest(Path("/nonexistent/path/manifest.json"))
+        assert result is None
+        assert len(errors) == 1
+        assert "not found" in errors[0]
+
+    def test_load_manifest_invalid_json(self):
+        """load_manifest returns error for invalid JSON."""
+        from src.plugins.manifest import load_manifest as _load_manifest
+        from unittest.mock import patch, mock_open
+
+        bad_json = "{invalid json content"
+        with patch("pathlib.Path.exists", return_value=True), \
+             patch("builtins.open", mock_open(read_data=bad_json)):
+            result, errors = _load_manifest(Path("fake/manifest.json"))
+
+        assert result is None
+        assert len(errors) == 1
+        assert "Invalid JSON" in errors[0]
+
+    def test_load_manifest_generic_read_exception(self):
+        """load_manifest returns error when file read fails."""
+        from src.plugins.manifest import load_manifest as _load_manifest
+        from unittest.mock import patch
+
+        with patch("pathlib.Path.exists", return_value=True), \
+             patch("builtins.open", side_effect=PermissionError("denied")):
+            result, errors = _load_manifest(Path("fake/manifest.json"))
+
+        assert result is None
+        assert len(errors) == 1
+        assert "Failed to read manifest" in errors[0]
+
+    def test_load_manifest_parse_exception(self):
+        """load_manifest returns error when from_dict raises."""
+        from src.plugins.manifest import load_manifest as _load_manifest
+        from unittest.mock import patch, mock_open
+
+        valid_json = '{"id": "test", "name": "Test", "version": "1.0.0"}'
+        with patch("pathlib.Path.exists", return_value=True), \
+             patch("builtins.open", mock_open(read_data=valid_json)), \
+             patch("src.plugins.manifest.PluginManifest.from_dict",
+                   side_effect=KeyError("boom")):
+            result, errors = _load_manifest(Path("fake/manifest.json"))
+
+        assert result is None
+        assert len(errors) == 1
+        assert "Failed to parse manifest" in errors[0]
+

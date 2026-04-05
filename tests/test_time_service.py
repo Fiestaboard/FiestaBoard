@@ -297,4 +297,115 @@ class TestTimeServiceInitialization:
         assert service._default_tz == pytz.UTC
 
 
+class TestParseIsoTimeErrorHandling:
+    """Tests for parse_iso_time ValueError/IndexError paths (lines 118-120)."""
+
+    def test_parse_iso_time_malformed_offset_raises_value_error(self):
+        """String long enough but offset portion is unparseable."""
+        service = TimeService()
+        # 11+ chars but offset part "XABCDE" can't be split/converted to int
+        result = service.parse_iso_time("12:00XABCDE")
+        assert result is None
+
+    def test_parse_iso_time_non_numeric_time_part(self):
+        """Time part contains non-numeric characters causing ValueError."""
+        service = TimeService()
+        result = service.parse_iso_time("AB:CD+00:00")
+        assert result is None
+
+    def test_parse_iso_time_missing_colon_in_offset(self):
+        """Offset missing colon triggers IndexError/ValueError."""
+        service = TimeService()
+        result = service.parse_iso_time("12:00+0000X")
+        assert result is None
+
+
+class TestLocalToUtcIsoEdgeCases:
+    """Tests for local_to_utc_iso edge cases."""
+
+    def test_missing_local_time_returns_default(self):
+        """Empty local_time returns default (lines 167-168)."""
+        service = TimeService()
+        assert service.local_to_utc_iso("", "America/Los_Angeles") == "00:00+00:00"
+
+    def test_missing_timezone_returns_default(self):
+        """Empty timezone returns default (lines 167-168)."""
+        service = TimeService()
+        assert service.local_to_utc_iso("20:00", "") == "00:00+00:00"
+
+    def test_unknown_timezone_falls_back_to_utc(self):
+        """Unknown timezone uses UTC fallback (lines 172-174)."""
+        service = TimeService()
+        result = service.local_to_utc_iso("12:00", "Fake/Zone")
+        assert "+00:00" in result
+        # 12:00 UTC -> 12:00 UTC when fallback is UTC
+        assert result == "12:00+00:00"
+
+    def test_wrong_number_of_parts_returns_default(self):
+        """Time with extra colons raises ValueError (line 183)."""
+        service = TimeService()
+        assert service.local_to_utc_iso("12:00:00", "America/Los_Angeles") == "00:00+00:00"
+
+    def test_hour_out_of_range_returns_default(self):
+        """Hour > 23 raises ValueError (line 189)."""
+        service = TimeService()
+        assert service.local_to_utc_iso("25:00", "America/Los_Angeles") == "00:00+00:00"
+
+    def test_minute_out_of_range_returns_default(self):
+        """Minute > 59 raises ValueError (line 191)."""
+        service = TimeService()
+        assert service.local_to_utc_iso("12:99", "America/Los_Angeles") == "00:00+00:00"
+
+
+class TestUtcIsoToLocalEdgeCases:
+    """Tests for utc_iso_to_local edge cases."""
+
+    def test_missing_utc_iso_returns_default(self):
+        """Empty utc_iso returns default (lines 221-222)."""
+        service = TimeService()
+        assert service.utc_iso_to_local("", "America/Los_Angeles") == "00:00"
+
+    def test_missing_timezone_returns_default(self):
+        """Empty timezone returns default (lines 221-222)."""
+        service = TimeService()
+        assert service.utc_iso_to_local("04:00+00:00", "") == "00:00"
+
+    def test_unknown_timezone_falls_back_to_utc(self):
+        """Unknown timezone uses UTC fallback (lines 232-233 for tz resolution)."""
+        service = TimeService()
+        result = service.utc_iso_to_local("12:00+00:00", "Fake/Zone")
+        assert result == "12:00"
+
+    def test_unparseable_utc_iso_returns_default(self):
+        """parse_iso_time returns None -> default (lines 232-233)."""
+        service = TimeService()
+        assert service.utc_iso_to_local("bad", "America/Los_Angeles") == "00:00"
+
+    def test_conversion_exception_returns_default(self):
+        """Exception during astimezone returns default (lines 239-241)."""
+        service = TimeService()
+        with patch.object(service, 'parse_iso_time') as mock_parse:
+            mock_dt = Mock()
+            mock_dt.astimezone.side_effect = Exception("conversion error")
+            mock_parse.return_value = mock_dt
+            assert service.utc_iso_to_local("12:00+00:00", "America/Los_Angeles") == "00:00"
+
+
+class TestFormatTimestampLocalEdgeCases:
+    """Tests for format_timestamp_local edge cases."""
+
+    def test_naive_timestamp_gets_localized(self):
+        """Naive datetime (no tzinfo) gets UTC localized (line 270)."""
+        service = TimeService()
+        # Timestamp without offset -> parsed as naive
+        result = service.format_timestamp_local("2025-06-15T12:00:00", "America/Los_Angeles")
+        assert "2025" in result
+        assert ":" in result
+
+    def test_unknown_timezone_falls_back_to_utc(self):
+        """Unknown timezone uses UTC fallback (lines 275-277)."""
+        service = TimeService()
+        result = service.format_timestamp_local("2025-06-15T12:00:00+00:00", "Fake/Zone")
+        assert "2025" in result
+        assert "UTC" in result
 
