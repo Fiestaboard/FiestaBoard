@@ -49,20 +49,24 @@ describe("TransitionSettings", () => {
     expect(screen.getByText("None")).toBeInTheDocument();
   });
 
-  it("shows descriptions for each transition strategy", async () => {
+  it("shows description for the currently selected transition strategy", async () => {
     render(<TransitionSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("Board Transitions")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/column-by-column from left to right/)).toBeInTheDocument();
-    expect(screen.getByText(/column-by-column from right to left/)).toBeInTheDocument();
-    expect(screen.getByText(/both edges and meet in the center/)).toBeInTheDocument();
-    expect(screen.getByText(/row-by-row from top to bottom/)).toBeInTheDocument();
-    expect(screen.getByText(/diagonal wave/)).toBeInTheDocument();
-    expect(screen.getByText(/random order/)).toBeInTheDocument();
-    expect(screen.getByText(/updates all characters at once/)).toBeInTheDocument();
+    // The mock returns strategy: "column" (Wave), so only that description is visible
+    await waitFor(() => {
+      expect(
+        screen.getByText(/column-by-column from left to right/)
+      ).toBeInTheDocument();
+    });
+
+    // Descriptions for non-selected strategies are not shown
+    expect(
+      screen.queryByText(/column-by-column from right to left/)
+    ).not.toBeInTheDocument();
   });
 
   it("shows advanced options when a strategy is selected", async () => {

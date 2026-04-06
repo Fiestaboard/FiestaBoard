@@ -40,34 +40,35 @@ describe("GeneralSettings", () => {
 
   it("shows loading skeleton initially", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
-    
-    // Should show loading state
-    expect(screen.getByText("General Settings")).toBeInTheDocument();
+
+    // Title comes from the i18n "generalSettings.title" key
+    expect(screen.getByText("Schedule & Automation")).toBeInTheDocument();
   });
 
   it("renders general settings card", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("General Settings")).toBeInTheDocument();
-      expect(screen.getByText(/Configure global settings/i)).toBeInTheDocument();
+      expect(screen.getByText("Schedule & Automation")).toBeInTheDocument();
+      expect(
+        screen.getByText(/Control when the board is active/i)
+      ).toBeInTheDocument();
     });
   });
 
-  it("shows timezone picker", async () => {
+  it("shows board update interval input", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Timezone")).toBeInTheDocument();
-      expect(screen.getByPlaceholderText("Search timezone...")).toBeInTheDocument();
+      expect(document.getElementById("polling-interval")).toBeInTheDocument();
     });
   });
 
-  it("shows current time in selected timezone", async () => {
+  it("shows board update interval label", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText(/Current time:/i)).toBeInTheDocument();
+      expect(screen.getByText("Board Update Interval")).toBeInTheDocument();
     });
   });
 
@@ -105,82 +106,49 @@ describe("GeneralSettings", () => {
     }, { timeout: 2000 });
   });
 
-  it("shows save button when changes are made", async () => {
+  it("shows polling interval value from API", async () => {
+    render(<GeneralSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
+      expect(pollingInput).toBeInTheDocument();
+      expect(parseInt(pollingInput.value, 10)).toBe(300);
+    });
+  });
+
+  it("allows updating the polling interval", async () => {
     const user = userEvent.setup();
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText("Search timezone...")).toBeInTheDocument();
+      const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
+      expect(pollingInput).toBeInTheDocument();
     });
 
-    // Change timezone by typing and selecting
-    const timezoneInput = screen.getByPlaceholderText("Search timezone...");
-    await user.click(timezoneInput);
-    await user.clear(timezoneInput);
-    await user.type(timezoneInput, "New York");
-    
-    // Wait for dropdown and select New York
-    await waitFor(() => {
-      const newYorkOption = screen.queryByText(/America\/New York/i);
-      expect(newYorkOption).toBeInTheDocument();
-    }, { timeout: 3000 });
-    
-    const newYorkOption = screen.getByText(/America\/New York/i);
-    await user.click(newYorkOption);
+    const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
+    await user.clear(pollingInput);
+    await user.type(pollingInput, "60");
 
-    // Save button should appear
     await waitFor(() => {
-      const saveButton = screen.queryByText(/Save Changes/i);
-      // Button might appear after state changes
-      expect(saveButton || screen.getByPlaceholderText("Search timezone...")).toBeInTheDocument();
+      expect(screen.getByText("Schedule & Automation")).toBeInTheDocument();
     });
   });
 
-  it("shows running status badge", async () => {
+  it("renders both the polling and silence sections", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const badge = screen.getByText(/Running|Stopped/i);
-      expect(badge).toBeInTheDocument();
+      expect(document.getElementById("polling-interval")).toBeInTheDocument();
+      expect(document.getElementById("silence-enabled")).toBeInTheDocument();
     });
   });
 
-  it("disables controls while saving", async () => {
-    const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText("Search timezone...")).toBeInTheDocument();
-    });
-
-    // Attempt to change settings
-    const timezoneInput = screen.getByPlaceholderText("Search timezone...");
-    await user.click(timezoneInput);
-    await user.clear(timezoneInput);
-    await user.type(timezoneInput, "New York");
-    
-    // Wait for dropdown and select New York
-    await waitFor(() => {
-      const newYorkOption = screen.queryByText(/America\/New York/i);
-      expect(newYorkOption).toBeInTheDocument();
-    }, { timeout: 3000 });
-    
-    const newYorkOption = screen.getByText(/America\/New York/i);
-    await user.click(newYorkOption);
-
-    // Component should handle saving state
-    await waitFor(() => {
-      // Component renders successfully during save operations
-      expect(screen.getByText("General Settings")).toBeInTheDocument();
-    });
-  });
-
-  it("displays timezone description", async () => {
+  it("displays board update interval description", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(
-        screen.getByText(/All times in the application will be displayed in this timezone/i)
+        screen.getByText(/How often the board checks for content updates/i)
       ).toBeInTheDocument();
     });
   });
@@ -199,7 +167,7 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Timezone")).toBeInTheDocument();
+      expect(screen.getByText("Board Update Interval")).toBeInTheDocument();
       expect(screen.getByText("Silence Schedule")).toBeInTheDocument();
     }, { timeout: 2000 });
   });

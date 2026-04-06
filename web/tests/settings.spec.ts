@@ -38,15 +38,15 @@ test.describe("Settings Page", () => {
     // Boards section
     await expect(page.getByText("Boards").first()).toBeVisible();
 
-    // Advanced section (collapsed by default) contains Debug Tools and Setup Wizard
-    const advancedHeading = page.getByRole("heading", { name: "Advanced" });
-    await expect(advancedHeading).toBeVisible({ timeout: 5_000 });
-    await advancedHeading.click();
+    // Debug Tools is a collapsible section — expand it by clicking the trigger
+    const debugToolsTrigger = page.getByText("Debug Tools").first();
+    await expect(debugToolsTrigger).toBeVisible({ timeout: 5_000 });
+    await debugToolsTrigger.click();
 
-    // Debug Tools section (inside Advanced)
-    await expect(page.getByText("Debug Tools").first()).toBeVisible({ timeout: 5_000 });
+    // After expanding, verify Debug Tools content is accessible
+    await expect(page.getByText("Debug Tools").first()).toBeVisible();
 
-    // Setup Wizard re-run button (inside Advanced)
+    // Setup Wizard is a standalone card on the settings page
     await expect(page.getByText("Setup Wizard").first()).toBeVisible();
   });
 
