@@ -30,8 +30,8 @@ test.describe("Settings Page", () => {
       page.getByRole("heading", { name: "Settings", exact: true })
     ).toBeVisible({ timeout: 15_000 });
 
-    // General Settings section should be present
-    await expect(page.getByText("General Settings").first()).toBeVisible({
+    // Schedule & Automation section should be present (renamed from General Settings)
+    await expect(page.getByText("Schedule & Automation").first()).toBeVisible({
       timeout: 10_000,
     });
 

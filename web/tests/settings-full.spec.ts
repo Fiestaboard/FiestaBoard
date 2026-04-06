@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("Settings – Full Coverage", () => {
   test("can update timezone via API", async () => {
     // Timezone is managed via the API; verify the endpoint works correctly
-    const getRes = await fetch(`${API_URL}/settings/general`);
+    const getRes = await fetch(`${API_URL}/config/general`);
     expect(getRes.ok).toBe(true);
     const getData = await getRes.json();
     expect(getData).toHaveProperty("timezone");
@@ -30,7 +30,7 @@ test.describe("Settings – Full Coverage", () => {
     const originalTz = getData.timezone;
 
     // Update to a different timezone
-    const putRes = await fetch(`${API_URL}/settings/general`, {
+    const putRes = await fetch(`${API_URL}/config/general`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ timezone: "America/New_York" }),
@@ -40,7 +40,7 @@ test.describe("Settings – Full Coverage", () => {
     expect(putData.status).toBe("success");
 
     // Reset to original
-    await fetch(`${API_URL}/settings/general`, {
+    await fetch(`${API_URL}/config/general`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ timezone: originalTz }),
