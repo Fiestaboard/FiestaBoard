@@ -155,13 +155,17 @@ Visual regression tests use Playwright `toHaveScreenshot()` to compare
 screenshots against committed baseline images using a **0.3% pixel threshold**
 to allow for minor anti-aliasing differences.
 
+> **Note:** Visual regression tests are excluded from CI (`testIgnore` in
+> `playwright.config.ts`) because they require baseline snapshots that are
+> generated locally and committed. Run them locally against the dev container.
+
 **Baseline workflow:**
-1. First run generates baselines in `__snapshots__/` (tests fail by design)
+1. Run locally to generate baselines in `visual-regression.spec.ts-snapshots/` (first run fails by design — this is expected)
 2. Commit generated baselines to the repo
-3. Subsequent runs compare against committed baselines
+3. Re-run to verify baselines match
 
 ```bash
-# Run visual regression tests only
+# Run visual regression tests only (locally, not in CI)
 cd web && npx playwright test visual-regression
 
 # Update baselines after intentional UI changes

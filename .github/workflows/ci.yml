@@ -449,7 +449,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: visual-regression-snapshots
-          path: web/tests/__snapshots__/
+          path: web/tests/visual-regression.spec.ts-snapshots/
           retention-days: 30
           if-no-files-found: ignore
 
