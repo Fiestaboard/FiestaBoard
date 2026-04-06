@@ -28,7 +28,7 @@
     "remark-gfm": "^4.0.1"
   },
   "overrides": {
-    "serialize-javascript": ">=7.0.3"
+    "serialize-javascript": ">=7.0.5"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.9.2",
