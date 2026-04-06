@@ -1,14 +1,13 @@
 {
   "id": "date_time",
   "name": "Date & Time",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Display current date and time in configurable formats",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
   "icon": "clock",
   "category": "utility",
-
   "settings_schema": {
     "type": "object",
     "properties": {
@@ -26,7 +25,6 @@
       }
     }
   },
-
   "env_vars": [
     {
       "name": "TIMEZONE",
@@ -35,12 +33,17 @@
       "default": "America/Los_Angeles"
     }
   ],
-
   "variables": {
     "groups": {
-      "time": { "label": "Time" },
-      "date": { "label": "Date" },
-      "formatting": { "label": "Formatted" }
+      "time": {
+        "label": "Time"
+      },
+      "date": {
+        "label": "Date"
+      },
+      "formatting": {
+        "label": "Formatted"
+      }
     },
     "simple": {
       "time": {
@@ -158,7 +161,44 @@
       }
     }
   },
-
+  "demo": {
+    "name": "Date & Time Demo",
+    "device_type": "flagship",
+    "template": [
+      "",
+      "{{date_time.day_of_week}}",
+      "{{date_time.month}} {{date_time.day}} {{date_time.year}}",
+      "{{date_time.time_12h}}",
+      "{{date_time.timezone_abbr}}",
+      ""
+    ],
+    "line_metadata": [
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      }
+    ]
+  },
   "screenshots": [
     {
       "src": "docs/date-time-display.png",

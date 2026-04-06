@@ -80,6 +80,9 @@ class Page(BaseModel):
     transition_interval_ms: Optional[int] = Field(default=None, ge=0, le=5000)
     transition_step_size: Optional[int] = Field(default=None, ge=1)
     
+    # Plugin demo page tracking (singleton per plugin)
+    demo_plugin_id: Optional[str] = None
+
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
@@ -143,6 +146,8 @@ class PageCreate(BaseModel):
     transition_strategy: Optional[str] = None
     transition_interval_ms: Optional[int] = Field(default=None, ge=0, le=5000)
     transition_step_size: Optional[int] = Field(default=None, ge=1)
+    # Plugin demo page tracking
+    demo_plugin_id: Optional[str] = None
 
 
 class PageUpdate(BaseModel):
