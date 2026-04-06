@@ -193,7 +193,6 @@ export default function ProfilePage() {
                     placeholder={t("instanceNamePlaceholder")}
                     maxLength={50}
                   />
-                  <p className="text-xs text-muted-foreground">{t("instanceNameHint")}</p>
                 </div>
               )}
             </CardContent>
