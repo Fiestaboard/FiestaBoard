@@ -220,36 +220,52 @@ def clone_or_update_repo(
     dest_dir: Path,
     branch: str = "",
 ) -> Tuple[bool, str]:
-    """Clone a git repository, or pull updates if it already exists.
+    """Clone a git repository, or fetch/reset if it already exists.
+
+    For existing clones (the update path) the ``repo_url`` is not used —
+    git pulls from whatever remote ``origin`` is already configured.  This
+    means the URL validation is intentionally skipped for that path, which
+    also avoids a bug where the registry stores an empty ``repository_url``
+    for plugins loaded from disk.
+
+    Shallow clones (``--depth 1``) are handled correctly: we use
+    ``git fetch --depth=1 origin`` + ``git reset --hard FETCH_HEAD`` instead
+    of ``git pull --ff-only``, which fails on shallow histories.
 
     Args:
-        repo_url: HTTPS URL of the repository.
+        repo_url: HTTPS URL of the repository (required for fresh clones only).
         dest_dir: Local directory to clone into.
         branch: Optional branch/tag.  Uses the repo default when empty.
 
     Returns:
         ``(True, "")`` on success, ``(False, error_message)`` on failure.
     """
-    ok, err = _validate_git_url(repo_url)
-    if not ok:
-        return False, err
-
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
     if dest_dir.exists() and (dest_dir / ".git").is_dir():
-        # Already cloned – pull latest
+        # Already cloned — fetch latest commits and reset to remote HEAD.
+        # Works for both full and shallow (--depth 1) clones.
         try:
-            cmd = ["git", "-C", str(dest_dir), "pull", "--ff-only"]
             subprocess.run(
-                cmd, check=True, capture_output=True, text=True,
+                ["git", "-C", str(dest_dir), "fetch", "--depth=1", "origin"],
+                check=True, capture_output=True, text=True,
                 timeout=120, env=env,
+            )
+            subprocess.run(
+                ["git", "-C", str(dest_dir), "reset", "--hard", "FETCH_HEAD"],
+                check=True, capture_output=True, text=True,
+                timeout=30, env=env,
             )
             logger.info("Updated existing clone at %s", dest_dir)
             return True, ""
         except subprocess.SubprocessError as exc:
-            return False, f"git pull failed for {repo_url}: {exc}"
+            return False, f"git fetch/reset failed at {dest_dir}: {exc}"
 
-    # Fresh clone
+    # Fresh clone — URL is required and must be validated.
+    ok, err = _validate_git_url(repo_url)
+    if not ok:
+        return False, err
+
     dest_dir.parent.mkdir(parents=True, exist_ok=True)
     try:
         cmd = ["git", "clone", "--depth", "1"]

@@ -473,6 +473,94 @@ class TestPluginManagement:
             resp = client.post("/plugins/weather/update")
         assert resp.status_code == 400
 
+    def test_update_plugin_no_url_required(self, client):
+        """Endpoint passes empty URL to clone_or_update_repo (URL not needed for update path)."""
+        # source has no repository_url (as happens for disk-loaded external plugins)
+        mock_source = Mock(source_type="external", local_path="/fake/path", repository_url="")
+        mock_registry = Mock()
+        mock_registry.get_plugin_source.return_value = mock_source
+        mock_registry.reload_plugin.return_value = Mock()
+        mock_registry._update_status = {}
+
+        captured_url = []
+
+        def capture_clone(url, *args, **kwargs):
+            captured_url.append(url)
+            return (True, "")
+
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("pathlib.Path.is_dir", return_value=True), \
+             patch("src.plugins.sources.clone_or_update_repo", side_effect=capture_clone):
+            resp = client.post("/plugins/test_plugin/update")
+        assert resp.status_code == 200
+        # The endpoint must pass "" not source.repository_url
+        assert captured_url == [""]
+
+    def test_apply_all_updates_success(self, client):
+        """Bulk update applies all pending updates and returns results."""
+        mock_source = Mock(source_type="external", local_path="/fake/path")
+        mock_registry = Mock()
+        mock_registry.get_update_status.return_value = {"plugin_a": True, "plugin_b": False}
+        mock_registry.get_plugin_source.return_value = mock_source
+        mock_registry.reload_plugin.return_value = Mock()
+        mock_registry._update_status = {"plugin_a": True}
+
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("pathlib.Path.is_dir", return_value=True), \
+             patch("src.plugins.sources.clone_or_update_repo", return_value=(True, "")):
+            resp = client.post("/plugins/updates/apply")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "plugin_a" in data["updated"]
+        assert data["failed"] == {}
+
+    def test_apply_all_updates_no_updates(self, client):
+        """Returns 200 with empty lists when nothing needs updating."""
+        mock_registry = Mock()
+        mock_registry.get_update_status.return_value = {}
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry):
+            resp = client.post("/plugins/updates/apply")
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == []
+        assert resp.json()["failed"] == {}
+
+    def test_apply_all_updates_partial_failure(self, client):
+        """Partial failures are reported in 'failed' dict while successes are in 'updated'."""
+        mock_source_ok = Mock(source_type="external", local_path="/fake/ok")
+        mock_source_fail = Mock(source_type="external", local_path="/fake/fail")
+
+        def get_source(pid):
+            return mock_source_ok if pid == "good_plugin" else mock_source_fail
+
+        mock_registry = Mock()
+        mock_registry.get_update_status.return_value = {"good_plugin": True, "bad_plugin": True}
+        mock_registry.get_plugin_source.side_effect = get_source
+        mock_registry.reload_plugin.return_value = Mock()
+        mock_registry._update_status = {"good_plugin": True, "bad_plugin": True}
+
+        def fake_clone(url, path, *args, **kwargs):
+            if "fail" in str(path):
+                return (False, "git fetch error")
+            return (True, "")
+
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("pathlib.Path.is_dir", return_value=True), \
+             patch("src.plugins.sources.clone_or_update_repo", side_effect=fake_clone):
+            resp = client.post("/plugins/updates/apply")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "good_plugin" in data["updated"]
+        assert "bad_plugin" in data["failed"]
+
+    def test_apply_all_updates_unavailable(self, client):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+            resp = client.post("/plugins/updates/apply")
+        assert resp.status_code == 503
+
     def test_install_plugin_success(self, client):
         mock_registry = Mock()
         mock_registry.install_from_git.return_value = []
