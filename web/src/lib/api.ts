@@ -410,6 +410,10 @@ export interface GeneralConfig {
   timezone: string; // IANA timezone (e.g., "America/Los_Angeles")
   refresh_interval_seconds: number;
   output_target: "ui" | "board" | "both";
+  instance_name?: string;
+  time_format?: "12h" | "24h";
+  date_format?: "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD";
+  welcome_message?: string;
 }
 
 export interface SilenceStatus {

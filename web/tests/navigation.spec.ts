@@ -186,31 +186,17 @@ test.describe("Navigation", () => {
     await expect(settingsLink).toBeVisible();
   });
 
-  test("Projects button opens drawer", async ({ page }) => {
+  test("Carousels is a direct link in primary navigation", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
     await expect(
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Find and click the Projects button in the sidebar
-    const projectsBtn = page
-      .locator("aside")
-      .getByRole("button", { name: /projects/i })
-      .first();
-
-    if (await projectsBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await projectsBtn.click();
-
-      // Drawer should appear with Projects title
-      await expect(
-        page.getByRole("heading", { name: "Projects" }),
-      ).toBeVisible({ timeout: 5_000 });
-
-      // Drawer should have search input
-      await expect(
-        page.getByPlaceholder(/search projects/i),
-      ).toBeVisible();
-    }
+    const sidebar = page.locator("aside").first();
+    const primaryNav = sidebar.getByLabel("Primary navigation");
+    const carouselsLink = primaryNav.getByRole("link", { name: /carousels/i });
+    await expect(carouselsLink).toBeVisible();
+    await expect(carouselsLink).toHaveAttribute("href", "/carousels");
   });
 });

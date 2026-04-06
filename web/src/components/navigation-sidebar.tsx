@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, FolderKanban, ChevronLeft, ChevronRight, HelpCircle, User } from "lucide-react";
+import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, HelpCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,28 +16,26 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useSidebar } from "@/components/sidebar-context";
-import { ProjectsDrawer } from "@/components/projects-drawer";
 
 interface NavItem {
   key: string;
-  href?: string;
+  href: string;
   icon: React.ComponentType<{ className?: string }>;
-  action?: "projects-drawer";
   external?: boolean;
 }
 
 const primaryItems: NavItem[] = [
   { key: "home", href: "/", icon: Home },
   { key: "pages", href: "/pages", icon: FileText },
-  { key: "projects", icon: FolderKanban, action: "projects-drawer" },
+  { key: "carousels", href: "/carousels", icon: GalleryHorizontalEnd },
   { key: "schedule", href: "/schedule", icon: Calendar },
   { key: "integrations", href: "/integrations", icon: Puzzle },
 ];
 
 const secondaryItems: NavItem[] = [
+  { key: "helpDocs", href: "https://fiestaboard.app/docs/intro", icon: HelpCircle, external: true },
   { key: "settings", href: "/settings", icon: Settings },
-  { key: "helpDocs", href: "https://fiestaboard.com/docs", icon: HelpCircle, external: true },
-  { key: "userProfile", href: "/settings", icon: User },
+  { key: "userProfile", href: "/profile", icon: User },
 ];
 
 export function NavigationSidebar() {
@@ -45,7 +43,7 @@ export function NavigationSidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [appInset, setAppInset] = useState(0);
   const prefetchPages = usePrefetchPagesData();
-  const { collapsed, transitioning, toggle, onTransitionEnd, setProjectsDrawerOpen } = useSidebar();
+  const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
 
   useEffect(() => {
@@ -71,16 +69,8 @@ export function NavigationSidebar() {
   }, []);
 
   const isActive = (item: NavItem) => {
-    if (item.external || item.action) return false;
-    if (!item.href) return false;
+    if (item.external) return false;
     return item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
-  };
-
-  const handleNavClick = (item: NavItem) => {
-    if (item.action === "projects-drawer") {
-      setProjectsDrawerOpen(true);
-    }
-    setMobileMenuOpen(false);
   };
 
   function renderMobileNavItem(item: NavItem) {
@@ -94,19 +84,6 @@ export function NavigationSidebar() {
         ? "nav-active font-semibold"
         : "text-sidebar-foreground nav-active-hover"
     );
-
-    if (item.action) {
-      return (
-        <button
-          key={item.key}
-          onClick={() => handleNavClick(item)}
-          className={mobileClassName}
-        >
-          <Icon className="h-5 w-5" />
-          {name}
-        </button>
-      );
-    }
 
     if (item.external) {
       return (
@@ -153,21 +130,7 @@ export function NavigationSidebar() {
 
     let link: React.ReactElement;
 
-    if (item.action) {
-      link = (
-        <button
-          onClick={() => handleNavClick(item)}
-          className={linkClassName}
-          aria-label={collapsed ? name : undefined}
-        >
-          <Icon className="h-5 w-5 flex-shrink-0" />
-          <span className={cn(
-            "whitespace-nowrap overflow-hidden transition-opacity duration-100",
-            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-          )}>{name}</span>
-        </button>
-      );
-    } else if (item.external) {
+    if (item.external) {
       link = (
         <a
           href={item.href}
@@ -264,7 +227,7 @@ export function NavigationSidebar() {
       {/* Mobile Menu */}
       <div 
         className={cn(
-          "lg:hidden fixed top-[72px] left-3 right-3 z-[95] sidebar-gradient-horizontal",
+          "lg:hidden fixed top-[72px] left-3 right-3 z-[95] flex max-h-[calc(100dvh-5.5rem)] flex-col overflow-hidden sidebar-gradient-horizontal",
           mobileMenuOpen
             ? "opacity-100"
             : "opacity-0 pointer-events-none"
@@ -279,16 +242,18 @@ export function NavigationSidebar() {
           transition: 'clip-path 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 250ms ease',
         }}
       >
-        <nav aria-label={t("primaryNavigation")} className="space-y-1 px-3 py-4">
+        <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {primaryItems.map(renderMobileNavItem)}
         </nav>
-        <div className="border-t border-sidebar-border mx-3" />
-        <nav aria-label={t("secondaryNavigation")} className="space-y-1 px-3 py-3">
-          {secondaryItems.map(renderMobileNavItem)}
-        </nav>
-        <div className="border-t border-sidebar-border px-4 py-3 flex items-center justify-between text-sidebar-foreground">
-          <VersionDisplay />
-          <ThemeToggle />
+        <div className="shrink-0 border-t border-sidebar-border mx-3" />
+        <div className="shrink-0 px-3 py-3 text-sidebar-foreground">
+          <nav aria-label={t("secondaryNavigation")} className="space-y-1">
+            {secondaryItems.map(renderMobileNavItem)}
+          </nav>
+          <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/80 px-4 pt-3">
+            <VersionDisplay />
+            <ThemeToggle />
+          </div>
         </div>
       </div>
 
@@ -330,8 +295,8 @@ export function NavigationSidebar() {
 
           <div className="flex h-full flex-col overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-sidebar-border overflow-hidden px-4 py-4">
-              <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center justify-between overflow-hidden px-4 py-4">
+              <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
                 <Image
                   src="/icons/favicon-32x32.png"
                   alt="FiestaBoard"
@@ -352,30 +317,31 @@ export function NavigationSidebar() {
               </div>
             </div>
 
-            {/* Primary Navigation */}
-            <nav aria-label={t("primaryNavigation")} className="flex-1 space-y-1 py-4 px-2">
+            <div className="mx-2 border-t border-sidebar-border" />
+
+            {/* Primary Navigation — flex-1 pins secondary + version row to the bottom */}
+            <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto py-4 px-2">
               {primaryItems.map(renderDesktopNavItem)}
             </nav>
 
-            {/* Secondary Navigation */}
-            <nav aria-label={t("secondaryNavigation")} className="space-y-1 px-2 pb-2 border-t border-sidebar-border pt-2">
-              {secondaryItems.map(renderDesktopNavItem)}
-            </nav>
+            <div className="mx-2 border-t border-sidebar-border" />
 
-            {/* Footer */}
-            <div className="border-t border-sidebar-border px-4 py-3 flex items-center justify-between">
-              <div className={cn(
-                "overflow-hidden whitespace-nowrap transition-opacity duration-100 min-w-0",
-                collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px] delay-150",
-              )}><VersionDisplay /></div>
-              <div className="flex-shrink-0"><ThemeToggle /></div>
+            <div className="shrink-0 px-2 pt-2 pb-3">
+              <nav aria-label={t("secondaryNavigation")} className="space-y-1">
+                {secondaryItems.map(renderDesktopNavItem)}
+              </nav>
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/80 py-2 pl-[14px] pr-3">
+                <div className={cn(
+                  "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-100",
+                  collapsed ? "max-w-0 opacity-0" : "max-w-[min(200px,100%)] opacity-100 delay-150",
+                )}><VersionDisplay /></div>
+                <div className="flex-shrink-0"><ThemeToggle /></div>
+              </div>
             </div>
           </div>
         </aside>
       </TooltipProvider>
 
-      {/* Projects Drawer */}
-      <ProjectsDrawer />
     </>
   );
 }

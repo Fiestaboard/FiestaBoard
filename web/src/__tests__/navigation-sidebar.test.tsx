@@ -170,11 +170,11 @@ describe("NavigationSidebar primary/secondary sections", () => {
     expect(secondaryNav.length).toBeGreaterThan(0);
   });
 
-  it("shows Projects item in primary navigation", () => {
+  it("shows Carousels item in primary navigation", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const projectsButtons = screen.getAllByText("Projects");
-    expect(projectsButtons.length).toBeGreaterThan(0);
+    const carouselsLinks = screen.getAllByText("Carousels");
+    expect(carouselsLinks.length).toBeGreaterThan(0);
   });
 
   it("shows Settings in secondary navigation", () => {
@@ -199,21 +199,17 @@ describe("NavigationSidebar primary/secondary sections", () => {
   });
 });
 
-describe("NavigationSidebar projects drawer", () => {
+describe("NavigationSidebar carousels link", () => {
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
   });
 
-  it("Projects button triggers drawer open", () => {
+  it("Carousels is a direct link to /carousels", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    // Click the Projects button (it's a button, not a link)
-    const projectsButtons = screen.getAllByText("Projects");
-    const projectsButton = projectsButtons[0].closest("button");
-    expect(projectsButton).toBeInTheDocument();
-
-    if (projectsButton) {
-      fireEvent.click(projectsButton);
-    }
+    const carouselsLinks = screen.getAllByText("Carousels");
+    const carouselsLink = carouselsLinks[0].closest("a");
+    expect(carouselsLink).toBeInTheDocument();
+    expect(carouselsLink).toHaveAttribute("href", "/carousels");
   });
 });

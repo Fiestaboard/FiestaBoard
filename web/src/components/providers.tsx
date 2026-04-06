@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { SidebarProvider } from "@/components/sidebar-context";
+import { FormatPreferencesProvider } from "@/hooks/use-format-preferences";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -37,7 +38,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         <SidebarProvider>
-          <ConfigOverridesProvider>{children}</ConfigOverridesProvider>
+          <ConfigOverridesProvider>
+            <FormatPreferencesProvider>{children}</FormatPreferencesProvider>
+          </ConfigOverridesProvider>
         </SidebarProvider>
       </ThemeProvider>
     </QueryClientProvider>
