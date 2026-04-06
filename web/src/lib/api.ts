@@ -730,6 +730,19 @@ export interface PluginDetailResponse {
     description: string;
   }>;
   documentation: string;
+  has_demo: boolean;
+  demo_page_id: string | null;
+}
+
+export interface PluginDemoPageResponse {
+  exists: boolean;
+  page_id: string | null;
+  has_demo_template: boolean;
+}
+
+export interface PluginDemoPageCreateResponse {
+  status: "created" | "recreated";
+  page: Page;
 }
 
 export interface PluginConfigUpdateResponse {
@@ -1258,7 +1271,15 @@ export const api = {
   
   getPluginVariables: (pluginId: string) =>
     fetchApi<PluginVariablesResponse>(`/plugins/${pluginId}/variables`),
-  
+
+  getPluginDemoPage: (pluginId: string) =>
+    fetchApi<PluginDemoPageResponse>(`/plugins/${pluginId}/demo-page`),
+
+  createPluginDemoPage: (pluginId: string) =>
+    fetchApi<PluginDemoPageCreateResponse>(`/plugins/${pluginId}/demo-page`, {
+      method: "POST",
+    }),
+
   getAllPluginVariables: () =>
     fetchApi<AllPluginVariablesResponse>("/plugins/variables/all"),
   

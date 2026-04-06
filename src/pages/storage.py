@@ -16,7 +16,7 @@ from ..text_utils import extract_alignment_from_line as _extract_alignment_from_
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def _migrate_v0_to_v1(pages_data: List[dict]) -> int:
@@ -50,10 +50,24 @@ def _migrate_v0_to_v1(pages_data: List[dict]) -> int:
     return migrated_count
 
 
+def _migrate_v1_to_v2(pages_data: List[dict]) -> int:
+    """Migration 1 -> 2: add demo_plugin_id field to all pages.
+
+    Ensures every page has the ``demo_plugin_id`` key (defaults to ``None``).
+    """
+    migrated = 0
+    for page_data in pages_data:
+        if "demo_plugin_id" not in page_data:
+            page_data["demo_plugin_id"] = None
+            migrated += 1
+    return migrated
+
+
 # Ordered list of (target_version, migration_function).
 # Each function receives the raw pages list and returns the number of pages affected.
 MIGRATIONS: List[Tuple[int, Callable[[List[dict]], int]]] = [
     (1, _migrate_v0_to_v1),
+    (2, _migrate_v1_to_v2),
 ]
 
 

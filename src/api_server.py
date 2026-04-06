@@ -4471,6 +4471,15 @@ async def get_plugin(plugin_id: str):
     config_manager = get_config_manager()
     plugin_config = config_manager.get_plugin_config(plugin_id)
     
+    # Check for demo page
+    has_demo = manifest.demo is not None
+    demo_page_id = None
+    if has_demo:
+        page_service = get_page_service()
+        demo_page = page_service.get_demo_page(plugin_id)
+        if demo_page:
+            demo_page_id = demo_page.id
+
     return {
         "id": plugin_id,
         "name": manifest.name,
@@ -4485,7 +4494,9 @@ async def get_plugin(plugin_id: str):
         "variables": manifest.raw.get("variables", {}),
         "max_lengths": manifest.max_lengths,
         "env_vars": manifest.env_vars,
-        "documentation": manifest.documentation
+        "documentation": manifest.documentation,
+        "has_demo": has_demo,
+        "demo_page_id": demo_page_id,
     }
 
 
@@ -4741,6 +4752,84 @@ async def get_plugin_variables(plugin_id: str):
         "variables": manifest.raw.get("variables", {}),
         "max_lengths": manifest.max_lengths,
         "color_rules_schema": manifest.raw.get("color_rules_schema", {})
+    }
+
+
+# ── Plugin Demo Pages ────────────────────────────────────────────────────────
+
+
+@app.get("/plugins/{plugin_id}/demo-page")
+async def get_plugin_demo_page(plugin_id: str):
+    """
+    Check whether a demo page exists for this plugin.
+
+    Returns ``exists: true`` and the page id when one is found.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+
+    registry = get_plugin_registry()
+    manifest = registry.get_manifest(plugin_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+
+    if manifest.demo is None:
+        return {"exists": False, "page_id": None, "has_demo_template": False}
+
+    page_service = get_page_service()
+    demo_page = page_service.get_demo_page(plugin_id)
+    return {
+        "exists": demo_page is not None,
+        "page_id": demo_page.id if demo_page else None,
+        "has_demo_template": True,
+    }
+
+
+@app.post("/plugins/{plugin_id}/demo-page")
+async def create_plugin_demo_page(plugin_id: str):
+    """
+    Create (or recreate) the demo page for a plugin.
+
+    The demo page is a singleton per plugin -- calling this endpoint when a
+    demo page already exists will delete the old one and create a fresh copy.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+
+    registry = get_plugin_registry()
+    manifest = registry.get_manifest(plugin_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+
+    if manifest.demo is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' does not include a demo page template.",
+        )
+
+    # Check that required settings are configured
+    settings_schema = manifest.settings_schema
+    required_fields = settings_schema.get("required", [])
+    if required_fields:
+        config_manager = get_config_manager()
+        plugin_config = config_manager.get_plugin_config(plugin_id) or {}
+        missing = [
+            f for f in required_fields
+            if f != "enabled" and not plugin_config.get(f)
+        ]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Required settings not configured: {', '.join(missing)}. "
+                       f"Configure them first before creating a demo page.",
+            )
+
+    page_service = get_page_service()
+    page, recreated = page_service.create_demo_page(plugin_id, manifest.demo)
+
+    return {
+        "status": "recreated" if recreated else "created",
+        "page": page.model_dump(),
     }
 
 

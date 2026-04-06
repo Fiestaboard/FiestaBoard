@@ -182,6 +182,45 @@ MANIFEST_SCHEMA = {
                 }
             },
             "description": "Screenshots for plugin galleries, docs, and the registry"
+        },
+        "demo": {
+            "type": "object",
+            "required": ["name", "template"],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Demo page name shown in the pages list"
+                },
+                "device_type": {
+                    "type": "string",
+                    "enum": ["flagship", "note"],
+                    "default": "flagship",
+                    "description": "Target device type for the demo page"
+                },
+                "template": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Template lines with {{plugin_id.var}} placeholders"
+                },
+                "line_metadata": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "alignment": {"type": "string", "enum": ["left", "center", "right"]},
+                            "wrap": {"type": "boolean"}
+                        }
+                    },
+                    "description": "Per-line formatting (alignment, wrap)"
+                },
+                "duration_seconds": {
+                    "type": "integer",
+                    "default": 300,
+                    "minimum": 10,
+                    "description": "Rotation duration in seconds"
+                }
+            },
+            "description": "Demo page template that showcases the plugin's features"
         }
     }
 }
@@ -209,6 +248,16 @@ class Screenshot:
     alt: str
     caption: str = ""
     primary: bool = False
+
+
+@dataclass
+class DemoPageSchema:
+    """Bundled demo page template that showcases a plugin's features."""
+    name: str
+    template: List[str]
+    device_type: str = "flagship"
+    line_metadata: Optional[List[Dict[str, Any]]] = None
+    duration_seconds: int = 300
 
 
 @dataclass
@@ -296,6 +345,7 @@ class PluginManifest:
     fiestaboard_version: str = ""
     supports_triggers: bool = False
     screenshots: List[Screenshot] = field(default_factory=list)
+    demo: Optional[DemoPageSchema] = None
     raw: Dict[str, Any] = field(default_factory=dict)
     
     @classmethod
@@ -389,6 +439,18 @@ class PluginManifest:
                     primary=bool(entry.get("primary", False)),
                 ))
 
+        # --- parse demo page schema ---
+        demo: Optional[DemoPageSchema] = None
+        demo_raw = data.get("demo")
+        if isinstance(demo_raw, dict) and "name" in demo_raw and "template" in demo_raw:
+            demo = DemoPageSchema(
+                name=demo_raw["name"],
+                template=demo_raw["template"],
+                device_type=demo_raw.get("device_type", "flagship"),
+                line_metadata=demo_raw.get("line_metadata"),
+                duration_seconds=demo_raw.get("duration_seconds", 300),
+            )
+
         return cls(
             id=data["id"],
             name=data["name"],
@@ -407,6 +469,7 @@ class PluginManifest:
             fiestaboard_version=data.get("fiestaboard_version", ""),
             supports_triggers=bool(data.get("supports_triggers", False)),
             screenshots=screenshots,
+            demo=demo,
             raw=data,
         )
     
@@ -551,7 +614,23 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
         for key, value in max_lengths.items():
             if not isinstance(value, int) or value < 1:
                 errors.append(f"max_lengths.{key} must be a positive integer")
-    
+
+    # Validate demo section if present
+    demo = data.get("demo")
+    if demo is not None:
+        if not isinstance(demo, dict):
+            errors.append("demo must be an object")
+        else:
+            if "name" not in demo:
+                errors.append("demo missing required field: name")
+            if "template" not in demo:
+                errors.append("demo missing required field: template")
+            elif not isinstance(demo["template"], list):
+                errors.append("demo.template must be an array of strings")
+            device_type = demo.get("device_type", "flagship")
+            if device_type not in ("flagship", "note"):
+                errors.append(f"demo.device_type must be 'flagship' or 'note', got '{device_type}'")
+
     return len(errors) == 0, errors
 
 

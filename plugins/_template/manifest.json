@@ -89,6 +89,27 @@
     }
   },
 
+  "demo": {
+    "name": "My Plugin Demo",
+    "device_type": "flagship",
+    "template": [
+      "",
+      "{{my_plugin.status}}",
+      "Value: {{my_plugin.value}}",
+      "{{my_plugin.formatted}}",
+      "",
+      ""
+    ],
+    "line_metadata": [
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false}
+    ]
+  },
+
   "screenshots": [
     {
       "src": "docs/board-display.png",
