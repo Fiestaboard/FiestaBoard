@@ -5,8 +5,10 @@
  * Uses `toHaveScreenshot()` with a 0.3% pixel threshold to catch
  * real regressions while tolerating minor anti-aliasing differences.
  *
- * First run: generates baseline snapshots (updateSnapshots: "missing" in config)
- * Subsequent runs: compares against baselines; CI fails on regressions.
+ * Baseline workflow:
+ *   1. First run generates baselines in __snapshots__/ (tests fail by design)
+ *   2. Commit generated baselines to the repo
+ *   3. Subsequent runs compare against committed baselines
  *
  * To update baselines after intentional UI changes:
  *   npx playwright test --update-snapshots visual-regression
@@ -245,16 +247,16 @@ test.describe("Visual — Schedule Calendar", () => {
     await deleteAllPages();
   });
 
-  test("schedule page empty state", async ({ page, context }) => {
-    // Freeze time to 2025-06-15T10:00:00Z so the calendar renders consistently
-    await context.clock.install({ time: new Date("2025-06-15T10:00:00Z") });
-    await context.clock.pauseAt(new Date("2025-06-15T10:00:00Z"));
-
+  test("schedule page empty state", async ({ page }) => {
     await deleteAllSchedules();
     await page.goto("/schedule");
+    // Fix Date.now() after navigation so calendar renders a consistent date.
+    // setFixedTime keeps timers running (unlike clock.install+pauseAt which
+    // freezes them and prevents React from rendering).
+    await page.clock.setFixedTime(new Date("2025-06-15T10:00:00Z"));
     await maskCalendarToday(page);
     await expect(
-      page.getByRole("heading", { name: /schedule/i }),
+      page.getByRole("heading", { name: "Schedule", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     await expect(page).toHaveScreenshot(snap("schedule-empty"), {
@@ -262,11 +264,7 @@ test.describe("Visual — Schedule Calendar", () => {
     });
   });
 
-  test("schedule page with entries", async ({ page, context }) => {
-    // Freeze time to 2025-06-15T10:00:00Z so the calendar renders consistently
-    await context.clock.install({ time: new Date("2025-06-15T10:00:00Z") });
-    await context.clock.pauseAt(new Date("2025-06-15T10:00:00Z"));
-
+  test("schedule page with entries", async ({ page }) => {
     await deleteAllSchedules();
     const pageId1 = await createPage("Morning News", [
       "GOOD MORNING",
@@ -288,13 +286,15 @@ test.describe("Visual — Schedule Calendar", () => {
     await createSchedule(pageId2, "13:00", "18:00", "weekdays");
 
     await page.goto("/schedule");
+    // Fix Date.now() after navigation so calendar renders a consistent date.
+    await page.clock.setFixedTime(new Date("2025-06-15T10:00:00Z"));
     await maskCalendarToday(page);
     await expect(
-      page.getByRole("heading", { name: /schedule/i }),
+      page.getByRole("heading", { name: "Schedule", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
     // Wait for schedule data to render (look for page names in the list)
     await expect(
-      page.getByText("Morning News").or(page.getByText("07:00")),
+      page.getByText("Morning News").first(),
     ).toBeVisible({ timeout: 10_000 }).catch(() => {
       // Schedule might render differently; fall back to networkidle
     });
@@ -314,7 +314,7 @@ test.describe("Visual — Settings", () => {
   test("settings general section", async ({ page }) => {
     await page.goto("/settings");
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     await expect(page).toHaveScreenshot(snap("settings-general"), {
@@ -331,7 +331,7 @@ test.describe("Visual — Settings", () => {
   test("settings board configuration", async ({ page }) => {
     await page.goto("/settings");
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Scroll to board config section if it exists
@@ -362,7 +362,7 @@ test.describe("Visual — Plugin Integrations", () => {
   test("integrations page installed tab", async ({ page }) => {
     await page.goto("/integrations");
     await expect(
-      page.getByRole("heading", { name: /integrations/i }),
+      page.getByRole("heading", { name: "Integrations", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Ensure Installed tab is active
@@ -380,7 +380,7 @@ test.describe("Visual — Plugin Integrations", () => {
   test("integrations page marketplace tab", async ({ page }) => {
     await page.goto("/integrations");
     await expect(
-      page.getByRole("heading", { name: /integrations/i }),
+      page.getByRole("heading", { name: "Integrations", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     const marketplaceTab = page.getByRole("tab", { name: /marketplace/i });
@@ -410,7 +410,7 @@ test.describe("Visual — Pages List", () => {
     await deleteAllPages();
     await page.goto("/pages");
     await expect(
-      page.getByRole("heading", { name: /pages/i }),
+      page.getByRole("heading", { name: "Pages", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState("networkidle");
 
@@ -426,11 +426,11 @@ test.describe("Visual — Pages List", () => {
 
     await page.goto("/pages");
     await expect(
-      page.getByRole("heading", { name: /pages/i }),
+      page.getByRole("heading", { name: "Pages", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
     // Wait for page cards to render
     await expect(
-      page.getByText("Morning Dashboard").or(page.getByText("Evening Update")),
+      page.getByText("Morning Dashboard").first(),
     ).toBeVisible({ timeout: 10_000 });
 
     await expect(page).toHaveScreenshot(snap("pages-list-with-pages"), {

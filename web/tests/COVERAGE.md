@@ -152,10 +152,13 @@ cd web && npm run test:coverage
 ### Visual Regression Tests
 
 Visual regression tests use Playwright `toHaveScreenshot()` to compare
-screenshots against baseline images. On the first run, baselines are generated
-automatically (`updateSnapshots: "missing"` in `playwright.config.ts`).
-Subsequent runs compare against those baselines using a **0.3% pixel threshold**
+screenshots against committed baseline images using a **0.3% pixel threshold**
 to allow for minor anti-aliasing differences.
+
+**Baseline workflow:**
+1. First run generates baselines in `__snapshots__/` (tests fail by design)
+2. Commit generated baselines to the repo
+3. Subsequent runs compare against committed baselines
 
 ```bash
 # Run visual regression tests only
@@ -169,7 +172,7 @@ cd web && npx playwright test --headed visual-regression
 ```
 
 **Reducing false positives:**
-- Schedule calendar tests freeze `Date.now()` via Playwright's clock API
+- Schedule calendar tests freeze `Date.now()` via Playwright's `page.clock.setFixedTime()`
 - WYSIWYG editor tests hide the blinking cursor and selection highlights
 - Settings tests mask version numbers and system info
 - Dashboard tests mask uptime counters and timestamps
