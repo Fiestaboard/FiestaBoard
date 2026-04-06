@@ -4952,7 +4952,7 @@ async def trigger_plugin_update_check():
 @app.post("/plugins/{plugin_id}/update")
 async def update_plugin(plugin_id: str):
     """
-    Pull the latest version of an external plugin from its remote and reload it.
+    Fetch the latest commits for an external plugin from its remote and reload it.
 
     Built-in plugins cannot be updated via this endpoint.
     """
@@ -4989,7 +4989,8 @@ async def update_plugin(plugin_id: str):
         )
 
     from .plugins.sources import clone_or_update_repo
-    ok, err = clone_or_update_repo(source.repository_url, local_path)
+    # repo_url is not needed for the update path (fetch uses existing origin remote)
+    ok, err = clone_or_update_repo("", local_path)
     if not ok:
         raise HTTPException(status_code=500, detail=f"Update failed: {err}")
 
@@ -4999,13 +5000,74 @@ async def update_plugin(plugin_id: str):
         detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
         raise HTTPException(status_code=500, detail=detail)
 
-    # Clear the update flag for this plugin
     registry._update_status.pop(plugin_id, None)
 
     return {
         "status": "success",
         "plugin_id": plugin_id,
         "message": f"Plugin '{plugin_id}' has been updated and reloaded.",
+    }
+
+
+@app.post("/plugins/updates/apply")
+async def apply_all_plugin_updates():
+    """
+    Fetch and reload all external plugins that have a pending update.
+
+    Uses the cached update status from the last check — call
+    ``POST /plugins/updates/check`` first if you want a fresh scan before
+    applying.  Returns 200 even when some plugins fail so the caller can
+    inspect partial results.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    pending = [
+        pid for pid, has_update in registry.get_update_status().items() if has_update
+    ]
+
+    if not pending:
+        return {"updated": [], "failed": {}, "message": "No updates available."}
+
+    from pathlib import Path as _Path
+    from .plugins.sources import clone_or_update_repo
+
+    updated: list = []
+    failed: dict = {}
+
+    for plugin_id in pending:
+        source = registry.get_plugin_source(plugin_id)
+        if source is None or not source.local_path:
+            failed[plugin_id] = "Plugin source not found."
+            continue
+
+        local_path = _Path(source.local_path)
+        if not (local_path / ".git").is_dir():
+            failed[plugin_id] = "Plugin is not a git repository."
+            continue
+
+        ok, err = clone_or_update_repo("", local_path)
+        if not ok:
+            failed[plugin_id] = f"git fetch failed: {err}"
+            continue
+
+        reloaded = registry.reload_plugin(plugin_id)
+        if reloaded is None:
+            errors = registry.get_load_errors().get(plugin_id, [])
+            failed[plugin_id] = "; ".join(errors) if errors else "Reload failed."
+            continue
+
+        registry._update_status.pop(plugin_id, None)
+        updated.append(plugin_id)
+        logger.info("Bulk update: applied update for plugin '%s'", plugin_id)
+
+    return {
+        "updated": updated,
+        "failed": failed,
+        "message": f"Updated {len(updated)} plugin(s); {len(failed)} failed.",
     }
 
 

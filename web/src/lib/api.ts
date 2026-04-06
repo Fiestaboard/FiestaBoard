@@ -821,6 +821,12 @@ export interface PluginUpdateCheckResponse {
   updates_available: string[];
 }
 
+export interface PluginApplyUpdatesResponse {
+  updated: string[];
+  failed: Record<string, string>;
+  message: string;
+}
+
 export interface VersionResponse {
   package_version: string;
   build_version: string;
@@ -1316,6 +1322,11 @@ export const api = {
 
   triggerPluginUpdateCheck: () =>
     fetchApi<PluginUpdateCheckResponse>("/plugins/updates/check", {
+      method: "POST",
+    }),
+
+  applyAllPluginUpdates: () =>
+    fetchApi<PluginApplyUpdatesResponse>("/plugins/updates/apply", {
       method: "POST",
     }),
 
