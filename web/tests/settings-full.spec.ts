@@ -20,27 +20,31 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Settings – Full Coverage", () => {
-  test("can update timezone", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+  test("can update timezone via API", async () => {
+    // Timezone is managed via the API; verify the endpoint works correctly
+    const getRes = await fetch(`${API_URL}/config/general`);
+    expect(getRes.ok).toBe(true);
+    const getData = await getRes.json();
+    expect(getData).toHaveProperty("timezone");
 
-    // Find timezone picker
-    const timezonePicker = page.getByText(/timezone/i).first();
-    await expect(timezonePicker).toBeVisible({ timeout: 10_000 });
+    const originalTz = getData.timezone;
 
-    // Verify the timezone section exists and is interactive
-    // The actual timezone picker is a complex component; verify it loads
-    const tzDisplay = page.getByText(/UTC|America|Europe|Pacific/i).first();
-    const hasTz = await tzDisplay
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    // Update to a different timezone
+    const putRes = await fetch(`${API_URL}/config/general`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timezone: "America/New_York" }),
+    });
+    expect(putRes.ok).toBe(true);
+    const putData = await putRes.json();
+    expect(putData.status).toBe("success");
 
-    if (hasTz) {
-      // Timezone display is visible — good enough for an E2E check
-      expect(hasTz).toBe(true);
-    }
+    // Reset to original
+    await fetch(`${API_URL}/config/general`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timezone: originalTz }),
+    });
   });
 
   test("can update refresh interval", async () => {
@@ -179,12 +183,9 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Expand the Advanced collapsible (Debug Tools + Setup Wizard are inside)
-    await page.getByRole("heading", { name: "Advanced" }).click();
-
-    // Find the "Run Setup Wizard" button
+    // Setup Wizard is a standalone card on the settings page
     const wizardBtn = page
-      .getByRole("button", { name: /setup wizard/i })
+      .getByRole("button", { name: /run setup wizard/i })
       .first()
       .or(page.getByText(/run setup wizard/i).first());
 
@@ -197,10 +198,10 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Expand the Advanced collapsible
-    await page.getByRole("heading", { name: "Advanced" }).click();
+    // Debug Tools is a collapsible — click its trigger to expand
+    await page.getByText("Debug Tools").first().click();
 
-    // Verify Debug Tools section
+    // Verify Debug Tools content is now visible
     await expect(page.getByText("Debug Tools").first()).toBeVisible({
       timeout: 10_000,
     });
@@ -218,8 +219,8 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Expand the Advanced collapsible
-    await page.getByRole("heading", { name: "Advanced" }).click();
+    // Debug Tools is a collapsible — click its trigger to expand
+    await page.getByText("Debug Tools").first().click();
 
     // Find "Clear Message Cache" button
     const clearBtn = page

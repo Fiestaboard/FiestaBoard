@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,9 +18,9 @@ import {
   ChevronDown, 
   ChevronUp,
   Loader2,
-  CheckCircle,
   XCircle,
   AlertCircle,
+  CheckCircle,
   Globe,
   Server,
   Lightbulb
@@ -95,6 +95,7 @@ const CHARACTER_GROUPS = {
 
 export function DebugSettings() {
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<number>(63); // Default to Red
   const [showSystemInfo, setShowSystemInfo] = useState(false);
 
@@ -187,37 +188,26 @@ export function DebugSettings() {
   const isBoardConfigured = systemInfo?.board_configured ?? false;
 
   return (
+    <Collapsible open={open} onOpenChange={setOpen}>
     <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-primary/10">
-              <Bug className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                Debug Tools
-                {isBoardConfigured ? (
-                  <Badge variant="default" className="text-xs bg-board-green">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Ready
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="text-xs">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Not Configured
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                Test and debug Vestaboard connection
-              </CardDescription>
-            </div>
-          </div>
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+        <div className="flex items-center gap-2">
+          <Bug className="h-4 w-4 text-muted-foreground" />
+          <span className="text-base font-semibold">Debug Tools</span>
+          {!isBoardConfigured && (
+            <Badge variant="destructive" className="text-xs">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Not Configured
+            </Badge>
+          )}
         </div>
-      </CardHeader>
+        <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </CollapsibleTrigger>
 
-      <CardContent className="space-y-4">
+      <CollapsibleContent>
+        <div className="px-6 pb-4 pt-1 space-y-4">
+          <p className="text-sm text-muted-foreground">Test and debug your Vestaboard connection</p>
+          <div className="space-y-4">
         {/* Network Diagnostics */}
         <div className="space-y-2">
           <Label className="text-xs font-medium">Network Diagnostics</Label>
@@ -550,8 +540,11 @@ export function DebugSettings() {
             </div>
           </div>
         )}
-      </CardContent>
+          </div>
+        </div>
+      </CollapsibleContent>
     </Card>
+    </Collapsible>
   );
 }
 

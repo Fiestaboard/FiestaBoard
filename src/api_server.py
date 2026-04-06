@@ -980,11 +980,17 @@ async def send_welcome_message():
         raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}")
     
     try:
+        # Use custom welcome message if set, otherwise use the default
+        config_manager = get_config_manager()
+        general = config_manager.get_general()
+        custom_msg = general.get("welcome_message", "").strip()
+        center_line = custom_msg.upper() if custom_msg else "HIYA FROM FIESTABOARD"
+
         # Colorful welcome template (matches pages.json welcome page)
         welcome_template = [
             "{{red}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}",
             "{{orange}}{{yellow}}{{red}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}",
-            "HIYA FROM FIESTABOARD",
+            center_line,
             "{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{orange}}",
             "{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{orange}}{{red}}{{violet}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}",
             "{{orange}}{{violet}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{red}}{{orange}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}"
@@ -1557,6 +1563,10 @@ async def update_general_config(request: dict):
     - timezone: IANA timezone name (e.g., "America/Los_Angeles")
     - refresh_interval_seconds: Refresh interval in seconds
     - output_target: Output target ("ui", "board", or "both")
+    - instance_name: Friendly name for this FiestaBoard install
+    - time_format: "12h" or "24h" for web UI time display
+    - date_format: "MM/DD/YYYY", "DD/MM/YYYY", or "YYYY-MM-DD"
+    - welcome_message: Custom board greeting (empty = use default)
     """
     config_manager = get_config_manager()
     
@@ -1570,6 +1580,14 @@ async def update_general_config(request: dict):
         general_config["refresh_interval_seconds"] = request["refresh_interval_seconds"]
     if "output_target" in request:
         general_config["output_target"] = request["output_target"]
+    if "instance_name" in request:
+        general_config["instance_name"] = request["instance_name"]
+    if "time_format" in request:
+        general_config["time_format"] = request["time_format"]
+    if "date_format" in request:
+        general_config["date_format"] = request["date_format"]
+    if "welcome_message" in request:
+        general_config["welcome_message"] = request["welcome_message"]
     
     # Save back
     success = config_manager.set_general(general_config)

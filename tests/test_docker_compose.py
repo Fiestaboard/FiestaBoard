@@ -16,6 +16,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def _load_compose(filename: str) -> dict:
     path = os.path.join(REPO_ROOT, filename)
+    if not os.path.exists(path):
+        pytest.skip(f"{filename} not found at {path} (not available in this environment)")
     with open(path) as fh:
         return yaml.safe_load(fh)
 

@@ -79,12 +79,11 @@ test.describe("Error Handling", () => {
 
     // The app should either redirect, show an error, or show a 404.
     // It should NOT show a blank white screen or crash.
-    // The sidebar <nav aria-label="Main navigation"> is rendered outside the
+    // The desktop sidebar is an <aside aria-label="Main navigation"> outside the
     // page-transition FadeContent wrapper (which starts at opacity:0 until
-    // IntersectionObserver fires), so it is the most reliable indicator that
-    // the app loaded correctly.
+    // IntersectionObserver fires), so it is a reliable indicator that the app loaded.
     await expect(
-      page.getByRole("navigation", { name: "Main navigation" }),
+      page.getByRole("complementary", { name: "Main navigation" }),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

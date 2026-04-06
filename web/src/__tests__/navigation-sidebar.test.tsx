@@ -46,7 +46,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("NavigationSidebar active state", () => {
-  const activeNavClass = "bg-sidebar-accent";
+  const activeNavClass = "nav-active";
 
   it("highlights Pages when on /pages", () => {
     mockPathname.mockReturnValue("/pages");
@@ -148,5 +148,68 @@ describe("NavigationSidebar mobile menu", () => {
 
     const expandButton = screen.getByLabelText("Expand sidebar");
     expect(expandButton).toBeInTheDocument();
+  });
+});
+
+describe("NavigationSidebar primary/secondary sections", () => {
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("renders primary navigation section", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const primaryNav = screen.getAllByLabelText("Primary navigation");
+    expect(primaryNav.length).toBeGreaterThan(0);
+  });
+
+  it("renders secondary navigation section", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const secondaryNav = screen.getAllByLabelText("Secondary navigation");
+    expect(secondaryNav.length).toBeGreaterThan(0);
+  });
+
+  it("shows Carousels item in primary navigation", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const carouselsLinks = screen.getAllByText("Carousels");
+    expect(carouselsLinks.length).toBeGreaterThan(0);
+  });
+
+  it("shows Settings in secondary navigation", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const settingsLinks = screen.getAllByText("Settings");
+    expect(settingsLinks.length).toBeGreaterThan(0);
+  });
+
+  it("shows Help & Docs in secondary navigation", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const helpLinks = screen.getAllByText("Help & Docs");
+    expect(helpLinks.length).toBeGreaterThan(0);
+  });
+
+  it("shows Profile in secondary navigation", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const profileLinks = screen.getAllByText("Profile");
+    expect(profileLinks.length).toBeGreaterThan(0);
+  });
+});
+
+describe("NavigationSidebar carousels link", () => {
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("Carousels is a direct link to /carousels", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const carouselsLinks = screen.getAllByText("Carousels");
+    const carouselsLink = carouselsLinks[0].closest("a");
+    expect(carouselsLink).toBeInTheDocument();
+    expect(carouselsLink).toHaveAttribute("href", "/carousels");
   });
 });
