@@ -4071,25 +4071,31 @@ async def render_template(request: dict):
         raise HTTPException(status_code=400, detail="template parameter required")
     
     template = request["template"]
+    device_type = request.get("device_type")
+    
+    # Determine line count from device type
+    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    num_rows = dims.rows
     
     # Early return for empty templates to avoid unnecessary processing
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
             return {
-                "rendered": "\n".join([""] * 6),
-                "lines": [""] * 6,
-                "line_count": 6
+                "rendered": "\n".join([""] * num_rows),
+                "lines": [""] * num_rows,
+                "line_count": num_rows
             }
     elif isinstance(template, str) and not template.strip():
         return {
-            "rendered": "\n".join([""] * 6),
-            "lines": [""] * 6,
-            "line_count": 6
+            "rendered": "\n".join([""] * num_rows),
+            "lines": [""] * num_rows,
+            "line_count": num_rows
         }
     
     template_engine = get_template_engine()
     line_metadata = request.get("line_metadata")
-    device_type = request.get("device_type")
     
     try:
         if isinstance(template, list):
@@ -4131,14 +4137,20 @@ async def render_template_live(request: dict):
     line_metadata = request.get("line_metadata")
     device_type = request.get("device_type")
 
+    # Determine line count from device type
+    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    num_rows = dims.rows
+
     # Render the template
     try:
         if isinstance(template, list):
             if not template or all(not line.strip() for line in template):
                 return {
-                    "rendered": "\n".join([""] * 6),
-                    "lines": [""] * 6,
-                    "line_count": 6,
+                    "rendered": "\n".join([""] * num_rows),
+                    "lines": [""] * num_rows,
+                    "line_count": num_rows,
                     "sent_to_board": False,
                     "board_id": board_id,
                 }
@@ -4146,9 +4158,9 @@ async def render_template_live(request: dict):
         else:
             if not template.strip():
                 return {
-                    "rendered": "\n".join([""] * 6),
-                    "lines": [""] * 6,
-                    "line_count": 6,
+                    "rendered": "\n".join([""] * num_rows),
+                    "lines": [""] * num_rows,
+                    "line_count": num_rows,
                     "sent_to_board": False,
                     "board_id": board_id,
                 }

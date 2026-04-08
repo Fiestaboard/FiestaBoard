@@ -23,15 +23,16 @@ COLOR_CODES = {
     "purple": 68,
     "white": 69,
     "black": 70,
+    "filled": 71,
 }
 
 # Parse color markers: {63}, {red}, {/red}, {/} - each produces a single colored tile
 # Note: Single brackets are used after template normalization to avoid conflicting with {{variable}} syntax
 COLOR_MARKER_PATTERN = re.compile(
     r'\{(?:'
-    r'(6[3-9]|70)|'  # Numeric codes 63-70
-    r'(red|orange|yellow|green|blue|violet|purple|white|black)|'  # Named colors
-    r'(/(?:red|orange|yellow|green|blue|violet|purple|white|black)?)'  # End tags {/} or {/red}
+    r'(6[3-9]|7[01])|'  # Numeric codes 63-71
+    r'(red|orange|yellow|green|blue|violet|purple|white|black|filled)|'  # Named colors
+    r'(/(?:red|orange|yellow|green|blue|violet|purple|white|black|filled)?)'  # End tags {/} or {/red}
     r')\}',
     re.IGNORECASE
 )

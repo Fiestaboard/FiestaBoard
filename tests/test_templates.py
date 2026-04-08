@@ -568,6 +568,140 @@ class TestAlignmentWithFillSpace:
         assert abs(left_pad - right_pad) <= 1
 
 
+class TestNoteFillSpaceRepeat:
+    """Tests for FILL_SPACE_REPEAT on NOTE devices (15 cols, 3 rows).
+    
+    Regression tests for: https://github.com/Fiestaboard/FiestaBoard/issues/XXX
+    FILL_SPACE_REPEAT was off by 1 on NOTE - the last flap was not filled.
+    """
+    
+    @pytest.fixture
+    def engine(self):
+        return TemplateEngine()
+    
+    def test_fill_space_repeat_blue_note(self, engine):
+        """FILL_SPACE_REPEAT:BLUE should fill all remaining tiles on NOTE."""
+        lines = ['LUNCH:{{FILL_SPACE_REPEAT:BLUE}}', '', '']
+        meta = [{'alignment': 'left', 'wrap': False}] * 3
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+        first_line = result.split('\n')[0]
+        tile_count = engine._count_tiles(first_line)
+        assert tile_count == 15, f"Expected 15 tiles, got {tile_count}"
+        # "LUNCH:" = 6 tiles, remaining = 9 blue tiles
+        blue_count = first_line.count('{67}')
+        assert blue_count == 9, f"Expected 9 blue tiles, got {blue_count}"
+    
+    def test_fill_space_repeat_red_note(self, engine):
+        """FILL_SPACE_REPEAT:RED should fill all remaining tiles on NOTE."""
+        lines = ['HI:{{FILL_SPACE_REPEAT:RED}}', '', '']
+        meta = [{'alignment': 'left', 'wrap': False}] * 3
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+        first_line = result.split('\n')[0]
+        tile_count = engine._count_tiles(first_line)
+        assert tile_count == 15
+        # "HI:" = 3 tiles, remaining = 12 red tiles
+        red_count = first_line.count('{63}')
+        assert red_count == 12
+    
+    def test_fill_space_repeat_fills_entire_note_line(self, engine):
+        """FILL_SPACE_REPEAT alone should fill entire line on NOTE."""
+        lines = ['{{FILL_SPACE_REPEAT:GREEN}}', '', '']
+        meta = [{'alignment': 'left', 'wrap': False}] * 3
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+        first_line = result.split('\n')[0]
+        tile_count = engine._count_tiles(first_line)
+        assert tile_count == 15
+        green_count = first_line.count('{66}')
+        assert green_count == 15
+    
+    def test_fill_space_repeat_note_vs_flagship(self, engine):
+        """FILL_SPACE_REPEAT should produce different tile counts for NOTE vs flagship."""
+        lines_note = ['AB{{FILL_SPACE_REPEAT:BLUE}}', '', '']
+        lines_flag = ['AB{{FILL_SPACE_REPEAT:BLUE}}'] + [''] * 5
+        meta_note = [{'alignment': 'left', 'wrap': False}] * 3
+        meta_flag = [{'alignment': 'left', 'wrap': False}] * 6
+        
+        result_note = engine.render_lines(lines_note, context={}, line_metadata=meta_note, device_type='note')
+        result_flag = engine.render_lines(lines_flag, context={}, line_metadata=meta_flag, device_type='flagship')
+        
+        note_line = result_note.split('\n')[0]
+        flag_line = result_flag.split('\n')[0]
+        
+        note_blue = note_line.count('{67}')
+        flag_blue = flag_line.count('{67}')
+        
+        # NOTE: "AB" = 2 tiles, remaining = 15 - 2 = 13 blue
+        assert note_blue == 13
+        # Flagship: "AB" = 2 tiles, remaining = 22 - 2 = 20 blue
+        assert flag_blue == 20
+    
+    def test_fill_space_repeat_note_3_rows(self, engine):
+        """NOTE device should only have 3 rows."""
+        lines = ['A{{FILL_SPACE_REPEAT:BLUE}}', 'B{{FILL_SPACE_REPEAT:RED}}', 'C{{FILL_SPACE_REPEAT:GREEN}}']
+        meta = [{'alignment': 'left', 'wrap': False}] * 3
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+        output_lines = result.split('\n')
+        assert len(output_lines) == 3
+        
+        # Each line should have 15 tiles
+        for line in output_lines:
+            assert engine._count_tiles(line) == 15
+        
+        # Line 0: A + 14 blue
+        assert output_lines[0].count('{67}') == 14
+        # Line 1: B + 14 red
+        assert output_lines[1].count('{63}') == 14
+        # Line 2: C + 14 green
+        assert output_lines[2].count('{66}') == 14
+    
+    def test_fill_space_repeat_with_text_pattern_note(self, engine):
+        """FILL_SPACE_REPEAT with text pattern (dash) on NOTE."""
+        lines = ['AB{{FILL_SPACE_REPEAT:-}}CD', '', '']
+        meta = [{'alignment': 'left', 'wrap': False}] * 3
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+        first_line = result.split('\n')[0]
+        # "AB" + dashes + "CD" = 15 chars
+        assert len(first_line) == 15
+        # AB + 11 dashes + CD
+        assert first_line == 'AB-----------CD'
+    
+    def test_fill_space_no_repeat_note(self, engine):
+        """Regular fill_space (spaces) should also work correctly on NOTE."""
+        lines = ['AB{{fill_space}}CD', '', '']
+        meta = [{'alignment': 'left', 'wrap': False}] * 3
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+        first_line = result.split('\n')[0]
+        assert len(first_line) == 15
+        assert first_line.startswith('AB')
+        assert first_line.endswith('CD')
+    
+    def test_fill_space_repeat_case_insensitive_note(self, engine):
+        """FILL_SPACE_REPEAT should be case-insensitive on NOTE."""
+        for template in [
+            'X{{FILL_SPACE_REPEAT:BLUE}}',
+            'X{{fill_space_repeat:blue}}',
+            'X{{Fill_Space_Repeat:Blue}}',
+        ]:
+            lines = [template, '', '']
+            meta = [{'alignment': 'left', 'wrap': False}] * 3
+            result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+            first_line = result.split('\n')[0]
+            tile_count = engine._count_tiles(first_line)
+            assert tile_count == 15, f"Template {template!r}: expected 15 tiles, got {tile_count}"
+            blue_count = first_line.count('{67}')
+            assert blue_count == 14, f"Template {template!r}: expected 14 blue tiles, got {blue_count}"
+    
+    def test_process_fill_space_note_width(self, engine):
+        """Direct _process_fill_space test with NOTE width."""
+        marker = '\x00FILL_SPACE_REPEAT:BLUE\x00'
+        text = f'LUNCH:{marker}'
+        result = engine._process_fill_space(text, width=15)
+        tile_count = engine._count_tiles(result)
+        assert tile_count == 15, f"Expected 15 tiles, got {tile_count}"
+        blue_count = result.count('{67}')
+        assert blue_count == 9, f"Expected 9 blue tiles, got {blue_count}"
+
+
 class TestTemplateEngineDefaults:
     """Tests for template engine default settings."""
 

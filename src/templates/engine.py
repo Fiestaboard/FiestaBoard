@@ -47,6 +47,7 @@ COLOR_CODES = {
     "purple": 68,  # alias
     "white": 69,
     "black": 70,
+    "filled": 71,
 }
 
 # Symbol name to character mapping
@@ -68,7 +69,7 @@ SYMBOL_CHARS = {
 
 # Regex patterns
 VAR_PATTERN = re.compile(r'\{\{([^}]+)\}\}')  # {{source.field}} or {{source.field|filter}}
-COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}\}', re.IGNORECASE)
+COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}', re.IGNORECASE)
 SYMBOL_PATTERN = re.compile(r'\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}', re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r'\{\{fill_space\}\}', re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r'\{\{fill_space_repeat:(.+?)\}\}', re.IGNORECASE)
@@ -180,11 +181,11 @@ class TemplateEngine:
                 closing_brace = text.find("}", i)
                 if closing_brace != -1:
                     content = text[i + 1:closing_brace]
-                    # Check if it's a color code (numeric 63-70 or named)
+                    # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 70:
-                            # Numeric color code like {66} or {70}
+                        if 63 <= code <= 71:
+                            # Numeric color code like {66}, {70}, or {71}
                             tile_count += 1
                             i = closing_brace + 1
                             continue
@@ -225,11 +226,11 @@ class TemplateEngine:
                 closing_brace = text.find("}", i)
                 if closing_brace != -1:
                     content = text[i + 1:closing_brace]
-                    # Check if it's a color code (numeric 63-70 or named)
+                    # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 70:
-                            # Numeric color code like {66} or {70}
+                        if 63 <= code <= 71:
+                            # Numeric color code like {66}, {70}, or {71}
                             result.append(text[i:closing_brace + 1])
                             tile_count += 1
                             i = closing_brace + 1
