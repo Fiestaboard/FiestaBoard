@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ALL_TIMEZONES } from "@/lib/timezone-utils";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ export function TimezonePicker({
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -80,10 +82,10 @@ export function TimezonePicker({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      const inContainer = containerRef.current?.contains(target);
+      const inList = listRef.current?.contains(target);
+      if (!inContainer && !inList) {
         setIsOpen(false);
         setHighlightedIndex(-1);
         // Reset search query to current label when closing
@@ -123,7 +125,26 @@ export function TimezonePicker({
     }
   };
 
+  const updateDropdownPosition = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const dropdownMaxHeight = 240; // max-h-60 = 15rem = 240px
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top
+        ? rect.bottom + 4
+        : rect.top - dropdownMaxHeight - 4;
+      setDropdownStyle({
+        position: "fixed",
+        top,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+  };
+
   const handleInputFocus = () => {
+    updateDropdownPosition();
     setIsOpen(true);
   };
 
@@ -205,7 +226,10 @@ export function TimezonePicker({
           variant="ghost"
           size="sm"
           className="absolute right-0 top-0 h-full px-2 py-1 hover:bg-transparent"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            updateDropdownPosition();
+            setIsOpen(!isOpen);
+          }}
           disabled={disabled}
           tabIndex={-1}
           aria-label="Toggle timezone list"
@@ -214,46 +238,50 @@ export function TimezonePicker({
         </Button>
       </div>
       
-      {isOpen && filteredTimezones.length > 0 && (
-        <div 
-          ref={listRef}
-          role="listbox"
-          aria-label="Timezone options"
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
-        >
-          {filteredTimezones.slice(0, 50).map((timezone, index) => {
-            const isHighlighted = index === highlightedIndex;
-            const isSelected = value === timezone.value;
-            return (
-              <button
-                key={timezone.value}
-                type="button"
-                className={cn(
-                  "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  "focus:bg-accent focus:text-accent-foreground",
-                  isHighlighted && "bg-accent text-accent-foreground",
-                  isSelected && "bg-accent/50"
-                )}
-                onClick={() => handleSelect(timezone.value)}
-                onMouseEnter={() => setHighlightedIndex(index)}
-              >
-                {isSelected && (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                <span className={isSelected ? "" : "ml-6"}>
-                  {timezone.label}
-                </span>
-              </button>
-            );
-          })}
-          {filteredTimezones.length > 50 && (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              Showing first 50 of {filteredTimezones.length} results
-            </div>
-          )}
-        </div>
-      )}
+      {typeof window !== "undefined" && isOpen && filteredTimezones.length > 0
+        ? createPortal(
+            <div 
+              ref={listRef}
+              role="listbox"
+              aria-label="Timezone options"
+              style={dropdownStyle}
+              className="max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
+            >
+              {filteredTimezones.slice(0, 50).map((timezone, index) => {
+                const isHighlighted = index === highlightedIndex;
+                const isSelected = value === timezone.value;
+                return (
+                  <button
+                    key={timezone.value}
+                    type="button"
+                    className={cn(
+                      "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+                      "hover:bg-accent hover:text-accent-foreground",
+                      "focus:bg-accent focus:text-accent-foreground",
+                      isHighlighted && "bg-accent text-accent-foreground",
+                      isSelected && "bg-accent/50"
+                    )}
+                    onClick={() => handleSelect(timezone.value)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                  >
+                    {isSelected && (
+                      <Check className="mr-2 h-4 w-4" />
+                    )}
+                    <span className={isSelected ? "" : "ml-6"}>
+                      {timezone.label}
+                    </span>
+                  </button>
+                );
+              })}
+              {filteredTimezones.length > 50 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  Showing first 50 of {filteredTimezones.length} results
+                </div>
+              )}
+            </div>,
+            document.body
+          )
+        : null}
       
       {!isValid && value && (
         <p className="mt-1 text-xs text-destructive">

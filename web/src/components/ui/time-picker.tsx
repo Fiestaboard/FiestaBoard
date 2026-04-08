@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,13 +11,16 @@ interface TimePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
-export function TimePicker({ value, onChange, placeholder = "00:00", className }: TimePickerProps) {
+export function TimePicker({ value, onChange, placeholder = "00:00", className, disabled }: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [hours, setHours] = useState("00");
   const [minutes, setMinutes] = useState("00");
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Parse value on mount and when value changes
   useEffect(() => {
@@ -35,7 +39,10 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className }
   // Close on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inContainer = containerRef.current?.contains(target);
+      const inDropdown = dropdownRef.current?.contains(target);
+      if (!inContainer && !inDropdown) {
         setIsOpen(false);
       }
     }
@@ -61,7 +68,6 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className }
     const [h, m] = value.split(":");
     if (!h || !m) return "";
     const hour = parseInt(h, 10);
-    const minute = parseInt(m, 10);
     const period = hour >= 12 ? "PM" : "AM";
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
     return `${displayHour}:${m} ${period}`;
@@ -81,12 +87,115 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className }
     return { value: minute, label: minute };
   });
 
+  const toggleDropdown = () => {
+    if (disabled) return;
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const dropdownHeight = 320; // approximate max height of the dropdown
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= dropdownHeight || spaceBelow >= rect.top
+        ? rect.bottom + 4
+        : rect.top - dropdownHeight - 4;
+      setDropdownStyle({
+        position: "fixed",
+        top,
+        left: rect.left,
+        width: 256,
+        zIndex: 9999,
+      });
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  const dropdown = isOpen ? (
+    <div
+      ref={dropdownRef}
+      style={dropdownStyle}
+      className="rounded-md border bg-background p-4 shadow-md"
+    >
+      <div className="flex gap-4">
+        {/* Hours */}
+        <div className="flex-1">
+          <label className="text-xs font-medium text-muted-foreground mb-2 block">
+            Hour
+          </label>
+          <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
+            {hourOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleHourChange(option.value)}
+                className={cn(
+                  "w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors",
+                  hours === option.value && "bg-accent text-accent-foreground font-medium"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Minutes */}
+        <div className="flex-1">
+          <label className="text-xs font-medium text-muted-foreground mb-2 block">
+            Minute
+          </label>
+          <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
+            {minuteOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleMinuteChange(option.value)}
+                className={cn(
+                  "w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors",
+                  minutes === option.value && "bg-accent text-accent-foreground font-medium"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick presets */}
+      <div className="mt-4 pt-4 border-t">
+        <div className="text-xs font-medium text-muted-foreground mb-2">Quick presets</div>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { label: "8 AM", value: "08:00" },
+            { label: "12 PM", value: "12:00" },
+            { label: "6 PM", value: "18:00" },
+            { label: "8 PM", value: "20:00" },
+            { label: "12 AM", value: "00:00" },
+          ].map((preset) => (
+            <button
+              key={preset.value}
+              type="button"
+              onClick={() => {
+                const [h, m] = preset.value.split(":");
+                setHours(h);
+                setMinutes(m);
+                onChange(preset.value);
+              }}
+              className="px-2 py-1 text-xs rounded-md border hover:bg-accent transition-colors"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <Button
         type="button"
         variant="outline"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleDropdown}
+        disabled={disabled}
         className={cn(
           "w-full h-9 px-3 text-sm justify-start font-normal",
           !value && "text-muted-foreground"
@@ -96,83 +205,9 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className }
         <span>{value ? formatDisplayValue() : placeholder}</span>
       </Button>
 
-      {isOpen && (
-        <div className="absolute z-50 mt-1 w-64 rounded-md border bg-background p-4 shadow-md">
-          <div className="flex gap-4">
-            {/* Hours */}
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                Hour
-              </label>
-              <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
-                {hourOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleHourChange(option.value)}
-                    className={cn(
-                      "w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors",
-                      hours === option.value && "bg-accent text-accent-foreground font-medium"
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Minutes */}
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                Minute
-              </label>
-              <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
-                {minuteOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleMinuteChange(option.value)}
-                    className={cn(
-                      "w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors",
-                      minutes === option.value && "bg-accent text-accent-foreground font-medium"
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick presets */}
-          <div className="mt-4 pt-4 border-t">
-            <div className="text-xs font-medium text-muted-foreground mb-2">Quick presets</div>
-            <div className="flex gap-2 flex-wrap">
-              {[
-                { label: "8 AM", value: "08:00" },
-                { label: "12 PM", value: "12:00" },
-                { label: "6 PM", value: "18:00" },
-                { label: "8 PM", value: "20:00" },
-                { label: "12 AM", value: "00:00" },
-              ].map((preset) => (
-                <button
-                  key={preset.value}
-                  type="button"
-                  onClick={() => {
-                    const [h, m] = preset.value.split(":");
-                    setHours(h);
-                    setMinutes(m);
-                    onChange(preset.value);
-                  }}
-                  className="px-2 py-1 text-xs rounded-md border hover:bg-accent transition-colors"
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {typeof window !== "undefined" && dropdown
+        ? createPortal(dropdown, document.body)
+        : null}
     </div>
   );
 }
