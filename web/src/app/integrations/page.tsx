@@ -342,6 +342,7 @@ import {
   Angry,
   Laugh,
   MoreHorizontal,
+  CopyPlus,
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -946,9 +947,14 @@ function PluginCard({
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
+  const [showAddInstance, setShowAddInstance] = useState(false);
+  const [instanceLabel, setInstanceLabel] = useState("");
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+  const queryClient = useQueryClient();
 
   const isExternal = plugin.source?.source_type !== "builtin";
   const hasUpdate = plugin.update_available === true;
+  const isInstance = !!plugin.instance_label;
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -979,8 +985,6 @@ function PluginCard({
       setIsSaving(false);
     }
   };
-
-  const queryClient = useQueryClient();
 
   const handleCreateDemoPage = async () => {
     setIsCreatingDemo(true);
@@ -1339,6 +1343,7 @@ function PluginCard({
   );
 
   return (
+    <>
     <tr className={cn(
       "border-b last:border-b-0 transition-colors",
       plugin.enabled ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20"
@@ -1357,6 +1362,12 @@ function PluginCard({
             <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
               v{plugin.version}
             </Badge>
+            {isInstance && (
+              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-indigo-300 text-indigo-600 dark:text-indigo-400 dark:border-indigo-700">
+                <CopyPlus className="h-2.5 w-2.5" />
+                Instance
+              </Badge>
+            )}
             {isMarketplace && (
               <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700">
                 <Package className="h-2.5 w-2.5" />
@@ -1427,6 +1438,12 @@ function PluginCard({
                 <Settings className="h-3.5 w-3.5 mr-2" />
                 Configure
               </DropdownMenuItem>
+              {!isInstance && (
+                <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
+                  <CopyPlus className="h-3.5 w-3.5 mr-2" />
+                  Add Instance
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
                 {plugin.enabled ? (
                   <XCircle className="h-3.5 w-3.5 mr-2" />
@@ -1444,7 +1461,29 @@ function PluginCard({
                   </DropdownMenuItem>
                 </>
               )}
-              {isExternal && onUninstall && (
+              {isInstance && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const baseId = plugin.base_plugin_id ?? plugin.id.split(":")[0];
+                      const label = plugin.instance_label ?? "";
+                      try {
+                        await api.deletePluginInstance(baseId, label);
+                        toast.success(`Instance "${label}" deleted`);
+                        queryClient.invalidateQueries({ queryKey: ["plugins"] });
+                      } catch (err) {
+                        toast.error(`Failed to delete instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+                      }
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    Delete Instance
+                  </DropdownMenuItem>
+                </>
+              )}
+              {isExternal && onUninstall && !isInstance && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -1462,7 +1501,78 @@ function PluginCard({
         </div>
       </td>
     </tr>
+    {showAddInstance && (
+      <tr className="border-b last:border-b-0">
+        <td colSpan={4} className="px-4 py-3">
+          <div className="flex items-center gap-3 max-w-md">
+            <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
+              Instance name:
+            </Label>
+            <Input
+              id={`instance-label-${plugin.id}`}
+              placeholder="e.g. sf, prod, api-2"
+              value={instanceLabel}
+              onChange={(e) => setInstanceLabel(e.target.value)}
+              className="h-8 text-sm"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && instanceLabel.trim()) {
+                  handleCreateInstance();
+                }
+                if (e.key === "Escape") {
+                  setShowAddInstance(false);
+                  setInstanceLabel("");
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              className="h-8"
+              disabled={!instanceLabel.trim() || isCreatingInstance}
+              onClick={handleCreateInstance}
+            >
+              {isCreatingInstance ? "Creating..." : "Create"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8"
+              onClick={() => {
+                setShowAddInstance(false);
+                setInstanceLabel("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Creates a new independent instance of this plugin with its own configuration.
+            Use alphanumeric characters, hyphens, or underscores (1-40 chars).
+          </p>
+        </td>
+      </tr>
+    )}
+    </>
   );
+
+  function handleCreateInstance() {
+    if (!instanceLabel.trim()) return;
+    setIsCreatingInstance(true);
+    const baseId = plugin.base_plugin_id ?? plugin.id;
+    api.createPluginInstance(baseId, instanceLabel.trim())
+      .then(() => {
+        toast.success(`Instance "${instanceLabel}" created for ${plugin.name}`);
+        queryClient.invalidateQueries({ queryKey: ["plugins"] });
+        setShowAddInstance(false);
+        setInstanceLabel("");
+      })
+      .catch((err) => {
+        toast.error(`Failed to create instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+      })
+      .finally(() => {
+        setIsCreatingInstance(false);
+      });
+  }
 }
 
 function RegistryPluginCard({
