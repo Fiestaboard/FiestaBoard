@@ -91,9 +91,14 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
     if (disabled) return;
     if (!isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
+      const dropdownHeight = 320; // approximate max height of the dropdown
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= dropdownHeight || spaceBelow >= rect.top
+        ? rect.bottom + 4
+        : rect.top - dropdownHeight - 4;
       setDropdownStyle({
         position: "fixed",
-        top: rect.bottom + 4,
+        top,
         left: rect.left,
         width: 256,
         zIndex: 9999,
