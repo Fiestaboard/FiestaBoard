@@ -456,6 +456,7 @@ export interface BoardSettings {
 
 // Schedule types
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
+export type TimeType = "fixed" | "sunrise" | "sunset";
 
 export interface ScheduleEntry {
   id: string;
@@ -466,6 +467,14 @@ export interface ScheduleEntry {
   day_pattern: DayPattern;
   custom_days?: string[]; // Only used when day_pattern is "custom"
   enabled: boolean;
+  // Sun schedule fields
+  start_type?: TimeType; // "fixed" | "sunrise" | "sunset" (default: "fixed")
+  start_sun_offset?: number; // minutes (positive=after, negative=before)
+  end_type?: TimeType;
+  end_sun_offset?: number;
+  // Resolved sun times (computed by server for today)
+  resolved_start_time?: string; // HH:MM - actual start time for today
+  resolved_end_time?: string | null; // HH:MM - actual end time for today
   created_at: string;
   updated_at?: string;
 }
@@ -478,6 +487,10 @@ export interface ScheduleCreate {
   day_pattern: DayPattern;
   custom_days?: string[];
   enabled?: boolean; // Defaults to true
+  start_type?: TimeType;
+  start_sun_offset?: number;
+  end_type?: TimeType;
+  end_sun_offset?: number;
 }
 
 export interface ScheduleUpdate {
@@ -488,6 +501,10 @@ export interface ScheduleUpdate {
   day_pattern?: DayPattern;
   custom_days?: string[];
   enabled?: boolean;
+  start_type?: TimeType;
+  start_sun_offset?: number;
+  end_type?: TimeType;
+  end_sun_offset?: number;
 }
 
 export interface SchedulesResponse {
@@ -569,6 +586,11 @@ export interface DisplaySettings {
   reduce_motion: boolean;
 }
 
+export interface LocationSettings {
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: Record<string, unknown>;
@@ -578,6 +600,7 @@ export interface AllSettingsResponse {
   board: BoardSettings;
   mqtt: MqttSettings;
   display: DisplaySettings;
+  location: LocationSettings;
   status: {
     running: boolean;
   };
@@ -1239,6 +1262,15 @@ export const api = {
   getDisplaySettings: () => fetchApi<DisplaySettings>("/settings/display"),
   updateDisplaySettings: (settings: Partial<DisplaySettings>) =>
     fetchApi<{ status: string; settings: DisplaySettings }>("/settings/display", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    }),
+
+  // Location settings (for sunrise/sunset schedules)
+  getLocationSettings: () => fetchApi<LocationSettings>("/settings/location"),
+  updateLocationSettings: (settings: Partial<LocationSettings>) =>
+    fetchApi<{ status: string; settings: LocationSettings }>("/settings/location", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),

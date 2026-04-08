@@ -121,11 +121,14 @@ export function scheduleToCalendarEvents(
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const startTime = parseTime(schedule.start_time);
+  const startTime = parseTime(schedule.resolved_start_time || schedule.start_time);
   const pageName = getPageName(schedule.page_id, pages, carousels);
 
   // When end_time is null/undefined (open-ended), treat as end-of-day (23:59)
-  const endTime = schedule.end_time ? parseTime(schedule.end_time) : null;
+  const rawEndTime = schedule.resolved_end_time !== undefined
+    ? schedule.resolved_end_time
+    : schedule.end_time;
+  const endTime = rawEndTime ? parseTime(rawEndTime) : null;
 
   const isMidnightRollover = endTime
     ? (endTime.hours < startTime.hours ||
