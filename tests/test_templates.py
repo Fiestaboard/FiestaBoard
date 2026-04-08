@@ -571,7 +571,6 @@ class TestAlignmentWithFillSpace:
 class TestNoteFillSpaceRepeat:
     """Tests for FILL_SPACE_REPEAT on NOTE devices (15 cols, 3 rows).
     
-    Regression tests for: https://github.com/Fiestaboard/FiestaBoard/issues/XXX
     FILL_SPACE_REPEAT was off by 1 on NOTE - the last flap was not filled.
     """
     
