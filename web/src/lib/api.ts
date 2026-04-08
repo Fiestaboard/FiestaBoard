@@ -271,6 +271,15 @@ export interface PageSendResponse {
   target: string;
 }
 
+export interface CurrentDisplayResponse {
+  page_id: string;
+  page_name: string;
+  page_type: PageType;
+  device_type: DeviceType;
+  template: string[];
+  line_metadata: LineMetadata[] | null;
+}
+
 // Template types
 export interface FormattingVariable {
   syntax: string;
@@ -923,6 +932,7 @@ export const api = {
 
   // Pages endpoints
   getPages: () => fetchApi<PagesResponse>("/pages"),
+  getCurrentDisplay: () => fetchApi<CurrentDisplayResponse>("/pages/current-display"),
   getPage: (pageId: string) => fetchApi<Page>(`/pages/${pageId}`),
   createPage: (page: PageCreate) =>
     fetchApi<{ status: string; page: Page }>("/pages", {

@@ -12,6 +12,7 @@ import type {
   PagesResponse,
   Page,
   PageCreate,
+  CurrentDisplayResponse,
   TemplateVariables,
   TemplateRenderResponse,
   RotationsResponse,
@@ -140,6 +141,15 @@ export const mockCompositePage: Page = {
 export const mockPages: PagesResponse = {
   pages: [mockPage, { ...mockCompositePage, id: "page-2", name: "Custom Template", type: "template" }],
   total: 2,
+};
+
+export const mockCurrentDisplay: CurrentDisplayResponse = {
+  page_id: "page-1",
+  page_name: "Weather Page",
+  page_type: "single",
+  device_type: "flagship",
+  template: ["72°F Sunny", "Humidity 45%", "", "", "", ""],
+  line_metadata: null,
 };
 
 export const mockTemplateVariables: TemplateVariables = {
@@ -491,6 +501,10 @@ export const handlers = [
   // Pages endpoints
   http.get(`${API_BASE}/pages`, () => {
     return HttpResponse.json(mockPages);
+  }),
+
+  http.get(`${API_BASE}/pages/current-display`, () => {
+    return HttpResponse.json(mockCurrentDisplay);
   }),
 
   http.get(`${API_BASE}/pages/:id`, ({ params }) => {

@@ -929,3 +929,111 @@ class TestPagesAPIEndpoints:
         assert data["page_id"] == "test-id"
         assert "Preview Content" in data["message"]
 
+    @patch('src.api_server.get_settings_service')
+    def test_current_display_template_page(self, mock_settings, client, mock_page_service):
+        """Test GET /pages/current-display returns raw template for template pages."""
+        mock_svc = Mock()
+        mock_svc.is_schedule_enabled.return_value = False
+        mock_svc.get_active_page_id.return_value = "template-id"
+        mock_settings.return_value = mock_svc
+
+        mock_page_service.get_page.return_value = Page(
+            id="template-id",
+            name="My Template",
+            type="template",
+            device_type="flagship",
+            template=["{{weather.temp}}", "Line 2", "", "", "", ""],
+            line_metadata=[
+                LineMetadata(alignment="center", wrap=False),
+                LineMetadata(alignment="left", wrap=True),
+                LineMetadata(alignment="left", wrap=False),
+                LineMetadata(alignment="left", wrap=False),
+                LineMetadata(alignment="left", wrap=False),
+                LineMetadata(alignment="left", wrap=False),
+            ],
+        )
+
+        response = client.get("/pages/current-display")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["page_id"] == "template-id"
+        assert data["page_name"] == "My Template"
+        assert data["page_type"] == "template"
+        assert data["device_type"] == "flagship"
+        assert data["template"] == ["{{weather.temp}}", "Line 2", "", "", "", ""]
+        assert data["line_metadata"][0]["alignment"] == "center"
+        assert data["line_metadata"][1]["wrap"] is True
+
+    @patch('src.api_server.get_settings_service')
+    def test_current_display_single_page(self, mock_settings, client, mock_page_service):
+        """Test GET /pages/current-display returns rendered lines for non-template pages."""
+        mock_svc = Mock()
+        mock_svc.is_schedule_enabled.return_value = False
+        mock_svc.get_active_page_id.return_value = "single-id"
+        mock_settings.return_value = mock_svc
+
+        mock_page_service.get_page.return_value = Page(
+            id="single-id",
+            name="Weather Page",
+            type="single",
+            display_type="weather",
+        )
+        mock_page_service.preview_page.return_value = DisplayResult(
+            display_type="page:single",
+            formatted="72°F Sunny\nHumidity 45%",
+            raw={},
+            available=True,
+        )
+
+        response = client.get("/pages/current-display")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["page_id"] == "single-id"
+        assert data["page_name"] == "Weather Page"
+        assert data["page_type"] == "single"
+        assert data["template"] == ["72°F Sunny", "Humidity 45%"]
+        assert data["line_metadata"] is None
+
+    @patch('src.api_server.get_settings_service')
+    def test_current_display_no_active_page(self, mock_settings, client, mock_page_service):
+        """Test GET /pages/current-display returns 404 when no active page."""
+        mock_svc = Mock()
+        mock_svc.is_schedule_enabled.return_value = False
+        mock_svc.get_active_page_id.return_value = None
+        mock_settings.return_value = mock_svc
+
+        response = client.get("/pages/current-display")
+
+        assert response.status_code == 404
+
+    @patch('src.api_server.get_carousel_service')
+    @patch('src.api_server.get_settings_service')
+    def test_current_display_carousel_resolved(self, mock_settings, mock_carousel, client, mock_page_service):
+        """Test GET /pages/current-display resolves carousel to underlying page."""
+        mock_svc = Mock()
+        mock_svc.is_schedule_enabled.return_value = False
+        mock_svc.get_active_page_id.return_value = "carousel:abc"
+        mock_settings.return_value = mock_svc
+
+        mock_carousel_svc = Mock()
+        mock_carousel_svc.resolve_page_id.return_value = "resolved-page-id"
+        mock_carousel.return_value = mock_carousel_svc
+
+        mock_page_service.get_page.return_value = Page(
+            id="resolved-page-id",
+            name="Resolved Page",
+            type="template",
+            device_type="flagship",
+            template=["Hello", "World", "", "", "", ""],
+        )
+
+        response = client.get("/pages/current-display")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["page_id"] == "resolved-page-id"
+        assert data["page_name"] == "Resolved Page"
+        assert data["template"] == ["Hello", "World", "", "", "", ""]
+

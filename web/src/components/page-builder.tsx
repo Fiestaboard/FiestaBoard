@@ -28,6 +28,7 @@ import {
   Save,
   Trash2,
   Radio,
+  Download,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -488,6 +489,41 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     },
   });
 
+  // Sync from current board display mutation (new pages only)
+  const syncFromBoardMutation = useMutation({
+    mutationFn: () => api.getCurrentDisplay(),
+    onSuccess: (data) => {
+      const lines = data.template || [];
+      setTemplateLines(lines);
+      setDebouncedTemplateLines(lines);
+
+      if (data.line_metadata) {
+        const alignments = data.line_metadata.map((m) => m.alignment);
+        const wraps = data.line_metadata.map((m) => m.wrap);
+        setLineAlignments(alignments);
+        setLineWrapEnabled(wraps);
+        setDebouncedLineAlignments(alignments);
+        setDebouncedLineWrapEnabled(wraps);
+      } else {
+        const defaults = lines.map(() => "left" as LineAlignment);
+        const defaultWraps = lines.map(() => false);
+        setLineAlignments(defaults);
+        setLineWrapEnabled(defaultWraps);
+        setDebouncedLineAlignments(defaults);
+        setDebouncedLineWrapEnabled(defaultWraps);
+      }
+
+      if (data.device_type) {
+        setDeviceType(data.device_type);
+      }
+
+      toast.success(`Synced from "${data.page_name}"`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "No active display to sync from");
+    },
+  });
+
   // Preview mutation
   const previewMutation = useMutation({
     mutationFn: async () => {
@@ -869,6 +905,32 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                 className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background"
               />
             </div>
+
+            {/* Sync from current board display - only for new pages */}
+            {!pageId && (
+              <div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 text-xs"
+                        onClick={() => syncFromBoardMutation.mutate()}
+                        disabled={syncFromBoardMutation.isPending}
+                        aria-label="Sync from current board display"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        {syncFromBoardMutation.isPending ? "Syncing..." : "Sync from Board"}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Populate template from what&apos;s currently displayed on the board</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
 
             {/* Template line editors */}
             <div className="space-y-3">
