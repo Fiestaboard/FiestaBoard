@@ -183,6 +183,25 @@ class ScheduleSettings:
 
 
 @dataclass
+class LocationSettings:
+    """Location settings for sun-based schedule features (sunrise/sunset)."""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "LocationSettings":
+        lat = data.get("latitude")
+        lon = data.get("longitude")
+        return cls(
+            latitude=float(lat) if lat is not None else None,
+            longitude=float(lon) if lon is not None else None,
+        )
+
+
+@dataclass
 class DisplaySettings:
     """Web UI display preferences."""
     reduce_motion: bool = False
@@ -271,6 +290,7 @@ class SettingsService:
         self._schedule = self._load_schedule_settings()
         self._mqtt = self._load_mqtt_settings()
         self._display = self._load_display_settings()
+        self._location = self._load_location_settings()
         
         if getattr(self, "_needs_migration_save", False):
             self._save_to_file()
@@ -300,6 +320,7 @@ class SettingsService:
                 "schedule": self._schedule.to_dict(),
                 "mqtt": self._mqtt.to_dict(mask_secrets=False),
                 "display": self._display.to_dict(),
+                "location": self._location.to_dict(),
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -421,6 +442,13 @@ class SettingsService:
         if "display" in file_data:
             return DisplaySettings.from_dict(file_data["display"])
         return DisplaySettings()
+
+    def _load_location_settings(self) -> "LocationSettings":
+        """Load location settings from file."""
+        file_data = self._load_from_file()
+        if "location" in file_data:
+            return LocationSettings.from_dict(file_data["location"])
+        return LocationSettings()
 
     # Transition settings
     def get_transition_settings(self) -> TransitionSettings:
@@ -798,6 +826,25 @@ class SettingsService:
         self._save_to_file()
         logger.info(f"Display settings updated: {self._display}")
         return self._display
+
+    def get_location_settings(self) -> "LocationSettings":
+        """Return current location settings for sun-based schedules."""
+        return self._location
+
+    def update_location_settings(self, updates: dict) -> "LocationSettings":
+        """Update location settings and persist.
+
+        Only keys present in *updates* are changed.
+        """
+        if "latitude" in updates:
+            val = updates["latitude"]
+            self._location.latitude = float(val) if val is not None else None
+        if "longitude" in updates:
+            val = updates["longitude"]
+            self._location.longitude = float(val) if val is not None else None
+        self._save_to_file()
+        logger.info(f"Location settings updated: {self._location}")
+        return self._location
 
 
 # Singleton instance

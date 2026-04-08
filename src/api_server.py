@@ -3108,6 +3108,27 @@ async def update_display_settings(request: dict):
     return {"status": "success", "settings": display.to_dict()}
 
 
+@app.get("/settings/location")
+async def get_location_settings():
+    """Get current location settings for sun-based schedules (sunrise/sunset)."""
+    settings_service = get_settings_service()
+    return settings_service.get_location_settings().to_dict()
+
+
+@app.put("/settings/location")
+async def update_location_settings(request: dict):
+    """
+    Update location settings for sun-based schedules.
+
+    Body may include:
+    - latitude: float | null — Location latitude (-90 to 90)
+    - longitude: float | null — Location longitude (-180 to 180)
+    """
+    settings_service = get_settings_service()
+    location = settings_service.update_location_settings(request)
+    return {"status": "success", "settings": location.to_dict()}
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """
@@ -3140,6 +3161,7 @@ async def get_all_settings():
     board = settings_service.get_board_settings()
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
+    location = settings_service.get_location_settings()
 
     return {
         "general": general,
@@ -3152,6 +3174,7 @@ async def get_all_settings():
         "board": board.to_dict(),
         "mqtt": mqtt.to_dict(mask_secrets=True),
         "display": display.to_dict(),
+        "location": location.to_dict(),
         "status": {
             "running": _service_running,
         }
@@ -3818,6 +3841,49 @@ async def send_page(page_id: str, target: Optional[str] = None):
 # Schedule Endpoints
 # =============================================================================
 
+def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
+    """Add resolved_start_time / resolved_end_time to a schedule dict.
+
+    For fixed-type schedules the resolved times equal the stored times.
+    For sun-based schedules (sunrise/sunset) the times are computed
+    dynamically for today using the configured location.
+    """
+    start_type = schedule_dict.get("start_type", "fixed")
+    end_type = schedule_dict.get("end_type", "fixed")
+
+    if start_type == "fixed" and end_type == "fixed":
+        schedule_dict["resolved_start_time"] = schedule_dict["start_time"]
+        schedule_dict["resolved_end_time"] = schedule_dict.get("end_time")
+        return schedule_dict
+
+    from datetime import date as date_type
+    from .schedules.sun_times import resolve_schedule_sun_times
+
+    settings = get_settings_service()
+    loc = settings.get_location_settings()
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    resolved_start, resolved_end = resolve_schedule_sun_times(
+        start_type=start_type,
+        start_sun_offset=schedule_dict.get("start_sun_offset", 0),
+        start_time_fallback=schedule_dict["start_time"],
+        end_type=end_type,
+        end_sun_offset=schedule_dict.get("end_sun_offset", 0),
+        end_time_fallback=schedule_dict.get("end_time"),
+        latitude=loc.latitude,
+        longitude=loc.longitude,
+        target_date=date_type.today(),
+        timezone_str=timezone_str,
+    )
+    schedule_dict["resolved_start_time"] = resolved_start
+    schedule_dict["resolved_end_time"] = resolved_end
+    return schedule_dict
+
 @app.get("/schedules")
 async def list_schedules(board_id: Optional[str] = None):
     """List schedule entries, optionally for one board (query: board_id=).
@@ -3831,14 +3897,14 @@ async def list_schedules(board_id: Optional[str] = None):
     # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
     if board_id == "*":
         return {
-            "schedules": [s.model_dump() for s in schedules],
+            "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
             "total": len(schedules),
             "default_page_id": None,
             "enabled": False,
         }
     
     return {
-        "schedules": [s.model_dump() for s in schedules],
+        "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
         "total": len(schedules),
         "default_page_id": schedule_service.get_default_page(board_id=board_id),
         "enabled": settings_service.is_schedule_enabled(board_id=board_id),
@@ -3859,7 +3925,7 @@ async def create_schedule(schedule_data: ScheduleCreate):
     
     try:
         schedule = schedule_service.create_schedule(schedule_data)
-        return schedule.model_dump()
+        return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -3974,7 +4040,7 @@ async def get_schedule(schedule_id: str):
     if not schedule:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
     
-    return schedule.model_dump()
+    return _enrich_schedule_with_sun_times(schedule.model_dump())
 
 
 @app.put("/schedules/{schedule_id}")
@@ -3994,7 +4060,7 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
         if not schedule:
             raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        return schedule.model_dump()
+        return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

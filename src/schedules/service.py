@@ -5,8 +5,8 @@ and validation (overlap and gap detection).
 """
 
 import logging
-from datetime import time
-from typing import List, Optional, Set
+from datetime import time, date, datetime
+from typing import List, Optional, Set, Tuple
 from dataclasses import dataclass
 
 from .models import (
@@ -20,6 +20,7 @@ from .models import (
     DEFAULT_BOARD_ID,
 )
 from .storage import ScheduleStorage
+from .sun_times import resolve_schedule_sun_times, SUN_EVENT_TYPES
 from ..settings.service import get_settings_service
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,10 @@ class ScheduleService:
             day_pattern=data.day_pattern,
             custom_days=data.custom_days,
             enabled=data.enabled,
+            start_type=data.start_type,
+            start_sun_offset=data.start_sun_offset,
+            end_type=data.end_type,
+            end_sun_offset=data.end_sun_offset,
         )
         return self.storage.create(schedule)
     
@@ -128,13 +133,25 @@ class ScheduleService:
         current_day: str,
         board_id: Optional[str] = None,
     ) -> Optional[str]:
-        """Determine which page should be displayed based on schedules for the given board."""
+        """Determine which page should be displayed based on schedules for the given board.
+
+        Sun-based schedules (start_type/end_type of "sunrise" or "sunset") have
+        their times dynamically resolved using the configured location settings.
+        """
         bid = board_id or DEFAULT_BOARD_ID
         schedules = [s for s in self.list_schedules(board_id=bid) if s.enabled]
         time_str = current_time.strftime("%H:%M")
+
+        # Pre-fetch location once for sun-time resolution
+        location = self._get_location()
+        today = date.today()
+
         matches = []
         for schedule in schedules:
-            if schedule.applies_to_day(current_day) and schedule.applies_to_time(time_str):
+            effective_schedule = self._resolve_effective_times(
+                schedule, today, location
+            )
+            if effective_schedule.applies_to_day(current_day) and effective_schedule.applies_to_time(time_str):
                 matches.append(schedule)
         if matches:
             matches.sort(key=lambda s: s.created_at, reverse=True)
@@ -146,6 +163,59 @@ class ScheduleService:
         else:
             logger.debug(f"No schedule match for {current_day} {time_str}, no default set")
         return default_page_id
+
+    def _get_location(self) -> Tuple[Optional[float], Optional[float], str]:
+        """Get the configured location and timezone for sun time resolution.
+
+        Returns:
+            Tuple of (latitude, longitude, timezone_str).
+        """
+        settings = get_settings_service()
+        loc = settings.get_location_settings()
+        timezone_str = "UTC"
+        try:
+            from ..config import Config
+            timezone_str = Config.TIMEZONE or "UTC"
+        except Exception:
+            pass
+        return (loc.latitude, loc.longitude, timezone_str)
+
+    def _resolve_effective_times(
+        self,
+        schedule: ScheduleEntry,
+        target_date: date,
+        location: Tuple[Optional[float], Optional[float], str],
+    ) -> ScheduleEntry:
+        """Return a schedule with sun-based times resolved for the given date.
+
+        If the schedule uses only fixed times, returns it unchanged.
+        Otherwise creates a shallow copy with resolved start/end times.
+        """
+        if (
+            schedule.start_type == "fixed"
+            and schedule.end_type == "fixed"
+        ):
+            return schedule
+
+        lat, lon, tz = location
+        resolved_start, resolved_end = resolve_schedule_sun_times(
+            start_type=schedule.start_type,
+            start_sun_offset=schedule.start_sun_offset,
+            start_time_fallback=schedule.start_time,
+            end_type=schedule.end_type,
+            end_sun_offset=schedule.end_sun_offset,
+            end_time_fallback=schedule.end_time,
+            latitude=lat,
+            longitude=lon,
+            target_date=target_date,
+            timezone_str=tz,
+        )
+
+        # Build a copy with resolved times (model_copy available in Pydantic v2)
+        return schedule.model_copy(update={
+            "start_time": resolved_start,
+            "end_time": resolved_end,
+        })
 
     # Default page management
 
