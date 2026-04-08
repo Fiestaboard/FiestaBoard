@@ -13,7 +13,7 @@ Plugins can be loaded from three sources:
 """
 
 from .base import PluginBase, PluginResult, TriggerResult
-from .registry import PluginRegistry, get_plugin_registry
+from .registry import PluginRegistry, get_plugin_registry, INSTANCE_SEPARATOR
 from .loader import PluginLoader
 from .manifest import PluginManifest, DemoPageSchema, validate_manifest
 from .sources import (
@@ -30,6 +30,7 @@ __all__ = [
     "TriggerResult",
     "PluginRegistry",
     "get_plugin_registry",
+    "INSTANCE_SEPARATOR",
     "PluginLoader",
     "PluginManifest",
     "DemoPageSchema",
