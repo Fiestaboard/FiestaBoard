@@ -246,7 +246,10 @@ export function ScheduleEntryForm({
                 <Input
                   type="number"
                   value={startSunOffset}
-                  onChange={(e) => setStartSunOffset(parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setStartSunOffset(isNaN(val) ? 0 : val);
+                  }}
                   className="w-20"
                   aria-label={t("scheduleEntryForm.sunOffset")}
                 />
@@ -303,7 +306,10 @@ export function ScheduleEntryForm({
                   <Input
                     type="number"
                     value={endSunOffset}
-                    onChange={(e) => setEndSunOffset(parseInt(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setEndSunOffset(isNaN(val) ? 0 : val);
+                    }}
                     className="w-20"
                     aria-label={t("scheduleEntryForm.sunOffset")}
                   />

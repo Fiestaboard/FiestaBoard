@@ -123,8 +123,11 @@ class TestResolveScheduleSunTimes:
             latitude=40.7128, longitude=-74.0060,
             target_date=date(2026, 6, 21), timezone_str="America/New_York",
         )
-        # Should be resolved, not the fallback
-        assert start != "06:00" or start == "06:00"  # Could match by coincidence
+        # Should be a valid HH:MM string
+        assert len(start) == 5 and start[2] == ":"
+        # NYC summer sunrise is around 05:25, so should be in that range
+        start_hour = int(start[:2])
+        assert 4 <= start_hour <= 6
         assert end == "10:00"  # Fixed end is unchanged
 
     def test_sunset_end_resolved(self):

@@ -46,15 +46,17 @@ export function LocationSettingsCard() {
   });
 
   const handleSave = () => {
-    const lat = latitude.trim() ? parseFloat(latitude) : null;
-    const lon = longitude.trim() ? parseFloat(longitude) : null;
+    const latStr = latitude.trim();
+    const lonStr = longitude.trim();
+    const lat = latStr ? parseFloat(latStr) : null;
+    const lon = lonStr ? parseFloat(lonStr) : null;
 
-    if (lat !== null && (isNaN(lat) || lat < -90 || lat > 90)) {
-      toast.error("Latitude must be between -90 and 90");
+    if (latStr && (lat === null || isNaN(lat) || lat < -90 || lat > 90)) {
+      toast.error("Latitude must be a number between -90 and 90");
       return;
     }
-    if (lon !== null && (isNaN(lon) || lon < -180 || lon > 180)) {
-      toast.error("Longitude must be between -180 and 180");
+    if (lonStr && (lon === null || isNaN(lon) || lon < -180 || lon > 180)) {
+      toast.error("Longitude must be a number between -180 and 180");
       return;
     }
 

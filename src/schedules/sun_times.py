@@ -89,9 +89,14 @@ def resolve_sun_time(
     event_time = times[sun_event]
     adjusted = event_time + timedelta(minutes=offset_minutes)
 
-    # Clamp to the same day (00:00 - 23:59)
-    h = adjusted.hour
+    # Extract hours/minutes; if offset pushes past midnight, clamp to 00:00-23:59
+    h = max(0, min(23, adjusted.hour))
     m = adjusted.minute
+    # If the date changed (crossed midnight), clamp to boundary
+    if adjusted.date() > event_time.date():
+        h, m = 23, 59
+    elif adjusted.date() < event_time.date():
+        h, m = 0, 0
     return f"{h:02d}:{m:02d}"
 
 
