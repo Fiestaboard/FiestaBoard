@@ -184,7 +184,14 @@
       "validationSelectPage": "Proszę wybrać stronę",
       "validationEndTimeDifferent": "Godzina zakończenia musi się różnić od godziny rozpoczęcia",
       "validationSelectDay": "Proszę wybrać co najmniej jeden dzień dla niestandardowego wzorca",
-      "submitError": "Nie udało się zapisać harmonogramu"
+      "submitError": "Nie udało się zapisać harmonogramu",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

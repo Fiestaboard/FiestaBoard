@@ -184,7 +184,14 @@
       "validationSelectPage": "ページを選択してください",
       "validationEndTimeDifferent": "終了時刻は開始時刻と異なる必要があります",
       "validationSelectDay": "カスタムパターンには少なくとも1つの曜日を選択してください",
-      "submitError": "スケジュールの保存に失敗しました"
+      "submitError": "スケジュールの保存に失敗しました",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

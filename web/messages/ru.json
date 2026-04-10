@@ -184,7 +184,14 @@
       "validationSelectPage": "Пожалуйста, выберите страницу",
       "validationEndTimeDifferent": "Время окончания должно отличаться от времени начала",
       "validationSelectDay": "Пожалуйста, выберите хотя бы один день для пользовательского шаблона",
-      "submitError": "Не удалось сохранить расписание"
+      "submitError": "Не удалось сохранить расписание",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

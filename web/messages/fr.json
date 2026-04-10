@@ -184,7 +184,14 @@
       "validationSelectPage": "Veuillez sélectionner une page",
       "validationEndTimeDifferent": "L'heure de fin doit être différente de l'heure de début",
       "validationSelectDay": "Veuillez sélectionner au moins un jour pour un motif personnalisé",
-      "submitError": "Échec de l'enregistrement de la planification"
+      "submitError": "Échec de l'enregistrement de la planification",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

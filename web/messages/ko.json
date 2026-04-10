@@ -184,7 +184,14 @@
       "validationSelectPage": "페이지를 선택해 주세요",
       "validationEndTimeDifferent": "종료 시간은 시작 시간과 달라야 합니다",
       "validationSelectDay": "사용자 지정 패턴에 최소 하루를 선택해 주세요",
-      "submitError": "스케줄 저장에 실패했습니다"
+      "submitError": "스케줄 저장에 실패했습니다",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

@@ -184,7 +184,14 @@
       "validationSelectPage": "Selecione uma página",
       "validationEndTimeDifferent": "O horário de término deve ser diferente do horário de início",
       "validationSelectDay": "Selecione pelo menos um dia para o padrão personalizado",
-      "submitError": "Falha ao salvar agenda"
+      "submitError": "Falha ao salvar agenda",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {
