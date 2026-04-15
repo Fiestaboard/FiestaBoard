@@ -71,7 +71,7 @@ jobs:
 
       - name: Determine version bump type
         id: bump_type
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -290,7 +290,7 @@ jobs:
 
       - name: Create GitHub Release
         id: create-release
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -549,7 +549,7 @@ jobs:
     if: failure() && needs.merge.result == 'failure'
     steps:
       - name: Revert merge
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
