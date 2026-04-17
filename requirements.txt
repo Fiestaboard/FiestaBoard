@@ -28,6 +28,10 @@ zeroconf>=0.131.0
 # MQTT client for Home Assistant auto-discovery and control
 paho-mqtt>=2.0.0
 
+# iCalendar parsing (used by the calendar_sub plugin)
+icalendar>=7.0.0
+recurring-ical-events>=3.5.0
+
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
 

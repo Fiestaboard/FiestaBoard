@@ -1,0 +1,21 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting icalendar
+  Downloading icalendar-7.0.3-py3-none-any.whl.metadata (6.9 kB)
+Collecting recurring-ical-events
+  Downloading recurring_ical_events-3.8.1-py3-none-any.whl.metadata (4.5 kB)
+Requirement already satisfied: python-dateutil in /usr/lib/python3/dist-packages (from icalendar) (2.8.2)
+Requirement already satisfied: typing-extensions~=4.10 in /usr/lib/python3/dist-packages (from icalendar) (4.10.0)
+Collecting tzdata>=2025.3 (from icalendar)
+  Downloading tzdata-2026.1-py2.py3-none-any.whl.metadata (1.4 kB)
+Collecting x-wr-timezone<3.0.0,>=1.0.0 (from recurring-ical-events)
+  Downloading x_wr_timezone-2.0.1-py3-none-any.whl.metadata (10 kB)
+Requirement already satisfied: click in /usr/lib/python3/dist-packages (from x-wr-timezone<3.0.0,>=1.0.0->recurring-ical-events) (8.1.6)
+Downloading icalendar-7.0.3-py3-none-any.whl (442 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 442.4/442.4 kB 48.4 MB/s eta 0:00:00
+Downloading recurring_ical_events-3.8.1-py3-none-any.whl (238 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 238.3/238.3 kB 15.0 MB/s eta 0:00:00
+Downloading tzdata-2026.1-py2.py3-none-any.whl (348 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.0/349.0 kB 87.3 MB/s eta 0:00:00
+Downloading x_wr_timezone-2.0.1-py3-none-any.whl (11 kB)
+Installing collected packages: tzdata, icalendar, x-wr-timezone, recurring-ical-events
+Successfully installed icalendar-7.0.3 recurring-ical-events-3.8.1 tzdata-2026.1 x-wr-timezone-2.0.1

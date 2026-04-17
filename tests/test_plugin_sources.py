@@ -529,3 +529,22 @@ class TestCheckPluginUpdateAvailable:
         d = tmp_path / "plugin"
         d.mkdir()
         assert not check_plugin_update_available(d)
+
+
+class TestRegistryPluginDependencies:
+    """Verify that Python packages required by registry plugins are importable.
+
+    Registry plugins are external repos that are cloned at install time.
+    Their Python dependencies must be present in requirements.txt so they
+    are available in the Docker image.  If a dependency is missing the
+    plugin loader will fail with an ImportError and the API will return
+    a 400 response.
+    """
+
+    def test_calendar_sub_dependencies_available(self):
+        """calendar_sub requires icalendar and recurring_ical_events (GH issue)."""
+        import icalendar
+        import recurring_ical_events
+
+        assert icalendar is not None
+        assert recurring_ical_events is not None
