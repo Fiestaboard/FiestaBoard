@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useTransition, useRef, useDeferredValue, useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
+import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor, getEffectiveDeviceType } from "@/hooks/use-board";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -301,8 +301,8 @@ export function ActivePageDisplay() {
     return activePage?.name || "No page selected";
   }, [activePage, activePageId, scheduleEnabled, activeCarousel]);
   
-  // Get active page device type
-  const activeDeviceType = (activePage?.device_type as "flagship" | "note") || "flagship";
+  // Get active page device type, falling back to the board's configured device type
+  const activeDeviceType = (activePage?.device_type as "flagship" | "note") || getEffectiveDeviceType(boardSettings);
   
   // Device dimensions lookup
   const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {

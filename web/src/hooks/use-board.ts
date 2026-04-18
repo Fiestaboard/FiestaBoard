@@ -161,3 +161,15 @@ export function getEffectiveBoardColor(
   return boardSettings?.board_type ?? "black";
 }
 
+/**
+ * Derive the effective device type from board settings.
+ * Returns the first board instance's device_type, defaulting to "flagship".
+ */
+export function getEffectiveDeviceType(
+  boardSettings: { boards?: Array<{ device_type?: string }> } | undefined
+): "flagship" | "note" {
+  const firstBoard = boardSettings?.boards?.[0];
+  if (firstBoard?.device_type === "note") return "note";
+  return "flagship";
+}
+
