@@ -496,10 +496,11 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       const hasContent = cleanedLines.some(line => line.trim().length > 0);
       
       if (!hasContent) {
+        const emptyCount = dims.rows;
         return { 
-          rendered: "\n".repeat(5),
-          lines: ["", "", "", "", "", ""], 
-          line_count: 6 
+          rendered: "\n".repeat(emptyCount - 1),
+          lines: Array.from({ length: emptyCount }, () => ""), 
+          line_count: emptyCount 
         };
       }
       
