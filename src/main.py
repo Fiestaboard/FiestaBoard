@@ -117,6 +117,14 @@ class DisplayService:
         
         return True
     
+    @staticmethod
+    def _get_first_board_id() -> Optional[str]:
+        """Return the ID of the first configured board, or None."""
+        boards = get_settings_service().get_board_settings().boards or []
+        if boards and isinstance(boards[0], dict):
+            return boards[0].get("id")
+        return None
+
     def check_and_send_active_page(self) -> bool:
         """Check the active page and send to board if content changed.
         
@@ -148,8 +156,7 @@ class DisplayService:
                 current_day = now.strftime("%A").lower()  # monday, tuesday, etc.
                 
                 # Pass the first board's ID so schedules scoped to that board are found
-                boards = settings_service.get_board_settings().boards or []
-                board_id = boards[0].get("id") if boards else None
+                board_id = self._get_first_board_id()
                 active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
                 
                 if active_page_id:
@@ -387,8 +394,7 @@ class DisplayService:
             ts = get_time_service()
             now = ts.get_current_time()
             # Pass the first board's ID so schedules scoped to that board are found
-            boards = settings_service.get_board_settings().boards or []
-            board_id = boards[0].get("id") if boards else None
+            board_id = self._get_first_board_id()
             return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower(), board_id=board_id)
         return settings_service.get_active_page_id()
 
