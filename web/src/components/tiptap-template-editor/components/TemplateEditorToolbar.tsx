@@ -16,6 +16,7 @@ import { FormattingPickerContent } from './FormattingPickerContent';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LineAlignment } from '../TipTapTemplateEditor';
+import type { DeviceType } from '@/lib/api';
 import { useState, useEffect, useCallback } from 'react';
 
 interface TemplateEditorToolbarProps {
@@ -25,6 +26,7 @@ interface TemplateEditorToolbarProps {
   onAlignmentChange?: (alignment: LineAlignment) => void;
   onWrapToggle?: () => void;
   className?: string;
+  deviceType?: DeviceType;
 }
 
 export function TemplateEditorToolbar({
@@ -34,6 +36,7 @@ export function TemplateEditorToolbar({
   onAlignmentChange,
   onWrapToggle,
   className,
+  deviceType,
 }: TemplateEditorToolbarProps) {
   const { data: templateVars } = useQuery({
     queryKey: ["template-variables"],
@@ -342,7 +345,8 @@ export function TemplateEditorToolbar({
                 onInsert={(color) => {
                   handleInsert(color);
                   close();
-                }} 
+                }}
+                deviceType={deviceType}
               />
             )}
           </ToolbarDropdown>
