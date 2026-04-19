@@ -289,15 +289,33 @@ class TimeService:
 _time_service: Optional[TimeService] = None
 
 
+def _get_configured_timezone() -> str:
+    """Read the user-configured timezone from Config, with a safe fallback.
+
+    This is separated from get_time_service() so it can be patched in tests
+    without importing Config at module level (which would create circular imports
+    in some test setups).
+    """
+    try:
+        from .config import Config
+        return Config.GENERAL_TIMEZONE
+    except Exception:
+        return "America/Los_Angeles"
+
+
 def get_time_service() -> TimeService:
     """Get or create the time service singleton.
+    
+    Uses the user-configured timezone from Config.GENERAL_TIMEZONE
+    instead of hardcoding a default.
     
     Returns:
         The global TimeService instance
     """
     global _time_service
     if _time_service is None:
-        _time_service = TimeService()
+        tz = _get_configured_timezone()
+        _time_service = TimeService(default_timezone=tz)
     return _time_service
 
 
