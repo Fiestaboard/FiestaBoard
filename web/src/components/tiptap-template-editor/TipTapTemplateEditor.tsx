@@ -93,6 +93,7 @@ interface TipTapTemplateEditorProps {
   boardWidth?: number; // Characters per line (default: 22 for flagship)
   boardLines?: number; // Total lines (default: 6 for flagship)
   onLineCountChange?: (lineCount: number) => void; // Reports current line count for validation
+  deviceType?: import('@/lib/api').DeviceType; // Device type for device-specific features
 }
 
 /**
@@ -113,6 +114,7 @@ export function TipTapTemplateEditor({
   boardWidth = BOARD_WIDTH,
   boardLines = BOARD_LINES,
   onLineCountChange,
+  deviceType,
 }: TipTapTemplateEditorProps) {
   // Use device-aware defaults when props not provided
   const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
@@ -846,6 +848,7 @@ export function TipTapTemplateEditor({
           onWrapToggle={() => {
             handleWrapClick();
           }}
+          deviceType={deviceType}
         />
       )}
       

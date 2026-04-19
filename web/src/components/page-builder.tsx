@@ -941,6 +941,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     showToolbar={true}
                     boardWidth={dims.cols}
                     boardLines={numLines}
+                    deviceType={deviceType}
                   />
                 </div>
               ) : (
