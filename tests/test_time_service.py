@@ -278,6 +278,19 @@ class TestTimeServiceSingleton:
         service2 = get_time_service()
         
         assert service1 is not service2
+    
+    def test_get_time_service_uses_configured_timezone(self):
+        """Test get_time_service reads timezone from Config.GENERAL_TIMEZONE.
+
+        Bug fix: Previously the singleton was always created with the hardcoded
+        default "America/Los_Angeles", ignoring the user's configured timezone.
+        A user in Europe/Berlin would have their schedules evaluated in LA time.
+        """
+        reset_time_service()
+        with patch("src.time_service._get_configured_timezone", return_value="Europe/Berlin"):
+            service = get_time_service()
+            assert service.default_timezone == "Europe/Berlin"
+        reset_time_service()
 
 
 class TestTimeServiceInitialization:
