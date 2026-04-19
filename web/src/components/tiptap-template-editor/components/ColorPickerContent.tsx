@@ -200,7 +200,7 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
             <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={() => onInsert("°")}
+                onClick={() => onInsert("°")}  // Degree symbol (°) renders as heart (❤) on Note device (code 62)
                 className={cn(
                   "w-full h-10 rounded-md text-sm font-medium transition-all hover:scale-[1.02] hover:shadow-md",
                   "flex items-center justify-center gap-1.5 focus:outline-none",

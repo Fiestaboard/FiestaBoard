@@ -57,7 +57,7 @@ describe("ColorPickerContent heart button for Note device", () => {
     expect(heartButton).toBeNull();
   });
 
-  it("calls onInsert with degree symbol when heart button is clicked", () => {
+  it("calls onInsert with degree symbol (renders as heart on Note device) when heart button is clicked", () => {
     const onInsert = vi.fn();
     render(
       <ColorPickerContent onInsert={onInsert} deviceType="note" />,
