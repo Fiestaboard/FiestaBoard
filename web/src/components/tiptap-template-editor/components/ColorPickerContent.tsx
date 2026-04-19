@@ -151,7 +151,7 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
     <TooltipProvider>
     <div 
       ref={containerRef}
-      className="p-2"
+      className={cn("p-2", !isNote && "pb-1")}
       tabIndex={0}
       role="listbox"
       aria-label="Color picker"
