@@ -1649,6 +1649,50 @@ async def get_silence_status():
     }
 
 
+class SilenceScheduleRequest(BaseModel):
+    """Request body for updating the silence schedule feature."""
+    enabled: bool
+    start_time: str
+    end_time: str
+
+
+@app.put("/settings/silence-schedule")
+async def update_silence_schedule(request: SilenceScheduleRequest):
+    """
+    Update the silence schedule configuration.
+
+    `silence_schedule` is a system feature (not a plugin). Times must be in
+    UTC ISO format (e.g. "04:00+00:00"); the UI converts local time to UTC
+    before calling this endpoint.
+    """
+    config_manager = get_config_manager()
+
+    updated = {
+        "enabled": request.enabled,
+        "start_time": request.start_time,
+        "end_time": request.end_time,
+    }
+
+    success = config_manager.set_feature("silence_schedule", updated)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to persist silence schedule configuration",
+        )
+
+    logger.info(
+        "Silence schedule updated: enabled=%s, start=%s, end=%s",
+        request.enabled,
+        request.start_time,
+        request.end_time,
+    )
+
+    return {
+        "status": "success",
+        "config": config_manager.get_feature("silence_schedule") or updated,
+    }
+
+
 # =============================================================================
 # Display Source Endpoints
 # =============================================================================
@@ -3004,9 +3048,9 @@ async def get_all_settings():
     settings_service = get_settings_service()
     config_manager = get_config_manager()
     
-    # Get silence schedule config
-    silence_config = config_manager.get_plugin_config("silence_schedule")
-    
+    # Get silence schedule config (stored under features, not plugins)
+    silence_feature = config_manager.get_feature("silence_schedule") or {}
+
     # Get all other settings
     general = config_manager.get_general()
     polling = settings_service.get_polling_settings()
@@ -3015,10 +3059,10 @@ async def get_all_settings():
     board = settings_service.get_board_settings()
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
-    
+
     return {
         "general": general,
-        "silence_schedule": silence_config or {},
+        "silence_schedule": {"config": silence_feature},
         "polling": {
             "interval_seconds": polling.interval_seconds
         },

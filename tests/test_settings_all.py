@@ -91,13 +91,24 @@ def test_settings_all_status_structure():
 
 
 def test_settings_all_silence_schedule_structure():
-    """Test silence schedule structure."""
+    """Test silence schedule structure.
+
+    The UI expects the feature config wrapped as `{ "config": {...} }` so that
+    `allSettings.silence_schedule.config.{enabled,start_time,end_time}` is
+    accessible. See web/src/components/general-settings.tsx.
+    """
     response = client.get("/settings/all")
     data = response.json()
-    
+
     silence = data["silence_schedule"]
     assert isinstance(silence, dict)
-    # Silence schedule may be empty dict if not configured
+    assert "config" in silence
+    config = silence["config"]
+    assert isinstance(config, dict)
+    assert "enabled" in config
+    assert "start_time" in config
+    assert "end_time" in config
+    assert isinstance(config["enabled"], bool)
 
 
 def test_settings_all_consistency():
