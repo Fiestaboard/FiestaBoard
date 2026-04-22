@@ -1190,6 +1190,14 @@ export const api = {
   // Silence mode status
   getSilenceStatus: () => fetchApi<SilenceStatus>("/silence-status"),
 
+  // Silence schedule (system feature, not a plugin)
+  updateSilenceSchedule: (data: { enabled: boolean; start_time: string; end_time: string }) =>
+    fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
   // Polling settings
   getPollingSettings: () => fetchApi<PollingSettings>("/settings/polling"),
   updatePollingSettings: (interval_seconds: number) =>

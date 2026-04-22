@@ -73,16 +73,13 @@ export function GeneralSettings() {
     }
   }, [deferredPollingSettings]);
 
-  // Update silence schedule mutation (now uses plugin API)
+  // Update silence schedule mutation (system feature endpoint, not plugin API)
   const updateSilenceMutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => 
-      api.updatePluginConfig("silence_schedule", data),
+    mutationFn: (data: { enabled: boolean; start_time: string; end_time: string }) =>
+      api.updateSilenceSchedule(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["plugin", "silence_schedule"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["plugins"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["config"], refetchType: 'active' });
-      // Invalidate template variables since plugin config may affect available variables
-      queryClient.invalidateQueries({ queryKey: ["template-variables"], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["all-settings"], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["silence-status"], refetchType: 'active' });
       toast.success(t("toastSettingsSaved"));
     },
     onError: (error: Error) => {
