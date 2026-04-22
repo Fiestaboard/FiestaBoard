@@ -167,6 +167,61 @@ test.describe("Settings – Full Coverage", () => {
     expect(data).toHaveProperty("end_time_utc");
   });
 
+  test("toggling silence schedule saves without 404 (regression: #597)", async ({
+    page,
+  }) => {
+    // Snapshot original state so we can restore it at the end
+    const originalRes = await fetch(`${API_URL}/silence-status`);
+    const original = await originalRes.json();
+    const originalEnabled: boolean = original.enabled;
+
+    await page.goto("/settings");
+    await expect(
+      page.getByRole("heading", { name: "Settings", exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const silenceToggle = page.locator("#silence-enabled");
+    await expect(silenceToggle).toBeVisible({ timeout: 10_000 });
+
+    // Wait for the debounced PUT triggered by the toggle. The regression
+    // (#597) was that this request 404'd because the UI was calling the
+    // plugin config endpoint instead of the dedicated feature endpoint.
+    const savePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes("/settings/silence-schedule") &&
+        resp.request().method() === "PUT",
+      { timeout: 10_000 },
+    );
+
+    await silenceToggle.click();
+
+    const saveResponse = await savePromise;
+    expect(saveResponse.status()).toBe(200);
+
+    // Confirm the write landed: /silence-status should now reflect the flip
+    await expect
+      .poll(
+        async () => {
+          const res = await fetch(`${API_URL}/silence-status`);
+          const data = await res.json();
+          return data.enabled as boolean;
+        },
+        { timeout: 5_000 },
+      )
+      .toBe(!originalEnabled);
+
+    // Restore original state via the same endpoint the UI uses
+    await fetch(`${API_URL}/settings/silence-schedule`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        enabled: originalEnabled,
+        start_time: original.start_time_utc,
+        end_time: original.end_time_utc,
+      }),
+    });
+  });
+
   test("silence status endpoint returns current time info", async () => {
     const res = await fetch(`${API_URL}/silence-status`);
     expect(res.ok).toBe(true);
