@@ -111,15 +111,15 @@ export function TimezonePicker({
     setIsOpen(true);
     setHighlightedIndex(-1); // Reset highlight when typing
     
-    // If user types a valid timezone value directly, update it
+    // Only propagate changes when the user types an exact IANA timezone match.
+    // Do NOT call onChange with partial search text — that would store an
+    // invalid timezone in the parent's config state and cause a 400 when saving.
+    // The value is committed via handleSelect when the user picks from the list.
     const exactMatch = ALL_TIMEZONES.find(
       (tz) => tz.value.toLowerCase() === newValue.toLowerCase()
     );
     if (exactMatch) {
       onChange(exactMatch.value);
-    } else {
-      // Allow free-form input for validation
-      onChange(newValue);
     }
   };
 

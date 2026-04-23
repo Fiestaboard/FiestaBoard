@@ -33,6 +33,18 @@ class TestDateTimePlugin:
         errors = plugin.validate_config(config)
         assert len(errors) > 0
         assert any("timezone" in e.lower() for e in errors)
+
+    def test_validate_config_empty_string_timezone(self, sample_manifest):
+        """Test that an empty string timezone is rejected (regression: partial search text)."""
+        plugin = DateTimePlugin(sample_manifest)
+        errors = plugin.validate_config({"timezone": ""})
+        assert len(errors) > 0
+
+    def test_validate_config_none_timezone(self, sample_manifest):
+        """Test that a None timezone value is rejected gracefully."""
+        plugin = DateTimePlugin(sample_manifest)
+        errors = plugin.validate_config({"timezone": None})
+        assert len(errors) > 0
     
     def test_validate_config_default_timezone(self, sample_manifest):
         """Test config validation with default timezone."""
