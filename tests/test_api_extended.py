@@ -1208,6 +1208,100 @@ class TestServiceLifecycle:
 
 
 # ============================================================
+# Board Current Message
+# ============================================================
+
+class TestBoardCurrentMessage:
+    def test_no_service(self, client):
+        with patch("src.api_server.get_service", return_value=None):
+            response = client.get("/board/current-message")
+        assert response.status_code == 503
+
+    def test_no_board_client(self, client, mock_service):
+        mock_service.vb_client = None
+        response = client.get("/board/current-message")
+        assert response.status_code == 503
+
+    def test_read_failure(self, client, mock_service):
+        mock_service.vb_client.read_current_message.return_value = None
+        response = client.get("/board/current-message")
+        assert response.status_code == 503
+
+    def test_success(self, client, mock_service):
+        # 6-row Flagship grid: first row spells "HELLO " then blanks
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0:5] = [8, 5, 12, 12, 15]  # H E L L O
+        mock_service.vb_client.read_current_message.return_value = grid
+        response = client.get("/board/current-message")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["rows"] == 6
+        assert data["cols"] == 22
+        assert data["characters"] == grid
+        assert data["message"].startswith("HELLO")
+
+    def test_color_tiles_in_message(self, client, mock_service):
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0] = 63   # RED tile
+        grid[0][1] = 64   # ORANGE tile
+        mock_service.vb_client.read_current_message.return_value = grid
+        response = client.get("/board/current-message")
+        assert response.status_code == 200
+        msg = response.json()["message"]
+        assert "{63}" in msg
+        assert "{64}" in msg
+
+
+class TestCharactersToMessage:
+    """Unit tests for the _characters_to_message helper."""
+
+    def _call(self, grid):
+        from src.api_server import _characters_to_message
+        return _characters_to_message(grid)
+
+    def test_blank_board(self):
+        grid = [[0] * 22 for _ in range(6)]
+        result = self._call(grid)
+        lines = result.split("\n")
+        assert len(lines) == 6
+        assert all(line == " " * 22 for line in lines)
+
+    def test_letters(self):
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0:4] = [1, 2, 3, 26]  # A B C Z
+        result = self._call(grid)
+        assert result.split("\n")[0].startswith("ABCZ")
+
+    def test_numbers(self):
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0:3] = [27, 36, 35]  # 1 0 9
+        result = self._call(grid)
+        assert result.split("\n")[0].startswith("109")
+
+    def test_color_codes(self):
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0] = 63
+        grid[0][1] = 71
+        result = self._call(grid)
+        first_line = result.split("\n")[0]
+        assert first_line.startswith("{63}{71}")
+
+    def test_degree_symbol(self):
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0] = 62
+        result = self._call(grid)
+        assert result.split("\n")[0][0] == "°"
+
+    def test_punctuation(self):
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0] = 37  # !
+        grid[0][1] = 56  # .
+        grid[0][2] = 60  # ?
+        result = self._call(grid)
+        assert result.split("\n")[0].startswith("!.?")
+
+
+# ============================================================
 # Display Batch Operations
 # ============================================================
 
