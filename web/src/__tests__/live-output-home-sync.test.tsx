@@ -324,4 +324,39 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
     // TanStack Query writes initialData: null to the cache on mount, so getQueryData returns null
     expect(cachedValue).toBeNull();
   });
+
+  it("shows Live Mode badge when liveOutputMessage is set", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    // Pre-populate with live content (simulates page builder having sent to board)
+    queryClient.setQueryData(["liveOutputMessage"], "LIVE CONTENT");
+
+    render(<ActivePageDisplay />, { wrapper: makeWrapper(queryClient) });
+
+    await waitFor(() => {
+      expect(screen.getByText("Live Mode")).toBeInTheDocument();
+    });
+
+    // Normal mode badges should NOT appear when live mode is active
+    expect(screen.queryByText("Schedule Mode")).not.toBeInTheDocument();
+    expect(screen.queryByText("Manual Mode")).not.toBeInTheDocument();
+  });
+
+  it("shows normal mode badge when liveOutputMessage is null", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    // No live output
+    render(<ActivePageDisplay />, { wrapper: makeWrapper(queryClient) });
+
+    await waitFor(() => {
+      // Default MSW mock has schedule_enabled: false → Manual Mode
+      expect(screen.getByText("Manual Mode")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Live Mode")).not.toBeInTheDocument();
+  });
 });

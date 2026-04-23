@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { useQuery } from "@tanstack/react-query";
@@ -375,16 +375,23 @@ export function ActivePageDisplay() {
             <div className="flex items-center gap-1.5">
               <span className="font-medium text-foreground">{activePageName}</span>
             </div>
-            <Badge variant={scheduleEnabled ? "default" : "secondary"} className="text-xs">
-              {scheduleEnabled ? (
-                <>
-                  <Calendar className="h-3 w-3 mr-1" />
-                  Schedule Mode
-                </>
-              ) : (
-                "Manual Mode"
-              )}
-            </Badge>
+            {liveOutputMessage ? (
+              <Badge variant="destructive" className="text-xs gap-1 animate-pulse">
+                <Radio className="h-3 w-3" />
+                Live Mode
+              </Badge>
+            ) : (
+              <Badge variant={scheduleEnabled ? "default" : "secondary"} className="text-xs">
+                {scheduleEnabled ? (
+                  <>
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Schedule Mode
+                  </>
+                ) : (
+                  "Manual Mode"
+                )}
+              </Badge>
+            )}
             {activeCarousel && (
               <Badge variant="outline" className="text-xs gap-1">
                 <GalleryHorizontalEnd className="h-3 w-3" />
