@@ -32,9 +32,12 @@ class DateTimePlugin(PluginBase):
         errors = []
         
         timezone = config.get("timezone", "America/Los_Angeles")
+        if not isinstance(timezone, str) or not timezone.strip():
+            errors.append(f"Invalid timezone: {timezone!r}")
+            return errors
         try:
             pytz.timezone(timezone)
-        except pytz.exceptions.UnknownTimeZoneError:
+        except (pytz.exceptions.UnknownTimeZoneError, AttributeError, KeyError):
             errors.append(f"Invalid timezone: {timezone}")
         
         return errors
