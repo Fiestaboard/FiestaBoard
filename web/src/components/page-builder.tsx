@@ -127,6 +127,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
   const lastLiveSentPreview = useRef<string | null>(null);
+  // Ref-tracked copy of lastPreview so the liveOutputEnabled effect can read it
+  // synchronously without a stale closure (avoids adding lastPreview as a dep).
+  const lastPreviewRef = useRef<string | null>(null);
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const liveOutputEnabledRef = useRef(false);
   const liveAbortRef = useRef<AbortController | null>(null);
@@ -168,13 +171,26 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     };
   }, [liveOutputEnabled, debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, disableLiveOutput]);
 
-  // Keep ref in sync with state so cleanup can access latest value.
-  // When live output transitions from enabled → disabled, immediately restore
-  // the board display so there is no delay returning to normal state.
+  // Keep lastPreviewRef in sync so the transition effect below can read the
+  // current preview without creating a stale closure.
   useEffect(() => {
-    if (liveOutputEnabledRef.current && !liveOutputEnabled) {
-      // Clear the shared live output message so the Home page reverts to the
-      // normal active page display when Live Output is turned off.
+    lastPreviewRef.current = lastPreview;
+  }, [lastPreview]);
+
+  // Keep ref in sync with state so cleanup can access latest value.
+  // On enable → prime the shared cache immediately so the Home page shows the
+  // current page content even if the user navigates before the first async
+  // live-render completes (100 ms debounce + API round-trip).
+  // On disable → clear the cache and restore the board to its scheduled page.
+  useEffect(() => {
+    if (!liveOutputEnabledRef.current && liveOutputEnabled) {
+      // Live output just enabled — prime the Home page cache with the current
+      // page preview so there is no gap between enabling and first live render.
+      if (lastPreviewRef.current) {
+        queryClient.setQueryData(["liveOutputMessage"], lastPreviewRef.current);
+      }
+    } else if (liveOutputEnabledRef.current && !liveOutputEnabled) {
+      // Live output disabled — clear the cache and restore the board.
       queryClient.setQueryData(["liveOutputMessage"], null);
       api.forceRefresh().catch(() => {
         // Silently ignore errors during cleanup
