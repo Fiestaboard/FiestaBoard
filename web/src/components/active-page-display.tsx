@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import type { SilenceStatus, Carousel, BoardCurrentMessageResponse } from "@/lib/api";
+import type { SilenceStatus, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
 
@@ -160,14 +160,16 @@ export function ActivePageDisplay() {
     queryFn: api.getSilenceStatus,
   });
   
-  // Fetch live board state so the Home display reflects what's actually on
-  // the physical board, including changes made outside FiestaBoard.
-  const { data: liveBoardData } = useQuery<BoardCurrentMessageResponse>({
-    queryKey: ["boardCurrentMessage"],
-    queryFn: api.getBoardCurrentMessage,
-    refetchInterval: 30000,
-    retry: 1,
-    staleTime: 15000,
+  // Fetch live board state so the Home display reflects what was last sent
+  // via Live Output in the page editor. The page builder writes to this cache
+  // key whenever it sends content via Live Output, and clears it when Live
+  // Output is disabled. Using initialData: null so the query never fetches on
+  // its own — it only shows data that the page builder has explicitly stored.
+  const { data: liveOutputMessage } = useQuery<string | null>({
+    queryKey: ["liveOutputMessage"],
+    queryFn: () => null,
+    staleTime: Infinity,
+    initialData: null,
   });
 
   // Fetch board settings for display type
@@ -322,10 +324,10 @@ export function ActivePageDisplay() {
   const dims = DEVICE_DIMS[activeDeviceType] || DEVICE_DIMS.flagship;
   
   // Compute the display message with snoozing indicator if needed.
-  // Prefer the live board state so the Home screen reflects the actual physical
-  // display, falling back to the page preview when the live read is unavailable.
+  // Prefer the live output message (set by the page editor when Live Output is
+  // active) so that navigating Home during a live edit shows the correct content.
   const displayMessage = useMemo(() => {
-    const baseMessage = liveBoardData?.message ?? previewData?.message ?? null;
+    const baseMessage = liveOutputMessage ?? previewData?.message ?? null;
     if (!baseMessage) return null;
     
     // If silence mode is active, add the snoozing indicator
@@ -334,7 +336,7 @@ export function ActivePageDisplay() {
     }
     
     return baseMessage;
-  }, [liveBoardData?.message, previewData?.message, silenceStatus?.active, dims.rows, dims.cols]);
+  }, [liveOutputMessage, previewData?.message, silenceStatus?.active, dims.rows, dims.cols]);
 
   return (
     <>
@@ -421,7 +423,7 @@ export function ActivePageDisplay() {
           <div className="flex justify-center overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
             <BoardDisplay 
               message={displayMessage} 
-              isLoading={(isLoadingPreview || (!!activePageId && !previewData)) && !liveBoardData}
+              isLoading={isLoadingPreview || (!!activePageId && !previewData)}
               size="md"
               boardType={getEffectiveBoardColor(boardSettings)}
               deviceType={activeDeviceType}

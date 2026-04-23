@@ -173,6 +173,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   // the board display so there is no delay returning to normal state.
   useEffect(() => {
     if (liveOutputEnabledRef.current && !liveOutputEnabled) {
+      // Clear the shared live output message so the Home page reverts to the
+      // normal active page display when Live Output is turned off.
+      queryClient.setQueryData(["liveOutputMessage"], null);
       api.forceRefresh().catch(() => {
         // Silently ignore errors during cleanup
       });
@@ -620,6 +623,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     onSuccess: (data) => {
       if (data.sent_to_board) {
         lastLiveSentPreview.current = preview;
+        // Broadcast to the Home page so its virtual board reflects the live content.
+        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
       }
     },
     onError: (error: Error) => {
@@ -703,6 +708,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
           setLastPreview(data.rendered);
         }
         lastLiveSentPreview.current = data.rendered;
+        // Broadcast to the Home page so navigating there shows this content.
+        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           return;
