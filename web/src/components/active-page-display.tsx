@@ -175,9 +175,14 @@ export function ActivePageDisplay() {
 
   // Keep the query cache in sync with changes from other tabs.
   useEffect(() => {
-    // Also seed on mount in case the tab was opened after live output started.
+    // Seed from localStorage on mount only when a live message is present
+    // (i.e. another tab enabled Live Output before this tab opened).
+    // We intentionally skip the null case to avoid overwriting a value that
+    // the page-builder already wrote into the cache in the same tab.
     const current = readLiveOutputMessage();
-    queryClient.setQueryData(["liveOutputMessage"], current);
+    if (current !== null) {
+      queryClient.setQueryData(["liveOutputMessage"], current);
+    }
 
     return onLiveOutputMessageChange((msg) => {
       queryClient.setQueryData(["liveOutputMessage"], msg);
