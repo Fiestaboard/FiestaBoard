@@ -696,8 +696,14 @@ export function TipTapTemplateEditor({
     if (!editor.isFocused) {
       const currentSerialized = serializeTemplateSimple(editor.getJSON(), boardLines);
       if (value !== currentSerialized) {
-        editor.commands.setContent(parseTemplateSimple(value || '', boardLines), false, {
-          preserveWhitespace: true,
+        // Defer setContent outside the React lifecycle so TipTap's internal
+        // flushSync (in ReactRenderer for NodeViews) doesn't fire inside a
+        // useEffect, which React 19 forbids.
+        queueMicrotask(() => {
+          if (!editor || editor.isDestroyed) return;
+          editor.commands.setContent(parseTemplateSimple(value || '', boardLines), false, {
+            preserveWhitespace: true,
+          });
         });
       }
     }
