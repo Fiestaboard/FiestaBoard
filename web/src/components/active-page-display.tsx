@@ -12,11 +12,12 @@ import { toast } from "sonner";
 import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type { SilenceStatus, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
+import { readLiveOutputMessage, onLiveOutputMessageChange } from "@/lib/live-output-channel";
 
 
 // Parse a line into tokens (same logic as BoardDisplay)
@@ -161,16 +162,27 @@ export function ActivePageDisplay() {
   });
   
   // Fetch live board state so the Home display reflects what was last sent
-  // via Live Output in the page editor. The page builder writes to this cache
-  // key whenever it sends content via Live Output, and clears it when Live
-  // Output is disabled. Using initialData: null so the query never fetches on
-  // its own — it only shows data that the page builder has explicitly stored.
+  // via Live Output in the page editor. The query is seeded from localStorage
+  // on mount so it works across browser tabs, and a `storage` event listener
+  // keeps it in sync when another tab writes a new live message.
+  const queryClient = useQueryClient();
   const { data: liveOutputMessage } = useQuery<string | null>({
     queryKey: ["liveOutputMessage"],
     queryFn: () => null,
     staleTime: Infinity,
-    initialData: null,
+    initialData: () => readLiveOutputMessage(),
   });
+
+  // Keep the query cache in sync with changes from other tabs.
+  useEffect(() => {
+    // Also seed on mount in case the tab was opened after live output started.
+    const current = readLiveOutputMessage();
+    queryClient.setQueryData(["liveOutputMessage"], current);
+
+    return onLiveOutputMessageChange((msg) => {
+      queryClient.setQueryData(["liveOutputMessage"], msg);
+    });
+  }, [queryClient]);
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();

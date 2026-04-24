@@ -44,6 +44,7 @@ import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineA
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
+import { writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
@@ -188,10 +189,12 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       // page preview so there is no gap between enabling and first live render.
       if (lastPreviewRef.current) {
         queryClient.setQueryData(["liveOutputMessage"], lastPreviewRef.current);
+        writeLiveOutputMessage(lastPreviewRef.current);
       }
     } else if (liveOutputEnabledRef.current && !liveOutputEnabled) {
       // Live output disabled — clear the cache and restore the board.
       queryClient.setQueryData(["liveOutputMessage"], null);
+      writeLiveOutputMessage(null);
       api.forceRefresh().catch(() => {
         // Silently ignore errors during cleanup
       });
@@ -641,6 +644,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         lastLiveSentPreview.current = preview;
         // Broadcast to the Home page so its virtual board reflects the live content.
         queryClient.setQueryData(["liveOutputMessage"], data.rendered);
+        writeLiveOutputMessage(data.rendered);
       }
     },
     onError: (error: Error) => {
@@ -724,8 +728,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
           setLastPreview(data.rendered);
         }
         lastLiveSentPreview.current = data.rendered;
-        // Broadcast to the Home page so navigating there shows this content.
+        // Broadcast to the Home page (same tab and other tabs) so navigating there shows this content.
         queryClient.setQueryData(["liveOutputMessage"], data.rendered);
+        writeLiveOutputMessage(data.rendered);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           return;
