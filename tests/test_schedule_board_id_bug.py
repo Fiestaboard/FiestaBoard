@@ -7,9 +7,8 @@ silently ignored because the polling loop only looked for board_id="".
 """
 
 import pytest
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from unittest.mock import Mock, patch, MagicMock
-import pytz
 
 
 class TestCheckAndSendActivePageBoardId:
@@ -68,7 +67,7 @@ class TestCheckAndSendActivePageBoardId:
         """check_and_send_active_page must pass the first board's ID to get_active_page_id."""
         svc, schedule_service = service_with_board
 
-        mock_now = datetime(2025, 6, 15, 12, 0, tzinfo=pytz.timezone("UTC"))
+        mock_now = datetime(2025, 6, 15, 12, 0, tzinfo=timezone.utc)
         mock_time_service = Mock()
         mock_time_service.get_current_time.return_value = mock_now
 
@@ -120,7 +119,7 @@ class TestGetActiveRefIdBoardId:
         """_get_active_ref_id must pass the first board's ID to get_active_page_id."""
         svc, schedule_service = service_with_board
 
-        mock_now = datetime(2025, 6, 15, 14, 0, tzinfo=pytz.timezone("UTC"))
+        mock_now = datetime(2025, 6, 15, 14, 0, tzinfo=timezone.utc)
         mock_time_service = Mock()
         mock_time_service.get_current_time.return_value = mock_now
 

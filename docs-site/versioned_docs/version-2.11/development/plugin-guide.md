@@ -417,7 +417,7 @@ from typing import Any, Dict, List, Optional
 import logging
 from datetime import datetime
 
-import pytz
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.plugins.base import PluginBase, PluginResult
 
@@ -435,14 +435,14 @@ class DateTimePlugin(PluginBase):
         errors = []
         timezone = config.get("timezone", "America/Los_Angeles")
         try:
-            pytz.timezone(timezone)
-        except pytz.exceptions.UnknownTimeZoneError:
+            ZoneInfo(timezone)
+        except (ZoneInfoNotFoundError, ValueError):
             errors.append(f"Invalid timezone: {timezone}")
         return errors
 
     def fetch_data(self) -> PluginResult:
         try:
-            tz = pytz.timezone(self.config.get("timezone", "America/Los_Angeles"))
+            tz = ZoneInfo(self.config.get("timezone", "America/Los_Angeles"))
             now = datetime.now(tz)
             return PluginResult(
                 available=True,

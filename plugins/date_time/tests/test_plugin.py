@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime
 import json
 from pathlib import Path
-import pytz
+from zoneinfo import ZoneInfo
 
 from plugins.date_time import DateTimePlugin
 from src.plugins.base import PluginResult
@@ -59,8 +59,8 @@ class TestDateTimePlugin:
         """Test fetch_data returns all expected variables."""
         # Mock datetime to return a specific date/time
         mock_now = datetime(2025, 1, 15, 14, 30, 0)  # Wednesday, Jan 15, 2025, 2:30 PM
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)
@@ -100,8 +100,8 @@ class TestDateTimePlugin:
         """Test time format variables."""
         # Test at 2:30 PM (14:30)
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)
@@ -116,8 +116,8 @@ class TestDateTimePlugin:
     def test_fetch_data_time_formats_midnight(self, mock_datetime, sample_manifest, sample_config):
         """Test time formats at midnight (12:00 AM)."""
         mock_now = datetime(2025, 1, 15, 0, 0, 0)
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)
@@ -131,8 +131,8 @@ class TestDateTimePlugin:
     def test_fetch_data_time_formats_noon(self, mock_datetime, sample_manifest, sample_config):
         """Test time formats at noon (12:00 PM)."""
         mock_now = datetime(2025, 1, 15, 12, 0, 0)
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)
@@ -146,8 +146,8 @@ class TestDateTimePlugin:
     def test_fetch_data_date_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test US date format variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)
@@ -163,8 +163,8 @@ class TestDateTimePlugin:
         """Test month format variables."""
         # Test January (month 1)
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)
@@ -178,7 +178,7 @@ class TestDateTimePlugin:
         
         # Test December (month 12)
         mock_now = datetime(2025, 12, 25, 14, 30, 0)
-        mock_now = tz.localize(mock_now)
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         result = plugin.fetch_data()
@@ -191,8 +191,8 @@ class TestDateTimePlugin:
     def test_fetch_data_timezone_info(self, mock_datetime, sample_manifest, sample_config):
         """Test timezone-related variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
-        tz = pytz.timezone("America/New_York")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/New_York")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         config = sample_config.copy()
@@ -210,8 +210,8 @@ class TestDateTimePlugin:
         """Test day of week variable."""
         # Wednesday
         mock_now = datetime(2025, 1, 15, 14, 30, 0)  # Jan 15, 2025 is a Wednesday
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)
@@ -226,8 +226,8 @@ class TestDateTimePlugin:
     def test_fetch_data_variables_match_manifest(self, mock_datetime, sample_manifest, sample_config):
         """Test that fetch_data() output keys match the manifest-declared variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
 
         plugin = DateTimePlugin(sample_manifest)
@@ -270,8 +270,8 @@ class TestDateTimePlugin:
     def test_get_formatted_display(self, mock_datetime, sample_manifest, sample_config):
         """Test formatted display output."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(mock_now)
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = mock_now.replace(tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         
         plugin = DateTimePlugin(sample_manifest)

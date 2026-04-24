@@ -26,7 +26,6 @@ classifiers = [
 dependencies = [
     "requests>=2.32.0",
     "python-dateutil>=2.9.0",
-    "pytz>=2024.2",
     "fastapi>=0.125.0",
     "uvicorn[standard]>=0.34.0",
     "pydantic>=2.10.0",

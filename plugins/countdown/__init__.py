@@ -7,8 +7,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
-import pytz
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.plugins.base import PluginBase, PluginResult
 
@@ -36,8 +35,8 @@ class CountdownPlugin(PluginBase):
 
         timezone = config.get("timezone", "America/Los_Angeles")
         try:
-            pytz.timezone(timezone)
-        except pytz.exceptions.UnknownTimeZoneError:
+            ZoneInfo(timezone)
+        except (ZoneInfoNotFoundError, ValueError):
             errors.append(f"Invalid timezone: {timezone}")
 
         target = config.get("target_datetime") or os.getenv("COUNTDOWN_TARGET")
@@ -58,7 +57,7 @@ class CountdownPlugin(PluginBase):
         """Fetch countdown data."""
         try:
             timezone_str = self.config.get("timezone", "America/Los_Angeles")
-            tz = pytz.timezone(timezone_str)
+            tz = ZoneInfo(timezone_str)
             now = datetime.now(tz)
 
             target_str = self.config.get("target_datetime") or os.getenv(
@@ -78,9 +77,9 @@ class CountdownPlugin(PluginBase):
                     error=f"Invalid target datetime: {target_str}",
                 )
 
-            # Localize the target if it has no timezone info
+            # Attach timezone info if the target is naive (zoneinfo uses replace).
             if target_naive.tzinfo is None:
-                target = tz.localize(target_naive)
+                target = target_naive.replace(tzinfo=tz)
             else:
                 target = target_naive
 

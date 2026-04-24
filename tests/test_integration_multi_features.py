@@ -2,9 +2,8 @@
 
 import pytest
 import tempfile
-import pytz
 from pathlib import Path
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from unittest.mock import Mock, patch
 from src.templates.engine import TemplateEngine
 from src.main import DisplayService
@@ -363,7 +362,7 @@ class TestScheduleModeIntegration:
                             # Mock TimeService to return Monday 12:00 (within schedule)
                             # Create a mock datetime for Monday 12:00
                             mock_datetime_obj = datetime(2025, 1, 13, 12, 0, 0)  # Monday Jan 13, 2025 at 12:00
-                            mock_datetime_obj = pytz.UTC.localize(mock_datetime_obj)
+                            mock_datetime_obj = mock_datetime_obj.replace(tzinfo=timezone.utc)
                             
                             mock_time_service = Mock()
                             mock_time_service.get_current_time.return_value = mock_datetime_obj
@@ -426,7 +425,7 @@ class TestScheduleModeIntegration:
                             # Mock TimeService to return Monday 20:00 (outside schedule, should use default)
                             # Create a mock datetime for Monday 20:00
                             mock_datetime_obj = datetime(2025, 1, 13, 20, 0, 0)  # Monday Jan 13, 2025 at 20:00
-                            mock_datetime_obj = pytz.UTC.localize(mock_datetime_obj)
+                            mock_datetime_obj = mock_datetime_obj.replace(tzinfo=timezone.utc)
                             
                             mock_time_service = Mock()
                             mock_time_service.get_current_time.return_value = mock_datetime_obj
@@ -482,7 +481,7 @@ class TestScheduleModeIntegration:
                             # Mock TimeService to return Tuesday 12:00 (no schedule for Tuesday)
                             # Create a mock datetime for Tuesday 12:00
                             mock_datetime_obj = datetime(2025, 1, 14, 12, 0, 0)  # Tuesday Jan 14, 2025 at 12:00
-                            mock_datetime_obj = pytz.UTC.localize(mock_datetime_obj)
+                            mock_datetime_obj = mock_datetime_obj.replace(tzinfo=timezone.utc)
                             
                             mock_time_service = Mock()
                             mock_time_service.get_current_time.return_value = mock_datetime_obj

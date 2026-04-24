@@ -31,7 +31,6 @@ with open(manifest_path, 'r') as f:
     manifest = json.load(f)
 from src.board_chars import BoardChars
 from datetime import datetime
-import pytz
 
 # Official FiestaBoard color hex values (from web/src/lib/board-colors.ts)
 COLOR_HEX = {

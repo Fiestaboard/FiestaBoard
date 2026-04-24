@@ -6,7 +6,7 @@ Displays current date and time in various formats.
 from typing import Any, Dict, List, Optional
 import logging
 from datetime import datetime
-import pytz
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.plugins.base import PluginBase, PluginResult
 
@@ -36,8 +36,8 @@ class DateTimePlugin(PluginBase):
             errors.append(f"Invalid timezone: {timezone!r}")
             return errors
         try:
-            pytz.timezone(timezone)
-        except (pytz.exceptions.UnknownTimeZoneError, AttributeError, KeyError):
+            ZoneInfo(timezone)
+        except (ZoneInfoNotFoundError, ValueError, AttributeError, KeyError):
             errors.append(f"Invalid timezone: {timezone}")
         
         return errors
@@ -46,7 +46,7 @@ class DateTimePlugin(PluginBase):
         """Fetch current date and time data."""
         try:
             timezone_str = self.config.get("timezone", "America/Los_Angeles")
-            tz = pytz.timezone(timezone_str)
+            tz = ZoneInfo(timezone_str)
             now = datetime.now(tz)
             
             data = {
