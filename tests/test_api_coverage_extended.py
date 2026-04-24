@@ -751,7 +751,7 @@ class TestDeprecatedCompat:
         mock_response = Mock()
         mock_response.headers = {}
         with patch("src.api_server.get_config_manager", return_value=mock_cm):
-            result = asyncio.get_event_loop().run_until_complete(get_board_config_compat(mock_response))
+            result = asyncio.run(get_board_config_compat(mock_response))
         assert "config" in result
         assert mock_response.headers["Deprecation"] == "true"
 
@@ -768,7 +768,7 @@ class TestDeprecatedCompat:
         with patch("src.api_server.get_config_manager", return_value=mock_cm), \
              patch("src.api_server.get_service", return_value=None), \
              patch("src.config.Config.reload"):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 update_board_config_compat({"api_mode": "local"}, mock_response)
             )
         assert "status" in result
