@@ -28,6 +28,13 @@ export interface PreviewResponse {
   preview: boolean;
 }
 
+export interface BoardCurrentMessageResponse {
+  characters: number[][];
+  message: string;
+  rows: number;
+  cols: number;
+}
+
 export interface ActionResponse {
   status: string;
   message: string;
@@ -876,6 +883,7 @@ export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
+  getBoardCurrentMessage: () => fetchApi<BoardCurrentMessageResponse>("/board/current-message"),
 
   // Mutations (actions)
   startService: () =>
