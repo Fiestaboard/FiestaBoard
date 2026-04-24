@@ -8,15 +8,32 @@ in the application, including:
 - Timestamp generation and formatting for logs
 
 All time-sensitive code should use this service instead of directly using
-datetime or pytz to ensure consistency and testability.
+datetime or zoneinfo to ensure consistency and testability.
 """
 
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timezone as _dt_timezone
 from typing import Optional
-import pytz
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
+
+# Public UTC singleton used throughout the service. Using datetime.timezone.utc
+# (rather than ZoneInfo("UTC")) keeps equality checks simple and avoids the
+# need for tzdata on any target platform.
+UTC = _dt_timezone.utc
+
+
+def _resolve_timezone(name: str):
+    """Resolve an IANA timezone name to a ZoneInfo, falling back to UTC.
+
+    Returns a tuple ``(tzinfo, ok)`` where ``ok`` is ``False`` when the name
+    could not be resolved (the caller can decide how to log/respond).
+    """
+    try:
+        return ZoneInfo(name), True
+    except (ZoneInfoNotFoundError, ValueError):
+        return UTC, False
 
 
 class TimeService:
@@ -29,11 +46,10 @@ class TimeService:
             default_timezone: Default IANA timezone name (e.g., "America/Los_Angeles")
         """
         self.default_timezone = default_timezone
-        try:
-            self._default_tz = pytz.timezone(default_timezone)
-        except pytz.exceptions.UnknownTimeZoneError:
+        tz, ok = _resolve_timezone(default_timezone)
+        if not ok:
             logger.warning(f"Unknown default timezone: {default_timezone}, using UTC")
-            self._default_tz = pytz.UTC
+        self._default_tz = tz
     
     # Core time operations
     
@@ -43,7 +59,7 @@ class TimeService:
         Returns:
             Current datetime in UTC timezone
         """
-        return datetime.now(pytz.UTC)
+        return datetime.now(UTC)
     
     def get_current_time(self, timezone: Optional[str] = None) -> datetime:
         """Get current time in specified timezone.
@@ -57,9 +73,8 @@ class TimeService:
         if timezone is None:
             tz = self._default_tz
         else:
-            try:
-                tz = pytz.timezone(timezone)
-            except pytz.exceptions.UnknownTimeZoneError:
+            tz, ok = _resolve_timezone(timezone)
+            if not ok:
                 logger.warning(f"Unknown timezone: {timezone}, using default")
                 tz = self._default_tz
         
@@ -111,7 +126,7 @@ class TimeService:
             utc_dt = naive_dt - timedelta(minutes=offset_total_minutes)
             
             # Make it timezone aware (UTC)
-            utc_dt = pytz.UTC.localize(utc_dt)
+            utc_dt = utc_dt.replace(tzinfo=UTC)
             
             return utc_dt
             
@@ -167,11 +182,9 @@ class TimeService:
             logger.error("local_time and timezone are required")
             return "00:00+00:00"
         
-        try:
-            tz = pytz.timezone(timezone)
-        except pytz.exceptions.UnknownTimeZoneError:
+        tz, ok = _resolve_timezone(timezone)
+        if not ok:
             logger.warning(f"Unknown timezone: {timezone}, using UTC")
-            tz = pytz.UTC
         
         try:
             # Parse local time
@@ -192,13 +205,11 @@ class TimeService:
             
             # Create datetime for today at this time in the specified timezone
             now_utc = self.get_current_utc()
-            naive_dt = datetime(now_utc.year, now_utc.month, now_utc.day, hour, minute)
-            
-            # Localize to the specified timezone
-            local_dt = tz.localize(naive_dt)
-            
+            # Attach timezone directly; zoneinfo handles DST via fold semantics
+            local_dt = datetime(now_utc.year, now_utc.month, now_utc.day, hour, minute, tzinfo=tz)
+
             # Convert to UTC
-            utc_dt = local_dt.astimezone(pytz.UTC)
+            utc_dt = local_dt.astimezone(UTC)
             
             # Format as ISO time string
             return utc_dt.strftime("%H:%M+00:00")
@@ -221,11 +232,9 @@ class TimeService:
             logger.error("utc_iso and timezone are required")
             return "00:00"
         
-        try:
-            tz = pytz.timezone(timezone)
-        except pytz.exceptions.UnknownTimeZoneError:
+        tz, ok = _resolve_timezone(timezone)
+        if not ok:
             logger.warning(f"Unknown timezone: {timezone}, using UTC")
-            tz = pytz.UTC
         
         utc_dt = self.parse_iso_time(utc_iso)
         if utc_dt is None:
@@ -267,14 +276,12 @@ class TimeService:
             
             # Ensure it's UTC-aware
             if utc_dt.tzinfo is None:
-                utc_dt = pytz.UTC.localize(utc_dt)
+                utc_dt = utc_dt.replace(tzinfo=UTC)
             
             # Convert to target timezone
-            try:
-                tz = pytz.timezone(timezone)
-            except pytz.exceptions.UnknownTimeZoneError:
+            tz, ok = _resolve_timezone(timezone)
+            if not ok:
                 logger.warning(f"Unknown timezone: {timezone}, using UTC")
-                tz = pytz.UTC
             
             local_dt = utc_dt.astimezone(tz)
             
@@ -323,4 +330,3 @@ def reset_time_service():
     """Reset the time service singleton (primarily for testing)."""
     global _time_service
     _time_service = None
-
