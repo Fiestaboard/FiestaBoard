@@ -155,17 +155,26 @@ Visual regression tests use Playwright `toHaveScreenshot()` to compare
 screenshots against committed baseline images using a **0.3% pixel threshold**
 to allow for minor anti-aliasing differences.
 
-> **Note:** Visual regression tests are excluded from CI (`testIgnore` in
-> `playwright.config.ts`) because they require baseline snapshots that are
-> generated locally and committed. Run them locally against the dev container.
+> **Note:** Visual regression tests run on CI as a dedicated step in the
+> `e2e-tests` job, opted in via the `RUN_VISUAL_REGRESSION` env var. The
+> step uses `continue-on-error: true` so missing or mismatched baselines do
+> not block PR merges. Generated snapshots are uploaded as the
+> `visual-regression-snapshots` artifact (30-day retention) and any diff
+> output as `visual-regression-results` (7-day retention).
 
 **Baseline workflow:**
-1. Run locally to generate baselines in `visual-regression.spec.ts-snapshots/` (first run fails by design — this is expected)
-2. Commit generated baselines to the repo
-3. Re-run to verify baselines match
+1. First CI run generates baselines and uploads them as the
+   `visual-regression-snapshots` artifact (the step "fails" but is
+   non-blocking)
+2. Download the artifact, extract under
+   `web/tests/visual-regression.spec.ts-snapshots/`, and commit
+3. Subsequent CI runs compare against the committed baselines
+4. Update baselines after intentional UI changes by re-running locally
+   with `--update-snapshots` and committing the result, or by deleting
+   stale snapshots and letting CI regenerate them
 
 ```bash
-# Run visual regression tests only (locally, not in CI)
+# Run visual regression tests locally against the dev container
 cd web && npx playwright test visual-regression
 
 # Update baselines after intentional UI changes

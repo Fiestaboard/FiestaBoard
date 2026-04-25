@@ -8,17 +8,23 @@ import { defineConfig, devices } from "@playwright/test";
  * isolation, enabling parallel execution across 4 workers.
  * Locally it defaults to http://localhost:4420 with 1 worker.
  *
- * Screenshot generation tests and visual regression tests are
- * excluded in CI — visual regression tests require locally-generated
- * baselines (committed to the repo) which aren't available in fresh
- * CI containers until the baseline workflow is completed.
+ * Screenshot generation tests are always excluded in CI.
+ *
+ * Visual regression tests are excluded by default in CI and opt-in
+ * via the RUN_VISUAL_REGRESSION env var, which is set by the dedicated
+ * `visual-regression` job in `.github/workflows/ci.yml`. Baselines must
+ * be committed to the repo for the comparison step to pass; the first
+ * run uploads the generated snapshots as artifacts.
  */
+const ciIgnore = ["**/generate-screenshots.spec.ts"];
+if (!process.env.RUN_VISUAL_REGRESSION) {
+  ciIgnore.push("**/visual-regression.spec.ts");
+}
+
 export default defineConfig({
   testDir: "./tests",
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "playwright-test-results",
-  testIgnore: process.env.CI
-    ? ["**/generate-screenshots.spec.ts", "**/visual-regression.spec.ts"]
-    : [],
+  testIgnore: process.env.CI ? ciIgnore : [],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
