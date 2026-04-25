@@ -283,6 +283,8 @@ def clone_or_update_repo(
     repo_url: str,
     dest_dir: Path,
     branch: str = "",
+    *,
+    allowed_root: Optional[Path] = None,
 ) -> Tuple[bool, str]:
     """Clone a git repository, or fetch/reset if it already exists.
 
@@ -300,11 +302,32 @@ def clone_or_update_repo(
         repo_url: HTTPS URL of the repository (required for fresh clones only).
         dest_dir: Local directory to clone into.
         branch: Optional branch/tag.  Uses the repo default when empty.
+        allowed_root: Trusted root directory that ``dest_dir`` must be contained
+            within.  If not provided, defaults to the result of
+            :func:`get_external_plugins_dir`.  High-level callers (e.g.
+            :func:`install_registry_plugin`) should pass the same
+            ``external_dir`` they used when constructing ``dest_dir`` so that
+            the containment check uses a consistent boundary.
 
     Returns:
         ``(True, "")`` on success, ``(False, error_message)`` on failure.
     """
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+
+    # Defensive sink-level guard: ensure destination stays inside the
+    # managed external plugins directory before any filesystem access.
+    root = allowed_root if allowed_root is not None else get_external_plugins_dir()
+    external_root = os.path.realpath(str(root))
+    candidate = os.path.realpath(str(dest_dir))
+    try:
+        if os.path.commonpath([external_root, candidate]) != external_root:
+            return False, (
+                f"Refusing to use destination outside external plugins directory: "
+                f"{dest_dir}"
+            )
+    except ValueError:
+        # Different drives / invalid mix of absolute-relative paths.
+        return False, f"Invalid destination path: {dest_dir}"
 
     if dest_dir.exists() and (dest_dir / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
@@ -519,7 +542,7 @@ def install_registry_plugin(
     dest, err = _safe_external_dest(external_dir, entry.plugin_id)
     if dest is None:
         return False, err
-    return clone_or_update_repo(entry.repository, dest, entry.branch)
+    return clone_or_update_repo(entry.repository, dest, entry.branch, allowed_root=external_dir)
 
 
 def install_git_plugin(
@@ -566,4 +589,4 @@ def install_git_plugin(
     dest, err = _safe_external_dest(external_dir, plugin_id)
     if dest is None:
         return False, err
-    return clone_or_update_repo(repo_url, dest, branch)
+    return clone_or_update_repo(repo_url, dest, branch, allowed_root=external_dir)
