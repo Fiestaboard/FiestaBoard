@@ -80,9 +80,51 @@ echo ""
 
 if [ -f "$PROJECT_DIR/.env" ]; then
     echo -e "${GREEN}✓ Using existing .env configuration${NC}"
+    EXISTING_ENV=true
 else
     cp "$PROJECT_DIR/env.example" "$PROJECT_DIR/.env"
     echo -e "${GREEN}✓ Created .env file from template${NC}"
+    EXISTING_ENV=false
+fi
+
+# ---------------------------------------------------------------------------
+# Self-update sidecar (FiestaUpdater) - opt-in for fresh installs.
+#
+# On a fresh install we ask once whether the user wants the in-app
+# "Update Now" button.  The opt-in is recorded by:
+#   1. ensuring COMPOSE_PROFILES contains "fiestaupdater"
+#   2. generating a 64-hex-char FIESTAUPDATER_TOKEN
+# Existing installs are left alone - we don't want to surprise anyone.
+# ---------------------------------------------------------------------------
+if [ "$EXISTING_ENV" = false ]; then
+    echo ""
+    echo "FiestaBoard 5.0 can update itself in-place when you click"
+    echo "\"Update Now\" in Settings.  This runs a tiny companion container"
+    echo "(\`fiestaupdater\`) that pulls the new image and restarts the app."
+    echo ""
+    read -r -p "Enable in-app updates? [Y/n] " ENABLE_UPDATER
+    case "${ENABLE_UPDATER:-Y}" in
+        [nN]|[nN][oO])
+            echo -e "${YELLOW}  Skipping. You can enable later by setting COMPOSE_PROFILES=fiestaupdater in .env${NC}"
+            ;;
+        *)
+            # Generate a token and write the profile into .env.
+            TOKEN="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+            # Replace any existing values rather than appending duplicates.
+            if grep -q "^COMPOSE_PROFILES=" "$PROJECT_DIR/.env"; then
+                sed -i.bak "s|^COMPOSE_PROFILES=.*|COMPOSE_PROFILES=fiestaupdater|" "$PROJECT_DIR/.env"
+            else
+                echo "COMPOSE_PROFILES=fiestaupdater" >> "$PROJECT_DIR/.env"
+            fi
+            if grep -q "^FIESTAUPDATER_TOKEN=" "$PROJECT_DIR/.env"; then
+                sed -i.bak "s|^FIESTAUPDATER_TOKEN=.*|FIESTAUPDATER_TOKEN=${TOKEN}|" "$PROJECT_DIR/.env"
+            else
+                echo "FIESTAUPDATER_TOKEN=${TOKEN}" >> "$PROJECT_DIR/.env"
+            fi
+            rm -f "$PROJECT_DIR/.env.bak"
+            echo -e "${GREEN}✓ In-app updates enabled (sidecar will be started)${NC}"
+            ;;
+    esac
 fi
 echo ""
 

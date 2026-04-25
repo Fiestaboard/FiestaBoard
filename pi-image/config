@@ -1,0 +1,32 @@
+# pi-gen top-level configuration for FiestaPi.
+# See https://github.com/RPi-Distro/pi-gen for the full schema.
+
+IMG_NAME="fiestapi"
+RELEASE="bookworm"
+DEPLOY_COMPRESSION="xz"
+
+# 64-bit only (Pi 3B and newer).
+ARCH="arm64"
+
+# Default user created at first boot.
+FIRST_USER_NAME="fiesta"
+FIRST_USER_PASS="fiestaboard"  # User is prompted to change on first SSH login.
+
+# Locale / timezone — sensible defaults; user can change post-install.
+LOCALE_DEFAULT="en_US.UTF-8"
+TIMEZONE_DEFAULT="Etc/UTC"
+KEYBOARD_KEYMAP="us"
+KEYBOARD_LAYOUT="English (US)"
+
+# Hostname — the box advertises as fiestapi.local via mDNS.
+TARGET_HOSTNAME="fiestapi"
+
+# Skip the desktop and Lite-with-extras stages — we're a kiosk appliance.
+STAGE_LIST="stage0 stage1 stage2 stage-fiestaboard"
+
+# Enable SSH out of the box (people will need it to debug).
+ENABLE_SSH="1"
+
+# Disable the boot-time first-run wizard; our firstboot.sh handles
+# FiestaBoard-specific bootstrapping instead.
+DISABLE_FIRST_BOOT_USER_RENAME="1"

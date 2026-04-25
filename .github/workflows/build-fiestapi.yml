@@ -1,0 +1,83 @@
+name: Build FiestaPi image
+
+# =============================================================================
+# Builds the flashable FiestaPi .img.xz using pi-gen and uploads it to the
+# GitHub Release that matches the triggering tag.  Also runs nightly so
+# regressions get caught early.
+# =============================================================================
+
+on:
+  push:
+    tags:
+      - 'v5.*'
+      - 'v6.*'
+  schedule:
+    - cron: '0 6 * * *'  # 06:00 UTC nightly
+  workflow_dispatch:
+
+permissions:
+  contents: write  # to upload to releases
+
+jobs:
+  build:
+    name: Build .img.xz with pi-gen
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout FiestaBoard
+        uses: actions/checkout@v6
+        with:
+          path: FiestaBoard
+
+      - name: Checkout pi-gen
+        uses: actions/checkout@v6
+        with:
+          repository: RPi-Distro/pi-gen
+          ref: arm64
+          path: pi-gen
+
+      - name: Wire FiestaBoard stage into pi-gen
+        run: |
+          cd pi-gen
+          ln -s "$GITHUB_WORKSPACE/FiestaBoard/pi-image/stage-fiestaboard" stage-fiestaboard
+          cp "$GITHUB_WORKSPACE/FiestaBoard/pi-image/config" config
+          # Skip stages we don't ship (desktop, applications).
+          touch ./stage3/SKIP ./stage3/SKIP_IMAGES ./stage4/SKIP ./stage4/SKIP_IMAGES ./stage5/SKIP ./stage5/SKIP_IMAGES || true
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="nightly-$(date -u +%Y%m%d)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        run: |
+          cd pi-gen
+          # build-docker.sh runs the whole pi-gen pipeline inside a
+          # privileged Docker container.  This is the supported path on CI.
+          sudo ./build-docker.sh
+
+      - name: Locate output
+        id: out
+        run: |
+          IMG=$(find pi-gen/deploy -name '*.img.xz' | head -n1)
+          test -n "$IMG"
+          echo "img=$IMG" >> "$GITHUB_OUTPUT"
+          echo "Found image: $IMG"
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiestapi-${{ steps.version.outputs.version }}
+          path: ${{ steps.out.outputs.img }}
+          retention-days: 14
+
+      - name: Attach to release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.out.outputs.img }}

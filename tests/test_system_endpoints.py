@@ -262,3 +262,121 @@ class TestIsNewerVersion:
     def test_empty_string(self):
         from src.api_server import _is_newer_version
         assert _is_newer_version("", "2.0.0") is False
+
+
+# =============================================================================
+# Tests for self-update sidecar endpoints
+# (/system/update/status, /system/update, /system/update/auto)
+# =============================================================================
+
+class TestSystemUpdateStatus:
+    """Tests for /system/update/status."""
+
+    def test_no_token_means_unavailable(self, client, tmp_path, monkeypatch):
+        """Without FIESTAUPDATER_TOKEN we never even probe the sidecar."""
+        monkeypatch.delenv("FIESTAUPDATER_TOKEN", raising=False)
+        monkeypatch.setattr(
+            "src.api_server.SYSTEM_UPDATE_STATE_FILE",
+            tmp_path / "state.json",
+        )
+        response = client.get("/system/update/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["updater_available"] is False
+        assert "auto_update_enabled" in data
+        assert data["profile"] in ("docker", "pi")
+
+    def test_probe_succeeds(self, client, tmp_path, monkeypatch):
+        """When the sidecar /healthz returns 200, we report it available."""
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        monkeypatch.setattr(
+            "src.api_server.SYSTEM_UPDATE_STATE_FILE",
+            tmp_path / "state.json",
+        )
+        ok = Mock(status_code=200)
+        with patch("src.api_server.requests.get", return_value=ok):
+            response = client.get("/system/update/status")
+        assert response.status_code == 200
+        assert response.json()["updater_available"] is True
+
+    def test_probe_fails_gracefully(self, client, tmp_path, monkeypatch):
+        """A network error during the probe must not 500."""
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        monkeypatch.setattr(
+            "src.api_server.SYSTEM_UPDATE_STATE_FILE",
+            tmp_path / "state.json",
+        )
+        with patch("src.api_server.requests.get", side_effect=Exception("boom")):
+            response = client.get("/system/update/status")
+        assert response.status_code == 200
+        assert response.json()["updater_available"] is False
+
+
+class TestSystemUpdateApply:
+    """Tests for POST /system/update."""
+
+    def test_no_token_returns_503_manual(self, client, monkeypatch):
+        """When no token is configured, fall back to manual instructions."""
+        monkeypatch.delenv("FIESTAUPDATER_TOKEN", raising=False)
+        response = client.post("/system/update")
+        assert response.status_code == 503
+        body = response.json()["detail"]
+        assert body["mode"] == "manual"
+        assert "docker compose" in body["hint"]
+
+    def test_sidecar_unreachable_returns_503(self, client, monkeypatch):
+        """When the sidecar host is unreachable, we surface a manual fallback."""
+        import requests as _requests
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        with patch(
+            "src.api_server.requests.post",
+            side_effect=_requests.exceptions.ConnectionError("nope"),
+        ):
+            response = client.post("/system/update")
+        assert response.status_code == 503
+        assert response.json()["detail"]["mode"] == "manual"
+
+    def test_sidecar_rejects_token(self, client, monkeypatch):
+        """A 401 from the sidecar means our shared token is misconfigured."""
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        bad = Mock(status_code=401, text="invalid_token")
+        with patch("src.api_server.requests.post", return_value=bad):
+            response = client.post("/system/update")
+        assert response.status_code == 500
+        assert "FIESTAUPDATER_TOKEN" in response.json()["detail"]["error"]
+
+    def test_happy_path_returns_queued(self, client, tmp_path, monkeypatch):
+        """A 202 from the sidecar yields {status: queued, mode: sidecar}."""
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        monkeypatch.setattr(
+            "src.api_server.SYSTEM_UPDATE_STATE_FILE",
+            tmp_path / "state.json",
+        )
+        ok = Mock(status_code=202)
+        ok.json.return_value = {"previous_digest": "sha256:abc"}
+        with patch("src.api_server.requests.post", return_value=ok):
+            response = client.post("/system/update")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "queued"
+        assert data["mode"] == "sidecar"
+        assert data["previous_digest"] == "sha256:abc"
+
+
+class TestSystemUpdateAutoToggle:
+    """Tests for POST /system/update/auto."""
+
+    def test_persists_enabled_flag(self, client, tmp_path, monkeypatch):
+        state_file = tmp_path / "state.json"
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+
+        r1 = client.post("/system/update/auto", json={"enabled": True})
+        assert r1.status_code == 200
+        assert r1.json()["enabled"] is True
+        import json as _json
+        assert _json.loads(state_file.read_text())["auto_update_enabled"] is True
+
+        r2 = client.post("/system/update/auto", json={"enabled": False})
+        assert r2.status_code == 200
+        assert r2.json()["enabled"] is False
+        assert _json.loads(state_file.read_text())["auto_update_enabled"] is False

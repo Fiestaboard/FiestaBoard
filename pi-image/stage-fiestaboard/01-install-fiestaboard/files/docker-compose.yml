@@ -1,5 +1,4 @@
 services:
-  # FiestaBoard - Unified container with API + Web UI
   fiestaboard:
     image: fiestaboard/fiestaboard:latest
     container_name: fiestaboard
@@ -7,15 +6,14 @@ services:
       - .env
     environment:
       - PRODUCTION=true
+      - FIESTABOARD_PROFILE=pi
     restart: unless-stopped
     pull_policy: always
     ports:
       - "4420:3000"
     volumes:
-      # Persist data (including config) to local filesystem
-      - ./data:/app/data
-      # Persist marketplace-installed (external) plugins across rebuilds
-      - ./external_plugins:/app/external_plugins
+      - /opt/fiestaboard/data:/app/data
+      - /opt/fiestaboard/external_plugins:/app/external_plugins
     logging:
       driver: "json-file"
       options:
@@ -28,12 +26,6 @@ services:
       retries: 3
       start_period: 15s
 
-  # ---------------------------------------------------------------------------
-  # FiestaUpdater - sidecar that performs in-place updates of `fiestaboard`.
-  # Off by default. Enable by setting COMPOSE_PROFILES=fiestaupdater in `.env`.
-  # The sidecar is NOT exposed to the host - it is reachable only from the
-  # compose-internal network and is authenticated with a shared bearer token.
-  # ---------------------------------------------------------------------------
   fiestaupdater:
     image: fiestaboard/fiestaupdater:latest
     container_name: fiestaupdater
@@ -46,11 +38,8 @@ services:
       - FIESTAUPDATER_COMPOSE_FILE=/compose/docker-compose.yml
       - COMPOSE_PROJECT_NAME=fiestaboard
     volumes:
-      # Talk to the host Docker daemon to pull images and recreate services.
       - /var/run/docker.sock:/var/run/docker.sock
-      # Read the same compose file the user deployed with so we update the
-      # exact same service definition.
-      - ./docker-compose.hub.yml:/compose/docker-compose.yml:ro
+      - /opt/fiestaboard/docker-compose.yml:/compose/docker-compose.yml:ro
     logging:
       driver: "json-file"
       options:

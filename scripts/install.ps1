@@ -98,10 +98,47 @@ $envPath = Join-Path $ProjectDir ".env"
 
 if (Test-Path $envPath) {
     Write-Host "✓ Using existing .env configuration" -ForegroundColor Green
+    $existingEnv = $true
 } else {
     $envExample = Join-Path $ProjectDir "env.example"
     Copy-Item $envExample $envPath
     Write-Host "✓ Created .env file from template" -ForegroundColor Green
+    $existingEnv = $false
+}
+
+# ---------------------------------------------------------------------------
+# Self-update sidecar (FiestaUpdater) - opt-in for fresh installs.
+# ---------------------------------------------------------------------------
+if (-not $existingEnv) {
+    Write-Host ""
+    Write-Host "FiestaBoard 5.0 can update itself in-place when you click"
+    Write-Host "`"Update Now`" in Settings.  This runs a tiny companion container"
+    Write-Host "(``fiestaupdater``) that pulls the new image and restarts the app."
+    Write-Host ""
+    $resp = Read-Host "Enable in-app updates? [Y/n]"
+    if ([string]::IsNullOrEmpty($resp)) { $resp = "Y" }
+    if ($resp -match '^[nN]') {
+        Write-Host "  Skipping. You can enable later by setting COMPOSE_PROFILES=fiestaupdater in .env" -ForegroundColor Yellow
+    } else {
+        # Generate a 64-hex-char token (32 bytes).
+        $bytes = New-Object byte[] 32
+        [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+        $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
+
+        $envContent = Get-Content $envPath
+        if ($envContent -match "^COMPOSE_PROFILES=") {
+            $envContent = $envContent -replace "^COMPOSE_PROFILES=.*", "COMPOSE_PROFILES=fiestaupdater"
+        } else {
+            $envContent += "COMPOSE_PROFILES=fiestaupdater"
+        }
+        if ($envContent -match "^FIESTAUPDATER_TOKEN=") {
+            $envContent = $envContent -replace "^FIESTAUPDATER_TOKEN=.*", "FIESTAUPDATER_TOKEN=$token"
+        } else {
+            $envContent += "FIESTAUPDATER_TOKEN=$token"
+        }
+        Set-Content -Path $envPath -Value $envContent
+        Write-Host "✓ In-app updates enabled (sidecar will be started)" -ForegroundColor Green
+    }
 }
 Write-Host ""
 

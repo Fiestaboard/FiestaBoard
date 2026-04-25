@@ -11,6 +11,29 @@ mkdir -p /app/external_plugins
 chown appuser:appuser /app/external_plugins 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
+# Self-update sidecar bearer token
+# ---------------------------------------------------------------------------
+# When `fiestaupdater` is enabled (COMPOSE_PROFILES=fiestaupdater), both this
+# container and the sidecar must share a bearer token via the
+# FIESTAUPDATER_TOKEN env var.  If the operator hasn't set one, we lazily
+# generate a 256-bit hex token to data/.fiestaupdater-token and export it for
+# the application process.  The compose service references the same file so
+# both containers see the same value.
+TOKEN_FILE=/app/data/.fiestaupdater-token
+if [ -z "${FIESTAUPDATER_TOKEN:-}" ]; then
+    if [ ! -f "$TOKEN_FILE" ]; then
+        # 32 bytes -> 64 hex chars.  /dev/urandom is fine for this purpose
+        # (sidecar compares via sha256, and the token never leaves the
+        # internal docker network).
+        head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$TOKEN_FILE"
+        chmod 600 "$TOKEN_FILE"
+        chown appuser:appuser "$TOKEN_FILE" 2>/dev/null || true
+    fi
+    FIESTAUPDATER_TOKEN="$(cat "$TOKEN_FILE")"
+    export FIESTAUPDATER_TOKEN
+fi
+
+# ---------------------------------------------------------------------------
 # If the container is already running as a non-root user (e.g. Docker
 # rootless mode, --user flag, or Kubernetes security contexts), skip all
 # privilege operations and just exec the CMD directly.

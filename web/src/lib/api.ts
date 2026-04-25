@@ -926,6 +926,22 @@ export interface UpdateCheckResponse {
   is_production: boolean;
 }
 
+export interface UpdateStatusResponse {
+  updater_available: boolean;
+  auto_update_enabled: boolean;
+  profile: "docker" | "pi";
+  sidecar_url: string;
+  last_check: string | null;
+  last_update: string | null;
+}
+
+export interface UpdateApplyResponse {
+  status: "queued" | "manual";
+  mode: "sidecar" | "manual";
+  previous_digest: string | null;
+  hint?: string | null;
+}
+
 
 
 // API client with typed methods
@@ -1352,6 +1368,19 @@ export const api = {
   // System management endpoints
   checkForUpdate: () =>
     fetchApi<UpdateCheckResponse>("/system/update-check"),
+
+  // Self-update sidecar endpoints (5.0+)
+  getUpdateStatus: () =>
+    fetchApi<UpdateStatusResponse>("/system/update/status"),
+
+  applyUpdate: () =>
+    fetchApi<UpdateApplyResponse>("/system/update", { method: "POST" }),
+
+  setAutoUpdate: (enabled: boolean) =>
+    fetchApi<{ enabled: boolean }>("/system/update/auto", {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
 
   // Plugin system endpoints
   listPlugins: () =>
