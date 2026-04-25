@@ -1406,12 +1406,6 @@ function PluginCard({
             <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
               v{plugin.version}
             </Badge>
-            {isInstance && (
-              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-indigo-300 text-indigo-600 dark:text-indigo-400 dark:border-indigo-700">
-                <CopyPlus className="h-2.5 w-2.5" />
-                Instance
-              </Badge>
-            )}
             {isMarketplace && (
               <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700">
                 <Package className="h-2.5 w-2.5" />
@@ -1513,7 +1507,7 @@ function PluginCard({
                     className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    Delete Instance
+                    Delete
                   </DropdownMenuItem>
                 </>
               )}
@@ -1521,12 +1515,12 @@ function PluginCard({
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => onUninstall(plugin.id)}
+                    onClick={() => setShowDeleteConfirm(true)}
                     disabled={isUninstalling}
                     className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    {isUninstalling ? "Uninstalling..." : "Uninstall"}
+                    {isUninstalling ? "Uninstalling..." : "Delete"}
                   </DropdownMenuItem>
                 </>
               )}
@@ -1589,21 +1583,26 @@ function PluginCard({
     </>
   );
 
-  // Delete instance confirmation dialog
+  // Delete / uninstall confirmation dialog
   const deleteConfirmDialog = showDeleteConfirm && (
     <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete instance &ldquo;{plugin.instance_label}&rdquo;?</AlertDialogTitle>
+          {isInstance ? (
+            <AlertDialogTitle>Delete instance &ldquo;{plugin.instance_label}&rdquo;?</AlertDialogTitle>
+          ) : (
+            <AlertDialogTitle>Delete &ldquo;{plugin.name}&rdquo;?</AlertDialogTitle>
+          )}
           <AlertDialogDescription>
-            This will permanently remove this plugin instance and all its configuration.
-            This action cannot be undone.
+            {isInstance
+              ? "This will permanently remove this instance and its configuration. This action cannot be undone."
+              : "This will permanently remove the plugin and all its instances. This action cannot be undone."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleDeleteInstance}
+            onClick={isInstance ? handleDeleteInstance : () => { setShowDeleteConfirm(false); onUninstall?.(plugin.id); }}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             Delete

@@ -971,7 +971,18 @@ class PluginRegistry:
         if source.source_type == "builtin":
             return ["Cannot uninstall a built-in plugin"]
 
-        # Disable and unload
+        # Cascade-delete all named instances first
+        instance_prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+        for compound_key in [k for k in list(self._plugins) if k.startswith(instance_prefix)]:
+            self._plugins[compound_key].cleanup()
+            del self._plugins[compound_key]
+            self._manifests.pop(compound_key, None)
+            self._enabled.pop(compound_key, None)
+            self._configs.pop(compound_key, None)
+            self._discovered_vars.pop(compound_key, None)
+            logger.info("Removed instance on uninstall: %s", compound_key)
+
+        # Disable and unload base plugin
         if plugin_id in self._plugins:
             self._plugins[plugin_id].cleanup()
             del self._plugins[plugin_id]
