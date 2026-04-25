@@ -39,13 +39,8 @@ function formatDays(schedule: ScheduleEntry): string {
   if (schedule.day_pattern === "custom" && schedule.custom_days) {
     return schedule.custom_days
       .map((d) => {
-        const normalized = d.trim().toLowerCase();
-        return (
-          DAY_ABBREVIATIONS[normalized] ??
-          (normalized
-            ? normalized.charAt(0).toUpperCase() + normalized.slice(1, 3)
-            : "")
-        );
+        const trimmed = d.trim();
+        return DAY_ABBREVIATIONS[trimmed.toLowerCase()] ?? trimmed;
       })
       .join(", ");
   }
