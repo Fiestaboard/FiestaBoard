@@ -188,6 +188,8 @@
       "timeTypeFixed": "Fixed Time",
       "timeTypeSunrise": "Sunrise",
       "timeTypeSunset": "Sunset",
+      "startTimeType": "Start time type",
+      "endTimeType": "End time type",
       "sunOffset": "Offset (minutes)",
       "sunOffsetHint": "Positive = after, negative = before",
       "resolvedTime": "Today: {time}",
