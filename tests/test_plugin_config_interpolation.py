@@ -5,11 +5,7 @@ are correctly resolved to their dynamic values at runtime.
 """
 
 import re
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-from unittest.mock import patch
 
-import pytest
 
 from src.plugins.base import PluginBase, PluginResult
 from src.plugins.config_interpolation import (

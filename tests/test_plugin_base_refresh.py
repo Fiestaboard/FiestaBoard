@@ -1,14 +1,10 @@
 """Tests for PluginBase generic refresh interval and caching support."""
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
-from unittest.mock import patch
 
-import pytest
 
 from src.plugins.base import (
     DEFAULT_REFRESH_SECONDS,
-    MAX_REFRESH_SECONDS,
     MIN_REFRESH_SECONDS,
     PluginBase,
     PluginResult,

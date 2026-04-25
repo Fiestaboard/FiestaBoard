@@ -16,7 +16,7 @@ import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
-import { http, HttpResponse } from "msw";
+import { http } from "msw";
 import { server } from "./mocks/server";
 import { ActivePageDisplay } from "@/components/active-page-display";
 import React from "react";
@@ -290,8 +290,8 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
     queryClient.setQueryData(["liveOutputMessage"], LIVE_CONTENT);
 
     // Spy on the query to verify liveOutputMessage is read
-    const capturedValues: (string | null)[] = [];
-    const OriginalQuery = QueryClient.prototype.getQueryData;
+    const _capturedValues: (string | null)[] = [];
+    const _OriginalQuery = QueryClient.prototype.getQueryData;
 
     render(<ActivePageDisplay />, { wrapper: makeWrapper(queryClient) });
 

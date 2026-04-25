@@ -14,7 +14,6 @@ import {
   ConfigOverridesProvider,
   useConfigOverrides,
   SERVICE_KEYS,
-  type ServiceKey,
 } from "@/hooks/use-config-overrides";
 
 function createWrapper() {

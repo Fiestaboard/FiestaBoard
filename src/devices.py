@@ -4,7 +4,7 @@ Defines the supported Vestaboard device types and their physical constraints.
 """
 
 import uuid
-from typing import Literal, Dict, NamedTuple, Optional
+from typing import Literal, Dict, NamedTuple
 from dataclasses import dataclass, asdict, field
 
 

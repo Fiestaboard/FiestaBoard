@@ -109,7 +109,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [preview, setPreview] = useState<string | null>(null);
   const [lastPreview, setLastPreview] = useState<string | null>(null); // Track last preview for smooth transitions
   const [isTransitioning, setIsTransitioning] = useState(false); // Track if we're transitioning between previews
-  const [pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
+  const [_pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
 
@@ -670,7 +670,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
   // Live output mutation - sends rendered preview to the board
   const liveSendMutation = useMutation({
-    mutationFn: async (rendered: string) => {
+    mutationFn: async (_rendered: string) => {
       const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
       return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata, deviceType);
     },

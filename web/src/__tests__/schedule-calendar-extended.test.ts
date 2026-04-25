@@ -13,7 +13,7 @@ import {
   type CalendarEvent,
 } from "@/lib/schedule-calendar";
 import type { ScheduleEntry, Page } from "@/lib/api";
-import { startOfWeek, addDays, getDay } from "date-fns";
+import { getDay } from "date-fns";
 
 const mockPages: Page[] = [
   {

@@ -230,7 +230,7 @@ export const MessageTransition = () => {
   const [message, setMessage] = useState(coloredMessage);
   const [isLoading, setIsLoading] = useState(false);
 
-  const message1 = coloredMessage; // "BRUSH YOUR TEETH!" with colors
+  const _message1 = coloredMessage; // "BRUSH YOUR TEETH!" with colors
   const message2 = `GOOD MORNING!
 {blue}SPENCER{/blue}
 {green}ROBBIE{/green}

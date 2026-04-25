@@ -9,7 +9,6 @@ from src.schedules.models import (
     ScheduleValidationResult,
     Overlap,
     Gap,
-    DayPattern,
 )
 
 

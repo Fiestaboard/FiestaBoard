@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { startOfWeek, getDay, addDays } from "date-fns";
+import { startOfWeek, getDay } from "date-fns";
 import {
   scheduleToCalendarEvents,
   schedulesToCalendarEvents,

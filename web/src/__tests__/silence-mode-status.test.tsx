@@ -20,10 +20,10 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("SilenceModeStatus", () => {
-  let queryClient: QueryClient;
+  let _queryClient: QueryClient;
 
   beforeEach(() => {
-    queryClient = new QueryClient({
+    _queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
         mutations: { retry: false },

@@ -4,7 +4,7 @@
  * Uses date-fns-tz for reliable timezone conversions.
  */
 
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
 import { formatInTimeZone, toZonedTime, fromZonedTime, getTimezoneOffset as getDateFnsTimezoneOffset } from 'date-fns-tz';
 
 /**

@@ -643,8 +643,6 @@ def load_manifest(manifest_path: Path) -> Tuple[Optional[PluginManifest], List[s
     Returns:
         Tuple of (PluginManifest or None, list_of_errors)
     """
-    errors = []
-    
     if not manifest_path.exists():
         return None, [f"Manifest not found: {manifest_path}"]
     

@@ -5,9 +5,6 @@ from unittest.mock import Mock, patch
 
 from src.templates.engine import (
     TemplateEngine,
-    COLOR_CODES,
-    SYMBOL_CHARS,
-    TemplateError,
     get_template_engine,
     reset_template_engine,
 )

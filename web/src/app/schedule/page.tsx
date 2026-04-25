@@ -64,7 +64,7 @@ import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
-import { queryKeys as boardQueryKeys, useCarousels } from "@/hooks/use-board";
+import { useCarousels } from "@/hooks/use-board";
 
 type ViewMode = "list" | "calendar";
 

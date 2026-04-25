@@ -23,7 +23,7 @@ const meta = {
 } satisfies Meta<typeof TimezonePicker>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type _Story = StoryObj<typeof meta>;
 
 export const Default = () => {
   const [timezone, setTimezone] = useState("America/Los_Angeles");

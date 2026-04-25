@@ -7,10 +7,9 @@ Covers:
 - /health and /status API endpoints
 """
 
-import threading
 import time
 import pytest
-from unittest.mock import Mock, patch, MagicMock, PropertyMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 
@@ -66,7 +65,6 @@ class TestDisplayServiceRun:
                 service.running = False
             mock_schedule.run_pending.side_effect = stop_after_one
 
-            from src.main import get_settings_service
             with patch('src.main.get_settings_service') as mock_ss:
                 mock_ss.return_value.get_polling_interval.return_value = 60
                 service.run()

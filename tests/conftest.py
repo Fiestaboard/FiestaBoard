@@ -1,7 +1,7 @@
 # tests/conftest.py
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 # Shared fixtures for test helpers
 @pytest.fixture

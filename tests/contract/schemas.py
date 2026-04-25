@@ -9,7 +9,7 @@ Each schema is defined with strict=True to reject unexpected fields by default.
 """
 
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,6 @@ class CreatePageResponse(BaseModel):
 
 class GetPageResponse(PageSchema):
     """GET /pages/{page_id} — returns the page directly (not nested)."""
-    pass
 
 
 class UpdatePageResponse(BaseModel):

@@ -13,8 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { api, PluginManifest, VariableMetadataEntry, VariableGroup } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { api, PluginManifest } from "@/lib/api";
 import { Search, icons as lucideIcons } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 

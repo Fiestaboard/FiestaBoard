@@ -205,7 +205,6 @@ class TestGetLocalIp:
         assert all(part.isdigit() for part in parts)
 
     def test_falls_back_to_loopback_on_failure(self):
-        import socket
         with patch("socket.socket") as mock_sock:
             mock_sock.return_value.__enter__.return_value.connect.side_effect = Exception("network error")
             ip = _get_local_ip()

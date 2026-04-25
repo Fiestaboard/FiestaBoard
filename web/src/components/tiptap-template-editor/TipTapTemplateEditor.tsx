@@ -113,7 +113,7 @@ export function TipTapTemplateEditor({
   onLineWrapChange,
   lineWrapEnabled,
   showToolbar = true,
-  boardWidth = BOARD_WIDTH,
+  _boardWidth = BOARD_WIDTH,
   boardLines = BOARD_LINES,
   onLineCountChange,
   deviceType,
@@ -364,7 +364,7 @@ export function TipTapTemplateEditor({
           return false;
         }
       },
-      handlePaste: (view, event, slice) => {
+      handlePaste: (view, event, _slice) => {
         // Check if we're pasting a template string (contains {{ or {)
         // If so, parse it and insert as nodes
         try {
@@ -441,12 +441,12 @@ export function TipTapTemplateEditor({
           return false;
         },
         // Allow dragstart to proceed - we need it for drop events to fire
-        dragstart: (view, event) => {
+        dragstart: (_view, _event) => {
           // Don't prevent - we need the drag to start for drop to work
           return false;
         },
       },
-      handleDrop: (view, event, slice, moved) => {
+      handleDrop: (view, event, _slice, _moved) => {
         // Handle dropping a dragged node
         if (dragStateRef.current) {
           const { from, to } = dragStateRef.current;

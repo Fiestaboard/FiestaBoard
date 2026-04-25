@@ -175,7 +175,6 @@ class TestDockerHubCheck:
 
     def test_update_check_uses_dockerhub_first(self, client):
         """Test that update-check tries Docker Hub before falling back to GitHub Releases."""
-        from src import __version__
 
         call_order = []
 

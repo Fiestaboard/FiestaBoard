@@ -7,13 +7,11 @@ Issue: #502
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
 
 from src.api_server import app
 from tests.contract.schemas import (
-    SchedulesListResponse,
     SchedulesEnabledResponse,
     DefaultPageResponse,
 )

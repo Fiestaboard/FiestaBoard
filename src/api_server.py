@@ -342,7 +342,7 @@ class UpdateCheckResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
-    global _service_thread, _shutting_down, _service, _service_running
+    global _service_thread, _shutting_down, _service_running
     # --- Startup ---
     _shutting_down = False
     logger.info("API server starting up...")
@@ -441,14 +441,14 @@ async def lifespan(app: FastAPI):
             set_mqtt_client_instance(None)
             logger.info("MQTT client stopped")
     except Exception:
-        pass
+        logger.debug("Failed to stop MQTT client during shutdown", exc_info=True)
 
     # Stop mDNS advertisement
     try:
         from .system.mdns import stop_mdns
         stop_mdns()
     except Exception:
-        pass
+        logger.debug("Failed to stop mDNS during shutdown", exc_info=True)
 
 
 # Create FastAPI app
@@ -496,7 +496,7 @@ def get_service() -> Optional[DisplayService]:
 
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
-    global _service_running, _service, _service_start_time
+    global _service_running, _service_start_time
     restart_delay = 2
     max_restart_delay = 60
 
@@ -539,7 +539,7 @@ def run_service_background():
 
 def start_display_service_sync() -> bool:
     """Start the display service (sync). Used by MQTT command handler. Returns True if started."""
-    global _service_thread, _service_running, _service, _shutting_down
+    global _service_thread, _shutting_down
     if _service_running:
         return True
     _shutting_down = False
@@ -556,7 +556,7 @@ def start_display_service_sync() -> bool:
 
 def stop_display_service_sync() -> bool:
     """Stop the display service (sync). Used by MQTT command handler. Returns True if stopped."""
-    global _service_running, _service, _shutting_down
+    global _service_running, _shutting_down
     if not _service_running:
         return True
     _shutting_down = True
@@ -910,7 +910,7 @@ async def get_status():
 @app.post("/start")
 async def start_service(background_tasks: BackgroundTasks):
     """Start the background service."""
-    global _service_thread, _service_running, _service, _shutting_down
+    global _service_thread, _shutting_down
     
     if _service_running:
         return {"status": "already_running", "message": "Service is already running"}
@@ -948,7 +948,7 @@ async def start_service(background_tasks: BackgroundTasks):
 @app.post("/stop")
 async def stop_service():
     """Stop the background service."""
-    global _service_running, _service, _shutting_down
+    global _service_running, _shutting_down
     
     if not _service_running:
         return {"status": "not_running", "message": "Service is not running"}
@@ -2689,7 +2689,6 @@ async def get_transit_cache_status():
         status = cache.get_status()
         
         # Add human-readable timestamps
-        from datetime import datetime
         if status["last_refresh"] > 0:
             status["last_refresh_iso"] = datetime.fromtimestamp(status["last_refresh"]).isoformat()
         else:
@@ -3233,7 +3232,7 @@ async def get_location_sun_times(date: Optional[str] = None):
     configured or sun times cannot be computed (e.g. polar day/night).
     """
     from .schedules.sun_times import get_sun_times
-    from datetime import date as date_cls, datetime
+    from datetime import date as date_cls
     import pytz
 
     settings_service = get_settings_service()
@@ -3247,7 +3246,7 @@ async def get_location_sun_times(date: Optional[str] = None):
         from .config import Config
         timezone_str = Config.TIMEZONE or "UTC"
     except Exception:
-        pass
+        logger.debug("Could not get timezone from config, using UTC")
 
     if date:
         try:
@@ -3294,7 +3293,7 @@ async def get_location_sun_times_week(week_start: str):
         from .config import Config
         timezone_str = Config.TIMEZONE or "UTC"
     except Exception:
-        pass
+        logger.debug("Could not get timezone from config, using UTC")
 
     try:
         start = date_cls.fromisoformat(week_start)
@@ -3331,8 +3330,6 @@ async def get_all_settings():
     - display settings
     - service status (running)
     """
-    global _service_running
-    
     settings_service = get_settings_service()
     config_manager = get_config_manager()
     
@@ -3385,7 +3382,6 @@ def _get_server_ip() -> str:
 
 def _get_service_uptime() -> Optional[float]:
     """Get service uptime in seconds."""
-    global _service_start_time
     if _service_start_time is None:
         return None
     return time.time() - _service_start_time
@@ -3625,8 +3621,6 @@ async def debug_get_cache_status():
 @app.get("/debug/system-info")
 async def debug_get_system_info():
     """Get system information without sending to board."""
-    global _service_running
-    
     # Gather all system info
     board_ip = Config.BOARD_HOST or ""
     server_ip = _get_server_ip()
@@ -4121,7 +4115,7 @@ def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
         from .config import Config
         timezone_str = Config.TIMEZONE or "UTC"
     except Exception:
-        pass
+        logger.debug("Could not get timezone from config, using UTC")
 
     resolved_start, resolved_end = resolve_schedule_sun_times(
         start_type=start_type,

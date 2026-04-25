@@ -1,10 +1,10 @@
 """Tests for display service and API endpoints."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
-from src.displays.service import DisplayService, DisplayResult, get_display_service
+from src.displays.service import DisplayService, DisplayResult
 
 
 class TestDisplayService:

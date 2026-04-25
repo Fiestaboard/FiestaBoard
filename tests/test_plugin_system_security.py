@@ -7,26 +7,13 @@ Covers the install-from-Git path and runtime sandboxing of third-party code.
 """
 
 import json
-import os
 import pytest
-import subprocess
 import tempfile
-import time
 from pathlib import Path
-from typing import Dict, List
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
-from src.plugins.loader import PluginLoader, PluginLoadError
-from src.plugins.manifest import PluginManifest, load_manifest
-from src.plugins.sources import (
-    install_git_plugin,
-    install_registry_plugin,
-    validate_registry_repo_name,
-    repo_name_from_url,
-    plugin_id_from_repo_name,
-)
-from src.plugins.base import PluginBase, PluginResult
-from src.plugins.registry import PluginRegistry
+from src.plugins.loader import PluginLoader
+from src.plugins.manifest import load_manifest
 
 
 # ===========================================================================
@@ -264,10 +251,8 @@ class TestPluginIsolation:
         """A crashing plugin should not crash other plugins."""
         # Test documents the concept - actual isolation requires subprocess/container
         # Current architecture loads plugins in same process
-        pass
         
         # Skipped - see comment above
-        pass
 
     def test_plugin_state_isolation(self):
         """Plugins should not be able to modify each other's state."""
@@ -333,7 +318,6 @@ class TestGitSourceSecurity:
 
     def test_git_clone_depth_limit(self):
         """Git clones should use shallow clones to limit exposure."""
-        pass
 
     def test_git_branch_validation(self):
         """Branch names should be validated to prevent command injection."""
