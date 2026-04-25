@@ -9,6 +9,8 @@ Covers:
 - refresh_seconds rate-limit bypass attempts
 """
 
+import socket
+
 import pytest
 from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
@@ -432,3 +434,129 @@ class TestRefreshSecondsBypass:
                 json={"config": {"refresh_seconds": 60}},
             )
             assert response.status_code == 200
+
+
+# ===========================================================================
+# SSRF Protection Tests
+# ===========================================================================
+
+class TestSSRFProtection:
+    """Tests that _validate_request_url blocks SSRF targets via /generic-data/test-fetch."""
+
+    # Public IP used in DNS mocks: 93.184.216.34 is the well-known example.com address
+    _PUBLIC_ADDR_INFO = [(None, None, None, None, ("93.184.216.34", 443))]
+
+    @pytest.fixture
+    def mock_cm(self):
+        cm = Mock()
+        cm.get_general.return_value = {}
+        return cm
+
+    def _post(self, client, url: str, mock_cm):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm):
+            return client.post("/generic-data/test-fetch", json={"url": url})
+
+    # --- Blocked: non-http(s) schemes ---
+
+    def test_rejects_ftp_scheme(self, client, mock_cm):
+        resp = self._post(client, "ftp://example.com/file", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_file_scheme(self, client, mock_cm):
+        resp = self._post(client, "file:///etc/passwd", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: credentials in URL ---
+
+    def test_rejects_url_with_credentials(self, client, mock_cm):
+        resp = self._post(client, "https://user:pass@example.com/data", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: localhost-like names ---
+
+    def test_rejects_localhost(self, client, mock_cm):
+        resp = self._post(client, "http://localhost/api", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_localhost_subdomain(self, client, mock_cm):
+        resp = self._post(client, "http://anything.localhost/api", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_dot_local_domain(self, client, mock_cm):
+        resp = self._post(client, "http://mydevice.local/api", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: loopback IP ---
+
+    def test_rejects_loopback_ipv4(self, client, mock_cm):
+        resp = self._post(client, "http://127.0.0.1/api", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_loopback_127_x(self, client, mock_cm):
+        resp = self._post(client, "http://127.1.2.3/api", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: private/RFC-1918 IPs ---
+
+    def test_rejects_private_10_x(self, client, mock_cm):
+        resp = self._post(client, "http://10.0.0.1/api", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_private_192_168(self, client, mock_cm):
+        resp = self._post(client, "http://192.168.1.1/api", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_private_172_16(self, client, mock_cm):
+        resp = self._post(client, "http://172.16.0.1/api", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: link-local ---
+
+    def test_rejects_link_local_169_254(self, client, mock_cm):
+        resp = self._post(client, "http://169.254.169.254/latest/meta-data/", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: DNS resolves to private IP ---
+
+    def test_rejects_domain_resolving_to_private_ip(self, client, mock_cm):
+        private_addr_info = [(None, None, None, None, ("10.0.0.5", 80))]
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=private_addr_info):
+            resp = client.post("/generic-data/test-fetch", json={"url": "https://internal.corp/api"})
+        assert resp.status_code == 400
+
+    # --- Blocked: DNS failure ---
+
+    def test_rejects_unresolvable_domain(self, client, mock_cm):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", side_effect=socket.gaierror("no such host")):
+            resp = client.post("/generic-data/test-fetch", json={"url": "https://no-such-host.invalid/api"})
+        assert resp.status_code == 400
+
+    # --- Allowed: public IP and domain ---
+
+    def test_allows_public_ip(self, client, mock_cm):
+        mock_resp = Mock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = b'{"ok": true}'
+        mock_resp.json.return_value = {"ok": True}
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("requests.request", return_value=mock_resp):
+            resp = client.post("/generic-data/test-fetch", json={"url": "https://93.184.216.34/api"})
+        assert resp.status_code == 200
+
+    def test_allows_public_domain(self, client, mock_cm):
+        mock_resp = Mock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = b'{"ok": true}'
+        mock_resp.json.return_value = {"ok": True}
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
+             patch("requests.request", return_value=mock_resp):
+            resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
+        assert resp.status_code == 200

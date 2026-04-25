@@ -57,11 +57,13 @@ def _validate_request_url(
 ) -> None:
     """Validate a user-supplied URL before using it in an HTTP request.
 
-    Blocks credentialed URLs (``user:pass@host``) and unsupported schemes
-    so the URL can't be abused for SSRF/credential leaks.  Raises
-    :class:`HTTPException` (status 400) when the URL is rejected.
+    Blocks credentialed URLs (``user:pass@host``), unsupported schemes and
+    non-public destinations (loopback/private/link-local/etc.) to reduce SSRF
+    risk. Raises :class:`HTTPException` (status 400) when the URL is rejected.
     """
     from urllib.parse import urlparse
+    import ipaddress
+    import socket
 
     if not isinstance(url, str) or not url:
         raise HTTPException(status_code=400, detail="URL is required")
@@ -85,6 +87,35 @@ def _validate_request_url(
         raise HTTPException(
             status_code=400, detail="URL must not contain credentials"
         )
+
+    host = parsed.hostname.strip().lower()
+    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
+        raise HTTPException(status_code=400, detail="URL host is not allowed")
+
+    def _is_non_public_ip(ip_str: str) -> bool:
+        ip_obj = ipaddress.ip_address(ip_str)
+        return (
+            ip_obj.is_private
+            or ip_obj.is_loopback
+            or ip_obj.is_link_local
+            or ip_obj.is_multicast
+            or ip_obj.is_reserved
+            or ip_obj.is_unspecified
+        )
+
+    try:
+        if _is_non_public_ip(host):
+            raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
+    except ValueError:
+        try:
+            infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
+        except socket.gaierror:
+            raise HTTPException(status_code=400, detail="URL host could not be resolved")
+
+        for info in infos:
+            resolved_ip = info[4][0]
+            if _is_non_public_ip(resolved_ip):
+                raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
 
 
 # Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
@@ -126,6 +157,53 @@ def _validate_board_host(host: str) -> None:
         raise HTTPException(
             status_code=400,
             detail="host must be a valid IPv4 address or hostname",
+        )
+
+
+def _validate_board_host_is_local_network(host: str) -> None:
+    """Ensure ``host`` resolves only to private/local IPv4 addresses.
+
+    Prevents SSRF to arbitrary internet hosts while still allowing local
+    network boards.
+    """
+    import ipaddress
+    import socket
+
+    def _is_allowed_ipv4(addr: ipaddress.IPv4Address) -> bool:
+        return (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+        )
+
+    try:
+        ip = ipaddress.IPv4Address(host)
+        if not _is_allowed_ipv4(ip):
+            raise HTTPException(
+                status_code=400,
+                detail="host must resolve to a local/private IPv4 address",
+            )
+        return
+    except ValueError:
+        pass
+
+    try:
+        addrinfo = socket.getaddrinfo(host, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise HTTPException(status_code=400, detail="host could not be resolved")
+
+    resolved_ips = {
+        ipaddress.IPv4Address(info[4][0])
+        for info in addrinfo
+        if info and len(info) >= 5 and info[4]
+    }
+    if not resolved_ips:
+        raise HTTPException(status_code=400, detail="host did not resolve to an IPv4 address")
+
+    if not all(_is_allowed_ipv4(ip) for ip in resolved_ips):
+        raise HTTPException(
+            status_code=400,
+            detail="host must resolve only to local/private IPv4 addresses",
         )
 
 
@@ -1504,11 +1582,11 @@ async def test_board_connection(request: BoardTestRequest):
             
     except ValueError as e:
         # Invalid configuration (missing required fields)
-        logger.warning(f"Board connection test failed - invalid config: {e}")
+        logger.warning("Board connection test failed - invalid config", exc_info=True)
         return {
             "success": False,
-            "message": str(e),
-            "error": f"Configuration error: {str(e)}"
+            "message": "Board connection configuration is invalid.",
+            "error": "Configuration error"
         }
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Board connection test error: {e}")
@@ -1623,6 +1701,7 @@ async def enable_local_api(request: EnablementTokenRequest):
     # redirect this request away from the local board (SSRF).
     try:
         _validate_board_host(request.host)
+        _validate_board_host_is_local_network(request.host)
     except HTTPException as exc:
         return {
             "success": False,

@@ -25,6 +25,11 @@ logger = logging.getLogger(__name__)
 
 # ── constants ────────────────────────────────────────────────────────────────
 
+# Conservative git ref pattern for branch/tag names supplied by users.
+# Disallows whitespace, shell/control chars, path traversal, and refs that
+# start with '-' (option-like).
+GIT_REF_RE = re.compile(r"^(?!-)(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]{1,255}$")
+
 REGISTRY_FILENAME = "plugin-registry.json"
 EXTERNAL_PLUGINS_DIR = "external_plugins"
 
@@ -263,12 +268,23 @@ def _validate_plugin_id(plugin_id: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def _validate_git_ref(ref: str) -> Tuple[bool, str]:
+    """Validate a user-supplied git branch/tag name."""
+    if not isinstance(ref, str):
+        return False, "Invalid branch/tag: must be a string"
+    if not GIT_REF_RE.fullmatch(ref):
+        return False, (
+            f"Invalid branch/tag {ref!r}: must match {GIT_REF_RE.pattern}"
+        )
+    return True, ""
+
+
 def clone_or_update_repo(
     repo_url: str,
     dest_dir: Path,
     branch: str = "",
     *,
-    external_root: Optional[Path] = None,
+    allowed_root: Optional[Path] = None,
 ) -> Tuple[bool, str]:
     """Clone a git repository, or fetch/reset if it already exists.
 
@@ -286,23 +302,32 @@ def clone_or_update_repo(
         repo_url: HTTPS URL of the repository (required for fresh clones only).
         dest_dir: Local directory to clone into.
         branch: Optional branch/tag.  Uses the repo default when empty.
-        external_root: Trusted root directory that ``dest_dir`` must be
-            contained within (sink-level path-injection barrier).  When
-            ``None`` the result of :func:`get_external_plugins_dir` is used.
+        allowed_root: Trusted root directory that ``dest_dir`` must be contained
+            within.  If not provided, defaults to the result of
+            :func:`get_external_plugins_dir`.  High-level callers (e.g.
+            :func:`install_registry_plugin`) should pass the same
+            ``external_dir`` they used when constructing ``dest_dir`` so that
+            the containment check uses a consistent boundary.
 
     Returns:
         ``(True, "")`` on success, ``(False, error_message)`` on failure.
     """
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
-    # Enforce sink-level path safety: destination must stay within the
-    # external plugins root, regardless of caller-provided values.
-    if external_root is None:
-        external_root = get_external_plugins_dir()
-    trusted_root = os.path.realpath(str(external_root))
-    resolved_dest = os.path.realpath(str(dest_dir))
-    if os.path.commonpath([trusted_root, resolved_dest]) != trusted_root:
-        return False, f"Destination path escapes external plugins dir: {dest_dir}"
+    # Defensive sink-level guard: ensure destination stays inside the
+    # managed external plugins directory before any filesystem access.
+    root = allowed_root if allowed_root is not None else get_external_plugins_dir()
+    external_root = os.path.realpath(str(root))
+    candidate = os.path.realpath(str(dest_dir))
+    try:
+        if os.path.commonpath([external_root, candidate]) != external_root:
+            return False, (
+                f"Refusing to use destination outside external plugins directory: "
+                f"{dest_dir}"
+            )
+    except ValueError:
+        # Different drives / invalid mix of absolute-relative paths.
+        return False, f"Invalid destination path: {dest_dir}"
 
     if dest_dir.exists() and (dest_dir / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
@@ -327,6 +352,11 @@ def clone_or_update_repo(
     ok, err = _validate_git_url(repo_url)
     if not ok:
         return False, err
+
+    if branch:
+        ok, err = _validate_git_ref(branch)
+        if not ok:
+            return False, err
 
     dest_dir.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -512,9 +542,7 @@ def install_registry_plugin(
     dest, err = _safe_external_dest(external_dir, entry.plugin_id)
     if dest is None:
         return False, err
-    return clone_or_update_repo(
-        entry.repository, dest, entry.branch, external_root=external_dir
-    )
+    return clone_or_update_repo(entry.repository, dest, entry.branch, allowed_root=external_dir)
 
 
 def install_git_plugin(
@@ -561,4 +589,4 @@ def install_git_plugin(
     dest, err = _safe_external_dest(external_dir, plugin_id)
     if dest is None:
         return False, err
-    return clone_or_update_repo(repo_url, dest, branch, external_root=external_dir)
+    return clone_or_update_repo(repo_url, dest, branch, allowed_root=external_dir)
