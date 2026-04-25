@@ -159,7 +159,7 @@ See the [Traffic Plugin](/docs/plugins/traffic) guide for detailed setup.
 
 ### A plugin shows stale or outdated data
 
-Plugins refresh their data at the interval set in Settings (default: 300 seconds). If data seems stuck:
+Plugins refresh their data at the interval set in Settings (see the default in [Environment Variables](/docs/environment-variables)). If data seems stuck:
 1. Try a **Force Refresh** from the API: `curl -X POST http://localhost:4420/api/force-refresh`
 2. Check plugin logs for errors: `docker-compose logs -f fiestaboard | grep plugin_name`
 3. Verify the external API hasn't hit rate limits
