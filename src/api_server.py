@@ -3616,6 +3616,75 @@ async def list_pages():
     }
 
 
+@app.get("/pages/current-display")
+async def get_current_display():
+    """Get the template content of the currently active board display.
+
+    Resolves carousels and schedule mode to find the actual page being shown.
+    For template pages, returns the raw template and line metadata so the
+    caller can use it as a starting point for a new page.  For other page
+    types, returns the rendered output lines.
+
+    Returns 404 when no active page can be determined.
+    """
+    settings_service = get_settings_service()
+    page_service = get_page_service()
+    carousel_service = get_carousel_service()
+
+    # Determine the active page ID (schedule-aware)
+    if settings_service.is_schedule_enabled():
+        from .time_service import get_time_service
+        time_service = get_time_service()
+        now = time_service.get_current_time()
+        current_time = now.time()
+        current_day = now.strftime("%A").lower()
+        schedule_service = get_schedule_service()
+        active_page_id = schedule_service.get_active_page_id(current_time, current_day)
+    else:
+        active_page_id = settings_service.get_active_page_id()
+
+    if not active_page_id:
+        raise HTTPException(status_code=404, detail="No active page set")
+
+    # Resolve carousel to underlying page
+    if is_carousel_id(active_page_id):
+        resolved = carousel_service.resolve_page_id(active_page_id)
+        if not resolved:
+            raise HTTPException(status_code=404, detail="Carousel could not be resolved")
+        active_page_id = resolved
+
+    page = page_service.get_page(active_page_id)
+    if not page:
+        raise HTTPException(status_code=404, detail="Active page not found")
+
+    response: dict = {
+        "page_id": page.id,
+        "page_name": page.name,
+        "page_type": page.type,
+        "device_type": page.device_type,
+    }
+
+    if page.type == "template" and page.template:
+        # Return raw template so variables like {{weather.temp}} are preserved
+        response["template"] = page.template
+        response["line_metadata"] = (
+            [m.model_dump() for m in page.line_metadata]
+            if page.line_metadata
+            else None
+        )
+    else:
+        # For single/composite pages, return the rendered output as template lines
+        result = page_service.preview_page(active_page_id, force_refresh=True)
+        if result and result.available:
+            response["template"] = result.formatted.split("\n")
+            response["line_metadata"] = None
+        else:
+            response["template"] = []
+            response["line_metadata"] = None
+
+    return response
+
+
 @app.post("/pages")
 async def create_page(page_data: PageCreate):
     """

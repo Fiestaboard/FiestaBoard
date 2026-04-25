@@ -294,6 +294,10 @@ export function DisplaySettings() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
     queryClient.invalidateQueries({ queryKey: ["all-settings"] });
+    // Board count and device type affect template rendering dimensions
+    // and which board previews are shown, so refresh previews and displays.
+    queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
+    queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
   };
 
   const updateMutation = useMutation({

@@ -145,6 +145,7 @@ export default function SchedulePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
       toast.success(schedulesData?.enabled ? "Schedule disabled" : "Schedule enabled");
     },
@@ -213,6 +214,7 @@ export default function SchedulePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
       toast.success("Default page updated");
     },
