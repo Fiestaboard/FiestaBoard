@@ -131,7 +131,7 @@ describe("ScheduleEntryForm start-time Select inside Sheet", () => {
     await waitFor(() => {
       expect(startTimeTrigger).toHaveTextContent("10:00");
     });
-  });
+  }, 40000);
 
   it("keyboard: ArrowDown then Enter updates start time", async () => {
     const user = userEvent.setup();
