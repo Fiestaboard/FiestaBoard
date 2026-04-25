@@ -290,6 +290,17 @@ def clone_or_update_repo(
     """
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
+    # Defense-in-depth: ensure the destination always remains inside the
+    # managed external plugins root, even if a caller passes an unsafe path.
+    external_root = Path(os.path.realpath(str(get_external_plugins_dir())))
+    dest_real = Path(os.path.realpath(str(dest_dir)))
+    try:
+        if os.path.commonpath([str(external_root), str(dest_real)]) != str(external_root):
+            return False, f"Refusing to use destination outside external plugins dir: {dest_dir}"
+    except ValueError:
+        return False, f"Invalid destination path: {dest_dir}"
+    dest_dir = dest_real
+
     if dest_dir.exists() and (dest_dir / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
         # Works for both full and shallow (--depth 1) clones.
