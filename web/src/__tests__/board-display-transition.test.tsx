@@ -110,9 +110,9 @@ describe("BoardDisplay Transition Out", () => {
     
     // Track character changes
     const observedChars: string[] = [];
-    let previousChar: string | null = null;
+    let _previousChar: string | null = null;
     let stoppedAtChar: string | null = null;
-    let sawTransitioning = false;
+    let _sawTransitioning = false;
     
     // Advance time and observe character changes
     // We should see characters cycling, then stop at "A"
@@ -130,7 +130,7 @@ describe("BoardDisplay Transition Out", () => {
         observedChars.push(currentChar);
         
         if (isTransitioning) {
-          sawTransitioning = true;
+          _sawTransitioning = true;
         }
         
         // If we've reached target and stopped transitioning, we're done
@@ -139,7 +139,7 @@ describe("BoardDisplay Transition Out", () => {
           break;
         }
         
-        previousChar = currentChar;
+        _previousChar = currentChar;
       }
     }
     

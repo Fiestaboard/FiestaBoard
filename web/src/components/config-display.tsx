@@ -10,7 +10,6 @@ import {
   Cloud,
   Home,
   Wifi,
-  Sparkles,
   RotateCw,
 } from "lucide-react";
 import { ComponentType } from "react";
@@ -19,7 +18,7 @@ import { ComponentType } from "react";
 // Converts emoji to grayscale so it matches the monochrome icon style
 const VulcanSalute = ({ className }: { className?: string }) => {
   // Check if it should be primary (enabled) or muted (disabled)
-  const isPrimary = className?.includes('text-primary');
+  const _isPrimary = className?.includes('text-primary');
   const isMuted = className?.includes('text-muted-foreground');
   
   // Apply grayscale filter to remove yellow color and match icon style

@@ -155,7 +155,7 @@ export function StepWelcome({
 
           {enabledPlugins.length > 0 && (
             <>
-              {enabledPlugins.map(({ name, icon: Icon }) => (
+              {enabledPlugins.map(({ name, icon: _Icon }) => (
                 <div key={name} className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-success" />
                   <span>{t("pluginEnabled", { name })}</span>

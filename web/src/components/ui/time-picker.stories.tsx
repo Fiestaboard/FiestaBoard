@@ -23,7 +23,7 @@ const meta = {
 } satisfies Meta<typeof TimePicker>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type _Story = StoryObj<typeof meta>;
 
 export const Default = () => {
   const [time, setTime] = useState("09:00");

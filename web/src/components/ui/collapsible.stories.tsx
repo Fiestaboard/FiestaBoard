@@ -18,7 +18,7 @@ const meta = {
 } satisfies Meta<typeof Collapsible>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type _Story = StoryObj<typeof meta>;
 
 export const Default = () => {
   const [isOpen, setIsOpen] = useState(false);

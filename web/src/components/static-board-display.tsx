@@ -9,7 +9,7 @@ const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
   note: { rows: 3, cols: 15 },
 };
 
-const BOARD_CHARS = [
+const _BOARD_CHARS = [
   ' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
   'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
@@ -20,7 +20,7 @@ const BOARD_CHARS = [
 
 type Token = { type: "char"; value: string } | { type: "color"; code: string };
 
-const COLOR_CODES = new Set(['63', '64', '65', '66', '67', '68', '69', '70', '71']);
+const _COLOR_CODES = new Set(['63', '64', '65', '66', '67', '68', '69', '70', '71']);
 
 function resolveColorCode(code: string, isWhiteBoard: boolean): string {
   if (isWhiteBoard) {

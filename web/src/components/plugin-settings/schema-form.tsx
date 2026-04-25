@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -62,7 +62,7 @@ interface FieldProps {
 
 function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [timezoneValid, setTimezoneValid] = useState(true);
+  const [_timezoneValid, setTimezoneValid] = useState(true);
   const isPassword = property["ui:widget"] === "password";
   const isTextarea = property["ui:widget"] === "textarea";
   const isTimezone = property["ui:widget"] === "timezone";
@@ -287,7 +287,7 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
         // Try direct access first
         try {
           errorCode = error.code;
-        } catch (e) {
+        } catch {
           // If direct access fails, try alternative methods
           try {
             const err = error as any;
@@ -400,7 +400,7 @@ interface WsdotRoutePickerProps extends FieldProps {
   maxItems?: number;
 }
 
-function WsdotRoutePicker({ name, property, value, onChange, disabled, maxItems = 4 }: WsdotRoutePickerProps) {
+function WsdotRoutePicker({ name, property: _property, value, onChange, disabled, maxItems = 4 }: WsdotRoutePickerProps) {
   const items = Array.isArray(value) ? value : [];
   const routeEntries = items.map((item) => (item && typeof item === "object" && "route_id" in item ? Number((item as { route_id: number }).route_id) : 0));
 
@@ -559,7 +559,7 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
     onChange(items.filter((_, i) => i !== index));
   };
 
-  const parkName = (id: number) => parks.find((p) => p.id === id)?.name ?? `Park ${id}`;
+  const _parkName = (id: number) => parks.find((p) => p.id === id)?.name ?? `Park ${id}`;
   const rideName = (parkId: number, rideId: number) =>
     ridesByParkId[parkId]?.find((r) => r.id === rideId)?.name ?? `Ride ${rideId}`;
 
@@ -801,7 +801,7 @@ interface GenericDataMappingHelperProps extends FieldProps {
   allValues: Record<string, unknown>;
 }
 
-function GenericDataMappingHelper({ name, property, value, onChange, disabled, allValues }: GenericDataMappingHelperProps) {
+function GenericDataMappingHelper({ name: _name, property: _property, value, onChange, disabled, allValues }: GenericDataMappingHelperProps) {
   const [previewData, setPreviewData] = useState<unknown>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);

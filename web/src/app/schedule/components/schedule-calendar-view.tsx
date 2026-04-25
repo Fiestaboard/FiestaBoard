@@ -296,7 +296,7 @@ export function ScheduleCalendarView({
   } as React.CSSProperties), [hourHeight, slotHeight]);
 
   // Get visible days label for mobile
-  const visibleDaysLabel = useMemo(() => {
+  const _visibleDaysLabel = useMemo(() => {
     const endDay = Math.min(mobileStartDay + 2, 6);
     return `${DAY_NAMES[mobileStartDay]} - ${DAY_NAMES[endDay]}`;
   }, [mobileStartDay]);

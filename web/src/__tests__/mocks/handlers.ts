@@ -6,7 +6,6 @@ import type {
   DisplaysResponse,
   DisplayResponse,
   DisplayRawResponse,
-  DisplayRawBatchResponse,
   TransitionSettings,
   OutputSettings,
   PagesResponse,

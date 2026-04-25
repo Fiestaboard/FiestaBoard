@@ -19,7 +19,7 @@ interface ColorTileNodeViewProps {
   deleteNode: () => void;
 }
 
-export function ColorTileNodeView({ node, deleteNode }: ColorTileNodeViewProps) {
+export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNodeViewProps) {
   const { color, code } = node.attrs;
   const colorKey = color.toLowerCase() as keyof typeof FIESTABOARD_COLORS;
   const bgColor = FIESTABOARD_COLORS[colorKey] || FIESTABOARD_COLORS.red;

@@ -17,7 +17,7 @@ interface FillSpaceNodeViewProps {
   deleteNode: () => void;
 }
 
-export function FillSpaceNodeView({ node, deleteNode }: FillSpaceNodeViewProps) {
+export function FillSpaceNodeView({ node, deleteNode: _deleteNode }: FillSpaceNodeViewProps) {
   const { repeatChar } = node.attrs;
   const hasRepeatChar = repeatChar && repeatChar !== ' ';
   

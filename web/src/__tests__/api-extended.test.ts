@@ -608,7 +608,7 @@ describe("API Extended Tests", () => {
           });
         }),
         http.post(`${API_BASE}/traffic/routes/validate`, async ({ request }) => {
-          const body = await request.json() as any;
+          const _body = await request.json() as any;
           return HttpResponse.json({
             valid: true,
             distance_km: 10,

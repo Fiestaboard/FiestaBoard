@@ -2,9 +2,8 @@ import type { Meta } from "@storybook/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Mail, Trash2, AlertCircle, Info } from "lucide-react";
+import { Plus, Mail, AlertCircle, Info } from "lucide-react";
 
 const meta = {
   title: "Design System/Variant Matrix",

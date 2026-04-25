@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Calendar, GalleryHorizontalEnd, Sunrise, Sunset } from "lucide-react";
+import { Edit, Trash2, Calendar, GalleryHorizontalEnd } from "lucide-react";
 import type { ScheduleEntry, Page, Carousel } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
 
