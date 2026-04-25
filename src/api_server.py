@@ -5423,7 +5423,6 @@ async def uninstall_external_plugin(plugin_id: str):
     registry = get_plugin_registry()
 
     # Collect instance compound keys before uninstall so we can purge their configs
-    instance_prefix = f"{plugin_id}:"
     instance_keys = [
         p["id"]
         for p in registry.list_plugins()

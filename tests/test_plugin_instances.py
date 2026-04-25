@@ -12,7 +12,6 @@ import pytest
 from src.plugins.base import PluginBase, PluginResult
 from src.plugins.manifest import PluginManifest
 from src.plugins.registry import (
-    INSTANCE_SEPARATOR,
     PluginRegistry,
     _INSTANCE_LABEL_RE,
 )
