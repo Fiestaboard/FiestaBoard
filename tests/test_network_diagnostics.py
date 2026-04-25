@@ -21,9 +21,9 @@ _URL_RE = re.compile(r"https?://[^\s'\"<>]+")
 
 
 def _mentions_host(text, expected_host):
-    """Check whether ``text`` contains a URL whose host equals ``expected_host``.
+    """Check whether text contains a URL whose host equals expected_host.
 
-    Used in place of ``"host" in text`` substring checks, which CodeQL
+    Used in place of '"host" in text' substring checks, which CodeQL
     flags as incomplete URL substring sanitization.
     """
     expected = expected_host.lower()

@@ -167,7 +167,7 @@ def validate_registry_repo_name(repo_url: str) -> Tuple[bool, str]:
     """Check that a repository URL follows the registry naming convention.
 
     Registry plugins **must** live in a repository whose name matches
-    ``fiestaboard-plugin--{name}``.
+    `fiestaboard-plugin--{name}`.
 
     Args:
         repo_url: Full HTTPS URL of the repository.
@@ -242,7 +242,7 @@ def _validate_git_url(url: str) -> Tuple[bool, str]:
         return False, "URL could not be parsed"
     if parsed.scheme != "https" or not parsed.hostname:
         return False, "URL must be a fully-qualified https URL"
-    # Embedded credentials (``https://user:pass@host``) are not needed for
+    # Embedded credentials (https://user:pass@host) are not needed for
     # public clones and would leak into logs / process listings.
     if parsed.username is not None or parsed.password is not None:
         return False, "URL must not contain credentials"
@@ -429,19 +429,19 @@ def get_external_plugins_dir(project_root: Optional[Path] = None) -> Path:
 def _safe_external_dest(
     external_dir: Path, plugin_id: str
 ) -> Tuple[Optional[Path], str]:
-    """Compute a safe destination path inside ``external_dir`` for a plugin.
+    """Compute a safe destination path inside `external_dir` for a plugin.
 
-    The plugin id flows through three independent CodeQL-recognised
+    The plugin id flows through three independent CodeQL-recognized
     path-injection barriers before it ever reaches a filesystem call:
 
     1. :func:`re.fullmatch` against a strict character-class allow-list.
     2. Per-character allow-list reconstruction — the value is rebuilt
        from a constant string of permitted characters and the result
        must equal the original input.
-    3. After ``os.path.realpath``, :func:`os.path.commonpath` is used to
+    3. After `os.path.realpath`, :func:`os.path.commonpath` is used to
        prove the resolved candidate is contained within
-       ``external_root``.  This is the canonical CodeQL sanitiser for
-       ``py/path-injection`` and is checked **before** any further use
+       `external_root`.  This is the canonical CodeQL sanitizer for
+       `py/path-injection` and is checked **before** any further use
        of the path.
     """
     if not isinstance(plugin_id, str) or not plugin_id:

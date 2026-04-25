@@ -1,9 +1,19 @@
 """Tests for the random plugin."""
 
 import json
+import re
 from pathlib import Path
 
+import pytest
+
 from plugins.random import RandomPlugin, BOARD_COLORS
+
+
+@pytest.fixture
+def random_manifest():
+    manifest_path = Path(__file__).parent.parent / "manifest.json"
+    with open(manifest_path) as f:
+        return json.load(f)
 
 
 class TestRandomPlugin:
@@ -31,6 +41,12 @@ class TestRandomPlugin:
         plugin = RandomPlugin(sample_manifest)
         choices = [str(i) for i in range(10)]
         assert plugin.validate_config({"choices": choices}) == []
+
+    def test_validate_config_empty_choices(self, sample_manifest):
+        plugin = RandomPlugin(sample_manifest)
+        errors = plugin.validate_config({"choices": []})
+        assert len(errors) > 0
+        assert any("2" in e for e in errors)
 
     def test_validate_config_too_few_choices(self, sample_manifest):
         plugin = RandomPlugin(sample_manifest)
@@ -127,7 +143,6 @@ class TestRandomPlugin:
     def test_fetch_data_color_tile_format(self, sample_manifest, sample_config):
         plugin = RandomPlugin(sample_manifest)
         plugin.config = sample_config
-        import re
         for _ in range(20):
             result = plugin.fetch_data()
             tile = result.data["color"]
@@ -204,52 +219,34 @@ class TestRandomPlugin:
 class TestRandomManifest:
     """Tests for manifest structure."""
 
-    def test_manifest_id(self):
-        manifest_path = Path(__file__).parent.parent / "manifest.json"
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-        assert manifest["id"] == "random"
+    def test_manifest_id(self, random_manifest):
+        assert random_manifest["id"] == "random"
 
-    def test_manifest_has_required_fields(self):
-        manifest_path = Path(__file__).parent.parent / "manifest.json"
-        with open(manifest_path) as f:
-            manifest = json.load(f)
+    def test_manifest_has_required_fields(self, random_manifest):
         for field in ["id", "name", "version", "settings_schema", "variables"]:
-            assert field in manifest, f"Manifest missing required field: {field}"
+            assert field in random_manifest, f"Manifest missing required field: {field}"
 
-    def test_manifest_variables_have_descriptions(self):
-        manifest_path = Path(__file__).parent.parent / "manifest.json"
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-        simple = manifest["variables"]["simple"]
+    def test_manifest_variables_have_descriptions(self, random_manifest):
+        simple = random_manifest["variables"]["simple"]
         for var_name, meta in simple.items():
             assert "description" in meta and meta["description"], \
                 f"Variable '{var_name}' missing description"
 
-    def test_manifest_variables_reference_valid_groups(self):
-        manifest_path = Path(__file__).parent.parent / "manifest.json"
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-        groups = set(manifest["variables"].get("groups", {}).keys())
-        simple = manifest["variables"]["simple"]
+    def test_manifest_variables_reference_valid_groups(self, random_manifest):
+        groups = set(random_manifest["variables"].get("groups", {}).keys())
+        simple = random_manifest["variables"]["simple"]
         for var_name, meta in simple.items():
             group = meta.get("group", "")
             if group:
                 assert group in groups, \
                     f"Variable '{var_name}' references undefined group '{group}'"
 
-    def test_manifest_has_demo(self):
-        manifest_path = Path(__file__).parent.parent / "manifest.json"
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-        assert "demo" in manifest
-        assert len(manifest["demo"]["template"]) == 6
-        assert len(manifest["demo"]["line_metadata"]) == 6
+    def test_manifest_has_demo(self, random_manifest):
+        assert "demo" in random_manifest
+        assert len(random_manifest["demo"]["template"]) == 6
+        assert len(random_manifest["demo"]["line_metadata"]) == 6
 
-    def test_manifest_has_screenshot(self):
-        manifest_path = Path(__file__).parent.parent / "manifest.json"
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-        screenshots = manifest.get("screenshots", [])
+    def test_manifest_has_screenshot(self, random_manifest):
+        screenshots = random_manifest.get("screenshots", [])
         assert len(screenshots) > 0
         assert any(s.get("primary") for s in screenshots)
