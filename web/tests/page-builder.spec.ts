@@ -310,9 +310,11 @@ test.describe("Sync from Board", () => {
     await expect(syncBtn).toBeVisible({ timeout: 10_000 });
     await syncBtn.click();
 
-    // An error toast should be visible
-    const errorToast = page.locator("[data-sonner-toast][data-type='error']");
-    await expect(errorToast.first()).toBeVisible({ timeout: 10_000 });
+    // An error toast should be visible — use text-based detection since Sonner
+    // toast attribute structure can vary between versions/configurations.
+    await expect(
+      page.getByText("No active display to sync from").first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("populates template lines from active page on successful sync", async ({

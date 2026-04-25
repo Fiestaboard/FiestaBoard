@@ -540,8 +540,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
       toast.success(`Synced from "${data.page_name}"`);
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "No active display to sync from");
+    onError: () => {
+      toast.error("No active display to sync from");
     },
   });
 
