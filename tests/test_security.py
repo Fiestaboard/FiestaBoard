@@ -95,7 +95,10 @@ class TestPathTraversal:
         "a" * 300,
         "plugin with spaces",
         "__pycache__",
-        "../",
+        # "../" is intentionally omitted: HTTP clients (httpx) normalize
+        # /plugins/../ to / before sending, so the server only sees a
+        # legitimate request for "/" and cannot distinguish it from a
+        # real path-traversal attempt at the URL level.
         "..\\",
         "../../etc/passwd",
         "..\\..\\windows\\system32",

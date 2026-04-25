@@ -18,6 +18,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 # Load environment variables from .env file
@@ -569,6 +570,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _reject_path_traversal(request: Request, call_next):
+    """Return 400 for any URL whose path contains path-traversal sequences.
+
+    Checks both the raw (un-decoded) ASGI path bytes and the once-decoded
+    path string so that literal '..', URL-encoded '%2e%2e', and
+    double-encoded '%252e%252e' variants are all caught before any routing
+    or Starlette redirect processing takes place.
+    """
+    raw_path = request.scope.get("raw_path", b"").decode("latin-1")
+    decoded_path = request.scope.get("path", "")
+    combined = (raw_path + decoded_path).lower()
+    if ".." in combined or "%2e%2e" in combined or "%252e%252e" in combined:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Path traversal not allowed"},
+        )
+    return await call_next(request)
 
 
 # Set up log buffer handler
