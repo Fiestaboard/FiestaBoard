@@ -1030,6 +1030,28 @@ class ConfigManager:
         configs = self.get_all_plugin_configs()
         return self._mask_sensitive(configs)
     
+    def delete_plugin_config(self, plugin_id: str) -> bool:
+        """Delete configuration for a specific plugin.
+
+        Removes the plugin entry from the plugins section and saves.
+
+        Args:
+            plugin_id: Plugin identifier (e.g., 'weather:sf').
+
+        Returns:
+            True if an entry was removed, False if not found.
+        """
+        with self._file_lock:
+            plugins = self._config.get("plugins", {})
+            if plugin_id not in plugins:
+                logger.debug(f"No config entry to delete for plugin '{plugin_id}'")
+                return False
+            del plugins[plugin_id]
+            self._save_internal()
+
+        logger.info(f"Plugin '{plugin_id}' configuration deleted")
+        return True
+
     def get_enabled_plugins(self) -> List[str]:
         """Get list of enabled plugin IDs.
         

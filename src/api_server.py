@@ -4846,6 +4846,10 @@ async def get_plugin(plugin_id: str):
         if demo_page:
             demo_page_id = demo_page.id
 
+    # Instance information
+    base_id, instance_label = registry.parse_instance_key(plugin_id)
+    instances = registry.list_instances(base_id) if not instance_label else []
+
     return {
         "id": plugin_id,
         "name": manifest.name,
@@ -4863,6 +4867,9 @@ async def get_plugin(plugin_id: str):
         "documentation": manifest.documentation,
         "has_demo": has_demo,
         "demo_page_id": demo_page_id,
+        "instance_label": instance_label,
+        "base_plugin_id": base_id,
+        "instances": instances,
     }
 
 
@@ -5199,6 +5206,139 @@ async def create_plugin_demo_page(plugin_id: str):
     }
 
 
+# ── Plugin Instances ────────────────────────────────────────────────────────
+
+
+class PluginInstanceCreateRequest(BaseModel):
+    """Request body for creating a new plugin instance."""
+    label: str
+
+
+@app.get("/plugins/{plugin_id}/instances")
+async def list_plugin_instances(plugin_id: str):
+    """
+    List all instances of a plugin.
+
+    Returns the instances (excluding the base) for the given plugin.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+
+    # Resolve base plugin id (strip instance label if present)
+    base_id, _ = registry.parse_instance_key(plugin_id)
+
+    if not registry.get_plugin(base_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {base_id}"
+        )
+
+    instances = registry.list_instances(base_id)
+
+    return {
+        "plugin_id": base_id,
+        "instances": instances,
+        "total": len(instances),
+    }
+
+
+@app.post("/plugins/{plugin_id}/instances")
+async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRequest):
+    """
+    Create a new instance of a plugin.
+
+    The new instance starts disabled with an empty configuration.
+    It can be configured and enabled independently via the standard
+    plugin config/enable endpoints using the compound key
+    ``{plugin_id}:{label}``.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+
+    # Resolve base plugin id
+    base_id, _ = registry.parse_instance_key(plugin_id)
+
+    if not registry.get_plugin(base_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {base_id}"
+        )
+
+    errors = registry.create_instance(base_id, request.label)
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    compound_key = registry.make_instance_key(base_id, request.label)
+
+    # Persist empty config so the instance survives restarts
+    config_manager = get_config_manager()
+    config_manager.set_plugin_config(compound_key, {"enabled": False})
+
+    # Reset services so the new instance is available to templates immediately
+    reset_display_service()
+    reset_template_engine()
+
+    logger.info(f"Created plugin instance: {compound_key}")
+
+    return {
+        "status": "success",
+        "plugin_id": base_id,
+        "instance_label": request.label,
+        "instance_key": compound_key,
+        "message": f"Instance '{request.label}' created for plugin '{base_id}'.",
+    }
+
+
+@app.delete("/plugins/{plugin_id}/instances/{instance_label}")
+async def delete_plugin_instance(plugin_id: str, instance_label: str):
+    """
+    Delete a plugin instance.
+
+    Removes the instance from the registry and its persisted configuration.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+
+    # Resolve base plugin id
+    base_id, _ = registry.parse_instance_key(plugin_id)
+
+    errors = registry.delete_instance(base_id, instance_label)
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    compound_key = registry.make_instance_key(base_id, instance_label)
+
+    # Remove persisted config
+    config_manager = get_config_manager()
+    config_manager.delete_plugin_config(compound_key)
+
+    # Reset services
+    reset_display_service()
+    reset_template_engine()
+
+    logger.info(f"Deleted plugin instance: {compound_key}")
+
+    return {
+        "status": "success",
+        "plugin_id": base_id,
+        "instance_label": instance_label,
+        "instance_key": compound_key,
+        "message": f"Instance '{instance_label}' of plugin '{base_id}' deleted.",
+    }
+
+
 # ── External Plugin Management ──────────────────────────────────────────────
 
 
@@ -5281,10 +5421,22 @@ async def uninstall_external_plugin(plugin_id: str):
         )
 
     registry = get_plugin_registry()
+
+    # Collect instance compound keys before uninstall so we can purge their configs
+    instance_keys = [
+        p["id"]
+        for p in registry.list_plugins()
+        if p.get("base_plugin_id") == plugin_id and p.get("instance_label")
+    ]
+
     errors = registry.uninstall_external_plugin(plugin_id)
 
     if errors:
         raise HTTPException(status_code=400, detail="; ".join(errors))
+
+    config_manager = get_config_manager()
+    for compound_key in instance_keys:
+        config_manager.delete_plugin_config(compound_key)
 
     return {
         "status": "success",

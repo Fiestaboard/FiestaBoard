@@ -140,6 +140,7 @@ class PluginLoader:
             self._external_dirs = list(external_dirs)
 
         self._loaded_plugins: Dict[str, Tuple[PluginBase, PluginManifest]] = {}
+        self._plugin_classes: Dict[str, Type[PluginBase]] = {}
         self._load_errors: Dict[str, List[str]] = {}
         self._plugin_sources: Dict[str, PluginSource] = {}
 
@@ -337,8 +338,9 @@ class PluginLoader:
                 self._load_errors[plugin_name] = errors
                 return None
             
-            # Store loaded plugin
+            # Store loaded plugin and class
             self._loaded_plugins[manifest.id] = (plugin_instance, manifest)
+            self._plugin_classes[manifest.id] = plugin_class
             self._plugin_sources[manifest.id] = self._source_for_dir(plugin_dir)
             logger.info(f"Successfully loaded plugin: {manifest.id} v{manifest.version}")
             
@@ -472,4 +474,47 @@ class PluginLoader:
             :class:`PluginSource` or *None* if not loaded.
         """
         return self._plugin_sources.get(plugin_id)
+
+    def get_plugin_class(self, plugin_id: str) -> Optional[Type[PluginBase]]:
+        """Get the plugin class for a loaded plugin.
+
+        This is used to create additional instances of the same plugin type.
+
+        Args:
+            plugin_id: Plugin ID
+
+        Returns:
+            The PluginBase subclass or None if not loaded.
+        """
+        return self._plugin_classes.get(plugin_id)
+
+    def create_instance(self, plugin_id: str) -> Optional[PluginBase]:
+        """Create a new instance of a loaded plugin.
+
+        Returns a fresh PluginBase instance using the stored class and
+        manifest for *plugin_id*.  The caller is responsible for
+        configuring and enabling the returned instance.
+
+        Args:
+            plugin_id: Base plugin ID (must already be loaded).
+
+        Returns:
+            A new PluginBase instance, or None if the plugin is not loaded.
+        """
+        plugin_class = self._plugin_classes.get(plugin_id)
+        if plugin_class is None:
+            logger.warning("Cannot create instance: plugin class not found for %s", plugin_id)
+            return None
+
+        if plugin_id not in self._loaded_plugins:
+            logger.warning("Cannot create instance: plugin not loaded: %s", plugin_id)
+            return None
+
+        _, manifest = self._loaded_plugins[plugin_id]
+
+        try:
+            return plugin_class(manifest.raw)
+        except Exception as e:
+            logger.exception("Failed to create instance of %s: %s", plugin_id, e)
+            return None
 
