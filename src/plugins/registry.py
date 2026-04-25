@@ -8,10 +8,11 @@ The PluginRegistry is the central point for:
 - Installing plugins from the registry or arbitrary git URLs
 """
 
+import re
 import logging
 from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
@@ -30,6 +31,14 @@ logger = logging.getLogger(__name__)
 
 # Singleton instance
 _registry: Optional["PluginRegistry"] = None
+
+
+# Separator between base plugin ID and instance label in compound keys.
+# Example: "weather:sf" means plugin_id="weather", instance_label="sf".
+INSTANCE_SEPARATOR = ":"
+
+# Valid instance label pattern: alphanumeric, underscores, and hyphens, 1-40 chars.
+_INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 
 
 class PluginRegistry:
@@ -63,6 +72,138 @@ class PluginRegistry:
         self._discovered_vars: Dict[str, List[str]] = {}
         
         logger.info("PluginRegistry initialized")
+
+    # ── instance key helpers ────────────────────────────────────────────
+
+    @staticmethod
+    def make_instance_key(plugin_id: str, instance_label: str) -> str:
+        """Build a compound key from a base plugin ID and instance label.
+
+        Example: ``make_instance_key("weather", "sf")`` → ``"weather:sf"``
+        """
+        return f"{plugin_id}{INSTANCE_SEPARATOR}{instance_label}"
+
+    @staticmethod
+    def parse_instance_key(key: str) -> Tuple[str, Optional[str]]:
+        """Split a compound key into (base_plugin_id, instance_label).
+
+        If *key* has no separator the label is ``None`` (default instance).
+
+        Example: ``parse_instance_key("weather:sf")`` → ``("weather", "sf")``
+        """
+        if INSTANCE_SEPARATOR in key:
+            base, label = key.split(INSTANCE_SEPARATOR, 1)
+            return base, label
+        return key, None
+
+    @staticmethod
+    def is_instance_key(key: str) -> bool:
+        """Return ``True`` when *key* contains an instance separator."""
+        return INSTANCE_SEPARATOR in key
+
+    # ── instance CRUD ───────────────────────────────────────────────────
+
+    def create_instance(
+        self, plugin_id: str, instance_label: str
+    ) -> List[str]:
+        """Create a new instance of an existing plugin.
+
+        A new :class:`PluginBase` object of the same class is instantiated
+        with the same manifest.  The instance is registered under the
+        compound key ``plugin_id:instance_label`` and starts **disabled**
+        with an empty configuration.
+
+        Args:
+            plugin_id: Base plugin ID (must already be loaded).
+            instance_label: Short alphanumeric label for the instance.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        # Validate label
+        if not _INSTANCE_LABEL_RE.match(instance_label):
+            return [
+                f"Invalid instance label '{instance_label}': must be 1-40 "
+                "alphanumeric characters, underscores, or hyphens."
+            ]
+
+        # Base plugin must exist
+        if plugin_id not in self._plugins:
+            return [f"Plugin not found: {plugin_id}"]
+
+        compound_key = self.make_instance_key(plugin_id, instance_label)
+
+        # Must not already exist
+        if compound_key in self._plugins:
+            return [f"Instance already exists: {compound_key}"]
+
+        # Create a fresh plugin object
+        new_plugin = self._loader.create_instance(plugin_id)
+        if new_plugin is None:
+            return [f"Failed to create instance of {plugin_id}"]
+
+        # Register under compound key
+        base_manifest = self._manifests[plugin_id]
+        self._plugins[compound_key] = new_plugin
+        self._manifests[compound_key] = base_manifest
+        self._enabled[compound_key] = False
+        self._configs[compound_key] = {}
+
+        logger.info("Created plugin instance: %s", compound_key)
+        return []
+
+    def delete_instance(self, plugin_id: str, instance_label: str) -> List[str]:
+        """Delete a plugin instance.
+
+        Only instances (compound keys) can be deleted; base plugins cannot.
+
+        Args:
+            plugin_id: Base plugin ID.
+            instance_label: Instance label.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        compound_key = self.make_instance_key(plugin_id, instance_label)
+
+        if compound_key not in self._plugins:
+            return [f"Instance not found: {compound_key}"]
+
+        # Clean up the plugin
+        self._plugins[compound_key].cleanup()
+        del self._plugins[compound_key]
+        self._manifests.pop(compound_key, None)
+        self._enabled.pop(compound_key, None)
+        self._configs.pop(compound_key, None)
+        self._discovered_vars.pop(compound_key, None)
+
+        logger.info("Deleted plugin instance: %s", compound_key)
+        return []
+
+    def list_instances(self, plugin_id: str) -> List[Dict[str, Any]]:
+        """List all instances of a plugin (excluding the base).
+
+        Args:
+            plugin_id: Base plugin ID.
+
+        Returns:
+            List of instance info dicts with ``label``, ``key``,
+            ``enabled``, and ``has_config`` fields.
+        """
+        instances: List[Dict[str, Any]] = []
+        prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+
+        for key in sorted(self._plugins):
+            if key.startswith(prefix):
+                label = key[len(prefix):]
+                instances.append({
+                    "label": label,
+                    "key": key,
+                    "enabled": self._enabled.get(key, False),
+                    "has_config": bool(self._configs.get(key)),
+                })
+
+        return instances
     
     @property
     def plugins(self) -> Dict[str, PluginBase]:
@@ -125,8 +266,71 @@ class PluginRegistry:
         # built-in (extracted to external repos in V3).
         self._auto_migrate_v2_plugins(stored_configs)
 
+        # Restore plugin instances from stored configs.
+        # Instance configs have compound keys like "weather:sf".
+        self._restore_instances(stored_configs)
+
         enabled_count = sum(1 for e in self._enabled.values() if e)
         logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
+
+    def _restore_instances(self, stored_configs: Dict[str, Dict[str, Any]]) -> None:
+        """Restore plugin instances from stored configuration.
+
+        Scans *stored_configs* for compound keys (containing the instance
+        separator ``:``) and creates the corresponding plugin instances
+        with their stored configuration and enabled state.
+        """
+        restored = 0
+        for config_key, config in stored_configs.items():
+            if not self.is_instance_key(config_key):
+                continue
+
+            base_id, label = self.parse_instance_key(config_key)
+            if not label:
+                continue
+
+            # Base plugin must be loaded for us to create an instance
+            if base_id not in self._plugins:
+                logger.warning(
+                    "Cannot restore instance '%s': base plugin '%s' not loaded",
+                    config_key, base_id,
+                )
+                continue
+
+            # Skip if already registered (shouldn't happen, but be safe)
+            if config_key in self._plugins:
+                continue
+
+            errors = self.create_instance(base_id, label)
+            if errors:
+                logger.warning(
+                    "Failed to restore instance '%s': %s", config_key, errors
+                )
+                continue
+
+            # Apply stored config via the proper pipeline so any future
+            # side-effects (e.g. validation hooks) are consistently triggered.
+            config_errors = self.set_plugin_config(config_key, config)
+            if config_errors:
+                logger.warning(
+                    "Instance '%s' config failed validation on restore: %s — "
+                    "applying raw config to avoid data loss",
+                    config_key, config_errors,
+                )
+                # Fall back to direct assignment so we don't silently discard config
+                self._configs[config_key] = config
+                self._plugins[config_key].config = config
+
+            # Enable via the proper pipeline so any future side-effects are
+            # consistently triggered.
+            is_enabled = config.get("enabled", False)
+            if is_enabled:
+                self.enable_plugin(config_key)
+
+            restored += 1
+
+        if restored:
+            logger.info("Restored %d plugin instance(s) from config", restored)
 
     def _auto_migrate_v2_plugins(self, stored_configs: Dict[str, Dict[str, Any]]) -> None:
         """Install external plugins that were configured in V2 but are no longer built-in.
@@ -527,16 +731,22 @@ class PluginRegistry:
         """List all plugins with their status.
         
         Returns:
-            List of plugin info dictionaries
+            List of plugin info dictionaries.  Each dict includes an
+            ``instance_label`` (string or None) and ``base_plugin_id``
+            for plugin instances.
         """
         plugins = []
         
         for plugin_id, plugin in self._plugins.items():
             manifest = self._manifests.get(plugin_id)
-            source = self._loader.get_source(plugin_id)
+            base_id, instance_label = self.parse_instance_key(plugin_id)
+            source = self._loader.get_source(base_id)
+            display_name = manifest.name if manifest else plugin_id
+            if instance_label:
+                display_name = f"{display_name} ({instance_label})"
             info = {
                 "id": plugin_id,
-                "name": manifest.name if manifest else plugin_id,
+                "name": display_name,
                 "version": manifest.version if manifest else "unknown",
                 "description": manifest.description if manifest else "",
                 "author": manifest.author if manifest else "Unknown",
@@ -547,6 +757,8 @@ class PluginRegistry:
                 "source": source.to_dict() if source else {"source_type": "builtin"},
                 "update_available": self._update_status.get(plugin_id, False),
                 "supports_triggers": manifest.supports_triggers if manifest else False,
+                "instance_label": instance_label,
+                "base_plugin_id": base_id,
             }
             plugins.append(info)
         
@@ -758,7 +970,18 @@ class PluginRegistry:
         if source.source_type == "builtin":
             return ["Cannot uninstall a built-in plugin"]
 
-        # Disable and unload
+        # Cascade-delete all named instances first
+        instance_prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+        for compound_key in [k for k in list(self._plugins) if k.startswith(instance_prefix)]:
+            self._plugins[compound_key].cleanup()
+            del self._plugins[compound_key]
+            self._manifests.pop(compound_key, None)
+            self._enabled.pop(compound_key, None)
+            self._configs.pop(compound_key, None)
+            self._discovered_vars.pop(compound_key, None)
+            logger.info("Removed instance on uninstall: %s", compound_key)
+
+        # Disable and unload base plugin
         if plugin_id in self._plugins:
             self._plugins[plugin_id].cleanup()
             del self._plugins[plugin_id]

@@ -1,0 +1,104 @@
+{
+  "id": "random",
+  "name": "Random",
+  "version": "1.0.0",
+  "description": "Display randomly selected values that refresh on a configurable interval",
+  "author": "FiestaBoard Team",
+  "repository": "https://github.com/FiestaBoard/FiestaBoard",
+  "documentation": "README.md",
+  "icon": "dice-5",
+  "category": "utility",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "title": "Enable Random",
+        "default": true
+      },
+      "choices": {
+        "type": "array",
+        "title": "Choices",
+        "description": "List of 2–10 options for the random.choice variable",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 2,
+        "maxItems": 10,
+        "default": ["Heads", "Tails"]
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "How often to pick new random values",
+        "default": 60,
+        "minimum": 60,
+        "maximum": 86400
+      }
+    }
+  },
+  "variables": {
+    "groups": {
+      "selection": {
+        "label": "Selection"
+      },
+      "presets": {
+        "label": "Presets"
+      }
+    },
+    "simple": {
+      "choice": {
+        "description": "Randomly selected item from your configured choices list",
+        "group": "selection",
+        "max_length": 32,
+        "example": "Option A"
+      },
+      "coin_flip": {
+        "description": "Coin flip result: Heads or Tails",
+        "group": "presets",
+        "max_length": 5,
+        "example": "Heads"
+      },
+      "color": {
+        "description": "Random board color as a rendered color tile (displays a solid colored square, like {{blue}}). Picks from red, orange, yellow, green, blue, violet — consistent across all board models.",
+        "group": "presets",
+        "max_length": 1,
+        "example": "{66}"
+      },
+      "color_name": {
+        "description": "Random board color name as text (red, orange, yellow, green, blue, or violet)",
+        "group": "presets",
+        "max_length": 6,
+        "example": "green"
+      }
+    }
+  },
+  "demo": {
+    "name": "Random Demo",
+    "device_type": "flagship",
+    "template": [
+      "",
+      "COIN FLIP",
+      "{{random.coin_flip}}",
+      "",
+      "{{random.color}} {{random.color_name}}",
+      ""
+    ],
+    "line_metadata": [
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false},
+      {"alignment": "center", "wrap": false}
+    ]
+  },
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Random plugin displayed on a Vestaboard",
+      "caption": "Coin flip result on board",
+      "primary": true
+    }
+  ]
+}

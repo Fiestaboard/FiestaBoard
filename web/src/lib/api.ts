@@ -712,6 +712,8 @@ export interface PluginInfo {
   config: Record<string, unknown>;
   source?: { source_type: "builtin" | "registry" | "external" | "git"; repository_url?: string; local_path?: string };
   update_available?: boolean;
+  instance_label?: string | null;
+  base_plugin_id?: string;
 }
 
 export interface PluginsListResponse {
@@ -782,6 +784,38 @@ export interface PluginDetailResponse {
   documentation: string;
   has_demo: boolean;
   demo_page_id: string | null;
+  instance_label?: string | null;
+  base_plugin_id?: string;
+  instances?: PluginInstanceInfo[];
+}
+
+export interface PluginInstanceInfo {
+  label: string;
+  key: string;
+  enabled: boolean;
+  has_config: boolean;
+}
+
+export interface PluginInstancesResponse {
+  plugin_id: string;
+  instances: PluginInstanceInfo[];
+  total: number;
+}
+
+export interface PluginInstanceCreateResponse {
+  status: string;
+  plugin_id: string;
+  instance_label: string;
+  instance_key: string;
+  message: string;
+}
+
+export interface PluginInstanceDeleteResponse {
+  status: string;
+  plugin_id: string;
+  instance_label: string;
+  instance_key: string;
+  message: string;
 }
 
 export interface PluginDemoPageResponse {
@@ -1364,6 +1398,21 @@ export const api = {
   
   getPluginErrors: () =>
     fetchApi<PluginErrorsResponse>("/plugins/errors"),
+
+  // Plugin instance endpoints
+  listPluginInstances: (pluginId: string) =>
+    fetchApi<PluginInstancesResponse>(`/plugins/${pluginId}/instances`),
+
+  createPluginInstance: (pluginId: string, label: string) =>
+    fetchApi<PluginInstanceCreateResponse>(`/plugins/${pluginId}/instances`, {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    }),
+
+  deletePluginInstance: (pluginId: string, instanceLabel: string) =>
+    fetchApi<PluginInstanceDeleteResponse>(`/plugins/${pluginId}/instances/${instanceLabel}`, {
+      method: "DELETE",
+    }),
 
   // Plugin registry endpoints
   listRegistryPlugins: () =>

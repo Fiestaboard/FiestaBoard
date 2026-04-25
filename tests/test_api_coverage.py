@@ -1073,7 +1073,9 @@ class TestDebugTestConnectionErrorPaths:
             response = client.post("/debug/test-connection")
             data = response.json()
             assert data["connected"] is False
-            assert "timeout" in data["message"]
+            # Generic message — exception details are logged, not leaked.
+            assert data["status"] == "error"
+            assert data["message"]
 
 
 class TestDebugClearCacheErrorPaths:

@@ -68,7 +68,10 @@ SYMBOL_CHARS = {
 
 
 # Regex patterns
-VAR_PATTERN = re.compile(r'\{\{([^}]+)\}\}')  # {{source.field}} or {{source.field|filter}}
+# Note: ``[^}{]+`` (rather than ``[^}]+``) prevents overlapping matches and
+# eliminates polynomial backtracking on inputs like ``{{{{{{...``.  Variable
+# expressions never contain ``{`` themselves.
+VAR_PATTERN = re.compile(r'\{\{([^}{]+)\}\}')  # {{source.field}} or {{source.field|filter}}
 COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}', re.IGNORECASE)
 SYMBOL_PATTERN = re.compile(r'\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}', re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r'\{\{fill_space\}\}', re.IGNORECASE)
@@ -766,6 +769,11 @@ class TemplateEngine:
         
         plugin_id = parts[0].lower()
         field = parts[1].lower()
+
+        # For plugin instances the key has the form "weather:sf".  Color rules
+        # and manifests are registered under the base plugin ID only, so strip
+        # any instance suffix before looking them up.
+        base_plugin_id = plugin_id.split(":", 1)[0]
         
         # Skip automatic coloring for fields that have separate _color variables
         # These fields should only be colored via their explicit _color variable
@@ -773,11 +781,11 @@ class TemplateEngine:
             return ""
         
         # Try to get color rules from config manager first (for legacy features)
-        rules = self.config_manager.get_color_rules(plugin_id, field)
+        rules = self.config_manager.get_color_rules(base_plugin_id, field)
         
         # If not found, try to get from plugin manifest
         if not rules and self._plugin_registry:
-            manifest = self._plugin_registry.get_manifest(plugin_id)
+            manifest = self._plugin_registry.get_manifest(base_plugin_id)
             if manifest and manifest.color_rules_schema:
                 field_schema = manifest.color_rules_schema.get(field)
                 if field_schema and isinstance(field_schema, dict):
@@ -787,7 +795,7 @@ class TemplateEngine:
             return ""
         
         # Map field name for data lookup (e.g., 'temp' -> 'temperature' for weather)
-        data_field = self._map_field_for_data_lookup(plugin_id, field)
+        data_field = self._map_field_for_data_lookup(base_plugin_id, field)
         
         # Get the raw value for comparison
         raw_value = None
@@ -1024,19 +1032,23 @@ class TemplateEngine:
         """Get just the color tile for a field based on color rules.
         
         Args:
-            plugin_id: Plugin ID (e.g., 'weather')
+            plugin_id: Plugin ID (e.g., 'weather' or 'weather:sf' for instances)
             field: Field name (e.g., 'temp')
             context: Data context
             
         Returns:
             Color tile like '{65}' or empty string if no rule matches
         """
+        # For plugin instances the key has the form "weather:sf".  Color rules
+        # and manifests are registered under the base plugin ID only.
+        base_plugin_id = plugin_id.split(":", 1)[0]
+
         # Try to get color rules from config manager first (for legacy features)
-        rules = self.config_manager.get_color_rules(plugin_id, field)
+        rules = self.config_manager.get_color_rules(base_plugin_id, field)
         
         # If not found, try to get from plugin manifest
         if not rules and self._plugin_registry:
-            manifest = self._plugin_registry.get_manifest(plugin_id)
+            manifest = self._plugin_registry.get_manifest(base_plugin_id)
             if manifest and manifest.color_rules_schema:
                 field_schema = manifest.color_rules_schema.get(field)
                 if field_schema and isinstance(field_schema, dict):
@@ -1046,7 +1058,8 @@ class TemplateEngine:
             return ""
         
         # Map field name for data lookup (e.g., 'temp' -> 'temperature' for weather)
-        data_field = self._map_field_for_data_lookup(plugin_id, field)
+        # Use base_plugin_id for field mapping; look up data under full plugin_id key
+        data_field = self._map_field_for_data_lookup(base_plugin_id, field)
         
         # Get the raw value for comparison
         raw_value = None

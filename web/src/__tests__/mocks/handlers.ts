@@ -873,6 +873,40 @@ export const handlers = [
     });
   }),
 
+  // Plugin instance endpoints
+  http.get(`${API_BASE}/plugins/:pluginId/instances`, ({ params }) => {
+    const { pluginId } = params;
+    return HttpResponse.json({
+      plugin_id: pluginId,
+      instances: [],
+    });
+  }),
+
+  http.post(`${API_BASE}/plugins/:pluginId/instances`, async ({ request, params }) => {
+    const { pluginId } = params;
+    const body = await request.json() as { label: string };
+    const instanceKey = `${pluginId}:${body.label}`;
+    return HttpResponse.json({
+      status: "success",
+      plugin_id: pluginId,
+      instance_label: body.label,
+      instance_key: instanceKey,
+      message: `Instance "${body.label}" created for plugin "${pluginId}".`,
+    });
+  }),
+
+  http.delete(`${API_BASE}/plugins/:pluginId/instances/:instanceLabel`, ({ params }) => {
+    const { pluginId, instanceLabel } = params;
+    const instanceKey = `${pluginId}:${instanceLabel}`;
+    return HttpResponse.json({
+      status: "success",
+      plugin_id: pluginId,
+      instance_label: instanceLabel,
+      instance_key: instanceKey,
+      message: `Instance "${instanceLabel}" of plugin "${pluginId}" deleted.`,
+    });
+  }),
+
   // Silence status endpoint
   http.get(`${API_BASE}/silence-status`, () => {
     return HttpResponse.json(mockSilenceStatus);

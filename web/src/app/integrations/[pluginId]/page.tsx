@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
@@ -15,8 +16,18 @@ import { PageLayout } from "@/components/page-layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowDownToLine, ExternalLink, Puzzle } from "lucide-react";
+import { ArrowLeft, ArrowDownToLine, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -35,6 +46,9 @@ export default function PluginDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const pluginId = params.pluginId as string;
+  const [addInstanceOpen, setAddInstanceOpen] = useState(false);
+  const [instanceLabel, setInstanceLabel] = useState("");
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
 
   // Find the registry entry for this plugin
   const { data: registryData, isLoading: isLoadingRegistry } = useQuery({
@@ -87,6 +101,22 @@ export default function PluginDetailPage() {
 
   const isInstalled = registryData?.entries.find((e) => e.id === pluginId)?.installed;
   const isLoading = isLoadingRegistry;
+
+  async function handleAddInstance() {
+    if (!instanceLabel.trim()) return;
+    setIsCreatingInstance(true);
+    try {
+      await api.createPluginInstance(pluginId, instanceLabel.trim());
+      toast.success(`Instance "${instanceLabel}" created`);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      setAddInstanceOpen(false);
+      setInstanceLabel("");
+    } catch (err) {
+      toast.error(`Failed to create instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsCreatingInstance(false);
+    }
+  }
 
   return (
     <PageLayout>
@@ -145,8 +175,9 @@ export default function PluginDetailPage() {
               )}
               {!isLoading && (
                 isInstalled ? (
-                  <Button size="sm" variant="secondary" disabled>
-                    Installed
+                  <Button size="sm" variant="outline" onClick={() => setAddInstanceOpen(true)}>
+                    <CopyPlus className="h-3.5 w-3.5 mr-1.5" />
+                    Add Instance
                   </Button>
                 ) : (
                   <Button
@@ -286,6 +317,42 @@ export default function PluginDetailPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={addInstanceOpen} onOpenChange={setAddInstanceOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Instance of {entry?.name ?? pluginId}</DialogTitle>
+            <DialogDescription>
+              Create a new independent instance with its own configuration.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="detail-instance-label">Instance name</Label>
+            <Input
+              id="detail-instance-label"
+              placeholder="e.g. sf, prod, home"
+              value={instanceLabel}
+              onChange={(e) => setInstanceLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && instanceLabel.trim()) handleAddInstance();
+                if (e.key === "Escape") setAddInstanceOpen(false);
+              }}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Use alphanumeric characters, hyphens, or underscores (1–40 chars).
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddInstanceOpen(false)} disabled={isCreatingInstance}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddInstance} disabled={!instanceLabel.trim() || isCreatingInstance}>
+              {isCreatingInstance ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 }

@@ -93,6 +93,10 @@ COPY --from=ui-builder /app/public ./web/public
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Copy "please wait" static page served by nginx while the API is starting up
+RUN mkdir -p /app/static
+COPY starting.html /app/static/starting.html
+
 # Create nginx directories and set permissions
 RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx /var/lib/nginx/body
 

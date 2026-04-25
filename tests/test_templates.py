@@ -889,3 +889,83 @@ class TestColorWrapping:
             close_count = line.count("}")
             assert open_count == close_count, f"Line has mismatched braces: {line}"
 
+
+class TestCompoundPluginKeys:
+    """Tests for template engine behaviour with multi-instance plugin keys (weather:sf)."""
+
+    @pytest.fixture
+    def engine(self):
+        return TemplateEngine()
+
+    # ── variable substitution ────────────────────────────────────────────────
+
+    def test_compound_key_variable_substitution(self, engine):
+        """{{weather:sf.temperature}} resolves from context["weather:sf"]."""
+        context = {"weather:sf": {"temperature": 65}}
+        result = engine.render("{{weather:sf.temperature}}", context)
+        assert result == "65"
+
+    def test_compound_key_missing_source(self, engine):
+        """Missing compound key returns ??? error indicator."""
+        result = engine.render("{{weather:sf.temperature}}", context={})
+        assert "???" in result
+
+    def test_compound_key_missing_field(self, engine):
+        """Missing field on compound key returns ??? error indicator."""
+        context = {"weather:sf": {"temperature": 65}}
+        result = engine.render("{{weather:sf.humidity}}", context)
+        assert "???" in result
+
+    def test_multiple_compound_keys_in_template(self, engine):
+        """Multiple instance keys in one template all resolve correctly."""
+        context = {
+            "weather:sf": {"temperature": 65},
+            "weather:nyc": {"temperature": 72},
+        }
+        result = engine.render("SF:{{weather:sf.temperature}} NYC:{{weather:nyc.temperature}}", context)
+        assert "SF:65" in result
+        assert "NYC:72" in result
+
+    # ── color rules ──────────────────────────────────────────────────────────
+
+    def test_compound_key_color_lookup_uses_base_id(self, engine):
+        """Color rules for 'weather:sf' are looked up under base plugin 'weather'."""
+        mock_cm = Mock()
+        # Return a color rule for the base plugin 'weather'
+        mock_cm.get_color_rules.side_effect = lambda plugin_id, field: (
+            [{"condition": ">", "value": 0, "color": "green"}]
+            if plugin_id == "weather" and field == "change_percent"
+            else []
+        )
+        engine._config_manager = mock_cm
+        context = {"weather:sf": {"change_percent": 5}}
+        engine._get_color_for_value("weather:sf.change_percent", context)
+        # Must call get_color_rules with the base id 'weather', not 'weather:sf'
+        mock_cm.get_color_rules.assert_called_with("weather", "change_percent")
+
+    def test_compound_key_no_color_rules_for_full_key(self, engine):
+        """No color rules are returned when the full compound key is looked up — base wins."""
+        mock_cm = Mock()
+        # Only returns rules for the base id
+        mock_cm.get_color_rules.return_value = []
+        engine._config_manager = mock_cm
+        # Use change_percent — avoids the early-exit guard on 'temperature'/'uv_index'
+        engine._get_color_for_value("weather:sf.change_percent", {})
+        # Confirm the call used the base id (not the compound key)
+        call_args = mock_cm.get_color_rules.call_args
+        assert call_args is not None, "_get_color_for_value did not call get_color_rules"
+        assert call_args[0][0] == "weather", (
+            f"Expected base plugin id 'weather' but got '{call_args[0][0]}'"
+        )
+
+    def test_compound_key_color_only_uses_base_id(self, engine):
+        """_get_color_only also resolves color rules via the base plugin id."""
+        mock_cm = Mock()
+        mock_cm.get_color_rules.return_value = [
+            {"condition": ">", "value": 0, "color": "green"}
+        ]
+        engine._config_manager = mock_cm
+        context = {"weather:sf": {"change_percent": 5}}
+        engine._get_color_only("weather:sf", "change_percent", context)
+        mock_cm.get_color_rules.assert_called_with("weather", "change_percent")
+

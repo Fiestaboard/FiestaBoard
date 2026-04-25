@@ -39,6 +39,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -234,6 +244,7 @@ import {
   Skull,
   Smile,
   MoreHorizontal,
+  CopyPlus,
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -838,9 +849,15 @@ function PluginCard({
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
+  const [showAddInstance, setShowAddInstance] = useState(false);
+  const [instanceLabel, setInstanceLabel] = useState("");
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const queryClient = useQueryClient();
 
   const isExternal = plugin.source?.source_type !== "builtin";
   const hasUpdate = plugin.update_available === true;
+  const isInstance = !!plugin.instance_label;
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -871,8 +888,6 @@ function PluginCard({
       setIsSaving(false);
     }
   };
-
-  const queryClient = useQueryClient();
 
   const handleCreateDemoPage = async () => {
     setIsCreatingDemo(true);
@@ -976,6 +991,39 @@ function PluginCard({
   const isMarketplace = sourceType === "registry" || sourceType === "external";
   const isGitExternal = sourceType === "git";
   const categoryLabel = CATEGORY_LABELS[plugin.category || "utility"] || plugin.category || "Utility";
+
+  function handleCreateInstance() {
+    if (!instanceLabel.trim()) return;
+    setIsCreatingInstance(true);
+    const baseId = plugin.base_plugin_id ?? plugin.id;
+    api.createPluginInstance(baseId, instanceLabel.trim())
+      .then(() => {
+        toast.success(`Instance "${instanceLabel}" created for ${plugin.name}`);
+        queryClient.invalidateQueries({ queryKey: ["plugins"] });
+        setShowAddInstance(false);
+        setInstanceLabel("");
+      })
+      .catch((err) => {
+        toast.error(`Failed to create instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+      })
+      .finally(() => {
+        setIsCreatingInstance(false);
+      });
+  }
+
+  async function handleDeleteInstance() {
+    const baseId = plugin.base_plugin_id ?? plugin.id.split(":")[0];
+    const label = plugin.instance_label ?? "";
+    try {
+      await api.deletePluginInstance(baseId, label);
+      toast.success(`Instance "${label}" deleted`);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+    } catch (err) {
+      toast.error(`Failed to delete instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  }
 
   const configSheet = (
     <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
@@ -1230,7 +1278,8 @@ function PluginCard({
     </Sheet>
   );
 
-  return (
+  const rows = (
+    <>
     <tr className={cn(
       "border-b last:border-b-0 transition-colors",
       plugin.enabled ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20"
@@ -1319,6 +1368,12 @@ function PluginCard({
                 <Settings className="h-3.5 w-3.5 mr-2" />
                 Configure
               </DropdownMenuItem>
+              {!isInstance && (
+                <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
+                  <CopyPlus className="h-3.5 w-3.5 mr-2" />
+                  Add Instance
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
                 {plugin.enabled ? (
                   <XCircle className="h-3.5 w-3.5 mr-2" />
@@ -1336,16 +1391,28 @@ function PluginCard({
                   </DropdownMenuItem>
                 </>
               )}
-              {isExternal && onUninstall && (
+              {isInstance && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => onUninstall(plugin.id)}
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+              {isExternal && onUninstall && !isInstance && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setShowDeleteConfirm(true)}
                     disabled={isUninstalling}
                     className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    {isUninstalling ? "Uninstalling..." : "Uninstall"}
+                    {isUninstalling ? "Uninstalling..." : "Delete"}
                   </DropdownMenuItem>
                 </>
               )}
@@ -1354,6 +1421,94 @@ function PluginCard({
         </div>
       </td>
     </tr>
+    {showAddInstance && (
+      <tr className="border-b last:border-b-0">
+        <td colSpan={4} className="px-4 py-3">
+          <div className="flex items-center gap-3 max-w-md">
+            <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
+              Instance name:
+            </Label>
+            <Input
+              id={`instance-label-${plugin.id}`}
+              placeholder="e.g. sf, prod, api-2"
+              value={instanceLabel}
+              onChange={(e) => setInstanceLabel(e.target.value)}
+              className="h-8 text-sm"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && instanceLabel.trim()) {
+                  handleCreateInstance();
+                }
+                if (e.key === "Escape") {
+                  setShowAddInstance(false);
+                  setInstanceLabel("");
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              className="h-8"
+              disabled={!instanceLabel.trim() || isCreatingInstance}
+              onClick={handleCreateInstance}
+            >
+              {isCreatingInstance ? "Creating..." : "Create"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8"
+              onClick={() => {
+                setShowAddInstance(false);
+                setInstanceLabel("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Creates a new independent instance of this plugin with its own configuration.
+            Use alphanumeric characters, hyphens, or underscores (1-40 chars).
+          </p>
+        </td>
+      </tr>
+    )}
+    </>
+  );
+
+  // Delete / uninstall confirmation dialog
+  const deleteConfirmDialog = showDeleteConfirm && (
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          {isInstance ? (
+            <AlertDialogTitle>Delete instance &ldquo;{plugin.instance_label}&rdquo;?</AlertDialogTitle>
+          ) : (
+            <AlertDialogTitle>Delete &ldquo;{plugin.name}&rdquo;?</AlertDialogTitle>
+          )}
+          <AlertDialogDescription>
+            {isInstance
+              ? "This will permanently remove this instance and its configuration. This action cannot be undone."
+              : "This will permanently remove the plugin and all its instances. This action cannot be undone."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={isInstance ? handleDeleteInstance : () => { setShowDeleteConfirm(false); onUninstall?.(plugin.id); }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  return (
+    <>
+      {rows}
+      {deleteConfirmDialog}
+    </>
   );
 }
 
@@ -1361,18 +1516,20 @@ function RegistryPluginCard({
   entry,
   onInstall,
   isInstalling,
+  isInstalled = false,
   index = 0,
 }: {
   entry: RegistryEntry;
   onInstall: (pluginId: string) => void;
   isInstalling: boolean;
+  isInstalled?: boolean;
   index?: number;
 }) {
   const Icon = getPluginIcon(entry.icon);
   return (
     <div className="rounded-xl animate-card-fade-in h-full" style={{ animationDelay: `${index * 60}ms` }}>
       <Link href={`/integrations/${entry.id}`} className="block h-full group">
-        <Card className="opacity-60 group-hover:opacity-90 transition-opacity border-dashed h-full flex flex-col">
+        <Card className="h-full flex flex-col group-hover:bg-muted/20 transition-colors">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1384,16 +1541,23 @@ function RegistryPluginCard({
                   <CardDescription className="text-xs mt-0.5">by {entry.author}</CardDescription>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs shrink-0"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(entry.id); }}
-                disabled={isInstalling}
-              >
-                <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
-                {isInstalling ? "Installing..." : "Install"}
-              </Button>
+              {isInstalled ? (
+                <Badge variant="secondary" className="text-xs gap-1 shrink-0 self-start mt-0.5">
+                  <CheckCircle className="h-3 w-3" />
+                  Installed
+                </Badge>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs shrink-0"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(entry.id); }}
+                  disabled={isInstalling}
+                >
+                  <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+                  {isInstalling ? "Installing..." : "Install"}
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="pt-0 flex flex-col flex-1">
@@ -1412,10 +1576,12 @@ function RegistryPluginRow({
   entry,
   onInstall,
   isInstalling,
+  isInstalled = false,
 }: {
   entry: RegistryEntry;
   onInstall: (pluginId: string) => void;
   isInstalling: boolean;
+  isInstalled?: boolean;
 }) {
   const Icon = getPluginIcon(entry.icon);
   return (
@@ -1426,7 +1592,15 @@ function RegistryPluginRow({
             <Icon className="h-4 w-4" />
           </div>
           <div>
-            <span className="font-medium text-sm group-hover:underline underline-offset-2">{entry.name}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm group-hover:underline underline-offset-2">{entry.name}</span>
+              {isInstalled && (
+                <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+                  <CheckCircle className="h-2.5 w-2.5" />
+                  Installed
+                </Badge>
+              )}
+            </div>
             {entry.description && (
               <p className="text-xs text-muted-foreground truncate max-w-xs">{entry.description}</p>
             )}
@@ -1440,16 +1614,18 @@ function RegistryPluginRow({
         {entry.author}
       </td>
       <td className="px-4 py-2.5 text-right">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs"
-          onClick={() => onInstall(entry.id)}
-          disabled={isInstalling}
-        >
-          <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
-          {isInstalling ? "Installing..." : "Install"}
-        </Button>
+        {!isInstalled && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => onInstall(entry.id)}
+            disabled={isInstalling}
+          >
+            <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+            {isInstalling ? "Installing..." : "Install"}
+          </Button>
+        )}
       </td>
     </tr>
   );
@@ -1638,11 +1814,9 @@ export default function IntegrationsPage() {
     }
   };
 
-  // Build a merged view: installed plugins + uninstalled registry entries
-  const installedIds = new Set(data?.plugins.map((p) => p.id) ?? []);
-  const uninstalledRegistry = (registryData?.entries ?? []).filter(
-    (e) => !installedIds.has(e.id)
-  );
+  // Build a merged view: all registry entries, marking which are installed
+  const installedIds = new Set(data?.plugins.map((p) => p.base_plugin_id ?? p.id) ?? []);
+  const allRegistryEntries = registryData?.entries ?? [];
 
   const query = searchQuery.toLowerCase().trim();
 
@@ -1654,7 +1828,7 @@ export default function IntegrationsPage() {
       p.id.toLowerCase().includes(query)
   );
 
-  const filteredUninstalled = uninstalledRegistry.filter(
+  const filteredRegistry = allRegistryEntries.filter(
     (e) =>
       !query ||
       e.name.toLowerCase().includes(query) ||
@@ -1662,22 +1836,22 @@ export default function IntegrationsPage() {
       e.id.toLowerCase().includes(query)
   );
 
-  // Group uninstalled registry entries by category (for Marketplace tab)
-  const groupedUninstalled = filteredUninstalled.reduce((acc, entry) => {
+  // Group all registry entries by category (for Marketplace tab card view)
+  const groupedRegistry = filteredRegistry.reduce((acc, entry) => {
     const category = entry.category || "utility";
     if (!acc[category]) acc[category] = [];
     acc[category].push(entry);
     return acc;
   }, {} as Record<string, RegistryEntry[]>);
 
-  const marketplaceCategories = Object.keys(groupedUninstalled).sort(
+  const marketplaceCategories = Object.keys(groupedRegistry).sort(
     (a, b) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b)
   );
 
-  const availableCount = uninstalledRegistry.length;
+  const availableCount = allRegistryEntries.length;
 
   // Sorted flat list for marketplace list view
-  const sortedUninstalled = [...filteredUninstalled].sort((a, b) => {
+  const sortedRegistry = [...filteredRegistry].sort((a, b) => {
     let valA = "";
     let valB = "";
     if (marketplaceSort.key === "name") { valA = a.name; valB = b.name; }
@@ -2014,19 +2188,19 @@ export default function IntegrationsPage() {
 
         {/* ── Marketplace Tab ── */}
         <TabsContent value="marketplace" className="mt-0">
-          {filteredUninstalled.length === 0 ? (
+          {filteredRegistry.length === 0 ? (
             <div className="text-center py-16">
               {query ? (
                 <>
                   <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">No available plugins match &quot;{searchQuery}&quot;</p>
+                  <p className="text-muted-foreground">No plugins match &quot;{searchQuery}&quot;</p>
                 </>
               ) : (
                 <>
-                  <CheckCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="font-medium mb-1">All registry plugins are installed</p>
+                  <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="font-medium mb-1">No registry plugins found</p>
                   <p className="text-sm text-muted-foreground">
-                    You can still install custom plugins from any public git repository.
+                    You can install custom plugins from any public git repository.
                   </p>
                 </>
               )}
@@ -2036,7 +2210,7 @@ export default function IntegrationsPage() {
               {(() => {
                 let globalIndex = 0;
                 return marketplaceCategories.map((category) => {
-                  const entries = groupedUninstalled[category] ?? [];
+                  const entries = groupedRegistry[category] ?? [];
                   if (entries.length === 0) return null;
                   return (
                     <section key={category}>
@@ -2055,6 +2229,7 @@ export default function IntegrationsPage() {
                               entry={entry}
                               onInstall={handleInstall}
                               isInstalling={installingId === entry.id}
+                              isInstalled={installedIds.has(entry.id)}
                               index={cardIndex}
                             />
                           );
@@ -2097,12 +2272,13 @@ export default function IntegrationsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedUninstalled.map((entry) => (
+                  {sortedRegistry.map((entry) => (
                     <RegistryPluginRow
                       key={entry.id}
                       entry={entry}
                       onInstall={handleInstall}
                       isInstalling={installingId === entry.id}
+                      isInstalled={installedIds.has(entry.id)}
                     />
                   ))}
                 </tbody>

@@ -32,6 +32,17 @@ EXTERNAL_PLUGINS_DIR = "external_plugins"
 REGISTRY_PREFIX = "fiestaboard-plugin--"
 REGISTRY_NAME_RE = re.compile(r"^fiestaboard-plugin--[a-z][a-z0-9-]*$")
 
+# Plugin id must be a safe single-segment identifier so it can be used as a
+# directory name without enabling path traversal.  Same character set as a
+# Python identifier with optional leading lowercase letter.
+PLUGIN_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+# Constant character allow-list used to rebuild a validated plugin id from
+# scratch before passing it to the filesystem.  Keeping this as a literal
+# string (not derived from user input) gives static analysers a clear
+# barrier for path-injection flows.
+_PLUGIN_ID_ALLOWED = "abcdefghijklmnopqrstuvwxyz0123456789_"
+
 # Simple allow-list for git URL schemes
 _ALLOWED_SCHEMES = ("https://",)
 
@@ -207,11 +218,48 @@ def repo_name_from_url(url: str) -> str:
 
 
 def _validate_git_url(url: str) -> Tuple[bool, str]:
-    """Very basic validation that *url* looks like an HTTPS git URL."""
+    """Very basic validation that *url* looks like an HTTPS git URL.
+
+    In addition to scheme checking we reject characters that could confuse
+    ``git`` into treating the URL as an option (a leading ``-`` after the
+    scheme), or shell metacharacters that have no business appearing in a
+    repository URL.  This keeps the URL safe to pass to ``subprocess.run``
+    even though we already invoke ``git`` without a shell.
+    """
+    if not isinstance(url, str) or not url:
+        return False, "URL must be a non-empty string"
     if not any(url.startswith(s) for s in _ALLOWED_SCHEMES):
         return False, f"Only HTTPS URLs are supported (got {url!r})"
-    if ".." in url or "\n" in url or " " in url:
+    if ".." in url or any(c in url for c in "\n\r\t \"'`$;|&<>\\"):
         return False, "URL contains invalid characters"
+
+    # Parse and sanity-check the URL structure.
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False, "URL could not be parsed"
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False, "URL must be a fully-qualified https URL"
+    # Embedded credentials (``https://user:pass@host``) are not needed for
+    # public clones and would leak into logs / process listings.
+    if parsed.username is not None or parsed.password is not None:
+        return False, "URL must not contain credentials"
+    # Defence in depth: even after the scheme check, refuse to pass a value
+    # that could be parsed as a CLI option.
+    if url.lstrip().startswith("-"):
+        return False, "URL must not start with '-'"
+    return True, ""
+
+
+def _validate_plugin_id(plugin_id: str) -> Tuple[bool, str]:
+    """Validate that *plugin_id* is safe to use as a single path segment."""
+    if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.match(plugin_id):
+        return False, (
+            f"Invalid plugin id {plugin_id!r}: must match "
+            f"{PLUGIN_ID_RE.pattern}"
+        )
     return True, ""
 
 
@@ -271,7 +319,10 @@ def clone_or_update_repo(
         cmd = ["git", "clone", "--depth", "1"]
         if branch:
             cmd += ["--branch", branch]
-        cmd += [repo_url, str(dest_dir)]
+        # ``--`` ensures the repo URL and destination are treated as
+        # positional arguments and never as options, even if validation
+        # somehow misses a leading ``-``.
+        cmd += ["--", repo_url, str(dest_dir)]
         subprocess.run(
             cmd, check=True, capture_output=True, text=True,
             timeout=120, env=env,
@@ -375,6 +426,53 @@ def get_external_plugins_dir(project_root: Optional[Path] = None) -> Path:
     return ext_dir
 
 
+def _safe_external_dest(
+    external_dir: Path, plugin_id: str
+) -> Tuple[Optional[Path], str]:
+    """Compute a safe destination path inside ``external_dir`` for a plugin.
+
+    The plugin id flows through three independent CodeQL-recognised
+    path-injection barriers before it ever reaches a filesystem call:
+
+    1. :func:`re.fullmatch` against a strict character-class allow-list.
+    2. Per-character allow-list reconstruction — the value is rebuilt
+       from a constant string of permitted characters and the result
+       must equal the original input.
+    3. After ``os.path.realpath``, :func:`os.path.commonpath` is used to
+       prove the resolved candidate is contained within
+       ``external_root``.  This is the canonical CodeQL sanitiser for
+       ``py/path-injection`` and is checked **before** any further use
+       of the path.
+    """
+    if not isinstance(plugin_id, str) or not plugin_id:
+        return None, "Invalid plugin id"
+
+    # (1) Inline allow-list match (single segment, lowercase + digits +
+    # underscore only).
+    if not PLUGIN_ID_RE.fullmatch(plugin_id):
+        return None, f"Invalid plugin id {plugin_id!r}"
+
+    # (2) Rebuild from a fixed allow-list and require equality.
+    safe_id = "".join(c for c in plugin_id if c in _PLUGIN_ID_ALLOWED)
+    if safe_id != plugin_id:
+        return None, f"Invalid plugin id {plugin_id!r}"
+
+    # (3) Build and resolve the candidate path, then confirm containment
+    # with ``os.path.commonpath`` *before* returning the path.  This is
+    # the CodeQL-recognised path-injection barrier.
+    external_root = os.path.realpath(str(external_dir))
+    raw_candidate = os.path.join(external_root, safe_id)
+    candidate_real = os.path.realpath(raw_candidate)
+    try:
+        common = os.path.commonpath([external_root, candidate_real])
+    except ValueError:
+        return None, f"Refusing to install plugin outside {external_root}"
+    if common != external_root or candidate_real == external_root:
+        return None, f"Refusing to install plugin outside {external_root}"
+
+    return Path(candidate_real), ""
+
+
 def install_registry_plugin(
     entry: RegistryEntry,
     external_dir: Optional[Path] = None,
@@ -390,10 +488,16 @@ def install_registry_plugin(
     if not ok:
         return False, err
 
+    ok, err = _validate_plugin_id(entry.plugin_id)
+    if not ok:
+        return False, err
+
     if external_dir is None:
         external_dir = get_external_plugins_dir()
 
-    dest = external_dir / entry.plugin_id
+    dest, err = _safe_external_dest(external_dir, entry.plugin_id)
+    if dest is None:
+        return False, err
     return clone_or_update_repo(entry.repository, dest, entry.branch)
 
 
@@ -418,6 +522,12 @@ def install_git_plugin(
     Returns:
         ``(True, "")`` on success, ``(False, reason)`` on failure.
     """
+    # Validate the URL up front so an invalid value can't influence path
+    # construction or be passed to ``git`` as an option.
+    ok, err = _validate_git_url(repo_url)
+    if not ok:
+        return False, err
+
     if external_dir is None:
         external_dir = get_external_plugins_dir()
 
@@ -428,5 +538,11 @@ def install_git_plugin(
     if plugin_id is None:
         plugin_id = plugin_id_from_repo_name(repo_name)
 
-    dest = external_dir / plugin_id
+    ok, err = _validate_plugin_id(plugin_id)
+    if not ok:
+        return False, err
+
+    dest, err = _safe_external_dest(external_dir, plugin_id)
+    if dest is None:
+        return False, err
     return clone_or_update_repo(repo_url, dest, branch)

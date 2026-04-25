@@ -1,8 +1,22 @@
 """Tests for system management endpoints (update check)."""
 
+from urllib.parse import urlparse
+
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, Mock
+
+
+def _host_is(url, expected_host):
+    """Return True if the URL's host equals (or is a subdomain of) ``expected_host``.
+
+    Used in place of ``"host" in url`` substring checks, which CodeQL flags
+    as "Incomplete URL substring sanitization" because they can be tricked
+    by URLs like ``https://evil.com/?x=hub.docker.com``.
+    """
+    host = (urlparse(url).hostname or "").lower()
+    expected = expected_host.lower()
+    return host == expected or host.endswith("." + expected)
 
 
 @pytest.fixture
@@ -176,7 +190,7 @@ class TestDockerHubCheck:
 
         def mock_get(url, **kwargs):
             call_order.append(url)
-            if "hub.docker.com" in url:
+            if _host_is(url, "hub.docker.com"):
                 return tags_resp
             # GitHub Releases should NOT be called
             raise AssertionError("Should not reach GitHub Releases API")
@@ -189,7 +203,7 @@ class TestDockerHubCheck:
         assert data["latest_version"] == "99.0.0"
         assert data["update_available"] is True
         # Verify Docker Hub was called
-        assert any("hub.docker.com" in url for url in call_order)
+        assert any(_host_is(url, "hub.docker.com") for url in call_order)
 
     def test_update_check_falls_back_to_github_releases(self, client):
         """Test fallback to GitHub Releases when Docker Hub fails."""
@@ -201,7 +215,7 @@ class TestDockerHubCheck:
         call_count = {"dockerhub": 0, "github": 0}
 
         def mock_get(url, **kwargs):
-            if "hub.docker.com" in url:
+            if _host_is(url, "hub.docker.com"):
                 call_count["dockerhub"] += 1
                 raise Exception("Docker Hub unavailable")
             call_count["github"] += 1
