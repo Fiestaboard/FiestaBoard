@@ -93,3 +93,23 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.out.outputs.img }}
+
+      - name: Update latest-version file in docs (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          # Checkout the main branch of FiestaBoard so we can commit to it.
+          cd "$GITHUB_WORKSPACE/FiestaBoard"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+
+          # Write the new version so the docs site can display it.
+          echo "${{ steps.version.outputs.version }}" > docs-site/static/fiestapi-latest-version.txt
+
+          git add docs-site/static/fiestapi-latest-version.txt
+          git diff --cached --quiet && echo "No change, skipping commit." && exit 0
+          git commit -m "chore: update FiestaPi latest version to ${{ steps.version.outputs.version }} [skip ci]"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" main

@@ -1,83 +1,99 @@
 ---
 sidebar_position: 1
-description: "Deploy FiestaBoard on a Raspberry Pi 3B+, Zero 2W, or Pi 4 to run your split-flap display dashboard 24/7."
-keywords: [FiestaBoard Raspberry Pi, Pi deployment, Raspberry Pi 4, Pi Zero 2W, self-hosted, split-flap Pi]
+description: "Run FiestaBoard on a Raspberry Pi. Flash the FiestaPi image for zero-config setup, or use a Pi you already have with Docker."
+keywords: [FiestaBoard Raspberry Pi, FiestaPi, Pi deployment, Raspberry Pi 4, Pi Zero 2W, self-hosted, split-flap Pi]
 ---
 
-# Raspberry Pi Deployment
+# Raspberry Pi
 
-Deploy FiestaBoard on a Raspberry Pi for a dedicated, always-on dashboard controller.
+Run FiestaBoard on a Raspberry Pi for a dedicated, always-on dashboard controller.
 
-## Compatible Models
+## Recommended: Flash the FiestaPi image
+
+The fastest path is the **FiestaPi** pre-built image. Flash a microSD card, boot, open a browser — FiestaBoard is running and self-updating out of the box. No Docker setup, no command line.
+
+**→ [FiestaPi Quick Start](/docs/setup/raspberry-pi)**
+
+---
+
+## Advanced: Install on an existing Pi with Docker
+
+Already have a Raspberry Pi running with Docker? You can run FiestaBoard the same way as any Docker install.
+
+### Compatible models
 
 | Model | Architecture | Status |
 |-------|-------------|--------|
-| Raspberry Pi 3B+ | `linux/arm64` | Supported (requires 64-bit OS) |
-| Raspberry Pi Zero 2 W | `linux/arm64` | Supported (requires 64-bit OS) |
+| Raspberry Pi 3B+ | `linux/arm64` | Supported (64-bit OS required) |
+| Raspberry Pi Zero 2 W | `linux/arm64` | Supported (64-bit OS required) |
 | Raspberry Pi 4 | `linux/arm64` | Supported |
 | Raspberry Pi 5 | `linux/arm64` | Supported |
 
-## Prerequisites
+> **Note:** 32-bit ARM (`linux/arm/v7`) is not supported. Node.js dropped ARM32v7 in v20+. Use 64-bit Raspberry Pi OS (Bookworm or later).
 
-- Raspberry Pi with Raspberry Pi OS (Bookworm or later)
-- At least 2GB of RAM recommended
-- Docker and Docker Compose installed
-- Network access to your board
-
-## Installing Docker on Raspberry Pi
+### Install Docker (if needed)
 
 ```bash
-# Install Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
-
-# Add your user to the docker group
 sudo usermod -aG docker $USER
-
-# Log out and back in, then verify
+# Log out and back in, then verify:
 docker --version
 ```
 
-## Setting Up FiestaBoard
+### Start FiestaBoard
+
+Using pre-built images from Docker Hub (recommended — no build step):
 
 ```bash
-# Clone the repository
-git clone https://github.com/Fiestaboard/FiestaBoard.git
-cd FiestaBoard
-
-# Create your configuration
-cp env.example .env
-# Edit .env with your API keys
-
-# Start FiestaBoard
-docker-compose up -d --build
+docker compose -f docker-compose.hub.yml up -d
 ```
 
-:::info Build Times
-The first build on a Raspberry Pi will take longer than on a desktop computer. Expect 10-20 minutes depending on your Pi model and SD card speed.
-:::
+Open **http://localhost:4420** in a browser on the same network.
 
-## Using Pre-Built ARM Images
+### Enable in-app updates
 
-For faster setup, use the pre-built images from Docker Hub:
+Add these lines to your `.env` to enable the one-click Update Now button:
 
 ```bash
-docker-compose -f docker-compose.hub.yml up -d
+COMPOSE_PROFILES=fiestaupdater
+FIESTAUPDATER_TOKEN=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
 ```
 
-This skips the build step entirely and pulls ready-to-run ARM images.
+Then restart: `docker compose -f docker-compose.hub.yml up -d`. See [In-App Updates](/docs/features/updating) for more detail.
 
-## Multi-Architecture Builds
+### Auto-start on boot
 
-Every release automatically builds images for both `linux/amd64` and `linux/arm64`, so Raspberry Pi is always supported out of the box.
+Create a systemd unit so FiestaBoard starts automatically:
 
-> **Note:** 32-bit ARM (`linux/arm/v7`) is no longer supported because Node.js dropped ARM32v7 support in v20+. Please use a 64-bit Raspberry Pi OS.
+```bash
+sudo tee /etc/systemd/system/fiestaboard.service > /dev/null << 'EOF'
+[Unit]
+Description=FiestaBoard
+Requires=docker.service
+After=docker.service network-online.target
 
-## Performance Tips
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/pi/FiestaBoard
+ExecStart=/usr/bin/docker compose -f docker-compose.hub.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.hub.yml down
+TimeoutStartSec=300
 
-- **Use a fast SD card** - Class 10 or higher, ideally A2-rated
-- **Consider USB boot** - Boot from USB SSD for better performance
-- **Monitor temperature** - Use a heatsink or fan case for sustained operation
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable fiestaboard
+sudo systemctl start fiestaboard
+```
+
+### Performance tips
+
+- **Use a fast SD card** — Class 10 or higher, ideally A2-rated
+- **Consider USB boot** — Booting from a USB SSD significantly improves performance
+- **Add a heatsink** — Sustained Docker workloads can throttle an uncooled Pi 3B
 - **Set appropriate refresh intervals** - Don't refresh more frequently than needed
 
 ```bash
