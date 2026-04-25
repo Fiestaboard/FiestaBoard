@@ -171,8 +171,8 @@ test.describe("Schedule Management", () => {
 
     await expect(page.getByText("10:00").first()).toBeVisible({ timeout: 10_000 });
 
-    // Open the edit modal via the Edit button (has aria-label="Edit")
-    const editBtn = page.getByRole("button", { name: "Edit" }).first();
+    // Open the edit modal via the Edit button (aria-label includes "Edit schedule for")
+    const editBtn = page.getByRole("button", { name: /edit schedule for/i }).first();
     await expect(editBtn).toBeVisible({ timeout: 5_000 });
     await editBtn.click();
 
@@ -185,13 +185,13 @@ test.describe("Schedule Management", () => {
     await page.getByRole("button", { name: "Cancel" }).click();
     await page.waitForTimeout(300);
 
-    // Click the Delete button (has aria-label="Delete")
-    const rowDeleteBtn = page.getByRole("button", { name: "Delete" }).first();
+    // Click the Delete button (aria-label includes "Delete schedule for")
+    const rowDeleteBtn = page.getByRole("button", { name: /delete schedule for/i }).first();
     await expect(rowDeleteBtn).toBeVisible({ timeout: 5_000 });
     await rowDeleteBtn.click();
 
-    // Confirm deletion in the alert dialog
-    const confirmBtn = page.getByRole("button", { name: "Delete" }).last();
+    // Confirm deletion in the alert dialog (scoped to the alertdialog role)
+    const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
     await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
     await confirmBtn.click();
 
@@ -220,8 +220,8 @@ test.describe("Schedule Management", () => {
     if (await deleteBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await deleteBtn.click();
 
-      // Confirm deletion
-      const confirmBtn = page.getByRole("button", { name: "Delete" }).last();
+      // Confirm deletion (scoped to the alertdialog to avoid matching row buttons)
+      const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
       if (
         await confirmBtn.isVisible({ timeout: 3_000 }).catch(() => false)
       ) {
