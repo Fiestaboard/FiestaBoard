@@ -54,8 +54,8 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
   const timezoneAbbr = getTimezoneAbbreviation(userTimezone);
 
   // Convert UTC times to local for display
-  const startLocal = utcToLocalTime(silenceStatus.start_time_utc, userTimezone);
-  const endLocal = utcToLocalTime(silenceStatus.end_time_utc, userTimezone);
+  const _startLocal = utcToLocalTime(silenceStatus.start_time_utc, userTimezone);
+  const _endLocal = utcToLocalTime(silenceStatus.end_time_utc, userTimezone);
   const nextChangeLocal = utcToLocalTime(silenceStatus.next_change_utc, userTimezone);
 
   if (silenceStatus.active) {

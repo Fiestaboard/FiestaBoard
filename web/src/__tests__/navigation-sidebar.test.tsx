@@ -1,13 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { SidebarProvider } from "@/components/sidebar-context";
-import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
-
-const API_BASE = "/api";
 
 // Mock usePathname from next/navigation
 const mockPathname = vi.fn();

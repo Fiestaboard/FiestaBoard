@@ -1,7 +1,5 @@
 """Tests for mDNS/Bonjour service (src.system.mdns)."""
 
-import pytest
-import socket
 from unittest.mock import patch, MagicMock
 
 

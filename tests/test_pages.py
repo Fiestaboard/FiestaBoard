@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-from src.pages.models import LineMetadata, Page, PageCreate, PageUpdate, RowConfig, PageType
+from src.pages.models import LineMetadata, Page, PageCreate, PageUpdate, RowConfig
 from src.pages.storage import (
     CURRENT_SCHEMA_VERSION,
     PageStorage,

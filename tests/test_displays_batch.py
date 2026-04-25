@@ -1,5 +1,4 @@
 """Tests for batch display endpoints."""
-import pytest
 from fastapi.testclient import TestClient
 from src.api_server import app
 

@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, GalleryHorizontalEnd, Trash2, GripVertical, Clock, FileText, Loader2, Pencil } from "lucide-react";
+import { Plus, GalleryHorizontalEnd, Trash2, GripVertical, FileText, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";

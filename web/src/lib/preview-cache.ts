@@ -25,7 +25,7 @@ export function clearPreviewCacheForPage(pageId: string): void {
     const previews = JSON.parse(cached);
     delete previews[pageId];
     localStorage.setItem(BATCH_CACHE_KEY, JSON.stringify(previews));
-  } catch (error) {
+  } catch {
     // If parsing fails, clear entire cache
     localStorage.removeItem(BATCH_CACHE_KEY);
   }

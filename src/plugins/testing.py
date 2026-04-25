@@ -5,10 +5,8 @@ including base test classes, mock helpers, and coverage configuration.
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Type
-from unittest.mock import MagicMock, patch
 
 import pytest
 

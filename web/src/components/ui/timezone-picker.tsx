@@ -32,7 +32,7 @@ export function TimezonePicker({
   const listRef = useRef<HTMLDivElement>(null);
 
   // Find the display label for the current value
-  const currentLabel = useMemo(() => {
+  const _currentLabel = useMemo(() => {
     const tz = ALL_TIMEZONES.find((t) => t.value === value);
     return tz ? tz.label : value;
   }, [value]);

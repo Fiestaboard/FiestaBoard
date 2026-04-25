@@ -5,8 +5,7 @@ rather than pre-scheduled time slots.
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import List
 
 import pytest
 

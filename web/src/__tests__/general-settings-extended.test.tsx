@@ -3,8 +3,6 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -19,8 +17,6 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { GeneralSettings } from "@/components/general-settings";
-
-const API_BASE = "/api";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -67,7 +63,7 @@ describe("GeneralSettings extended", () => {
     });
 
     const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
-    const beforeValue = pollingInput.value;
+    const _beforeValue = pollingInput.value;
     fireEvent.change(pollingInput, { target: { value: "5" } });
 
     await waitFor(() => {

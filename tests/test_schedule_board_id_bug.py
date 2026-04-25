@@ -7,8 +7,8 @@ silently ignored because the polling loop only looked for board_id="".
 """
 
 import pytest
-from datetime import datetime, time, timezone
-from unittest.mock import Mock, patch, MagicMock
+from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 
 
 class TestCheckAndSendActivePageBoardId:

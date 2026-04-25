@@ -19,9 +19,7 @@ from src.settings.service import (
     BoardSettings,
     ScheduleSettings,
     get_settings_service,
-    VALID_STRATEGIES,
     VALID_OUTPUT_TARGETS,
-    BOARD_SENSITIVE_FIELDS,
 )
 
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { clearPreviewCache, clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";

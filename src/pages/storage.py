@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 
-from .models import LineMetadata, Page
+from .models import Page
 from ..text_utils import extract_alignment_from_line as _extract_alignment_from_line
 
 logger = logging.getLogger(__name__)

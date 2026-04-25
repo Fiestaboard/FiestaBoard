@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, memo, useState, useEffect, useRef, useCallback } from "react";
+import { useMemo, memo, useState, useEffect, useRef } from "react";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
 import type { DeviceType } from "@/lib/api";
 
@@ -58,7 +58,7 @@ const BOARD_CHARS = [
 const EXTRA_CHARS: Record<string, boolean> = { '♥': true };
 
 // Backward compatibility alias
-const FIESTABOARD_CHARS = BOARD_CHARS;
+const _FIESTABOARD_CHARS = BOARD_CHARS;
 
 // Check if a character is a color tile
 const isColorTile = (char: string) => {
@@ -276,7 +276,7 @@ const CharTile = memo(function CharTile({
   
   // All tiles flip in sync - same duration, no random delay
   const animationDuration = 80; // ms per character step — matches Vestaboard "Fast" mode (~60 RPM, 62 flaps)
-  const delay = 0; // All tiles start at the same time
+  const _delay = 0; // All tiles start at the same time
   
   // State for current character index during animation
   // Always start from target character - tiles are set by the parent component
@@ -853,7 +853,7 @@ interface BoardDisplayProps {
 }
 
 // Backward compatibility alias
-interface FiestaboardDisplayProps extends BoardDisplayProps {}
+interface _FiestaboardDisplayProps extends BoardDisplayProps {}
 
 export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = false, size = "md", className = "", boardType = "black", deviceType = "flagship" }: BoardDisplayProps) {
   // Get dimensions for the device type

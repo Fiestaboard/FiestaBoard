@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import type { Page, PagePreviewResponse, PagePreviewBatchResponse, Carousel } from "@/lib/api";
+import type { Page, PagePreviewResponse, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 
 // Cache key for batch previews in localStorage
@@ -50,7 +50,7 @@ function setCachedPreviews(previews: Record<string, CachedPreviewData>): void {
 }
 
 // Get a single cached preview for a page
-function getCachedPreview(pageId: string, pageUpdatedAt: string): PagePreviewResponse | null {
+function _getCachedPreview(pageId: string, pageUpdatedAt: string): PagePreviewResponse | null {
   const allPreviews = getCachedPreviews();
   const cached = allPreviews[pageId];
   
@@ -62,7 +62,7 @@ function getCachedPreview(pageId: string, pageUpdatedAt: string): PagePreviewRes
 }
 
 // Save a single preview to localStorage
-function setCachedPreview(pageId: string, pageUpdatedAt: string, preview: PagePreviewResponse): void {
+function _setCachedPreview(pageId: string, pageUpdatedAt: string, preview: PagePreviewResponse): void {
   const allPreviews = getCachedPreviews();
   allPreviews[pageId] = {
     preview,

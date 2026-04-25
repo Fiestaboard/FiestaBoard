@@ -19,7 +19,7 @@ interface VariableNodeViewProps {
   deleteNode: () => void;
 }
 
-export function VariableNodeView({ node, deleteNode }: VariableNodeViewProps) {
+export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNodeViewProps) {
   const { pluginId, field, filters, maxLength } = node.attrs;
 
   return (

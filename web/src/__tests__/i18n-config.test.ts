@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { locales, defaultLocale, localeNames, type Locale } from "@/i18n/config";
+import { locales, defaultLocale, localeNames } from "@/i18n/config";
 import fs from "fs";
 import path from "path";
 

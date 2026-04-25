@@ -107,7 +107,7 @@ export function DebugSettings() {
   });
 
   // Fetch cache status
-  const { data: cacheStatus, refetch: refetchCacheStatus } = useQuery({
+  const { data: _cacheStatus, refetch: refetchCacheStatus } = useQuery({
     queryKey: ["debug-cache-status"],
     queryFn: api.getBoardCacheStatus,
     enabled: showSystemInfo,

@@ -33,7 +33,7 @@ interface TemplateEditorToolbarProps {
 
 export function TemplateEditorToolbar({
   editor,
-  currentAlignment = 'left',
+  _currentAlignment = 'left',
   currentWrapEnabled = false,
   onAlignmentChange,
   onWrapToggle,

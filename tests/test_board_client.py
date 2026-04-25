@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import requests
 
 from src.board_client import (

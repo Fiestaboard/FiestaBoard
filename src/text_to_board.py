@@ -6,7 +6,7 @@ character code arrays that the board requires.
 
 import re
 import logging
-from typing import List, Optional
+from typing import List
 
 from .board_chars import BoardChars
 

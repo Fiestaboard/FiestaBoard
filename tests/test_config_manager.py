@@ -2,17 +2,12 @@
 
 import json
 import threading
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.config_manager import (
-    DEFAULT_CONFIG,
-    FEATURE_TO_PLUGIN_MAP,
-    MIGRATION_EXCLUDED_FIELDS,
     ConfigManager,
-    SENSITIVE_FIELDS,
 )
 
 

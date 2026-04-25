@@ -6,7 +6,7 @@ as the source of truth for schema validation.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from src.api_server import app

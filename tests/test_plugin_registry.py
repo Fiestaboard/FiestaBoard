@@ -590,7 +590,7 @@ def test_reset_plugin_registry_clears_singleton():
 
 def _make_autodiscover_manifest(auto_discover=True, simple=None):
     """Helper to build a mock manifest with auto_discover settings."""
-    from src.plugins.manifest import VariablesSchema, VariableMetadata
+    from src.plugins.manifest import VariablesSchema
 
     manifest = MagicMock(spec=PluginManifest)
     manifest.id = "test_plugin"

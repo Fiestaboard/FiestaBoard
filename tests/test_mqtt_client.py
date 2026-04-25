@@ -1,7 +1,7 @@
 """Tests for MQTT client."""
 
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from src.mqtt.config import MQTTConfig
 from src.mqtt.client import MQTTClient, set_mqtt_client_instance, get_mqtt_client

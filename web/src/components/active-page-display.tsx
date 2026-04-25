@@ -101,7 +101,7 @@ function addSnoozingIndicator(content: string, numRows: number = 6, numCols: num
 
 export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
-  const tc = useTranslations("common");
+  const _tc = useTranslations("common");
   const router = useRouter();
   
   // Sheet open state
@@ -262,7 +262,7 @@ export function ActivePageDisplay() {
     if (!scheduleEnabled && !isLoadingActivePage && !isLoadingPages && !activePageId && pages.length > 0) {
       const firstPage = pages[0];
       setActivePageMutation.mutate(firstPage.id, {
-        onSuccess: (result) => {
+        onSuccess: (_result) => {
           toast.success(t("toastSetActivePage", { pageName: firstPage.name }));
         },
         onError: () => {
@@ -296,7 +296,7 @@ export function ActivePageDisplay() {
     // Immediately update UI optimistically, then sync with server
     // Don't wrap in startTransition - we want this to feel instant
     setActivePageMutation.mutate(pageId, {
-      onSuccess: (result) => {
+      onSuccess: (_result) => {
         // Close the sheet after successful selection
         setIsSheetOpen(false);
         

@@ -188,7 +188,7 @@ class StatePublisher:
             if _service_start_time is not None:
                 return str(int(time.time() - _service_start_time))
         except Exception:
-            pass
+            logger.debug("Could not get service start time")
         return "0"
 
     @staticmethod
@@ -200,7 +200,7 @@ class StatePublisher:
             if client and hasattr(client, "use_cloud"):
                 return "Cloud API" if client.use_cloud else "Local API"
         except Exception:
-            pass
+            logger.debug("Could not get board API mode")
         return "Unknown"
 
     @staticmethod
@@ -216,7 +216,7 @@ class StatePublisher:
             )
             return str(count)
         except Exception:
-            pass
+            logger.debug("Could not get active plugin count")
         return "0"
 
     @staticmethod
@@ -227,7 +227,7 @@ class StatePublisher:
             output = get_settings_service().get_output_settings()
             return output.target or "both"
         except Exception:
-            pass
+            logger.debug("Could not get output target")
         return "both"
 
 

@@ -4,7 +4,6 @@ text_to_board contains pure, deterministic conversion logic — character
 mapping and board array construction. This addresses issue #505.
 """
 
-import pytest
 from src.text_to_board import (
     text_to_board_array,
     format_board_array_preview,

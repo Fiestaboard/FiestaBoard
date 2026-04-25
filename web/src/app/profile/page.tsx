@@ -43,7 +43,7 @@ import { toast } from "sonner";
 export default function ProfilePage() {
   const t = useTranslations("profile");
   const { theme, setTheme } = useTheme();
-  const { timeFormat, dateFormat } = useFormatPreferences();
+  const { timeFormat: _timeFormat, dateFormat: _dateFormat } = useFormatPreferences();
   const queryClient = useQueryClient();
 
   // ── Local state ──────────────────────────────────────────────────────────

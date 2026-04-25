@@ -1,7 +1,6 @@
 """Tests for TimeService."""
 
-import pytest
-from datetime import datetime, time, timezone
+from datetime import datetime, timezone
 
 from unittest.mock import Mock, patch
 

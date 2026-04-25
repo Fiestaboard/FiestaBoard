@@ -1,16 +1,11 @@
 """Tests for the external plugin sources module."""
 
 import json
-import os
 import subprocess
-import textwrap
-from pathlib import Path
 from unittest import mock
 
-import pytest
 
 from src.plugins.sources import (
-    REGISTRY_PREFIX,
     PluginSource,
     RegistryEntry,
     check_plugin_update_available,

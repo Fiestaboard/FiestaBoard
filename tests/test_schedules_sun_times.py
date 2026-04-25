@@ -8,9 +8,8 @@ from src.schedules.sun_times import (
     get_sun_times,
     resolve_sun_time,
     resolve_schedule_sun_times,
-    SUN_EVENT_TYPES,
 )
-from src.schedules.models import ScheduleEntry, ScheduleCreate, TimeType
+from src.schedules.models import ScheduleEntry, ScheduleCreate
 from src.schedules.service import ScheduleService
 from src.schedules.storage import ScheduleStorage
 

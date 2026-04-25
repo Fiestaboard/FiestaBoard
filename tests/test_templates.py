@@ -7,9 +7,7 @@ from src.templates.engine import (
     TemplateEngine,
     COLOR_CODES,
     SYMBOL_CHARS,
-    TemplateError,
 )
-from src.displays.service import DisplayResult
 
 
 class TestTemplateEngineBasics:
