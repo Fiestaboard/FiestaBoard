@@ -1,12 +1,9 @@
 """Tests for the random plugin."""
 
-import pytest
 import json
 from pathlib import Path
-from unittest.mock import patch
 
 from plugins.random import RandomPlugin, BOARD_COLORS
-from src.plugins.base import PluginResult
 
 
 class TestRandomPlugin:

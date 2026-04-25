@@ -4,7 +4,7 @@ import pytest
 import json
 from pathlib import Path
 
-from src.plugins.testing import PluginTestCase, create_mock_response
+from src.plugins.testing import create_mock_response
 
 
 @pytest.fixture(autouse=True)

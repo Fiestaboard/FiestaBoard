@@ -4,7 +4,7 @@ Provides randomly selected values as template variables, refreshed on a
 configurable interval.
 """
 
-import random as _random
+from random import choice as _random_choice
 from typing import Any, Dict, List, Optional
 import logging
 
@@ -46,9 +46,9 @@ class RandomPlugin(PluginBase):
                 choices = _DEFAULT_CHOICES
 
             data = {
-                "choice": _random.choice(choices),
-                "coin_flip": _random.choice(["Heads", "Tails"]),
-                "color": _random.choice(BOARD_COLORS),
+                "choice": _random_choice(choices),
+                "coin_flip": _random_choice(["Heads", "Tails"]),
+                "color": _random_choice(BOARD_COLORS),
             }
 
             return PluginResult(available=True, data=data)
