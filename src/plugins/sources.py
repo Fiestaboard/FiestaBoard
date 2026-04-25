@@ -431,15 +431,18 @@ def _safe_external_dest(
 ) -> Tuple[Optional[Path], str]:
     """Compute a safe destination path inside ``external_dir`` for a plugin.
 
-    The plugin id is re-validated here, on the same data-flow path as the
-    directory join, using three CodeQL-recognised path-injection
-    barriers:
+    The plugin id flows through three independent CodeQL-recognised
+    path-injection barriers before it ever reaches a filesystem call:
 
     1. :func:`re.fullmatch` against a strict character-class allow-list.
     2. Per-character allow-list reconstruction — the value is rebuilt
        from a constant string of permitted characters and the result
        must equal the original input.
-    3. :func:`os.path.commonpath` containment check after ``resolve()``.
+    3. After ``os.path.realpath``, :func:`os.path.commonpath` is used to
+       prove the resolved candidate is contained within
+       ``external_root``.  This is the canonical CodeQL sanitiser for
+       ``py/path-injection`` and is checked **before** any further use
+       of the path.
     """
     if not isinstance(plugin_id, str) or not plugin_id:
         return None, "Invalid plugin id"
@@ -449,32 +452,25 @@ def _safe_external_dest(
     if not PLUGIN_ID_RE.fullmatch(plugin_id):
         return None, f"Invalid plugin id {plugin_id!r}"
 
-    # (2) Rebuild the value from a fixed allow-list of characters.  If
-    # the rebuilt string differs from the input, it contained something
-    # outside the allow-list and we reject it.  Path construction below
-    # uses ``safe_id`` (built from the constant ``_PLUGIN_ID_ALLOWED``),
-    # never the raw ``plugin_id``.
+    # (2) Rebuild from a fixed allow-list and require equality.
     safe_id = "".join(c for c in plugin_id if c in _PLUGIN_ID_ALLOWED)
     if safe_id != plugin_id:
         return None, f"Invalid plugin id {plugin_id!r}"
 
-    external_root = external_dir.resolve()
-    candidate = (external_root / safe_id).resolve()
-
-    # (3) Defence in depth: assert containment using ``commonpath`` (and
-    # ``relative_to``) so the resolved path is provably inside
-    # ``external_root``.
+    # (3) Build and resolve the candidate path, then confirm containment
+    # with ``os.path.commonpath`` *before* returning the path.  This is
+    # the CodeQL-recognised path-injection barrier.
+    external_root = os.path.realpath(str(external_dir))
+    raw_candidate = os.path.join(external_root, safe_id)
+    candidate_real = os.path.realpath(raw_candidate)
     try:
-        if os.path.commonpath([str(external_root), str(candidate)]) != str(external_root):
-            return None, f"Refusing to install plugin outside {external_root}"
-        candidate.relative_to(external_root)
+        common = os.path.commonpath([external_root, candidate_real])
     except ValueError:
         return None, f"Refusing to install plugin outside {external_root}"
-    if candidate == external_root:
-        return None, (
-            f"Plugin destination must be a subdirectory of {external_root}"
-        )
-    return candidate, ""
+    if common != external_root or candidate_real == external_root:
+        return None, f"Refusing to install plugin outside {external_root}"
+
+    return Path(candidate_real), ""
 
 
 def install_registry_plugin(
