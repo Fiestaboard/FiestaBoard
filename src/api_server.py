@@ -1504,11 +1504,11 @@ async def test_board_connection(request: BoardTestRequest):
             
     except ValueError as e:
         # Invalid configuration (missing required fields)
-        logger.warning(f"Board connection test failed - invalid config: {e}")
+        logger.warning("Board connection test failed - invalid config", exc_info=True)
         return {
             "success": False,
-            "message": str(e),
-            "error": f"Configuration error: {str(e)}"
+            "message": "Board connection configuration is invalid.",
+            "error": "Configuration error"
         }
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Board connection test error: {e}")
