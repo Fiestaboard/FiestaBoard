@@ -968,8 +968,8 @@ async def system_update_check():
                 _state = _system_update_state_load()
                 _state["last_check"] = datetime.now(timezone.utc).isoformat()
                 _system_update_state_save(_state)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Could not persist update-check timestamp (non-fatal): %s", e, exc_info=True)
             return UpdateCheckResponse(
                 current_version=__version__,
                 latest_version=latest_version,
@@ -1159,8 +1159,9 @@ async def system_update_apply():
     body = {}
     try:
         body = resp.json()
-    except Exception:
-        pass
+    except ValueError as e:
+        # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
+        logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
     state = _system_update_state_load()
     state["last_update"] = datetime.now(timezone.utc).isoformat()
     _system_update_state_save(state)
