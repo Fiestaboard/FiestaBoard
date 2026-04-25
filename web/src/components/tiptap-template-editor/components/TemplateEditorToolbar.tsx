@@ -449,7 +449,6 @@ export function TemplateEditorToolbar({
         {/* Sync from Board — icon-only button pushed to the far right */}
         {onSyncFromBoard && (
           <>
-            <div className="ml-auto" />
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
