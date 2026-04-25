@@ -6,6 +6,8 @@ every failure mode instead of a generic error.
 """
 
 import json
+import re
+from urllib.parse import urlparse
 
 from unittest.mock import Mock, patch
 
@@ -14,6 +16,24 @@ import requests
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+
+
+_URL_RE = re.compile(r"https?://[^\s'\"<>]+")
+
+
+def _mentions_host(text, expected_host):
+    """Check whether ``text`` contains a URL whose host equals ``expected_host``.
+
+    Used in place of ``"host" in text`` substring checks, which CodeQL
+    flags because they can be tricked by URLs like
+    ``https://evil.com/?x=rw.vestaboard.com``.
+    """
+    expected = expected_host.lower()
+    for match in _URL_RE.finditer(text):
+        host = (urlparse(match.group(0)).hostname or "").lower()
+        if host == expected or host.endswith("." + expected):
+            return True
+    return False
 
 
 @pytest.fixture
@@ -173,7 +193,7 @@ class TestBoardTestAuthFailure:
         data = response.json()
         assert data["success"] is False
         assert "rejected" in data["message"].lower()
-        assert any("web.vestaboard.com" in s for s in data["troubleshooting"])
+        assert any(_mentions_host(s, "web.vestaboard.com") for s in data["troubleshooting"])
 
 
 # ---------------------------------------------------------------------------
@@ -277,7 +297,7 @@ class TestBoardTestConnectionError:
         data = response.json()
         assert data["success"] is False
         assert "cloud" in data["message"].lower()
-        assert any("rw.vestaboard.com" in s for s in data["troubleshooting"])
+        assert any(_mentions_host(s, "rw.vestaboard.com") for s in data["troubleshooting"])
 
 
 # ---------------------------------------------------------------------------

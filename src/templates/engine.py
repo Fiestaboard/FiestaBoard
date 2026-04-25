@@ -68,7 +68,10 @@ SYMBOL_CHARS = {
 
 
 # Regex patterns
-VAR_PATTERN = re.compile(r'\{\{([^}]+)\}\}')  # {{source.field}} or {{source.field|filter}}
+# Note: ``[^}{]+`` (rather than ``[^}]+``) prevents overlapping matches and
+# eliminates polynomial backtracking on inputs like ``{{{{{{...``.  Variable
+# expressions never contain ``{`` themselves.
+VAR_PATTERN = re.compile(r'\{\{([^}{]+)\}\}')  # {{source.field}} or {{source.field|filter}}
 COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}', re.IGNORECASE)
 SYMBOL_PATTERN = re.compile(r'\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}', re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r'\{\{fill_space\}\}', re.IGNORECASE)

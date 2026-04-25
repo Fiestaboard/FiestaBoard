@@ -1,7 +1,9 @@
 """Tests for network diagnostics module."""
 
+import re
 import socket
 from unittest.mock import Mock, patch
+from urllib.parse import urlparse
 
 import requests
 
@@ -13,6 +15,23 @@ from src.network_diagnostics import (
     check_vestaboard_connection,
     run_full_diagnostics,
 )
+
+
+_URL_RE = re.compile(r"https?://[^\s'\"<>]+")
+
+
+def _mentions_host(text, expected_host):
+    """Check whether ``text`` contains a URL whose host equals ``expected_host``.
+
+    Used in place of ``"host" in text`` substring checks, which CodeQL
+    flags as incomplete URL substring sanitization.
+    """
+    expected = expected_host.lower()
+    for match in _URL_RE.finditer(text):
+        host = (urlparse(match.group(0)).hostname or "").lower()
+        if host == expected or host.endswith("." + expected):
+            return True
+    return False
 
 # ---------------------------------------------------------------------------
 # check_dns_resolution
@@ -454,7 +473,7 @@ class TestBuildRecommendations:
         recs = _build_recommendations(results)
         assert any("rejected" in r["summary"].lower() for r in recs)
         assert any(
-            any("web.vestaboard.com" in s for s in r["steps"])
+            any(_mentions_host(s, "web.vestaboard.com") for s in r["steps"])
             for r in recs
         )
 
@@ -486,7 +505,7 @@ class TestBuildRecommendations:
         recs = _build_recommendations(results)
         assert any("cannot reach" in r["summary"].lower() for r in recs)
         assert any(
-            any("rw.vestaboard.com" in s for s in r["steps"])
+            any(_mentions_host(s, "rw.vestaboard.com") for s in r["steps"])
             for r in recs
         )
 
