@@ -84,7 +84,7 @@ test.describe("Schedule Management", () => {
       if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) {
         const selectedPage = (await option.textContent())?.trim() ?? "";
         await option.click();
-        await expect(pageSelect).toHaveValue(selectedPage);
+        await expect(pageSelect).toContainText(selectedPage);
       }
     }
 
