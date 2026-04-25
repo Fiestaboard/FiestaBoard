@@ -95,13 +95,25 @@ class TestPathTraversal:
         "a" * 300,
         "plugin with spaces",
         "__pycache__",
+        "../",
+        "..\\",
+        "../../etc/passwd",
+        "..\\..\\windows\\system32",
+        "/etc/passwd",
+        "C:\\Windows\\System32",
+        "%2e%2e%2f",
+        "%2e%2e/",
+        "..%2f",
+        "%2e%2e%5c",
+        "..%5c",
+        "%252e%252e%252f",
     ]
 
     @pytest.mark.parametrize("plugin_id", TRAVERSAL_PLUGIN_IDS)
     def test_get_plugin_unknown_ids_return_404_or_422(self, client, mock_plugin_registry_secure, plugin_id):
         """Requesting an unknown plugin_id (including suspicious ones) returns 404, not a server error."""
         response = client.get(f"/plugins/{plugin_id}")
-        assert response.status_code in (400, 404, 422, 503), (
+        assert response.status_code in (400, 404, 422), (
             f"Expected 4xx for plugin_id={plugin_id!r}, got {response.status_code}"
         )
 
@@ -109,7 +121,7 @@ class TestPathTraversal:
     def test_enable_plugin_unknown_ids_return_404_or_422(self, client, mock_plugin_registry_secure, plugin_id):
         """POST /plugins/{id}/enable with unknown plugin_id returns 404, not a server error."""
         response = client.post(f"/plugins/{plugin_id}/enable")
-        assert response.status_code in (400, 404, 422, 503), (
+        assert response.status_code in (400, 404, 422), (
             f"Expected 4xx for plugin_id={plugin_id!r}, got {response.status_code}"
         )
 
@@ -120,7 +132,7 @@ class TestPathTraversal:
             f"/plugins/{plugin_id}/config",
             json={"config": {"setting": "value"}},
         )
-        assert response.status_code in (400, 404, 422, 503), (
+        assert response.status_code in (400, 404, 422), (
             f"Expected 4xx for plugin_id={plugin_id!r}, got {response.status_code}"
         )
 
@@ -128,7 +140,7 @@ class TestPathTraversal:
     def test_get_plugin_manifest_unknown_ids_return_404_or_422(self, client, mock_plugin_registry_secure, plugin_id):
         """GET /plugins/{id}/manifest with unknown plugin_id returns 404, not a server error."""
         response = client.get(f"/plugins/{plugin_id}/manifest")
-        assert response.status_code in (400, 404, 422, 503), (
+        assert response.status_code in (400, 404, 422), (
             f"Expected 4xx for plugin_id={plugin_id!r}, got {response.status_code}"
         )
 
@@ -467,6 +479,48 @@ class TestSSRFProtection:
         resp = self._post(client, "file:///etc/passwd", mock_cm)
         assert resp.status_code == 400
 
+    def test_rejects_gopher_scheme(self, client, mock_cm):
+        resp = self._post(client, "gopher://example.com:70/_PING", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_dict_scheme(self, client, mock_cm):
+        resp = self._post(client, "dict://example.com:2628/define:word", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_sftp_scheme(self, client, mock_cm):
+        resp = self._post(client, "sftp://example.com/etc/passwd", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_tftp_scheme(self, client, mock_cm):
+        resp = self._post(client, "tftp://example.com/boot.cfg", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_ldap_scheme(self, client, mock_cm):
+        resp = self._post(client, "ldap://example.com/dc=example,dc=com", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_mixed_case_dangerous_scheme(self, client, mock_cm):
+        resp = self._post(client, "GoPhEr://example.com/_PING", mock_cm)
+        assert resp.status_code == 400
+
+    def test_allows_uppercase_http_scheme(self, client, mock_cm):
+        with patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO):
+            resp = self._post(client, "HTTP://example.com/data", mock_cm)
+        assert resp.status_code != 400
+
+    def test_allows_mixed_case_https_scheme(self, client, mock_cm):
+        with patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO):
+            resp = self._post(client, "HtTpS://example.com/data", mock_cm)
+        assert resp.status_code != 400
+
+    def test_rejects_scheme_relative_url(self, client, mock_cm):
+        resp = self._post(client, "//example.com/path", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_scheme_less_host_path(self, client, mock_cm):
+        resp = self._post(client, "example.com/path", mock_cm)
+        assert resp.status_code == 400
+
     # --- Blocked: credentials in URL ---
 
     def test_rejects_url_with_credentials(self, client, mock_cm):
@@ -534,6 +588,39 @@ class TestSSRFProtection:
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
              patch("socket.getaddrinfo", side_effect=socket.gaierror("no such host")):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://no-such-host.invalid/api"})
+        assert resp.status_code == 400
+
+    # --- Blocked: CIDR notation reserved ranges ---
+
+    def test_rejects_cidr_loopback_range(self, client, mock_cm):
+        resp = self._post(client, "http://127.0.0.0/8", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_cidr_private_10_range(self, client, mock_cm):
+        resp = self._post(client, "http://10.0.0.0/8", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: IPv6 loopback/link-local ---
+
+    def test_rejects_ipv6_loopback(self, client, mock_cm):
+        resp = self._post(client, "http://[::1]/api", mock_cm)
+        assert resp.status_code == 400
+
+    def test_rejects_ipv6_link_local(self, client, mock_cm):
+        resp = self._post(client, "http://[fe80::1]/api", mock_cm)
+        assert resp.status_code == 400
+
+    # --- Blocked: DNS rebinding-style mixed resolution ---
+
+    def test_rejects_domain_with_mixed_public_and_private_resolution(self, client, mock_cm):
+        mixed_addr_info = [
+            (None, None, None, None, ("93.184.216.34", 443)),
+            (None, None, None, None, ("10.0.0.5", 443)),
+        ]
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=mixed_addr_info):
+            resp = client.post("/generic-data/test-fetch", json={"url": "https://rebind.example/api"})
         assert resp.status_code == 400
 
     # --- Allowed: public IP and domain ---

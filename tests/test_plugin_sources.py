@@ -1,5 +1,6 @@
 """Tests for the external plugin sources module."""
 
+import importlib
 import json
 import subprocess
 from unittest import mock
@@ -601,10 +602,10 @@ class TestRegistryPluginDependencies:
     a 400 response.
     """
 
-    def test_calendar_sub_dependencies_available(self):
-        """calendar_sub requires icalendar and recurring_ical_events (GH issue)."""
-        import icalendar
-        import recurring_ical_events
+    def test_calendar_sub_dependency_modules_importable(self):
+        """Smoke test: required third-party modules can be imported."""
+        icalendar = importlib.import_module("icalendar")
+        recurring_ical_events = importlib.import_module("recurring_ical_events")
 
         assert icalendar is not None
         assert recurring_ical_events is not None

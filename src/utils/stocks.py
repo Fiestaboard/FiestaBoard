@@ -95,7 +95,6 @@ POPULAR_STOCKS = [
     {"symbol": "GRAB", "name": "Grab Holdings Limited"},
     {"symbol": "SPOT", "name": "Spotify Technology S.A."},
     {"symbol": "SNAP", "name": "Snap Inc."},
-    {"symbol": "TWTR", "name": "Twitter, Inc."},
     {"symbol": "PINS", "name": "Pinterest, Inc."},
     {"symbol": "ROKU", "name": "Roku, Inc."},
     {"symbol": "ZM", "name": "Zoom Video Communications, Inc."},
@@ -340,7 +339,12 @@ class StocksSource:
                 change_percent = 0.0
             
             # Determine direction
-            change_direction = "up" if change_percent >= 0 else "down"
+            if change_percent > 0:
+                change_direction = "up"
+            elif change_percent < 0:
+                change_direction = "down"
+            else:
+                change_direction = "unchanged"
             
             # Format values
             current_price_str = self._format_price(current_price)
@@ -407,15 +411,15 @@ class StocksSource:
             ticker = yf.Ticker(symbol)
             info = ticker.info
             
-            # Check if we got valid data (invalid symbols return empty info or error)
-            if not info or "symbol" not in info:
+            # Check if we got valid data (invalid symbols often return empty/minimal info)
+            if not info:
                 return {
                     "valid": False,
                     "symbol": symbol,
                     "error": "Symbol not found"
                 }
-            
-            # Try to get price to confirm it's valid
+
+            # Confirm substantive market data exists
             current_price = info.get("regularMarketPrice") or info.get("currentPrice")
             if current_price is None:
                 return {
@@ -423,7 +427,7 @@ class StocksSource:
                     "symbol": symbol,
                     "error": "No price data available"
                 }
-            
+
             # Get company name
             company_name = info.get("longName") or info.get("shortName") or symbol
             

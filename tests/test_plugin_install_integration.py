@@ -86,7 +86,7 @@ class TestCloneOrUpdateRepoIntegration:
         assert len(commits) >= 1, "expected at least one commit in cloned repo"
 
     def test_update_existing_clone_via_pull(self, tmp_path):
-        """Re-running clone_or_update_repo on an existing directory runs git pull."""
+        """Re-running clone_or_update_repo on an existing directory fetches and resets to FETCH_HEAD."""
         dest = tmp_path / REGISTRY_PLUGIN_ID
 
         # First clone
@@ -94,12 +94,12 @@ class TestCloneOrUpdateRepoIntegration:
         assert ok, f"initial clone failed: {err}"
         commits_before = _git_log(dest)
 
-        # Second call should succeed (pull, already up-to-date is fine)
+        # Second call should succeed (fetch + hard reset; already up-to-date is fine)
         ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
-        assert ok, f"update (git pull) failed: {err}"
+        assert ok, f"update (git fetch + reset) failed: {err}"
 
         commits_after = _git_log(dest)
-        # History must be at least as long (pull never loses commits)
+        # History must be at least as long after update
         assert len(commits_after) >= len(commits_before)
 
     def test_invalid_url_returns_error(self, tmp_path):
