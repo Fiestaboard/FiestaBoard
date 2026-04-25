@@ -290,6 +290,20 @@ def clone_or_update_repo(
     """
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
+    # Defensive sink-level guard: ensure destination stays inside the
+    # managed external plugins directory before any filesystem access.
+    external_root = os.path.realpath(str(get_external_plugins_dir()))
+    candidate = os.path.realpath(str(dest_dir))
+    try:
+        if os.path.commonpath([external_root, candidate]) != external_root:
+            return False, (
+                f"Refusing to use destination outside external plugins directory: "
+                f"{dest_dir}"
+            )
+    except ValueError:
+        # Different drives / invalid mix of absolute-relative paths.
+        return False, f"Invalid destination path: {dest_dir}"
+
     if dest_dir.exists() and (dest_dir / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
         # Works for both full and shallow (--depth 1) clones.
