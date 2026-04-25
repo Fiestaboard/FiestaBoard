@@ -37,6 +37,12 @@ REGISTRY_NAME_RE = re.compile(r"^fiestaboard-plugin--[a-z][a-z0-9-]*$")
 # Python identifier with optional leading lowercase letter.
 PLUGIN_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
+# Constant character allow-list used to rebuild a validated plugin id from
+# scratch before passing it to the filesystem.  Keeping this as a literal
+# string (not derived from user input) gives static analysers a clear
+# barrier for path-injection flows.
+_PLUGIN_ID_ALLOWED = "abcdefghijklmnopqrstuvwxyz0123456789_"
+
 # Simple allow-list for git URL schemes
 _ALLOWED_SCHEMES = ("https://",)
 
@@ -425,46 +431,42 @@ def _safe_external_dest(
 ) -> Tuple[Optional[Path], str]:
     """Compute a safe destination path inside ``external_dir`` for a plugin.
 
-    The ``plugin_id`` is re-validated here against :data:`PLUGIN_ID_RE`
-    using :func:`re.fullmatch` so the regex match sits on the same
-    data-flow path as the directory join below.  CodeQL recognises an
-    inline ``re.fullmatch`` against a strict character-class allow-list
-    as a path-injection barrier.
+    The plugin id is re-validated here, on the same data-flow path as the
+    directory join, using three CodeQL-recognised path-injection
+    barriers:
+
+    1. :func:`re.fullmatch` against a strict character-class allow-list.
+    2. Per-character allow-list reconstruction — the value is rebuilt
+       from a constant string of permitted characters and the result
+       must equal the original input.
+    3. :func:`os.path.commonpath` containment check after ``resolve()``.
     """
-    # Inline allow-list match (single segment, lowercase + digits +
-    # underscore only).  Anything that does not fully match is rejected
-    # before the value is ever used to build a filesystem path.
-    if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.fullmatch(plugin_id):
+    if not isinstance(plugin_id, str) or not plugin_id:
+        return None, "Invalid plugin id"
+
+    # (1) Inline allow-list match (single segment, lowercase + digits +
+    # underscore only).
+    if not PLUGIN_ID_RE.fullmatch(plugin_id):
         return None, f"Invalid plugin id {plugin_id!r}"
 
-    # ``plugin_id`` now matches ^[a-z][a-z0-9_]{0,63}$, so it cannot
-    # contain any path separator, ``..`` segment, or NUL byte.  Take the
-    # basename as a final, explicit single-segment guarantee that CodeQL
-    # treats as a path-injection sanitiser.
-    safe_id = os.path.basename(plugin_id)
-    if safe_id != plugin_id or not safe_id:
+    # (2) Rebuild the value from a fixed allow-list of characters.  If
+    # the rebuilt string differs from the input, it contained something
+    # outside the allow-list and we reject it.  Path construction below
+    # uses ``safe_id`` (built from the constant ``_PLUGIN_ID_ALLOWED``),
+    # never the raw ``plugin_id``.
+    safe_id = "".join(c for c in plugin_id if c in _PLUGIN_ID_ALLOWED)
+    if safe_id != plugin_id:
         return None, f"Invalid plugin id {plugin_id!r}"
 
     external_root = external_dir.resolve()
     candidate = (external_root / safe_id).resolve()
 
-    # Defence in depth: also assert containment using ``relative_to``,
-    # which raises ``ValueError`` when ``candidate`` falls outside
+    # (3) Defence in depth: assert containment using ``commonpath`` (and
+    # ``relative_to``) so the resolved path is provably inside
     # ``external_root``.
     try:
-        candidate.relative_to(external_root)
-    except ValueError:
-        return None, f"Refusing to install plugin outside {external_root}"
-    if candidate == external_root:
-        return None, (
-            f"Plugin destination must be a subdirectory of {external_root}"
-        )
-    return candidate, ""
-
-    # Defence in depth: also assert containment using ``relative_to``,
-    # which raises ``ValueError`` when ``candidate`` falls outside
-    # ``external_root``.
-    try:
+        if os.path.commonpath([str(external_root), str(candidate)]) != str(external_root):
+            return None, f"Refusing to install plugin outside {external_root}"
         candidate.relative_to(external_root)
     except ValueError:
         return None, f"Refusing to install plugin outside {external_root}"
