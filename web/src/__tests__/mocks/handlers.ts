@@ -879,6 +879,19 @@ export const handlers = [
     return HttpResponse.json(mockSilenceStatus);
   }),
 
+  // Silence schedule update endpoint (system feature, not a plugin)
+  http.put(`${API_BASE}/settings/silence-schedule`, async ({ request }) => {
+    const body = await request.json() as {
+      enabled: boolean;
+      start_time: string;
+      end_time: string;
+    };
+    return HttpResponse.json({
+      status: "success",
+      config: body,
+    });
+  }),
+
   // Carousel endpoints
   http.get(`${API_BASE}/carousels`, () => {
     return HttpResponse.json({

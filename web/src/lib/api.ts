@@ -28,6 +28,13 @@ export interface PreviewResponse {
   preview: boolean;
 }
 
+export interface BoardCurrentMessageResponse {
+  characters: number[][];
+  message: string;
+  rows: number;
+  cols: number;
+}
+
 export interface ActionResponse {
   status: string;
   message: string;
@@ -885,6 +892,7 @@ export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
+  getBoardCurrentMessage: () => fetchApi<BoardCurrentMessageResponse>("/board/current-message"),
 
   // Mutations (actions)
   startService: () =>
@@ -1199,6 +1207,14 @@ export const api = {
   
   // Silence mode status
   getSilenceStatus: () => fetchApi<SilenceStatus>("/silence-status"),
+
+  // Silence schedule (system feature, not a plugin)
+  updateSilenceSchedule: (data: { enabled: boolean; start_time: string; end_time: string }) =>
+    fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
 
   // Polling settings
   getPollingSettings: () => fetchApi<PollingSettings>("/settings/polling"),

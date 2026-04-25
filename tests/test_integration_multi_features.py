@@ -2,9 +2,8 @@
 
 import pytest
 import tempfile
-import pytz
 from pathlib import Path
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from unittest.mock import Mock, patch
 from src.templates.engine import TemplateEngine
 from src.main import DisplayService
@@ -359,23 +358,24 @@ class TestScheduleModeIntegration:
             with patch('src.main.get_page_service', return_value=page_service):
                 with patch('src.main.get_settings_service', return_value=settings_service):
                     with patch('src.main.get_schedule_service', return_value=schedule_service):
-                        # Mock TimeService to return Monday 12:00 (within schedule)
-                        # Create a mock datetime for Monday 12:00
-                        mock_datetime_obj = datetime(2025, 1, 13, 12, 0, 0)  # Monday Jan 13, 2025 at 12:00
-                        mock_datetime_obj = pytz.UTC.localize(mock_datetime_obj)
-                        
-                        mock_time_service = Mock()
-                        mock_time_service.get_current_time.return_value = mock_datetime_obj
-                        
-                        with patch('src.time_service.get_time_service', return_value=mock_time_service):
-                            service = DisplayService()
-                            service.vb_client = mock_client_instance
+                        with patch('src.schedules.service.get_settings_service', return_value=settings_service):
+                            # Mock TimeService to return Monday 12:00 (within schedule)
+                            # Create a mock datetime for Monday 12:00
+                            mock_datetime_obj = datetime(2025, 1, 13, 12, 0, 0)  # Monday Jan 13, 2025 at 12:00
+                            mock_datetime_obj = mock_datetime_obj.replace(tzinfo=timezone.utc)
                             
-                            # Check active page (should use scheduled page2, not manual page1)
-                            result = service.check_and_send_active_page()
+                            mock_time_service = Mock()
+                            mock_time_service.get_current_time.return_value = mock_datetime_obj
                             
-                            # Verify it used page2 (scheduled), not page1 (manual)
-                            assert service._last_active_page_id == page2.id
+                            with patch('src.time_service.get_time_service', return_value=mock_time_service):
+                                service = DisplayService()
+                                service.vb_client = mock_client_instance
+                                
+                                # Check active page (should use scheduled page2, not manual page1)
+                                result = service.check_and_send_active_page()
+                                
+                                # Verify it used page2 (scheduled), not page1 (manual)
+                                assert service._last_active_page_id == page2.id
     
     def test_schedule_mode_with_no_match_uses_default(self, services):
         """Test that schedule mode uses default page when no schedule matches."""
@@ -421,23 +421,24 @@ class TestScheduleModeIntegration:
             with patch('src.main.get_page_service', return_value=page_service):
                 with patch('src.main.get_settings_service', return_value=settings_service):
                     with patch('src.main.get_schedule_service', return_value=schedule_service):
-                        # Mock TimeService to return Monday 20:00 (outside schedule, should use default)
-                        # Create a mock datetime for Monday 20:00
-                        mock_datetime_obj = datetime(2025, 1, 13, 20, 0, 0)  # Monday Jan 13, 2025 at 20:00
-                        mock_datetime_obj = pytz.UTC.localize(mock_datetime_obj)
-                        
-                        mock_time_service = Mock()
-                        mock_time_service.get_current_time.return_value = mock_datetime_obj
-                        
-                        with patch('src.time_service.get_time_service', return_value=mock_time_service):
-                            service = DisplayService()
-                            service.vb_client = mock_client_instance
+                        with patch('src.schedules.service.get_settings_service', return_value=settings_service):
+                            # Mock TimeService to return Monday 20:00 (outside schedule, should use default)
+                            # Create a mock datetime for Monday 20:00
+                            mock_datetime_obj = datetime(2025, 1, 13, 20, 0, 0)  # Monday Jan 13, 2025 at 20:00
+                            mock_datetime_obj = mock_datetime_obj.replace(tzinfo=timezone.utc)
                             
-                            # Check active page (should use default page)
-                            result = service.check_and_send_active_page()
+                            mock_time_service = Mock()
+                            mock_time_service.get_current_time.return_value = mock_datetime_obj
                             
-                            # Verify it used the default page
-                            assert service._last_active_page_id == default_page.id
+                            with patch('src.time_service.get_time_service', return_value=mock_time_service):
+                                service = DisplayService()
+                                service.vb_client = mock_client_instance
+                                
+                                # Check active page (should use default page)
+                                result = service.check_and_send_active_page()
+                                
+                                # Verify it used the default page
+                                assert service._last_active_page_id == default_page.id
     
     def test_schedule_mode_with_no_match_and_no_default(self, services):
         """Test that schedule mode returns False when no match and no default."""
@@ -476,22 +477,23 @@ class TestScheduleModeIntegration:
             with patch('src.main.get_page_service', return_value=page_service):
                 with patch('src.main.get_settings_service', return_value=settings_service):
                     with patch('src.main.get_schedule_service', return_value=schedule_service):
-                        # Mock TimeService to return Tuesday 12:00 (no schedule for Tuesday)
-                        # Create a mock datetime for Tuesday 12:00
-                        mock_datetime_obj = datetime(2025, 1, 14, 12, 0, 0)  # Tuesday Jan 14, 2025 at 12:00
-                        mock_datetime_obj = pytz.UTC.localize(mock_datetime_obj)
-                        
-                        mock_time_service = Mock()
-                        mock_time_service.get_current_time.return_value = mock_datetime_obj
-                        
-                        with patch('src.time_service.get_time_service', return_value=mock_time_service):
-                            service = DisplayService()
-                            service.vb_client = mock_client_instance
+                        with patch('src.schedules.service.get_settings_service', return_value=settings_service):
+                            # Mock TimeService to return Tuesday 12:00 (no schedule for Tuesday)
+                            # Create a mock datetime for Tuesday 12:00
+                            mock_datetime_obj = datetime(2025, 1, 14, 12, 0, 0)  # Tuesday Jan 14, 2025 at 12:00
+                            mock_datetime_obj = mock_datetime_obj.replace(tzinfo=timezone.utc)
                             
-                            # Check active page (should return False - no page available)
-                            result = service.check_and_send_active_page()
+                            mock_time_service = Mock()
+                            mock_time_service.get_current_time.return_value = mock_datetime_obj
                             
-                            # Verify it returned False and didn't send
-                            assert result is False
-                            assert service._last_active_page_id is None
+                            with patch('src.time_service.get_time_service', return_value=mock_time_service):
+                                service = DisplayService()
+                                service.vb_client = mock_client_instance
+                                
+                                # Check active page (should return False - no page available)
+                                result = service.check_and_send_active_page()
+                                
+                                # Verify it returned False and didn't send
+                                assert result is False
+                                assert service._last_active_page_id is None
 

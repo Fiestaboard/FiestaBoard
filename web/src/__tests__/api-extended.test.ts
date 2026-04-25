@@ -718,6 +718,33 @@ describe("API Extended Tests", () => {
       expect(result.status).toBe("success");
       expect(result.settings.interval_seconds).toBe(600);
     });
+
+    it("updateSilenceSchedule PUTs to /settings/silence-schedule", async () => {
+      let capturedPath: string | undefined;
+      let capturedBody: unknown;
+      server.use(
+        http.put(`${API_BASE}/settings/silence-schedule`, async ({ request }) => {
+          capturedPath = new URL(request.url).pathname;
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            status: "success",
+            config: capturedBody,
+          });
+        })
+      );
+      const result = await api.updateSilenceSchedule({
+        enabled: true,
+        start_time: "04:00+00:00",
+        end_time: "15:00+00:00",
+      });
+      expect(capturedPath).toBe("/api/settings/silence-schedule");
+      expect(capturedBody).toEqual({
+        enabled: true,
+        start_time: "04:00+00:00",
+        end_time: "15:00+00:00",
+      });
+      expect(result.status).toBe("success");
+    });
   });
 
   describe("Board settings endpoints", () => {

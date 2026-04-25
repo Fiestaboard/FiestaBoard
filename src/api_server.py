@@ -894,6 +894,87 @@ async def refresh_display():
         raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}")
 
 
+def _characters_to_message(characters: list) -> str:
+    """Convert a character grid (list[list[int]]) to the message string format.
+
+    Character codes map as follows (matching the Vestaboard spec):
+      0       → space
+      1–26    → A–Z
+      27–35   → 1–9
+      36      → 0
+      37–62   → punctuation / special characters
+      63–71   → color tiles, rendered as {63}…{71}
+
+    Undefined codes (43, 45, 51, 57, 58, 61) are rendered as a space.
+    """
+    # Index-aligned lookup table for codes 0–62
+    _LOOKUP = [
+        ' ',  # 0
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',  # 1–10
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',  # 11–20
+        'U', 'V', 'W', 'X', 'Y', 'Z',                        # 21–26
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',   # 27–36
+        '!', '@', '#', '$', '(', ')',                         # 37–42
+        ' ',                                                   # 43 – undefined
+        '-',                                                   # 44
+        ' ',                                                   # 45 – undefined
+        '+', '&', '=', ';', ':',                              # 46–50
+        ' ',                                                   # 51 – undefined
+        "'", '"', '%', ',', '.',                              # 52–56
+        ' ', ' ',                                              # 57–58 – undefined
+        '/', '?',                                              # 59–60
+        ' ',                                                   # 61 – undefined
+        '°',                                                   # 62
+    ]
+
+    lines = []
+    for row in characters:
+        chars = []
+        for code in row:
+            if 63 <= code <= 71:
+                chars.append(f'{{{code}}}')
+            elif 0 <= code < len(_LOOKUP):
+                chars.append(_LOOKUP[code])
+            else:
+                chars.append(' ')
+        lines.append(''.join(chars))
+    return '\n'.join(lines)
+
+
+@app.get("/board/current-message")
+async def get_board_current_message():
+    """Read the message currently displayed on the physical board.
+
+    Calls the board API (Local or Cloud) to retrieve the live character grid
+    and converts it to the standard message string format used by the UI.
+
+    Returns:
+        characters: Raw 2-D character code grid (list of lists of ints)
+        message:    Message string suitable for rendering in BoardDisplay
+        rows:       Number of rows in the grid
+        cols:       Number of columns in the grid
+    """
+    service = get_service()
+    if not service or not service.vb_client:
+        raise HTTPException(status_code=503, detail="Board client not initialized")
+
+    characters = await asyncio.to_thread(service.vb_client.read_current_message)
+
+    if characters is None:
+        raise HTTPException(status_code=503, detail="Failed to read current board message")
+
+    message = _characters_to_message(characters)
+    rows = len(characters)
+    cols = len(characters[0]) if characters else 0
+
+    return {
+        "characters": characters,
+        "message": message,
+        "rows": rows,
+        "cols": cols,
+    }
+
+
 @app.post("/send-message")
 async def send_message(request: MessageRequest):
     """Send a custom message to the board."""
@@ -1646,6 +1727,50 @@ async def get_silence_status():
         "end_time_utc": end_time,
         "current_time_utc": current_time_utc,
         "next_change_utc": next_change_utc
+    }
+
+
+class SilenceScheduleRequest(BaseModel):
+    """Request body for updating the silence schedule feature."""
+    enabled: bool
+    start_time: str
+    end_time: str
+
+
+@app.put("/settings/silence-schedule")
+async def update_silence_schedule(request: SilenceScheduleRequest):
+    """
+    Update the silence schedule configuration.
+
+    `silence_schedule` is a system feature (not a plugin). Times must be in
+    UTC ISO format (e.g. "04:00+00:00"); the UI converts local time to UTC
+    before calling this endpoint.
+    """
+    config_manager = get_config_manager()
+
+    updated = {
+        "enabled": request.enabled,
+        "start_time": request.start_time,
+        "end_time": request.end_time,
+    }
+
+    success = config_manager.set_feature("silence_schedule", updated)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to persist silence schedule configuration",
+        )
+
+    logger.info(
+        "Silence schedule updated: enabled=%s, start=%s, end=%s",
+        request.enabled,
+        request.start_time,
+        request.end_time,
+    )
+
+    return {
+        "status": "success",
+        "config": config_manager.get_feature("silence_schedule") or updated,
     }
 
 
@@ -3004,9 +3129,9 @@ async def get_all_settings():
     settings_service = get_settings_service()
     config_manager = get_config_manager()
     
-    # Get silence schedule config
-    silence_config = config_manager.get_plugin_config("silence_schedule")
-    
+    # Get silence schedule config (stored under features, not plugins)
+    silence_feature = config_manager.get_feature("silence_schedule") or {}
+
     # Get all other settings
     general = config_manager.get_general()
     polling = settings_service.get_polling_settings()
@@ -3015,10 +3140,10 @@ async def get_all_settings():
     board = settings_service.get_board_settings()
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
-    
+
     return {
         "general": general,
-        "silence_schedule": silence_config or {},
+        "silence_schedule": {"config": silence_feature},
         "polling": {
             "interval_seconds": polling.interval_seconds
         },
@@ -4140,25 +4265,31 @@ async def render_template(request: dict):
         raise HTTPException(status_code=400, detail="template parameter required")
     
     template = request["template"]
+    device_type = request.get("device_type")
+    
+    # Determine line count from device type
+    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    num_rows = dims.rows
     
     # Early return for empty templates to avoid unnecessary processing
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
             return {
-                "rendered": "\n".join([""] * 6),
-                "lines": [""] * 6,
-                "line_count": 6
+                "rendered": "\n".join([""] * num_rows),
+                "lines": [""] * num_rows,
+                "line_count": num_rows
             }
     elif isinstance(template, str) and not template.strip():
         return {
-            "rendered": "\n".join([""] * 6),
-            "lines": [""] * 6,
-            "line_count": 6
+            "rendered": "\n".join([""] * num_rows),
+            "lines": [""] * num_rows,
+            "line_count": num_rows
         }
     
     template_engine = get_template_engine()
     line_metadata = request.get("line_metadata")
-    device_type = request.get("device_type")
     
     try:
         if isinstance(template, list):
@@ -4200,14 +4331,20 @@ async def render_template_live(request: dict):
     line_metadata = request.get("line_metadata")
     device_type = request.get("device_type")
 
+    # Determine line count from device type
+    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    num_rows = dims.rows
+
     # Render the template
     try:
         if isinstance(template, list):
             if not template or all(not line.strip() for line in template):
                 return {
-                    "rendered": "\n".join([""] * 6),
-                    "lines": [""] * 6,
-                    "line_count": 6,
+                    "rendered": "\n".join([""] * num_rows),
+                    "lines": [""] * num_rows,
+                    "line_count": num_rows,
                     "sent_to_board": False,
                     "board_id": board_id,
                 }
@@ -4215,9 +4352,9 @@ async def render_template_live(request: dict):
         else:
             if not template.strip():
                 return {
-                    "rendered": "\n".join([""] * 6),
-                    "lines": [""] * 6,
-                    "line_count": 6,
+                    "rendered": "\n".join([""] * num_rows),
+                    "lines": [""] * num_rows,
+                    "line_count": num_rows,
                     "sent_to_board": False,
                     "board_id": board_id,
                 }

@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime
 import json
 from pathlib import Path
-import pytz
+from zoneinfo import ZoneInfo
 
 from plugins.countdown import CountdownPlugin
 from src.plugins.base import PluginResult
@@ -67,8 +67,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_fetch_data_future_event(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data with a future target date."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 5, 24, 20, 50, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -92,9 +92,9 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_fetch_data_exact_values(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns correct countdown values."""
-        tz = pytz.timezone("America/Los_Angeles")
+        tz = ZoneInfo("America/Los_Angeles")
         # 21 days, 3 hours, 10 minutes before target
-        mock_now = tz.localize(datetime(2025, 5, 24, 20, 50, 0))
+        mock_now = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -111,8 +111,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_fetch_data_expired_event(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data when the event has already passed."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 7, 1, 0, 0, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 7, 1, 0, 0, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -163,8 +163,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_fetch_data_all_variables(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns all expected variables from manifest."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 5, 24, 20, 50, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -187,8 +187,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_fetch_data_formatted_lines(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns formatted lines for the board."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 5, 24, 20, 50, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -202,8 +202,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_get_formatted_display(self, mock_datetime, sample_manifest, sample_config):
         """Test get_formatted_display returns 6 lines."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 5, 24, 20, 50, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -221,8 +221,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_get_formatted_display_expired(self, mock_datetime, sample_manifest, sample_config):
         """Test formatted display when event has passed."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 7, 1, 0, 0, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 7, 1, 0, 0, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -245,8 +245,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_fetch_data_formatted_string(self, mock_datetime, sample_manifest, sample_config):
         """Test the formatted countdown string."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 5, 24, 20, 50, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 
@@ -259,8 +259,8 @@ class TestCountdownPlugin:
     @patch("plugins.countdown.datetime")
     def test_fetch_data_default_event_name(self, mock_datetime, sample_manifest):
         """Test default event name when not configured."""
-        tz = pytz.timezone("America/Los_Angeles")
-        mock_now = tz.localize(datetime(2025, 5, 24, 20, 50, 0))
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_now = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
         mock_datetime.now.return_value = mock_now
         mock_datetime.fromisoformat = datetime.fromisoformat
 

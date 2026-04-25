@@ -45,6 +45,7 @@ import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineA
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
+import { writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
@@ -128,6 +129,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
   const lastLiveSentPreview = useRef<string | null>(null);
+  // Ref-tracked copy of lastPreview so the liveOutputEnabled effect can read it
+  // synchronously without a stale closure (avoids adding lastPreview as a dep).
+  const lastPreviewRef = useRef<string | null>(null);
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const liveOutputEnabledRef = useRef(false);
   const liveAbortRef = useRef<AbortController | null>(null);
@@ -169,11 +173,29 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     };
   }, [liveOutputEnabled, debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, disableLiveOutput]);
 
-  // Keep ref in sync with state so cleanup can access latest value.
-  // When live output transitions from enabled → disabled, immediately restore
-  // the board display so there is no delay returning to normal state.
+  // Keep lastPreviewRef in sync so the transition effect below can read the
+  // current preview without creating a stale closure.
   useEffect(() => {
-    if (liveOutputEnabledRef.current && !liveOutputEnabled) {
+    lastPreviewRef.current = lastPreview;
+  }, [lastPreview]);
+
+  // Keep ref in sync with state so cleanup can access latest value.
+  // On enable → prime the shared cache immediately so the Home page shows the
+  // current page content even if the user navigates before the first async
+  // live-render completes (100 ms debounce + API round-trip).
+  // On disable → clear the cache and restore the board to its scheduled page.
+  useEffect(() => {
+    if (!liveOutputEnabledRef.current && liveOutputEnabled) {
+      // Live output just enabled — prime the Home page cache with the current
+      // page preview so there is no gap between enabling and first live render.
+      if (lastPreviewRef.current) {
+        queryClient.setQueryData(["liveOutputMessage"], lastPreviewRef.current);
+        writeLiveOutputMessage(lastPreviewRef.current);
+      }
+    } else if (liveOutputEnabledRef.current && !liveOutputEnabled) {
+      // Live output disabled — clear the cache and restore the board.
+      queryClient.setQueryData(["liveOutputMessage"], null);
+      writeLiveOutputMessage(null);
       api.forceRefresh().catch(() => {
         // Silently ignore errors during cleanup
       });
@@ -532,10 +554,11 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       const hasContent = cleanedLines.some(line => line.trim().length > 0);
       
       if (!hasContent) {
+        const emptyCount = dims.rows;
         return { 
-          rendered: "\n".repeat(5),
-          lines: ["", "", "", "", "", ""], 
-          line_count: 6 
+          rendered: "\n".repeat(emptyCount - 1),
+          lines: Array.from({ length: emptyCount }, () => ""), 
+          line_count: emptyCount 
         };
       }
       
@@ -655,6 +678,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     onSuccess: (data) => {
       if (data.sent_to_board) {
         lastLiveSentPreview.current = preview;
+        // Broadcast to the Home page so its virtual board reflects the live content.
+        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
+        writeLiveOutputMessage(data.rendered);
       }
     },
     onError: (error: Error) => {
@@ -738,6 +764,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
           setLastPreview(data.rendered);
         }
         lastLiveSentPreview.current = data.rendered;
+        // Broadcast to the Home page (same tab and other tabs) so navigating there shows this content.
+        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
+        writeLiveOutputMessage(data.rendered);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           return;
@@ -1002,6 +1031,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     showToolbar={true}
                     boardWidth={dims.cols}
                     boardLines={numLines}
+                    deviceType={deviceType}
                   />
                 </div>
               ) : (

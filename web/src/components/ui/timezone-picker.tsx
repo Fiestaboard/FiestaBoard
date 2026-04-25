@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ALL_TIMEZONES } from "@/lib/timezone-utils";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ export function TimezonePicker({
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -80,10 +82,10 @@ export function TimezonePicker({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      const inContainer = containerRef.current?.contains(target);
+      const inList = listRef.current?.contains(target);
+      if (!inContainer && !inList) {
         setIsOpen(false);
         setHighlightedIndex(-1);
         // Reset search query to current label when closing
@@ -92,11 +94,54 @@ export function TimezonePicker({
       }
     };
 
+    const handleScroll = (event: Event) => {
+      // Don't reposition when the scroll is happening inside the dropdown list itself
+      if (listRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const dropdownMaxHeight = 240;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const top = spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top
+          ? rect.bottom + 4
+          : rect.top - dropdownMaxHeight - 4;
+        setDropdownStyle({
+          position: "fixed",
+          top,
+          left: rect.left,
+          width: rect.width,
+          zIndex: 9999,
+          pointerEvents: "auto",
+        });
+      }
+    };
+
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      // Reposition dropdown when any ancestor scrolls (e.g. Sheet with overflow-y-auto)
+      document.addEventListener("scroll", handleScroll, true);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("scroll", handleScroll, true);
+      };
     }
   }, [isOpen, value]);
+
+  // Prevent Radix scroll-lock (react-remove-scroll) from blocking wheel events inside
+  // the portal dropdown. The Sheet/Dialog modal adds a document-level wheel listener
+  // that calls preventDefault() on events outside the modal DOM tree. Our portal is
+  // appended to document.body, so react-remove-scroll treats it as "outside".
+  // Stopping propagation on the list element prevents the event from reaching document.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || !isOpen) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+    };
+    el.addEventListener("wheel", handleWheel);
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [isOpen]);
 
   const handleSelect = (timezoneValue: string) => {
     onChange(timezoneValue);
@@ -111,19 +156,39 @@ export function TimezonePicker({
     setIsOpen(true);
     setHighlightedIndex(-1); // Reset highlight when typing
     
-    // If user types a valid timezone value directly, update it
+    // Only propagate changes when the user types an exact IANA timezone match.
+    // Do NOT call onChange with partial search text — that would store an
+    // invalid timezone in the parent's config state and cause a 400 when saving.
+    // The value is committed via handleSelect when the user picks from the list.
     const exactMatch = ALL_TIMEZONES.find(
       (tz) => tz.value.toLowerCase() === newValue.toLowerCase()
     );
     if (exactMatch) {
       onChange(exactMatch.value);
-    } else {
-      // Allow free-form input for validation
-      onChange(newValue);
+    }
+  };
+
+  const updateDropdownPosition = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const dropdownMaxHeight = 240; // max-h-60 = 15rem = 240px
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top
+        ? rect.bottom + 4
+        : rect.top - dropdownMaxHeight - 4;
+      setDropdownStyle({
+        position: "fixed",
+        top,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+        pointerEvents: "auto",
+      });
     }
   };
 
   const handleInputFocus = () => {
+    updateDropdownPosition();
     setIsOpen(true);
   };
 
@@ -205,7 +270,10 @@ export function TimezonePicker({
           variant="ghost"
           size="sm"
           className="absolute right-0 top-0 h-full px-2 py-1 hover:bg-transparent"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            updateDropdownPosition();
+            setIsOpen(!isOpen);
+          }}
           disabled={disabled}
           tabIndex={-1}
           aria-label="Toggle timezone list"
@@ -214,46 +282,50 @@ export function TimezonePicker({
         </Button>
       </div>
       
-      {isOpen && filteredTimezones.length > 0 && (
-        <div 
-          ref={listRef}
-          role="listbox"
-          aria-label="Timezone options"
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
-        >
-          {filteredTimezones.slice(0, 50).map((timezone, index) => {
-            const isHighlighted = index === highlightedIndex;
-            const isSelected = value === timezone.value;
-            return (
-              <button
-                key={timezone.value}
-                type="button"
-                className={cn(
-                  "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  "focus:bg-accent focus:text-accent-foreground",
-                  isHighlighted && "bg-accent text-accent-foreground",
-                  isSelected && "bg-accent/50"
-                )}
-                onClick={() => handleSelect(timezone.value)}
-                onMouseEnter={() => setHighlightedIndex(index)}
-              >
-                {isSelected && (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                <span className={isSelected ? "" : "ml-6"}>
-                  {timezone.label}
-                </span>
-              </button>
-            );
-          })}
-          {filteredTimezones.length > 50 && (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              Showing first 50 of {filteredTimezones.length} results
-            </div>
-          )}
-        </div>
-      )}
+      {typeof window !== "undefined" && isOpen && filteredTimezones.length > 0
+        ? createPortal(
+            <div 
+              ref={listRef}
+              role="listbox"
+              aria-label="Timezone options"
+              style={dropdownStyle}
+              className="max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
+            >
+              {filteredTimezones.slice(0, 50).map((timezone, index) => {
+                const isHighlighted = index === highlightedIndex;
+                const isSelected = value === timezone.value;
+                return (
+                  <button
+                    key={timezone.value}
+                    type="button"
+                    className={cn(
+                      "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+                      "hover:bg-accent hover:text-accent-foreground",
+                      "focus:bg-accent focus:text-accent-foreground",
+                      isHighlighted && "bg-accent text-accent-foreground",
+                      isSelected && "bg-accent/50"
+                    )}
+                    onClick={() => handleSelect(timezone.value)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                  >
+                    {isSelected && (
+                      <Check className="mr-2 h-4 w-4" />
+                    )}
+                    <span className={isSelected ? "" : "ml-6"}>
+                      {timezone.label}
+                    </span>
+                  </button>
+                );
+              })}
+              {filteredTimezones.length > 50 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  Showing first 50 of {filteredTimezones.length} results
+                </div>
+              )}
+            </div>,
+            document.body
+          )
+        : null}
       
       {!isValid && value && (
         <p className="mt-1 text-xs text-destructive">

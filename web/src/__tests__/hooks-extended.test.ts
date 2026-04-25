@@ -7,6 +7,7 @@ import {
   usePagePreview,
   useBoardSettings,
   getEffectiveBoardColor,
+  getEffectiveDeviceType,
   queryKeys,
 } from "@/hooks/use-board";
 import {
@@ -155,6 +156,58 @@ describe("use-board extended", () => {
 
     it("defaults to black when settings is undefined", () => {
       expect(getEffectiveBoardColor(undefined)).toBe("black");
+    });
+  });
+
+  describe("getEffectiveDeviceType", () => {
+    it("returns first board's device_type when it is note", () => {
+      expect(
+        getEffectiveDeviceType({
+          boards: [{ device_type: "note" }],
+        })
+      ).toBe("note");
+    });
+
+    it("returns flagship when first board is flagship", () => {
+      expect(
+        getEffectiveDeviceType({
+          boards: [{ device_type: "flagship" }],
+        })
+      ).toBe("flagship");
+    });
+
+    it("returns flagship when boards array is empty", () => {
+      expect(
+        getEffectiveDeviceType({
+          boards: [],
+        })
+      ).toBe("flagship");
+    });
+
+    it("returns flagship when boards is undefined", () => {
+      expect(
+        getEffectiveDeviceType({})
+      ).toBe("flagship");
+    });
+
+    it("defaults to flagship when settings is undefined", () => {
+      expect(getEffectiveDeviceType(undefined)).toBe("flagship");
+    });
+
+    it("returns note for multi-board setup where first board is note", () => {
+      expect(
+        getEffectiveDeviceType({
+          boards: [{ device_type: "note" }, { device_type: "flagship" }],
+        })
+      ).toBe("note");
+    });
+
+    it("returns flagship when first board has no device_type", () => {
+      expect(
+        getEffectiveDeviceType({
+          boards: [{}],
+        })
+      ).toBe("flagship");
     });
   });
 });
