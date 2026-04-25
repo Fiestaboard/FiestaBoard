@@ -3129,6 +3129,100 @@ async def update_location_settings(request: dict):
     return {"status": "success", "settings": location.to_dict()}
 
 
+@app.get("/settings/location/sun-times")
+async def get_location_sun_times(date: Optional[str] = None):
+    """
+    Get sunrise and sunset times for the configured location on a given date.
+
+    Query params:
+    - date: ISO date string (YYYY-MM-DD); defaults to today in the configured timezone.
+
+    Returns sunrise and sunset as HH:MM strings, or null values if location is not
+    configured or sun times cannot be computed (e.g. polar day/night).
+    """
+    from .schedules.sun_times import get_sun_times
+    from datetime import date as date_cls, datetime
+    import pytz
+
+    settings_service = get_settings_service()
+    location = settings_service.get_location_settings()
+
+    if location.latitude is None or location.longitude is None:
+        return {"sunrise": None, "sunset": None, "location_configured": False}
+
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    if date:
+        try:
+            target_date = date_cls.fromisoformat(date)
+        except ValueError:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    else:
+        tz = pytz.timezone(timezone_str)
+        target_date = datetime.now(tz).date()
+
+    times = get_sun_times(location.latitude, location.longitude, target_date, timezone_str)
+    if times is None:
+        return {"sunrise": None, "sunset": None, "location_configured": True}
+
+    return {
+        "sunrise": times["sunrise"].strftime("%H:%M"),
+        "sunset": times["sunset"].strftime("%H:%M"),
+        "location_configured": True,
+    }
+
+
+@app.get("/settings/location/sun-times-week")
+async def get_location_sun_times_week(week_start: str):
+    """
+    Get sunrise and sunset times for each day of a 7-day week.
+
+    Query params:
+    - week_start: ISO date string (YYYY-MM-DD) for the first day of the week.
+
+    Returns a map of date strings to { sunrise, sunset } HH:MM values.
+    """
+    from .schedules.sun_times import get_sun_times
+    from datetime import date as date_cls, timedelta
+
+    settings_service = get_settings_service()
+    location = settings_service.get_location_settings()
+
+    if location.latitude is None or location.longitude is None:
+        return {"location_configured": False, "dates": {}}
+
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    try:
+        start = date_cls.fromisoformat(week_start)
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid week_start format. Use YYYY-MM-DD.")
+
+    result: dict = {}
+    for i in range(7):
+        day = start + timedelta(days=i)
+        times = get_sun_times(location.latitude, location.longitude, day, timezone_str)
+        if times:
+            result[day.isoformat()] = {
+                "sunrise": times["sunrise"].strftime("%H:%M"),
+                "sunset": times["sunset"].strftime("%H:%M"),
+            }
+
+    return {"location_configured": True, "dates": result}
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """

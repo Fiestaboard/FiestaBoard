@@ -189,7 +189,7 @@
       "timeTypeSunrise": "Sunrise",
       "timeTypeSunset": "Sunset",
       "sunOffset": "Offset (minutes)",
-      "sunOffsetHint": "Positive = after, negative = before",
+      "sunOffsetHint": "minutes (+ after, − before)",
       "resolvedTime": "Today: {time}",
       "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }

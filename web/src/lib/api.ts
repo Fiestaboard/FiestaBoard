@@ -591,6 +591,17 @@ export interface LocationSettings {
   longitude: number | null;
 }
 
+export interface SunTimesResponse {
+  sunrise: string | null;
+  sunset: string | null;
+  location_configured: boolean;
+}
+
+export interface SunTimesWeekResponse {
+  location_configured: boolean;
+  dates: Record<string, { sunrise: string; sunset: string }>;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: Record<string, unknown>;
@@ -1275,6 +1286,10 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     }),
+  getSunTimes: (date?: string) =>
+    fetchApi<SunTimesResponse>(`/settings/location/sun-times${date ? `?date=${date}` : ""}`),
+  getSunTimesWeek: (weekStart: string) =>
+    fetchApi<SunTimesWeekResponse>(`/settings/location/sun-times-week?week_start=${weekStart}`),
 
   // Home Assistant endpoints
   getHomeAssistantEntities: () =>

@@ -76,6 +76,36 @@ function parseTime(time: string): { hours: number; minutes: number } {
 }
 
 /**
+ * Apply a minute offset to an HH:MM time string, clamping to 00:00–23:59.
+ */
+function applyOffset(time: string, offsetMinutes: number): string {
+  const { hours, minutes } = parseTime(time);
+  const total = Math.max(0, Math.min(23 * 60 + 59, hours * 60 + minutes + offsetMinutes));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Resolve the HH:MM time for a schedule's start or end on a specific day.
+ * Uses the per-day sun times map for sun-based schedules; falls back to
+ * the resolved or stored time when location is not configured.
+ */
+function resolveTimeForDay(
+  type: string | undefined,
+  offset: number,
+  fallback: string,
+  dateStr: string,
+  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>
+): { hours: number; minutes: number } {
+  if ((type === "sunrise" || type === "sunset") && sunTimesMap?.[dateStr]) {
+    const base = type === "sunrise" ? sunTimesMap[dateStr].sunrise : sunTimesMap[dateStr].sunset;
+    return parseTime(applyOffset(base, offset));
+  }
+  return parseTime(fallback);
+}
+
+/**
  * Get applicable day numbers for a schedule entry
  */
 function getApplicableDays(schedule: ScheduleEntry): number[] {
@@ -114,107 +144,121 @@ export function scheduleToCalendarEvents(
   schedule: ScheduleEntry,
   weekStart: Date,
   pages: Page[],
-  carousels?: Carousel[]
+  carousels?: Carousel[],
+  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const applicableDays = getApplicableDays(schedule);
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const startTime = parseTime(schedule.resolved_start_time || schedule.start_time);
   const pageName = getPageName(schedule.page_id, pages, carousels);
-
-  // When end_time is null/undefined (open-ended), treat as end-of-day (23:59)
-  const rawEndTime = schedule.resolved_end_time !== undefined
-    ? schedule.resolved_end_time
-    : schedule.end_time;
-  const endTime = rawEndTime ? parseTime(rawEndTime) : null;
-
-  const isMidnightRollover = endTime
-    ? (endTime.hours < startTime.hours ||
-       (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes))
-    : false;
 
   for (const day of daysInWeek) {
     const dayOfWeek = getDay(day);
+    if (!applicableDays.includes(dayOfWeek)) continue;
 
-    if (applicableDays.includes(dayOfWeek)) {
-      const eventStart = setMinutes(
-        setHours(day, startTime.hours),
-        startTime.minutes
+    const dateStr = format(day, "yyyy-MM-dd");
+
+    // Resolve start/end times for this specific day using the per-day sun times map
+    const startTime = resolveTimeForDay(
+      schedule.start_type,
+      schedule.start_sun_offset ?? 0,
+      schedule.resolved_start_time || schedule.start_time,
+      dateStr,
+      sunTimesMap
+    );
+
+    const rawEndFallback = schedule.resolved_end_time !== undefined
+      ? (schedule.resolved_end_time ?? null)
+      : (schedule.end_time ?? null);
+    const endTime = rawEndFallback
+      ? resolveTimeForDay(
+          schedule.end_type,
+          schedule.end_sun_offset ?? 0,
+          rawEndFallback,
+          dateStr,
+          sunTimesMap
+        )
+      : null;
+
+    const isMidnightRollover = endTime
+      ? (endTime.hours < startTime.hours ||
+         (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes))
+      : false;
+
+    const eventStart = setMinutes(setHours(day, startTime.hours), startTime.minutes);
+
+    if (isMidnightRollover && endTime) {
+      // Split into two events at the midnight boundary
+      const nextDay = addDays(day, 1);
+
+      // For a repeating weekly schedule, Saturday's morning continuation
+      // should wrap to this week's Sunday instead of next week's Sunday
+      const morningDay = dayOfWeek === 6 ? weekStart : nextDay;
+
+      // Evening part: start_time → end of day (23:59:59.999)
+      // Use endOfDay instead of midnight-next-day so react-big-calendar
+      // keeps the event within the same day column (RBC bug #2617)
+      const eveningEnd = endOfDay(day);
+      events.push({
+        id: `${schedule.id}-${format(day, "yyyy-MM-dd")}-evening`,
+        title: pageName,
+        start: eventStart,
+        end: eveningEnd,
+        resource: {
+          scheduleId: schedule.id,
+          pageId: schedule.page_id,
+          pageName,
+          enabled: schedule.enabled,
+          dayPattern: schedule.day_pattern,
+          originalSchedule: schedule,
+          isMidnightSplit: true,
+          splitPart: "evening",
+        },
+      });
+
+      // Morning part: midnight → end_time
+      const morningStart = setMinutes(setHours(morningDay, 0), 0);
+      const morningEnd = setMinutes(
+        setHours(morningDay, endTime.hours),
+        endTime.minutes
       );
-
-      if (isMidnightRollover && endTime) {
-        // Split into two events at the midnight boundary
-        const nextDay = addDays(day, 1);
-
-        // For a repeating weekly schedule, Saturday's morning continuation
-        // should wrap to this week's Sunday instead of next week's Sunday
-        const morningDay = dayOfWeek === 6 ? weekStart : nextDay;
-
-        // Evening part: start_time → end of day (23:59:59.999)
-        // Use endOfDay instead of midnight-next-day so react-big-calendar
-        // keeps the event within the same day column (RBC bug #2617)
-        const eveningEnd = endOfDay(day);
-        events.push({
-          id: `${schedule.id}-${format(day, "yyyy-MM-dd")}-evening`,
-          title: pageName,
-          start: eventStart,
-          end: eveningEnd,
-          resource: {
-            scheduleId: schedule.id,
-            pageId: schedule.page_id,
-            pageName,
-            enabled: schedule.enabled,
-            dayPattern: schedule.day_pattern,
-            originalSchedule: schedule,
-            isMidnightSplit: true,
-            splitPart: "evening",
-          },
-        });
-
-        // Morning part: midnight → end_time
-        const morningStart = setMinutes(setHours(morningDay, 0), 0);
-        const morningEnd = setMinutes(
-          setHours(morningDay, endTime.hours),
-          endTime.minutes
-        );
-        events.push({
-          id: `${schedule.id}-${format(morningDay, "yyyy-MM-dd")}-morning`,
-          title: pageName,
-          start: morningStart,
-          end: morningEnd,
-          resource: {
-            scheduleId: schedule.id,
-            pageId: schedule.page_id,
-            pageName,
-            enabled: schedule.enabled,
-            dayPattern: schedule.day_pattern,
-            originalSchedule: schedule,
-            isMidnightSplit: true,
-            splitPart: "morning",
-          },
-        });
-      } else {
-        // Normal same-day event (or open-ended — use end-of-day when no end_time)
-        const eventEnd = endTime
-          ? setMinutes(setHours(day, endTime.hours), endTime.minutes)
-          : endOfDay(day);
-        events.push({
-          id: `${schedule.id}-${format(day, "yyyy-MM-dd")}`,
-          title: pageName,
-          start: eventStart,
-          end: eventEnd,
-          resource: {
-            scheduleId: schedule.id,
-            pageId: schedule.page_id,
-            pageName,
-            enabled: schedule.enabled,
-            dayPattern: schedule.day_pattern,
-            originalSchedule: schedule,
-          },
-        });
-      }
+      events.push({
+        id: `${schedule.id}-${format(morningDay, "yyyy-MM-dd")}-morning`,
+        title: pageName,
+        start: morningStart,
+        end: morningEnd,
+        resource: {
+          scheduleId: schedule.id,
+          pageId: schedule.page_id,
+          pageName,
+          enabled: schedule.enabled,
+          dayPattern: schedule.day_pattern,
+          originalSchedule: schedule,
+          isMidnightSplit: true,
+          splitPart: "morning",
+        },
+      });
+    } else {
+      // Normal same-day event (or open-ended — use end-of-day when no end_time)
+      const eventEnd = endTime
+        ? setMinutes(setHours(day, endTime.hours), endTime.minutes)
+        : endOfDay(day);
+      events.push({
+        id: `${schedule.id}-${format(day, "yyyy-MM-dd")}`,
+        title: pageName,
+        start: eventStart,
+        end: eventEnd,
+        resource: {
+          scheduleId: schedule.id,
+          pageId: schedule.page_id,
+          pageName,
+          enabled: schedule.enabled,
+          dayPattern: schedule.day_pattern,
+          originalSchedule: schedule,
+        },
+      });
     }
   }
 
@@ -228,12 +272,13 @@ export function schedulesToCalendarEvents(
   schedules: ScheduleEntry[],
   weekStart: Date,
   pages: Page[],
-  carousels?: Carousel[]
+  carousels?: Carousel[],
+  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>
 ): CalendarEvent[] {
   const allEvents: CalendarEvent[] = [];
 
   for (const schedule of schedules) {
-    const events = scheduleToCalendarEvents(schedule, weekStart, pages, carousels);
+    const events = scheduleToCalendarEvents(schedule, weekStart, pages, carousels, sunTimesMap);
     allEvents.push(...events);
   }
 
