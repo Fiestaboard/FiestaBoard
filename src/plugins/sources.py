@@ -420,6 +420,50 @@ def get_external_plugins_dir(project_root: Optional[Path] = None) -> Path:
     return ext_dir
 
 
+def _safe_external_dest(
+    external_dir: Path, plugin_id: str
+) -> Tuple[Optional[Path], str]:
+    """Compute a safe destination path inside ``external_dir`` for a plugin.
+
+    ``plugin_id`` MUST already have been validated with
+    :func:`_validate_plugin_id`.  This helper performs additional explicit
+    sanitisation that CodeQL recognises (rejecting separators / ``..`` and
+    ensuring ``os.path.basename`` matches the input) on top of a final
+    ``resolve()``-and-containment check.
+    """
+    # Reject anything that could traverse out of ``external_dir`` even if
+    # ``_validate_plugin_id`` somehow let it through.  These checks are
+    # explicit so static analysers can recognise them as a sanitiser.
+    if (
+        not isinstance(plugin_id, str)
+        or not plugin_id
+        or ".." in plugin_id
+        or "/" in plugin_id
+        or "\\" in plugin_id
+        or "\x00" in plugin_id
+        or os.path.basename(plugin_id) != plugin_id
+    ):
+        return None, f"Invalid plugin id {plugin_id!r}"
+
+    external_root = external_dir.resolve()
+    # ``os.path.basename`` above guarantees ``plugin_id`` is a single safe
+    # path segment, so this join cannot escape ``external_root``.
+    candidate = Path(os.path.join(str(external_root), plugin_id)).resolve()
+
+    # Defence in depth: also assert containment using ``relative_to``,
+    # which raises ``ValueError`` when ``candidate`` falls outside
+    # ``external_root``.
+    try:
+        candidate.relative_to(external_root)
+    except ValueError:
+        return None, f"Refusing to install plugin outside {external_root}"
+    if candidate == external_root:
+        return None, (
+            f"Plugin destination must be a subdirectory of {external_root}"
+        )
+    return candidate, ""
+
+
 def install_registry_plugin(
     entry: RegistryEntry,
     external_dir: Optional[Path] = None,
@@ -442,12 +486,9 @@ def install_registry_plugin(
     if external_dir is None:
         external_dir = get_external_plugins_dir()
 
-    # Resolve ``external_dir`` so we can verify the destination stays inside
-    # it (defence in depth on top of plugin id validation).
-    external_root = external_dir.resolve()
-    dest = (external_root / entry.plugin_id).resolve()
-    if external_root not in dest.parents:
-        return False, f"Refusing to install plugin outside {external_root}"
+    dest, err = _safe_external_dest(external_dir, entry.plugin_id)
+    if dest is None:
+        return False, err
     return clone_or_update_repo(entry.repository, dest, entry.branch)
 
 
@@ -492,8 +533,7 @@ def install_git_plugin(
     if not ok:
         return False, err
 
-    external_root = external_dir.resolve()
-    dest = (external_root / plugin_id).resolve()
-    if external_root not in dest.parents:
-        return False, f"Refusing to install plugin outside {external_root}"
+    dest, err = _safe_external_dest(external_dir, plugin_id)
+    if dest is None:
+        return False, err
     return clone_or_update_repo(repo_url, dest, branch)

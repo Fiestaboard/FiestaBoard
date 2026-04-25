@@ -5677,11 +5677,10 @@ async def generic_data_test_fetch(request: dict):
         raise HTTPException(status_code=504, detail="Request timed out")
     except req.exceptions.ConnectionError:
         raise HTTPException(status_code=502, detail="Connection error — check the URL")
-    except req.exceptions.HTTPError as e:
-        # Surface only the status code, not the full exception (which can
-        # echo headers/URLs back to the caller).
-        status = getattr(getattr(e, "response", None), "status_code", "unknown")
-        raise HTTPException(status_code=502, detail=f"HTTP error (status {status})")
+    except req.exceptions.HTTPError:
+        # Don't echo the upstream exception (URL/headers/status) back to the
+        # caller — generic message is enough for a "test fetch" feature.
+        raise HTTPException(status_code=502, detail="HTTP error from remote service")
     except Exception:
         logger.exception("generic-data test-fetch failed")
         raise HTTPException(status_code=500, detail="Failed to fetch data")
