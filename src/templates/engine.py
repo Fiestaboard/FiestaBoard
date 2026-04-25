@@ -1392,7 +1392,7 @@ class TemplateEngine:
                     if rules:
                         color_prefix_len = 2  # Color tile + space
                 except Exception:
-                    logger.debug("Error getting color rules for variable", exc_info=True)
+                    logger.debug("Error getting color rules for variable %s", var_part, exc_info=True)
             max_len = max_lengths.get(var_part, 22)  # Default to full board width
             return 'X' * (max_len + color_prefix_len)
         
