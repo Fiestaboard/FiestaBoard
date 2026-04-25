@@ -2,13 +2,9 @@
 
 import pytest
 import json
-import tempfile
 import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from fastapi.testclient import TestClient
-from collections import deque
-from datetime import datetime
 
 
 @pytest.fixture
@@ -276,7 +272,6 @@ class TestLogFilePersistence:
 
     def test_logs_directory_creation(self, test_log_dir):
         """Test that logs directory is created."""
-        from pathlib import Path
         assert test_log_dir.exists()
         assert test_log_dir.is_dir()
 

@@ -4,9 +4,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
-from src.plugins.base import PluginBase
 from src.plugins.loader import PluginLoader
 
 

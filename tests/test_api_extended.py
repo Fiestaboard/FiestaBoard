@@ -5,7 +5,7 @@ pages endpoints, schedule endpoints, cache, service lifecycle, and error paths.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock, PropertyMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from src.api_server import app
 

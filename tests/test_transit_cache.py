@@ -4,7 +4,7 @@ import pytest
 import time
 import json
 import threading
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from src.utils.transit_cache import TransitCache, get_transit_cache
 
 

@@ -9,7 +9,6 @@ import pytest
 from pathlib import Path
 
 from plugins._template import MyPlugin
-from src.plugins.base import PluginResult
 from src.plugins.manifest import PluginManifest
 
 

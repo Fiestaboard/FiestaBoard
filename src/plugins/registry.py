@@ -15,10 +15,9 @@ from typing import Any, Dict, List, Optional
 
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
-from .manifest import PluginManifest, VariableGroupSchema, VariableMetadata
+from .manifest import PluginManifest, VariableMetadata
 from .sources import (
     PluginSource,
-    RegistryEntry,
     check_plugin_update_available,
     get_external_plugins_dir,
     install_git_plugin,

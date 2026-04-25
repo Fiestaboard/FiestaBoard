@@ -158,7 +158,7 @@ class MQTTClient:
             pages = get_page_service().list_pages()
             page_names = [p.name for p in pages]
         except Exception:
-            pass
+            logger.debug("Could not retrieve page names for MQTT discovery")
         messages = build_all_discovery_messages(
             self.config,
             sw_version=sw_version,

@@ -1,5 +1,4 @@
 """Tests for consolidated settings endpoint."""
-import pytest
 from fastapi.testclient import TestClient
 from src.api_server import app
 

@@ -356,7 +356,7 @@ class TrafficSource:
                         }
                     }
                 except ValueError:
-                    pass
+                    logger.debug("Could not parse lat/lng from location string: %s", location)
         
         # Default to address
         return {

@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple, Dict
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
-from .models import Page, PageCreate, PageUpdate, LineMetadata, RowConfig
+from .models import Page, PageCreate, PageUpdate, LineMetadata
 from .storage import PageStorage
 from ..devices import get_dimensions
 from ..displays.service import get_display_service, DisplayResult

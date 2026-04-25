@@ -6,7 +6,7 @@ and deprecated compat endpoints.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock, PropertyMock
+from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 from src.api_server import app
 

@@ -20,7 +20,7 @@ import re
 import time
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +130,7 @@ def interpolate_string(
                 try:
                     return datetime.utcnow().strftime(fmt)
                 except Exception:
-                    pass
-        # Unknown variable -- leave as-is.
+                    logger.debug("Could not format datetime with UTC fallback")
         return match.group(0)
 
     return _VAR_PATTERN.sub(_replace, value)

@@ -9,7 +9,7 @@ import logging
 import requests
 import time
 import math
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List
 from ..config import Config
 
 logger = logging.getLogger(__name__)

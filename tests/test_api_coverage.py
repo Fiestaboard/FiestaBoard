@@ -7,7 +7,7 @@ debug endpoints (error paths), plugin endpoints, stocks, and transit cache.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock, PropertyMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from src.api_server import app
 

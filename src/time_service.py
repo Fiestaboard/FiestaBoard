@@ -12,7 +12,7 @@ datetime or zoneinfo to ensure consistency and testability.
 """
 
 import logging
-from datetime import datetime, time, timezone as _dt_timezone
+from datetime import datetime, timezone as _dt_timezone
 from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 

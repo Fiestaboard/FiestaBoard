@@ -2,11 +2,6 @@
 
 import math
 import pytest
-import tempfile
-import os
-import time
-from datetime import datetime
-from unittest.mock import Mock, patch
 
 from src.carousels.models import (
     Carousel,

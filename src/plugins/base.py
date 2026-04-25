@@ -4,7 +4,7 @@ All plugins must inherit from PluginBase and implement the required methods.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import logging

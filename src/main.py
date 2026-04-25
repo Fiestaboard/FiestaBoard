@@ -3,7 +3,6 @@
 import logging
 import time
 import signal
-from datetime import datetime
 from typing import Optional
 
 import schedule
@@ -12,7 +11,7 @@ from .config import Config
 from .board_client import BoardClient, board_client_from_board_dict
 from .board_chars import BoardChars
 from .devices import get_dimensions
-from .text_to_board import text_to_board_array, format_board_array_preview
+from .text_to_board import text_to_board_array
 from .settings.service import get_settings_service
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service

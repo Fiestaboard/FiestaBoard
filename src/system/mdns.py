@@ -162,7 +162,6 @@ def start_mdns() -> bool:
 
 def stop_mdns() -> None:
     """Convenience wrapper – stop the singleton service."""
-    global _mdns_service
     if _mdns_service is not None:
         _mdns_service.stop()
 
@@ -214,7 +213,7 @@ def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
 
     # -- Phase 1: mDNS browse ------------------------------------------------
     try:
-        from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo
+        from zeroconf import Zeroconf, ServiceBrowser
         import time
 
         discovered: List[Dict[str, Any]] = []
@@ -253,7 +252,7 @@ def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
 
         zc = Zeroconf()
         listener = _Listener()
-        browsers = [
+        _browsers = [
             ServiceBrowser(zc, stype, listener)
             for stype in _BROWSE_SERVICE_TYPES
         ]

@@ -4,9 +4,9 @@ import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
-from datetime import datetime, time
+from datetime import time
 
-from src.schedules.models import ScheduleEntry, ScheduleCreate
+from src.schedules.models import ScheduleCreate
 from src.schedules.service import ScheduleService
 from src.schedules.storage import ScheduleStorage
 

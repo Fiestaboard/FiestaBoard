@@ -6,7 +6,7 @@ timezone for direct use in schedule evaluation.
 """
 
 import logging
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from typing import Optional, Tuple
 
 from astral import LocationInfo

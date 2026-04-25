@@ -17,7 +17,6 @@ from .manifest import PluginManifest, load_manifest
 from .sources import (
     EXTERNAL_PLUGINS_DIR,
     PluginSource,
-    get_external_plugins_dir,
 )
 
 logger = logging.getLogger(__name__)

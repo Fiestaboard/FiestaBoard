@@ -3,7 +3,7 @@
 import pytest
 import tempfile
 from pathlib import Path
-from datetime import datetime, time, timezone
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 from src.templates.engine import TemplateEngine
 from src.main import DisplayService
@@ -11,7 +11,7 @@ from src.schedules.models import ScheduleCreate
 from src.schedules.service import ScheduleService
 from src.schedules.storage import ScheduleStorage
 from src.settings.service import SettingsService
-from src.pages.models import Page, PageCreate
+from src.pages.models import PageCreate
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
 

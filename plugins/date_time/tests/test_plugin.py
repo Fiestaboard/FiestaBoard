@@ -1,14 +1,12 @@
 """Tests for the date_time plugin."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import datetime
 import json
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from plugins.date_time import DateTimePlugin
-from src.plugins.base import PluginResult
 
 
 class TestDateTimePlugin:

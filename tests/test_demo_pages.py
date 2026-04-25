@@ -8,19 +8,16 @@ Covers:
 - Manifest validation of the demo section
 """
 
-import json
 import pytest
 import tempfile
 import os
-from datetime import datetime, timezone
-from unittest.mock import patch
 
 from src.plugins.manifest import (
     DemoPageSchema,
     PluginManifest,
     validate_manifest,
 )
-from src.pages.models import Page, PageCreate, LineMetadata
+from src.pages.models import Page, PageCreate
 from src.pages.storage import PageStorage, _migrate_v1_to_v2, CURRENT_SCHEMA_VERSION
 from src.pages.service import PageService
 

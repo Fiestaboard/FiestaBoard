@@ -5,9 +5,8 @@ and validation (overlap and gap detection).
 """
 
 import logging
-from datetime import time, date, datetime
-from typing import List, Optional, Set, Tuple
-from dataclasses import dataclass
+from datetime import time, date
+from typing import List, Optional, Tuple
 
 from .models import (
     ScheduleEntry,
@@ -20,7 +19,7 @@ from .models import (
     DEFAULT_BOARD_ID,
 )
 from .storage import ScheduleStorage
-from .sun_times import resolve_schedule_sun_times, SUN_EVENT_TYPES
+from .sun_times import resolve_schedule_sun_times
 from ..settings.service import get_settings_service
 
 logger = logging.getLogger(__name__)
@@ -177,7 +176,7 @@ class ScheduleService:
             from ..config import Config
             timezone_str = Config.TIMEZONE or "UTC"
         except Exception:
-            pass
+            logger.debug("Could not get timezone from config, using UTC")
         return (loc.latitude, loc.longitude, timezone_str)
 
     def _resolve_effective_times(

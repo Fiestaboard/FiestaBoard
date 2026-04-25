@@ -10,7 +10,7 @@ These tests run as part of the platform test suite and verify:
 import json
 import pytest
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -436,7 +436,7 @@ class TestManifestVariablesParsing:
 
     def test_manifest_parses_simple_dict_format(self):
         """PluginManifest.from_dict handles the rich dict format for simple variables."""
-        from src.plugins.manifest import PluginManifest, VariableMetadata
+        from src.plugins.manifest import PluginManifest
 
         data = {
             "id": "test", "name": "Test", "version": "1.0.0",

@@ -9,9 +9,8 @@ Covers:
 - refresh_seconds rate-limit bypass attempts
 """
 
-import json
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from src.api_server import app

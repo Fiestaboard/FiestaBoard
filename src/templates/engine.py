@@ -27,7 +27,7 @@ Plugin IDs are used as template namespaces (e.g., {{weather.temp}}, {{stocks.sym
 
 import re
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 
 from ..plugins import get_plugin_registry
@@ -1198,10 +1198,6 @@ class TemplateEngine:
         """
         from ..board_chars import BoardChars
         
-        # The fill_space marker patterns
-        FILL_MARKER = '\x00FILL_SPACE\x00'
-        FILL_REPEAT_PREFIX = '\x00FILL_SPACE_REPEAT:'
-        
         # Find all fill markers (both regular and repeat)
         fill_pattern = re.compile(r'\x00FILL_SPACE(?:_REPEAT:(.+?))?\x00')
         fill_matches = list(fill_pattern.finditer(text))
@@ -1396,9 +1392,7 @@ class TemplateEngine:
                     if rules:
                         color_prefix_len = 2  # Color tile + space
                 except Exception:
-                    pass
-            
-            # Get max length for this variable
+                    logger.debug("Error getting color rules for variable", exc_info=True)
             max_len = max_lengths.get(var_part, 22)  # Default to full board width
             return 'X' * (max_len + color_prefix_len)
         
@@ -1462,7 +1456,6 @@ def reset_template_engine() -> None:
     This should be called when configuration changes to ensure
     the template engine picks up updated settings.
     """
-    global _template_engine
     if _template_engine is not None:
         _template_engine.reset_cache()
     logger.info("Template engine reset")
