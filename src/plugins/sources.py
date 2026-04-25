@@ -425,30 +425,23 @@ def _safe_external_dest(
 ) -> Tuple[Optional[Path], str]:
     """Compute a safe destination path inside ``external_dir`` for a plugin.
 
-    ``plugin_id`` MUST already have been validated with
-    :func:`_validate_plugin_id`.  This helper performs additional explicit
-    sanitisation that CodeQL recognises (rejecting separators / ``..`` and
-    ensuring ``os.path.basename`` matches the input) on top of a final
-    ``resolve()``-and-containment check.
+    The ``plugin_id`` is re-validated here against :data:`PLUGIN_ID_RE` so
+    that the regex match is on the same data-flow path as the directory
+    join below — CodeQL recognises an inline ``re.match`` against a strict
+    character-class allow-list as a path-injection barrier.
     """
-    # Reject anything that could traverse out of ``external_dir`` even if
-    # ``_validate_plugin_id`` somehow let it through.  These checks are
-    # explicit so static analysers can recognise them as a sanitiser.
-    if (
-        not isinstance(plugin_id, str)
-        or not plugin_id
-        or ".." in plugin_id
-        or "/" in plugin_id
-        or "\\" in plugin_id
-        or "\x00" in plugin_id
-        or os.path.basename(plugin_id) != plugin_id
-    ):
+    # Inline allow-list match (single segment, lowercase + digits +
+    # underscore only).  Anything that does not match is rejected before
+    # the value is ever used to build a filesystem path.
+    if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.match(plugin_id):
         return None, f"Invalid plugin id {plugin_id!r}"
 
+    # ``plugin_id`` now matches ^[a-z][a-z0-9_]{0,63}$, so it cannot
+    # contain any path separator, ``..`` segment, or NUL byte.  The join
+    # therefore produces a single child of ``external_root``.
+    safe_id = plugin_id  # already validated above
     external_root = external_dir.resolve()
-    # ``os.path.basename`` above guarantees ``plugin_id`` is a single safe
-    # path segment, so this join cannot escape ``external_root``.
-    candidate = Path(os.path.join(str(external_root), plugin_id)).resolve()
+    candidate = (external_root / safe_id).resolve()
 
     # Defence in depth: also assert containment using ``relative_to``,
     # which raises ``ValueError`` when ``candidate`` falls outside
