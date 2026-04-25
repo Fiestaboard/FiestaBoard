@@ -79,13 +79,18 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps chromium
 
-      - name: Start mock Vestaboard API
+      # ── PR: single container for smoke subset ─────────────────────
+      # On PRs we only run integration.spec.ts — a single file whose tests
+      # execute sequentially — so one backend is sufficient.
+      - name: Start mock Vestaboard API (smoke)
+        if: github.event_name == 'pull_request'
         run: |
           python integration-tests/mock-board/server.py &
           sleep 2
           echo "Mock board started on port 7000"
 
-      - name: Start FiestaBoard container (unified app, same as prod)
+      - name: Start FiestaBoard container (smoke)
+        if: github.event_name == 'pull_request'
         run: |
           docker run -d --name fiestaboard-integration \
             --add-host=host.docker.internal:host-gateway \
@@ -107,7 +112,6 @@ jobs:
       # On PRs: run only the core integration smoke suite (integration.spec.ts).
       # This covers health checks, the setup wizard, navigation, basic page &
       # schedule management — the flows most likely to break on any PR.
-      # On merge queue: run the full integration suite as the final gate.
       - name: Run integration tests (smoke subset on PRs)
         if: github.event_name == 'pull_request'
         working-directory: web
@@ -120,18 +124,87 @@ jobs:
           # the host is reachable at host.docker.internal, not localhost.
           MOCK_BOARD_HOST: host.docker.internal
 
+      # ── Merge queue: 4 isolated containers for full suite ─────────
+      # The full suite uses workers=4 (playwright.config.ts). Without per-worker
+      # backend isolation, all workers share a single backend and race conditions
+      # cause spurious failures. We start 4 FiestaBoard + 4 mock-board containers
+      # and pass WORKER_URLS so each Playwright worker gets its own isolated backend.
+      - name: Start 4 mock board + FiestaBoard containers (full suite)
+        if: github.event_name == 'merge_group'
+        run: |
+          WORKER_COUNT=4
+          WORKER_URLS=""
+          WORKER_MOCK_URLS=""
+          WORKER_MOCK_HOSTS=""
+
+          for i in $(seq 0 $((WORKER_COUNT - 1))); do
+            docker run -d --name mock-board-$i \
+              -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
+              -w /app \
+              python:3.11-slim python server.py
+
+            docker run -d --name fiestaboard-int-$i \
+              -e PRODUCTION=false \
+              fiestaboard:integration
+          done
+
+          for i in $(seq 0 $((WORKER_COUNT - 1))); do
+            FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-int-$i)
+            MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board-$i)
+
+            [ -n "$WORKER_URLS" ] && WORKER_URLS="$WORKER_URLS,"
+            [ -n "$WORKER_MOCK_URLS" ] && WORKER_MOCK_URLS="$WORKER_MOCK_URLS,"
+            [ -n "$WORKER_MOCK_HOSTS" ] && WORKER_MOCK_HOSTS="$WORKER_MOCK_HOSTS,"
+
+            WORKER_URLS="${WORKER_URLS}http://$FB_IP:3000"
+            WORKER_MOCK_URLS="${WORKER_MOCK_URLS}http://$MOCK_IP:7000"
+            WORKER_MOCK_HOSTS="${WORKER_MOCK_HOSTS}$MOCK_IP"
+
+            echo "Worker $i: FiestaBoard=$FB_IP, MockBoard=$MOCK_IP"
+          done
+
+          echo "WORKER_URLS=$WORKER_URLS" >> $GITHUB_ENV
+          echo "WORKER_MOCK_URLS=$WORKER_MOCK_URLS" >> $GITHUB_ENV
+          echo "WORKER_MOCK_HOSTS=$WORKER_MOCK_HOSTS" >> $GITHUB_ENV
+
+      - name: Wait for all containers to be ready (full suite)
+        if: github.event_name == 'merge_group'
+        run: |
+          IFS=',' read -ra URLS <<< "$WORKER_URLS"
+          for url in "${URLS[@]}"; do
+            echo "Waiting for $url..."
+            for i in $(seq 1 60); do
+              STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$url/api/health" 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "  Ready (attempt $i)"
+                break
+              fi
+              if [ "$i" = "60" ]; then
+                echo "  ❌ Failed to become ready"
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+
+      # On merge queue: run the full integration suite as the final gate.
       - name: Run integration tests (full suite on merge queue)
         if: github.event_name == 'merge_group'
         working-directory: web
         run: npx playwright test --reporter=github
         env:
           CI: true
-          MOCK_BOARD_PORT: 7000
-          MOCK_BOARD_HOST: host.docker.internal
+          WORKER_URLS: ${{ env.WORKER_URLS }}
+          WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
+          WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
 
-      - name: Stop FiestaBoard container
+      - name: Stop containers
         if: always()
-        run: docker rm -f fiestaboard-integration 2>/dev/null || true
+        run: |
+          docker rm -f fiestaboard-integration 2>/dev/null || true
+          for i in 0 1 2 3; do
+            docker rm -f fiestaboard-int-$i mock-board-$i 2>/dev/null || true
+          done
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
