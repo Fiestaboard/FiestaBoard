@@ -5282,6 +5282,10 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
     config_manager = get_config_manager()
     config_manager.set_plugin_config(compound_key, {"enabled": False})
 
+    # Reset services so the new instance is available to templates immediately
+    reset_display_service()
+    reset_template_engine()
+
     logger.info(f"Created plugin instance: {compound_key}")
 
     return {
@@ -5318,10 +5322,7 @@ async def delete_plugin_instance(plugin_id: str, instance_label: str):
 
     # Remove persisted config
     config_manager = get_config_manager()
-    with config_manager._file_lock:
-        plugins_cfg = config_manager._config.get("plugins", {})
-        plugins_cfg.pop(compound_key, None)
-        config_manager._save_internal()
+    config_manager.delete_plugin_config(compound_key)
 
     # Reset services
     reset_display_service()

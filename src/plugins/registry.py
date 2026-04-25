@@ -309,12 +309,25 @@ class PluginRegistry:
                 )
                 continue
 
-            # Apply stored config and enabled state
+            # Apply stored config via the proper pipeline so any future
+            # side-effects (e.g. validation hooks) are consistently triggered.
+            config_errors = self.set_plugin_config(config_key, config)
+            if config_errors:
+                logger.warning(
+                    "Instance '%s' config failed validation on restore: %s — "
+                    "applying raw config to avoid data loss",
+                    config_key, config_errors,
+                )
+                # Fall back to direct assignment so we don't silently discard config
+                self._configs[config_key] = config
+                self._plugins[config_key].config = config
+
+            # Enable via the proper pipeline so any future side-effects are
+            # consistently triggered.
             is_enabled = config.get("enabled", False)
-            self._configs[config_key] = config
-            self._plugins[config_key].config = config
-            self._plugins[config_key].enabled = is_enabled
-            self._enabled[config_key] = is_enabled
+            if is_enabled:
+                self.enable_plugin(config_key)
+
             restored += 1
 
         if restored:

@@ -5,7 +5,7 @@ independent configurations, enabled states, and data.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -378,20 +378,58 @@ class TestRestoreInstances:
     """Test _restore_instances() for boot-time restoration."""
 
     def test_restore_instances_from_stored_configs(self, registry_with_plugin, mock_loader):
-        """Instances stored in config are restored on initialize."""
+        """Instances stored in config are restored via the proper enable pipeline."""
         stored_configs = {
             "test_plugin": {"enabled": True},
             "test_plugin:restored": {"enabled": True, "api_key": "saved_key"},
         }
-        # create_instance is called by _restore_instances
         new_plugin = MagicMock(spec=PluginBase)
+        new_plugin.validate_config.return_value = []
+        new_plugin._validate_refresh_seconds.return_value = []
+        new_plugin.enabled = False
+        new_plugin.config = {}
         mock_loader.create_instance.return_value = new_plugin
 
         registry_with_plugin._restore_instances(stored_configs)
 
         assert "test_plugin:restored" in registry_with_plugin._plugins
+        # Enabled via enable_plugin() which sets _enabled dict
         assert registry_with_plugin._enabled["test_plugin:restored"] is True
+        # Config stored via set_plugin_config()
         assert registry_with_plugin._configs["test_plugin:restored"]["api_key"] == "saved_key"
+
+    def test_restore_uses_enable_plugin_pipeline(self, registry_with_plugin, mock_loader):
+        """_restore_instances uses enable_plugin() not direct attribute assignment."""
+        stored_configs = {
+            "test_plugin:inst": {"enabled": True, "setting": "value"},
+        }
+        new_plugin = MagicMock(spec=PluginBase)
+        new_plugin.validate_config.return_value = []
+        new_plugin._validate_refresh_seconds.return_value = []
+        new_plugin.enabled = False
+        new_plugin.config = {}
+        mock_loader.create_instance.return_value = new_plugin
+
+        registry_with_plugin._restore_instances(stored_configs)
+
+        # enable_plugin() sets plugin.enabled = True
+        assert new_plugin.enabled is True
+
+    def test_restore_disabled_instance_not_enabled(self, registry_with_plugin, mock_loader):
+        """Instances stored as disabled should remain disabled after restore."""
+        stored_configs = {
+            "test_plugin:inst": {"enabled": False, "setting": "value"},
+        }
+        new_plugin = MagicMock(spec=PluginBase)
+        new_plugin.validate_config.return_value = []
+        new_plugin._validate_refresh_seconds.return_value = []
+        new_plugin.enabled = False
+        new_plugin.config = {}
+        mock_loader.create_instance.return_value = new_plugin
+
+        registry_with_plugin._restore_instances(stored_configs)
+
+        assert registry_with_plugin._enabled.get("test_plugin:inst") is False
 
     def test_restore_skips_non_instance_keys(self, registry_with_plugin):
         stored_configs = {"test_plugin": {"enabled": True}}
@@ -428,3 +466,148 @@ class TestInstanceEdgeCases:
     def test_instance_label_over_max_length(self, registry_with_plugin):
         errors = registry_with_plugin.create_instance("test_plugin", "a" * 41)
         assert len(errors) == 1
+
+
+# ── API endpoint tests ───────────────────────────────────────────────────────
+
+
+class TestPluginInstanceEndpoints:
+    """Integration-style tests for the three instance REST endpoints via TestClient."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+        from src.api_server import app
+        return TestClient(app)
+
+    @pytest.fixture
+    def mock_registry(self):
+        registry = Mock()
+        registry.parse_instance_key.side_effect = lambda k: (k.split(":", 1)[0], k.split(":", 1)[1] if ":" in k else None)
+        registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label}"
+        registry.is_instance_key.side_effect = lambda k: ":" in k
+        return registry
+
+    # ── list instances ──────────────────────────────────────────────────────
+
+    def test_list_instances_success(self, client, mock_registry):
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.list_instances.return_value = [
+            {"id": "weather:sf", "instance_label": "sf", "enabled": False},
+        ]
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry):
+            resp = client.get("/plugins/weather/instances")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["plugin_id"] == "weather"
+        assert len(data["instances"]) == 1
+        assert data["instances"][0]["instance_label"] == "sf"
+
+    def test_list_instances_plugin_not_found(self, client, mock_registry):
+        mock_registry.get_plugin.return_value = None
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry):
+            resp = client.get("/plugins/nonexistent/instances")
+        assert resp.status_code == 404
+
+    def test_list_instances_system_unavailable(self, client):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+            resp = client.get("/plugins/weather/instances")
+        assert resp.status_code == 503
+
+    # ── create instance ─────────────────────────────────────────────────────
+
+    def test_create_instance_success(self, client, mock_registry):
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.create_instance.return_value = []  # no errors
+        mock_cm = Mock()
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server.reset_display_service"), \
+             patch("src.api_server.reset_template_engine"):
+            resp = client.post("/plugins/weather/instances", json={"label": "sf"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["instance_label"] == "sf"
+        assert data["instance_key"] == "weather:sf"
+        # Persists config
+        mock_cm.set_plugin_config.assert_called_once_with("weather:sf", {"enabled": False})
+
+    def test_create_instance_resets_services(self, client, mock_registry):
+        """Creating an instance should reset display and template services."""
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.create_instance.return_value = []
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("src.api_server.get_config_manager", return_value=Mock()), \
+             patch("src.api_server.reset_display_service") as mock_rds, \
+             patch("src.api_server.reset_template_engine") as mock_rte:
+            client.post("/plugins/weather/instances", json={"label": "nyc"})
+        mock_rds.assert_called_once()
+        mock_rte.assert_called_once()
+
+    def test_create_instance_validation_error(self, client, mock_registry):
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.create_instance.return_value = ["Label already exists"]
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry):
+            resp = client.post("/plugins/weather/instances", json={"label": "sf"})
+        assert resp.status_code == 400
+        assert "Label already exists" in resp.json()["detail"]
+
+    def test_create_instance_plugin_not_found(self, client, mock_registry):
+        mock_registry.get_plugin.return_value = None
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry):
+            resp = client.post("/plugins/nonexistent/instances", json={"label": "sf"})
+        assert resp.status_code == 404
+
+    def test_create_instance_system_unavailable(self, client):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+            resp = client.post("/plugins/weather/instances", json={"label": "sf"})
+        assert resp.status_code == 503
+
+    # ── delete instance ─────────────────────────────────────────────────────
+
+    def test_delete_instance_success(self, client, mock_registry):
+        mock_registry.delete_instance.return_value = []  # no errors
+        mock_cm = Mock()
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server.reset_display_service"), \
+             patch("src.api_server.reset_template_engine"):
+            resp = client.delete("/plugins/weather/instances/sf")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["instance_key"] == "weather:sf"
+        # Uses public delete_plugin_config() (not private internals)
+        mock_cm.delete_plugin_config.assert_called_once_with("weather:sf")
+
+    def test_delete_instance_resets_services(self, client, mock_registry):
+        """Deleting an instance should reset display and template services."""
+        mock_registry.delete_instance.return_value = []
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("src.api_server.get_config_manager", return_value=Mock()), \
+             patch("src.api_server.reset_display_service") as mock_rds, \
+             patch("src.api_server.reset_template_engine") as mock_rte:
+            client.delete("/plugins/weather/instances/sf")
+        mock_rds.assert_called_once()
+        mock_rte.assert_called_once()
+
+    def test_delete_instance_not_found(self, client, mock_registry):
+        mock_registry.delete_instance.return_value = ["Instance not found"]
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry):
+            resp = client.delete("/plugins/weather/instances/nonexistent")
+        assert resp.status_code == 400
+
+    def test_delete_instance_system_unavailable(self, client):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+            resp = client.delete("/plugins/weather/instances/sf")
+        assert resp.status_code == 503

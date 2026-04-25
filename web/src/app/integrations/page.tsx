@@ -39,6 +39,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -950,6 +960,7 @@ function PluginCard({
   const [showAddInstance, setShowAddInstance] = useState(false);
   const [instanceLabel, setInstanceLabel] = useState("");
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const queryClient = useQueryClient();
 
   const isExternal = plugin.source?.source_type !== "builtin";
@@ -1088,6 +1099,39 @@ function PluginCard({
   const isMarketplace = sourceType === "registry" || sourceType === "external";
   const isGitExternal = sourceType === "git";
   const categoryLabel = CATEGORY_LABELS[plugin.category || "utility"] || plugin.category || "Utility";
+
+  function handleCreateInstance() {
+    if (!instanceLabel.trim()) return;
+    setIsCreatingInstance(true);
+    const baseId = plugin.base_plugin_id ?? plugin.id;
+    api.createPluginInstance(baseId, instanceLabel.trim())
+      .then(() => {
+        toast.success(`Instance "${instanceLabel}" created for ${plugin.name}`);
+        queryClient.invalidateQueries({ queryKey: ["plugins"] });
+        setShowAddInstance(false);
+        setInstanceLabel("");
+      })
+      .catch((err) => {
+        toast.error(`Failed to create instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+      })
+      .finally(() => {
+        setIsCreatingInstance(false);
+      });
+  }
+
+  async function handleDeleteInstance() {
+    const baseId = plugin.base_plugin_id ?? plugin.id.split(":")[0];
+    const label = plugin.instance_label ?? "";
+    try {
+      await api.deletePluginInstance(baseId, label);
+      toast.success(`Instance "${label}" deleted`);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+    } catch (err) {
+      toast.error(`Failed to delete instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  }
 
   const configSheet = (
     <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
@@ -1342,7 +1386,7 @@ function PluginCard({
     </Sheet>
   );
 
-  return (
+  const rows = (
     <>
     <tr className={cn(
       "border-b last:border-b-0 transition-colors",
@@ -1465,17 +1509,7 @@ function PluginCard({
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={async () => {
-                      const baseId = plugin.base_plugin_id ?? plugin.id.split(":")[0];
-                      const label = plugin.instance_label ?? "";
-                      try {
-                        await api.deletePluginInstance(baseId, label);
-                        toast.success(`Instance "${label}" deleted`);
-                        queryClient.invalidateQueries({ queryKey: ["plugins"] });
-                      } catch (err) {
-                        toast.error(`Failed to delete instance: ${err instanceof Error ? err.message : "Unknown error"}`);
-                      }
-                    }}
+                    onClick={() => setShowDeleteConfirm(true)}
                     className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" />
@@ -1555,24 +1589,36 @@ function PluginCard({
     </>
   );
 
-  function handleCreateInstance() {
-    if (!instanceLabel.trim()) return;
-    setIsCreatingInstance(true);
-    const baseId = plugin.base_plugin_id ?? plugin.id;
-    api.createPluginInstance(baseId, instanceLabel.trim())
-      .then(() => {
-        toast.success(`Instance "${instanceLabel}" created for ${plugin.name}`);
-        queryClient.invalidateQueries({ queryKey: ["plugins"] });
-        setShowAddInstance(false);
-        setInstanceLabel("");
-      })
-      .catch((err) => {
-        toast.error(`Failed to create instance: ${err instanceof Error ? err.message : "Unknown error"}`);
-      })
-      .finally(() => {
-        setIsCreatingInstance(false);
-      });
-  }
+  // Delete instance confirmation dialog
+  const deleteConfirmDialog = showDeleteConfirm && (
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete instance &ldquo;{plugin.instance_label}&rdquo;?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently remove this plugin instance and all its configuration.
+            This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteInstance}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  return (
+    <>
+      {rows}
+      {deleteConfirmDialog}
+    </>
+  );
 }
 
 function RegistryPluginCard({
