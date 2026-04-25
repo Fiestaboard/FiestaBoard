@@ -4,20 +4,14 @@ import { useState, useEffect, useDeferredValue } from "react";
 import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Settings } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { api } from "@/lib/api";
-import { TimezonePicker } from "@/components/ui/timezone-picker";
-import { LanguageSelector } from "@/components/language-selector";
-import { formatInTimeZone } from "date-fns-tz";
-import { useStatus } from "@/hooks/use-board";
 import { utcToLocalTime, localTimeToUTC } from "@/lib/timezone-utils";
 
 export function GeneralSettings() {
@@ -25,12 +19,10 @@ export function GeneralSettings() {
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [hasChanges, setHasChanges] = useState(false);
-  const [timezone, setTimezone] = useState("America/Los_Angeles");
   const [silenceEnabled, setSilenceEnabled] = useState(false);
   const [silenceStartTime, setSilenceStartTime] = useState("20:00");
   const [silenceEndTime, setSilenceEndTime] = useState("07:00");
   const [pollingInterval, setPollingInterval] = useState(15);
-  const [reduceMotion, setReduceMotion] = useState(false);
 
   // Fetch all settings in one request
   const { data: allSettings, isLoading: isLoadingSettings } = useQuery({
@@ -42,31 +34,19 @@ export function GeneralSettings() {
   const generalConfig = allSettings?.general;
   const silenceConfig = allSettings?.silence_schedule;
   const pollingSettings = allSettings?.polling;
-  const displaySettings = allSettings?.display;
-  const status = allSettings?.status;
 
   // Use deferred values for non-critical data to reduce re-render priority
   const deferredSilenceConfig = useDeferredValue(silenceConfig);
   const deferredPollingSettings = useDeferredValue(pollingSettings);
-  const deferredDisplaySettings = useDeferredValue(displaySettings);
-  
-  // Compute loading states
-  const isLoadingConfig = isLoadingSettings;
+
   const isLoadingSilence = isLoadingSettings;
   const isLoadingPolling = isLoadingSettings;
-  const isLoadingStatus = isLoadingSettings;
 
-  // Initialize form data when config loads
-  useEffect(() => {
-    if (generalConfig) {
-      setTimezone(generalConfig.timezone || "America/Los_Angeles");
-    }
-  }, [generalConfig]);
 
   // Initialize silence schedule when config loads
   useEffect(() => {
     if (deferredSilenceConfig?.config && generalConfig?.timezone) {
-      const userTimezone = generalConfig.timezone;
+      const userTimezone = generalConfig.timezone ?? "America/Los_Angeles";
       const config = deferredSilenceConfig.config;
       
       setSilenceEnabled((config.enabled as boolean) ?? false);
@@ -93,52 +73,17 @@ export function GeneralSettings() {
     }
   }, [deferredPollingSettings]);
 
-  // Initialize reduce motion when settings load
-  useEffect(() => {
-    if (deferredDisplaySettings) {
-      setReduceMotion(deferredDisplaySettings.reduce_motion ?? false);
-    }
-  }, [deferredDisplaySettings]);
-
-  // Update general config mutation
-  const updateGeneralMutation = useMutation({
-    mutationFn: api.updateGeneralConfig,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["generalConfig"] });
-      queryClient.invalidateQueries({ queryKey: ["config"] });
-      toast.success(t("toastSettingsSaved"));
-    },
-    onError: (error: Error) => {
-      toast.error(t("toastSettingsSaveFailed", { error: error.message }));
-    },
-  });
-
-  // Update silence schedule mutation (now uses plugin API)
+  // Update silence schedule mutation (system feature endpoint, not plugin API)
   const updateSilenceMutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => 
-      api.updatePluginConfig("silence_schedule", data),
+    mutationFn: (data: { enabled: boolean; start_time: string; end_time: string }) =>
+      api.updateSilenceSchedule(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["plugin", "silence_schedule"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["plugins"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["config"], refetchType: 'active' });
-      // Invalidate template variables since plugin config may affect available variables
-      queryClient.invalidateQueries({ queryKey: ["template-variables"], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["all-settings"], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["silence-status"], refetchType: 'active' });
       toast.success(t("toastSettingsSaved"));
     },
     onError: (error: Error) => {
       toast.error(t("toastSilenceSaveFailed", { error: error.message }));
-    },
-  });
-
-  // Update display settings mutation
-  const updateDisplayMutation = useMutation({
-    mutationFn: (settings: { reduce_motion: boolean }) => api.updateDisplaySettings(settings),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["all-settings"] });
-      toast.success(t("toastDisplaySaved"));
-    },
-    onError: (error: Error) => {
-      toast.error(t("toastDisplaySaveFailed", { error: error.message }));
     },
   });
 
@@ -160,16 +105,6 @@ export function GeneralSettings() {
       toast.error(t("toastPollingFailed", { error: error.message }));
     },
   });
-
-  const handleReduceMotionToggle = (checked: boolean) => {
-    setReduceMotion(checked);
-    updateDisplayMutation.mutate({ reduce_motion: checked });
-  };
-
-  const handleTimezoneChange = (newTimezone: string) => {
-    setTimezone(newTimezone);
-    setHasChanges(true);
-  };
 
   const handlePollingIntervalChange = (value: string) => {
     const interval = parseInt(value, 10);
@@ -194,165 +129,77 @@ export function GeneralSettings() {
   };
 
   const handleSave = async () => {
-    const promises = [];
-    
-    // Save timezone if changed
-    promises.push(
-      updateGeneralMutation.mutateAsync({ timezone })
-    );
-    
-    // Save silence schedule if changed
+    const timezone = generalConfig?.timezone ?? "America/Los_Angeles";
     const startUtc = localTimeToUTC(silenceStartTime, timezone);
     const endUtc = localTimeToUTC(silenceEndTime, timezone);
-    
+
     if (startUtc && endUtc) {
-      promises.push(
-        updateSilenceMutation.mutateAsync({
-          enabled: silenceEnabled,
-          start_time: startUtc,
-          end_time: endUtc,
-        })
-      );
+      await updateSilenceMutation.mutateAsync({
+        enabled: silenceEnabled,
+        start_time: startUtc,
+        end_time: endUtc,
+      });
     }
-    
-    await Promise.all(promises);
+
     setHasChanges(false);
   };
 
   // Auto-save when form data changes (debounced)
   useEffect(() => {
-    // Skip if no changes or if mutations are already in progress
-    if (!hasChanges || updateGeneralMutation.isPending || updateSilenceMutation.isPending) {
-      return;
-    }
+    if (!hasChanges || updateSilenceMutation.isPending) return;
 
-    // Debounce auto-save by 1 second
     const timeoutId = setTimeout(() => {
       handleSave();
     }, 1000);
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timezone, silenceEnabled, silenceStartTime, silenceEndTime, hasChanges]);
+  }, [silenceEnabled, silenceStartTime, silenceEndTime, hasChanges]);
 
-  // Get current time in selected timezone for display
-  const getCurrentTimeInTimezone = () => {
-    try {
-      const now = new Date();
-      return formatInTimeZone(now, timezone, "h:mm:ss a zzz");
-    } catch {
-      return "Invalid timezone";
-    }
-  };
-
-  const isRunning = status?.running ?? false;
-  const isSaving = updateGeneralMutation.isPending || updateSilenceMutation.isPending || updatePollingMutation.isPending || updateDisplayMutation.isPending;
+  const isSaving = updateSilenceMutation.isPending || updatePollingMutation.isPending;
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-muted-foreground" />
-              {t("title")}
-            </CardTitle>
-            <CardDescription>
-              {t("description")}
-            </CardDescription>
-          </div>
-          {isLoadingStatus ? (
-            <Skeleton className="h-5 w-20" />
-          ) : (
-            <Badge variant={isRunning ? "default" : "secondary"} className={`text-xs ${isRunning ? "bg-brand/15 text-brand border-brand/25 hover:bg-brand/20" : ""}`}>
-              {isRunning ? tc("running") : tc("stopped")}
-            </Badge>
-          )}
-        </div>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarClock className="h-4 w-4" />
+          {t("title")}
+        </CardTitle>
+        <CardDescription>
+          {t("description")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="divide-y">
-          {/* Language */}
+          {/* Polling Interval */}
           <div className="py-5 first:pt-0">
-            <Label className="text-sm font-medium">{t("languageLabel")}</Label>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">{t("languageDescription")}</p>
-            <LanguageSelector />
-          </div>
-
-          {/* Reduce Motion */}
-          <div className="py-5">
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={reduceMotion}
-                onCheckedChange={handleReduceMotionToggle}
-                disabled={isSaving}
-                id="reduce-motion"
-              />
-              <div>
-                <label htmlFor="reduce-motion" className="text-sm font-medium cursor-pointer">
-                  {t("reduceMotionLabel")}
-                </label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("reduceMotionDescription")}
-                </p>
+            {isLoadingPolling ? (
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-3 w-40" />
               </div>
-            </div>
-          </div>
-
-          {/* Timezone & Polling Interval */}
-          <div className="py-5">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Timezone */}
-              {isLoadingConfig ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-3 w-48" />
-                </div>
-              ) : (
-                <div>
-                  <Label htmlFor="timezone" className="text-sm font-medium">{t("timezoneLabel")}</Label>
-                  <p className="text-xs text-muted-foreground mt-1 mb-3">{t("timezoneDescription")}</p>
-                  <TimezonePicker
-                    value={timezone}
-                    onChange={handleTimezoneChange}
+            ) : (
+              <div>
+                <Label htmlFor="polling-interval" className="text-sm font-medium">{t("boardUpdateIntervalLabel")}</Label>
+                <p className="text-xs text-muted-foreground mt-1 mb-3">{t("boardUpdateIntervalDescription")}</p>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="polling-interval"
+                    type="number"
+                    min={10}
+                    max={3600}
+                    value={pollingInterval}
+                    onChange={(e) => handlePollingIntervalChange(e.target.value)}
+                    disabled={isSaving}
+                    className="w-32"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {t("currentTime", { time: getCurrentTimeInTimezone() })}
-                  </p>
+                  <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
                 </div>
-              )}
-
-              {/* Polling Interval */}
-              {isLoadingPolling ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-10 w-32" />
-                  <Skeleton className="h-3 w-40" />
-                </div>
-              ) : (
-                <div>
-                  <Label htmlFor="polling-interval" className="text-sm font-medium">{t("boardUpdateIntervalLabel")}</Label>
-                  <p className="text-xs text-muted-foreground mt-1 mb-3">{t("boardUpdateIntervalDescription")}</p>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      id="polling-interval"
-                      type="number"
-                      min={10}
-                      max={3600}
-                      value={pollingInterval}
-                      onChange={(e) => handlePollingIntervalChange(e.target.value)}
-                      disabled={isSaving}
-                      className="w-32"
-                    />
-                    <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">{t("requiresServiceRestart")}</p>
-                </div>
-              )}
-            </div>
+                <p className="text-xs text-muted-foreground mt-2">{t("requiresServiceRestart")}</p>
+              </div>
+            )}
           </div>
 
           {/* Silence Schedule */}

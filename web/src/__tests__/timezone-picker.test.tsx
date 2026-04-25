@@ -361,4 +361,31 @@ describe("TimezonePicker", () => {
     // Should show at most 50 items plus the message if there are more
     expect(timezoneButtons.length).toBeLessThanOrEqual(50);
   });
+
+  it("does not call onChange with partial/invalid text while typing", async () => {
+    // Regression test for: typing in the search box should NOT propagate invalid
+    // timezone strings to the parent (which would cause a 400 on config save).
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <TimezonePicker
+        value="America/Los_Angeles"
+        onChange={handleChange}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("Search timezone...");
+    await user.click(input);
+
+    // Clear and type partial search text (not a valid IANA timezone)
+    await user.clear(input);
+    await user.type(input, "Los Ang");
+
+    // onChange should NOT have been called with any partial/invalid value
+    const invalidCalls = handleChange.mock.calls.filter(
+      ([v]) => v !== "America/Los_Angeles" && v !== ""
+    );
+    expect(invalidCalls).toHaveLength(0);
+  });
 });

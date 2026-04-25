@@ -6,7 +6,7 @@
 
 import { Editor } from '@tiptap/react';
 import { useQuery } from '@tanstack/react-query';
-import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste, Download } from 'lucide-react';
 import { api } from '@/lib/api';
 import { insertTemplateContent } from '../utils/insertion';
 import { ToolbarDropdown } from './ToolbarDropdown';
@@ -16,6 +16,7 @@ import { FormattingPickerContent } from './FormattingPickerContent';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LineAlignment } from '../TipTapTemplateEditor';
+import type { DeviceType } from '@/lib/api';
 import { useState, useEffect, useCallback } from 'react';
 
 interface TemplateEditorToolbarProps {
@@ -25,6 +26,9 @@ interface TemplateEditorToolbarProps {
   onAlignmentChange?: (alignment: LineAlignment) => void;
   onWrapToggle?: () => void;
   className?: string;
+  deviceType?: DeviceType;
+  onSyncFromBoard?: () => void;
+  syncFromBoardPending?: boolean;
 }
 
 export function TemplateEditorToolbar({
@@ -34,6 +38,9 @@ export function TemplateEditorToolbar({
   onAlignmentChange,
   onWrapToggle,
   className,
+  deviceType,
+  onSyncFromBoard,
+  syncFromBoardPending = false,
 }: TemplateEditorToolbarProps) {
   const { data: templateVars } = useQuery({
     queryKey: ["template-variables"],
@@ -342,7 +349,8 @@ export function TemplateEditorToolbar({
                 onInsert={(color) => {
                   handleInsert(color);
                   close();
-                }} 
+                }}
+                deviceType={deviceType}
               />
             )}
           </ToolbarDropdown>
@@ -437,6 +445,32 @@ export function TemplateEditorToolbar({
             <TooltipContent>Align right</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* Sync from Board — icon-only button pushed to the far right */}
+        {onSyncFromBoard && (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onSyncFromBoard}
+                  disabled={syncFromBoardPending}
+                  className={cn(
+                    "flex items-center justify-center p-1.5 rounded-md transition-colors",
+                    "hover:bg-muted/50 border border-transparent",
+                    syncFromBoardPending && "opacity-60 cursor-not-allowed"
+                  )}
+                  aria-label="Sync from current board display"
+                >
+                  <Download className={cn("w-4 h-4", syncFromBoardPending && "animate-pulse")} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Populate template from what&apos;s currently displayed on the board</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
       </div>
     </TooltipProvider>
   );

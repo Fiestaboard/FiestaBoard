@@ -15,7 +15,7 @@ Plugins can be loaded from three sources:
 from .base import PluginBase, PluginResult, TriggerResult
 from .registry import PluginRegistry, get_plugin_registry
 from .loader import PluginLoader
-from .manifest import PluginManifest, validate_manifest
+from .manifest import PluginManifest, DemoPageSchema, validate_manifest
 from .sources import (
     PluginSource,
     RegistryEntry,
@@ -32,6 +32,7 @@ __all__ = [
     "get_plugin_registry",
     "PluginLoader",
     "PluginManifest",
+    "DemoPageSchema",
     "validate_manifest",
     "PluginSource",
     "RegistryEntry",

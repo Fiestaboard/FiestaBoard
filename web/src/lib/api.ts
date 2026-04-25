@@ -28,6 +28,13 @@ export interface PreviewResponse {
   preview: boolean;
 }
 
+export interface BoardCurrentMessageResponse {
+  characters: number[][];
+  message: string;
+  rows: number;
+  cols: number;
+}
+
 export interface ActionResponse {
   status: string;
   message: string;
@@ -271,6 +278,15 @@ export interface PageSendResponse {
   target: string;
 }
 
+export interface CurrentDisplayResponse {
+  page_id: string;
+  page_name: string;
+  page_type: PageType;
+  device_type: DeviceType;
+  template: string[];
+  line_metadata: LineMetadata[] | null;
+}
+
 // Template types
 export interface FormattingVariable {
   syntax: string;
@@ -410,6 +426,10 @@ export interface GeneralConfig {
   timezone: string; // IANA timezone (e.g., "America/Los_Angeles")
   refresh_interval_seconds: number;
   output_target: "ui" | "board" | "both";
+  instance_name?: string;
+  time_format?: "12h" | "24h";
+  date_format?: "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD";
+  welcome_message?: string;
 }
 
 export interface SilenceStatus {
@@ -445,6 +465,7 @@ export interface BoardSettings {
 
 // Schedule types
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
+export type TimeType = "fixed" | "sunrise" | "sunset";
 
 export interface ScheduleEntry {
   id: string;
@@ -455,6 +476,14 @@ export interface ScheduleEntry {
   day_pattern: DayPattern;
   custom_days?: string[]; // Only used when day_pattern is "custom"
   enabled: boolean;
+  // Sun schedule fields
+  start_type?: TimeType; // "fixed" | "sunrise" | "sunset" (default: "fixed")
+  start_sun_offset?: number; // minutes (positive=after, negative=before)
+  end_type?: TimeType;
+  end_sun_offset?: number;
+  // Resolved sun times (computed by server for today)
+  resolved_start_time?: string; // HH:MM - actual start time for today
+  resolved_end_time?: string | null; // HH:MM - actual end time for today
   created_at: string;
   updated_at?: string;
 }
@@ -467,6 +496,10 @@ export interface ScheduleCreate {
   day_pattern: DayPattern;
   custom_days?: string[];
   enabled?: boolean; // Defaults to true
+  start_type?: TimeType;
+  start_sun_offset?: number;
+  end_type?: TimeType;
+  end_sun_offset?: number;
 }
 
 export interface ScheduleUpdate {
@@ -477,6 +510,10 @@ export interface ScheduleUpdate {
   day_pattern?: DayPattern;
   custom_days?: string[];
   enabled?: boolean;
+  start_type?: TimeType;
+  start_sun_offset?: number;
+  end_type?: TimeType;
+  end_sun_offset?: number;
 }
 
 export interface SchedulesResponse {
@@ -558,6 +595,22 @@ export interface DisplaySettings {
   reduce_motion: boolean;
 }
 
+export interface LocationSettings {
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface SunTimesResponse {
+  sunrise: string | null;
+  sunset: string | null;
+  location_configured: boolean;
+}
+
+export interface SunTimesWeekResponse {
+  location_configured: boolean;
+  dates: Record<string, { sunrise: string; sunset: string }>;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: Record<string, unknown>;
@@ -567,6 +620,7 @@ export interface AllSettingsResponse {
   board: BoardSettings;
   mqtt: MqttSettings;
   display: DisplaySettings;
+  location: LocationSettings;
   status: {
     running: boolean;
   };
@@ -726,6 +780,19 @@ export interface PluginDetailResponse {
     description: string;
   }>;
   documentation: string;
+  has_demo: boolean;
+  demo_page_id: string | null;
+}
+
+export interface PluginDemoPageResponse {
+  exists: boolean;
+  page_id: string | null;
+  has_demo_template: boolean;
+}
+
+export interface PluginDemoPageCreateResponse {
+  status: "created" | "recreated";
+  page: Page;
 }
 
 export interface PluginConfigUpdateResponse {
@@ -804,6 +871,12 @@ export interface PluginUpdateCheckResponse {
   updates_available: string[];
 }
 
+export interface PluginApplyUpdatesResponse {
+  updated: string[];
+  failed: Record<string, string>;
+  message: string;
+}
+
 export interface VersionResponse {
   package_version: string;
   build_version: string;
@@ -853,6 +926,7 @@ export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
+  getBoardCurrentMessage: () => fetchApi<BoardCurrentMessageResponse>("/board/current-message"),
 
   // Mutations (actions)
   startService: () =>
@@ -900,6 +974,7 @@ export const api = {
 
   // Pages endpoints
   getPages: () => fetchApi<PagesResponse>("/pages"),
+  getCurrentDisplay: () => fetchApi<CurrentDisplayResponse>("/pages/current-display"),
   getPage: (pageId: string) => fetchApi<Page>(`/pages/${pageId}`),
   createPage: (page: PageCreate) =>
     fetchApi<{ status: string; page: Page }>("/pages", {
@@ -1167,6 +1242,14 @@ export const api = {
   // Silence mode status
   getSilenceStatus: () => fetchApi<SilenceStatus>("/silence-status"),
 
+  // Silence schedule (system feature, not a plugin)
+  updateSilenceSchedule: (data: { enabled: boolean; start_time: string; end_time: string }) =>
+    fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
   // Polling settings
   getPollingSettings: () => fetchApi<PollingSettings>("/settings/polling"),
   updatePollingSettings: (interval_seconds: number) =>
@@ -1204,6 +1287,19 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     }),
+
+  // Location settings (for sunrise/sunset schedules)
+  getLocationSettings: () => fetchApi<LocationSettings>("/settings/location"),
+  updateLocationSettings: (settings: Partial<LocationSettings>) =>
+    fetchApi<{ status: string; settings: LocationSettings }>("/settings/location", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    }),
+  getSunTimes: (date?: string) =>
+    fetchApi<SunTimesResponse>(`/settings/location/sun-times${date ? `?date=${date}` : ""}`),
+  getSunTimesWeek: (weekStart: string) =>
+    fetchApi<SunTimesWeekResponse>(`/settings/location/sun-times-week?week_start=${weekStart}`),
 
   // Home Assistant endpoints
   getHomeAssistantEntities: () =>
@@ -1254,7 +1350,15 @@ export const api = {
   
   getPluginVariables: (pluginId: string) =>
     fetchApi<PluginVariablesResponse>(`/plugins/${pluginId}/variables`),
-  
+
+  getPluginDemoPage: (pluginId: string) =>
+    fetchApi<PluginDemoPageResponse>(`/plugins/${pluginId}/demo-page`),
+
+  createPluginDemoPage: (pluginId: string) =>
+    fetchApi<PluginDemoPageCreateResponse>(`/plugins/${pluginId}/demo-page`, {
+      method: "POST",
+    }),
+
   getAllPluginVariables: () =>
     fetchApi<AllPluginVariablesResponse>("/plugins/variables/all"),
   
@@ -1291,6 +1395,11 @@ export const api = {
 
   triggerPluginUpdateCheck: () =>
     fetchApi<PluginUpdateCheckResponse>("/plugins/updates/check", {
+      method: "POST",
+    }),
+
+  applyAllPluginUpdates: () =>
+    fetchApi<PluginApplyUpdatesResponse>("/plugins/updates/apply", {
       method: "POST",
     }),
 

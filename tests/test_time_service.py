@@ -1,11 +1,13 @@
 """Tests for TimeService."""
 
 import pytest
-from datetime import datetime, time
+from datetime import datetime, time, timezone
+
 from unittest.mock import Mock, patch
-import pytz
 
 from src.time_service import TimeService, get_time_service, reset_time_service
+
+UTC = timezone.utc
 
 
 class TestTimeServiceCore:
@@ -16,7 +18,7 @@ class TestTimeServiceCore:
         service = TimeService()
         utc_now = service.get_current_utc()
         
-        assert utc_now.tzinfo == pytz.UTC
+        assert utc_now.tzinfo == UTC
         assert isinstance(utc_now, datetime)
     
     def test_get_current_time_default_timezone(self):
@@ -52,7 +54,7 @@ class TestTimeServiceSilenceMode:
         
         # Mock get_current_utc to return 12:00 UTC
         with patch.object(service, 'get_current_utc') as mock_get_utc:
-            mock_get_utc.return_value = datetime(2024, 1, 15, 12, 0, tzinfo=pytz.UTC)
+            mock_get_utc.return_value = datetime(2024, 1, 15, 12, 0, tzinfo=UTC)
             
             # Window: 10:00 UTC to 14:00 UTC
             result = service.is_time_in_window("10:00+00:00", "14:00+00:00")
@@ -65,7 +67,7 @@ class TestTimeServiceSilenceMode:
         
         # Mock get_current_utc to return 15:00 UTC
         with patch.object(service, 'get_current_utc') as mock_get_utc:
-            mock_get_utc.return_value = datetime(2024, 1, 15, 15, 0, tzinfo=pytz.UTC)
+            mock_get_utc.return_value = datetime(2024, 1, 15, 15, 0, tzinfo=UTC)
             
             # Window: 10:00 UTC to 14:00 UTC
             result = service.is_time_in_window("10:00+00:00", "14:00+00:00")
@@ -78,7 +80,7 @@ class TestTimeServiceSilenceMode:
         
         # Mock get_current_utc to return 22:00 UTC
         with patch.object(service, 'get_current_utc') as mock_get_utc:
-            mock_get_utc.return_value = datetime(2024, 1, 15, 22, 0, tzinfo=pytz.UTC)
+            mock_get_utc.return_value = datetime(2024, 1, 15, 22, 0, tzinfo=UTC)
             
             # Window: 20:00 UTC to 08:00 UTC (spans midnight)
             result = service.is_time_in_window("20:00+00:00", "08:00+00:00")
@@ -91,7 +93,7 @@ class TestTimeServiceSilenceMode:
         
         # Mock get_current_utc to return 06:00 UTC
         with patch.object(service, 'get_current_utc') as mock_get_utc:
-            mock_get_utc.return_value = datetime(2024, 1, 15, 6, 0, tzinfo=pytz.UTC)
+            mock_get_utc.return_value = datetime(2024, 1, 15, 6, 0, tzinfo=UTC)
             
             # Window: 20:00 UTC to 08:00 UTC (spans midnight)
             result = service.is_time_in_window("20:00+00:00", "08:00+00:00")
@@ -104,7 +106,7 @@ class TestTimeServiceSilenceMode:
         
         # Mock get_current_utc to return 12:00 UTC
         with patch.object(service, 'get_current_utc') as mock_get_utc:
-            mock_get_utc.return_value = datetime(2024, 1, 15, 12, 0, tzinfo=pytz.UTC)
+            mock_get_utc.return_value = datetime(2024, 1, 15, 12, 0, tzinfo=UTC)
             
             # Window: 20:00 UTC to 08:00 UTC (spans midnight)
             result = service.is_time_in_window("20:00+00:00", "08:00+00:00")
@@ -222,7 +224,7 @@ class TestTimeServiceParseIsoTime:
         
         assert result is not None
         assert isinstance(result, datetime)
-        assert result.tzinfo == pytz.UTC
+        assert result.tzinfo == UTC
     
     def test_parse_iso_time_with_negative_offset(self):
         """Test parsing time with negative offset (e.g., PST)."""
@@ -278,6 +280,19 @@ class TestTimeServiceSingleton:
         service2 = get_time_service()
         
         assert service1 is not service2
+    
+    def test_get_time_service_uses_configured_timezone(self):
+        """Test get_time_service reads timezone from Config.GENERAL_TIMEZONE.
+
+        Bug fix: Previously the singleton was always created with the hardcoded
+        default "America/Los_Angeles", ignoring the user's configured timezone.
+        A user in Europe/Berlin would have their schedules evaluated in LA time.
+        """
+        reset_time_service()
+        with patch("src.time_service._get_configured_timezone", return_value="Europe/Berlin"):
+            service = get_time_service()
+            assert service.default_timezone == "Europe/Berlin"
+        reset_time_service()
 
 
 class TestTimeServiceInitialization:
@@ -294,7 +309,7 @@ class TestTimeServiceInitialization:
         service = TimeService(default_timezone="Invalid/Timezone")
         
         # Should still initialize, using UTC as fallback
-        assert service._default_tz == pytz.UTC
+        assert service._default_tz == UTC
 
 
 class TestParseIsoTimeErrorHandling:

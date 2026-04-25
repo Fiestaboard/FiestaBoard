@@ -944,6 +944,8 @@ function PluginCard({
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
+  const [isCreatingDemo, setIsCreatingDemo] = useState(false);
+  const [showDemoConfirm, setShowDemoConfirm] = useState(false);
 
   const isExternal = plugin.source?.source_type !== "builtin";
   const hasUpdate = plugin.update_available === true;
@@ -968,11 +970,34 @@ function PluginCard({
       await api.updatePluginConfig(plugin.id, configValues);
       toast.success(`${plugin.name} configuration saved`);
       onConfigUpdate();
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setIsConfigOpen(false);
     } catch (error) {
       toast.error(`Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const queryClient = useQueryClient();
+
+  const handleCreateDemoPage = async () => {
+    setIsCreatingDemo(true);
+    try {
+      const result = await api.createPluginDemoPage(plugin.id);
+      const verb = result.status === "recreated" ? "recreated" : "created";
+      toast.success(`Demo page ${verb} for ${plugin.name}`);
+      queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
+      queryClient.invalidateQueries({ queryKey: ["pages"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
+      setShowDemoConfirm(false);
+    } catch (error) {
+      toast.error(
+        `Failed to create demo page: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } finally {
+      setIsCreatingDemo(false);
     }
   };
 
@@ -983,6 +1008,19 @@ function PluginCard({
     setCopiedVar(varName);
     setTimeout(() => setCopiedVar(null), 2000);
     toast.success(`Copied ${templateVar}`);
+  };
+
+  const areDemoRequirementsMet = (): boolean => {
+    if (!pluginDetails?.settings_schema) return true;
+    const schema = pluginDetails.settings_schema as {
+      required?: string[];
+      properties?: Record<string, { type?: string }>;
+    };
+    const required = schema.required ?? [];
+    const config = pluginDetails.config ?? {};
+    return required.every(
+      (field) => field === "enabled" || Boolean(config[field])
+    );
   };
 
   // Parse variables from plugin details - handles both array and object formats for variables.simple
@@ -1073,6 +1111,75 @@ function PluginCard({
             </div>
           ) : (
             <>
+              {/* Demo Page Section */}
+              {pluginDetails?.has_demo && (
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium">Demo Page</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {pluginDetails.demo_page_id
+                          ? "A demo page already exists for this plugin."
+                          : "Create a ready-to-use page that showcases this plugin."}
+                      </p>
+                    </div>
+                    {pluginDetails.demo_page_id ? (
+                      <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!areDemoRequirementsMet() || isCreatingDemo}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                            Recreate
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Recreate Demo Page?</DialogTitle>
+                            <DialogDescription>
+                              This will delete the existing demo page and create a
+                              fresh one with default settings. This action cannot be
+                              undone.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowDemoConfirm(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={handleCreateDemoPage}
+                              disabled={isCreatingDemo}
+                            >
+                              {isCreatingDemo ? "Creating..." : "Recreate Demo Page"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleCreateDemoPage}
+                        disabled={!areDemoRequirementsMet() || isCreatingDemo}
+                      >
+                        <Play className="h-3.5 w-3.5 mr-1.5" />
+                        {isCreatingDemo ? "Creating..." : "Create Demo Page"}
+                      </Button>
+                    )}
+                  </div>
+                  {!areDemoRequirementsMet() && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Configure the required settings below before creating a demo page.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Settings Section */}
               {pluginDetails?.settings_schema && Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
                 <div className="space-y-4">
@@ -1470,6 +1577,7 @@ export default function IntegrationsPage() {
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [isUpdatingAll, setIsUpdatingAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [gitDialogOpen, setGitDialogOpen] = useState(false);
   const [gitUrl, setGitUrl] = useState("");
@@ -1543,6 +1651,9 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} installed and enabled`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setActiveTab("installed");
     } catch (err) {
       toast.error(`Failed to install ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -1558,6 +1669,9 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} uninstalled`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
       toast.error(`Failed to uninstall ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -1572,10 +1686,36 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} updated successfully`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
       toast.error(`Failed to update ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleUpdateAll = async () => {
+    setIsUpdatingAll(true);
+    try {
+      const result = await api.applyAllPluginUpdates();
+      if (result.updated.length > 0) {
+        toast.success(`Updated ${result.updated.length} plugin(s)`);
+      }
+      const failedIds = Object.keys(result.failed);
+      if (failedIds.length > 0) {
+        toast.error(`${failedIds.length} plugin(s) failed to update: ${failedIds.join(", ")}`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
+    } catch (err) {
+      toast.error(`Update all failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsUpdatingAll(false);
     }
   };
 
@@ -1591,6 +1731,9 @@ export default function IntegrationsPage() {
       toast.success(`${result.plugin_id} installed from git`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setGitDialogOpen(false);
       setActiveTab("installed");
       setGitUrl("");
@@ -1682,6 +1825,8 @@ export default function IntegrationsPage() {
     }
     return installedSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
+
+  const updatesAvailableCount = (data?.plugins ?? []).filter((p) => p.update_available === true).length;
 
   // Git install dialog (shared, used in Marketplace tab)
   const gitInstallDialog = (
@@ -1903,6 +2048,24 @@ export default function IntegrationsPage() {
               )}
             </div>
           ) : (
+            <div className="space-y-3">
+              {updatesAvailableCount > 0 && (
+                <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    {updatesAvailableCount} plugin update{updatesAvailableCount !== 1 ? "s" : ""} available
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900"
+                    onClick={handleUpdateAll}
+                    disabled={isUpdatingAll || !!updatingId}
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isUpdatingAll && "animate-spin")} />
+                    {isUpdatingAll ? "Updating…" : `Update All (${updatesAvailableCount})`}
+                  </Button>
+                </div>
+              )}
             <Card className="overflow-hidden animate-card-fade-in">
               <table className="w-full text-sm">
                 <thead>
@@ -1953,6 +2116,7 @@ export default function IntegrationsPage() {
                 </tbody>
               </table>
             </Card>
+            </div>
           )}
         </TabsContent>
 

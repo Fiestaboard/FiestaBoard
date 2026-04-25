@@ -68,6 +68,11 @@
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-emphasis: var(--brand-emphasis);
 
+  /* Navigation active state (indigo) */
+  --color-nav-active: var(--nav-active);
+  --color-nav-active-foreground: var(--nav-active-foreground);
+  --color-nav-active-hover: var(--nav-active-hover);
+
   /* Board Official Colors - use these for all status/tile colors */
   --color-board-red: #eb4034;
   --color-board-orange: #f5a623;
@@ -153,6 +158,10 @@
   --brand: oklch(0.56 0.15 75);
   --brand-emphasis: oklch(0.52 0.16 60);
   --brand-foreground: oklch(1 0 0);
+  /* Navigation active state — indigo palette */
+  --nav-active: oklch(0.44 0.19 265);            /* indigo-600 */
+  --nav-active-foreground: oklch(1 0 0);          /* white */
+  --nav-active-hover: oklch(0.50 0.17 265 / 15%); /* indigo tint hover */
   /* Fiesta gradient palette — used by sidebar and page icon gradient */
   --fiesta-red: #c97a72;
   --fiesta-orange: #c99662;
@@ -210,6 +219,10 @@
   --brand: oklch(0.78 0.14 75);
   --brand-emphasis: oklch(0.55 0.16 60);
   --brand-foreground: oklch(1 0 0);
+  /* Navigation active state — indigo palette (lighter for dark mode) */
+  --nav-active: oklch(0.59 0.19 265);            /* indigo-500 */
+  --nav-active-foreground: oklch(1 0 0);          /* white */
+  --nav-active-hover: oklch(0.59 0.19 265 / 20%); /* indigo tint hover */
   /* Fiesta gradient palette — lighter for visibility on dark card backgrounds */
   --fiesta-red: #e08a82;
   --fiesta-orange: #d4a870;
@@ -665,6 +678,100 @@
 .reduce-motion .sidebar-transition { transition: none; }
 .reduce-motion .sidebar-gradient { animation: none; background-position: 0 0, 0 0, 50% 25%; }
 .reduce-motion .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
+
+/* Navigation active state — solid fallback (non-gradient surfaces, no backdrop support) */
+.nav-active {
+  background: var(--nav-active);
+  color: var(--nav-active-foreground);
+}
+.nav-active-hover:hover {
+  background: var(--nav-active-hover);
+}
+
+/*
+ * Fiesta sidebar active pill: frosted glass over the animated gradient.
+ * backdrop-filter samples the colors behind the row so the highlight moves with the gradient.
+ * A minimum-opacity cool veil keeps white text ≥ WCAG 2.2 AA on the lightest gradient stops.
+ */
+.sidebar-gradient .nav-active,
+.sidebar-gradient-horizontal .nav-active {
+  background: oklch(0.26 0.09 285 / 0.62);
+  color: oklch(1 0 0);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.18);
+  backdrop-filter: blur(14px) saturate(1.35);
+  -webkit-backdrop-filter: blur(14px) saturate(1.35);
+}
+
+.dark .sidebar-gradient .nav-active,
+.dark .sidebar-gradient-horizontal .nav-active {
+  background: oklch(0.22 0.08 285 / 0.48);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14);
+  backdrop-filter: blur(16px) saturate(1.5) brightness(1.06);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5) brightness(1.06);
+}
+
+.sidebar-gradient .nav-active-hover:hover,
+.sidebar-gradient-horizontal .nav-active-hover:hover {
+  background: oklch(1 0 0 / 0.18);
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+}
+
+.dark .sidebar-gradient .nav-active-hover:hover,
+.dark .sidebar-gradient-horizontal .nav-active-hover:hover {
+  background: oklch(1 0 0 / 0.12);
+  backdrop-filter: blur(12px) saturate(1.25);
+  -webkit-backdrop-filter: blur(12px) saturate(1.25);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .sidebar-gradient .nav-active,
+  .sidebar-gradient-horizontal .nav-active {
+    background: var(--nav-active);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .sidebar-gradient .nav-active-hover:hover,
+  .sidebar-gradient-horizontal .nav-active-hover:hover {
+    background: var(--nav-active-hover);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar-gradient .nav-active,
+  .sidebar-gradient-horizontal .nav-active {
+    background: var(--nav-active);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .sidebar-gradient .nav-active-hover:hover,
+  .sidebar-gradient-horizontal .nav-active-hover:hover {
+    background: var(--nav-active-hover);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .sidebar-gradient .nav-active,
+  .sidebar-gradient-horizontal .nav-active {
+    background: var(--nav-active);
+    color: var(--nav-active-foreground);
+    box-shadow: inset 0 0 0 2px oklch(1 0 0 / 0.35);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .sidebar-gradient .nav-active-hover:hover,
+  .sidebar-gradient-horizontal .nav-active-hover:hover {
+    background: var(--nav-active-hover);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
 
 /* Interactive card hover feedback */
 @layer utilities {

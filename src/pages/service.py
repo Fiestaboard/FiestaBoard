@@ -9,10 +9,11 @@ from typing import List, Optional, Tuple, Dict
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
-from .models import Page, PageCreate, PageUpdate, RowConfig
+from .models import Page, PageCreate, PageUpdate, LineMetadata, RowConfig
 from .storage import PageStorage
 from ..devices import get_dimensions
 from ..displays.service import get_display_service, DisplayResult
+from ..plugins.manifest import DemoPageSchema
 from ..templates.engine import get_template_engine
 from ..settings.service import get_settings_service
 
@@ -135,6 +136,7 @@ class PageService:
             template=data.template,
             line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
+            demo_plugin_id=data.demo_plugin_id,
             created_at=datetime.now(timezone.utc)
         )
         
@@ -241,6 +243,61 @@ class PageService:
         )
         return self.storage.create(page)
     
+    # Demo page operations
+
+    def get_demo_page(self, plugin_id: str) -> Optional[Page]:
+        """Find the existing demo page for a plugin.
+
+        Returns the page tagged with ``demo_plugin_id == plugin_id``,
+        or None if no demo page exists for this plugin.
+        """
+        for page in self.storage.list_all():
+            if page.demo_plugin_id == plugin_id:
+                return page
+        return None
+
+    def create_demo_page(self, plugin_id: str, demo: DemoPageSchema) -> Tuple[Page, bool]:
+        """Create (or recreate) the demo page for a plugin.
+
+        If a demo page already exists for *plugin_id* it is deleted first,
+        making the demo page a singleton per plugin.
+
+        Returns:
+            Tuple of (created_page, was_recreated)
+        """
+        recreated = False
+        existing = self.get_demo_page(plugin_id)
+        if existing:
+            self.storage.delete(existing.id)
+            self._invalidate_cache(existing.id)
+            recreated = True
+            logger.info(f"Deleted existing demo page {existing.id} for plugin {plugin_id}")
+
+        line_metadata = None
+        if demo.line_metadata:
+            line_metadata = [
+                LineMetadata(
+                    alignment=m.get("alignment", "left"),
+                    wrap=m.get("wrap", False),
+                )
+                for m in demo.line_metadata
+            ]
+
+        page = Page(
+            name=demo.name,
+            type="template",
+            device_type=demo.device_type,
+            template=demo.template,
+            line_metadata=line_metadata,
+            duration_seconds=demo.duration_seconds,
+            demo_plugin_id=plugin_id,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        created = self.storage.create(page)
+        logger.info(f"Created demo page {created.id} for plugin {plugin_id}")
+        return created, recreated
+
     # Rendering
     
     def render_page(self, page: Page, context: Optional[Dict] = None) -> DisplayResult:

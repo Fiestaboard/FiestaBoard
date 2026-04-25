@@ -114,26 +114,12 @@ describe("GeneralSettings extended", () => {
     });
   });
 
-  it("shows Stopped badge when service is not running", async () => {
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json({
-          general: { timezone: "America/Los_Angeles", refresh_interval_seconds: 300, output_target: "board" },
-          silence_schedule: { config: { enabled: false, start_time: "04:00+00:00", end_time: "15:00+00:00" } },
-          polling: { interval_seconds: 300 },
-          transitions: { strategy: "column", step_interval_ms: 500, step_size: 2, available_strategies: [] },
-          output: { target: "board", effective_target: "board", available_targets: [] },
-          board: { board_type: "black", boards: [], devices: [] },
-          mqtt: { enabled: false, broker_host: "localhost", broker_port: 1883, username: "", password: "", external_url: "" },
-          status: { running: false, config_summary: {} },
-        })
-      )
-    );
-
+  it("renders polling interval and silence schedule sections", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("○ Stopped")).toBeInTheDocument();
+      expect(document.getElementById("polling-interval")).toBeInTheDocument();
+      expect(document.getElementById("silence-enabled")).toBeInTheDocument();
     });
   });
 

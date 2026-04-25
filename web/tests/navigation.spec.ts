@@ -162,4 +162,41 @@ test.describe("Navigation", () => {
       path: "playwright-test-results/sidebar-gradient.png",
     });
   });
+
+  test("sidebar has primary and secondary navigation sections", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Desktop sidebar is in <aside>; mobile menu also contains duplicate nav labels
+    // (hidden when the menu is closed), so scope to the fixed sidebar.
+    const sidebar = page.locator("aside").first();
+    const primaryNav = sidebar.getByLabel("Primary navigation");
+    await expect(primaryNav).toBeVisible();
+
+    const secondaryNav = sidebar.getByLabel("Secondary navigation");
+    await expect(secondaryNav).toBeVisible();
+
+    // Settings should be in secondary section
+    const settingsLink = secondaryNav.getByRole("link", { name: "Settings" });
+    await expect(settingsLink).toBeVisible();
+  });
+
+  test("Carousels is a direct link in primary navigation", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const sidebar = page.locator("aside").first();
+    const primaryNav = sidebar.getByLabel("Primary navigation");
+    const carouselsLink = primaryNav.getByRole("link", { name: /carousels/i });
+    await expect(carouselsLink).toBeVisible();
+    await expect(carouselsLink).toHaveAttribute("href", "/carousels");
+  });
 });

@@ -26,6 +26,7 @@ export function EmptyState({
   illustration,
   className,
 }: EmptyStateProps) {
+  const titleId = React.useId();
   return (
     <div
       className={cn(
@@ -33,7 +34,8 @@ export function EmptyState({
         className
       )}
       role="status"
-      aria-label={title}
+      aria-live="polite"
+      aria-labelledby={titleId}
     >
       {illustration ? (
         <div className="mb-3 flex items-center justify-center [&_svg]:max-w-[120px] [&_svg]:max-h-[80px] [&_svg]:text-muted-foreground" aria-hidden>
@@ -44,7 +46,9 @@ export function EmptyState({
           <Icon className="h-8 w-8 text-brand" aria-hidden />
         </div>
       )}
-      <h3 className="text-sm font-medium text-foreground">{title}</h3>
+      <h3 id={titleId} className="text-sm font-medium text-foreground">
+        {title}
+      </h3>
       {description && (
         <p className="text-sm text-muted-foreground mt-1 max-w-sm leading-relaxed">{description}</p>
       )}

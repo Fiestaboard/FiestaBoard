@@ -2,21 +2,22 @@
 
 import { useEffect, useMemo, useTransition, useRef, useDeferredValue, useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
+import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor, getEffectiveDeviceType } from "@/hooks/use-board";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type { SilenceStatus, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
+import { readLiveOutputMessage, onLiveOutputMessageChange } from "@/lib/live-output-channel";
 
 
 // Parse a line into tokens (same logic as BoardDisplay)
@@ -160,6 +161,34 @@ export function ActivePageDisplay() {
     queryFn: api.getSilenceStatus,
   });
   
+  // Fetch live board state so the Home display reflects what was last sent
+  // via Live Output in the page editor. The query is seeded from localStorage
+  // on mount so it works across browser tabs, and a `storage` event listener
+  // keeps it in sync when another tab writes a new live message.
+  const queryClient = useQueryClient();
+  const { data: liveOutputMessage } = useQuery<string | null>({
+    queryKey: ["liveOutputMessage"],
+    queryFn: () => null,
+    staleTime: Infinity,
+    initialData: () => readLiveOutputMessage(),
+  });
+
+  // Keep the query cache in sync with changes from other tabs.
+  useEffect(() => {
+    // Seed from localStorage on mount only when a live message is present
+    // (i.e. another tab enabled Live Output before this tab opened).
+    // We intentionally skip the null case to avoid overwriting a value that
+    // the page-builder already wrote into the cache in the same tab.
+    const current = readLiveOutputMessage();
+    if (current !== null) {
+      queryClient.setQueryData(["liveOutputMessage"], current);
+    }
+
+    return onLiveOutputMessageChange((msg) => {
+      queryClient.setQueryData(["liveOutputMessage"], msg);
+    });
+  }, [queryClient]);
+
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
@@ -301,8 +330,8 @@ export function ActivePageDisplay() {
     return activePage?.name || "No page selected";
   }, [activePage, activePageId, scheduleEnabled, activeCarousel]);
   
-  // Get active page device type
-  const activeDeviceType = (activePage?.device_type as "flagship" | "note") || "flagship";
+  // Get active page device type, falling back to the board's configured device type
+  const activeDeviceType = (activePage?.device_type as "flagship" | "note") || getEffectiveDeviceType(boardSettings);
   
   // Device dimensions lookup
   const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
@@ -311,9 +340,11 @@ export function ActivePageDisplay() {
   };
   const dims = DEVICE_DIMS[activeDeviceType] || DEVICE_DIMS.flagship;
   
-  // Compute the display message with snoozing indicator if needed
+  // Compute the display message with snoozing indicator if needed.
+  // Prefer the live output message (set by the page editor when Live Output is
+  // active) so that navigating Home during a live edit shows the correct content.
   const displayMessage = useMemo(() => {
-    const baseMessage = previewData?.message || null;
+    const baseMessage = liveOutputMessage ?? previewData?.message ?? null;
     if (!baseMessage) return null;
     
     // If silence mode is active, add the snoozing indicator
@@ -322,7 +353,7 @@ export function ActivePageDisplay() {
     }
     
     return baseMessage;
-  }, [previewData?.message, silenceStatus?.active, dims.rows, dims.cols]);
+  }, [liveOutputMessage, previewData?.message, silenceStatus?.active, dims.rows, dims.cols]);
 
   return (
     <>
@@ -361,16 +392,23 @@ export function ActivePageDisplay() {
             <div className="flex items-center gap-1.5">
               <span className="font-medium text-foreground">{activePageName}</span>
             </div>
-            <Badge variant={scheduleEnabled ? "default" : "secondary"} className="text-xs">
-              {scheduleEnabled ? (
-                <>
-                  <Calendar className="h-3 w-3 mr-1" />
-                  Schedule Mode
-                </>
-              ) : (
-                "Manual Mode"
-              )}
-            </Badge>
+            {liveOutputMessage ? (
+              <Badge variant="destructive" className="text-xs gap-1 animate-pulse">
+                <Radio className="h-3 w-3" />
+                Live Mode
+              </Badge>
+            ) : (
+              <Badge variant={scheduleEnabled ? "default" : "secondary"} className="text-xs">
+                {scheduleEnabled ? (
+                  <>
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Schedule Mode
+                  </>
+                ) : (
+                  "Manual Mode"
+                )}
+              </Badge>
+            )}
             {activeCarousel && (
               <Badge variant="outline" className="text-xs gap-1">
                 <GalleryHorizontalEnd className="h-3 w-3" />

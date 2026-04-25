@@ -7,9 +7,12 @@ import { useState, useRef, useEffect } from "react";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Heart } from "lucide-react";
+import type { DeviceType } from "@/lib/api";
 
 interface ColorPickerContentProps {
   onInsert: (colorValue: string) => void;
+  deviceType?: DeviceType;
 }
 
 const COLOR_MAP: Record<string, { bg: string; needsDarkText: boolean }> = {
@@ -25,7 +28,8 @@ const COLOR_MAP: Record<string, { bg: string; needsDarkText: boolean }> = {
 
 const COLOR_ORDER = ['red', 'orange', 'yellow', 'green', 'blue', 'violet', 'white', 'black'] as const;
 
-export function ColorPickerContent({ onInsert }: ColorPickerContentProps) {
+export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentProps) {
+  const isNote = deviceType === "note";
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -147,7 +151,7 @@ export function ColorPickerContent({ onInsert }: ColorPickerContentProps) {
     <TooltipProvider>
     <div 
       ref={containerRef}
-      className="p-2"
+      className={cn("p-2", !isNote && "pb-1")}
       tabIndex={0}
       role="listbox"
       aria-label="Color picker"
@@ -190,6 +194,32 @@ export function ColorPickerContent({ onInsert }: ColorPickerContentProps) {
           );
         })}
       </div>
+      {isNote && (
+        <div className="mt-2 pt-2 border-t border-border">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onInsert("°")}  // Degree symbol (°) renders as heart (❤) on Note device (code 62)
+                className={cn(
+                  "w-full h-10 rounded-md text-sm font-medium transition-all hover:scale-[1.02] hover:shadow-md",
+                  "flex items-center justify-center gap-1.5 focus:outline-none",
+                  "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20"
+                )}
+                aria-label="Heart character"
+                role="option"
+                aria-selected={false}
+              >
+                <Heart className="w-4 h-4 fill-current" />
+                <span>heart</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Insert heart character (Note only)</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </div>
     </TooltipProvider>
   );

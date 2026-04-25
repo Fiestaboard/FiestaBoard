@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { api } from "@/lib/api";
 import type { ScheduleEntry, Page, Overlap, Carousel } from "@/lib/api";
 import {
   schedulesToCalendarEvents,
@@ -143,10 +144,28 @@ export function ScheduleCalendarView({
     return addDays(weekStart, mobileStartDay);
   }, [weekStart, isMobile, mobileStartDay]);
 
+  // Fetch sunrise/sunset times for today (used for slot markers)
+  const [sunTimes, setSunTimes] = useState<{ sunrise: string | null; sunset: string | null } | null>(null);
+  // Per-day sun times for the visible week (used for correct event positioning)
+  const [sunTimesMap, setSunTimesMap] = useState<Record<string, { sunrise: string; sunset: string }> | undefined>(undefined);
+  useEffect(() => {
+    const weekStartStr = format(weekStart, "yyyy-MM-dd");
+    api.getSunTimes().then((data) => {
+      if (data.location_configured) {
+        setSunTimes({ sunrise: data.sunrise, sunset: data.sunset });
+      }
+    }).catch(() => { /* ignore */ });
+    api.getSunTimesWeek(weekStartStr).then((data) => {
+      if (data.location_configured) {
+        setSunTimesMap(data.dates);
+      }
+    }).catch(() => { /* ignore if location not configured or API unavailable */ });
+  }, [weekStart]);
+
   // Transform schedules to calendar events
   const events = useMemo(
-    () => schedulesToCalendarEvents(schedules, weekStart, pages, carousels),
-    [schedules, weekStart, pages, carousels]
+    () => schedulesToCalendarEvents(schedules, weekStart, pages, carousels, sunTimesMap),
+    [schedules, weekStart, pages, carousels, sunTimesMap]
   );
 
 
@@ -226,12 +245,27 @@ export function ScheduleCalendarView({
     [overlappingScheduleIds]
   );
 
-  // Custom slot prop getter for hover styling
-  const slotPropGetter = useCallback(() => {
-    return {
-      className: "schedule-slot",
-    };
-  }, []);
+  // Custom slot prop getter: hover styling + sun time markers
+  const slotPropGetter = useCallback((slotDate: Date) => {
+    const classes = ["schedule-slot"];
+    if (sunTimes) {
+      const slotH = slotDate.getHours();
+      const slotM = slotDate.getMinutes();
+      if (sunTimes.sunrise) {
+        const [sunH, sunM] = sunTimes.sunrise.split(":").map(Number);
+        if (slotH === sunH && Math.floor(slotM / zoomStep) * zoomStep === Math.floor(sunM / zoomStep) * zoomStep) {
+          classes.push("sun-slot-sunrise");
+        }
+      }
+      if (sunTimes.sunset) {
+        const [sunH, sunM] = sunTimes.sunset.split(":").map(Number);
+        if (slotH === sunH && Math.floor(slotM / zoomStep) * zoomStep === Math.floor(sunM / zoomStep) * zoomStep) {
+          classes.push("sun-slot-sunset");
+        }
+      }
+    }
+    return { className: classes.join(" ") };
+  }, [sunTimes, zoomStep]);
 
   // Custom components - just the event renderer, no toolbar needed for template
   const components = useMemo(

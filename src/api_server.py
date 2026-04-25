@@ -894,6 +894,87 @@ async def refresh_display():
         raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}")
 
 
+def _characters_to_message(characters: list) -> str:
+    """Convert a character grid (list[list[int]]) to the message string format.
+
+    Character codes map as follows (matching the Vestaboard spec):
+      0       → space
+      1–26    → A–Z
+      27–35   → 1–9
+      36      → 0
+      37–62   → punctuation / special characters
+      63–71   → color tiles, rendered as {63}…{71}
+
+    Undefined codes (43, 45, 51, 57, 58, 61) are rendered as a space.
+    """
+    # Index-aligned lookup table for codes 0–62
+    _LOOKUP = [
+        ' ',  # 0
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',  # 1–10
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',  # 11–20
+        'U', 'V', 'W', 'X', 'Y', 'Z',                        # 21–26
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',   # 27–36
+        '!', '@', '#', '$', '(', ')',                         # 37–42
+        ' ',                                                   # 43 – undefined
+        '-',                                                   # 44
+        ' ',                                                   # 45 – undefined
+        '+', '&', '=', ';', ':',                              # 46–50
+        ' ',                                                   # 51 – undefined
+        "'", '"', '%', ',', '.',                              # 52–56
+        ' ', ' ',                                              # 57–58 – undefined
+        '/', '?',                                              # 59–60
+        ' ',                                                   # 61 – undefined
+        '°',                                                   # 62
+    ]
+
+    lines = []
+    for row in characters:
+        chars = []
+        for code in row:
+            if 63 <= code <= 71:
+                chars.append(f'{{{code}}}')
+            elif 0 <= code < len(_LOOKUP):
+                chars.append(_LOOKUP[code])
+            else:
+                chars.append(' ')
+        lines.append(''.join(chars))
+    return '\n'.join(lines)
+
+
+@app.get("/board/current-message")
+async def get_board_current_message():
+    """Read the message currently displayed on the physical board.
+
+    Calls the board API (Local or Cloud) to retrieve the live character grid
+    and converts it to the standard message string format used by the UI.
+
+    Returns:
+        characters: Raw 2-D character code grid (list of lists of ints)
+        message:    Message string suitable for rendering in BoardDisplay
+        rows:       Number of rows in the grid
+        cols:       Number of columns in the grid
+    """
+    service = get_service()
+    if not service or not service.vb_client:
+        raise HTTPException(status_code=503, detail="Board client not initialized")
+
+    characters = await asyncio.to_thread(service.vb_client.read_current_message)
+
+    if characters is None:
+        raise HTTPException(status_code=503, detail="Failed to read current board message")
+
+    message = _characters_to_message(characters)
+    rows = len(characters)
+    cols = len(characters[0]) if characters else 0
+
+    return {
+        "characters": characters,
+        "message": message,
+        "rows": rows,
+        "cols": cols,
+    }
+
+
 @app.post("/send-message")
 async def send_message(request: MessageRequest):
     """Send a custom message to the board."""
@@ -980,11 +1061,17 @@ async def send_welcome_message():
         raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}")
     
     try:
+        # Use custom welcome message if set, otherwise use the default
+        config_manager = get_config_manager()
+        general = config_manager.get_general()
+        custom_msg = general.get("welcome_message", "").strip()
+        center_line = custom_msg.upper() if custom_msg else "HIYA FROM FIESTABOARD"
+
         # Colorful welcome template (matches pages.json welcome page)
         welcome_template = [
             "{{red}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}",
             "{{orange}}{{yellow}}{{red}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}",
-            "HIYA FROM FIESTABOARD",
+            center_line,
             "{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{orange}}",
             "{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{orange}}{{red}}{{violet}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}",
             "{{orange}}{{violet}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{red}}{{orange}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}"
@@ -1557,6 +1644,10 @@ async def update_general_config(request: dict):
     - timezone: IANA timezone name (e.g., "America/Los_Angeles")
     - refresh_interval_seconds: Refresh interval in seconds
     - output_target: Output target ("ui", "board", or "both")
+    - instance_name: Friendly name for this FiestaBoard install
+    - time_format: "12h" or "24h" for web UI time display
+    - date_format: "MM/DD/YYYY", "DD/MM/YYYY", or "YYYY-MM-DD"
+    - welcome_message: Custom board greeting (empty = use default)
     """
     config_manager = get_config_manager()
     
@@ -1570,6 +1661,14 @@ async def update_general_config(request: dict):
         general_config["refresh_interval_seconds"] = request["refresh_interval_seconds"]
     if "output_target" in request:
         general_config["output_target"] = request["output_target"]
+    if "instance_name" in request:
+        general_config["instance_name"] = request["instance_name"]
+    if "time_format" in request:
+        general_config["time_format"] = request["time_format"]
+    if "date_format" in request:
+        general_config["date_format"] = request["date_format"]
+    if "welcome_message" in request:
+        general_config["welcome_message"] = request["welcome_message"]
     
     # Save back
     success = config_manager.set_general(general_config)
@@ -1628,6 +1727,50 @@ async def get_silence_status():
         "end_time_utc": end_time,
         "current_time_utc": current_time_utc,
         "next_change_utc": next_change_utc
+    }
+
+
+class SilenceScheduleRequest(BaseModel):
+    """Request body for updating the silence schedule feature."""
+    enabled: bool
+    start_time: str
+    end_time: str
+
+
+@app.put("/settings/silence-schedule")
+async def update_silence_schedule(request: SilenceScheduleRequest):
+    """
+    Update the silence schedule configuration.
+
+    `silence_schedule` is a system feature (not a plugin). Times must be in
+    UTC ISO format (e.g. "04:00+00:00"); the UI converts local time to UTC
+    before calling this endpoint.
+    """
+    config_manager = get_config_manager()
+
+    updated = {
+        "enabled": request.enabled,
+        "start_time": request.start_time,
+        "end_time": request.end_time,
+    }
+
+    success = config_manager.set_feature("silence_schedule", updated)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to persist silence schedule configuration",
+        )
+
+    logger.info(
+        "Silence schedule updated: enabled=%s, start=%s, end=%s",
+        request.enabled,
+        request.start_time,
+        request.end_time,
+    )
+
+    return {
+        "status": "success",
+        "config": config_manager.get_feature("silence_schedule") or updated,
     }
 
 
@@ -2965,6 +3108,121 @@ async def update_display_settings(request: dict):
     return {"status": "success", "settings": display.to_dict()}
 
 
+@app.get("/settings/location")
+async def get_location_settings():
+    """Get current location settings for sun-based schedules (sunrise/sunset)."""
+    settings_service = get_settings_service()
+    return settings_service.get_location_settings().to_dict()
+
+
+@app.put("/settings/location")
+async def update_location_settings(request: dict):
+    """
+    Update location settings for sun-based schedules.
+
+    Body may include:
+    - latitude: float | null — Location latitude (-90 to 90)
+    - longitude: float | null — Location longitude (-180 to 180)
+    """
+    settings_service = get_settings_service()
+    location = settings_service.update_location_settings(request)
+    return {"status": "success", "settings": location.to_dict()}
+
+
+@app.get("/settings/location/sun-times")
+async def get_location_sun_times(date: Optional[str] = None):
+    """
+    Get sunrise and sunset times for the configured location on a given date.
+
+    Query params:
+    - date: ISO date string (YYYY-MM-DD); defaults to today in the configured timezone.
+
+    Returns sunrise and sunset as HH:MM strings, or null values if location is not
+    configured or sun times cannot be computed (e.g. polar day/night).
+    """
+    from .schedules.sun_times import get_sun_times
+    from datetime import date as date_cls, datetime
+    import pytz
+
+    settings_service = get_settings_service()
+    location = settings_service.get_location_settings()
+
+    if location.latitude is None or location.longitude is None:
+        return {"sunrise": None, "sunset": None, "location_configured": False}
+
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    if date:
+        try:
+            target_date = date_cls.fromisoformat(date)
+        except ValueError:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    else:
+        tz = pytz.timezone(timezone_str)
+        target_date = datetime.now(tz).date()
+
+    times = get_sun_times(location.latitude, location.longitude, target_date, timezone_str)
+    if times is None:
+        return {"sunrise": None, "sunset": None, "location_configured": True}
+
+    return {
+        "sunrise": times["sunrise"].strftime("%H:%M"),
+        "sunset": times["sunset"].strftime("%H:%M"),
+        "location_configured": True,
+    }
+
+
+@app.get("/settings/location/sun-times-week")
+async def get_location_sun_times_week(week_start: str):
+    """
+    Get sunrise and sunset times for each day of a 7-day week.
+
+    Query params:
+    - week_start: ISO date string (YYYY-MM-DD) for the first day of the week.
+
+    Returns a map of date strings to { sunrise, sunset } HH:MM values.
+    """
+    from .schedules.sun_times import get_sun_times
+    from datetime import date as date_cls, timedelta
+
+    settings_service = get_settings_service()
+    location = settings_service.get_location_settings()
+
+    if location.latitude is None or location.longitude is None:
+        return {"location_configured": False, "dates": {}}
+
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    try:
+        start = date_cls.fromisoformat(week_start)
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid week_start format. Use YYYY-MM-DD.")
+
+    result: dict = {}
+    for i in range(7):
+        day = start + timedelta(days=i)
+        times = get_sun_times(location.latitude, location.longitude, day, timezone_str)
+        if times:
+            result[day.isoformat()] = {
+                "sunrise": times["sunrise"].strftime("%H:%M"),
+                "sunset": times["sunset"].strftime("%H:%M"),
+            }
+
+    return {"location_configured": True, "dates": result}
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """
@@ -2986,9 +3244,9 @@ async def get_all_settings():
     settings_service = get_settings_service()
     config_manager = get_config_manager()
     
-    # Get silence schedule config
-    silence_config = config_manager.get_plugin_config("silence_schedule")
-    
+    # Get silence schedule config (stored under features, not plugins)
+    silence_feature = config_manager.get_feature("silence_schedule") or {}
+
     # Get all other settings
     general = config_manager.get_general()
     polling = settings_service.get_polling_settings()
@@ -2997,10 +3255,11 @@ async def get_all_settings():
     board = settings_service.get_board_settings()
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
-    
+    location = settings_service.get_location_settings()
+
     return {
         "general": general,
-        "silence_schedule": silence_config or {},
+        "silence_schedule": {"config": silence_feature},
         "polling": {
             "interval_seconds": polling.interval_seconds
         },
@@ -3009,6 +3268,7 @@ async def get_all_settings():
         "board": board.to_dict(),
         "mqtt": mqtt.to_dict(mask_secrets=True),
         "display": display.to_dict(),
+        "location": location.to_dict(),
         "status": {
             "running": _service_running,
         }
@@ -3356,6 +3616,75 @@ async def list_pages():
     }
 
 
+@app.get("/pages/current-display")
+async def get_current_display():
+    """Get the template content of the currently active board display.
+
+    Resolves carousels and schedule mode to find the actual page being shown.
+    For template pages, returns the raw template and line metadata so the
+    caller can use it as a starting point for a new page.  For other page
+    types, returns the rendered output lines.
+
+    Returns 404 when no active page can be determined.
+    """
+    settings_service = get_settings_service()
+    page_service = get_page_service()
+    carousel_service = get_carousel_service()
+
+    # Determine the active page ID (schedule-aware)
+    if settings_service.is_schedule_enabled():
+        from .time_service import get_time_service
+        time_service = get_time_service()
+        now = time_service.get_current_time()
+        current_time = now.time()
+        current_day = now.strftime("%A").lower()
+        schedule_service = get_schedule_service()
+        active_page_id = schedule_service.get_active_page_id(current_time, current_day)
+    else:
+        active_page_id = settings_service.get_active_page_id()
+
+    if not active_page_id:
+        raise HTTPException(status_code=404, detail="No active page set")
+
+    # Resolve carousel to underlying page
+    if is_carousel_id(active_page_id):
+        resolved = carousel_service.resolve_page_id(active_page_id)
+        if not resolved:
+            raise HTTPException(status_code=404, detail="Carousel could not be resolved")
+        active_page_id = resolved
+
+    page = page_service.get_page(active_page_id)
+    if not page:
+        raise HTTPException(status_code=404, detail="Active page not found")
+
+    response: dict = {
+        "page_id": page.id,
+        "page_name": page.name,
+        "page_type": page.type,
+        "device_type": page.device_type,
+    }
+
+    if page.type == "template" and page.template:
+        # Return raw template so variables like {{weather.temp}} are preserved
+        response["template"] = page.template
+        response["line_metadata"] = (
+            [m.model_dump() for m in page.line_metadata]
+            if page.line_metadata
+            else None
+        )
+    else:
+        # For single/composite pages, return the rendered output as template lines
+        result = page_service.preview_page(active_page_id, force_refresh=True)
+        if result and result.available:
+            response["template"] = result.formatted.split("\n")
+            response["line_metadata"] = None
+        else:
+            response["template"] = []
+            response["line_metadata"] = None
+
+    return response
+
+
 @app.post("/pages")
 async def create_page(page_data: PageCreate):
     """
@@ -3675,6 +4004,49 @@ async def send_page(page_id: str, target: Optional[str] = None):
 # Schedule Endpoints
 # =============================================================================
 
+def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
+    """Add resolved_start_time / resolved_end_time to a schedule dict.
+
+    For fixed-type schedules the resolved times equal the stored times.
+    For sun-based schedules (sunrise/sunset) the times are computed
+    dynamically for today using the configured location.
+    """
+    start_type = schedule_dict.get("start_type", "fixed")
+    end_type = schedule_dict.get("end_type", "fixed")
+
+    if start_type == "fixed" and end_type == "fixed":
+        schedule_dict["resolved_start_time"] = schedule_dict["start_time"]
+        schedule_dict["resolved_end_time"] = schedule_dict.get("end_time")
+        return schedule_dict
+
+    from datetime import date as date_type
+    from .schedules.sun_times import resolve_schedule_sun_times
+
+    settings = get_settings_service()
+    loc = settings.get_location_settings()
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    resolved_start, resolved_end = resolve_schedule_sun_times(
+        start_type=start_type,
+        start_sun_offset=schedule_dict.get("start_sun_offset", 0),
+        start_time_fallback=schedule_dict["start_time"],
+        end_type=end_type,
+        end_sun_offset=schedule_dict.get("end_sun_offset", 0),
+        end_time_fallback=schedule_dict.get("end_time"),
+        latitude=loc.latitude,
+        longitude=loc.longitude,
+        target_date=date_type.today(),
+        timezone_str=timezone_str,
+    )
+    schedule_dict["resolved_start_time"] = resolved_start
+    schedule_dict["resolved_end_time"] = resolved_end
+    return schedule_dict
+
 @app.get("/schedules")
 async def list_schedules(board_id: Optional[str] = None):
     """List schedule entries, optionally for one board (query: board_id=).
@@ -3688,14 +4060,14 @@ async def list_schedules(board_id: Optional[str] = None):
     # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
     if board_id == "*":
         return {
-            "schedules": [s.model_dump() for s in schedules],
+            "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
             "total": len(schedules),
             "default_page_id": None,
             "enabled": False,
         }
     
     return {
-        "schedules": [s.model_dump() for s in schedules],
+        "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
         "total": len(schedules),
         "default_page_id": schedule_service.get_default_page(board_id=board_id),
         "enabled": settings_service.is_schedule_enabled(board_id=board_id),
@@ -3716,7 +4088,7 @@ async def create_schedule(schedule_data: ScheduleCreate):
     
     try:
         schedule = schedule_service.create_schedule(schedule_data)
-        return schedule.model_dump()
+        return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -3831,7 +4203,7 @@ async def get_schedule(schedule_id: str):
     if not schedule:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
     
-    return schedule.model_dump()
+    return _enrich_schedule_with_sun_times(schedule.model_dump())
 
 
 @app.put("/schedules/{schedule_id}")
@@ -3851,7 +4223,7 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
         if not schedule:
             raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        return schedule.model_dump()
+        return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -4053,25 +4425,31 @@ async def render_template(request: dict):
         raise HTTPException(status_code=400, detail="template parameter required")
     
     template = request["template"]
+    device_type = request.get("device_type")
+    
+    # Determine line count from device type
+    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    num_rows = dims.rows
     
     # Early return for empty templates to avoid unnecessary processing
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
             return {
-                "rendered": "\n".join([""] * 6),
-                "lines": [""] * 6,
-                "line_count": 6
+                "rendered": "\n".join([""] * num_rows),
+                "lines": [""] * num_rows,
+                "line_count": num_rows
             }
     elif isinstance(template, str) and not template.strip():
         return {
-            "rendered": "\n".join([""] * 6),
-            "lines": [""] * 6,
-            "line_count": 6
+            "rendered": "\n".join([""] * num_rows),
+            "lines": [""] * num_rows,
+            "line_count": num_rows
         }
     
     template_engine = get_template_engine()
     line_metadata = request.get("line_metadata")
-    device_type = request.get("device_type")
     
     try:
         if isinstance(template, list):
@@ -4113,14 +4491,20 @@ async def render_template_live(request: dict):
     line_metadata = request.get("line_metadata")
     device_type = request.get("device_type")
 
+    # Determine line count from device type
+    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    num_rows = dims.rows
+
     # Render the template
     try:
         if isinstance(template, list):
             if not template or all(not line.strip() for line in template):
                 return {
-                    "rendered": "\n".join([""] * 6),
-                    "lines": [""] * 6,
-                    "line_count": 6,
+                    "rendered": "\n".join([""] * num_rows),
+                    "lines": [""] * num_rows,
+                    "line_count": num_rows,
                     "sent_to_board": False,
                     "board_id": board_id,
                 }
@@ -4128,9 +4512,9 @@ async def render_template_live(request: dict):
         else:
             if not template.strip():
                 return {
-                    "rendered": "\n".join([""] * 6),
-                    "lines": [""] * 6,
-                    "line_count": 6,
+                    "rendered": "\n".join([""] * num_rows),
+                    "lines": [""] * num_rows,
+                    "line_count": num_rows,
                     "sent_to_board": False,
                     "board_id": board_id,
                 }
@@ -4453,6 +4837,15 @@ async def get_plugin(plugin_id: str):
     config_manager = get_config_manager()
     plugin_config = config_manager.get_plugin_config(plugin_id)
     
+    # Check for demo page
+    has_demo = manifest.demo is not None
+    demo_page_id = None
+    if has_demo:
+        page_service = get_page_service()
+        demo_page = page_service.get_demo_page(plugin_id)
+        if demo_page:
+            demo_page_id = demo_page.id
+
     return {
         "id": plugin_id,
         "name": manifest.name,
@@ -4467,7 +4860,9 @@ async def get_plugin(plugin_id: str):
         "variables": manifest.raw.get("variables", {}),
         "max_lengths": manifest.max_lengths,
         "env_vars": manifest.env_vars,
-        "documentation": manifest.documentation
+        "documentation": manifest.documentation,
+        "has_demo": has_demo,
+        "demo_page_id": demo_page_id,
     }
 
 
@@ -4726,6 +5121,84 @@ async def get_plugin_variables(plugin_id: str):
     }
 
 
+# ── Plugin Demo Pages ────────────────────────────────────────────────────────
+
+
+@app.get("/plugins/{plugin_id}/demo-page")
+async def get_plugin_demo_page(plugin_id: str):
+    """
+    Check whether a demo page exists for this plugin.
+
+    Returns ``exists: true`` and the page id when one is found.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+
+    registry = get_plugin_registry()
+    manifest = registry.get_manifest(plugin_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+
+    if manifest.demo is None:
+        return {"exists": False, "page_id": None, "has_demo_template": False}
+
+    page_service = get_page_service()
+    demo_page = page_service.get_demo_page(plugin_id)
+    return {
+        "exists": demo_page is not None,
+        "page_id": demo_page.id if demo_page else None,
+        "has_demo_template": True,
+    }
+
+
+@app.post("/plugins/{plugin_id}/demo-page")
+async def create_plugin_demo_page(plugin_id: str):
+    """
+    Create (or recreate) the demo page for a plugin.
+
+    The demo page is a singleton per plugin -- calling this endpoint when a
+    demo page already exists will delete the old one and create a fresh copy.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+
+    registry = get_plugin_registry()
+    manifest = registry.get_manifest(plugin_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+
+    if manifest.demo is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' does not include a demo page template.",
+        )
+
+    # Check that required settings are configured
+    settings_schema = manifest.settings_schema
+    required_fields = settings_schema.get("required", [])
+    if required_fields:
+        config_manager = get_config_manager()
+        plugin_config = config_manager.get_plugin_config(plugin_id) or {}
+        missing = [
+            f for f in required_fields
+            if f != "enabled" and not plugin_config.get(f)
+        ]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Required settings not configured: {', '.join(missing)}. "
+                       f"Configure them first before creating a demo page.",
+            )
+
+    page_service = get_page_service()
+    page, recreated = page_service.create_demo_page(plugin_id, manifest.demo)
+
+    return {
+        "status": "recreated" if recreated else "created",
+        "page": page.model_dump(),
+    }
+
+
 # ── External Plugin Management ──────────────────────────────────────────────
 
 
@@ -4845,7 +5318,7 @@ async def trigger_plugin_update_check():
 @app.post("/plugins/{plugin_id}/update")
 async def update_plugin(plugin_id: str):
     """
-    Pull the latest version of an external plugin from its remote and reload it.
+    Fetch the latest commits for an external plugin from its remote and reload it.
 
     Built-in plugins cannot be updated via this endpoint.
     """
@@ -4882,7 +5355,8 @@ async def update_plugin(plugin_id: str):
         )
 
     from .plugins.sources import clone_or_update_repo
-    ok, err = clone_or_update_repo(source.repository_url, local_path)
+    # repo_url is not needed for the update path (fetch uses existing origin remote)
+    ok, err = clone_or_update_repo("", local_path)
     if not ok:
         raise HTTPException(status_code=500, detail=f"Update failed: {err}")
 
@@ -4892,13 +5366,74 @@ async def update_plugin(plugin_id: str):
         detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
         raise HTTPException(status_code=500, detail=detail)
 
-    # Clear the update flag for this plugin
     registry._update_status.pop(plugin_id, None)
 
     return {
         "status": "success",
         "plugin_id": plugin_id,
         "message": f"Plugin '{plugin_id}' has been updated and reloaded.",
+    }
+
+
+@app.post("/plugins/updates/apply")
+async def apply_all_plugin_updates():
+    """
+    Fetch and reload all external plugins that have a pending update.
+
+    Uses the cached update status from the last check — call
+    ``POST /plugins/updates/check`` first if you want a fresh scan before
+    applying.  Returns 200 even when some plugins fail so the caller can
+    inspect partial results.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
+
+    registry = get_plugin_registry()
+    pending = [
+        pid for pid, has_update in registry.get_update_status().items() if has_update
+    ]
+
+    if not pending:
+        return {"updated": [], "failed": {}, "message": "No updates available."}
+
+    from pathlib import Path as _Path
+    from .plugins.sources import clone_or_update_repo
+
+    updated: list = []
+    failed: dict = {}
+
+    for plugin_id in pending:
+        source = registry.get_plugin_source(plugin_id)
+        if source is None or not source.local_path:
+            failed[plugin_id] = "Plugin source not found."
+            continue
+
+        local_path = _Path(source.local_path)
+        if not (local_path / ".git").is_dir():
+            failed[plugin_id] = "Plugin is not a git repository."
+            continue
+
+        ok, err = clone_or_update_repo("", local_path)
+        if not ok:
+            failed[plugin_id] = f"git fetch failed: {err}"
+            continue
+
+        reloaded = registry.reload_plugin(plugin_id)
+        if reloaded is None:
+            errors = registry.get_load_errors().get(plugin_id, [])
+            failed[plugin_id] = "; ".join(errors) if errors else "Reload failed."
+            continue
+
+        registry._update_status.pop(plugin_id, None)
+        updated.append(plugin_id)
+        logger.info("Bulk update: applied update for plugin '%s'", plugin_id)
+
+    return {
+        "updated": updated,
+        "failed": failed,
+        "message": f"Updated {len(updated)} plugin(s); {len(failed)} failed.",
     }
 
 

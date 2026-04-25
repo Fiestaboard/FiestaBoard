@@ -12,6 +12,7 @@ import type {
   PagesResponse,
   Page,
   PageCreate,
+  CurrentDisplayResponse,
   TemplateVariables,
   TemplateRenderResponse,
   RotationsResponse,
@@ -140,6 +141,15 @@ export const mockCompositePage: Page = {
 export const mockPages: PagesResponse = {
   pages: [mockPage, { ...mockCompositePage, id: "page-2", name: "Custom Template", type: "template" }],
   total: 2,
+};
+
+export const mockCurrentDisplay: CurrentDisplayResponse = {
+  page_id: "page-1",
+  page_name: "Weather Page",
+  page_type: "single",
+  device_type: "flagship",
+  template: ["72°F Sunny", "Humidity 45%", "", "", "", ""],
+  line_metadata: null,
 };
 
 export const mockTemplateVariables: TemplateVariables = {
@@ -491,6 +501,10 @@ export const handlers = [
   // Pages endpoints
   http.get(`${API_BASE}/pages`, () => {
     return HttpResponse.json(mockPages);
+  }),
+
+  http.get(`${API_BASE}/pages/current-display`, () => {
+    return HttpResponse.json(mockCurrentDisplay);
   }),
 
   http.get(`${API_BASE}/pages/:id`, ({ params }) => {
@@ -863,6 +877,19 @@ export const handlers = [
   // Silence status endpoint
   http.get(`${API_BASE}/silence-status`, () => {
     return HttpResponse.json(mockSilenceStatus);
+  }),
+
+  // Silence schedule update endpoint (system feature, not a plugin)
+  http.put(`${API_BASE}/settings/silence-schedule`, async ({ request }) => {
+    const body = await request.json() as {
+      enabled: boolean;
+      start_time: string;
+      end_time: string;
+    };
+    return HttpResponse.json({
+      status: "success",
+      config: body,
+    });
   }),
 
   // Carousel endpoints

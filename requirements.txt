@@ -1,19 +1,19 @@
 # Core dependencies
 requests>=2.32.0
-pyyaml>=6.0.2
-python-dotenv>=1.0.1
+pyyaml>=6.0.3
+python-dotenv>=1.2.2
 schedule>=1.2.2
-pytz>=2024.2
+defusedxml>=0.7.1
 
 # API Server dependencies
 fastapi>=0.125.0
 uvicorn[standard]>=0.34.0
 pydantic>=2.10.0
-httpx>=0.28.0
+httpx>=0.28.1
 
 # Stock market data
-yfinance>=0.2.36
-finnhub-python>=2.4.19
+yfinance>=1.3.0
+finnhub-python>=2.4.28
 
 # Sun position calculations
 astral>=3.2
@@ -22,10 +22,14 @@ astral>=3.2
 docker>=7.1.0
 
 # mDNS/Bonjour local network discovery (fiestaboard.local)
-zeroconf>=0.131.0
+zeroconf>=0.148.0
 
 # MQTT client for Home Assistant auto-discovery and control
-paho-mqtt>=2.0.0
+paho-mqtt>=2.1.0
+
+# iCalendar parsing (used by the calendar_sub plugin)
+icalendar>=7.0.3
+recurring-ical-events>=3.8.1
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0

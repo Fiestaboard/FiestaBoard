@@ -231,14 +231,31 @@ class TestCloneOrUpdateRepo:
         assert "clone" in cmd
 
     @mock.patch("src.plugins.sources.subprocess.run")
-    def test_pull_existing(self, mock_run, tmp_path):
+    def test_fetch_reset_existing(self, mock_run, tmp_path):
+        """Update path uses fetch+reset, not pull, and works without a URL."""
         dest = tmp_path / "my_plugin"
         dest.mkdir()
-        (dest / ".git").mkdir()  # Simulate existing clone
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
+        (dest / ".git").mkdir()  # Simulate existing shallow clone
+        ok, err = clone_or_update_repo("", dest)
         assert ok
-        cmd = mock_run.call_args[0][0]
-        assert "pull" in cmd
+        assert err == ""
+        # Two subprocess calls: fetch then reset
+        assert mock_run.call_count == 2
+        fetch_cmd = mock_run.call_args_list[0][0][0]
+        reset_cmd = mock_run.call_args_list[1][0][0]
+        assert "fetch" in fetch_cmd
+        assert "--depth=1" in fetch_cmd
+        assert "reset" in reset_cmd
+        assert "FETCH_HEAD" in reset_cmd
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_update_does_not_require_url(self, mock_run, tmp_path):
+        """Passing an empty or invalid URL is fine when the clone already exists."""
+        dest = tmp_path / "my_plugin"
+        dest.mkdir()
+        (dest / ".git").mkdir()
+        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", dest)
+        assert ok, "Update path should succeed regardless of URL"
 
     @mock.patch(
         "src.plugins.sources.subprocess.run",
@@ -250,7 +267,21 @@ class TestCloneOrUpdateRepo:
         assert not ok
         assert "network error" in err
 
-    def test_rejects_ssh_url(self, tmp_path):
+    @mock.patch(
+        "src.plugins.sources.subprocess.run",
+        side_effect=subprocess.SubprocessError("fetch failed"),
+    )
+    def test_update_failure(self, mock_run, tmp_path):
+        """Fetch failure in the update path is surfaced as an error."""
+        dest = tmp_path / "my_plugin"
+        dest.mkdir()
+        (dest / ".git").mkdir()
+        ok, err = clone_or_update_repo("", dest)
+        assert not ok
+        assert "fetch" in err.lower() or "failed" in err.lower()
+
+    def test_rejects_ssh_url_for_fresh_clone(self, tmp_path):
+        """SSH URLs are rejected only for fresh clones (URL validation skipped for updates)."""
         dest = tmp_path / "ssh_plugin"
         ok, err = clone_or_update_repo("git@github.com:Org/repo.git", dest)
         assert not ok
@@ -498,3 +529,22 @@ class TestCheckPluginUpdateAvailable:
         d = tmp_path / "plugin"
         d.mkdir()
         assert not check_plugin_update_available(d)
+
+
+class TestRegistryPluginDependencies:
+    """Verify that Python packages required by registry plugins are importable.
+
+    Registry plugins are external repos that are cloned at install time.
+    Their Python dependencies must be present in requirements.txt so they
+    are available in the Docker image.  If a dependency is missing the
+    plugin loader will fail with an ImportError and the API will return
+    a 400 response.
+    """
+
+    def test_calendar_sub_dependencies_available(self):
+        """calendar_sub requires icalendar and recurring_ical_events (GH issue)."""
+        import icalendar
+        import recurring_ical_events
+
+        assert icalendar is not None
+        assert recurring_ical_events is not None

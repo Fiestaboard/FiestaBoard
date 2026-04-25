@@ -93,6 +93,9 @@ interface TipTapTemplateEditorProps {
   boardWidth?: number; // Characters per line (default: 22 for flagship)
   boardLines?: number; // Total lines (default: 6 for flagship)
   onLineCountChange?: (lineCount: number) => void; // Reports current line count for validation
+  deviceType?: import('@/lib/api').DeviceType; // Device type for device-specific features
+  onSyncFromBoard?: () => void; // Callback to populate template from current board display
+  syncFromBoardPending?: boolean; // True while the sync mutation is in flight
 }
 
 /**
@@ -113,6 +116,9 @@ export function TipTapTemplateEditor({
   boardWidth = BOARD_WIDTH,
   boardLines = BOARD_LINES,
   onLineCountChange,
+  deviceType,
+  onSyncFromBoard,
+  syncFromBoardPending = false,
 }: TipTapTemplateEditorProps) {
   // Use device-aware defaults when props not provided
   const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
@@ -694,8 +700,14 @@ export function TipTapTemplateEditor({
     if (!editor.isFocused) {
       const currentSerialized = serializeTemplateSimple(editor.getJSON(), boardLines);
       if (value !== currentSerialized) {
-        editor.commands.setContent(parseTemplateSimple(value || '', boardLines), false, {
-          preserveWhitespace: true,
+        // Defer setContent outside the React lifecycle so TipTap's internal
+        // flushSync (in ReactRenderer for NodeViews) doesn't fire inside a
+        // useEffect, which React 19 forbids.
+        queueMicrotask(() => {
+          if (!editor || editor.isDestroyed) return;
+          editor.commands.setContent(parseTemplateSimple(value || '', boardLines), false, {
+            preserveWhitespace: true,
+          });
         });
       }
     }
@@ -846,6 +858,9 @@ export function TipTapTemplateEditor({
           onWrapToggle={() => {
             handleWrapClick();
           }}
+          deviceType={deviceType}
+          onSyncFromBoard={onSyncFromBoard}
+          syncFromBoardPending={syncFromBoardPending}
         />
       )}
       

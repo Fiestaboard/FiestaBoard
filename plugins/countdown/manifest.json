@@ -1,14 +1,13 @@
 {
   "id": "countdown",
   "name": "Countdown",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Display the remaining time to an event in real time",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
   "icon": "timer",
   "category": "utility",
-
   "settings_schema": {
     "type": "object",
     "properties": {
@@ -37,9 +36,10 @@
         "ui:widget": "timezone"
       }
     },
-    "required": ["target_datetime"]
+    "required": [
+      "target_datetime"
+    ]
   },
-
   "env_vars": [
     {
       "name": "COUNTDOWN_TARGET",
@@ -58,11 +58,14 @@
       "default": "America/Los_Angeles"
     }
   ],
-
   "variables": {
     "groups": {
-      "event": { "label": "Event Info" },
-      "countdown": { "label": "Countdown Values" }
+      "event": {
+        "label": "Event Info"
+      },
+      "countdown": {
+        "label": "Countdown Values"
+      }
     },
     "simple": {
       "event_name": {
@@ -127,7 +130,44 @@
       }
     }
   },
-
+  "demo": {
+    "name": "Countdown Demo",
+    "device_type": "flagship",
+    "template": [
+      "",
+      "{{countdown.event_name}}",
+      "{{countdown.days}} days",
+      "{{countdown.hours}}h {{countdown.minutes}}m",
+      "{{countdown.formatted}}",
+      ""
+    ],
+    "line_metadata": [
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      },
+      {
+        "alignment": "center",
+        "wrap": false
+      }
+    ]
+  },
   "screenshots": [
     {
       "src": "docs/countdown-display.png",

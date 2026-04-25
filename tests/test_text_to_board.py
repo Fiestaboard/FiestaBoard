@@ -245,12 +245,12 @@ class TestFormatBoardArrayPreview:
 
 class TestColorCodes:
     def test_all_colors_defined(self):
-        expected = {"red", "orange", "yellow", "green", "blue", "violet", "purple", "white", "black"}
+        expected = {"red", "orange", "yellow", "green", "blue", "violet", "purple", "white", "black", "filled"}
         assert expected == set(COLOR_CODES.keys())
 
     def test_codes_in_valid_range(self):
         for name, code in COLOR_CODES.items():
-            assert 63 <= code <= 70, f"{name} code {code} out of range"
+            assert 63 <= code <= 71, f"{name} code {code} out of range"
 
     def test_purple_same_as_violet(self):
         assert COLOR_CODES["purple"] == COLOR_CODES["violet"]
@@ -260,3 +260,44 @@ class TestColorCodes:
 
     def test_black_is_70(self):
         assert COLOR_CODES["black"] == 70
+
+    def test_filled_is_71(self):
+        assert COLOR_CODES["filled"] == 71
+
+
+class TestNoteFillSpaceEndToEnd:
+    """End-to-end tests for FILL_SPACE_REPEAT on NOTE devices through the full pipeline."""
+
+    def test_fill_space_repeat_blue_note_board_array(self):
+        """FILL_SPACE_REPEAT:BLUE rendered text should produce correct board array for NOTE."""
+        # This is the rendered output from TemplateEngine for "LUNCH:{{FILL_SPACE_REPEAT:BLUE}}"
+        # on a NOTE device: 6 text chars + 9 blue tiles = 15 tiles
+        rendered = "LUNCH:{67}{67}{67}{67}{67}{67}{67}{67}{67}\n               \n               "
+        board = text_to_board_array(rendered, rows=3, cols=15)
+        
+        assert len(board) == 3
+        assert len(board[0]) == 15
+        
+        # First row: L=12, U=21, N=14, C=3, H=8, :=50, then 9 blue tiles (67)
+        assert board[0] == [12, 21, 14, 3, 8, 50, 67, 67, 67, 67, 67, 67, 67, 67, 67]
+        
+        # Blue tile count should be exactly 9
+        blue_count = sum(1 for code in board[0] if code == 67)
+        assert blue_count == 9
+
+    def test_fill_space_repeat_fills_all_note_columns(self):
+        """All 15 columns on NOTE should be filled (no empty last tile)."""
+        # Entire line of green
+        rendered = "{66}" * 15 + "\n" + " " * 15 + "\n" + " " * 15
+        board = text_to_board_array(rendered, rows=3, cols=15)
+        
+        # All 15 positions should be green (66)
+        assert all(code == 66 for code in board[0])
+
+    def test_filled_color_code_71_in_board_array(self):
+        """Color code 71 (filled) should be recognized in text_to_board_array."""
+        rendered = "A{71}B"
+        board = text_to_board_array(rendered, rows=1, cols=3)
+        assert board[0][0] == 1   # A
+        assert board[0][1] == 71  # filled
+        assert board[0][2] == 2   # B

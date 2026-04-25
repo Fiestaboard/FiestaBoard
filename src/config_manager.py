@@ -211,6 +211,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "timezone": "America/Los_Angeles",  # User's timezone for display purposes
         "refresh_interval_seconds": 300,
         "output_target": "board",
+        "instance_name": "",       # Friendly name for this FiestaBoard install
+        "time_format": "12h",      # "12h" or "24h" for web UI time display
+        "date_format": "MM/DD/YYYY",  # "MM/DD/YYYY", "DD/MM/YYYY", or "YYYY-MM-DD"
+        "welcome_message": "",     # Custom board greeting; empty = use default
     },
     # Plugin configurations
     # Each plugin's config is stored under plugins.<plugin_id>

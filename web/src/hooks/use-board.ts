@@ -13,6 +13,7 @@ export const queryKeys = {
   pagePreview: (pageId: string) => ["pagePreview", pageId] as const,
   boardSettings: ["boardSettings"] as const,
   carousels: ["carousels"] as const,
+  schedules: (boardId: string) => ["schedules", boardId] as const,
 };
 
 // Status query - refetches every 15 seconds
@@ -159,5 +160,17 @@ export function getEffectiveBoardColor(
   const firstBoard = boardSettings?.boards?.[0];
   if (firstBoard?.board_color) return firstBoard.board_color;
   return boardSettings?.board_type ?? "black";
+}
+
+/**
+ * Derive the effective device type from board settings.
+ * Returns the first board instance's device_type, defaulting to "flagship".
+ */
+export function getEffectiveDeviceType(
+  boardSettings: { boards?: Array<{ device_type?: string }> } | undefined
+): "flagship" | "note" {
+  const firstBoard = boardSettings?.boards?.[0];
+  if (firstBoard?.device_type === "note") return "note";
+  return "flagship";
 }
 

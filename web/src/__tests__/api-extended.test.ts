@@ -188,6 +188,16 @@ describe("API Extended Tests", () => {
       await api.sendPage("page-1");
       expect(capturedUrl).not.toContain("target=");
     });
+
+    it("getCurrentDisplay returns current board display", async () => {
+      const result = await api.getCurrentDisplay();
+      expect(result.page_id).toBe("page-1");
+      expect(result.page_name).toBe("Weather Page");
+      expect(result.page_type).toBe("single");
+      expect(result.device_type).toBe("flagship");
+      expect(result.template).toBeDefined();
+      expect(Array.isArray(result.template)).toBe(true);
+    });
   });
 
   describe("Template endpoints", () => {
@@ -707,6 +717,33 @@ describe("API Extended Tests", () => {
       const result = await api.updatePollingSettings(600);
       expect(result.status).toBe("success");
       expect(result.settings.interval_seconds).toBe(600);
+    });
+
+    it("updateSilenceSchedule PUTs to /settings/silence-schedule", async () => {
+      let capturedPath: string | undefined;
+      let capturedBody: unknown;
+      server.use(
+        http.put(`${API_BASE}/settings/silence-schedule`, async ({ request }) => {
+          capturedPath = new URL(request.url).pathname;
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            status: "success",
+            config: capturedBody,
+          });
+        })
+      );
+      const result = await api.updateSilenceSchedule({
+        enabled: true,
+        start_time: "04:00+00:00",
+        end_time: "15:00+00:00",
+      });
+      expect(capturedPath).toBe("/api/settings/silence-schedule");
+      expect(capturedBody).toEqual({
+        enabled: true,
+        start_time: "04:00+00:00",
+        end_time: "15:00+00:00",
+      });
+      expect(result.status).toBe("success");
     });
   });
 
