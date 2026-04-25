@@ -6,6 +6,7 @@ and deprecated compat endpoints.
 """
 
 import pytest
+from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 from src.api_server import app
@@ -452,6 +453,7 @@ class TestPluginManagement:
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
              patch("pathlib.Path.is_dir", return_value=True), \
+             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")), \
              patch("src.plugins.sources.clone_or_update_repo", return_value=(True, None)):
             resp = client.post("/plugins/test_plugin/update")
         assert resp.status_code == 200
@@ -491,6 +493,7 @@ class TestPluginManagement:
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
              patch("pathlib.Path.is_dir", return_value=True), \
+             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")), \
              patch("src.plugins.sources.clone_or_update_repo", side_effect=capture_clone):
             resp = client.post("/plugins/test_plugin/update")
         assert resp.status_code == 200
@@ -509,6 +512,7 @@ class TestPluginManagement:
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
              patch("pathlib.Path.is_dir", return_value=True), \
+             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")), \
              patch("src.plugins.sources.clone_or_update_repo", return_value=(True, "")):
             resp = client.post("/plugins/updates/apply")
         assert resp.status_code == 200
@@ -549,6 +553,7 @@ class TestPluginManagement:
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
              patch("pathlib.Path.is_dir", return_value=True), \
+             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")), \
              patch("src.plugins.sources.clone_or_update_repo", side_effect=fake_clone):
             resp = client.post("/plugins/updates/apply")
         assert resp.status_code == 200

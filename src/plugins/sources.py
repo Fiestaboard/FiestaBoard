@@ -395,6 +395,11 @@ def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
         if result.returncode != 0:
             return None
         remote_url = result.stdout.strip()
+        # Validate the URL read from the local git config before passing it
+        # into another subprocess call (prevents command/path injection).
+        ok, _ = _validate_git_url(remote_url)
+        if not ok:
+            return None
 
         # Determine the default branch name tracked locally
         branch_result = subprocess.run(
@@ -402,6 +407,10 @@ def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
             capture_output=True, text=True, timeout=10,
         )
         branch = branch_result.stdout.strip() or "main"
+        # Allow only characters that are legal in git branch names and safe
+        # as subprocess arguments (prevents argument injection).
+        if not re.match(r'^[A-Za-z0-9_./-]+$', branch):
+            return None
 
         # Query the remote for the latest SHA
         ls_result = subprocess.run(

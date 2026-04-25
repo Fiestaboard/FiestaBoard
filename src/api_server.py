@@ -87,6 +87,30 @@ def _validate_request_url(
         raise HTTPException(
             status_code=400, detail="URL must not contain credentials"
         )
+    # Block requests targeting private/loopback/link-local addresses to
+    # prevent SSRF against internal services.
+    import ipaddress as _ipaddress
+    _h = parsed.hostname.lower().rstrip(".")
+    if _h in {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}:
+        raise HTTPException(
+            status_code=400,
+            detail="URL must not target internal network resources",
+        )
+    try:
+        _addr = _ipaddress.ip_address(_h)
+        if (
+            _addr.is_private
+            or _addr.is_loopback
+            or _addr.is_link_local
+            or _addr.is_reserved
+            or _addr.is_multicast
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="URL must not target internal network resources",
+            )
+    except ValueError:
+        pass  # Not an IP literal; hostname-based domains are permitted
 
     host = parsed.hostname.strip().lower()
     if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
@@ -1472,7 +1496,15 @@ async def test_board_connection(request: BoardTestRequest):
         api_key = request.local_api_key
         use_cloud = False
         host = request.host
-    
+        try:
+            _validate_board_host(host)
+        except HTTPException as _exc:
+            return {
+                "success": False,
+                "message": "Invalid board host",
+                "error": _exc.detail,
+            }
+
     try:
         # Create temporary client with provided credentials
         client = BoardClient(
@@ -5663,7 +5695,20 @@ async def update_plugin(plugin_id: str):
         )
 
     from pathlib import Path as _Path
+    import os as _os
+    from .plugins.sources import get_external_plugins_dir
     local_path = _Path(source.local_path)
+    # Verify local_path is within the external plugins directory before
+    # passing it to subprocess calls — canonical path-injection barrier.
+    _ext_root = _os.path.realpath(str(get_external_plugins_dir()))
+    _real_local = _os.path.realpath(str(local_path))
+    try:
+        _common = _os.path.commonpath([_ext_root, _real_local])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid plugin path.")
+    if _common != _ext_root or _real_local == _ext_root:
+        raise HTTPException(status_code=400, detail="Invalid plugin path.")
+    local_path = _Path(_real_local)
 
     if not (local_path / ".git").is_dir():
         raise HTTPException(
@@ -5716,10 +5761,12 @@ async def apply_all_plugin_updates():
         return {"updated": [], "failed": {}, "message": "No updates available."}
 
     from pathlib import Path as _Path
-    from .plugins.sources import clone_or_update_repo
+    import os as _os
+    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
 
     updated: list = []
     failed: dict = {}
+    _ext_root = _os.path.realpath(str(get_external_plugins_dir()))
 
     for plugin_id in pending:
         source = registry.get_plugin_source(plugin_id)
@@ -5727,7 +5774,16 @@ async def apply_all_plugin_updates():
             failed[plugin_id] = "Plugin source not found."
             continue
 
-        local_path = _Path(source.local_path)
+        _real_local = _os.path.realpath(str(_Path(source.local_path)))
+        try:
+            _common = _os.path.commonpath([_ext_root, _real_local])
+        except ValueError:
+            failed[plugin_id] = "Invalid plugin path."
+            continue
+        if _common != _ext_root or _real_local == _ext_root:
+            failed[plugin_id] = "Invalid plugin path."
+            continue
+        local_path = _Path(_real_local)
         if not (local_path / ".git").is_dir():
             failed[plugin_id] = "Plugin is not a git repository."
             continue
