@@ -176,34 +176,6 @@ export function TemplateEditorToolbar({
           className
         )}
       >
-        {/* Sync from Board — only rendered when the parent passes the handler (new pages only) */}
-        {onSyncFromBoard && (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onSyncFromBoard}
-                  disabled={syncFromBoardPending}
-                  className={cn(
-                    "flex items-center gap-1 px-2 py-1.5 rounded-md text-xs transition-colors",
-                    "border border-border hover:bg-muted/50",
-                    syncFromBoardPending && "opacity-60 cursor-not-allowed"
-                  )}
-                  aria-label="Sync from current board display"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  {syncFromBoardPending ? "Syncing…" : "Sync from Board"}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Populate template from what&apos;s currently displayed on the board</p>
-              </TooltipContent>
-            </Tooltip>
-            <div className="h-6 w-px bg-border mx-1" />
-          </>
-        )}
-
         {/* Undo/Redo Controls */}
         <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>
@@ -473,6 +445,33 @@ export function TemplateEditorToolbar({
             <TooltipContent>Align right</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* Sync from Board — icon-only button pushed to the far right */}
+        {onSyncFromBoard && (
+          <>
+            <div className="ml-auto" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onSyncFromBoard}
+                  disabled={syncFromBoardPending}
+                  className={cn(
+                    "flex items-center justify-center p-1.5 rounded-md transition-colors",
+                    "hover:bg-muted/50 border border-transparent",
+                    syncFromBoardPending && "opacity-60 cursor-not-allowed"
+                  )}
+                  aria-label="Sync from current board display"
+                >
+                  <Download className={cn("w-4 h-4", syncFromBoardPending && "animate-pulse")} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Populate template from what&apos;s currently displayed on the board</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
       </div>
     </TooltipProvider>
   );
