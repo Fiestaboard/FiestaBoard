@@ -94,11 +94,54 @@ export function TimezonePicker({
       }
     };
 
+    const handleScroll = (event: Event) => {
+      // Don't reposition when the scroll is happening inside the dropdown list itself
+      if (listRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const dropdownMaxHeight = 240;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const top = spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top
+          ? rect.bottom + 4
+          : rect.top - dropdownMaxHeight - 4;
+        setDropdownStyle({
+          position: "fixed",
+          top,
+          left: rect.left,
+          width: rect.width,
+          zIndex: 9999,
+          pointerEvents: "auto",
+        });
+      }
+    };
+
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      // Reposition dropdown when any ancestor scrolls (e.g. Sheet with overflow-y-auto)
+      document.addEventListener("scroll", handleScroll, true);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("scroll", handleScroll, true);
+      };
     }
   }, [isOpen, value]);
+
+  // Prevent Radix scroll-lock (react-remove-scroll) from blocking wheel events inside
+  // the portal dropdown. The Sheet/Dialog modal adds a document-level wheel listener
+  // that calls preventDefault() on events outside the modal DOM tree. Our portal is
+  // appended to document.body, so react-remove-scroll treats it as "outside".
+  // Stopping propagation on the list element prevents the event from reaching document.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || !isOpen) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+    };
+    el.addEventListener("wheel", handleWheel);
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [isOpen]);
 
   const handleSelect = (timezoneValue: string) => {
     onChange(timezoneValue);
@@ -139,6 +182,7 @@ export function TimezonePicker({
         left: rect.left,
         width: rect.width,
         zIndex: 9999,
+        pointerEvents: "auto",
       });
     }
   };

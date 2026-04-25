@@ -158,7 +158,7 @@ export function ScheduleEntryForm({
       {/* Page / Carousel Selection */}
       <div className="space-y-2">
         <Label htmlFor="page">{t("scheduleEntryForm.pageOrCarousel")}</Label>
-        <Select value={pageId} onValueChange={setPageId}>
+        <Select value={pageId} onValueChange={setPageId} modal={false}>
           <SelectTrigger id="page">
             <SelectValue placeholder={t("scheduleEntryForm.selectPageOrCarousel")} />
           </SelectTrigger>
@@ -191,7 +191,7 @@ export function ScheduleEntryForm({
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
-            <Select value={startTime} onValueChange={setStartTime}>
+            <Select value={startTime} onValueChange={setStartTime} modal={false}>
               <SelectTrigger id="start-time">
                 <SelectValue />
               </SelectTrigger>
@@ -208,7 +208,7 @@ export function ScheduleEntryForm({
           {hasEndTime && (
             <div className="space-y-2">
               <Label htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
-              <Select value={endTime} onValueChange={setEndTime}>
+              <Select value={endTime} onValueChange={setEndTime} modal={false}>
                 <SelectTrigger id="end-time">
                   <SelectValue />
                 </SelectTrigger>

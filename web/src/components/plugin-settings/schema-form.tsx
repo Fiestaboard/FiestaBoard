@@ -137,12 +137,13 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
           value={selectValue}
           onValueChange={handleValueChange}
           disabled={disabled}
+          modal={false}
         >
           <SelectTrigger id={name}>
             <SelectValue placeholder={property["ui:placeholder"] || `Select ${property.title || name}`} />
           </SelectTrigger>
           <SelectContent 
-            className="max-h-[300px] z-[120] pointer-events-auto"
+            className="max-h-[300px] z-[120]"
             disableHeightConstraint={allOptions.length > 1}
           >
             {selectItems}
