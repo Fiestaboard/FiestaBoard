@@ -25,6 +25,11 @@ logger = logging.getLogger(__name__)
 
 # ── constants ────────────────────────────────────────────────────────────────
 
+# Conservative git ref pattern for branch/tag names supplied by users.
+# Disallows whitespace, shell/control chars, path traversal, and refs that
+# start with '-' (option-like).
+GIT_REF_RE = re.compile(r"^(?!-)(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]{1,255}$")
+
 REGISTRY_FILENAME = "plugin-registry.json"
 EXTERNAL_PLUGINS_DIR = "external_plugins"
 
@@ -263,6 +268,17 @@ def _validate_plugin_id(plugin_id: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def _validate_git_ref(ref: str) -> Tuple[bool, str]:
+    """Validate a user-supplied git branch/tag name."""
+    if not isinstance(ref, str):
+        return False, "Invalid branch/tag: must be a string"
+    if not GIT_REF_RE.fullmatch(ref):
+        return False, (
+            f"Invalid branch/tag {ref!r}: must match {GIT_REF_RE.pattern}"
+        )
+    return True, ""
+
+
 def clone_or_update_repo(
     repo_url: str,
     dest_dir: Path,
@@ -313,6 +329,11 @@ def clone_or_update_repo(
     ok, err = _validate_git_url(repo_url)
     if not ok:
         return False, err
+
+    if branch:
+        ok, err = _validate_git_ref(branch)
+        if not ok:
+            return False, err
 
     dest_dir.parent.mkdir(parents=True, exist_ok=True)
     try:
