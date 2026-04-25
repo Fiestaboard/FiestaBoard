@@ -58,7 +58,9 @@
     "lightningcss-linux-x64-gnu": "1.32.0"
   },
   "overrides": {
-    "serialize-javascript": ">=7.0.3"
+    "serialize-javascript": ">=7.0.3",
+    "uuid": ">=14.0.0",
+    "postcss": ">=8.5.10"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
