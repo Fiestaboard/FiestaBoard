@@ -69,7 +69,7 @@ class TestCloneOrUpdateRepoIntegration:
     def test_fresh_clone(self, tmp_path):
         """Cloning a real repo succeeds and creates expected plugin files."""
         dest = tmp_path / REGISTRY_PLUGIN_ID
-        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, external_root=tmp_path)
 
         assert ok, f"clone failed: {err}"
         assert err == ""
@@ -80,7 +80,7 @@ class TestCloneOrUpdateRepoIntegration:
     def test_clone_creates_valid_git_repo(self, tmp_path):
         """Cloned directory is a proper git repo with commit history."""
         dest = tmp_path / REGISTRY_PLUGIN_ID
-        clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        clone_or_update_repo(REGISTRY_REPO_URL, dest, external_root=tmp_path)
 
         commits = _git_log(dest)
         assert len(commits) >= 1, "expected at least one commit in cloned repo"
@@ -90,12 +90,12 @@ class TestCloneOrUpdateRepoIntegration:
         dest = tmp_path / REGISTRY_PLUGIN_ID
 
         # First clone
-        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, external_root=tmp_path)
         assert ok, f"initial clone failed: {err}"
         commits_before = _git_log(dest)
 
         # Second call should succeed (pull, already up-to-date is fine)
-        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, external_root=tmp_path)
         assert ok, f"update (git pull) failed: {err}"
 
         commits_after = _git_log(dest)
@@ -108,6 +108,7 @@ class TestCloneOrUpdateRepoIntegration:
         ok, err = clone_or_update_repo(
             "https://github.com/Fiestaboard/fiestaboard-plugin--does-not-exist-xyz",
             dest,
+            external_root=tmp_path,
         )
         assert not ok
         assert err  # some error message present
