@@ -308,6 +308,46 @@ class TestCloneOrUpdateRepo:
         mock_run.assert_not_called()
 
 
+class TestCloneOrUpdateRepoPathSafety:
+    """Verify the sink-level path-containment check in clone_or_update_repo."""
+
+    def test_rejects_dest_outside_external_root(self, tmp_path):
+        """Destination outside the trusted root must be rejected."""
+        allowed_root = tmp_path / "external_plugins"
+        allowed_root.mkdir()
+        # Attempt to clone into a sibling directory outside the trusted root
+        outside_dest = tmp_path / "sibling" / "my_plugin"
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo", outside_dest, allowed_root=allowed_root
+        )
+        assert not ok
+        assert "outside" in err.lower()
+
+    def test_rejects_path_traversal_sequence(self, tmp_path):
+        """A dest_dir that resolves above the root via '..' must be rejected."""
+        allowed_root = tmp_path / "external_plugins"
+        allowed_root.mkdir()
+        # Construct a path that tries to escape via traversal
+        traversal_dest = allowed_root / ".." / "sneaky"
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo", traversal_dest, allowed_root=allowed_root
+        )
+        assert not ok
+        assert "outside" in err.lower()
+
+    def test_accepts_valid_dest_inside_root(self, tmp_path):
+        """A destination legitimately inside the root is accepted."""
+        allowed_root = tmp_path / "external_plugins"
+        allowed_root.mkdir()
+        valid_dest = allowed_root / "my_plugin"
+        with mock.patch("src.plugins.sources.subprocess.run"):
+            ok, err = clone_or_update_repo(
+                "https://github.com/Org/repo", valid_dest, allowed_root=allowed_root
+            )
+        assert ok
+        assert err == ""
+
+
 # ── install helpers ──────────────────────────────────────────────────────────
 
 
