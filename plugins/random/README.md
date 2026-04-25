@@ -23,7 +23,8 @@ The Random plugin generates fresh random values on a schedule you control. It ex
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `{{random.coin_flip}}` | Coin flip result | `Heads` |
-| `{{random.color}}` | Random board color name | `green` |
+| `{{random.color}}` | Random board color as a rendered color tile (like `{{blue}}`) | _(colored square)_ |
+| `{{random.color_name}}` | Random board color name as text | `green` |
 
 ## Example Templates
 
@@ -39,9 +40,14 @@ TONIGHT'S DINNER
 {{random.choice}}
 ```
 
-**Random color tile line:**
+**Random color tile:**
 ```
 {{random.color}}
+```
+
+**Color tile with name:**
+```
+{{random.color}} {{random.color_name}}
 ```
 
 **Combined:**

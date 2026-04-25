@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 BOARD_COLORS = ["red", "orange", "yellow", "green", "blue", "violet", "white", "black"]
 
+# Maps color names to their board character codes (63–70); used to produce color tiles
+_COLOR_TILE_CODES = {"red": 63, "orange": 64, "yellow": 65, "green": 66,
+                     "blue": 67, "violet": 68, "white": 69, "black": 70}
+
 _DEFAULT_CHOICES = ["Heads", "Tails"]
 
 
@@ -45,10 +49,12 @@ class RandomPlugin(PluginBase):
             if not isinstance(choices, list) or len(choices) < 2:
                 choices = _DEFAULT_CHOICES
 
+            color = _random_choice(BOARD_COLORS)
             data = {
                 "choice": _random_choice(choices),
                 "coin_flip": _random_choice(["Heads", "Tails"]),
-                "color": _random_choice(BOARD_COLORS),
+                "color": f"{{{_COLOR_TILE_CODES[color]}}}",
+                "color_name": color,
             }
 
             return PluginResult(available=True, data=data)

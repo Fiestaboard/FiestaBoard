@@ -91,6 +91,7 @@ class TestRandomPlugin:
         assert "choice" in result.data
         assert "coin_flip" in result.data
         assert "color" in result.data
+        assert "color_name" in result.data
 
     def test_fetch_data_choice_from_configured_list(self, sample_manifest, sample_config):
         plugin = RandomPlugin(sample_manifest)
@@ -109,19 +110,55 @@ class TestRandomPlugin:
             seen.add(result.data["coin_flip"])
         assert seen == {"Heads", "Tails"}
 
-    def test_fetch_data_color_values(self, sample_manifest, sample_config):
+    def test_fetch_data_color_name_values(self, sample_manifest, sample_config):
         plugin = RandomPlugin(sample_manifest)
         plugin.config = sample_config
         for _ in range(20):
             result = plugin.fetch_data()
-            assert result.data["color"] in BOARD_COLORS
+            assert result.data["color_name"] in BOARD_COLORS
 
-    def test_fetch_data_color_not_filled(self, sample_manifest, sample_config):
+    def test_fetch_data_color_name_not_filled(self, sample_manifest, sample_config):
         plugin = RandomPlugin(sample_manifest)
         plugin.config = sample_config
         for _ in range(50):
             result = plugin.fetch_data()
-            assert result.data["color"] != "filled"
+            assert result.data["color_name"] != "filled"
+
+    def test_fetch_data_color_tile_format(self, sample_manifest, sample_config):
+        plugin = RandomPlugin(sample_manifest)
+        plugin.config = sample_config
+        import re
+        for _ in range(20):
+            result = plugin.fetch_data()
+            tile = result.data["color"]
+            assert re.match(r'^\{\d+\}$', tile), f"color {tile!r} not in {{N}} format"
+
+    def test_fetch_data_color_tile_valid_code(self, sample_manifest, sample_config):
+        plugin = RandomPlugin(sample_manifest)
+        plugin.config = sample_config
+        for _ in range(20):
+            result = plugin.fetch_data()
+            code = int(result.data["color"][1:-1])
+            assert 63 <= code <= 70, f"color tile code {code} out of valid range 63–70"
+
+    def test_fetch_data_color_tile_matches_color_name(self, sample_manifest, sample_config):
+        from plugins.random import _COLOR_TILE_CODES
+        plugin = RandomPlugin(sample_manifest)
+        plugin.config = sample_config
+        for _ in range(20):
+            result = plugin.fetch_data()
+            color_name = result.data["color_name"]
+            expected_tile = f"{{{_COLOR_TILE_CODES[color_name]}}}"
+            assert result.data["color"] == expected_tile
+
+    def test_fetch_data_all_board_colors_reachable_via_name(self, sample_manifest, sample_config):
+        plugin = RandomPlugin(sample_manifest)
+        plugin.config = sample_config
+        seen = set()
+        for _ in range(500):
+            result = plugin.fetch_data()
+            seen.add(result.data["color_name"])
+        assert seen == set(BOARD_COLORS)
 
     def test_fetch_data_default_choices_when_not_configured(self, sample_manifest):
         plugin = RandomPlugin(sample_manifest)
@@ -146,15 +183,6 @@ class TestRandomPlugin:
         simple = sample_manifest["variables"]["simple"]
         for var in simple:
             assert var in result.data, f"Variable '{var}' declared in manifest but missing from data"
-
-    def test_fetch_data_all_board_colors_reachable(self, sample_manifest, sample_config):
-        plugin = RandomPlugin(sample_manifest)
-        plugin.config = sample_config
-        seen = set()
-        for _ in range(500):
-            result = plugin.fetch_data()
-            seen.add(result.data["color"])
-        assert seen == set(BOARD_COLORS)
 
     def test_fetch_data_all_configured_choices_reachable(self, sample_manifest):
         plugin = RandomPlugin(sample_manifest)
