@@ -425,23 +425,41 @@ def _safe_external_dest(
 ) -> Tuple[Optional[Path], str]:
     """Compute a safe destination path inside ``external_dir`` for a plugin.
 
-    The ``plugin_id`` is re-validated here against :data:`PLUGIN_ID_RE` so
-    that the regex match is on the same data-flow path as the directory
-    join below — CodeQL recognises an inline ``re.match`` against a strict
-    character-class allow-list as a path-injection barrier.
+    The ``plugin_id`` is re-validated here against :data:`PLUGIN_ID_RE`
+    using :func:`re.fullmatch` so the regex match sits on the same
+    data-flow path as the directory join below.  CodeQL recognises an
+    inline ``re.fullmatch`` against a strict character-class allow-list
+    as a path-injection barrier.
     """
     # Inline allow-list match (single segment, lowercase + digits +
-    # underscore only).  Anything that does not match is rejected before
-    # the value is ever used to build a filesystem path.
-    if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.match(plugin_id):
+    # underscore only).  Anything that does not fully match is rejected
+    # before the value is ever used to build a filesystem path.
+    if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.fullmatch(plugin_id):
         return None, f"Invalid plugin id {plugin_id!r}"
 
     # ``plugin_id`` now matches ^[a-z][a-z0-9_]{0,63}$, so it cannot
-    # contain any path separator, ``..`` segment, or NUL byte.  The join
-    # therefore produces a single child of ``external_root``.
-    safe_id = plugin_id  # already validated above
+    # contain any path separator, ``..`` segment, or NUL byte.  Take the
+    # basename as a final, explicit single-segment guarantee that CodeQL
+    # treats as a path-injection sanitiser.
+    safe_id = os.path.basename(plugin_id)
+    if safe_id != plugin_id or not safe_id:
+        return None, f"Invalid plugin id {plugin_id!r}"
+
     external_root = external_dir.resolve()
     candidate = (external_root / safe_id).resolve()
+
+    # Defence in depth: also assert containment using ``relative_to``,
+    # which raises ``ValueError`` when ``candidate`` falls outside
+    # ``external_root``.
+    try:
+        candidate.relative_to(external_root)
+    except ValueError:
+        return None, f"Refusing to install plugin outside {external_root}"
+    if candidate == external_root:
+        return None, (
+            f"Plugin destination must be a subdirectory of {external_root}"
+        )
+    return candidate, ""
 
     # Defence in depth: also assert containment using ``relative_to``,
     # which raises ``ValueError`` when ``candidate`` falls outside
