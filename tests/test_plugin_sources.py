@@ -294,7 +294,8 @@ class TestCloneOrUpdateRepo:
         assert not ok
         assert "HTTPS" in err
 
-    def test_rejects_dest_outside_external_plugins_dir(self, tmp_path):
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_rejects_dest_outside_external_plugins_dir(self, mock_run, tmp_path):
         """Destination outside the external plugins directory is rejected."""
         other_dir = tmp_path / "other"
         other_dir.mkdir()
@@ -305,8 +306,10 @@ class TestCloneOrUpdateRepo:
             ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
         assert not ok
         assert "outside" in err.lower()
+        mock_run.assert_not_called()
 
-    def test_rejects_path_traversal_via_dest(self, tmp_path):
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_rejects_path_traversal_via_dest(self, mock_run, tmp_path):
         """A dest_dir that escapes via '..' is caught by the containment check."""
         ext_dir = tmp_path / "external_plugins"
         ext_dir.mkdir()
@@ -316,6 +319,7 @@ class TestCloneOrUpdateRepo:
             ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
         assert not ok
         assert "outside" in err.lower()
+        mock_run.assert_not_called()
 
 
 # ── install helpers ──────────────────────────────────────────────────────────
