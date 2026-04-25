@@ -344,7 +344,6 @@ class StocksSource:
             
             # Format values
             current_price_str = self._format_price(current_price)
-            _previous_price_str = self._format_price(previous_price)  # Kept for future use
             change_percent_str = self._format_percentage(change_percent)
             
             # Determine color based on percentage change

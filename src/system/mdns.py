@@ -252,12 +252,14 @@ def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
 
         zc = Zeroconf()
         listener = _Listener()
-        _browsers = [
+        browsers = [
             ServiceBrowser(zc, stype, listener)
             for stype in _BROWSE_SERVICE_TYPES
         ]
 
         time.sleep(timeout)
+        for browser in browsers:
+            browser.cancel()
         zc.close()
 
         for entry in discovered:
