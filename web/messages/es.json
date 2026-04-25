@@ -184,7 +184,16 @@
       "validationSelectPage": "Por favor selecciona una página",
       "validationEndTimeDifferent": "La hora de fin debe ser diferente a la hora de inicio",
       "validationSelectDay": "Por favor selecciona al menos un día para el patrón personalizado",
-      "submitError": "Error al guardar el horario"
+      "submitError": "Error al guardar el horario",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "startTimeType": "Start time type",
+      "endTimeType": "End time type",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

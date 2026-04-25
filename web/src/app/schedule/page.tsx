@@ -56,7 +56,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, AlertCircle, AlertTriangle, List, CalendarDays, Calendar as CalendarIcon, Power } from "lucide-react";
+import { Plus, AlertCircle, AlertTriangle, List, CalendarDays, Calendar as CalendarIcon, Power, MapPin } from "lucide-react";
+import Link from "next/link";
 import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern, isCarouselId } from "@/lib/api";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -124,6 +125,12 @@ export default function SchedulePage() {
 
   // Fetch carousels for form
   const { data: carouselsData } = useCarousels();
+
+  // Fetch location settings (needed for sunrise/sunset schedule resolution)
+  const { data: locationData } = useQuery({
+    queryKey: ["location-settings"],
+    queryFn: api.getLocationSettings,
+  });
 
   // Fetch validation (scoped by board)
   const { data: validation } = useQuery({
@@ -318,6 +325,10 @@ export default function SchedulePage() {
   const schedules = schedulesData?.schedules || [];
   const pages = pagesData?.pages || [];
   const defaultPageId = schedulesData?.default_page_id;
+  const locationConfigured = locationData?.latitude != null && locationData?.longitude != null;
+  const hasSunSchedules = schedules.some(
+    (s) => s.start_type !== "fixed" || s.end_type !== "fixed"
+  );
   const scheduleEnabled = schedulesData?.enabled || false;
   const hasOverlaps = (validation?.overlaps?.length || 0) > 0;
   const hasGaps = (validation?.gaps?.length || 0) > 0;
@@ -497,6 +508,20 @@ export default function SchedulePage() {
           }
         />
       </TooltipProvider>
+
+      {/* ── Location warning (sun schedules without location configured) ── */}
+      {hasSunSchedules && !locationConfigured && (
+        <div className="flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0">
+          <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>
+            One or more schedules use sunrise/sunset times, but no location is configured — showing fallback times instead.{" "}
+            <Link href="/settings" className="font-medium underline underline-offset-2 hover:no-underline">
+              Configure location in Settings
+            </Link>
+            .
+          </span>
+        </div>
+      )}
 
       {/* ── Schedule View ── */}
       {viewMode === "list" ? (

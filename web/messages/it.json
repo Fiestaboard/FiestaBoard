@@ -184,7 +184,16 @@
       "validationSelectPage": "Seleziona una pagina",
       "validationEndTimeDifferent": "L'ora di fine deve essere diversa dall'ora di inizio",
       "validationSelectDay": "Seleziona almeno un giorno per il pattern personalizzato",
-      "submitError": "Impossibile salvare la programmazione"
+      "submitError": "Impossibile salvare la programmazione",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "startTimeType": "Start time type",
+      "endTimeType": "End time type",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

@@ -184,7 +184,16 @@
       "validationSelectPage": "请选择一个页面",
       "validationEndTimeDifferent": "结束时间必须与开始时间不同",
       "validationSelectDay": "请为自定义模式选择至少一天",
-      "submitError": "保存日程失败"
+      "submitError": "保存日程失败",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "startTimeType": "Start time type",
+      "endTimeType": "End time type",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

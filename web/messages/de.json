@@ -184,7 +184,16 @@
       "validationSelectPage": "Bitte wählen Sie eine Seite aus",
       "validationEndTimeDifferent": "Die Endzeit muss sich von der Startzeit unterscheiden",
       "validationSelectDay": "Bitte wählen Sie mindestens einen Tag für das benutzerdefinierte Muster",
-      "submitError": "Zeitplan konnte nicht gespeichert werden"
+      "submitError": "Zeitplan konnte nicht gespeichert werden",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "startTimeType": "Start time type",
+      "endTimeType": "End time type",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

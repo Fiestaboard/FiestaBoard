@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Calendar, GalleryHorizontalEnd } from "lucide-react";
+import { Edit, Trash2, Calendar, GalleryHorizontalEnd, Sunrise, Sunset } from "lucide-react";
 import type { ScheduleEntry, Page, Carousel } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
 
@@ -25,6 +25,34 @@ function formatDays(schedule: ScheduleEntry): string {
       .join(", ");
   }
   return "";
+}
+
+function formatTimeDisplay(schedule: ScheduleEntry): string {
+  const startLabel = schedule.start_type === "sunrise"
+    ? `☀↑${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
+    : schedule.start_type === "sunset"
+    ? `☀↓${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
+    : schedule.start_time;
+
+  const resolvedStart = schedule.resolved_start_time && schedule.start_type !== "fixed"
+    ? ` (${schedule.resolved_start_time})`
+    : "";
+
+  if (!schedule.end_time && schedule.end_type === "fixed") {
+    return `${startLabel}${resolvedStart} - open`;
+  }
+
+  const endLabel = schedule.end_type === "sunrise"
+    ? `☀↑${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
+    : schedule.end_type === "sunset"
+    ? `☀↓${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
+    : schedule.end_time || "open";
+
+  const resolvedEnd = schedule.resolved_end_time && schedule.end_type !== "fixed"
+    ? ` (${schedule.resolved_end_time})`
+    : "";
+
+  return `${startLabel}${resolvedStart} - ${endLabel}${resolvedEnd}`;
 }
 
 export function ScheduleListView({
@@ -74,7 +102,7 @@ export function ScheduleListView({
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {schedule.start_time} - {schedule.end_time || "open"} • {formatDays(schedule)}
+                      {formatTimeDisplay(schedule)} • {formatDays(schedule)}
                     </div>
                   </div>
                   <div className="flex gap-2">

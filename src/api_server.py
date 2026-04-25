@@ -3108,6 +3108,121 @@ async def update_display_settings(request: dict):
     return {"status": "success", "settings": display.to_dict()}
 
 
+@app.get("/settings/location")
+async def get_location_settings():
+    """Get current location settings for sun-based schedules (sunrise/sunset)."""
+    settings_service = get_settings_service()
+    return settings_service.get_location_settings().to_dict()
+
+
+@app.put("/settings/location")
+async def update_location_settings(request: dict):
+    """
+    Update location settings for sun-based schedules.
+
+    Body may include:
+    - latitude: float | null — Location latitude (-90 to 90)
+    - longitude: float | null — Location longitude (-180 to 180)
+    """
+    settings_service = get_settings_service()
+    location = settings_service.update_location_settings(request)
+    return {"status": "success", "settings": location.to_dict()}
+
+
+@app.get("/settings/location/sun-times")
+async def get_location_sun_times(date: Optional[str] = None):
+    """
+    Get sunrise and sunset times for the configured location on a given date.
+
+    Query params:
+    - date: ISO date string (YYYY-MM-DD); defaults to today in the configured timezone.
+
+    Returns sunrise and sunset as HH:MM strings, or null values if location is not
+    configured or sun times cannot be computed (e.g. polar day/night).
+    """
+    from .schedules.sun_times import get_sun_times
+    from datetime import date as date_cls, datetime
+    import pytz
+
+    settings_service = get_settings_service()
+    location = settings_service.get_location_settings()
+
+    if location.latitude is None or location.longitude is None:
+        return {"sunrise": None, "sunset": None, "location_configured": False}
+
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    if date:
+        try:
+            target_date = date_cls.fromisoformat(date)
+        except ValueError:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    else:
+        tz = pytz.timezone(timezone_str)
+        target_date = datetime.now(tz).date()
+
+    times = get_sun_times(location.latitude, location.longitude, target_date, timezone_str)
+    if times is None:
+        return {"sunrise": None, "sunset": None, "location_configured": True}
+
+    return {
+        "sunrise": times["sunrise"].strftime("%H:%M"),
+        "sunset": times["sunset"].strftime("%H:%M"),
+        "location_configured": True,
+    }
+
+
+@app.get("/settings/location/sun-times-week")
+async def get_location_sun_times_week(week_start: str):
+    """
+    Get sunrise and sunset times for each day of a 7-day week.
+
+    Query params:
+    - week_start: ISO date string (YYYY-MM-DD) for the first day of the week.
+
+    Returns a map of date strings to { sunrise, sunset } HH:MM values.
+    """
+    from .schedules.sun_times import get_sun_times
+    from datetime import date as date_cls, timedelta
+
+    settings_service = get_settings_service()
+    location = settings_service.get_location_settings()
+
+    if location.latitude is None or location.longitude is None:
+        return {"location_configured": False, "dates": {}}
+
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    try:
+        start = date_cls.fromisoformat(week_start)
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid week_start format. Use YYYY-MM-DD.")
+
+    result: dict = {}
+    for i in range(7):
+        day = start + timedelta(days=i)
+        times = get_sun_times(location.latitude, location.longitude, day, timezone_str)
+        if times:
+            result[day.isoformat()] = {
+                "sunrise": times["sunrise"].strftime("%H:%M"),
+                "sunset": times["sunset"].strftime("%H:%M"),
+            }
+
+    return {"location_configured": True, "dates": result}
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """
@@ -3140,6 +3255,7 @@ async def get_all_settings():
     board = settings_service.get_board_settings()
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
+    location = settings_service.get_location_settings()
 
     return {
         "general": general,
@@ -3152,6 +3268,7 @@ async def get_all_settings():
         "board": board.to_dict(),
         "mqtt": mqtt.to_dict(mask_secrets=True),
         "display": display.to_dict(),
+        "location": location.to_dict(),
         "status": {
             "running": _service_running,
         }
@@ -3887,6 +4004,49 @@ async def send_page(page_id: str, target: Optional[str] = None):
 # Schedule Endpoints
 # =============================================================================
 
+def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
+    """Add resolved_start_time / resolved_end_time to a schedule dict.
+
+    For fixed-type schedules the resolved times equal the stored times.
+    For sun-based schedules (sunrise/sunset) the times are computed
+    dynamically for today using the configured location.
+    """
+    start_type = schedule_dict.get("start_type", "fixed")
+    end_type = schedule_dict.get("end_type", "fixed")
+
+    if start_type == "fixed" and end_type == "fixed":
+        schedule_dict["resolved_start_time"] = schedule_dict["start_time"]
+        schedule_dict["resolved_end_time"] = schedule_dict.get("end_time")
+        return schedule_dict
+
+    from datetime import date as date_type
+    from .schedules.sun_times import resolve_schedule_sun_times
+
+    settings = get_settings_service()
+    loc = settings.get_location_settings()
+    timezone_str = "UTC"
+    try:
+        from .config import Config
+        timezone_str = Config.TIMEZONE or "UTC"
+    except Exception:
+        pass
+
+    resolved_start, resolved_end = resolve_schedule_sun_times(
+        start_type=start_type,
+        start_sun_offset=schedule_dict.get("start_sun_offset", 0),
+        start_time_fallback=schedule_dict["start_time"],
+        end_type=end_type,
+        end_sun_offset=schedule_dict.get("end_sun_offset", 0),
+        end_time_fallback=schedule_dict.get("end_time"),
+        latitude=loc.latitude,
+        longitude=loc.longitude,
+        target_date=date_type.today(),
+        timezone_str=timezone_str,
+    )
+    schedule_dict["resolved_start_time"] = resolved_start
+    schedule_dict["resolved_end_time"] = resolved_end
+    return schedule_dict
+
 @app.get("/schedules")
 async def list_schedules(board_id: Optional[str] = None):
     """List schedule entries, optionally for one board (query: board_id=).
@@ -3900,14 +4060,14 @@ async def list_schedules(board_id: Optional[str] = None):
     # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
     if board_id == "*":
         return {
-            "schedules": [s.model_dump() for s in schedules],
+            "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
             "total": len(schedules),
             "default_page_id": None,
             "enabled": False,
         }
     
     return {
-        "schedules": [s.model_dump() for s in schedules],
+        "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
         "total": len(schedules),
         "default_page_id": schedule_service.get_default_page(board_id=board_id),
         "enabled": settings_service.is_schedule_enabled(board_id=board_id),
@@ -3928,7 +4088,7 @@ async def create_schedule(schedule_data: ScheduleCreate):
     
     try:
         schedule = schedule_service.create_schedule(schedule_data)
-        return schedule.model_dump()
+        return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -4043,7 +4203,7 @@ async def get_schedule(schedule_id: str):
     if not schedule:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
     
-    return schedule.model_dump()
+    return _enrich_schedule_with_sun_times(schedule.model_dump())
 
 
 @app.put("/schedules/{schedule_id}")
@@ -4063,7 +4223,7 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
         if not schedule:
             raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        return schedule.model_dump()
+        return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
