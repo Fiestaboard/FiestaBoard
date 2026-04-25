@@ -287,8 +287,9 @@ def clone_or_update_repo(
         dest_dir: Local directory to clone into.
         branch: Optional branch/tag.  Uses the repo default when empty.
         allowed_root: Trusted root directory that ``dest_dir`` must be contained
-            within.  Defaults to :func:`get_external_plugins_dir`.  High-level
-            callers (e.g. :func:`install_registry_plugin`) should pass the same
+            within.  If not provided, defaults to the result of
+            :func:`get_external_plugins_dir`.  High-level callers (e.g.
+            :func:`install_registry_plugin`) should pass the same
             ``external_dir`` they used when constructing ``dest_dir`` so that
             the containment check uses a consistent boundary.
 
