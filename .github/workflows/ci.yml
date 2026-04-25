@@ -504,3 +504,18 @@ jobs:
     - name: Build Docusaurus site
       working-directory: docs-site
       run: npm run build
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test-platform, test-plugins, test-ui, a11y-tests, e2e-tests, build, build-docs]
+    if: always()
+    steps:
+      - name: Check all jobs passed or were skipped
+        run: |
+          results='${{ toJSON(needs.*.result) }}'
+          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
+            echo "❌ One or more CI jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "✅ All CI jobs passed or were skipped"
