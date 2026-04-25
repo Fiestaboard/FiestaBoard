@@ -31,6 +31,8 @@ def mock_plugin_registry_secure():
         reg = Mock()
         reg.get_manifest.return_value = None
         reg.get_plugin.return_value = None
+        reg.parse_instance_key.return_value = (None, None)
+        reg.list_instances.return_value = []
         reg.list_plugins.return_value = []
         reg.get_load_errors.return_value = {}
         mock_get.return_value = reg
@@ -65,6 +67,8 @@ def mock_plugin_with_sensitive_config():
         reg.get_manifest.return_value = manifest
         reg.get_plugin.return_value = Mock()
         reg.is_enabled.return_value = False
+        reg.parse_instance_key.return_value = ("test_plugin", None)
+        reg.list_instances.return_value = []
         reg.get_all_variables_with_metadata.return_value = {}
 
         cm = Mock()

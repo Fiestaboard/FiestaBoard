@@ -245,6 +245,8 @@ def mock_plugin_registry():
         reg.get_manifest.return_value = manifest
         reg.get_plugin.return_value = Mock()
         reg.is_enabled.return_value = True
+        reg.parse_instance_key.return_value = ("weather", None)
+        reg.list_instances.return_value = []
         reg.enable_plugin.return_value = True
         reg.disable_plugin.return_value = True
         reg.set_plugin_config.return_value = []
