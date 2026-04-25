@@ -129,6 +129,53 @@ def _validate_board_host(host: str) -> None:
         )
 
 
+def _validate_board_host_is_local_network(host: str) -> None:
+    """Ensure ``host`` resolves only to private/local IPv4 addresses.
+
+    Prevents SSRF to arbitrary internet hosts while still allowing local
+    network boards.
+    """
+    import ipaddress
+    import socket
+
+    def _is_allowed_ipv4(addr: ipaddress.IPv4Address) -> bool:
+        return (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+        )
+
+    try:
+        ip = ipaddress.IPv4Address(host)
+        if not _is_allowed_ipv4(ip):
+            raise HTTPException(
+                status_code=400,
+                detail="host must resolve to a local/private IPv4 address",
+            )
+        return
+    except ValueError:
+        pass
+
+    try:
+        addrinfo = socket.getaddrinfo(host, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise HTTPException(status_code=400, detail="host could not be resolved")
+
+    resolved_ips = {
+        ipaddress.IPv4Address(info[4][0])
+        for info in addrinfo
+        if info and len(info) >= 5 and info[4]
+    }
+    if not resolved_ips:
+        raise HTTPException(status_code=400, detail="host did not resolve to an IPv4 address")
+
+    if not all(_is_allowed_ipv4(ip) for ip in resolved_ips):
+        raise HTTPException(
+            status_code=400,
+            detail="host must resolve only to local/private IPv4 addresses",
+        )
+
+
 # Global service instance
 _service: Optional[DisplayService] = None
 _service_lock = threading.Lock()
@@ -1623,6 +1670,7 @@ async def enable_local_api(request: EnablementTokenRequest):
     # redirect this request away from the local board (SSRF).
     try:
         _validate_board_host(request.host)
+        _validate_board_host_is_local_network(request.host)
     except HTTPException as exc:
         return {
             "success": False,
