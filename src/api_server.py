@@ -7,6 +7,7 @@ import threading
 import time
 import os
 import json
+import re
 import requests
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
@@ -46,6 +47,87 @@ LOG_DIR = Path("/app/data/logs")
 LOG_FILE = LOG_DIR / "app.log"
 LOG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per file
 LOG_BACKUP_COUNT = 5  # Keep 5 backup files (25MB total max)
+
+
+def _validate_request_url(
+    url: str,
+    *,
+    allow_http: bool = True,
+    allow_https: bool = True,
+) -> None:
+    """Validate a user-supplied URL before using it in an HTTP request.
+
+    Blocks credentialed URLs (``user:pass@host``) and unsupported schemes
+    so the URL can't be abused for SSRF/credential leaks.  Raises
+    :class:`HTTPException` (status 400) when the URL is rejected.
+    """
+    from urllib.parse import urlparse
+
+    if not isinstance(url, str) or not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="URL could not be parsed")
+    allowed = []
+    if allow_http:
+        allowed.append("http")
+    if allow_https:
+        allowed.append("https")
+    if parsed.scheme not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"URL scheme must be one of: {', '.join(allowed)}",
+        )
+    if not parsed.hostname:
+        raise HTTPException(status_code=400, detail="URL is missing a host")
+    if parsed.username is not None or parsed.password is not None:
+        raise HTTPException(
+            status_code=400, detail="URL must not contain credentials"
+        )
+
+
+# Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
+# IPv4 dotted-quad notation.  This rejects exotic forms (URL-encoded chars,
+# ``user:pass@host``, schemes embedded in the host, etc.) before we ever try
+# to connect to a board over HTTP.
+_HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)"
+    r"(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*"
+    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)$"
+)
+
+
+def _validate_board_host(host: str) -> None:
+    """Validate that ``host`` is a plain IP/hostname (no scheme, port, path).
+
+    Used before constructing URLs that target a Vestaboard on the local
+    network.  Raises :class:`HTTPException` (status 400) when invalid.
+    """
+    if not isinstance(host, str) or not host:
+        raise HTTPException(status_code=400, detail="host is required")
+    # Reject anything that looks like a full URL or contains delimiters that
+    # could redirect the request elsewhere (``@``, ``/``, ``:``, ``?``,
+    # ``#`` or whitespace).
+    if any(c in host for c in "@/:?# \t\r\n\\"):
+        raise HTTPException(
+            status_code=400,
+            detail="host must be a bare IP address or hostname",
+        )
+    # Try IPv4 first, then a hostname pattern.
+    import ipaddress
+
+    try:
+        ipaddress.IPv4Address(host)
+        return
+    except ValueError:
+        pass
+    if not _HOSTNAME_RE.match(host):
+        raise HTTPException(
+            status_code=400,
+            detail="host must be a valid IPv4 address or hostname",
+        )
+
 
 # Global service instance
 _service: Optional[DisplayService] = None
@@ -1429,13 +1511,12 @@ async def test_board_connection(request: BoardTestRequest):
             "error": f"Configuration error: {str(e)}"
         }
     except requests.exceptions.ConnectionError as e:
-        error_msg = str(e)
         logger.error(f"Board connection test error: {e}")
         if use_cloud:
             return {
                 "success": False,
                 "message": "Could not connect to the Vestaboard cloud service.",
-                "error": error_msg,
+                "error": "Connection error",
                 "troubleshooting": [
                     "Make sure the device running FiestaBoard has a working internet connection.",
                     "Try opening https://rw.vestaboard.com in a browser to verify the service is reachable.",
@@ -1446,7 +1527,7 @@ async def test_board_connection(request: BoardTestRequest):
             return {
                 "success": False,
                 "message": "Could not connect to the board. The board may be off or not on the same network.",
-                "error": error_msg,
+                "error": "Connection error",
                 "troubleshooting": [
                     "Make sure the Vestaboard is powered on (check for the LED on the back).",
                     "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
@@ -1460,7 +1541,7 @@ async def test_board_connection(request: BoardTestRequest):
             return {
                 "success": False,
                 "message": "Connection to the Vestaboard cloud service timed out.",
-                "error": str(e),
+                "error": "Timeout",
                 "troubleshooting": [
                     "Check that the device running FiestaBoard has a stable internet connection.",
                     "The Vestaboard cloud service may be experiencing issues — try again in a few minutes.",
@@ -1470,7 +1551,7 @@ async def test_board_connection(request: BoardTestRequest):
             return {
                 "success": False,
                 "message": "Connection to the board timed out. The board may be off or the IP address may be wrong.",
-                "error": str(e),
+                "error": "Timeout",
                 "troubleshooting": [
                     "Make sure the Vestaboard is powered on.",
                     "Double-check the IP address in the Vestaboard app under Settings.",
@@ -1479,11 +1560,11 @@ async def test_board_connection(request: BoardTestRequest):
                 ]
             }
     except Exception as e:
-        logger.error(f"Board connection test error: {e}")
+        logger.error(f"Board connection test error: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"Connection failed: {e}",
-            "error": str(e),
+            "message": "Connection failed",
+            "error": "Unexpected error",
             "troubleshooting": [
                 "Make sure the Vestaboard is powered on and connected to your network.",
                 "Try restarting FiestaBoard and the Vestaboard.",
@@ -1538,6 +1619,17 @@ async def enable_local_api(request: EnablementTokenRequest):
             "error": "Missing enablement_token parameter"
         }
     
+    # Validate the host before composing the URL so an attacker can't
+    # redirect this request away from the local board (SSRF).
+    try:
+        _validate_board_host(request.host)
+    except HTTPException as exc:
+        return {
+            "success": False,
+            "message": "Invalid board host",
+            "error": exc.detail,
+        }
+
     # Build the URL for the local enablement endpoint
     url = f"http://{request.host}:7000/local-api/enablement"
     headers = {
@@ -1564,7 +1656,7 @@ async def enable_local_api(request: EnablementTokenRequest):
                 return {
                     "success": False,
                     "message": "Received response but no API key was provided",
-                    "error": f"Response: {data}"
+                    "error": "Board response did not include an apiKey",
                 }
         elif response.status_code == 401 or response.status_code == 403:
             logger.warning(f"Local API enablement failed - invalid token")
@@ -1578,7 +1670,7 @@ async def enable_local_api(request: EnablementTokenRequest):
             return {
                 "success": False,
                 "message": f"Board returned an error (HTTP {response.status_code})",
-                "error": response.text
+                "error": f"HTTP {response.status_code}",
             }
             
     except http_requests.exceptions.ConnectionError as e:
@@ -1586,21 +1678,21 @@ async def enable_local_api(request: EnablementTokenRequest):
         return {
             "success": False,
             "message": "Could not connect to board. Please check the IP address and ensure the board is on the same network.",
-            "error": str(e)
+            "error": "Connection error",
         }
     except http_requests.exceptions.Timeout as e:
         logger.error(f"Local API enablement timeout: {e}")
         return {
             "success": False,
             "message": "Connection timed out. Please check the IP address and try again.",
-            "error": str(e)
+            "error": "Timeout",
         }
     except Exception as e:
-        logger.error(f"Local API enablement error: {e}")
+        logger.error(f"Local API enablement error: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"Failed to enable local API: {str(e)}",
-            "error": str(e)
+            "message": "Failed to enable local API",
+            "error": "Unexpected error",
         }
 
 
@@ -2689,7 +2781,7 @@ async def validate_stock_symbol(request: dict):
         return result
     except Exception as e:
         logger.error(f"Error validating stock symbol: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to validate stock symbol")
 
 
 # =============================================================================
@@ -2819,7 +2911,7 @@ async def validate_traffic_route(request: dict):
         logger.error(f"Error validating traffic route: {e}", exc_info=True)
         return {
             "valid": False,
-            "error": str(e)
+            "error": "Failed to validate route"
         }
 
 
@@ -3485,10 +3577,10 @@ async def debug_test_connection():
                 "latency_ms": None
             }
     except Exception as e:
-        logger.error(f"Error testing connection: {e}")
+        logger.error(f"Error testing connection: {e}", exc_info=True)
         return {
             "status": "error",
-            "message": str(e),
+            "message": "Connection test failed",
             "connected": False,
             "latency_ms": None
         }
@@ -5677,7 +5769,7 @@ async def generic_data_test_fetch(request: dict):
     matches real behaviour.  Response body is capped at 1 MB.
     """
     import requests as req
-    from xml.etree import ElementTree
+    import defusedxml.ElementTree as DefusedET
 
     from .plugins.config_interpolation import get_builtin_variables, interpolate_string
 
@@ -5693,10 +5785,9 @@ async def generic_data_test_fetch(request: dict):
     headers_list = request.get("headers", [])
     body = request.get("body")
 
-    if not url:
-        raise HTTPException(status_code=400, detail="URL is required")
-    if not url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
+    # Validate the URL: scheme must be http(s) and credentials are not allowed
+    # (defence against SSRF/credential leaks).
+    _validate_request_url(url)
 
     headers: dict = {
         "Accept": "application/json" if fmt == "json" else "application/xml",
@@ -5708,7 +5799,7 @@ async def generic_data_test_fetch(request: dict):
             headers[n] = interpolate_string(v, _interp_vars)
 
     try:
-        kwargs: dict = {"headers": headers, "timeout": 15}
+        kwargs: dict = {"headers": headers, "timeout": 15, "allow_redirects": False}
         if method == "POST" and body:
             kwargs["data"] = (
                 interpolate_string(body, _interp_vars)
@@ -5724,7 +5815,9 @@ async def generic_data_test_fetch(request: dict):
 
         if fmt == "xml":
             from plugins.generic_data import _xml_to_dict
-            root = ElementTree.fromstring(resp.text)
+            # ``defusedxml`` disables external entity expansion, DTDs and
+            # entity bombs by default, mitigating XXE attacks.
+            root = DefusedET.fromstring(resp.text)
             parsed = _xml_to_dict(root)
         else:
             parsed = resp.json()
@@ -5736,10 +5829,13 @@ async def generic_data_test_fetch(request: dict):
         raise HTTPException(status_code=504, detail="Request timed out")
     except req.exceptions.ConnectionError:
         raise HTTPException(status_code=502, detail="Connection error — check the URL")
-    except req.exceptions.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"HTTP error: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except req.exceptions.HTTPError:
+        # Don't echo the upstream exception (URL/headers/status) back to the
+        # caller — generic message is enough for a "test fetch" feature.
+        raise HTTPException(status_code=502, detail="HTTP error from remote service")
+    except Exception:
+        logger.exception("generic-data test-fetch failed")
+        raise HTTPException(status_code=500, detail="Failed to fetch data")
 
 
 if __name__ == "__main__":

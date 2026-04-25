@@ -116,10 +116,41 @@ export function clearWizardCompletion(): void {
 
 /**
  * Save wizard progress for resuming later.
+ *
+ * Sensitive credentials (API keys, Wi-Fi passwords) are intentionally
+ * stripped before persisting to ``localStorage``: that storage is not a
+ * secure place for secrets and any persisted copy survives sign-out.
+ * Users can re-enter the values when resuming the wizard.
  */
 export function saveWizardProgress(progress: WizardProgress): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
+
+  // Deep-clone and redact secrets before persisting.
+  const sanitized: WizardProgress = {
+    ...progress,
+    boardConfig: progress.boardConfig
+      ? {
+          ...progress.boardConfig,
+          // Drop the API keys — they're sensitive credentials.
+          local_api_key: undefined,
+          cloud_key: undefined,
+        }
+      : undefined,
+    plugins: progress.plugins
+      ? {
+          ...progress.plugins,
+          guest_wifi: progress.plugins.guest_wifi
+            ? {
+                ...progress.plugins.guest_wifi,
+                // Drop the Wi-Fi password.
+                password: "",
+              }
+            : undefined,
+        }
+      : undefined,
+  };
+
+  localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(sanitized));
 }
 
 /**
