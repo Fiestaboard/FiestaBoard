@@ -26,6 +26,8 @@ The Random plugin generates fresh random values on a schedule you control. It ex
 | `{{random.color}}` | Random board color as a rendered color tile (like `{{blue}}`) | _(colored square)_ |
 | `{{random.color_name}}` | Random board color name as text | `green` |
 
+> **Note:** Colors are limited to red, orange, yellow, green, blue, and violet. White and black are excluded because they render inverted on white-model boards, making the name label misleading.
+
 ## Example Templates
 
 **Coin flip:**

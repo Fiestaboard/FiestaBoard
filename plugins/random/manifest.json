@@ -60,13 +60,13 @@
         "example": "Heads"
       },
       "color": {
-        "description": "Random board color as a rendered color tile (displays a solid colored square, like {{blue}})",
+        "description": "Random board color as a rendered color tile (displays a solid colored square, like {{blue}}). Picks from red, orange, yellow, green, blue, violet — consistent across all board models.",
         "group": "presets",
         "max_length": 1,
         "example": "{66}"
       },
       "color_name": {
-        "description": "Random board color name as text (red, orange, yellow, green, blue, violet, white, or black)",
+        "description": "Random board color name as text (red, orange, yellow, green, blue, or violet)",
         "group": "presets",
         "max_length": 6,
         "example": "green"

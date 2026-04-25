@@ -160,6 +160,13 @@ class TestRandomPlugin:
             seen.add(result.data["color_name"])
         assert seen == set(BOARD_COLORS)
 
+    def test_fetch_data_color_excludes_white_and_black(self, sample_manifest, sample_config):
+        plugin = RandomPlugin(sample_manifest)
+        plugin.config = sample_config
+        for _ in range(100):
+            result = plugin.fetch_data()
+            assert result.data["color_name"] not in ("white", "black")
+
     def test_fetch_data_default_choices_when_not_configured(self, sample_manifest):
         plugin = RandomPlugin(sample_manifest)
         plugin.config = {"enabled": True}

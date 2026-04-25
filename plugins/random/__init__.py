@@ -12,11 +12,13 @@ from src.plugins.base import PluginBase, PluginResult
 
 logger = logging.getLogger(__name__)
 
-BOARD_COLORS = ["red", "orange", "yellow", "green", "blue", "violet", "white", "black"]
+BOARD_COLORS = ["red", "orange", "yellow", "green", "blue", "violet"]
 
-# Maps color names to their board character codes (63–70); used to produce color tiles
+# Maps color names to board character codes; used to produce color tiles.
+# White (69) and black (70) are excluded: they render inverted on white boards,
+# making color_name misleading (a "black" tile appears white on a white board).
 _COLOR_TILE_CODES = {"red": 63, "orange": 64, "yellow": 65, "green": 66,
-                     "blue": 67, "violet": 68, "white": 69, "black": 70}
+                     "blue": 67, "violet": 68}
 
 _DEFAULT_CHOICES = ["Heads", "Tails"]
 
