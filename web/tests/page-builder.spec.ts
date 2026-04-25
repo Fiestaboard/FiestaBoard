@@ -12,6 +12,7 @@ import {
   createPage,
   deletePage,
   deleteAllPages,
+  setActivePage,
   API_URL,
 } from "./helpers";
 
@@ -262,5 +263,92 @@ test.describe("Page Builder", () => {
     expect(data.lines).toBeDefined();
 
     await deletePage(pageId);
+  });
+});
+
+test.describe("Sync from Board", () => {
+  test("Sync from Board button is visible on new page, hidden on edit page", async ({
+    page,
+  }) => {
+    // New page: button should appear
+    await page.goto("/pages/new");
+    await expect(page.getByText("Create Page").first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    const syncBtn = page.getByRole("button", {
+      name: "Sync from current board display",
+    });
+    await expect(syncBtn).toBeVisible({ timeout: 10_000 });
+
+    // Edit page: button should NOT appear
+    const pageId = await createPage("Sync Button Hidden Test");
+    await page.goto(`/pages/edit/${pageId}`);
+    await expect(page.getByText("Edit Page").first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await expect(
+      page.getByRole("button", { name: "Sync from current board display" }),
+    ).not.toBeVisible();
+
+    await deletePage(pageId);
+  });
+
+  test("shows error when no active page is set", async ({ page }) => {
+    // Clear the active page so the API returns 404
+    await setActivePage(null);
+
+    await page.goto("/pages/new");
+    await expect(page.getByText("Create Page").first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    const syncBtn = page.getByRole("button", {
+      name: "Sync from current board display",
+    });
+    await expect(syncBtn).toBeVisible({ timeout: 10_000 });
+    await syncBtn.click();
+
+    // An error toast or message should be visible
+    const errorMsg = page
+      .getByText(/no active|failed|error/i)
+      .first()
+      .or(page.locator("[data-sonner-toast][data-type='error']").first());
+
+    await expect(errorMsg).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("populates template lines from active page on successful sync", async ({
+    page,
+  }) => {
+    // Create a page with known content and make it active
+    const sourcePageId = await createPage("Sync Source Page", [
+      "HELLO SYNC",
+      "LINE TWO",
+      "",
+      "",
+      "",
+      "",
+    ]);
+    await setActivePage(sourcePageId);
+
+    await page.goto("/pages/new");
+    await expect(page.getByText("Create Page").first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    const syncBtn = page.getByRole("button", {
+      name: "Sync from current board display",
+    });
+    await expect(syncBtn).toBeVisible({ timeout: 10_000 });
+    await syncBtn.click();
+
+    // Success toast should appear with the source page name
+    await expect(
+      page.getByText(/synced from/i).first(),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await deletePage(sourcePageId);
   });
 });
