@@ -433,12 +433,12 @@ class StocksSource:
                 "name": company_name
             }
             
-        except Exception as e:
-            logger.debug(f"Symbol validation failed for {symbol}: {e}")
+        except Exception:
+            logger.error("Symbol validation failed for %s", symbol, exc_info=True)
             return {
                 "valid": False,
                 "symbol": symbol,
-                "error": str(e)
+                "error": "Unable to validate symbol at this time"
             }
     
     @staticmethod

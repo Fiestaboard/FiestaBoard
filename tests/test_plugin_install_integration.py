@@ -13,7 +13,6 @@ slow down fast, offline unit tests.
 """
 
 import subprocess
-from unittest import mock
 
 import pytest
 
@@ -70,8 +69,7 @@ class TestCloneOrUpdateRepoIntegration:
     def test_fresh_clone(self, tmp_path):
         """Cloning a real repo succeeds and creates expected plugin files."""
         dest = tmp_path / REGISTRY_PLUGIN_ID
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
 
         assert ok, f"clone failed: {err}"
         assert err == ""
@@ -82,8 +80,7 @@ class TestCloneOrUpdateRepoIntegration:
     def test_clone_creates_valid_git_repo(self, tmp_path):
         """Cloned directory is a proper git repo with commit history."""
         dest = tmp_path / REGISTRY_PLUGIN_ID
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
 
         commits = _git_log(dest)
         assert len(commits) >= 1, "expected at least one commit in cloned repo"
@@ -93,14 +90,12 @@ class TestCloneOrUpdateRepoIntegration:
         dest = tmp_path / REGISTRY_PLUGIN_ID
 
         # First clone
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
         assert ok, f"initial clone failed: {err}"
         commits_before = _git_log(dest)
 
         # Second call should succeed (pull, already up-to-date is fine)
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
         assert ok, f"update (git pull) failed: {err}"
 
         commits_after = _git_log(dest)
@@ -110,11 +105,11 @@ class TestCloneOrUpdateRepoIntegration:
     def test_invalid_url_returns_error(self, tmp_path):
         """Cloning a non-existent repo returns (False, <error message>)."""
         dest = tmp_path / "nonexistent"
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = clone_or_update_repo(
-                "https://github.com/Fiestaboard/fiestaboard-plugin--does-not-exist-xyz",
-                dest,
-            )
+        ok, err = clone_or_update_repo(
+            "https://github.com/Fiestaboard/fiestaboard-plugin--does-not-exist-xyz",
+            dest,
+            allowed_root=tmp_path,
+        )
         assert not ok
         assert err  # some error message present
         assert not dest.exists()
@@ -132,8 +127,7 @@ class TestInstallRegistryPluginIntegration:
         entry = next((e for e in registry if e.plugin_id == REGISTRY_PLUGIN_ID), None)
         assert entry is not None, f"{REGISTRY_PLUGIN_ID} not found in plugin-registry.json"
 
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = install_registry_plugin(entry, external_dir=tmp_path)
+        ok, err = install_registry_plugin(entry, external_dir=tmp_path)
 
         assert ok, f"registry install failed: {err}"
         dest = tmp_path / REGISTRY_PLUGIN_ID
@@ -149,8 +143,7 @@ class TestInstallRegistryPluginIntegration:
         entry = next((e for e in registry if e.plugin_id == REGISTRY_PLUGIN_ID), None)
         assert entry is not None
 
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            install_registry_plugin(entry, external_dir=tmp_path)
+        install_registry_plugin(entry, external_dir=tmp_path)
         manifest = json.loads((tmp_path / REGISTRY_PLUGIN_ID / "manifest.json").read_text())
 
         assert manifest.get("id") == REGISTRY_PLUGIN_ID
@@ -179,8 +172,7 @@ class TestInstallRegistryPluginIntegration:
 class TestInstallGitPluginIntegration:
     def test_installs_from_arbitrary_url(self, tmp_path):
         """install_git_plugin clones any valid Fiestaboard plugin URL."""
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = install_git_plugin(GIT_REPO_URL, external_dir=tmp_path)
+        ok, err = install_git_plugin(GIT_REPO_URL, external_dir=tmp_path)
 
         assert ok, f"git URL install failed: {err}"
         dest = tmp_path / GIT_PLUGIN_ID
@@ -190,20 +182,18 @@ class TestInstallGitPluginIntegration:
 
     def test_plugin_id_derived_from_repo_name(self, tmp_path):
         """Plugin directory name is correctly derived from the repository name."""
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            install_git_plugin(GIT_REPO_URL, external_dir=tmp_path)
+        install_git_plugin(GIT_REPO_URL, external_dir=tmp_path)
 
         # fiestaboard-plugin--star-trek-quotes → star_trek_quotes
         assert (tmp_path / GIT_PLUGIN_ID).is_dir()
 
     def test_plugin_id_override(self, tmp_path):
         """Explicit plugin_id overrides the name derived from the URL."""
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = install_git_plugin(
-                GIT_REPO_URL,
-                plugin_id="custom_alias",
-                external_dir=tmp_path,
-            )
+        ok, err = install_git_plugin(
+            GIT_REPO_URL,
+            plugin_id="custom_alias",
+            external_dir=tmp_path,
+        )
 
         assert ok, f"install with override id failed: {err}"
         assert (tmp_path / "custom_alias").is_dir()
@@ -222,8 +212,7 @@ class TestUninstallIntegration:
         entry = next((e for e in registry if e.plugin_id == REGISTRY_PLUGIN_ID), None)
         assert entry is not None
 
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            install_registry_plugin(entry, external_dir=tmp_path)
+        install_registry_plugin(entry, external_dir=tmp_path)
         dest = tmp_path / REGISTRY_PLUGIN_ID
         assert dest.exists(), "plugin directory should exist before uninstall"
 
@@ -240,15 +229,13 @@ class TestUninstallIntegration:
 
         dest = tmp_path / REGISTRY_PLUGIN_ID
 
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            install_registry_plugin(entry, external_dir=tmp_path)
+        install_registry_plugin(entry, external_dir=tmp_path)
         assert dest.exists()
 
         remove_external_plugin(dest)
         assert not dest.exists()
 
-        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path):
-            ok, err = install_registry_plugin(entry, external_dir=tmp_path)
+        ok, err = install_registry_plugin(entry, external_dir=tmp_path)
         assert ok, f"reinstall after uninstall failed: {err}"
         assert dest.exists()
         assert (dest / "manifest.json").exists()
