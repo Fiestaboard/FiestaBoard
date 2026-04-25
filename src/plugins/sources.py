@@ -267,6 +267,8 @@ def clone_or_update_repo(
     repo_url: str,
     dest_dir: Path,
     branch: str = "",
+    *,
+    external_root: Optional[Path] = None,
 ) -> Tuple[bool, str]:
     """Clone a git repository, or fetch/reset if it already exists.
 
@@ -284,6 +286,9 @@ def clone_or_update_repo(
         repo_url: HTTPS URL of the repository (required for fresh clones only).
         dest_dir: Local directory to clone into.
         branch: Optional branch/tag.  Uses the repo default when empty.
+        external_root: Trusted root directory that ``dest_dir`` must be
+            contained within (sink-level path-injection barrier).  When
+            ``None`` the result of :func:`get_external_plugins_dir` is used.
 
     Returns:
         ``(True, "")`` on success, ``(False, error_message)`` on failure.
@@ -292,9 +297,11 @@ def clone_or_update_repo(
 
     # Enforce sink-level path safety: destination must stay within the
     # external plugins root, regardless of caller-provided values.
-    external_root = os.path.realpath(str(get_external_plugins_dir()))
+    if external_root is None:
+        external_root = get_external_plugins_dir()
+    trusted_root = os.path.realpath(str(external_root))
     resolved_dest = os.path.realpath(str(dest_dir))
-    if os.path.commonpath([external_root, resolved_dest]) != external_root:
+    if os.path.commonpath([trusted_root, resolved_dest]) != trusted_root:
         return False, f"Destination path escapes external plugins dir: {dest_dir}"
 
     if dest_dir.exists() and (dest_dir / ".git").is_dir():
@@ -505,7 +512,9 @@ def install_registry_plugin(
     dest, err = _safe_external_dest(external_dir, entry.plugin_id)
     if dest is None:
         return False, err
-    return clone_or_update_repo(entry.repository, dest, entry.branch)
+    return clone_or_update_repo(
+        entry.repository, dest, entry.branch, external_root=external_dir
+    )
 
 
 def install_git_plugin(
@@ -552,4 +561,4 @@ def install_git_plugin(
     dest, err = _safe_external_dest(external_dir, plugin_id)
     if dest is None:
         return False, err
-    return clone_or_update_repo(repo_url, dest, branch)
+    return clone_or_update_repo(repo_url, dest, branch, external_root=external_dir)

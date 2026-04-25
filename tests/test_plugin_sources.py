@@ -218,7 +218,9 @@ class TestCloneOrUpdateRepo:
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_clone_fresh(self, mock_run, tmp_path):
         dest = tmp_path / "my_plugin"
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo", dest, external_root=tmp_path
+        )
         assert ok
         assert err == ""
         mock_run.assert_called_once()
@@ -231,7 +233,7 @@ class TestCloneOrUpdateRepo:
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()  # Simulate existing shallow clone
-        ok, err = clone_or_update_repo("", dest)
+        ok, err = clone_or_update_repo("", dest, external_root=tmp_path)
         assert ok
         assert err == ""
         # Two subprocess calls: fetch then reset
@@ -249,7 +251,9 @@ class TestCloneOrUpdateRepo:
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()
-        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", dest)
+        ok, err = clone_or_update_repo(
+            "git@github.com:Org/repo.git", dest, external_root=tmp_path
+        )
         assert ok, "Update path should succeed regardless of URL"
 
     @mock.patch(
@@ -258,7 +262,9 @@ class TestCloneOrUpdateRepo:
     )
     def test_clone_failure(self, mock_run, tmp_path):
         dest = tmp_path / "fail_plugin"
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo", dest, external_root=tmp_path
+        )
         assert not ok
         assert "network error" in err
 
@@ -271,16 +277,58 @@ class TestCloneOrUpdateRepo:
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()
-        ok, err = clone_or_update_repo("", dest)
+        ok, err = clone_or_update_repo("", dest, external_root=tmp_path)
         assert not ok
         assert "fetch" in err.lower() or "failed" in err.lower()
 
     def test_rejects_ssh_url_for_fresh_clone(self, tmp_path):
         """SSH URLs are rejected only for fresh clones (URL validation skipped for updates)."""
         dest = tmp_path / "ssh_plugin"
-        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", dest)
+        ok, err = clone_or_update_repo(
+            "git@github.com:Org/repo.git", dest, external_root=tmp_path
+        )
         assert not ok
         assert "HTTPS" in err
+
+
+class TestCloneOrUpdateRepoPathSafety:
+    """Verify the sink-level path-containment check in clone_or_update_repo."""
+
+    def test_rejects_dest_outside_external_root(self, tmp_path):
+        """Destination outside the trusted root must be rejected."""
+        external_root = tmp_path / "external_plugins"
+        external_root.mkdir()
+        # Attempt to clone into a sibling directory outside the trusted root
+        outside_dest = tmp_path / "sibling" / "my_plugin"
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo", outside_dest, external_root=external_root
+        )
+        assert not ok
+        assert "escapes" in err
+
+    def test_rejects_path_traversal_sequence(self, tmp_path):
+        """A dest_dir that resolves above the root via '..' must be rejected."""
+        external_root = tmp_path / "external_plugins"
+        external_root.mkdir()
+        # Construct a path that tries to escape via traversal
+        traversal_dest = external_root / ".." / "sneaky"
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo", traversal_dest, external_root=external_root
+        )
+        assert not ok
+        assert "escapes" in err
+
+    def test_accepts_valid_dest_inside_root(self, tmp_path):
+        """A destination legitimately inside the root is accepted."""
+        external_root = tmp_path / "external_plugins"
+        external_root.mkdir()
+        valid_dest = external_root / "my_plugin"
+        with mock.patch("src.plugins.sources.subprocess.run"):
+            ok, err = clone_or_update_repo(
+                "https://github.com/Org/repo", valid_dest, external_root=external_root
+            )
+        assert ok
+        assert err == ""
 
 
 # ── install helpers ──────────────────────────────────────────────────────────
