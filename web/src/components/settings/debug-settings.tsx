@@ -119,6 +119,7 @@ export function DebugSettings() {
     mutationFn: api.blankBoard,
     onSuccess: (data) => {
       toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ["status"] });
     },
     onError: (error: Error) => {
       toast.error(`Failed to blank board: ${error.message}`);
@@ -130,6 +131,7 @@ export function DebugSettings() {
     mutationFn: (code: number) => api.fillBoard(code),
     onSuccess: (data) => {
       toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ["status"] });
     },
     onError: (error: Error) => {
       toast.error(`Failed to fill board: ${error.message}`);
@@ -141,6 +143,7 @@ export function DebugSettings() {
     mutationFn: api.showDebugInfo,
     onSuccess: (data) => {
       toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ["status"] });
     },
     onError: (error: Error) => {
       toast.error(`Failed to show debug info: ${error.message}`);

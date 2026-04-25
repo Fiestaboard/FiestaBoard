@@ -11,6 +11,7 @@ import re
 
 
 DayPattern = Literal["all", "weekdays", "weekends", "custom"]
+TimeType = Literal["fixed", "sunrise", "sunset"]
 
 VALID_DAYS = [
     "monday", "tuesday", "wednesday", "thursday", 
@@ -41,6 +42,12 @@ class ScheduleEntry(BaseModel):
     day_pattern: DayPattern
     custom_days: Optional[List[str]] = None
     enabled: bool = True
+
+    # Sun schedule fields
+    start_type: TimeType = "fixed"
+    start_sun_offset: int = 0  # minutes (positive = after, negative = before)
+    end_type: TimeType = "fixed"
+    end_sun_offset: int = 0  # minutes (positive = after, negative = before)
 
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -158,6 +165,10 @@ class ScheduleCreate(BaseModel):
     day_pattern: DayPattern
     custom_days: Optional[List[str]] = None
     enabled: bool = True
+    start_type: TimeType = "fixed"
+    start_sun_offset: int = 0
+    end_type: TimeType = "fixed"
+    end_sun_offset: int = 0
 
 
 class ScheduleUpdate(BaseModel):
@@ -169,6 +180,10 @@ class ScheduleUpdate(BaseModel):
     day_pattern: Optional[DayPattern] = None
     custom_days: Optional[List[str]] = None
     enabled: Optional[bool] = None
+    start_type: Optional[TimeType] = None
+    start_sun_offset: Optional[int] = None
+    end_type: Optional[TimeType] = None
+    end_sun_offset: Optional[int] = None
 
 
 class Overlap(BaseModel):

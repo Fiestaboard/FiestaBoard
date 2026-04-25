@@ -184,7 +184,16 @@
       "validationSelectPage": "Please select a page",
       "validationEndTimeDifferent": "End time must be different from start time",
       "validationSelectDay": "Please select at least one day for custom pattern",
-      "submitError": "Failed to save schedule"
+      "submitError": "Failed to save schedule",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "startTimeType": "Start time type",
+      "endTimeType": "End time type",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "minutes (+ after, − before)",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

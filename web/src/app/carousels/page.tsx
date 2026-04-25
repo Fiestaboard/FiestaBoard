@@ -158,6 +158,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
         <Select
           value={String(intervalSeconds)}
           onValueChange={(v) => setIntervalSeconds(Number(v))}
+          modal={false}
         >
           <SelectTrigger>
             <SelectValue />

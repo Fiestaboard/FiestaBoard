@@ -75,6 +75,9 @@ export default function PluginDetailPage() {
       toast.success(`${entry?.name ?? pluginId} installed and enabled`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       router.push("/integrations?tab=installed");
     },
     onError: (err) => {

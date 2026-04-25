@@ -5,6 +5,7 @@ import { TransitionSettings } from "@/components/settings/transition-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
 import { SystemUpdate } from "@/components/settings/system-update";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
+import { LocationSettingsCard } from "@/components/settings/location-settings";
 import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,10 @@ export default function SettingsPage() {
 
         <div className="animate-card-fade-in" style={{ animationDelay: "400ms" }}>
           <MqttSettingsCard />
+        </div>
+
+        <div className="animate-card-fade-in" style={{ animationDelay: "440ms" }}>
+          <LocationSettingsCard />
         </div>
 
         <div className="animate-card-fade-in overflow-hidden" style={{ animationDelay: "480ms" }}>

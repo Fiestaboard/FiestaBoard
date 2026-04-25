@@ -101,6 +101,12 @@ def mock_settings_service():
         display.to_dict.return_value = {"reduce_motion": False}
         ss.get_display_settings.return_value = display
 
+        location = Mock()
+        location.latitude = None
+        location.longitude = None
+        location.to_dict.return_value = {"latitude": None, "longitude": None}
+        ss.get_location_settings.return_value = location
+
         mock_get.return_value = ss
         yield ss
 

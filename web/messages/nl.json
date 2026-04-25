@@ -184,7 +184,16 @@
       "validationSelectPage": "Selecteer een pagina",
       "validationEndTimeDifferent": "Eindtijd moet verschillen van de starttijd",
       "validationSelectDay": "Selecteer minstens één dag voor een aangepast patroon",
-      "submitError": "Planning opslaan mislukt"
+      "submitError": "Planning opslaan mislukt",
+      "timeTypeFixed": "Fixed Time",
+      "timeTypeSunrise": "Sunrise",
+      "timeTypeSunset": "Sunset",
+      "startTimeType": "Start time type",
+      "endTimeType": "End time type",
+      "sunOffset": "Offset (minutes)",
+      "sunOffsetHint": "Positive = after, negative = before",
+      "resolvedTime": "Today: {time}",
+      "locationRequired": "Set your location in Settings to use sunrise/sunset schedules"
     }
   },
   "integrations": {

@@ -430,6 +430,27 @@ jobs:
           WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
           WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
 
+      # ── Visual regression tests ───────────────────────────────────
+      # Runs visual-regression.spec.ts against the first worker container
+      # only (15 screenshot tests don't benefit from per-worker sharding).
+      # `continue-on-error: true` keeps PRs unblocked while baseline
+      # snapshots are being bootstrapped — generated snapshots are
+      # uploaded as artifacts so maintainers can download and commit
+      # them. Once committed, this step compares against the baseline
+      # using the 0.3% pixel threshold defined in the spec file.
+      - name: Run visual regression tests
+        id: visual-regression
+        working-directory: web
+        continue-on-error: true
+        run: npx playwright test visual-regression.spec.ts --reporter=github --workers=1
+        env:
+          CI: true
+          RUN_VISUAL_REGRESSION: "1"
+          PLAYWRIGHT_OUTPUT_DIR: playwright-visual-results
+          WORKER_URLS: ${{ env.WORKER_URLS }}
+          WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
+          WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
+
       - name: Stop containers
         if: always()
         run: |
@@ -444,6 +465,24 @@ jobs:
           name: playwright-results
           path: web/playwright-test-results/
           retention-days: 7
+
+      - name: Upload visual regression results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: visual-regression-results
+          path: web/playwright-visual-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload visual regression snapshots
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: visual-regression-snapshots
+          path: web/tests/visual-regression.spec.ts-snapshots/
+          retention-days: 30
+          if-no-files-found: ignore
 
   build:
     name: Build Verification
@@ -504,3 +543,18 @@ jobs:
     - name: Build Docusaurus site
       working-directory: docs-site
       run: npm run build
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test-platform, test-plugins, test-ui, a11y-tests, e2e-tests, build, build-docs]
+    if: always()
+    steps:
+      - name: Check all jobs passed or were skipped
+        run: |
+          results='${{ toJSON(needs.*.result) }}'
+          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
+            echo "❌ One or more CI jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "✅ All CI jobs passed or were skipped"

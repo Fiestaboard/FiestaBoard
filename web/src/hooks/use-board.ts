@@ -13,6 +13,7 @@ export const queryKeys = {
   pagePreview: (pageId: string) => ["pagePreview", pageId] as const,
   boardSettings: ["boardSettings"] as const,
   carousels: ["carousels"] as const,
+  schedules: (boardId: string) => ["schedules", boardId] as const,
 };
 
 // Status query - refetches every 15 seconds

@@ -970,6 +970,8 @@ function PluginCard({
       await api.updatePluginConfig(plugin.id, configValues);
       toast.success(`${plugin.name} configuration saved`);
       onConfigUpdate();
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setIsConfigOpen(false);
     } catch (error) {
       toast.error(`Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -988,6 +990,7 @@ function PluginCard({
       toast.success(`Demo page ${verb} for ${plugin.name}`);
       queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pages"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setShowDemoConfirm(false);
     } catch (error) {
       toast.error(
@@ -1648,6 +1651,9 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} installed and enabled`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setActiveTab("installed");
     } catch (err) {
       toast.error(`Failed to install ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -1663,6 +1669,9 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} uninstalled`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
       toast.error(`Failed to uninstall ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -1677,6 +1686,9 @@ export default function IntegrationsPage() {
       toast.success(`${pluginId} updated successfully`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
       toast.error(`Failed to update ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -1697,6 +1709,9 @@ export default function IntegrationsPage() {
       }
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
       toast.error(`Update all failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -1716,6 +1731,9 @@ export default function IntegrationsPage() {
       toast.success(`${result.plugin_id} installed from git`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setGitDialogOpen(false);
       setActiveTab("installed");
       setGitUrl("");
