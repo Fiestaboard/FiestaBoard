@@ -215,25 +215,21 @@ test.describe("Schedule Management", () => {
       timeout: 10_000,
     });
 
-    // Click delete button
-    const deleteBtn = page.getByRole("button", { name: /delete/i }).first();
-    if (await deleteBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await deleteBtn.click();
+    // Click the Delete button (aria-label includes "Delete schedule for")
+    const deleteBtn = page.getByRole("button", { name: /delete schedule for/i }).first();
+    await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
+    await deleteBtn.click();
 
-      // Confirm deletion (scoped to the alertdialog to avoid matching row buttons)
-      const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
-      if (
-        await confirmBtn.isVisible({ timeout: 3_000 }).catch(() => false)
-      ) {
-        await confirmBtn.click();
-      }
+    // Confirm deletion (scoped to the alertdialog to avoid matching row buttons)
+    const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
+    await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
+    await confirmBtn.click();
 
-      // Verify via API
-      await page.waitForTimeout(1_000);
-      const res = await fetch(`${API_URL}/schedules`);
-      const data = await res.json();
-      expect(data.total).toBe(0);
-    }
+    // Verify via API
+    await page.waitForTimeout(1_000);
+    const res = await fetch(`${API_URL}/schedules`);
+    const data = await res.json();
+    expect(data.total).toBe(0);
   });
 
   test("can set the default page", async ({ page }) => {
