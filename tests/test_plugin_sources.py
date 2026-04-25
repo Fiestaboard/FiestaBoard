@@ -216,7 +216,9 @@ class TestGitUrlValidation:
 
 class TestCloneOrUpdateRepo:
     @mock.patch("src.plugins.sources.subprocess.run")
-    def test_clone_fresh(self, mock_run, tmp_path):
+    @mock.patch("src.plugins.sources.get_external_plugins_dir")
+    def test_clone_fresh(self, mock_ext_dir, mock_run, tmp_path):
+        mock_ext_dir.return_value = tmp_path
         dest = tmp_path / "my_plugin"
         ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
         assert ok
@@ -226,8 +228,10 @@ class TestCloneOrUpdateRepo:
         assert "clone" in cmd
 
     @mock.patch("src.plugins.sources.subprocess.run")
-    def test_fetch_reset_existing(self, mock_run, tmp_path):
+    @mock.patch("src.plugins.sources.get_external_plugins_dir")
+    def test_fetch_reset_existing(self, mock_ext_dir, mock_run, tmp_path):
         """Update path uses fetch+reset, not pull, and works without a URL."""
+        mock_ext_dir.return_value = tmp_path
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()  # Simulate existing shallow clone
@@ -244,8 +248,10 @@ class TestCloneOrUpdateRepo:
         assert "FETCH_HEAD" in reset_cmd
 
     @mock.patch("src.plugins.sources.subprocess.run")
-    def test_update_does_not_require_url(self, mock_run, tmp_path):
+    @mock.patch("src.plugins.sources.get_external_plugins_dir")
+    def test_update_does_not_require_url(self, mock_ext_dir, mock_run, tmp_path):
         """Passing an empty or invalid URL is fine when the clone already exists."""
+        mock_ext_dir.return_value = tmp_path
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()
@@ -256,7 +262,9 @@ class TestCloneOrUpdateRepo:
         "src.plugins.sources.subprocess.run",
         side_effect=subprocess.SubprocessError("network error"),
     )
-    def test_clone_failure(self, mock_run, tmp_path):
+    @mock.patch("src.plugins.sources.get_external_plugins_dir")
+    def test_clone_failure(self, mock_ext_dir, mock_run, tmp_path):
+        mock_ext_dir.return_value = tmp_path
         dest = tmp_path / "fail_plugin"
         ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
         assert not ok
@@ -266,8 +274,10 @@ class TestCloneOrUpdateRepo:
         "src.plugins.sources.subprocess.run",
         side_effect=subprocess.SubprocessError("fetch failed"),
     )
-    def test_update_failure(self, mock_run, tmp_path):
+    @mock.patch("src.plugins.sources.get_external_plugins_dir")
+    def test_update_failure(self, mock_ext_dir, mock_run, tmp_path):
         """Fetch failure in the update path is surfaced as an error."""
+        mock_ext_dir.return_value = tmp_path
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()
@@ -275,12 +285,37 @@ class TestCloneOrUpdateRepo:
         assert not ok
         assert "fetch" in err.lower() or "failed" in err.lower()
 
-    def test_rejects_ssh_url_for_fresh_clone(self, tmp_path):
+    @mock.patch("src.plugins.sources.get_external_plugins_dir")
+    def test_rejects_ssh_url_for_fresh_clone(self, mock_ext_dir, tmp_path):
         """SSH URLs are rejected only for fresh clones (URL validation skipped for updates)."""
+        mock_ext_dir.return_value = tmp_path
         dest = tmp_path / "ssh_plugin"
         ok, err = clone_or_update_repo("git@github.com:Org/repo.git", dest)
         assert not ok
         assert "HTTPS" in err
+
+    def test_rejects_dest_outside_external_plugins_dir(self, tmp_path):
+        """Destination outside the external plugins directory is rejected."""
+        other_dir = tmp_path / "other"
+        other_dir.mkdir()
+        ext_dir = tmp_path / "external_plugins"
+        ext_dir.mkdir()
+        dest = other_dir / "my_plugin"
+        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=ext_dir):
+            ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
+        assert not ok
+        assert "outside" in err.lower()
+
+    def test_rejects_path_traversal_via_dest(self, tmp_path):
+        """A dest_dir that escapes via '..' is caught by the containment check."""
+        ext_dir = tmp_path / "external_plugins"
+        ext_dir.mkdir()
+        # Construct a path that appears to be inside external_plugins but resolves outside
+        dest = ext_dir / ".." / "escaped"
+        with mock.patch("src.plugins.sources.get_external_plugins_dir", return_value=ext_dir):
+            ok, err = clone_or_update_repo("https://github.com/Org/repo", dest)
+        assert not ok
+        assert "outside" in err.lower()
 
 
 # ── install helpers ──────────────────────────────────────────────────────────
