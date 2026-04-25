@@ -108,6 +108,7 @@ FiestaBoard has **26 built-in plugins** covering weather, finance, transit, spor
 | [Bay Wheels](https://github.com/Fiestaboard/fiestaboard-plugin--baywheels) | Bike availability at stations | No |
 | [Countdown](./plugins/countdown/README.md) | Time remaining until an event | No |
 | [Date & Time](./plugins/date_time/README.md) | Current date/time in many formats | No |
+| [Random](./plugins/random/README.md) | Randomly selected values from a custom list, coin flip, or board color | No |
 | [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
 | [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
 | [Allergy & Health](https://github.com/Fiestaboard/fiestaboard-plugin--health) | Allergy levels and health risk indicators | No |
