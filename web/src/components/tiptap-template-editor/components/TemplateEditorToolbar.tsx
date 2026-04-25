@@ -6,7 +6,7 @@
 
 import { Editor } from '@tiptap/react';
 import { useQuery } from '@tanstack/react-query';
-import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste, Download } from 'lucide-react';
 import { api } from '@/lib/api';
 import { insertTemplateContent } from '../utils/insertion';
 import { ToolbarDropdown } from './ToolbarDropdown';
@@ -27,6 +27,8 @@ interface TemplateEditorToolbarProps {
   onWrapToggle?: () => void;
   className?: string;
   deviceType?: DeviceType;
+  onSyncFromBoard?: () => void;
+  syncFromBoardPending?: boolean;
 }
 
 export function TemplateEditorToolbar({
@@ -37,6 +39,8 @@ export function TemplateEditorToolbar({
   onWrapToggle,
   className,
   deviceType,
+  onSyncFromBoard,
+  syncFromBoardPending = false,
 }: TemplateEditorToolbarProps) {
   const { data: templateVars } = useQuery({
     queryKey: ["template-variables"],
@@ -172,6 +176,34 @@ export function TemplateEditorToolbar({
           className
         )}
       >
+        {/* Sync from Board — only rendered when the parent passes the handler (new pages only) */}
+        {onSyncFromBoard && (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onSyncFromBoard}
+                  disabled={syncFromBoardPending}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1.5 rounded-md text-xs transition-colors",
+                    "border border-border hover:bg-muted/50",
+                    syncFromBoardPending && "opacity-60 cursor-not-allowed"
+                  )}
+                  aria-label="Sync from current board display"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {syncFromBoardPending ? "Syncing…" : "Sync from Board"}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Populate template from what&apos;s currently displayed on the board</p>
+              </TooltipContent>
+            </Tooltip>
+            <div className="h-6 w-px bg-border mx-1" />
+          </>
+        )}
+
         {/* Undo/Redo Controls */}
         <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>

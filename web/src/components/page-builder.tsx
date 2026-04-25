@@ -28,7 +28,6 @@ import {
   Save,
   Trash2,
   Radio,
-  Download,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -935,32 +934,6 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
               />
             </div>
 
-            {/* Sync from current board display - only for new pages */}
-            {!pageId && (
-              <div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs"
-                        onClick={() => syncFromBoardMutation.mutate()}
-                        disabled={syncFromBoardMutation.isPending}
-                        aria-label="Sync from current board display"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        {syncFromBoardMutation.isPending ? "Syncing..." : "Sync from Board"}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Populate template from what&apos;s currently displayed on the board</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
-
             {/* Template line editors */}
             <div className="space-y-3">
               {editorMode === "rich" ? (
@@ -1032,6 +1005,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     boardWidth={dims.cols}
                     boardLines={numLines}
                     deviceType={deviceType}
+                    onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                    syncFromBoardPending={syncFromBoardMutation.isPending}
                   />
                 </div>
               ) : (
