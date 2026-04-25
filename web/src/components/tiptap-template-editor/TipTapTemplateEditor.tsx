@@ -94,6 +94,8 @@ interface TipTapTemplateEditorProps {
   boardLines?: number; // Total lines (default: 6 for flagship)
   onLineCountChange?: (lineCount: number) => void; // Reports current line count for validation
   deviceType?: import('@/lib/api').DeviceType; // Device type for device-specific features
+  onSyncFromBoard?: () => void; // Callback to populate template from current board display
+  syncFromBoardPending?: boolean; // True while the sync mutation is in flight
 }
 
 /**
@@ -115,6 +117,8 @@ export function TipTapTemplateEditor({
   boardLines = BOARD_LINES,
   onLineCountChange,
   deviceType,
+  onSyncFromBoard,
+  syncFromBoardPending = false,
 }: TipTapTemplateEditorProps) {
   // Use device-aware defaults when props not provided
   const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
@@ -855,6 +859,8 @@ export function TipTapTemplateEditor({
             handleWrapClick();
           }}
           deviceType={deviceType}
+          onSyncFromBoard={onSyncFromBoard}
+          syncFromBoardPending={syncFromBoardPending}
         />
       )}
       

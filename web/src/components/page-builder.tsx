@@ -510,6 +510,41 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     },
   });
 
+  // Sync from current board display mutation (new pages only)
+  const syncFromBoardMutation = useMutation({
+    mutationFn: () => api.getCurrentDisplay(),
+    onSuccess: (data) => {
+      const lines = data.template || [];
+      setTemplateLines(lines);
+      setDebouncedTemplateLines(lines);
+
+      if (data.line_metadata) {
+        const alignments = data.line_metadata.map((m) => m.alignment);
+        const wraps = data.line_metadata.map((m) => m.wrap);
+        setLineAlignments(alignments);
+        setLineWrapEnabled(wraps);
+        setDebouncedLineAlignments(alignments);
+        setDebouncedLineWrapEnabled(wraps);
+      } else {
+        const defaults = lines.map(() => "left" as LineAlignment);
+        const defaultWraps = lines.map(() => false);
+        setLineAlignments(defaults);
+        setLineWrapEnabled(defaultWraps);
+        setDebouncedLineAlignments(defaults);
+        setDebouncedLineWrapEnabled(defaultWraps);
+      }
+
+      if (data.device_type) {
+        setDeviceType(data.device_type);
+      }
+
+      toast.success(`Synced from "${data.page_name}"`);
+    },
+    onError: () => {
+      toast.error("No active display to sync from");
+    },
+  });
+
   // Preview mutation
   const previewMutation = useMutation({
     mutationFn: async () => {
@@ -970,6 +1005,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     boardWidth={dims.cols}
                     boardLines={numLines}
                     deviceType={deviceType}
+                    onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                    syncFromBoardPending={syncFromBoardMutation.isPending}
                   />
                 </div>
               ) : (
