@@ -15,13 +15,33 @@ interface ScheduleListViewProps {
   onDelete: (id: string) => void;
 }
 
+const DAY_ABBREVIATIONS: Record<string, string> = {
+  monday: "Mon",
+  mon: "Mon",
+  tuesday: "Tue",
+  tue: "Tue",
+  wednesday: "Wed",
+  wed: "Wed",
+  thursday: "Thu",
+  thu: "Thu",
+  friday: "Fri",
+  fri: "Fri",
+  saturday: "Sat",
+  sat: "Sat",
+  sunday: "Sun",
+  sun: "Sun",
+};
+
 function formatDays(schedule: ScheduleEntry): string {
   if (schedule.day_pattern === "all") return "All days";
   if (schedule.day_pattern === "weekdays") return "Mon-Fri";
   if (schedule.day_pattern === "weekends") return "Sat-Sun";
   if (schedule.day_pattern === "custom" && schedule.custom_days) {
     return schedule.custom_days
-      .map((d) => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3))
+      .map((d) => {
+        const trimmed = d.trim();
+        return DAY_ABBREVIATIONS[trimmed.toLowerCase()] ?? trimmed;
+      })
       .join(", ");
   }
   return "";
@@ -110,7 +130,7 @@ export function ScheduleListView({
                       size="sm"
                       variant="ghost"
                       onClick={() => onEdit(schedule)}
-                      aria-label="Edit"
+                      aria-label={`Edit schedule for ${pageName}`}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -118,7 +138,7 @@ export function ScheduleListView({
                       size="sm"
                       variant="ghost"
                       onClick={() => onDelete(schedule.id)}
-                      aria-label="Delete"
+                      aria-label={`Delete schedule for ${pageName}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
