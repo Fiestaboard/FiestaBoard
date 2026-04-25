@@ -590,6 +590,9 @@ class TestPluginManagement:
 # ---------------------------------------------------------------------------
 
 class TestGenericDataTestFetch:
+    # Public IP returned by the mocked DNS resolver (93.184.216.34 = example.com)
+    _PUBLIC_ADDR_INFO = [(None, None, None, None, ("93.184.216.34", 443))]
+
     def test_fetch_json_success(self, client):
         mock_resp = Mock()
         mock_resp.raise_for_status.return_value = None
@@ -599,6 +602,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {"timezone": "UTC"}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data", "format": "json"})
         assert resp.status_code == 200
@@ -626,6 +630,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", side_effect=req.exceptions.Timeout("timeout")):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/slow"})
         assert resp.status_code == 504
@@ -636,6 +641,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", side_effect=req.exceptions.ConnectionError("conn")):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/bad"})
         assert resp.status_code == 502
@@ -648,6 +654,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/big"})
         assert resp.status_code == 400
@@ -661,6 +668,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={
                 "url": "https://api.example.com/data",
