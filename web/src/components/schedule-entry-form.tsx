@@ -210,10 +210,10 @@ export function ScheduleEntryForm({
       <div className="space-y-4">
         {/* Start Time */}
         <div className="space-y-2">
-          <Label id="start-time-label" htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
+          <Label htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
           <div className="flex gap-2">
             <Select value={startType} onValueChange={(v) => setStartType(v as TimeType)}>
-              <SelectTrigger className="w-[140px]" aria-labelledby="start-time-label">
+              <SelectTrigger className="w-[140px]" aria-label={t("scheduleEntryForm.startTimeType")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -270,10 +270,10 @@ export function ScheduleEntryForm({
         {/* End Time */}
         {hasEndTime && (
           <div className="space-y-2">
-            <Label id="end-time-label" htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
+            <Label htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
             <div className="flex gap-2">
               <Select value={endType} onValueChange={(v) => setEndType(v as TimeType)}>
-                <SelectTrigger className="w-[140px]" aria-labelledby="end-time-label">
+                <SelectTrigger className="w-[140px]" aria-label={t("scheduleEntryForm.endTimeType")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
