@@ -410,6 +410,12 @@ def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
         ok, _ = _validate_git_url(remote_url)
         if not ok:
             return None
+        # Re-derive remote_url from a regex match so the subprocess sink
+        # does not see it as tainted (CodeQL py/command-line-injection).
+        _url_m = re.fullmatch(r"https://[^\x00-\x1f\s\"'<>\\]+", remote_url)
+        if not _url_m:
+            return None
+        remote_url = _url_m.group(0)
 
         # Determine the default branch name tracked locally
         branch_result = subprocess.run(
@@ -419,8 +425,12 @@ def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
         branch = branch_result.stdout.strip() or "main"
         # Allow only characters that are legal in git branch names and safe
         # as subprocess arguments (prevents argument injection).
-        if not re.match(r'^[A-Za-z0-9_./-]+$', branch):
+        # Re-derive branch from the match result so the subprocess sink
+        # does not see it as tainted (CodeQL py/command-line-injection).
+        _branch_m = re.match(r'^[A-Za-z0-9_./-]+$', branch)
+        if not _branch_m:
             return None
+        branch = _branch_m.group(0)
 
         # Query the remote for the latest SHA
         ls_result = subprocess.run(
