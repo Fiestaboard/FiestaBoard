@@ -32,6 +32,24 @@ xz -d fiestapi-<version>-arm64.img.xz
 sudo dd if=fiestapi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=progress
 ```
 
+### Adding Wi-Fi credentials after flashing
+
+If you flashed with `dd` or Balena Etcher (no gear-icon customization), you can still configure Wi-Fi headlessly by dropping a plain-text file onto the SD card's boot partition before the first boot. The boot partition is the small FAT32 partition — it shows up as a drive called **`bootfs`** on Windows and macOS without any special tools.
+
+1. Open the `bootfs` drive that appeared when you plugged in the SD card.
+2. Create a file named **`fiestapi-wifi.txt`** with the following content:
+
+   ```
+   SSID=YourNetworkName
+   PASSWORD=YourPassword
+   ```
+
+3. Save the file, eject the SD card, and insert it into the Pi.
+
+On first boot FiestaPi reads the file, connects to Wi-Fi, and **immediately deletes the file** so your credentials don't sit on the readable FAT partition. For open (password-free) networks, omit the `PASSWORD` line.
+
+> **Tip:** This works alongside Raspberry Pi Imager — if you used the gear icon, there's no need for this file.
+
 ## 3. First boot
 
 1. Insert the SD card into your Pi.
