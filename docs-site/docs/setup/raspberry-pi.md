@@ -52,6 +52,28 @@ xz -d fiestapi-<version>-arm64.img.xz
 sudo dd if=fiestapi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=progress
 ```
 
+### Adding Wi-Fi credentials without Raspberry Pi Imager
+
+If you flashed with Balena Etcher or `dd` and didn't set Wi-Fi credentials during flashing, you can still configure Wi-Fi headlessly — no keyboard or monitor needed.
+
+After flashing, plug the SD card back into your computer. A small FAT32 drive called **`bootfs`** will appear (visible from any OS without special tools).
+
+1. Create a file called **`fiestapi-wifi.txt`** in the root of the `bootfs` drive
+2. Paste in your Wi-Fi details:
+
+   ```
+   SSID=YourNetworkName
+   ******
+   ```
+
+3. Save the file and eject the SD card
+
+On first boot FiestaPi reads the file, connects to Wi-Fi, and **immediately deletes the file** so your credentials are never left sitting on the readable FAT partition. For open (password-free) networks, omit the `PASSWORD` line entirely.
+
+:::tip Already used Raspberry Pi Imager's OS customisation?
+If you already entered Wi-Fi credentials via Imager's settings screen, the `fiestapi-wifi.txt` file isn't needed — Imager handles it for you.
+:::
+
 ## Step 3 — Boot your Pi
 
 1. Insert the microSD card into your Pi
@@ -93,7 +115,7 @@ On first SSH login, run `passwd` to set a strong password.
 
 ## Troubleshooting
 
-**Pi won't connect to Wi-Fi** — Re-flash and use Raspberry Pi Imager's OS customisation to set Wi-Fi credentials before writing. Or plug in an Ethernet cable for first boot.
+**Pi won't connect to Wi-Fi** — If you didn't set Wi-Fi credentials in Raspberry Pi Imager, drop a `fiestapi-wifi.txt` file on the `bootfs` partition (see [Adding Wi-Fi credentials without Raspberry Pi Imager](#adding-wi-fi-credentials-without-raspberry-pi-imager) above). Alternatively, re-flash using Raspberry Pi Imager's Edit Settings screen to pre-configure Wi-Fi. Or plug in an Ethernet cable and set Wi-Fi up later via SSH.
 
 **FiestaBoard isn't starting** — SSH in (`ssh fiesta@fiestapi.local`) and check logs: `docker logs fiestaboard`. If Docker images haven't pulled yet, wait another minute.
 
