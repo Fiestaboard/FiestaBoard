@@ -202,16 +202,23 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     liveOutputEnabledRef.current = liveOutputEnabled;
   }, [liveOutputEnabled]);
 
-  // Restore board display when component unmounts if live output was active
+  // Restore board display when component unmounts if live output was active.
+  // Also clear the shared live-output cache + localStorage so the Home page
+  // does not stay stuck on a pulsing "Live Mode" badge after navigation.
+  // Without this, the inactivity timeout (which is bound to this component's
+  // lifetime) never gets a chance to fire after unmount, leaving the live
+  // state set indefinitely.
   useEffect(() => {
     return () => {
       if (liveOutputEnabledRef.current) {
+        queryClient.setQueryData(["liveOutputMessage"], null);
+        writeLiveOutputMessage(null);
         api.forceRefresh().catch(() => {
           // Silently ignore errors during cleanup
         });
       }
     };
-  }, []);
+  }, [queryClient]);
 
   // Track if we need to re-preview after current mutation completes
   const needsRePreview = useRef(false);
