@@ -545,6 +545,7 @@ class TestSSRFProtection:
         mock_resp.json.return_value = {"ok": True}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["93.184.216.34"]), \
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://93.184.216.34/api"})
         assert resp.status_code == 200
@@ -556,6 +557,7 @@ class TestSSRFProtection:
         mock_resp.json.return_value = {"ok": True}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]), \
              patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})

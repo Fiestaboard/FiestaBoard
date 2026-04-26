@@ -607,6 +607,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {"timezone": "UTC"}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]), \
              patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data", "format": "json"})
@@ -635,6 +636,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]), \
              patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", side_effect=req.exceptions.Timeout("timeout")):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/slow"})
@@ -646,6 +648,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]), \
              patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", side_effect=req.exceptions.ConnectionError("conn")):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/bad"})
@@ -673,6 +676,7 @@ class TestGenericDataTestFetch:
         mock_cm.get_general.return_value = {}
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]), \
              patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={

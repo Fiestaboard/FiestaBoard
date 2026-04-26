@@ -11,6 +11,7 @@ import re
 import requests
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
+from urllib.parse import urlparse
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -140,6 +141,30 @@ def _validate_request_url(
             resolved_ip = info[4][0]
             if _is_non_public_ip(resolved_ip):
                 raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
+
+
+def _get_generic_data_allowed_hosts() -> List[str]:
+    """Return normalized allowlisted hosts for generic-data test fetch.
+
+    Reads comma-separated hostnames from ``GENERIC_DATA_ALLOWED_HOSTS``.
+    Empty value means no hosts are allowed.
+    """
+    raw = os.getenv("GENERIC_DATA_ALLOWED_HOSTS", "")
+    hosts = []
+    for part in raw.split(","):
+        h = part.strip().lower().rstrip(".")
+        if h:
+            hosts.append(h)
+    return hosts
+
+
+def _is_host_allowed(host: str, allowed_hosts: List[str]) -> bool:
+    """Check whether host is exactly allowed or a subdomain of an allowed host."""
+    h = (host or "").strip().lower().rstrip(".")
+    for allowed in allowed_hosts:
+        if h == allowed or h.endswith("." + allowed):
+            return True
+    return False
 
 
 # Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
@@ -5945,6 +5970,19 @@ async def generic_data_test_fetch(request: dict):
     if not _safe_url_m:
         raise HTTPException(status_code=400, detail="URL contains unexpected characters")
     url = _safe_url_m.group(0)
+
+    host = urlparse(url).hostname or ""
+    allowed_hosts = _get_generic_data_allowed_hosts()
+    if not allowed_hosts:
+        raise HTTPException(
+            status_code=400,
+            detail="No allowed hosts configured for generic-data test fetch",
+        )
+    if not _is_host_allowed(host, allowed_hosts):
+        raise HTTPException(
+            status_code=400,
+            detail="URL host is not in the allowlist",
+        )
 
     headers: dict = {
         "Accept": "application/json" if fmt == "json" else "application/xml",
