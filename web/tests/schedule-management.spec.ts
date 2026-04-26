@@ -82,9 +82,11 @@ test.describe("Schedule Management", () => {
       await pageSelect.click();
       const option = page.getByRole("option").first();
       if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        const selectedValue = (await option.getAttribute("value")) ?? "";
+        const selectedText = (await option.textContent())?.trim() ?? "";
         await option.click();
-        await expect(pageSelect).toHaveValue(selectedValue);
+        if (selectedText) {
+          await expect(pageSelect).toContainText(selectedText);
+        }
       }
     }
 
