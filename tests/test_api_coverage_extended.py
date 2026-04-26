@@ -198,13 +198,13 @@ class TestBayWheelsStations:
 class TestMuniStops:
     @pytest.fixture(autouse=True)
     def clear_muni_stops_cache(self, monkeypatch):
-        """Ensure function-level cache used by list_all_muni_stops is reset per test."""
-        from src.api_server import list_all_muni_stops
-        monkeypatch.delattr(list_all_muni_stops, "_muni_stops_cache", raising=False)
-        monkeypatch.delattr(list_all_muni_stops, "_muni_stops_cache_time", raising=False)
+        """Ensure module-level cache used by list_all_muni_stops is reset per test."""
+        import src.api_server as _api_server
+        monkeypatch.setattr(_api_server, "_muni_stops_cache", None)
+        monkeypatch.setattr(_api_server, "_muni_stops_cache_time", 0.0)
         yield
-        monkeypatch.delattr(list_all_muni_stops, "_muni_stops_cache", raising=False)
-        monkeypatch.delattr(list_all_muni_stops, "_muni_stops_cache_time", raising=False)
+        monkeypatch.setattr(_api_server, "_muni_stops_cache", None)
+        monkeypatch.setattr(_api_server, "_muni_stops_cache_time", 0.0)
 
     def test_list_muni_stops(self, client):
         api_response = Mock()
