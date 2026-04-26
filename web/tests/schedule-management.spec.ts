@@ -131,7 +131,7 @@ test.describe("Schedule Management", () => {
       const start = String(s?.start_time ?? "");
       const end = String(s?.end_time ?? "");
       return (
-        Number(s?.page_id) === Number(pageId) &&
+        String(s?.page_id) === String(pageId) &&
         start.startsWith("08:00") &&
         end.startsWith("17:00")
       );

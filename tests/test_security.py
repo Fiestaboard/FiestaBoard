@@ -507,14 +507,32 @@ class TestSSRFProtection:
         assert resp.status_code == 400
 
     def test_allows_uppercase_http_scheme(self, client, mock_cm):
-        with patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO):
-            resp = self._post(client, "HTTP://example.com/data", mock_cm)
-        assert resp.status_code != 400
+        # Use a public IP directly to avoid DNS resolution (which can behave
+        # differently across Python versions); mock the outbound request so the
+        # test is fully hermetic.
+        mock_resp = Mock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = b'{"ok": true}'
+        mock_resp.json.return_value = {"ok": True}
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("requests.request", return_value=mock_resp):
+            resp = client.post("/generic-data/test-fetch", json={"url": "HTTP://93.184.216.34/data"})
+        assert resp.status_code == 200
 
     def test_allows_mixed_case_https_scheme(self, client, mock_cm):
-        with patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO):
-            resp = self._post(client, "HtTpS://example.com/data", mock_cm)
-        assert resp.status_code != 400
+        # Use a public IP directly to avoid DNS resolution (which can behave
+        # differently across Python versions); mock the outbound request so the
+        # test is fully hermetic.
+        mock_resp = Mock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = b'{"ok": true}'
+        mock_resp.json.return_value = {"ok": True}
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("requests.request", return_value=mock_resp):
+            resp = client.post("/generic-data/test-fetch", json={"url": "HtTpS://93.184.216.34/data"})
+        assert resp.status_code == 200
 
     def test_rejects_scheme_relative_url(self, client, mock_cm):
         resp = self._post(client, "//example.com/path", mock_cm)
