@@ -9,13 +9,16 @@ Covers:
 - refresh_seconds rate-limit bypass attempts
 """
 
-import socket
-
 import pytest
 from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+
+
+def _make_addr_info(ip: str, port: int = 80):
+    """Build a minimal getaddrinfo-like return value for tests."""
+    return [(None, None, None, None, (ip, port))]
 
 
 @pytest.fixture
@@ -443,8 +446,10 @@ class TestRefreshSecondsBypass:
 class TestSSRFProtection:
     """Tests that _validate_request_url blocks SSRF targets via /generic-data/test-fetch."""
 
-    # Public IP used in DNS mocks: 93.184.216.34 is the well-known example.com address
-    _PUBLIC_ADDR_INFO = [(None, None, None, None, ("93.184.216.34", 443))]
+    # Public IP used in DNS mocks: 93.184.216.34 is the well-known example.com address.
+    # socket.getaddrinfo() entry structure: (family, type, proto, canonname, sockaddr)
+    _GETADDRINFO_PUBLIC_HTTPS_ENTRY = (None, None, None, None, ("93.184.216.34", 443))
+    _PUBLIC_ADDR_INFO = [_GETADDRINFO_PUBLIC_HTTPS_ENTRY]
 
     @pytest.fixture
     def mock_cm(self):
@@ -520,7 +525,7 @@ class TestSSRFProtection:
     # --- Blocked: DNS resolves to private IP ---
 
     def test_rejects_domain_resolving_to_private_ip(self, client, mock_cm):
-        private_addr_info = [(None, None, None, None, ("10.0.0.5", 80))]
+        private_addr_info = _make_addr_info("10.0.0.5", 80)
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
              patch("socket.getaddrinfo", return_value=private_addr_info):
@@ -530,6 +535,7 @@ class TestSSRFProtection:
     # --- Blocked: DNS failure ---
 
     def test_rejects_unresolvable_domain(self, client, mock_cm):
+        import socket
         with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
              patch("src.api_server.get_config_manager", return_value=mock_cm), \
              patch("socket.getaddrinfo", side_effect=socket.gaierror("no such host")):
