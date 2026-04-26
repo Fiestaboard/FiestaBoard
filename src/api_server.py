@@ -11,6 +11,7 @@ import re
 import requests
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
+from urllib.parse import urlparse
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -5960,9 +5961,7 @@ async def generic_data_test_fetch(request: dict):
         raise HTTPException(status_code=400, detail="URL contains unexpected characters")
     url = _safe_url_m.group(0)
 
-    from urllib.parse import urlparse
-    parsed_url = urlparse(url)
-    host = (parsed_url.hostname or "").strip().lower().rstrip(".")
+    host = urlparse(url).hostname or ""
     allowed_hosts = _get_generic_data_allowed_hosts()
     if not allowed_hosts:
         raise HTTPException(
