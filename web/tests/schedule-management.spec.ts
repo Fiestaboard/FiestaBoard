@@ -76,15 +76,14 @@ test.describe("Schedule Management", () => {
       page.getByText("Add Schedule").first(),
     ).toBeVisible({ timeout: 10_000 });
 
-    // Select a page
+    // Select the specific page created above
     const pageSelect = page.locator("#page");
     if (await pageSelect.isVisible().catch(() => false)) {
       await pageSelect.click();
-      const option = page.getByRole("option").first();
+      const option = page.getByRole("option", { name: "Schedule Form Test" });
       if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        const selectedPage = (await option.textContent())?.trim() ?? "";
         await option.click();
-        await expect(pageSelect).toContainText(selectedPage);
+        await expect(pageSelect).toContainText("Schedule Form Test");
       }
     }
 
@@ -108,20 +107,26 @@ test.describe("Schedule Management", () => {
       }
     }
 
-    // Submit
+    // Submit and wait for the POST /schedules response before verifying
     const submitBtn = page.getByRole("button", { name: "Create Schedule" });
     await expect(submitBtn).toBeEnabled({ timeout: 3_000 });
+    const createResponse = page.waitForResponse(
+      (r) => r.url().includes("/schedules") && r.request().method() === "POST",
+    );
     await submitBtn.click();
+    await createResponse;
 
     // Verify via API
     const res = await fetch(`${API_URL}/schedules`);
     expect(res.ok).toBe(true);
     const data = await res.json();
-    const schedules = Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data)
-        ? data
-        : [];
+    const schedules = Array.isArray(data?.schedules)
+      ? data.schedules
+      : Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+          ? data
+          : [];
     const createdSchedule = schedules.find((s: any) => {
       const start = String(s?.start_time ?? "");
       const end = String(s?.end_time ?? "");
