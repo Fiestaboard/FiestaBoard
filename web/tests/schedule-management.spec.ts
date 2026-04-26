@@ -76,15 +76,14 @@ test.describe("Schedule Management", () => {
       page.getByText("Add Schedule").first(),
     ).toBeVisible({ timeout: 10_000 });
 
-    // Select a page
+    // Select the page we just created (by name) so we can later assert it on the schedule
     const pageSelect = page.locator("#page");
-    if (await pageSelect.isVisible().catch(() => false)) {
-      await pageSelect.click();
-      const option = page.getByRole("option").first();
-      if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await option.click();
-      }
-    }
+    await expect(pageSelect).toBeVisible();
+    await pageSelect.click();
+    const option = page.getByRole("option", { name: "Schedule Form Test" });
+    await expect(option).toBeVisible({ timeout: 3_000 });
+    await option.click();
+    await expect(pageSelect).toContainText("Schedule Form Test");
 
     // Set start time
     const startTime = page.locator("#start-time");
@@ -108,14 +107,30 @@ test.describe("Schedule Management", () => {
 
     // Submit
     const submitBtn = page.getByRole("button", { name: "Create Schedule" });
-    if (await submitBtn.isEnabled({ timeout: 3_000 }).catch(() => false)) {
-      await submitBtn.click();
-    }
+    await expect(submitBtn).toBeEnabled({ timeout: 3_000 });
+    await submitBtn.click();
 
     // Verify via API
     const res = await fetch(`${API_URL}/schedules`);
+    expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.total).toBeGreaterThan(0);
+    const schedules = Array.isArray(data?.schedules)
+      ? data.schedules
+      : Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+          ? data
+          : [];
+    const createdSchedule = schedules.find((s: any) => {
+      const start = String(s?.start_time ?? "");
+      const end = String(s?.end_time ?? "");
+      return (
+        String(s?.page_id) === String(pageId) &&
+        start.startsWith("08:00") &&
+        end.startsWith("17:00")
+      );
+    });
+    expect(createdSchedule).toBeTruthy();
   });
 
   test("can edit an existing schedule", async ({ page }) => {
@@ -166,7 +181,6 @@ test.describe("Schedule Management", () => {
     const listBtn = page.getByRole("button", { name: /list/i }).first();
     if (await listBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await listBtn.click();
-      await page.waitForTimeout(300);
     }
 
     await expect(page.getByText("10:00").first()).toBeVisible({ timeout: 10_000 });
@@ -183,7 +197,9 @@ test.describe("Schedule Management", () => {
 
     // Close the edit modal (Cancel), then delete from the list row
     await page.getByRole("button", { name: "Cancel" }).click();
-    await page.waitForTimeout(300);
+    await expect(
+      page.getByText("Edit Schedule").first(),
+    ).toBeHidden({ timeout: 5_000 });
 
     // Click the Delete button (aria-label includes "Delete schedule for")
     const rowDeleteBtn = page.getByRole("button", { name: /delete schedule for/i }).first();
@@ -271,7 +287,28 @@ test.describe("Schedule Management", () => {
     expect(res.ok).toBe(true);
     const data = await res.json();
     expect(typeof data).toBe("object");
-    // The validator should detect the overlap
+
+    // The validator should detect and report the overlap.
+    const serialized = JSON.stringify(data).toLowerCase();
+    const hasExplicitOverlapFlag =
+      data?.overlap === true ||
+      data?.has_overlap === true ||
+      data?.hasOverlaps === true;
+    const hasOverlapCollection =
+      (Array.isArray(data?.overlaps) && data.overlaps.length > 0) ||
+      (Array.isArray(data?.errors) &&
+        data.errors.some((e: unknown) =>
+          String(e).toLowerCase().includes("overlap"),
+        )) ||
+      (Array.isArray(data?.warnings) &&
+        data.warnings.some((w: unknown) =>
+          String(w).toLowerCase().includes("overlap"),
+        ));
+    const mentionsOverlapText = serialized.includes("overlap");
+
+    expect(
+      hasExplicitOverlapFlag || hasOverlapCollection || mentionsOverlapText,
+    ).toBe(true);
   });
 
   test("schedule respects day patterns", async () => {
