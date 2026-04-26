@@ -68,6 +68,12 @@ def _validate_request_url(
 
     if not isinstance(url, str) or not url:
         raise HTTPException(status_code=400, detail="URL is required")
+    # Normalise the scheme to lowercase before parsing.  RFC 3986 §3.1
+    # declares schemes case-insensitive; Python's urlparse lowercases the
+    # scheme on most platforms, but Ubuntu's CPython may not in all cases.
+    colon_slash = url.find("://")
+    if colon_slash > 0:
+        url = url[:colon_slash].lower() + url[colon_slash:]
     try:
         parsed = urlparse(url)
     except ValueError:
