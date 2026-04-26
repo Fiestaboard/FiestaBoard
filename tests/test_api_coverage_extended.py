@@ -197,12 +197,10 @@ class TestBayWheelsStations:
 
 class TestMuniStops:
     def _clear_cache(self):
-        """Clear function-level cache used by list_all_muni_stops."""
-        from src.api_server import list_all_muni_stops
-        if hasattr(list_all_muni_stops, "_muni_stops_cache"):
-            delattr(list_all_muni_stops, "_muni_stops_cache")
-        if hasattr(list_all_muni_stops, "_muni_stops_cache_time"):
-            delattr(list_all_muni_stops, "_muni_stops_cache_time")
+        """Clear module-level cache used by list_all_muni_stops."""
+        import src.api_server as _api_server
+        _api_server._muni_stops_cache = None
+        _api_server._muni_stops_cache_time = 0.0
 
     def test_list_muni_stops(self, client):
         self._clear_cache()
