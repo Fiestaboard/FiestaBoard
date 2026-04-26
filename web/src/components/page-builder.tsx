@@ -44,7 +44,7 @@ import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineA
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
-import { writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { writeLiveOutputMessage, onLiveOutputMessageChange } from "@/lib/live-output-channel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
@@ -219,6 +219,19 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       }
     };
   }, [queryClient]);
+
+  // Listen for cross-tab kill signals: when another tab (e.g. the Home page's
+  // "Turn off Live Mode" button) clears the live-output channel, also turn off
+  // this tab's live toggle. Without this, a different tab with the editor
+  // still open would keep firing /templates/render/live and immediately
+  // re-establish live mode, defeating the home-page kill switch.
+  useEffect(() => {
+    return onLiveOutputMessageChange((msg) => {
+      if (msg === null && liveOutputEnabledRef.current) {
+        setLiveOutputEnabled(false);
+      }
+    });
+  }, []);
 
   // Track if we need to re-preview after current mutation completes
   const needsRePreview = useRef(false);

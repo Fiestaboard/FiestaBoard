@@ -611,4 +611,38 @@ describe("Live Output - Cleanup on unmount", () => {
 
     expect(vi.mocked(api.forceRefresh)).not.toHaveBeenCalled();
   });
+
+  it("turns off live toggle when another tab clears the live-output channel", async () => {
+    const user = userEvent.setup();
+    render(
+      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
+      { wrapper: TestWrapper }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "checked");
+    });
+
+    // Simulate another tab (e.g. the Home page kill switch) clearing the
+    // shared live-output channel via localStorage. The page builder should
+    // observe the storage event and turn off its own toggle so it stops
+    // re-establishing live mode.
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "fiestaboard:liveOutputMessage",
+        newValue: null,
+      })
+    );
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("data-state", "unchecked");
+    });
+  });
 });
