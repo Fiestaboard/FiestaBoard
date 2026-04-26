@@ -5594,11 +5594,21 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
             status_code=503, detail="Plugin system is not available."
         )
 
+    # Constrain user-provided branch names to a small safe subset so command
+    # arguments are selected from trusted values at this API boundary.
+    safe_branch = request.branch or ""
+    allowed_branches = {"", "main", "master", "develop"}
+    if safe_branch not in allowed_branches:
+        raise HTTPException(
+            status_code=400,
+            detail="branch must be one of: main, master, develop",
+        )
+
     registry = get_plugin_registry()
     errors = registry.install_from_git(
         request.repository,
         plugin_id=request.plugin_id,
-        branch=request.branch,
+        branch=safe_branch,
     )
 
     if errors:
