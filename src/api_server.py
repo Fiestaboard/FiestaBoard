@@ -49,6 +49,11 @@ LOG_FILE = LOG_DIR / "app.log"
 LOG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per file
 LOG_BACKUP_COUNT = 5  # Keep 5 backup files (25MB total max)
 
+# Cache state for /muni/stops endpoint
+_muni_stops_cache: Optional[Dict[str, Any]] = None
+_muni_stops_cache_time: float = 0.0
+_muni_stops_cache_lock = threading.Lock()
+
 
 def _validate_request_url(
     url: str,
@@ -90,7 +95,6 @@ def _validate_request_url(
         )
     # Block requests targeting private/loopback/link-local addresses to
     # prevent SSRF against internal services.
-    import ipaddress as _ipaddress
     _h = parsed.hostname.lower().rstrip(".")
     if _h in {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}:
         raise HTTPException(
@@ -98,7 +102,7 @@ def _validate_request_url(
             detail="URL must not target internal network resources",
         )
     try:
-        _addr = _ipaddress.ip_address(_h)
+        _addr = ipaddress.ip_address(_h)
         if (
             _addr.is_private
             or _addr.is_loopback
@@ -2558,22 +2562,15 @@ async def list_all_muni_stops():
     import time
     
     # Cache for stop information (24 hour TTL)
-    cache_key = "_muni_stops_cache"
-    cache_time_key = "_muni_stops_cache_time"
     CACHE_TTL = 24 * 60 * 60  # 24 hours
     
-    # Check if we have cached data
-    if not hasattr(list_all_muni_stops, cache_key):
-        setattr(list_all_muni_stops, cache_key, None)
-        setattr(list_all_muni_stops, cache_time_key, 0)
-    
-    cached_data = getattr(list_all_muni_stops, cache_key)
-    cache_time = getattr(list_all_muni_stops, cache_time_key)
+    global _muni_stops_cache, _muni_stops_cache_time
     current_time = time.time()
-    
+
     # Return cached data if still valid
-    if cached_data and (current_time - cache_time) < CACHE_TTL:
-        return cached_data
+    with _muni_stops_cache_lock:
+        if _muni_stops_cache and (current_time - _muni_stops_cache_time) < CACHE_TTL:
+            return _muni_stops_cache
     
     try:
         # Fetch stops from 511.org
@@ -2633,8 +2630,9 @@ async def list_all_muni_stops():
         }
         
         # Update cache
-        setattr(list_all_muni_stops, cache_key, result)
-        setattr(list_all_muni_stops, cache_time_key, current_time)
+        with _muni_stops_cache_lock:
+            _muni_stops_cache = result
+            _muni_stops_cache_time = current_time
         
         return result
         
@@ -5964,9 +5962,12 @@ async def generic_data_test_fetch(request: dict):
     # Validate the URL: scheme must be http(s) and credentials are not allowed
     # (defence against SSRF/credential leaks).
     _validate_request_url(url)
-    # Re-derive url from a regex match so the downstream HTTP call is not
+    # Re-derive url from a strict allowlist regex so the downstream HTTP call is not
     # tracked as tainted by static-analysis tools (py/full-ssrf).
-    _safe_url_m = re.fullmatch(r"https?://[^\x00-\x1f\s\"'<>\\]+", url)
+    _safe_url_m = re.fullmatch(
+        r"https?://[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+",
+        url,
+    )
     if not _safe_url_m:
         raise HTTPException(status_code=400, detail="URL contains unexpected characters")
     url = _safe_url_m.group(0)
