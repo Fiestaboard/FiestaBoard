@@ -319,10 +319,10 @@ def clone_or_update_repo(
     root = allowed_root if allowed_root is not None else get_external_plugins_dir()
     external_root = os.path.realpath(str(root))
     candidate = os.path.realpath(str(dest_dir))
-    # Use startswith (with an os.sep guard) — this is the canonical
-    # path-containment pattern that CodeQL recognises as a sanitiser for
-    # py/path-injection.  os.path.commonpath is not modelled as a barrier.
-    if not candidate.startswith(external_root + os.sep):
+    # Accept either the root itself or a descendant path under that root.
+    # This avoids edge cases where a strict `root + os.sep` prefix check
+    # rejects valid paths (for example, when candidate == external_root).
+    if not (candidate == external_root or candidate.startswith(external_root + os.sep)):
         return False, (
             f"Refusing to use destination outside external plugins directory: "
             f"{dest_dir}"
@@ -540,8 +540,10 @@ def _safe_external_dest(
         common = os.path.commonpath([external_root, candidate_real])
     except ValueError:
         return None, f"Refusing to install plugin outside {external_root}"
-    if common != external_root or candidate_real == external_root:
+    if common != external_root:
         return None, f"Refusing to install plugin outside {external_root}"
+    if candidate_real == external_root:
+        return None, "Refusing to install plugin at root directory"
 
     return Path(candidate_real), ""
 

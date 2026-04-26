@@ -196,14 +196,17 @@ class TestBayWheelsStations:
 # ---------------------------------------------------------------------------
 
 class TestMuniStops:
-    def _clear_cache(self):
-        """Clear module-level cache used by list_all_muni_stops."""
+    @pytest.fixture(autouse=True)
+    def clear_muni_stops_cache(self, monkeypatch):
+        """Ensure module-level cache used by list_all_muni_stops is reset per test."""
         import src.api_server as _api_server
-        _api_server._muni_stops_cache = None
-        _api_server._muni_stops_cache_time = 0.0
+        monkeypatch.setattr(_api_server, "_muni_stops_cache", None)
+        monkeypatch.setattr(_api_server, "_muni_stops_cache_time", 0.0)
+        yield
+        monkeypatch.setattr(_api_server, "_muni_stops_cache", None)
+        monkeypatch.setattr(_api_server, "_muni_stops_cache_time", 0.0)
 
     def test_list_muni_stops(self, client):
-        self._clear_cache()
         api_response = Mock()
         api_response.raise_for_status.return_value = None
         api_response.text = '{"Contents":{"dataObjects":{"ScheduledStopPoint":[{"id":"SF_1234","Name":"Market & 3rd","Location":{"Latitude":"37.79","Longitude":"-122.40"}}]}}}'
@@ -214,7 +217,6 @@ class TestMuniStops:
         assert resp.json()["total"] == 1
 
     def test_list_muni_stops_no_api_key(self, client):
-        self._clear_cache()
         with patch("src.config.Config.MUNI_API_KEY", ""):
             resp = client.get("/muni/stops")
         # May be 400 or 500 depending on how the exception propagates
@@ -222,7 +224,6 @@ class TestMuniStops:
 
     def test_list_muni_stops_cached(self, client):
         """Second call uses cache."""
-        self._clear_cache()
         api_response = Mock()
         api_response.raise_for_status.return_value = None
         api_response.text = '{"Contents":{"dataObjects":{"ScheduledStopPoint":[{"id":"SF_5678","Name":"Powell","Location":{"Latitude":"37.78","Longitude":"-122.41"}}]}}}'
@@ -234,10 +235,8 @@ class TestMuniStops:
         assert resp2.status_code == 200
         # Second call should hit cache, so requests.get called only once
         assert mock_get.call_count == 1
-        self._clear_cache()
 
     def test_nearby_muni_stops(self, client):
-        self._clear_cache()
         stops_data = {
             "stops": [
                 {"stop_code": "1234", "stop_id": "SF_1234", "name": "Stop A", "lat": 37.79, "lon": -122.40},
@@ -254,7 +253,6 @@ class TestMuniStops:
         assert "stops" in resp.json()
 
     def test_nearby_muni_stops_with_routes(self, client):
-        self._clear_cache()
         stops_data = {
             "stops": [
                 {"stop_code": "1234", "stop_id": "SF_1234", "name": "Stop A", "lat": 37.79, "lon": -122.40},
