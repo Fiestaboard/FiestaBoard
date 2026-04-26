@@ -21,6 +21,7 @@ Exit codes:
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -78,6 +79,15 @@ def load_registry() -> List[Dict]:
 
 def clone_repo(repo_url: str, target_dir: str, verbose: bool) -> Optional[str]:
     """Shallow-clone a repository. Returns error message or None on success."""
+    # Validate the URL from the registry JSON before passing to subprocess
+    # (py/command-line-injection). Only HTTPS URLs are permitted; re-derive
+    # from a regex match so CodeQL does not track the value as tainted.
+    if not isinstance(repo_url, str) or not repo_url.startswith("https://"):
+        return f"git clone rejected: only HTTPS URLs are supported (got {repo_url!r})"
+    _url_m = re.fullmatch(r"https://[^\x00-\x1f\s\"'<>\\]+", repo_url)
+    if not _url_m:
+        return f"git clone rejected: URL contains invalid characters: {repo_url!r}"
+    repo_url = _url_m.group(0)
     try:
         result = subprocess.run(
             ["git", "clone", "--depth", "1", f"{repo_url}.git", target_dir],
@@ -202,7 +212,16 @@ def scan_plugin(entry: Dict, workspace: str, verbose: bool) -> PluginScanResult:
     repo_url = entry.get("repository", "")
 
     result = PluginScanResult(plugin_id, name, repo_url)
-    plugin_dir = os.path.join(workspace, plugin_id)
+
+    # Validate plugin_id before using it as a path component to prevent
+    # path injection in downstream subprocess calls (py/path-injection).
+    # Re-derive from a regex match so CodeQL treats it as sanitised.
+    _id_m = re.fullmatch(r"[a-z][a-z0-9_]{0,63}", plugin_id)
+    if not _id_m:
+        result.clone_error = f"Invalid plugin id {plugin_id!r}"
+        return result
+    safe_plugin_id = _id_m.group(0)
+    plugin_dir = os.path.join(workspace, safe_plugin_id)
 
     # Clone
     clone_error = clone_repo(repo_url, plugin_dir, verbose)

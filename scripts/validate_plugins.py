@@ -346,9 +346,24 @@ def validate_registry_entry(entry: Dict, verbose: bool) -> List[str]:
     # 4. Repo reachability via git ls-remote
     if verbose:
         print(f"  Checking {repo_url} ...", end=" ", flush=True)
+    # Validate the URL from the registry JSON before passing to subprocess
+    # (py/command-line-injection). Only HTTPS URLs are permitted; re-derive
+    # from a regex match so CodeQL does not track the value as tainted.
+    if not repo_url.startswith("https://"):
+        errors.append(f"[{plugin_id}] Only HTTPS repository URLs are supported")
+        if verbose:
+            print("REJECTED")
+        return errors
+    _url_m = re.fullmatch(r"https://[^\x00-\x1f\s\"'<>\\]+", repo_url)
+    if not _url_m:
+        errors.append(f"[{plugin_id}] Repository URL contains invalid characters: {repo_url!r}")
+        if verbose:
+            print("REJECTED")
+        return errors
+    _safe_repo_url = _url_m.group(0)
     try:
         result = subprocess.run(
-            ["git", "ls-remote", "--heads", repo_url],
+            ["git", "ls-remote", "--heads", _safe_repo_url],
             capture_output=True,
             text=True,
             timeout=30,
