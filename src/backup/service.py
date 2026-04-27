@@ -334,12 +334,16 @@ class BackupService:
                     errors = registry.install_from_registry(plugin_id)
                 else:
                     errors = registry.install_from_git(repo, plugin_id=plugin_id)
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception:  # pragma: no cover - defensive
                 logger.exception("Plugin reinstall raised: %s", plugin_id)
-                result["failed"].append({"plugin_id": plugin_id, "error": str(exc)})
+                result["failed"].append(
+                    {"plugin_id": plugin_id, "error": "install failed (see server logs)"}
+                )
                 continue
 
             if errors:
+                # Errors from install_from_* are validation messages, not
+                # exception traces, so they are safe to surface to callers.
                 result["failed"].append(
                     {"plugin_id": plugin_id, "error": "; ".join(errors)}
                 )
@@ -379,9 +383,9 @@ def _reload_services() -> List[str]:
     try:
         from ..config_manager import get_config_manager
         get_config_manager().reload()
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reload config manager")
-        errors.append(f"config: {exc}")
+        errors.append("config: reload failed (see server logs)")
 
     # Settings, pages, carousels, schedules: drop singletons so the next
     # access re-reads from the freshly written JSON files.
@@ -396,25 +400,25 @@ def _reload_services() -> List[str]:
             mod = importlib.import_module(module_path)
             if hasattr(mod, attr):
                 setattr(mod, attr, None)
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover - defensive
             logger.exception("Failed to reset %s.%s", module_path, attr)
-            errors.append(f"{module_path}: {exc}")
+            errors.append(f"{module_path}: reset failed (see server logs)")
 
     # Display service has its own reset helper.
     try:
         from ..displays.service import reset_display_service
         reset_display_service()
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reset display service")
-        errors.append(f"displays: {exc}")
+        errors.append("displays: reset failed (see server logs)")
 
     # Template engine caches plugin variables — reset so it picks up the
     # restored plugin configuration on next render.
     try:
         from ..templates.engine import reset_template_engine
         reset_template_engine()
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reset template engine")
-        errors.append(f"templates: {exc}")
+        errors.append("templates: reset failed (see server logs)")
 
     return errors

@@ -21,7 +21,14 @@ from src.backup.service import (
 def _seed_data_dir(data_dir: Path) -> None:
     """Populate *data_dir* with realistic JSON files for round-trip tests."""
     (data_dir / "config.json").write_text(
-        json.dumps({"board": {"host": "192.0.2.10", "local_api_key": "secret"}})
+        json.dumps(
+            {
+                "board": {
+                    "host": "fiestaboard.example.test",
+                    "local_api_key": "test_api_key_placeholder",
+                }
+            }
+        )
     )
     (data_dir / "settings.json").write_text(
         json.dumps({"transitions": {"strategy": "column"}})
@@ -50,7 +57,7 @@ def test_build_backup_includes_all_data_files(tmp_path):
     assert backup["schema_version"] == BACKUP_SCHEMA_VERSION
     assert "exported_at" in backup
     assert "app_version" in backup
-    assert backup["data"]["config"]["board"]["host"] == "192.0.2.10"
+    assert backup["data"]["config"]["board"]["host"] == "fiestaboard.example.test"
     assert backup["data"]["pages"]["pages"][0]["id"] == "p1"
     assert backup["data"]["settings"]["transitions"]["strategy"] == "column"
     assert backup["data"]["carousels"] == {"carousels": []}
@@ -101,7 +108,10 @@ def test_round_trip_export_then_import(tmp_path):
         "schedules.json",
     }
     # Data was actually written to the destination.
-    assert json.loads((dst_dir / "config.json").read_text())["board"]["host"] == "192.0.2.10"
+    assert (
+        json.loads((dst_dir / "config.json").read_text())["board"]["host"]
+        == "fiestaboard.example.test"
+    )
     assert json.loads((dst_dir / "pages.json").read_text())["pages"][0]["id"] == "p1"
 
 
@@ -281,7 +291,7 @@ def test_export_endpoint_returns_attachment(client_with_data_dir):
     assert "fiestaboard-backup-" in disposition
     body = response.json()
     assert body[BACKUP_FILE_MARKER] is True
-    assert body["data"]["config"]["board"]["host"] == "192.0.2.10"
+    assert body["data"]["config"]["board"]["host"] == "fiestaboard.example.test"
 
 
 def test_import_endpoint_round_trip(client_with_data_dir):
@@ -290,7 +300,7 @@ def test_import_endpoint_round_trip(client_with_data_dir):
     backup = client.get("/backup/export").json()
 
     # Mutate a value in the backup so we can confirm import wrote it.
-    backup["data"]["config"]["board"]["host"] = "203.0.113.99"
+    backup["data"]["config"]["board"]["host"] = "new-host.example.test"
 
     response = client.post(
         "/backup/import?reinstall_plugins=false", json=backup
@@ -302,7 +312,7 @@ def test_import_endpoint_round_trip(client_with_data_dir):
     assert "config.json" in body["restored_files"]
     assert (
         json.loads((data_dir / "config.json").read_text())["board"]["host"]
-        == "203.0.113.99"
+        == "new-host.example.test"
     )
 
 
