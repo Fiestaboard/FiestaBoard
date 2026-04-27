@@ -9,6 +9,7 @@ import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interv
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
 import { BetaSettings } from "@/components/settings/beta-settings";
+import { BackupSettings } from "@/components/settings/backup-settings";
 import { GeneralSettings } from "@/components/general-settings";
 import { useWizard } from "@/components/wizard-provider";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,11 @@ export default function SettingsPage() {
           <BetaSettings />
         </div>
 
-        <Card className="animate-card-fade-in" style={{ animationDelay: "560ms" }}>
+        <div className="animate-card-fade-in" style={{ animationDelay: "560ms" }}>
+          <BackupSettings />
+        </div>
+
+        <Card className="animate-card-fade-in" style={{ animationDelay: "570ms" }}>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Wand2 className="h-4 w-4" />

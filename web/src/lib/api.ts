@@ -1630,4 +1630,26 @@ export const api = {
 
   getMqttStatus: () =>
     fetchApi<{ enabled: boolean; connected: boolean; running: boolean }>("/mqtt/status"),
+
+  // Backup & Restore — return URL/raw content directly so the browser can
+  // trigger a file download or upload arbitrary JSON.
+  exportBackupUrl: () => `${API_BASE}/backup/export`,
+
+  importBackup: (payload: unknown, reinstallPlugins: boolean = true) =>
+    fetchApi<{
+      status: string;
+      restored_files: string[];
+      skipped_files: string[];
+      pre_restore_backup_suffix: string;
+      plugins: {
+        attempted: string[];
+        installed: string[];
+        already_present: string[];
+        failed: { plugin_id: string; error: string }[];
+      };
+      reload_errors: string[];
+    }>(`/backup/import?reinstall_plugins=${reinstallPlugins ? "true" : "false"}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };

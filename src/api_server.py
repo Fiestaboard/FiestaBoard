@@ -6631,6 +6631,62 @@ async def generic_data_test_fetch(request: dict):
         raise HTTPException(status_code=500, detail="Failed to fetch data")
 
 
+# =============================================================================
+# Backup & Restore — export and import all user data as a single JSON file
+# =============================================================================
+
+
+@app.get("/backup/export")
+async def export_backup():
+    """Download a JSON file containing all user data (config, settings,
+    pages, carousels, schedules, and metadata for installed external
+    plugins).
+
+    The file can be re-uploaded to ``/backup/import`` on a new instance
+    to migrate or restore a configuration.
+    """
+    from .backup import get_backup_service
+
+    payload = get_backup_service().export_to_json()
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"fiestaboard-backup-{timestamp}.json"
+    return Response(
+        content=payload,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.post("/backup/import")
+async def import_backup(
+    payload: Dict[str, Any] = Body(...),
+    reinstall_plugins: bool = Query(True),
+):
+    """Restore a backup file produced by ``/backup/export``.
+
+    Existing data files are preserved as ``<name>.json.pre-restore-<ts>``
+    siblings before being overwritten so the operator can roll back
+    manually if needed.  In-memory service singletons are reloaded so the
+    change takes effect without restarting the container.
+    """
+    from .backup import BackupError, get_backup_service
+
+    try:
+        result = get_backup_service().import_from_dict(
+            payload, reinstall_plugins=reinstall_plugins
+        )
+    except BackupError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        logger.exception("Backup import failed")
+        raise HTTPException(status_code=500, detail="Backup import failed")
+
+    return result
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
