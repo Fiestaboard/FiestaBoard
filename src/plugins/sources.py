@@ -668,7 +668,14 @@ def install_git_plugin(
     if not ok:
         return False, err
 
-    dest, err = _safe_external_dest(external_dir, plugin_id)
+    # Canonicalize to a trusted plugin id segment before any path usage.
+    # This creates an explicit sanitizer boundary for path construction.
+    _m = PLUGIN_ID_RE.fullmatch(plugin_id)
+    if not _m:
+        return False, f"Invalid plugin id {plugin_id!r}"
+    trusted_plugin_id = _m.group(0)
+
+    dest, err = _safe_external_dest(external_dir, trusted_plugin_id)
     if dest is None:
         return False, err
     return clone_or_update_repo(repo_url, dest, branch, allowed_root=external_dir)
