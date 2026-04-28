@@ -413,10 +413,11 @@ def clone_or_update_repo(
     if branch:
         ok, err = _validate_git_ref(branch)
         if not ok:
-            return False, err
-
+    # Defensive sink-adjacent invariant: the directory we create must stay
+    # under the trusted external root after canonical resolution.
+    resolved_root = external_root.resolve()
     # Defensive sink-adjacent invariant: the directory we create must remain
-    # within ``external_root`` after canonicalization.
+    if os.path.commonpath([str(trusted_parent), str(resolved_root)]) != str(resolved_root):
     trusted_parent = safe_dest.parent
     if os.path.commonpath([str(external_root), str(trusted_parent)]) != str(external_root):
         return False, f"Refusing to create directory outside external root: {safe_dest}"
