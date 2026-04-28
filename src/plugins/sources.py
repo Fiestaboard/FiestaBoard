@@ -314,55 +314,66 @@ def clone_or_update_repo(
     """
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
-    # Defensive sink-level guard.  We do **two** things here:
+    # Defensive sink-level guard.  The path used at filesystem and
+    # subprocess sinks is built **purely** from trusted constants:
     #
-    # 1. Confirm the *input* ``dest_dir`` resolves inside the trusted
-    #    ``allowed_root`` — this rejects callers that hand us a path
-    #    pointing somewhere unexpected (path traversal, sibling dirs, …).
-    # 2. Rebuild the path actually used at the sinks from a strictly
-    #    validated basename joined onto the trusted root.  This is the
-    #    strongest CodeQL-recognised barrier for ``py/path-injection`` and
-    #    ``py/command-line-injection`` because the value reaching
-    #    filesystem and subprocess sinks is composed of:
-    #      * a constant trusted root (``os.path.realpath`` of
-    #        ``allowed_root``), and
-    #      * a basename that has been ``re.fullmatch``-validated against
-    #        ``PLUGIN_ID_RE`` *and* reconstructed character-by-character
-    #        from a literal allow-list (``_PLUGIN_ID_ALLOWED``).
+    #   * ``external_root`` — the realpath of the trusted ``allowed_root``
+    #     parameter (defaults to :func:`get_external_plugins_dir`).
+    #   * ``safe_basename`` — extracted via :func:`re.fullmatch` against
+    #     :data:`PLUGIN_ID_RE` and reassigned from ``m.group(0)``.
+    #     ``m.group(0)`` is a CodeQL-recognised sanitiser for
+    #     ``py/path-injection`` / ``py/command-line-injection`` because
+    #     the matched substring is, by construction, a member of the
+    #     literal alphabet ``[a-z][a-z0-9_]{0,63}`` (no ``/``, ``\``,
+    #     ``..``, NUL, or shell metacharacters can appear).
     #
-    # The original ``dest_dir`` argument is only used for the containment
-    # check and to extract the basename — it never reaches a sink directly.
+    # The raw ``dest_dir`` argument is used only for two things:
+    #   1. An *input* containment check — we reject callers that pass a
+    #      path pointing outside ``allowed_root`` (path traversal,
+    #      sibling dirs, …).  This is a guard, not a source for ``safe_dest``.
+    #   2. Extracting the basename string for regex validation.  The
+    #      basename never reaches a sink directly — only ``m.group(0)``
+    #      does.
     root = allowed_root if allowed_root is not None else get_external_plugins_dir()
     external_root = os.path.realpath(str(root))
+
+    # (1) Reject inputs that resolve outside the trusted root.  This is a
+    #     pure boolean guard — ``input_real`` does **not** flow into the
+    #     path actually used at the sinks below.
     input_real = os.path.realpath(str(dest_dir))
     try:
-        common = os.path.commonpath([external_root, input_real])
+        _common = os.path.commonpath([external_root, input_real])
     except ValueError:
         return False, (
             f"Refusing to use destination outside external plugins directory: "
             f"{dest_dir}"
         )
-    if common != external_root or input_real == external_root:
+    if _common != external_root or input_real == external_root:
         return False, (
             f"Refusing to use destination outside external plugins directory: "
             f"{dest_dir}"
         )
 
-    # Extract and strictly validate the basename, then rebuild the path
-    # from trusted constants only.
-    raw_basename = os.path.basename(input_real)
-    if not raw_basename or not PLUGIN_ID_RE.fullmatch(raw_basename):
+    # (2) Extract the basename as a *string* and validate via regex.
+    #     ``m.group(0)`` is the regex-matched substring — a CodeQL
+    #     barrier for path/command injection.
+    raw_basename = os.path.basename(os.path.normpath(str(dest_dir)))
+    m = PLUGIN_ID_RE.fullmatch(raw_basename)
+    if not m:
         return False, (
             f"Refusing to use destination with invalid basename: {dest_dir}"
         )
-    safe_basename = "".join(c for c in raw_basename if c in _PLUGIN_ID_ALLOWED)
-    if safe_basename != raw_basename:
+    safe_basename = m.group(0)
+    # Belt-and-braces character-level allow-list (no-op when the regex
+    # holds, but gives CodeQL a second, literal barrier).
+    if any(c not in _PLUGIN_ID_ALLOWED for c in safe_basename):
         return False, (
             f"Refusing to use destination with invalid basename: {dest_dir}"
         )
-    # ``safe_dest`` is fully derived from the trusted root + a literal
-    # allow-list reconstruction of the basename, so it is no longer
-    # considered tainted by static-analysis tools.
+
+    # Build the path actually used at the sinks from the trusted root
+    # and the regex-matched basename only.  ``safe_dest`` therefore does
+    # not depend on the raw ``dest_dir`` argument's path components.
     safe_dest = Path(os.path.join(external_root, safe_basename))
 
     if safe_dest.exists() and (safe_dest / ".git").is_dir():
