@@ -413,7 +413,13 @@ def clone_or_update_repo(
         if not ok:
             return False, err
 
-    safe_dest.parent.mkdir(parents=True, exist_ok=True)
+    # Defensive sink-adjacent invariant: the directory we create must be the
+    # trusted external root, never a user-influenced parent path.
+    trusted_parent = safe_dest.parent.resolve()
+    if trusted_parent != external_root:
+        return False, f"Refusing to create directory outside external root: {safe_dest}"
+
+    trusted_parent.mkdir(parents=True, exist_ok=True)
     try:
         cmd = ["git", "clone", "--depth", "1"]
         if branch:
