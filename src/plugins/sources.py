@@ -390,7 +390,7 @@ def clone_or_update_repo(
                 check=True, capture_output=True, text=True,
                 timeout=30, env=env,
             )
-            logger.info("Updated existing clone at %s", safe_dest)
+            logger.info("Updated existing plugin clone")
             return True, ""
         except subprocess.SubprocessError as exc:
             return False, f"git fetch/reset failed at {safe_dest}: {exc}"
