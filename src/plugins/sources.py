@@ -372,11 +372,9 @@ def clone_or_update_repo(
         )
 
     # Build the path actually used at the sinks from the trusted root
-    # and the regex-matched basename only, then canonicalize it and prove
-    # containment under ``external_root`` before any filesystem call.
-    safe_dest = (external_root / safe_basename).resolve()
-    if os.path.commonpath([str(external_root), str(safe_dest)]) != str(external_root):
-        return False, f"Refusing destination outside external root: {safe_dest}"
+    # and the regex-matched basename only.  ``safe_dest`` therefore does
+    # not depend on the raw ``dest_dir`` argument's path components.
+    safe_dest = Path(os.path.join(external_root, safe_basename))
 
     if safe_dest.exists() and (safe_dest / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
@@ -413,16 +411,9 @@ def clone_or_update_repo(
     if branch:
         ok, err = _validate_git_ref(branch)
         if not ok:
-    # Defensive sink-adjacent invariant: the directory we create must stay
-    # under the trusted external root after canonical resolution.
-    resolved_root = external_root.resolve()
-    # Defensive sink-adjacent invariant: the directory we create must remain
-    if os.path.commonpath([str(trusted_parent), str(resolved_root)]) != str(resolved_root):
-    trusted_parent = safe_dest.parent
-    if os.path.commonpath([str(external_root), str(trusted_parent)]) != str(external_root):
-        return False, f"Refusing to create directory outside external root: {safe_dest}"
+            return False, err
 
-    trusted_parent.mkdir(parents=True, exist_ok=True)
+    safe_dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         cmd = ["git", "clone", "--depth", "1"]
         if branch:
@@ -671,14 +662,7 @@ def install_git_plugin(
     if not ok:
         return False, err
 
-    # Canonicalize to a trusted plugin id segment before any path usage.
-    # This creates an explicit sanitizer boundary for path construction.
-    _m = PLUGIN_ID_RE.fullmatch(plugin_id)
-    if not _m:
-        return False, f"Invalid plugin id {plugin_id!r}"
-    trusted_plugin_id = _m.group(0)
-
-    dest, err = _safe_external_dest(external_dir, trusted_plugin_id)
+    dest, err = _safe_external_dest(external_dir, plugin_id)
     if dest is None:
         return False, err
     return clone_or_update_repo(repo_url, dest, branch, allowed_root=external_dir)
