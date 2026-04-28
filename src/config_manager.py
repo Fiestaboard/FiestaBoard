@@ -39,6 +39,14 @@ FEATURE_TO_PLUGIN_MAP = {
 # Fields excluded from feature-to-plugin migration (handled by manifest defaults)
 MIGRATION_EXCLUDED_FIELDS = {"color_rules"}
 
+# Current ``data/config.json`` schema version.
+#
+# Versioning is used to gate one-shot data-cleanup migrations.  A missing or
+# zero ``schema_version`` triggers any pending cleanup (e.g. removing phantom
+# ``plugins.*`` entries synthesised by an earlier buggy migration); after each
+# cleanup runs the value is bumped so it never runs again.
+CURRENT_CONFIG_SCHEMA_VERSION = 1
+
 # Default configuration schema
 DEFAULT_CONFIG: Dict[str, Any] = {
     "board": {
@@ -275,12 +283,27 @@ class ConfigManager:
         self._config: Dict[str, Any] = {}
         self._raw_features: Dict[str, Any] = {}
         self._load_or_create()
+        self._cleanup_phantom_plugin_configs()
         self._auto_migrate_features_to_plugins()
         self._apply_env_overrides()
         self._initialized = True
 
     def _load_or_create(self) -> None:
-        """Load config from file or create with defaults if missing."""
+        """Load config from file or create with a minimal skeleton if missing.
+
+        On first boot we deliberately do **not** persist the full
+        ``DEFAULT_CONFIG`` (which contains a placeholder sub-dict for every
+        legacy V2 feature).  Persisting those placeholders caused them to be
+        re-read on the next boot and then mis-classified as user-configured V2
+        features by ``_auto_migrate_features_to_plugins``, which in turn
+        caused the plugin registry's V3 auto-installer to clone every
+        registry plugin into ``external_plugins/``.
+
+        The full defaults are still available in-memory through
+        ``_merge_with_defaults`` (called below for the load-existing path),
+        so runtime behaviour is unchanged — we just stop seeding the file
+        with phantom feature entries.
+        """
         with self._file_lock:
             if self._config_path.exists():
                 try:
@@ -298,13 +321,32 @@ class ConfigManager:
                     self._save_internal()
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON in config file: {e}")
-                    logger.info("Creating new config with defaults")
-                    self._config = DEFAULT_CONFIG.copy()
+                    logger.info("Creating new config with skeleton")
+                    self._config = self._create_skeleton_config()
                     self._save_internal()
             else:
-                logger.info(f"Config file not found, creating defaults at {self._config_path}")
-                self._config = self._deep_copy(DEFAULT_CONFIG)
+                logger.info(
+                    f"Config file not found, creating skeleton at {self._config_path}"
+                )
+                self._config = self._create_skeleton_config()
                 self._save_internal()
+
+    def _create_skeleton_config(self) -> Dict[str, Any]:
+        """Return a fresh-install skeleton config.
+
+        Contains only structural sections (``board``, ``general``,
+        ``features``, ``plugins``) — no placeholder feature sub-dicts.
+        Tagged with the current ``schema_version`` so one-shot cleanup
+        migrations know not to run on a brand-new install.
+        """
+        skeleton: Dict[str, Any] = {
+            "schema_version": CURRENT_CONFIG_SCHEMA_VERSION,
+            "board": self._deep_copy(DEFAULT_CONFIG["board"]),
+            "general": self._deep_copy(DEFAULT_CONFIG["general"]),
+            "features": {},
+            "plugins": {},
+        }
+        return skeleton
 
     def _deep_copy(self, obj: Any) -> Any:
         """Create a deep copy of a nested dict/list structure."""
@@ -349,6 +391,15 @@ class ConfigManager:
         is created before any changes are written.
 
         This is idempotent — once a plugin entry exists the feature is skipped.
+
+        A feature is also skipped when it is disabled **and** structurally
+        identical to ``DEFAULT_CONFIG["features"][<feature_key>]`` (excluding
+        ``color_rules``, which is handled by manifest defaults).  This guards
+        against the case where the on-disk config was seeded from the full
+        in-memory defaults by an earlier version of the app: those phantom
+        entries do not represent any user intent, and migrating them would
+        cause the plugin registry's V3 auto-installer to clone the matching
+        external repos for plugins the user never configured.
         """
         plugins = self._config.get("plugins", {})
 
@@ -360,6 +411,13 @@ class ConfigManager:
                 continue
             raw_cfg = self._raw_features[feature_key]
             if not raw_cfg or not isinstance(raw_cfg, dict):
+                continue
+            if self._is_default_only_feature(feature_key, raw_cfg):
+                logger.debug(
+                    "Skipping auto-migration of feature '%s' — disabled and "
+                    "matches built-in defaults (no user customisation).",
+                    feature_key,
+                )
                 continue
             merged_cfg = self._config.get("features", {}).get(feature_key, raw_cfg)
             to_migrate.append((feature_key, plugin_id, merged_cfg))
@@ -399,6 +457,97 @@ class ConfigManager:
         logger.info(
             f"Auto-migration complete: {len(to_migrate)} feature(s) migrated to plugins"
         )
+
+    @classmethod
+    def _is_default_only_feature(
+        cls, feature_key: str, raw_cfg: Dict[str, Any]
+    ) -> bool:
+        """Return True iff *raw_cfg* is disabled and matches the built-in defaults.
+
+        Compares ``raw_cfg`` against ``DEFAULT_CONFIG["features"][feature_key]``
+        ignoring ``color_rules`` (which is excluded from migration anyway).  If
+        they are deep-equal AND ``enabled`` is not truthy, the feature reflects
+        only the placeholder values shipped by the app and should NOT be
+        migrated.
+        """
+        if raw_cfg.get("enabled") is True:
+            return False
+        defaults = DEFAULT_CONFIG.get("features", {}).get(feature_key)
+        if not isinstance(defaults, dict):
+            return False
+
+        def strip(d: Dict[str, Any]) -> Dict[str, Any]:
+            return {k: v for k, v in d.items() if k not in MIGRATION_EXCLUDED_FIELDS}
+
+        return strip(raw_cfg) == strip(defaults)
+
+    def _cleanup_phantom_plugin_configs(self) -> None:
+        """Remove ``plugins.*`` entries created by the buggy V2→V3 migration.
+
+        Earlier versions of :meth:`_auto_migrate_features_to_plugins` could
+        not distinguish "user actually had this V2 feature configured" from
+        "the app wrote the full default sub-dict to disk on first boot".  As
+        a result, every disabled feature default was mirrored into
+        ``plugins.*``, which then caused the plugin registry's V3
+        auto-installer to clone those external repos into
+        ``external_plugins/``.
+
+        This one-shot cleanup runs when the on-disk config has no
+        ``schema_version`` (or one below
+        :data:`CURRENT_CONFIG_SCHEMA_VERSION`).  For each entry in
+        ``plugins.*`` whose key is in :data:`FEATURE_TO_PLUGIN_MAP` and whose
+        value is disabled and structurally equal to the built-in feature
+        defaults (ignoring ``color_rules``), the entry is dropped.  We do
+        **not** uninstall anything from ``external_plugins/`` — that's left
+        to the user via the UI to avoid surprising deletes.
+
+        After running, the config's ``schema_version`` is bumped so this
+        function never runs again on the same install.
+        """
+        current_version = self._config.get("schema_version", 0)
+        try:
+            current_version = int(current_version)
+        except (TypeError, ValueError):
+            current_version = 0
+
+        if current_version >= CURRENT_CONFIG_SCHEMA_VERSION:
+            return
+
+        plugins = self._config.get("plugins")
+        # We always want to bump the version, even if there's nothing to clean.
+        removed: List[str] = []
+        if isinstance(plugins, dict):
+            # Reverse map: plugin_id -> feature_key (1:1 in current map)
+            plugin_to_feature = {pid: fkey for fkey, pid in FEATURE_TO_PLUGIN_MAP.items()}
+            for plugin_id in list(plugins.keys()):
+                feature_key = plugin_to_feature.get(plugin_id)
+                if feature_key is None:
+                    continue
+                cfg = plugins.get(plugin_id)
+                if not isinstance(cfg, dict):
+                    continue
+                if self._is_default_only_feature(feature_key, cfg):
+                    del plugins[plugin_id]
+                    removed.append(plugin_id)
+
+        with self._file_lock:
+            self._config["schema_version"] = CURRENT_CONFIG_SCHEMA_VERSION
+            self._save_internal()
+
+        if removed:
+            logger.info(
+                "Config cleanup: removed %d phantom plugin config(s) created by "
+                "the legacy V2→V3 migration: %s. External plugins (if any) were "
+                "left untouched and can be uninstalled from the Integrations page.",
+                len(removed),
+                sorted(removed),
+            )
+        else:
+            logger.debug(
+                "Config cleanup: no phantom plugin configs found; bumped "
+                "schema_version to %d.",
+                CURRENT_CONFIG_SCHEMA_VERSION,
+            )
 
     def _save_internal(self) -> None:
         """Internal save without acquiring lock (called from locked context)."""
@@ -687,11 +836,20 @@ class ConfigManager:
         """
         with self._file_lock:
             features = self._config.get("features", {})
+            defaults = DEFAULT_CONFIG.get("features", {}).get(feature_name)
             if feature_name in features:
-                return self._deep_copy(features[feature_name])
+                stored = features[feature_name]
+                # Merge stored values over defaults so callers always see a
+                # complete feature dict even when only a subset of fields was
+                # persisted (e.g. an env-override created an empty placeholder).
+                if isinstance(defaults, dict) and isinstance(stored, dict):
+                    merged = self._deep_copy(defaults)
+                    merged.update(self._deep_copy(stored))
+                    return merged
+                return self._deep_copy(stored)
             # If feature not in config but exists in defaults, return default
-            if feature_name in DEFAULT_CONFIG.get("features", {}):
-                return self._deep_copy(DEFAULT_CONFIG["features"][feature_name])
+            if defaults is not None:
+                return self._deep_copy(defaults)
             return None
 
     def set_feature(self, feature_name: str, settings: Dict[str, Any]) -> bool:

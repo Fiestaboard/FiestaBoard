@@ -40,6 +40,33 @@ INSTANCE_SEPARATOR = ":"
 # Valid instance label pattern: alphanumeric, underscores, and hyphens, 1-40 chars.
 _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 
+# Fields that don't indicate user customisation when deciding whether an
+# orphaned plugin config should trigger an auto-install of the matching
+# external plugin.  ``enabled`` is meta-state, ``color_rules`` is supplied by
+# the plugin's manifest defaults, and ``schema_version`` may appear if a
+# stored-configs dict is passed straight from the on-disk file.
+_ORPHAN_META_FIELDS = frozenset({"enabled", "color_rules", "schema_version"})
+
+
+def _is_empty_orphan_config(cfg: Any) -> bool:
+    """Return True iff *cfg* represents an unconfigured, disabled placeholder.
+
+    An "empty orphan" is a stored plugin config where the plugin is not
+    enabled and the user never set any meaningful field — only meta-state
+    such as ``enabled`` and ``color_rules`` is present (and ``enabled`` is
+    not ``True``).  These configs should NOT trigger automatic installation
+    of the matching external plugin from the registry.
+    """
+    if not isinstance(cfg, dict):
+        return False
+    if cfg.get("enabled") is True:
+        return False
+    for key in cfg:
+        if key in _ORPHAN_META_FIELDS:
+            continue
+        return False
+    return True
+
 
 class PluginRegistry:
     """Central registry for all loaded plugins.
@@ -352,10 +379,35 @@ class PluginRegistry:
         if not orphaned:
             return
 
+        # Defense in depth against the legacy "phantom feature" bug: stored
+        # configs that have ``enabled=False`` and no fields beyond ``enabled``
+        # / ``color_rules`` are placeholder entries (likely synthesised from
+        # the app's built-in defaults by an earlier buggy migration).  There
+        # is no reason to clone a remote repo for a plugin the user never
+        # configured and never enabled.
+        empty_orphans: list[str] = []
+        meaningful_orphans: list[str] = []
+        for pid in orphaned:
+            if _is_empty_orphan_config(stored_configs.get(pid, {})):
+                empty_orphans.append(pid)
+            else:
+                meaningful_orphans.append(pid)
+
+        if empty_orphans:
+            logger.info(
+                "V3 migration: skipped %d empty orphan config(s) "
+                "(disabled with no user-set fields): %s",
+                len(empty_orphans),
+                sorted(empty_orphans),
+            )
+
+        if not meaningful_orphans:
+            return
+
         logger.info(
             "V3 migration: found %d plugin config(s) with no matching installed plugin: %s",
-            len(orphaned),
-            orphaned,
+            len(meaningful_orphans),
+            meaningful_orphans,
         )
 
         try:
@@ -368,7 +420,7 @@ class PluginRegistry:
             return
 
         migrated: list[str] = []
-        for plugin_id in orphaned:
+        for plugin_id in meaningful_orphans:
             if plugin_id not in registry_map:
                 logger.warning(
                     "V3 migration: plugin '%s' has stored config but is not in the registry. "

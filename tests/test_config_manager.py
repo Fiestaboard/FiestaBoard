@@ -797,3 +797,160 @@ def test_auto_migrate_excludes_color_rules(tmp_path):
     cm = ConfigManager(config_path=str(config_path))
     plugin_cfg = cm.get_plugin_config("weather")
     assert "color_rules" not in plugin_cfg
+
+
+# --- First-boot skeleton + idempotency (regression: phantom plugins) ---
+
+
+def test_fresh_install_does_not_seed_feature_defaults(tmp_path):
+    """First boot writes only a structural skeleton, not full feature defaults.
+
+    Regression test: previously the on-disk file was seeded with the full
+    DEFAULT_CONFIG features, which were then misclassified as user-configured
+    V2 features on the next boot and migrated into ``plugins.*``.
+    """
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm  # silence linter
+    raw = json.loads(config_path.read_text())
+
+    # Skeleton has empty features and plugins.
+    assert raw.get("features", {}) == {}
+    assert raw.get("plugins", {}) == {}
+    # Schema version is set so the cleanup migration never runs.
+    assert raw.get("schema_version") == 1
+    # Board/general defaults are still present.
+    assert raw["board"]["api_mode"] == "local"
+    assert "timezone" in raw["general"]
+
+
+def test_two_consecutive_boots_keeps_plugins_empty(tmp_path):
+    """Booting ConfigManager twice must not synthesise any ``plugins.*`` entries.
+
+    This is the smoking-gun regression test for the "Stocks install caused
+    every other plugin to appear" bug.
+    """
+    config_path = tmp_path / "config.json"
+
+    cm1 = ConfigManager(config_path=str(config_path))
+    assert cm1.get_all_plugin_configs() == {}
+    raw1 = json.loads(config_path.read_text())
+    assert raw1.get("plugins", {}) == {}
+
+    # Simulate a process restart.
+    ConfigManager._instance = None
+    ConfigManager._lock = threading.Lock()
+
+    cm2 = ConfigManager(config_path=str(config_path))
+    assert cm2.get_all_plugin_configs() == {}
+    raw2 = json.loads(config_path.read_text())
+    assert raw2.get("plugins", {}) == {}
+
+
+def test_v2_user_config_still_migrates(tmp_path):
+    """A real V2-style config with user-set fields still migrates to plugins.*."""
+    config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {},
+        "features": {
+            "weather": {
+                "enabled": True,
+                "api_key": "abc",
+                "provider": "weatherapi",
+                "location": "Seattle, WA",
+            },
+        },
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
+
+    cm = ConfigManager(config_path=str(config_path))
+    weather = cm.get_plugin_config("weather")
+    assert weather is not None
+    assert weather["enabled"] is True
+    assert weather["api_key"] == "abc"
+    assert weather["location"] == "Seattle, WA"
+
+
+def test_cleanup_removes_phantom_plugin_configs(tmp_path):
+    """Pre-existing phantom ``plugins.*`` entries are dropped on first run after upgrade.
+
+    Mirrors what's on disk for users hit by the original bug: every feature's
+    default sub-dict was synthesised into ``plugins.*`` with ``enabled: false``
+    and no user-set fields.  Those entries should be removed exactly once and
+    the schema version bumped so cleanup doesn't run again.
+    """
+    config_path = tmp_path / "config.json"
+    config_data = {
+        # No schema_version → cleanup is allowed to run.
+        "board": {},
+        "features": {},
+        "general": {},
+        "plugins": {
+            # Phantom: matches DEFAULT_CONFIG["features"]["guest_wifi"] exactly.
+            "guest_wifi": {
+                "enabled": False,
+                "ssid": "",
+                "password": "",
+                "color_rules": {},
+            },
+            # Phantom: matches DEFAULT_CONFIG["features"]["weather"] exactly.
+            "weather": {
+                "enabled": False,
+                "api_key": "",
+                "provider": "weatherapi",
+                "location": "San Francisco, CA",
+                "refresh_seconds": 300,
+            },
+            # Real user-configured plugin (enabled): must be preserved.
+            "stocks": {
+                "enabled": True,
+                "symbols": ["GOOG", "AAPL"],
+            },
+            # Real user-configured plugin (disabled but customised): preserved.
+            "muni": {
+                "enabled": False,
+                "api_key": "user-set-key",
+            },
+        },
+    }
+    config_path.write_text(json.dumps(config_data))
+
+    cm = ConfigManager(config_path=str(config_path))
+
+    # Phantoms are gone.
+    assert cm.get_plugin_config("guest_wifi") is None
+    assert cm.get_plugin_config("weather") is None
+    # Real configs survive.
+    assert cm.get_plugin_config("stocks") is not None
+    assert cm.get_plugin_config("muni") is not None
+    assert cm.get_plugin_config("muni")["api_key"] == "user-set-key"
+
+    # Schema version is bumped on disk so cleanup never runs again.
+    raw = json.loads(config_path.read_text())
+    assert raw.get("schema_version") == 1
+
+
+def test_cleanup_migration_idempotent(tmp_path):
+    """Cleanup never runs a second time once schema_version is bumped."""
+    config_path = tmp_path / "config.json"
+    config_data = {
+        "schema_version": 1,
+        "board": {},
+        "features": {},
+        "general": {},
+        # Even a phantom-looking entry must NOT be removed when the schema is
+        # already current — the user may have intentionally added it.
+        "plugins": {
+            "guest_wifi": {
+                "enabled": False,
+                "ssid": "",
+                "password": "",
+                "color_rules": {},
+            },
+        },
+    }
+    config_path.write_text(json.dumps(config_data))
+
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_plugin_config("guest_wifi") is not None

@@ -149,13 +149,38 @@ class TestAutoMigration:
 
         assert cm.get_plugin_config("silence_schedule") is None
 
-    def test_disabled_features_still_migrated(self, v1_config_path):
-        """Even disabled features should be migrated so they're visible in the UI."""
+    def test_disabled_default_only_features_not_migrated(self, v1_config_path):
+        """Disabled features with no user customisation should NOT be migrated.
+
+        The v1 fixture's ``guest_wifi`` is disabled and structurally identical
+        to ``DEFAULT_CONFIG``.  Migrating those phantom entries caused the V3
+        plugin auto-installer to clone unrelated external plugins on a fresh
+        install (see the regression that motivated this guard).
+        """
         cm = ConfigManager(config_path=v1_config_path)
+
+        wifi = cm.get_plugin_config("guest_wifi")
+        assert wifi is None
+
+    def test_disabled_user_configured_features_still_migrated(self, tmp_path):
+        """Disabled features with user-set fields ARE migrated."""
+        config = _make_v1_config()
+        # Override guest_wifi to be disabled but with user-customised fields.
+        config["features"]["guest_wifi"] = {
+            "enabled": False,
+            "ssid": "MyHomeNetwork",
+            "password": "supersecret",
+        }
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text(json.dumps(config, indent=2))
+
+        cm = ConfigManager(config_path=str(cfg_path))
 
         wifi = cm.get_plugin_config("guest_wifi")
         assert wifi is not None
         assert wifi["enabled"] is False
+        assert wifi["ssid"] == "MyHomeNetwork"
+        assert wifi["password"] == "supersecret"
 
     def test_features_section_preserved(self, v1_config_path):
         """The original features section should not be removed."""

@@ -1139,6 +1139,67 @@ def test_auto_migrate_skips_already_installed_on_subsequent_boots(
     mock_install.assert_not_called()
 
 
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_skips_disabled_empty_orphan(
+    mock_load_reg, mock_install, registry, mock_loader
+):
+    """Disabled orphan configs with no user-set fields must NOT be auto-installed.
+
+    Regression: phantom configs synthesised from built-in defaults by an
+    earlier buggy migration caused every registry plugin to be cloned on a
+    fresh install when a single unrelated plugin was installed.
+    """
+    mock_loader.load_all_plugins.return_value = {}
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        # Empty orphans — only meta-state, no user fields.
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "weather": {"enabled": False, "color_rules": {}},
+            "muni": {"enabled": False},
+            "guest_wifi": {"enabled": False, "color_rules": {}},
+        }
+        registry.initialize()
+
+    # The registry should never even be loaded since nothing meaningful is orphaned.
+    mock_load_reg.assert_not_called()
+    mock_install.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_installs_meaningful_but_skips_empty(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """Mixed orphans: install only the configured ones, skip the empties."""
+    mock_loader.load_all_plugins.return_value = {}
+    mock_manifest.id = "stocks"
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="stocks",
+            name="Stocks",
+            repository="https://github.com/Org/fiestaboard-plugin--stocks",
+        ),
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            # Empty orphan — must be skipped.
+            "weather": {"enabled": False, "color_rules": {}},
+            # Real user config — must be installed.
+            "stocks": {"enabled": True, "symbols": ["GOOG"]},
+        }
+        registry.initialize()
+
+    # Only stocks was installed.
+    mock_install.assert_called_once()
+    assert "stocks" in registry._plugins
+    assert "weather" not in registry._plugins
+
+
 # --- uninstall_external_plugin ---
 
 
