@@ -1,26 +1,32 @@
 ---
 sidebar_position: 1
-description: "Get FiestaBoard running on your Vestaboard in minutes with Docker. Quick setup guide for Vestaboard Flagship and Note."
-keywords: [FiestaBoard quick start, Docker setup, getting started, Vestaboard setup, Vestaboard quick start, Vestaboard Docker, split-flap dashboard]
+description: "Get FiestaBoard running on your Vestaboard in minutes. Flash a Raspberry Pi, use Docker Hub, or run the install wizard."
+keywords: [FiestaBoard quick start, FiestaPi, Docker setup, getting started, Vestaboard setup, Vestaboard quick start, Vestaboard Docker, split-flap dashboard]
 ---
 
 # Quick Start
 
 Get FiestaBoard running in under 5 minutes.
 
-## What You'll Need
+## Option A: Raspberry Pi — FiestaPi (Easiest)
 
+Have a Raspberry Pi? Flash a microSD card and boot. No Docker setup, no command line.
+
+**→ [FiestaPi Quick Start](/docs/setup/raspberry-pi)** — Download, flash, boot, done.
+
+FiestaPi includes self-updating out of the box — when a new version is released, an **Update Now** button appears in Settings and handles everything for you.
+
+---
+
+## Options B & C: Docker (any computer)
+
+Running on a laptop, desktop, NAS, or server? You need:
 - **Your board's API key** ([how to find it](#getting-your-board-api-key))
-- **Docker and Docker Compose** installed on your system
+- **Docker and Docker Compose** ([install Docker Desktop](https://docs.docker.com/desktop/))
 
-:::tip Don't have Docker yet?
-Docker Desktop is free and takes a few minutes to install:
-[Mac](https://docs.docker.com/desktop/setup/install/mac-install/) | [Windows](https://docs.docker.com/desktop/setup/install/windows-install/) | [Linux](https://docs.docker.com/desktop/setup/install/linux/)
+If you've never used Docker before, try the [Beginner's Guide](/docs/setup/beginners-guide) instead.
 
-If you've never used Docker before, the [Beginner's Guide](/docs/setup/beginners-guide) walks through every step.
-:::
-
-## Option A: Docker Hub (Simplest)
+### Option B: Docker Hub (No Pi)
 
 No repository to clone. Just two commands:
 
@@ -38,7 +44,7 @@ Open **http://localhost:4420** in your browser. You'll see the FiestaBoard dashb
 FiestaBoard advertises itself on your local network via mDNS/Bonjour. From any device on the same network you can use **http://fiestaboard.local:4420**. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
 :::
 
-## Option B: Install Wizard
+### Option C: Install Wizard
 
 Clone the repository and run the install script. It checks prerequisites, starts the server, and opens the setup wizard in your browser:
 
@@ -119,7 +125,7 @@ After restarting, open **http://localhost:4420** — the service resumes automat
 
 ## Running on a Raspberry Pi?
 
-The same Docker image works on Raspberry Pi (ARM64). Follow the steps above on your Pi, or see the [Raspberry Pi Guide](/docs/deployment/raspberry-pi) for auto-start on boot and performance tips.
+For the easiest Pi experience, flash the **[FiestaPi image](/docs/setup/raspberry-pi)** instead. It comes pre-configured with self-update enabled. For advanced setups (Pi you already have with Docker), see the [Raspberry Pi Deployment guide](/docs/deployment/raspberry-pi).
 
 ## Next Steps
 

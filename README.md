@@ -26,7 +26,13 @@ You bring the board. You bring the API keys for the services you care about. Fie
 
 **All you need:** Your board's API key + [Docker](https://docs.docker.com/get-started/get-docker/) installed.
 
-### Easiest: Pull from Docker Hub (no clone needed)
+### 🥇 Recommended: FiestaPi (flash a Raspberry Pi)
+
+If you have a Raspberry Pi 3B or newer, the easiest path is our pre-built **FiestaPi** image. Flash it with [Raspberry Pi Imager](https://www.raspberrypi.com/software/), boot the Pi, and open **http://fiestapi.local:4420** in your browser. FiestaBoard runs on boot, updates itself with one click in Settings, and stays out of your way.
+
+→ [**Raspberry Pi setup guide**](docs/setup/RASPBERRY_PI.md) — download links, flashing instructions, troubleshooting.
+
+### Alternative: Pull from Docker Hub (no clone needed)
 
 ```bash
 # 1. Download the compose file

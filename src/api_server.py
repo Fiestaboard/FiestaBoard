@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -468,6 +468,34 @@ class UpdateCheckResponse(BaseModel):
     package_url: str
     error: str | None = None
     is_production: bool
+
+
+class UpdateStatusResponse(BaseModel):
+    """Response model for system update status (sidecar availability + auto-update flag)."""
+    updater_available: bool
+    auto_update_enabled: bool
+    profile: str  # "docker" | "pi"  (where this install is running)
+    sidecar_url: str
+    last_check: str | None = None
+    last_update: str | None = None
+
+
+class UpdateApplyResponse(BaseModel):
+    """Response model for triggering an update."""
+    status: str  # "queued" | "manual"
+    mode: str  # "sidecar" | "manual"
+    previous_digest: str | None = None
+    hint: str | None = None
+
+
+class AutoUpdateRequest(BaseModel):
+    """Request model for setting the auto-update toggle."""
+    enabled: bool
+
+
+class AutoUpdateResponse(BaseModel):
+    """Response model for auto-update toggle."""
+    enabled: bool
 
 
 @asynccontextmanager
@@ -935,6 +963,13 @@ async def system_update_check():
         
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
+            # Record this check so the UI can show "last checked".  Best-effort.
+            try:
+                _state = _system_update_state_load()
+                _state["last_check"] = datetime.now(timezone.utc).isoformat()
+                _system_update_state_save(_state)
+            except Exception as e:
+                logger.debug("Could not persist update-check timestamp (non-fatal): %s", e, exc_info=True)
             return UpdateCheckResponse(
                 current_version=__version__,
                 latest_version=latest_version,
@@ -971,6 +1006,186 @@ def _is_newer_version(latest: str, current: str) -> bool:
         return parse_version(latest) > parse_version(current)
     except (ValueError, AttributeError):
         return False
+
+
+# =============================================================================
+# In-place self-update via the FiestaUpdater sidecar
+# =============================================================================
+#
+# The companion `fiestaupdater` container exposes a tiny authenticated HTTP API
+# on the internal compose network.  We never talk to the Docker socket from
+# this process; we only proxy a single user-initiated request through.  See
+# fiestaupdater/README.md for the security model.
+# =============================================================================
+
+# Path to the small JSON file that persists the auto-update toggle and
+# bookkeeping (last check, last update).  Kept separate from settings.json
+# because this state is system-level, not display-level.
+SYSTEM_UPDATE_STATE_FILE = Path("data/.system-update.json")
+
+
+def _system_update_state_load() -> Dict[str, Any]:
+    """Read the system-update state file.  Returns a fresh dict on any error."""
+    try:
+        if SYSTEM_UPDATE_STATE_FILE.exists():
+            with SYSTEM_UPDATE_STATE_FILE.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+    except Exception as e:
+        logger.debug(f"Failed to read {SYSTEM_UPDATE_STATE_FILE}: {e}")
+    return {}
+
+
+def _system_update_state_save(state: Dict[str, Any]) -> None:
+    """Persist the system-update state file."""
+    try:
+        SYSTEM_UPDATE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with SYSTEM_UPDATE_STATE_FILE.open("w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        logger.warning(f"Failed to write {SYSTEM_UPDATE_STATE_FILE}: {e}")
+
+
+def _fiestaboard_profile() -> str:
+    """Return the install profile: "pi" if running on the FiestaPi flashable
+    image, else "docker".  Determined by a build-time env var baked in by the
+    pi-gen recipe.
+    """
+    return os.getenv("FIESTABOARD_PROFILE", "docker").strip().lower() or "docker"
+
+
+def _auto_update_default() -> bool:
+    """Default for the auto-update toggle when the user hasn't set one.
+    OFF on regular Docker installs, ON on the Pi flashable image."""
+    return _fiestaboard_profile() == "pi"
+
+
+def _updater_url() -> str:
+    """Base URL of the fiestaupdater sidecar on the compose network."""
+    return os.getenv("FIESTAUPDATER_URL", "http://fiestaupdater:8765").rstrip("/")
+
+
+def _updater_token() -> str:
+    """Shared bearer token for the sidecar."""
+    return os.getenv("FIESTAUPDATER_TOKEN", "")
+
+
+def _updater_probe() -> bool:
+    """Return True when the sidecar's /healthz responds 200.  Short timeout
+    because this is called on every status query from the UI."""
+    try:
+        resp = requests.get(f"{_updater_url()}/healthz", timeout=2)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
+@app.get("/system/update/status", response_model=UpdateStatusResponse)
+async def system_update_status():
+    """Report whether the FiestaUpdater sidecar is reachable and whether the
+    user has opted in to scheduled auto-updates.
+    
+    The UI uses this to decide between showing the in-app "Update Now" button
+    or fallback "manual update" instructions.
+    """
+    state = _system_update_state_load()
+    available = await asyncio.to_thread(_updater_probe) if _updater_token() else False
+    return UpdateStatusResponse(
+        updater_available=available,
+        auto_update_enabled=bool(state.get("auto_update_enabled", _auto_update_default())),
+        profile=_fiestaboard_profile(),
+        sidecar_url=_updater_url(),
+        last_check=state.get("last_check"),
+        last_update=state.get("last_update"),
+    )
+
+
+@app.post("/system/update", response_model=UpdateApplyResponse)
+async def system_update_apply():
+    """Trigger an in-place update via the fiestaupdater sidecar.
+    
+    The request returns 202 from the sidecar almost immediately; the actual
+    container recreation happens shortly after, which will kill this process.
+    Clients should expect their HTTP connection to drop and should poll
+    `/health` to detect when the new version is up.
+    
+    If the sidecar is not running (user hasn't opted in), returns 503 with a
+    `manual` mode response so the UI can fall back to instructions.
+    """
+    if not _updater_token():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "manual",
+                "mode": "manual",
+                "hint": "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env and run 'docker compose up -d' to enable in-app updates.",
+            },
+        )
+
+    url = f"{_updater_url()}/update"
+    headers = {"Authorization": f"Bearer {_updater_token()}"}
+
+    def _post():
+        return requests.post(url, headers=headers, timeout=(5, 30))
+
+    try:
+        resp = await asyncio.to_thread(_post)
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "manual",
+                "mode": "manual",
+                "hint": "Could not reach the fiestaupdater sidecar. Run 'docker compose pull && docker compose up -d' from your install directory to update manually.",
+            },
+        )
+    except Exception as e:
+        logger.warning(f"fiestaupdater update call failed: {e}")
+        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+
+    if resp.status_code == 401:
+        raise HTTPException(
+            status_code=500,
+            detail={"status": "error", "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services"},
+        )
+    if resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
+        )
+
+    # Record bookkeeping so the UI can show "last update".
+    body = {}
+    try:
+        body = resp.json()
+    except ValueError as e:
+        # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
+        logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
+    state = _system_update_state_load()
+    state["last_update"] = datetime.now(timezone.utc).isoformat()
+    _system_update_state_save(state)
+
+    return UpdateApplyResponse(
+        status="queued",
+        mode="sidecar",
+        previous_digest=body.get("previous_digest"),
+    )
+
+
+@app.post("/system/update/auto", response_model=AutoUpdateResponse)
+async def system_update_set_auto(req: AutoUpdateRequest):
+    """Enable or disable scheduled auto-updates.
+    
+    When enabled, the API process periodically checks for updates and, if a
+    newer version is available, calls the sidecar to apply it.  The actual
+    polling loop lives in the lifespan startup; this endpoint just persists
+    the user's preference.
+    """
+    state = _system_update_state_load()
+    state["auto_update_enabled"] = bool(req.enabled)
+    _system_update_state_save(state)
+    return AutoUpdateResponse(enabled=bool(req.enabled))
 
 
 @app.get("/logs")

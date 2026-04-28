@@ -49,11 +49,10 @@ export async function shouldShowWizard(): Promise<boolean> {
   try {
     const validation = await api.validateSetup();
     
-    // If first run (missing board config), show wizard unless user already skipped
+    // If first run (missing board config), always show wizard.
+    // Server truth wins — localStorage completion flag from a previous Pi
+    // must not suppress the wizard on a fresh device.
     if (validation.is_first_run) {
-      if (isWizardCompleted()) {
-        return false;
-      }
       return true;
     }
     

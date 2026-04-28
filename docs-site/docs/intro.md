@@ -44,7 +44,16 @@ That's it. No other API keys or configuration are needed to get started. Plugins
 ## Choose Your Path
 
 <div className="row">
-<div className="col col--6">
+<div className="col col--4">
+
+### I have a Raspberry Pi
+
+Flash a pre-built image, boot your Pi, open a browser — done. No Docker setup required. Self-updating out of the box.
+
+**[FiestaPi Quick Start →](/docs/setup/raspberry-pi)**
+
+</div>
+<div className="col col--4">
 
 ### I'm new to all this
 
@@ -53,7 +62,7 @@ Never used Docker or the command line? No problem.
 **[Beginner's Guide](/docs/setup/beginners-guide)** walks you through every step with clear instructions.
 
 </div>
-<div className="col col--6">
+<div className="col col--4">
 
 ### I'm comfortable with Docker
 
@@ -74,7 +83,8 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 
 | Section | What's Covered |
 |---------|---------------|
-| **[Quick Start](/docs/setup/quick-start)** | Installation and first run |
+| **[FiestaPi Quick Start](/docs/setup/raspberry-pi)** | Flash a Pi image and be running in minutes |
+| **[Quick Start](/docs/setup/quick-start)** | Installation and first run (Docker) |
 | **[Beginner's Guide](/docs/setup/beginners-guide)** | Step-by-step for non-technical users |
 | **[Your First 10 Minutes](/docs/setup/first-10-minutes)** | What to do right after setup |
 | **[Plugins Overview](/docs/plugins/overview)** | All 26 plugins and what they do |
@@ -82,6 +92,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Page Editor](/docs/features/page-editor)** | Creating and editing board content |
 | **[Schedule Mode](/docs/features/schedule)** | Automating when pages display |
 | **[Silence Schedule](/docs/features/silence-schedule)** | Setting quiet hours for your board |
+| **[In-App Updates](/docs/features/updating)** | One-click updates from the Settings UI |
 | **[Raspberry Pi](/docs/deployment/raspberry-pi)** | Always-on deployment on a Pi |
 | **[V3 Migration](/docs/setup/v3-migration)** | Upgrading from FiestaBoard V2 (external plugins) |
 | **[V2 Migration](/docs/setup/v2-migration)** | Upgrading from FiestaBoard V1 |

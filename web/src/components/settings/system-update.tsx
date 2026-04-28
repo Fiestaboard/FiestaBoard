@@ -1,82 +1,236 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ArrowUpCircle,
   ExternalLink,
+  Loader2,
   RefreshCw,
 } from "lucide-react";
 
-
+/**
+ * Settings → System → Update banner.
+ *
+ * Behavior:
+ *   - If a newer version is available AND the fiestaupdater sidecar is
+ *     reachable, show a primary "Update Now" button that triggers an
+ *     in-place update.  A blocking overlay polls /version until the
+ *     replacement container answers, then reloads.
+ *   - If a newer version is available but the sidecar is NOT reachable,
+ *     show "View Release" + a small "Enable one-click updates" hint with
+ *     copy-paste docker-compose instructions.
+ *   - If up to date, render nothing (consistent with prior behavior).
+ */
 export function SystemUpdate() {
   const queryClient = useQueryClient();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
-  const {
-    data: updateCheck,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data: updateCheck, isLoading, isError } = useQuery({
     queryKey: ["update-check"],
     queryFn: () => api.checkForUpdate(),
-    staleTime: 1000 * 60 * 60, // Check once per hour
+    staleTime: 1000 * 60 * 60,
     retry: false,
   });
 
-  // Don't render anything while loading, on error, or when up to date
+  const { data: status } = useQuery({
+    queryKey: ["update-status"],
+    queryFn: () => api.getUpdateStatus(),
+    staleTime: 1000 * 30,
+    retry: false,
+  });
+
+  const applyMutation = useMutation({
+    mutationFn: () => api.applyUpdate(),
+    onMutate: () => setUpdating(true),
+    onError: () => setUpdating(false),
+  });
+
   if (isLoading || isError || !updateCheck || !updateCheck.update_available) {
     return null;
   }
 
+  const sidecarReady = !!status?.updater_available;
+
   return (
     <TooltipProvider>
-    <Alert className="border-warning/50 bg-warning/10">
-      <ArrowUpCircle className="h-4 w-4 text-warning" />
-      <AlertDescription className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium">Update Available</span>
-          <Badge variant="secondary" className="text-xs">
-            v{updateCheck.latest_version}
-          </Badge>
-          <span className="text-sm text-muted-foreground">
-            You are running v{updateCheck.current_version}.
-          </span>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" asChild>
-            <a
-              href={updateCheck.package_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View Release
-            </a>
-          </Button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => {
-                  queryClient.invalidateQueries({ queryKey: ["update-check"] });
-                }}
+      <Alert className="border-warning/50 bg-warning/10">
+        <ArrowUpCircle className="h-4 w-4 text-warning" />
+        <AlertDescription className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium">Update Available</span>
+            <Badge variant="secondary" className="text-xs">
+              v{updateCheck.latest_version}
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              You are running v{updateCheck.current_version}.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={updateCheck.package_url}
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                <RefreshCw className="h-4 w-4" />
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Release
+              </a>
+            </Button>
+            {sidecarReady && (
+              <Button
+                size="sm"
+                onClick={() => setConfirmOpen(true)}
+                disabled={applyMutation.isPending || updating}
+              >
+                <ArrowUpCircle className="h-4 w-4 mr-2" />
+                Update Now
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Check for updates</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </AlertDescription>
-    </Alert>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: ["update-check"] });
+                    queryClient.invalidateQueries({ queryKey: ["update-status"] });
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Check for updates</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </AlertDescription>
+      </Alert>
+
+      {!sidecarReady && (
+        <p className="text-xs text-muted-foreground mt-2 ml-1">
+          Want a one-click &quot;Update Now&quot; button here? Set{" "}
+          <span className="font-mono">COMPOSE_PROFILES=fiestaupdater</span> in
+          your <code>.env</code>, then run{" "}
+          <code>docker compose up -d</code>.
+        </p>
+      )}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update FiestaBoard?</DialogTitle>
+            <DialogDescription>
+              This will pull <strong>v{updateCheck.latest_version}</strong> and
+              restart FiestaBoard. The board display will pause for about 30
+              seconds and this page will reload automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmOpen(false);
+                applyMutation.mutate();
+              }}
+            >
+              <ArrowUpCircle className="h-4 w-4 mr-2" />
+              Update now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {updating && (
+        <UpdatingOverlay currentVersion={updateCheck.current_version} />
+      )}
     </TooltipProvider>
+  );
+}
+
+/**
+ * Full-screen overlay shown while the sidecar recreates the fiestaboard
+ * container.  Polls /version every 2s.  Once it reports a different
+ * version than we started with, reload the page to pick up the new web
+ * bundle.
+ */
+function UpdatingOverlay({ currentVersion }: { currentVersion: string }) {
+  const [phase, setPhase] = useState<"pulling" | "restarting" | "ready">(
+    "pulling",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    let consecutiveOk = 0;
+
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const v = await api.getVersion();
+        if (v.package_version && v.package_version !== currentVersion) {
+          consecutiveOk += 1;
+          if (consecutiveOk >= 2) {
+            setPhase("ready");
+            setTimeout(() => window.location.reload(), 800);
+            return;
+          }
+        }
+      } catch {
+        // Connection refused / timeout while the new container starts up.
+        setPhase("restarting");
+        consecutiveOk = 0;
+      }
+      setTimeout(tick, 2000);
+    };
+
+    tick();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentVersion]);
+
+  const message =
+    phase === "pulling"
+      ? "Pulling the latest image…"
+      : phase === "restarting"
+        ? "Restarting FiestaBoard…"
+        : "Update complete. Reloading…";
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
+        <h2 className="text-xl font-semibold">Updating FiestaBoard</h2>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+          {message}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Don&apos;t close this tab — it will reload automatically.
+        </p>
+      </div>
+    </div>
   );
 }

@@ -39,3 +39,36 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # FiestaUpdater - sidecar that performs in-place updates of `fiestaboard`.
+  # Off by default. Enable by setting COMPOSE_PROFILES=fiestaupdater in `.env`.
+  # The sidecar is NOT exposed to the host - it is reachable only from the
+  # compose-internal network and is authenticated with a shared bearer token.
+  # ---------------------------------------------------------------------------
+  fiestaupdater:
+    build:
+      context: ./fiestaupdater
+      dockerfile: Dockerfile
+    container_name: fiestaupdater
+    profiles: ["fiestaupdater"]
+    restart: unless-stopped
+    environment:
+      - FIESTAUPDATER_TOKEN=${FIESTAUPDATER_TOKEN}
+      - FIESTAUPDATER_SERVICE=fiestaboard
+      - FIESTAUPDATER_COMPOSE_FILE=/compose/docker-compose.yml
+      - COMPOSE_PROJECT_NAME=fiestaboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker-compose.yml:/compose/docker-compose.yml:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8765/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
