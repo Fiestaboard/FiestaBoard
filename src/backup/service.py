@@ -21,11 +21,25 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+#: Strict allowlist for repository URLs read from a backup file.  We only
+#: clone HTTPS URLs that contain a conservative set of characters; anything
+#: else is rejected before reaching the install pipeline.  Re-deriving the
+#: value from a regex match here also breaks static-analysis taint tracking
+#: (CodeQL py/command-line-injection) when the validated URL is later passed
+#: to ``git`` via :mod:`subprocess`.
+_BACKUP_REPO_URL_RE = re.compile(r"https://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+")
+
+#: Strict allowlist for plugin ids read from a backup file.  Mirrors the
+#: ``PLUGIN_ID_RE`` used in :mod:`src.plugins.sources` but is duplicated here
+#: so the validation runs before any plugin code is imported.
+_BACKUP_PLUGIN_ID_RE = re.compile(r"[a-z][a-z0-9_]*")
 
 logger = logging.getLogger(__name__)
 
@@ -323,21 +337,53 @@ class BackupService:
             repo = entry.get("repository_url") or ""
             if not plugin_id or not repo:
                 continue
-            result["attempted"].append(plugin_id)
 
-            if registry.get_plugin(plugin_id) is not None:
-                result["already_present"].append(plugin_id)
+            # Validate plugin_id and repo URL with strict allowlists before
+            # passing them into the install pipeline.  Re-derive both values
+            # from a regex ``fullmatch`` so that even if upstream call sites
+            # gain new code paths, only well-formed values reach
+            # :mod:`subprocess`.  This also prevents
+            # CodeQL ``py/command-line-injection`` from flagging the
+            # downstream ``git clone`` as receiving an uncontrolled value.
+            pid_m = _BACKUP_PLUGIN_ID_RE.fullmatch(plugin_id)
+            if pid_m is None:
+                result["failed"].append(
+                    {"plugin_id": plugin_id, "error": "invalid plugin id in backup"}
+                )
+                continue
+            safe_plugin_id = pid_m.group(0)
+
+            safe_repo: Optional[str] = None
+            if source_type != "registry":
+                repo_m = _BACKUP_REPO_URL_RE.fullmatch(repo)
+                if repo_m is None:
+                    result["failed"].append(
+                        {
+                            "plugin_id": safe_plugin_id,
+                            "error": "invalid repository URL in backup",
+                        }
+                    )
+                    continue
+                safe_repo = repo_m.group(0)
+
+            result["attempted"].append(safe_plugin_id)
+
+            if registry.get_plugin(safe_plugin_id) is not None:
+                result["already_present"].append(safe_plugin_id)
                 continue
 
             try:
                 if source_type == "registry":
-                    errors = registry.install_from_registry(plugin_id)
+                    errors = registry.install_from_registry(safe_plugin_id)
                 else:
-                    errors = registry.install_from_git(repo, plugin_id=plugin_id)
+                    assert safe_repo is not None  # for type-checkers
+                    errors = registry.install_from_git(
+                        safe_repo, plugin_id=safe_plugin_id
+                    )
             except Exception:  # pragma: no cover - defensive
-                logger.exception("Plugin reinstall raised: %s", plugin_id)
+                logger.exception("Plugin reinstall raised: %s", safe_plugin_id)
                 result["failed"].append(
-                    {"plugin_id": plugin_id, "error": "install failed (see server logs)"}
+                    {"plugin_id": safe_plugin_id, "error": "install failed (see server logs)"}
                 )
                 continue
 
@@ -345,10 +391,10 @@ class BackupService:
                 # Errors from install_from_* are validation messages, not
                 # exception traces, so they are safe to surface to callers.
                 result["failed"].append(
-                    {"plugin_id": plugin_id, "error": "; ".join(errors)}
+                    {"plugin_id": safe_plugin_id, "error": "; ".join(errors)}
                 )
             else:
-                result["installed"].append(plugin_id)
+                result["installed"].append(safe_plugin_id)
 
         return result
 

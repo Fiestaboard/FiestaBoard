@@ -261,6 +261,40 @@ def test_reinstall_plugins_records_failures(tmp_path):
     assert result["failed"] and result["failed"][0]["plugin_id"] == "weather"
 
 
+def test_reinstall_plugins_rejects_malicious_repository_url(tmp_path):
+    """Repository URLs that don't match the strict allowlist must be rejected
+    *before* reaching the install pipeline (defence against
+    py/command-line-injection)."""
+    fake_registry = MagicMock()
+    fake_registry.get_plugin.return_value = None
+
+    with patch(
+        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
+    ):
+        result = BackupService._reinstall_plugins(
+            [
+                {
+                    "plugin_id": "weather",
+                    "source_type": "external",
+                    # Leading dash + space would be highly suspicious — must
+                    # be rejected by the URL allowlist regex.
+                    "repository_url": "--upload-pack=evil https://example.com/p.git",
+                },
+                {
+                    # Plugin id with shell metacharacter must also be rejected.
+                    "plugin_id": "weather; rm -rf /",
+                    "source_type": "external",
+                    "repository_url": "https://example.com/p.git",
+                },
+            ]
+        )
+
+    assert result["installed"] == []
+    assert result["attempted"] == []
+    assert len(result["failed"]) == 2
+    fake_registry.install_from_git.assert_not_called()
+
+
 # ── API endpoint tests ──────────────────────────────────────────────────────
 
 
