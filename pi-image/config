@@ -2,7 +2,7 @@
 # See https://github.com/RPi-Distro/pi-gen for the full schema.
 
 IMG_NAME="fiestapi"
-RELEASE="bookworm"
+RELEASE="trixie"
 DEPLOY_COMPRESSION="xz"
 
 # 64-bit only (Pi 3B and newer).
