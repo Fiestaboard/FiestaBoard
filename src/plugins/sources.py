@@ -434,7 +434,7 @@ def clone_or_update_repo(
             cmd, check=True, capture_output=True, text=True,
             timeout=120, env=env,
         )
-        logger.info("Cloned %s → %s", repo_url, safe_dest)
+        logger.info("Cloned external plugin repository successfully")
         return True, ""
     except subprocess.SubprocessError as exc:
         return False, f"git clone failed for {repo_url}: {exc}"
