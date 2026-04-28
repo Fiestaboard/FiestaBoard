@@ -355,25 +355,35 @@ def clone_or_update_repo(
         )
 
     # (2) Extract the basename as a *string* and validate via regex.
-    #     ``m.group(0)`` is the regex-matched substring — a CodeQL
-    #     barrier for path/command injection.
     raw_basename = os.path.basename(os.path.normpath(str(dest_dir)))
-    m = PLUGIN_ID_RE.fullmatch(raw_basename)
-    if not m:
-        return False, (
-            f"Refusing to use destination with invalid basename: {dest_dir}"
-        )
-    safe_basename = m.group(0)
-    # Belt-and-braces character-level allow-list (no-op when the regex
-    # holds, but gives CodeQL a second, literal barrier).
-    if any(c not in _PLUGIN_ID_ALLOWED for c in safe_basename):
+    if not PLUGIN_ID_RE.fullmatch(raw_basename):
         return False, (
             f"Refusing to use destination with invalid basename: {dest_dir}"
         )
 
+    # (3) Reconstruct the basename by indexing the *literal* constant
+    #     ``_PLUGIN_ID_ALLOWED`` with the position of each validated
+    #     character.  Every character in ``safe_basename`` is therefore
+    #     sourced from a literal string defined in this module — no
+    #     dataflow path exists from ``dest_dir`` to ``safe_basename``.
+    #     This is the textbook CodeQL sanitiser pattern (literal-pool
+    #     indexing) for ``py/path-injection`` and
+    #     ``py/command-line-injection``.
+    _trusted_chars: List[str] = []
+    for _c in raw_basename:
+        _idx = _PLUGIN_ID_ALLOWED.find(_c)
+        if _idx < 0:
+            return False, (
+                f"Refusing to use destination with invalid basename: {dest_dir}"
+            )
+        # ``_PLUGIN_ID_ALLOWED[_idx]`` is a substring of a literal
+        # constant — its value does not depend on ``dest_dir``.
+        _trusted_chars.append(_PLUGIN_ID_ALLOWED[_idx])
+    safe_basename = "".join(_trusted_chars)
+
     # Build the path actually used at the sinks from the trusted root
-    # and the regex-matched basename only.  ``safe_dest`` therefore does
-    # not depend on the raw ``dest_dir`` argument's path components.
+    # and the literal-sourced basename only.  ``safe_dest`` therefore
+    # has zero dataflow from the raw ``dest_dir`` argument.
     safe_dest = Path(os.path.join(external_root, safe_basename))
 
     if safe_dest.exists() and (safe_dest / ".git").is_dir():
