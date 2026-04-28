@@ -1409,10 +1409,32 @@ async def reset_board_config():
     so that ``GET /config/validate`` returns ``is_first_run: true`` even when
     ``BOARD_HOST`` / ``BOARD_LOCAL_API_KEY`` env vars are present.
 
+    Also resets the multi-board settings service boards to a single default
+    unconfigured board so that both the legacy config path and the new settings
+    service path agree that no board is configured.
+
     Primarily used by integration-test helpers to set up wizard test scenarios.
     """
     config_manager = get_config_manager()
     config_manager.reset_board_config()
+
+    # Also reset the multi-board settings so that validate_config() correctly
+    # detects first-run mode regardless of which storage path is checked.
+    try:
+        from .devices import BoardInstance
+        settings_svc = get_settings_service()
+        settings_svc.set_boards([BoardInstance(
+            name="My Board",
+            device_type="flagship",
+            board_color="black",
+            enabled=True,
+            api_mode="local",
+            host="",
+            local_api_key="",
+            cloud_key="",
+        ).to_dict()])
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to reset multi-board settings during board config reset")
 
     # Reinitialize the board client (will be unconfigured)
     service = get_service()
@@ -1426,21 +1448,27 @@ async def reset_board_config():
 async def validate_config():
     """
     Validate the current configuration.
-    
+
     Returns validation status, first-run detection, and any errors found.
     Used by the setup wizard to determine if onboarding is needed.
+
+    A board is considered configured when either the legacy single-board
+    config has the required credentials, or any board instance configured
+    via the multi-board settings service has connection credentials. This
+    ensures users who set up a board through Settings (rather than the
+    wizard) are not treated as first-run.
     """
     config_manager = get_config_manager()
     is_valid, errors = config_manager.validate()
-    
+
     # Get board config to check first-run state
     board_config = config_manager.get_board()
     api_mode = board_config.get("api_mode", "local")
-    
+
     # Detect first-run: no API key configured for the selected mode
     is_first_run = False
     missing_fields = []
-    
+
     if api_mode == "cloud":
         if not board_config.get("cloud_key"):
             is_first_run = True
@@ -1452,7 +1480,34 @@ async def validate_config():
         if not board_config.get("host"):
             is_first_run = True
             missing_fields.append("board.host")
-    
+
+    # Also consider boards configured via the multi-board settings service.
+    # If any configured board instance has connection credentials, the user
+    # has completed setup (e.g. via Settings) and should not be treated as
+    # first-run. Board-related validation errors/missing_fields from the
+    # legacy config are dropped in that case.
+    has_configured_board_instance = False
+    try:
+        from .devices import BoardInstance
+        board_settings = get_settings_service().get_board_settings()
+        for b in board_settings.boards or []:
+            try:
+                instance = BoardInstance.from_dict(b)
+            except Exception:  # pragma: no cover - defensive
+                continue
+            if instance.is_connection_configured:
+                has_configured_board_instance = True
+                break
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to inspect multi-board settings during validate_config")
+
+    if has_configured_board_instance:
+        is_first_run = False
+        missing_fields = [f for f in missing_fields if not f.startswith("board.")]
+        board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
+        errors = [e for e in errors if not e.startswith(board_error_prefixes)]
+        is_valid = len(errors) == 0
+
     return {
         "valid": is_valid,
         "is_first_run": is_first_run,

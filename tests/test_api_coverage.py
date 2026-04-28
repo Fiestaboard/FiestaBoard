@@ -336,15 +336,22 @@ class TestSendWelcomeMessage:
 class TestResetBoardConfig:
     """Tests for DELETE /config/board."""
 
-    def test_reset_board_config(self, client, mock_config_manager, mock_service):
-        """Reset board config clears config and reinitializes."""
+    def test_reset_board_config(self, client, mock_config_manager, mock_service, mock_settings_service):
+        """Reset board config clears legacy config, settings boards, and reinitializes."""
         response = client.delete("/config/board")
         assert response.status_code == 200
         assert response.json()["status"] == "reset"
         mock_config_manager.reset_board_config.assert_called_once()
         mock_service.reinitialize_board_client.assert_called_once()
+        # Settings service boards should be reset to a single unconfigured board
+        mock_settings_service.set_boards.assert_called_once()
+        boards_arg = mock_settings_service.set_boards.call_args[0][0]
+        assert len(boards_arg) == 1
+        assert boards_arg[0]["local_api_key"] == ""
+        assert boards_arg[0]["cloud_key"] == ""
+        assert boards_arg[0]["host"] == ""
 
-    def test_reset_board_config_no_service(self, client, mock_config_manager):
+    def test_reset_board_config_no_service(self, client, mock_config_manager, mock_settings_service):
         """Reset when service is None still succeeds."""
         with patch("src.api_server.get_service", return_value=None):
             response = client.delete("/config/board")
@@ -387,6 +394,86 @@ class TestValidateConfig:
         data = response.json()
         assert data["is_first_run"] is True
         assert "board.cloud_key" in data["missing_fields"]
+
+    def test_validate_config_multi_board_overrides_first_run(
+        self, client, mock_config_manager, mock_settings_service
+    ):
+        """A configured board instance in multi-board settings clears first-run state.
+
+        When a user sets up a board via Settings (rather than the wizard),
+        the legacy single-board config remains empty but the new
+        ``settings.boards`` list contains a configured board. The
+        validate endpoint must report ``is_first_run=False`` and
+        ``valid=True`` so the home page does not nag the user to run
+        the wizard.
+        """
+        # Legacy board config is empty (would normally trigger first-run)
+        mock_config_manager.get_board.return_value = {
+            "api_mode": "local",
+            "local_api_key": "",
+            "host": "",
+        }
+        mock_config_manager.validate.return_value = (
+            False,
+            [
+                "Board local_api_key is required when api_mode is 'local'",
+                "Board host is required when api_mode is 'local'",
+            ],
+        )
+        # But the multi-board settings has a fully configured local board
+        board_settings = Mock()
+        board_settings.boards = [
+            {
+                "id": "b1",
+                "name": "My Board",
+                "device_type": "flagship",
+                "board_color": "black",
+                "enabled": True,
+                "api_mode": "local",
+                "host": "192.168.1.100",
+                "local_api_key": "configured-key",
+                "cloud_key": "",
+            }
+        ]
+        mock_settings_service.get_board_settings.return_value = board_settings
+
+        response = client.get("/config/validate")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_first_run"] is False
+        assert data["valid"] is True
+        assert data["missing_fields"] == []
+        # Board-related errors should be removed
+        assert not any(e.startswith("Board ") for e in data["errors"])
+
+    def test_validate_config_multi_board_unconfigured_still_first_run(
+        self, client, mock_config_manager, mock_settings_service
+    ):
+        """Multi-board settings with no credentials does NOT clear first-run state."""
+        mock_config_manager.get_board.return_value = {
+            "api_mode": "local",
+            "local_api_key": "",
+            "host": "",
+        }
+        board_settings = Mock()
+        board_settings.boards = [
+            {
+                "id": "b1",
+                "name": "My Board",
+                "device_type": "flagship",
+                "api_mode": "local",
+                "host": "",
+                "local_api_key": "",
+                "cloud_key": "",
+            }
+        ]
+        mock_settings_service.get_board_settings.return_value = board_settings
+
+        response = client.get("/config/validate")
+        data = response.json()
+        assert data["is_first_run"] is True
+        assert "board.local_api_key" in data["missing_fields"]
+        assert "board.host" in data["missing_fields"]
 
 
 class TestUpdateGeneralConfig:
