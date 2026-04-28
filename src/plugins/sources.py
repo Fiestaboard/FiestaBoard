@@ -372,9 +372,11 @@ def clone_or_update_repo(
         )
 
     # Build the path actually used at the sinks from the trusted root
-    # and the regex-matched basename only.  ``safe_dest`` therefore does
-    # not depend on the raw ``dest_dir`` argument's path components.
-    safe_dest = Path(os.path.join(external_root, safe_basename))
+    # and the regex-matched basename only, then canonicalize it and prove
+    # containment under ``external_root`` before any filesystem call.
+    safe_dest = (external_root / safe_basename).resolve()
+    if os.path.commonpath([str(external_root), str(safe_dest)]) != str(external_root):
+        return False, f"Refusing destination outside external root: {safe_dest}"
 
     if safe_dest.exists() and (safe_dest / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
@@ -413,10 +415,10 @@ def clone_or_update_repo(
         if not ok:
             return False, err
 
-    # Defensive sink-adjacent invariant: the directory we create must be the
-    # trusted external root, never a user-influenced parent path.
-    trusted_parent = safe_dest.parent.resolve()
-    if trusted_parent != external_root:
+    # Defensive sink-adjacent invariant: the directory we create must remain
+    # within ``external_root`` after canonicalization.
+    trusted_parent = safe_dest.parent
+    if os.path.commonpath([str(external_root), str(trusted_parent)]) != str(external_root):
         return False, f"Refusing to create directory outside external root: {safe_dest}"
 
     trusted_parent.mkdir(parents=True, exist_ok=True)
