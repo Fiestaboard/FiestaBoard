@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import type { SilenceStatus, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
-import { readLiveOutputMessage, onLiveOutputMessageChange } from "@/lib/live-output-channel";
+import { readLiveOutputMessage, onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 
 // Parse a line into tokens (same logic as BoardDisplay)
@@ -187,6 +187,22 @@ export function ActivePageDisplay() {
     return onLiveOutputMessageChange((msg) => {
       queryClient.setQueryData(["liveOutputMessage"], msg);
     });
+  }, [queryClient]);
+
+  // Turn off Live Mode from the home page. Clears the shared live-output
+  // cache + localStorage (so all tabs stop showing live content) and asks the
+  // backend to refresh the board back to its scheduled/manual page. This is
+  // important because when the user enables Live Output in the page editor
+  // and then leaves that page, the inactivity timeout is bound to that
+  // component and never fires after navigation — without a kill switch here,
+  // the Home page would stay stuck pulsing "Live Mode" indefinitely.
+  const handleDisableLiveMode = useCallback(() => {
+    queryClient.setQueryData(["liveOutputMessage"], null);
+    writeLiveOutputMessage(null);
+    api.forceRefresh().catch(() => {
+      // Silently ignore errors — UI state is already cleared.
+    });
+    toast.success("Live Mode turned off");
   }, [queryClient]);
 
   // Fetch board settings for display type
@@ -393,9 +409,21 @@ export function ActivePageDisplay() {
               <span className="font-medium text-foreground">{activePageName}</span>
             </div>
             {liveOutputMessage ? (
-              <Badge variant="destructive" className="text-xs gap-1 animate-pulse">
-                <Radio className="h-3 w-3" />
+              <Badge
+                variant="destructive"
+                className="text-xs gap-1 animate-pulse pr-1 cursor-pointer hover:opacity-90 focus-within:ring-2 focus-within:ring-ring"
+              >
+                <Radio className="h-3 w-3" aria-hidden="true" />
                 Live Mode
+                <button
+                  type="button"
+                  onClick={handleDisableLiveMode}
+                  aria-label="Turn off Live Mode"
+                  title="Turn off Live Mode"
+                  className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
               </Badge>
             ) : (
               <Badge variant={scheduleEnabled ? "default" : "secondary"} className="text-xs">

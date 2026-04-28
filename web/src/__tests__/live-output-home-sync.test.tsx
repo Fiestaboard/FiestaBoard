@@ -359,4 +359,44 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
 
     expect(screen.queryByText("Live Mode")).not.toBeInTheDocument();
   });
+
+  it("clicking the Live Mode turn-off button clears live output state", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    // Pre-populate live output (as if page builder had sent live content)
+    queryClient.setQueryData(["liveOutputMessage"], "LIVE CONTENT");
+    // Also seed localStorage so we can verify it gets cleared
+    window.localStorage.setItem(
+      "fiestaboard:liveOutputMessage",
+      JSON.stringify("LIVE CONTENT")
+    );
+
+    render(<ActivePageDisplay />, { wrapper: makeWrapper(queryClient) });
+
+    await waitFor(() => {
+      expect(screen.getByText("Live Mode")).toBeInTheDocument();
+    });
+
+    const turnOffButton = screen.getByRole("button", { name: /turn off live mode/i });
+    expect(turnOffButton).toBeInTheDocument();
+
+    await user.click(turnOffButton);
+
+    // Cache should be cleared
+    await waitFor(() => {
+      expect(queryClient.getQueryData(["liveOutputMessage"])).toBeNull();
+    });
+
+    // localStorage should be cleared so other tabs stop showing live content
+    expect(window.localStorage.getItem("fiestaboard:liveOutputMessage")).toBeNull();
+
+    // Live Mode badge should disappear
+    await waitFor(() => {
+      expect(screen.queryByText("Live Mode")).not.toBeInTheDocument();
+    });
+  });
 });
