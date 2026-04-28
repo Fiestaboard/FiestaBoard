@@ -336,15 +336,22 @@ class TestSendWelcomeMessage:
 class TestResetBoardConfig:
     """Tests for DELETE /config/board."""
 
-    def test_reset_board_config(self, client, mock_config_manager, mock_service):
-        """Reset board config clears config and reinitializes."""
+    def test_reset_board_config(self, client, mock_config_manager, mock_service, mock_settings_service):
+        """Reset board config clears legacy config, settings boards, and reinitializes."""
         response = client.delete("/config/board")
         assert response.status_code == 200
         assert response.json()["status"] == "reset"
         mock_config_manager.reset_board_config.assert_called_once()
         mock_service.reinitialize_board_client.assert_called_once()
+        # Settings service boards should be reset to a single unconfigured board
+        mock_settings_service.set_boards.assert_called_once()
+        boards_arg = mock_settings_service.set_boards.call_args[0][0]
+        assert len(boards_arg) == 1
+        assert boards_arg[0]["local_api_key"] == ""
+        assert boards_arg[0]["cloud_key"] == ""
+        assert boards_arg[0]["host"] == ""
 
-    def test_reset_board_config_no_service(self, client, mock_config_manager):
+    def test_reset_board_config_no_service(self, client, mock_config_manager, mock_settings_service):
         """Reset when service is None still succeeds."""
         with patch("src.api_server.get_service", return_value=None):
             response = client.delete("/config/board")

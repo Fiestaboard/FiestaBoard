@@ -1409,10 +1409,32 @@ async def reset_board_config():
     so that ``GET /config/validate`` returns ``is_first_run: true`` even when
     ``BOARD_HOST`` / ``BOARD_LOCAL_API_KEY`` env vars are present.
 
+    Also resets the multi-board settings service boards to a single default
+    unconfigured board so that both the legacy config path and the new settings
+    service path agree that no board is configured.
+
     Primarily used by integration-test helpers to set up wizard test scenarios.
     """
     config_manager = get_config_manager()
     config_manager.reset_board_config()
+
+    # Also reset the multi-board settings so that validate_config() correctly
+    # detects first-run mode regardless of which storage path is checked.
+    try:
+        from .devices import BoardInstance
+        settings_svc = get_settings_service()
+        settings_svc.set_boards([BoardInstance(
+            name="My Board",
+            device_type="flagship",
+            board_color="black",
+            enabled=True,
+            api_mode="local",
+            host="",
+            local_api_key="",
+            cloud_key="",
+        ).to_dict()])
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to reset multi-board settings during board config reset")
 
     # Reinitialize the board client (will be unconfigured)
     service = get_service()
