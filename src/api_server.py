@@ -173,6 +173,25 @@ def _is_host_allowed(host: str, allowed_hosts: List[str]) -> bool:
 
 
 # Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
+_PLUGIN_ID_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def _sanitize_optional_plugin_id(plugin_id: Optional[str]) -> Optional[str]:
+    """Validate optional plugin id from user input.
+
+    Accepts ``None`` (meaning "derive from repo name"), otherwise enforces
+    lowercase letters, digits, and underscores only.
+    """
+    if plugin_id is None:
+        return None
+    if not isinstance(plugin_id, str) or not plugin_id:
+        raise HTTPException(status_code=400, detail="plugin_id must be a non-empty string")
+    if not _PLUGIN_ID_RE.fullmatch(plugin_id):
+        raise HTTPException(
+            status_code=400,
+            detail="plugin_id may contain only lowercase letters, digits, and underscores",
+        )
+    return plugin_id
 # IPv4 dotted-quad notation.  This rejects exotic forms (URL-encoded chars,
 # ``user:pass@host``, schemes embedded in the host, etc.) before we ever try
 # to connect to a board over HTTP.
@@ -6224,10 +6243,12 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
             detail="branch must be one of: main, master, develop",
         )
 
+    safe_plugin_id = _sanitize_optional_plugin_id(request.plugin_id)
+
     registry = get_plugin_registry()
     errors = registry.install_from_git(
         request.repository,
-        plugin_id=request.plugin_id,
+        plugin_id=safe_plugin_id,
         branch=safe_branch,
     )
 
@@ -6235,7 +6256,7 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
         raise HTTPException(status_code=400, detail="; ".join(errors))
 
     # Derive the final plugin id
-    pid = request.plugin_id
+    pid = safe_plugin_id
     if pid is None:
         from .plugins.sources import repo_name_from_url, plugin_id_from_repo_name
         pid = plugin_id_from_repo_name(repo_name_from_url(request.repository))
