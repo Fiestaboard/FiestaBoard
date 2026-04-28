@@ -53,9 +53,10 @@ def _is_empty_orphan_config(cfg: Any) -> bool:
 
     An "empty orphan" is a stored plugin config where the plugin is not
     enabled and the user never set any meaningful field — only meta-state
-    such as ``enabled`` and ``color_rules`` is present (and ``enabled`` is
-    not ``True``).  These configs should NOT trigger automatic installation
-    of the matching external plugin from the registry.
+    such as ``enabled``, ``color_rules``, or ``schema_version`` is present
+    (and ``enabled`` is not ``True``).  These configs should NOT trigger
+    automatic installation of the matching external plugin from the registry.
+    See :data:`_ORPHAN_META_FIELDS` for the full set of ignored keys.
     """
     if not isinstance(cfg, dict):
         return False

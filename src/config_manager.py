@@ -501,6 +501,13 @@ class ConfigManager:
         **not** uninstall anything from ``external_plugins/`` — that's left
         to the user via the UI to avoid surprising deletes.
 
+        Ordering note: this method is invoked **before**
+        :meth:`_auto_migrate_features_to_plugins` from ``__init__`` so that
+        phantom entries are removed prior to any migration logic running.
+        Otherwise a follow-up migration pass could re-resurrect a phantom
+        entry from ``self._raw_features`` that this cleanup just removed
+        from ``self._config["plugins"]``.
+
         After running, the config's ``schema_version`` is bumped so this
         function never runs again on the same install.
         """

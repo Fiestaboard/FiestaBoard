@@ -808,10 +808,13 @@ def test_fresh_install_does_not_seed_feature_defaults(tmp_path):
     Regression test: previously the on-disk file was seeded with the full
     DEFAULT_CONFIG features, which were then misclassified as user-configured
     V2 features on the next boot and migrated into ``plugins.*``.
+
+    Also verifies that, despite the lean on-disk file, the in-memory config
+    still surfaces full default feature dicts via ``get_feature`` so callers
+    relying on built-in defaults remain unaffected.
     """
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
-    assert cm  # silence linter
     raw = json.loads(config_path.read_text())
 
     # Skeleton has empty features and plugins.
@@ -822,6 +825,12 @@ def test_fresh_install_does_not_seed_feature_defaults(tmp_path):
     # Board/general defaults are still present.
     assert raw["board"]["api_mode"] == "local"
     assert "timezone" in raw["general"]
+
+    # In-memory defaults still flow through get_feature for backward compat.
+    weather = cm.get_feature("weather")
+    assert weather is not None
+    assert weather["provider"] == "weatherapi"
+    assert "api_key" in weather
 
 
 def test_two_consecutive_boots_keeps_plugins_empty(tmp_path):
