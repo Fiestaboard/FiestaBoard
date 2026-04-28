@@ -314,41 +314,75 @@ def clone_or_update_repo(
     """
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
-    # Defensive sink-level guard: ensure destination stays inside the
-    # managed external plugins directory before any filesystem access.
+    # Defensive sink-level guard.  We do **two** things here:
+    #
+    # 1. Confirm the *input* ``dest_dir`` resolves inside the trusted
+    #    ``allowed_root`` — this rejects callers that hand us a path
+    #    pointing somewhere unexpected (path traversal, sibling dirs, …).
+    # 2. Rebuild the path actually used at the sinks from a strictly
+    #    validated basename joined onto the trusted root.  This is the
+    #    strongest CodeQL-recognised barrier for ``py/path-injection`` and
+    #    ``py/command-line-injection`` because the value reaching
+    #    filesystem and subprocess sinks is composed of:
+    #      * a constant trusted root (``os.path.realpath`` of
+    #        ``allowed_root``), and
+    #      * a basename that has been ``re.fullmatch``-validated against
+    #        ``PLUGIN_ID_RE`` *and* reconstructed character-by-character
+    #        from a literal allow-list (``_PLUGIN_ID_ALLOWED``).
+    #
+    # The original ``dest_dir`` argument is only used for the containment
+    # check and to extract the basename — it never reaches a sink directly.
     root = allowed_root if allowed_root is not None else get_external_plugins_dir()
     external_root = os.path.realpath(str(root))
-    candidate = os.path.realpath(str(dest_dir))
-    # Accept either the root itself or a descendant path under that root.
-    # This avoids edge cases where a strict `root + os.sep` prefix check
-    # rejects valid paths (for example, when candidate == external_root).
-    if not (candidate == external_root or candidate.startswith(external_root + os.sep)):
+    input_real = os.path.realpath(str(dest_dir))
+    try:
+        common = os.path.commonpath([external_root, input_real])
+    except ValueError:
         return False, (
             f"Refusing to use destination outside external plugins directory: "
             f"{dest_dir}"
         )
-    # Reassign dest_dir from its validated canonical path so static-analysis
-    # tools see it as sanitised (not derived directly from user input).
-    dest_dir = Path(candidate)
+    if common != external_root or input_real == external_root:
+        return False, (
+            f"Refusing to use destination outside external plugins directory: "
+            f"{dest_dir}"
+        )
 
-    if dest_dir.exists() and (dest_dir / ".git").is_dir():
+    # Extract and strictly validate the basename, then rebuild the path
+    # from trusted constants only.
+    raw_basename = os.path.basename(input_real)
+    if not raw_basename or not PLUGIN_ID_RE.fullmatch(raw_basename):
+        return False, (
+            f"Refusing to use destination with invalid basename: {dest_dir}"
+        )
+    safe_basename = "".join(c for c in raw_basename if c in _PLUGIN_ID_ALLOWED)
+    if safe_basename != raw_basename:
+        return False, (
+            f"Refusing to use destination with invalid basename: {dest_dir}"
+        )
+    # ``safe_dest`` is fully derived from the trusted root + a literal
+    # allow-list reconstruction of the basename, so it is no longer
+    # considered tainted by static-analysis tools.
+    safe_dest = Path(os.path.join(external_root, safe_basename))
+
+    if safe_dest.exists() and (safe_dest / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
         # Works for both full and shallow (--depth 1) clones.
         try:
             subprocess.run(
-                ["git", "-C", str(dest_dir), "fetch", "--depth=1", "origin"],
+                ["git", "-C", str(safe_dest), "fetch", "--depth=1", "origin"],
                 check=True, capture_output=True, text=True,
                 timeout=120, env=env,
             )
             subprocess.run(
-                ["git", "-C", str(dest_dir), "reset", "--hard", "FETCH_HEAD"],
+                ["git", "-C", str(safe_dest), "reset", "--hard", "FETCH_HEAD"],
                 check=True, capture_output=True, text=True,
                 timeout=30, env=env,
             )
-            logger.info("Updated existing clone at %s", dest_dir)
+            logger.info("Updated existing clone at %s", safe_dest)
             return True, ""
         except subprocess.SubprocessError as exc:
-            return False, f"git fetch/reset failed at {dest_dir}: {exc}"
+            return False, f"git fetch/reset failed at {safe_dest}: {exc}"
 
     # Fresh clone — URL is required and must be validated.
     ok, err = _validate_git_url(repo_url)
@@ -368,7 +402,7 @@ def clone_or_update_repo(
         if not ok:
             return False, err
 
-    dest_dir.parent.mkdir(parents=True, exist_ok=True)
+    safe_dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         cmd = ["git", "clone", "--depth", "1"]
         if branch:
@@ -376,12 +410,12 @@ def clone_or_update_repo(
         # ``--`` ensures the repo URL and destination are treated as
         # positional arguments and never as options, even if validation
         # somehow misses a leading ``-``.
-        cmd += ["--", repo_url, str(dest_dir)]
+        cmd += ["--", repo_url, str(safe_dest)]
         subprocess.run(
             cmd, check=True, capture_output=True, text=True,
             timeout=120, env=env,
         )
-        logger.info("Cloned %s → %s", repo_url, dest_dir)
+        logger.info("Cloned %s → %s", repo_url, safe_dest)
         return True, ""
     except subprocess.SubprocessError as exc:
         return False, f"git clone failed for {repo_url}: {exc}"
