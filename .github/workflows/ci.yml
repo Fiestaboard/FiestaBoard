@@ -54,7 +54,17 @@ jobs:
               - 'plugins/**'
             shared:
               - 'docker-compose*.yml'
+              # Workflow changes can affect any job, but exclude workflows
+              # that build artifacts unrelated to the app (pi-gen image,
+              # fiestaupdater container, docs site, registry scan, PR
+              # labelling). Those have their own pipelines and don't need
+              # to retrigger Platform/Web tests when edited in isolation.
               - '.github/workflows/**'
+              - '!.github/workflows/build-fiestapi.yml'
+              - '!.github/workflows/build-fiestaupdater.yml'
+              - '!.github/workflows/docs.yml'
+              - '!.github/workflows/registry-scan.yml'
+              - '!.github/workflows/pr-label.yml'
               - 'package.json'
               - 'scripts/version-sync.js'
             docs:
