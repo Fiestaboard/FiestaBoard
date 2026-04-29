@@ -498,6 +498,12 @@ class AutoUpdateResponse(BaseModel):
     enabled: bool
 
 
+class SystemActionResponse(BaseModel):
+    """Response model for restart / shutdown system actions."""
+    status: str   # "queued"
+    action: str   # "restart" | "shutdown"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
@@ -1186,6 +1192,85 @@ async def system_update_set_auto(req: AutoUpdateRequest):
     state["auto_update_enabled"] = bool(req.enabled)
     _system_update_state_save(state)
     return AutoUpdateResponse(enabled=bool(req.enabled))
+
+
+def _updater_post(path: str) -> requests.Response:
+    """POST to the fiestaupdater sidecar and return the response.
+    Raises on network-level failures; callers handle HTTP errors.
+    """
+    url = f"{_updater_url()}/{path.lstrip('/')}"
+    headers = {"Authorization": f"Bearer {_updater_token()}"}
+    return requests.post(url, headers=headers, timeout=(5, 30))
+
+
+def _require_updater_token():
+    """Raise 503 if FIESTAUPDATER_TOKEN is not configured."""
+    if not _updater_token():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "unavailable",
+                "hint": "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env and run 'docker compose up -d' to enable sidecar features.",
+            },
+        )
+
+
+def _handle_updater_response(resp: requests.Response, action: str) -> SystemActionResponse:
+    """Translate a sidecar HTTP response into a SystemActionResponse or raise."""
+    if resp.status_code == 401:
+        raise HTTPException(
+            status_code=500,
+            detail={"status": "error", "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services"},
+        )
+    if resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
+        )
+    return SystemActionResponse(status="queued", action=action)
+
+
+@app.post("/system/restart", response_model=SystemActionResponse)
+async def system_restart():
+    """Restart the FiestaBoard container via the fiestaupdater sidecar.
+
+    The connection will drop while the container restarts (~5 s).
+    Clients should poll /health until it comes back.
+    """
+    _require_updater_token()
+    try:
+        resp = await asyncio.to_thread(_updater_post, "/restart")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "unavailable", "hint": "Could not reach the fiestaupdater sidecar."},
+        )
+    except Exception as e:
+        logger.warning("fiestaupdater restart call failed: %s", e)
+        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+    return _handle_updater_response(resp, "restart")
+
+
+@app.post("/system/shutdown", response_model=SystemActionResponse)
+async def system_shutdown():
+    """Shut down the host machine via the fiestaupdater sidecar.
+
+    The sidecar stops all compose services, then powers off the host.
+    Requires the fiestaupdater container to have the SYS_BOOT capability
+    (cap_add: [SYS_BOOT] in docker-compose.yml).
+    """
+    _require_updater_token()
+    try:
+        resp = await asyncio.to_thread(_updater_post, "/shutdown")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "unavailable", "hint": "Could not reach the fiestaupdater sidecar."},
+        )
+    except Exception as e:
+        logger.warning("fiestaupdater shutdown call failed: %s", e)
+        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+    return _handle_updater_response(resp, "shutdown")
 
 
 @app.get("/logs")

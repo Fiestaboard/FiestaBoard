@@ -146,6 +146,64 @@ status_of() {
     [[ "$(status_of "$out")" == "HTTP/1.1 404 Not Found" ]]
 }
 
+# ---- /restart --------------------------------------------------------------
+
+@test "POST /restart with no Authorization → 401" {
+    req=$'POST /restart HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+    [[ "$out" == *missing_authorization* ]]
+}
+
+@test "POST /restart with wrong token → 401" {
+    req=$'POST /restart HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer wrong\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+    [[ "$out" == *invalid_token* ]]
+}
+
+@test "POST /restart with valid token → 202 and triggers compose restart" {
+    req=$'POST /restart HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    [[ "$out" == *'"status":"queued"'* ]]
+    [[ "$out" == *'"action":"restart"'* ]]
+    sleep 1
+    grep -q "compose -f" "${SANDBOX}/docker.calls"
+    grep -q "restart fiestaboard" "${SANDBOX}/docker.calls"
+}
+
+# ---- /shutdown -------------------------------------------------------------
+
+@test "POST /shutdown with no Authorization → 401" {
+    req=$'POST /shutdown HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+    [[ "$out" == *missing_authorization* ]]
+}
+
+@test "POST /shutdown with wrong token → 401" {
+    req=$'POST /shutdown HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer wrong\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+    [[ "$out" == *invalid_token* ]]
+}
+
+@test "POST /shutdown with valid token → 202" {
+    # Override poweroff with a no-op so the test host doesn't actually shut down.
+    cat >"${SANDBOX}/poweroff" <<'SH'
+#!/bin/sh
+echo "poweroff $@" >> "${SANDBOX}/poweroff.calls"
+SH
+    chmod +x "${SANDBOX}/poweroff"
+
+    req=$'POST /shutdown HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    [[ "$out" == *'"status":"queued"'* ]]
+    [[ "$out" == *'"action":"shutdown"'* ]]
+}
+
 # ---- malformed -------------------------------------------------------------
 
 @test "empty input → 400" {

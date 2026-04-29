@@ -1058,6 +1058,14 @@ export const handlers = [
     });
   }),
 
+  http.post(`${API_BASE}/system/restart`, () => {
+    return HttpResponse.json({ status: "queued", action: "restart" }, { status: 200 });
+  }),
+
+  http.post(`${API_BASE}/system/shutdown`, () => {
+    return HttpResponse.json({ status: "queued", action: "shutdown" }, { status: 200 });
+  }),
+
   // Polling settings endpoints
   http.get(`${API_BASE}/settings/polling`, () => {
     return HttpResponse.json({

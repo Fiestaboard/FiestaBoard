@@ -4,6 +4,7 @@ import { DisplaySettings } from "@/components/settings/display-settings";
 import { TransitionSettings } from "@/components/settings/transition-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
 import { SystemUpdate } from "@/components/settings/system-update";
+import { SystemControls } from "@/components/settings/system-controls";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
 import { GeneralSettings } from "@/components/general-settings";
@@ -51,7 +52,11 @@ export default function SettingsPage() {
           <DebugSettings />
         </div>
 
-        <Card className="animate-card-fade-in" style={{ animationDelay: "540ms" }}>
+        <div className="animate-card-fade-in" style={{ animationDelay: "520ms" }}>
+          <SystemControls />
+        </div>
+
+        <Card className="animate-card-fade-in" style={{ animationDelay: "560ms" }}>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Wand2 className="h-4 w-4" />

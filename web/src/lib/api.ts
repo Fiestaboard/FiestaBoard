@@ -942,6 +942,11 @@ export interface UpdateApplyResponse {
   hint?: string | null;
 }
 
+export interface SystemActionResponse {
+  status: "queued";
+  action: "restart" | "shutdown";
+}
+
 
 
 // API client with typed methods
@@ -1381,6 +1386,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ enabled }),
     }),
+
+  restartSystem: () =>
+    fetchApi<SystemActionResponse>("/system/restart", { method: "POST" }),
+
+  shutdownSystem: () =>
+    fetchApi<SystemActionResponse>("/system/shutdown", { method: "POST" }),
 
   // Plugin system endpoints
   listPlugins: () =>
