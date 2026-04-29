@@ -42,6 +42,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/fiestaboard/docker-compose.yml:/compose/docker-compose.yml:ro
+      # The compose file references `env_file: .env` for the fiestaboard
+      # service.  When the sidecar runs `docker compose -f /compose/...`,
+      # Compose resolves `.env` relative to the compose file's directory.
+      # Without this mount, every pull/up/restart fails with
+      # "env file /compose/.env not found" and the in-app updater silently
+      # no-ops.
+      - /opt/fiestaboard/.env:/compose/.env:ro
     logging:
       driver: "json-file"
       options:
