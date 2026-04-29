@@ -45,6 +45,8 @@ services:
       - FIESTAUPDATER_SERVICE=fiestaboard
       - FIESTAUPDATER_COMPOSE_FILE=/compose/docker-compose.yml
       - COMPOSE_PROJECT_NAME=fiestaboard
+    cap_add:
+      - SYS_BOOT
     volumes:
       # Talk to the host Docker daemon to pull images and recreate services.
       - /var/run/docker.sock:/var/run/docker.sock

@@ -380,3 +380,89 @@ class TestSystemUpdateAutoToggle:
         assert r2.status_code == 200
         assert r2.json()["enabled"] is False
         assert _json.loads(state_file.read_text())["auto_update_enabled"] is False
+
+
+# =============================================================================
+# Tests for /system/restart
+# =============================================================================
+
+class TestSystemRestart:
+    """Tests for POST /system/restart."""
+
+    def test_no_token_returns_503(self, client, monkeypatch):
+        monkeypatch.delenv("FIESTAUPDATER_TOKEN", raising=False)
+        response = client.post("/system/restart")
+        assert response.status_code == 503
+        assert "hint" in response.json()["detail"]
+
+    def test_sidecar_unreachable_returns_503(self, client, monkeypatch):
+        import requests as _requests
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        with patch(
+            "src.api_server.requests.post",
+            side_effect=_requests.exceptions.ConnectionError("nope"),
+        ):
+            response = client.post("/system/restart")
+        assert response.status_code == 503
+
+    def test_sidecar_rejects_token_returns_500(self, client, monkeypatch):
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        bad = Mock(status_code=401, text="invalid_token")
+        with patch("src.api_server.requests.post", return_value=bad):
+            response = client.post("/system/restart")
+        assert response.status_code == 500
+        assert "FIESTAUPDATER_TOKEN" in response.json()["detail"]["error"]
+
+    def test_happy_path_returns_queued(self, client, monkeypatch):
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        ok = Mock(status_code=202)
+        ok.json.return_value = {"status": "queued", "action": "restart"}
+        with patch("src.api_server.requests.post", return_value=ok):
+            response = client.post("/system/restart")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "queued"
+        assert data["action"] == "restart"
+
+
+# =============================================================================
+# Tests for /system/shutdown
+# =============================================================================
+
+class TestSystemShutdown:
+    """Tests for POST /system/shutdown."""
+
+    def test_no_token_returns_503(self, client, monkeypatch):
+        monkeypatch.delenv("FIESTAUPDATER_TOKEN", raising=False)
+        response = client.post("/system/shutdown")
+        assert response.status_code == 503
+        assert "hint" in response.json()["detail"]
+
+    def test_sidecar_unreachable_returns_503(self, client, monkeypatch):
+        import requests as _requests
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        with patch(
+            "src.api_server.requests.post",
+            side_effect=_requests.exceptions.ConnectionError("nope"),
+        ):
+            response = client.post("/system/shutdown")
+        assert response.status_code == 503
+
+    def test_sidecar_rejects_token_returns_500(self, client, monkeypatch):
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        bad = Mock(status_code=401, text="invalid_token")
+        with patch("src.api_server.requests.post", return_value=bad):
+            response = client.post("/system/shutdown")
+        assert response.status_code == 500
+        assert "FIESTAUPDATER_TOKEN" in response.json()["detail"]["error"]
+
+    def test_happy_path_returns_queued(self, client, monkeypatch):
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        ok = Mock(status_code=202)
+        ok.json.return_value = {"status": "queued", "action": "shutdown"}
+        with patch("src.api_server.requests.post", return_value=ok):
+            response = client.post("/system/shutdown")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "queued"
+        assert data["action"] == "shutdown"

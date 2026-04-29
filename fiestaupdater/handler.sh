@@ -115,6 +115,57 @@ handle_version() {
 }
 
 # ---------------------------------------------------------------------------
+# POST /restart — restart the service container in-place.
+# Returns 202 immediately; docker compose restart is run in the background
+# because it will kill the fiestaboard container (and this HTTP connection)
+# before the response would otherwise be flushed.
+# ---------------------------------------------------------------------------
+handle_restart() {
+    log "restart requested for service=${SERVICE}"
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        log "compose file missing at ${COMPOSE_FILE}"
+        respond 500 "Internal Server Error" '{"error":"compose_file_missing"}'
+        return
+    fi
+    local logsink
+    if [ -e /proc/1/fd/2 ]; then
+        logsink=/proc/1/fd/2
+    else
+        logsink=/dev/null
+    fi
+    nohup bash -c "
+        set -eu
+        echo '[fiestaupdater] restarting ${SERVICE}...'
+        docker compose -f '${COMPOSE_FILE}' restart '${SERVICE}'
+        echo '[fiestaupdater] restart complete'
+    " >>"$logsink" 2>&1 &
+    respond 202 Accepted "{\"status\":\"queued\",\"action\":\"restart\",\"service\":\"${SERVICE}\"}"
+}
+
+# ---------------------------------------------------------------------------
+# POST /shutdown — gracefully power off the host machine.
+# Stops the compose service first, then calls poweroff.
+# Requires the container to have the SYS_BOOT capability
+# (cap_add: [SYS_BOOT] in docker-compose.yml).
+# ---------------------------------------------------------------------------
+handle_shutdown() {
+    log "host shutdown requested"
+    local logsink
+    if [ -e /proc/1/fd/2 ]; then
+        logsink=/proc/1/fd/2
+    else
+        logsink=/dev/null
+    fi
+    nohup bash -c "
+        echo '[fiestaupdater] stopping services before shutdown...'
+        docker compose -f '${COMPOSE_FILE}' stop || true
+        echo '[fiestaupdater] initiating host poweroff...'
+        poweroff -f
+    " >>"$logsink" 2>&1 &
+    respond 202 Accepted '{"status":"queued","action":"shutdown"}'
+}
+
+# ---------------------------------------------------------------------------
 # POST /update — pull the latest image and recreate the service.
 # Returns 202 immediately; the actual `compose up -d` is run in the
 # background because it will likely outlive the HTTP connection (the
@@ -167,7 +218,7 @@ case "${REQ_METHOD} ${REQ_PATH}" in
     "GET /version")
         handle_version
         ;;
-    "POST /update")
+    "POST /update"|"POST /restart"|"POST /shutdown")
         # Drain body (we don't use it but must consume Content-Length bytes
         # so socat doesn't keep the socket half-open).
         if [ "${REQ_CONTENT_LENGTH:-0}" -gt 0 ] 2>/dev/null; then
@@ -178,7 +229,11 @@ case "${REQ_METHOD} ${REQ_PATH}" in
             Bearer\ *)
                 token="${REQ_AUTH#Bearer }"
                 if check_token "$token"; then
-                    handle_update
+                    case "${REQ_METHOD} ${REQ_PATH}" in
+                        "POST /update")   handle_update ;;
+                        "POST /restart")  handle_restart ;;
+                        "POST /shutdown") handle_shutdown ;;
+                    esac
                 else
                     log "auth failed (bad token)"
                     respond 401 Unauthorized '{"error":"invalid_token"}'
