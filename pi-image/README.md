@@ -33,7 +33,18 @@ The output `.img.xz` lands in `pi-gen/deploy/`.
 
 ## CI
 
-Builds nightly and on every `v5.*` git tag. See `.github/workflows/build-fiestapi.yml`. Output is uploaded to GitHub Releases as `fiestapi-<version>-arm64.img.xz`.
+Built by `.github/workflows/build-fiestapi.yml` on three triggers:
+
+- **Major-version tags** (`v5.0.0`, `v6.0.0`, …) — attached to the GitHub Release.
+- **Weekly schedule** (Tuesdays 06:00 UTC) — keeps base packages fresh between releases.
+- **Manual dispatch** — Actions tab → *Build FiestaPi image* → *Run workflow*, or:
+
+  ```bash
+  gh workflow run build-fiestapi.yml --ref main
+  gh run watch
+  ```
+
+Output is uploaded as a workflow artifact (`fiestapi-<version>-arm64`) and, for tag builds, attached to the GitHub Release as `fiestapi-<version>-arm64.img.xz`.
 
 ## Layout
 
@@ -44,12 +55,13 @@ pi-image/
 ├── firstboot.sh           ← runs once on first boot
 └── stage-fiestaboard/     ← custom pi-gen stage
     ├── prerun.sh
-    ├── 00-install-docker/
-    │   └── 00-run-chroot.sh
+    ├── EXPORT_IMAGE       ← marks this stage as the one to export
     └── 01-install-fiestaboard/
-        ├── files/
-        │   ├── docker-compose.yml
-        │   ├── env.template
-        │   └── fiestaboard.service
-        └── 00-run-chroot.sh
+        ├── 00-packages    ← apt packages installed in the chroot
+        ├── 00-run.sh      ← installs docker-ce + FiestaBoard in chroot
+        └── files/
+            ├── docker-compose.yml
+            ├── env.template
+            ├── fiestaboard.service
+            └── firstboot.sh
 ```

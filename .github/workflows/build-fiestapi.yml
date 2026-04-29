@@ -45,15 +45,46 @@ jobs:
           ref: arm64
           path: pi-gen
 
+      - name: Free up disk space
+        # pi-gen needs ~4 GB of scratch; ubuntu-latest is tight by default.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
+          sudo docker image prune -af || true
+          df -h /
+
+      - name: Set up QEMU (arm64 emulation for pi-gen)
+        # pi-gen's build-docker.sh runs `which qemu-aarch64` on the HOST
+        # before launching its build container. ubuntu-latest no longer
+        # ships qemu-user-static, so we install + register binfmt handlers
+        # via the standard Docker action.
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Wire FiestaBoard stage into pi-gen
         run: |
           cd pi-gen
           ln -s "$GITHUB_WORKSPACE/FiestaBoard/pi-image/stage-fiestaboard" stage-fiestaboard
           cp "$GITHUB_WORKSPACE/FiestaBoard/pi-image/config" config
-          # Skip stages we don't ship (desktop, applications).
-          # stage2/SKIP_IMAGES prevents a second image from being exported
-          # (we export from stage-fiestaboard via its EXPORT_IMAGE file).
-          touch ./stage2/SKIP_IMAGES ./stage3/SKIP ./stage3/SKIP_IMAGES ./stage4/SKIP ./stage4/SKIP_IMAGES ./stage5/SKIP ./stage5/SKIP_IMAGES || true
+          # Skip stages we don't ship. stage2/SKIP_IMAGES prevents a second
+          # image from being exported (we export from stage-fiestaboard via
+          # its EXPORT_IMAGE file). Newer pi-gen branches may not have
+          # stage3/4/5 — skip those only if present.
+          touch ./stage2/SKIP_IMAGES
+          for s in stage3 stage4 stage5; do
+            if [ -d "./$s" ]; then
+              touch "./$s/SKIP" "./$s/SKIP_IMAGES"
+            fi
+          done
+
+      - name: Sanity-check pi-gen wiring
+        run: |
+          ls -la pi-gen/stage-fiestaboard/
+          echo '--- pi-gen/config ---'
+          cat pi-gen/config
+          echo '--- stage list dirs ---'
+          ls -d pi-gen/stage*/
 
       - name: Determine version
         id: version
@@ -74,6 +105,21 @@ jobs:
           # privileged Docker container.  This is the supported path on CI.
           sudo ./build-docker.sh
 
+      - name: Upload pi-gen build logs
+        # Always upload so we can debug failed builds — the build step is
+        # the most likely place for things to go wrong, and the logs are
+        # otherwise discarded with the runner.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pi-gen-build-logs-${{ steps.version.outputs.version || github.run_id }}
+          path: |
+            pi-gen/deploy/build-docker.log
+            pi-gen/deploy/build.log
+            pi-gen/work/*/build.log
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Locate output
         id: out
         run: |
@@ -81,6 +127,16 @@ jobs:
           test -n "$IMG"
           echo "img=$IMG" >> "$GITHUB_OUTPUT"
           echo "Found image: $IMG"
+
+      - name: Generate SHA-256 checksum
+        if: startsWith(github.ref, 'refs/tags/')
+        id: checksum
+        run: |
+          IMG="${{ steps.out.outputs.img }}"
+          sha256sum "$IMG" > "${IMG}.sha256"
+          echo "sha256=${IMG}.sha256" >> "$GITHUB_OUTPUT"
+          echo "Checksum:"
+          cat "${IMG}.sha256"
 
       - name: Upload as workflow artifact
         uses: actions/upload-artifact@v4
@@ -94,7 +150,39 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.out.outputs.img }}
+          name: FiestaPi ${{ steps.version.outputs.version }}
+          make_latest: "true"
+          body: |
+            ## FiestaPi ${{ steps.version.outputs.version }}
+
+            A flashable Raspberry Pi OS image with FiestaBoard pre-installed and
+            self-updating out of the box.
+
+            **Minimum hardware:** Raspberry Pi 3B (1 GB RAM, 64-bit). Pi 4 / Pi 5 recommended.
+
+            ### Flashing
+
+            Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) and choose
+            **"Use custom image"**, or flash with `dd` / Balena Etcher.
+
+            ### Wi-Fi setup (headless)
+
+            Drop a `fiestapi-wifi.txt` file onto the boot partition before first boot:
+            ```
+            SSID=your-network
+            PASSWORD=your-password
+            ```
+            See the [setup guide](https://github.com/${{ github.repository }}/blob/main/docs/setup/RASPBERRY_PI.md)
+            for full instructions including SSH configuration.
+
+            ### Verify the image
+
+            ```bash
+            sha256sum -c fiestapi-${{ steps.version.outputs.version }}-arm64.img.xz.sha256
+            ```
+          files: |
+            ${{ steps.out.outputs.img }}
+            ${{ steps.checksum.outputs.sha256 }}
 
       - name: Update latest-version file in docs (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
