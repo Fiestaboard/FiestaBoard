@@ -473,7 +473,8 @@ class UpdateCheckResponse(BaseModel):
 class UpdateStatusResponse(BaseModel):
     """Response model for system update status (sidecar availability + auto-update flag)."""
     updater_available: bool
-    auto_update_enabled: bool
+    auto_update_enabled: bool  # derived: True when interval != "manual"
+    auto_update_interval: str  # "daily" | "weekly" | "monthly" | "manual"
     profile: str  # "docker" | "pi"  (where this install is running)
     sidecar_url: str
     last_check: str | None = None
@@ -489,13 +490,21 @@ class UpdateApplyResponse(BaseModel):
 
 
 class AutoUpdateRequest(BaseModel):
-    """Request model for setting the auto-update toggle."""
-    enabled: bool
+    """Request model for setting the auto-update preference.
+
+    Accepts either ``interval`` (preferred) — one of ``daily``, ``weekly``,
+    ``monthly``, ``manual`` — or the legacy ``enabled`` boolean, where True
+    is mapped to the install's default interval and False is mapped to
+    ``manual``.  At least one of the two must be provided.
+    """
+    enabled: Optional[bool] = None
+    interval: Optional[str] = None
 
 
 class AutoUpdateResponse(BaseModel):
     """Response model for auto-update toggle."""
-    enabled: bool
+    enabled: bool  # derived: True when interval != "manual"
+    interval: str  # "daily" | "weekly" | "monthly" | "manual"
 
 
 class SystemActionResponse(BaseModel):
@@ -586,11 +595,45 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not start plugin update checker: {e}")
 
+    # Start FiestaBoard system update checker.  Wakes up periodically and, if
+    # the user-configured interval has elapsed since the last check, refreshes
+    # ``last_check`` so the in-app banner can show "Update Available" without
+    # the user having to open Settings and click Refresh.
+    system_update_task = None
+    try:
+        async def _system_update_check_loop():
+            # Tick once an hour.  Even on the longest interval (monthly) this
+            # is plenty granular and keeps the work the loop does tiny.
+            tick_seconds = 3600
+            # Initial delay so we don't pile onto startup work.
+            await _asyncio.sleep(60)
+            while True:
+                try:
+                    state = _system_update_state_load()
+                    interval_name = _resolve_auto_update_interval(state)
+                    period_days = AUTO_UPDATE_INTERVALS.get(interval_name, 0)
+                    if period_days > 0 and _is_update_check_due(state, period_days):
+                        logger.info(
+                            "Auto-update check (interval=%s): checking for new version",
+                            interval_name,
+                        )
+                        await _perform_update_check()
+                except Exception as exc:
+                    logger.warning("System update check error: %s", exc)
+                await _asyncio.sleep(tick_seconds)
+
+        system_update_task = _asyncio.create_task(_system_update_check_loop())
+        logger.info("System update checker scheduled (interval read from state on each tick)")
+    except Exception as e:
+        logger.warning(f"Could not start system update checker: {e}")
+
     yield
 
     # --- Shutdown ---
     if update_check_task is not None:
         update_check_task.cancel()
+    if system_update_task is not None:
+        system_update_task.cancel()
     logger.info("API server shutting down...")
     _shutting_down = True
     _service_running = False
@@ -957,16 +1000,26 @@ async def system_update_check():
     
     Returns the current version, latest version, and whether an update is available.
     """
+    return await _perform_update_check()
+
+
+async def _perform_update_check() -> "UpdateCheckResponse":
+    """Run the actual update check against Docker Hub / GitHub Releases.
+
+    Extracted from the HTTP handler so the background scheduler (auto-update
+    interval) can reuse it without going through the network stack.  Records
+    ``last_check`` in the system update state file on every successful query.
+    """
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-    
+
     try:
         # Try Docker Hub first (checks actual container registry), fall back to GitHub Releases
         # Run in a thread so the blocking HTTP call doesn't stall the event loop
         latest_version = await asyncio.to_thread(_check_dockerhub_for_latest)
-        
+
         if not latest_version:
             latest_version = await asyncio.to_thread(_check_github_releases_for_latest)
-        
+
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
             # Record this check so the UI can show "last checked".  Best-effort.
@@ -983,7 +1036,7 @@ async def system_update_check():
                 package_url=GITHUB_PACKAGE_URL,
                 is_production=is_production,
             )
-        
+
         raise RuntimeError("Both Docker Hub and GitHub Releases checks failed")
     except Exception as e:
         logger.warning(f"Failed to check for updates: {e}")
@@ -1053,6 +1106,28 @@ def _system_update_state_save(state: Dict[str, Any]) -> None:
         logger.warning(f"Failed to write {SYSTEM_UPDATE_STATE_FILE}: {e}")
 
 
+def _is_update_check_due(state: Dict[str, Any], period_days: int) -> bool:
+    """Return True if ``last_check`` is older than ``period_days`` (or missing).
+
+    Used by the background scheduler to decide whether to call
+    ``_perform_update_check`` on a given tick.  Period of 0 always returns
+    False (manual mode).
+    """
+    if period_days <= 0:
+        return False
+    raw = state.get("last_check")
+    if not raw:
+        return True
+    try:
+        last = datetime.fromisoformat(raw)
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return True
+    elapsed = datetime.now(timezone.utc) - last
+    return elapsed.total_seconds() >= period_days * 86400
+
+
 def _fiestaboard_profile() -> str:
     """Return the install profile: "pi" if running on the FiestaPi flashable
     image, else "docker".  Determined by a build-time env var baked in by the
@@ -1061,10 +1136,41 @@ def _fiestaboard_profile() -> str:
     return os.getenv("FIESTABOARD_PROFILE", "docker").strip().lower() or "docker"
 
 
-def _auto_update_default() -> bool:
-    """Default for the auto-update toggle when the user hasn't set one.
-    OFF on regular Docker installs, ON on the Pi flashable image."""
-    return _fiestaboard_profile() == "pi"
+# Valid values for ``auto_update_interval``, mapped to their period in days.
+# ``manual`` (0) disables the periodic check entirely; the user can still hit
+# the Refresh button on Settings → System to trigger an on-demand check.
+AUTO_UPDATE_INTERVALS: Dict[str, int] = {
+    "daily": 1,
+    "weekly": 7,
+    "monthly": 30,
+    "manual": 0,
+}
+
+
+def _auto_update_default_interval() -> str:
+    """Default interval when the user hasn't set one.
+
+    Pi installs default to ``daily`` (matching the prior auto-update-on
+    behavior); Docker installs default to ``weekly`` so users get nudged
+    about updates without having to remember to check Settings.
+    """
+    return "daily" if _fiestaboard_profile() == "pi" else "weekly"
+
+
+def _resolve_auto_update_interval(state: Dict[str, Any]) -> str:
+    """Read the configured interval from state, falling back to legacy bool.
+
+    Order of precedence:
+      1. ``auto_update_interval`` if set to a valid value
+      2. legacy ``auto_update_enabled`` bool: True → default interval, False → "manual"
+      3. profile-aware default
+    """
+    raw = state.get("auto_update_interval")
+    if isinstance(raw, str) and raw in AUTO_UPDATE_INTERVALS:
+        return raw
+    if "auto_update_enabled" in state:
+        return _auto_update_default_interval() if bool(state["auto_update_enabled"]) else "manual"
+    return _auto_update_default_interval()
 
 
 def _updater_url() -> str:
@@ -1097,9 +1203,11 @@ async def system_update_status():
     """
     state = _system_update_state_load()
     available = await asyncio.to_thread(_updater_probe) if _updater_token() else False
+    interval = _resolve_auto_update_interval(state)
     return UpdateStatusResponse(
         updater_available=available,
-        auto_update_enabled=bool(state.get("auto_update_enabled", _auto_update_default())),
+        auto_update_enabled=interval != "manual",
+        auto_update_interval=interval,
         profile=_fiestaboard_profile(),
         sidecar_url=_updater_url(),
         last_check=state.get("last_check"),
@@ -1181,17 +1289,42 @@ async def system_update_apply():
 
 @app.post("/system/update/auto", response_model=AutoUpdateResponse)
 async def system_update_set_auto(req: AutoUpdateRequest):
-    """Enable or disable scheduled auto-updates.
-    
-    When enabled, the API process periodically checks for updates and, if a
-    newer version is available, calls the sidecar to apply it.  The actual
-    polling loop lives in the lifespan startup; this endpoint just persists
-    the user's preference.
+    """Set the auto-update preference.
+
+    Accepts either ``interval`` (preferred) — one of ``daily``, ``weekly``,
+    ``monthly``, ``manual`` — or the legacy ``enabled`` boolean.  Legacy
+    booleans map to: True → install default interval (``daily`` on Pi,
+    ``weekly`` on Docker) and False → ``manual``.
+
+    The background scheduler (started in the API lifespan) reads this value
+    on each tick, so changes take effect within the next polling window
+    without requiring a restart.
     """
+    if req.interval is not None:
+        if req.interval not in AUTO_UPDATE_INTERVALS:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Invalid interval {req.interval!r}; "
+                    f"must be one of: {sorted(AUTO_UPDATE_INTERVALS.keys())}"
+                ),
+            )
+        interval = req.interval
+    elif req.enabled is not None:
+        interval = _auto_update_default_interval() if req.enabled else "manual"
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="Request must include either 'interval' or 'enabled'.",
+        )
+
     state = _system_update_state_load()
-    state["auto_update_enabled"] = bool(req.enabled)
+    state["auto_update_interval"] = interval
+    # Keep the legacy bool in sync so older clients reading the file see a
+    # consistent picture.
+    state["auto_update_enabled"] = interval != "manual"
     _system_update_state_save(state)
-    return AutoUpdateResponse(enabled=bool(req.enabled))
+    return AutoUpdateResponse(enabled=interval != "manual", interval=interval)
 
 
 def _updater_post(path: str) -> requests.Response:

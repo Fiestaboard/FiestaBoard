@@ -31,6 +31,7 @@ function withSidecar(available: boolean) {
       return HttpResponse.json({
         updater_available: available,
         auto_update_enabled: false,
+        auto_update_interval: "manual",
         profile: "docker",
         sidecar_url: "http://fiestaupdater:8765",
         last_check: null,

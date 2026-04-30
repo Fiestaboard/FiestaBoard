@@ -367,19 +367,132 @@ class TestSystemUpdateAutoToggle:
     """Tests for POST /system/update/auto."""
 
     def test_persists_enabled_flag(self, client, tmp_path, monkeypatch):
+        """Legacy ``enabled`` bool: True -> default interval, False -> manual."""
         state_file = tmp_path / "state.json"
         monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+        # Force a known profile so the default interval is deterministic.
+        monkeypatch.setenv("FIESTABOARD_PROFILE", "docker")
 
         r1 = client.post("/system/update/auto", json={"enabled": True})
         assert r1.status_code == 200
-        assert r1.json()["enabled"] is True
+        body1 = r1.json()
+        assert body1["enabled"] is True
+        # docker profile defaults to "weekly"
+        assert body1["interval"] == "weekly"
         import json as _json
-        assert _json.loads(state_file.read_text())["auto_update_enabled"] is True
+        persisted = _json.loads(state_file.read_text())
+        assert persisted["auto_update_enabled"] is True
+        assert persisted["auto_update_interval"] == "weekly"
 
         r2 = client.post("/system/update/auto", json={"enabled": False})
         assert r2.status_code == 200
-        assert r2.json()["enabled"] is False
-        assert _json.loads(state_file.read_text())["auto_update_enabled"] is False
+        body2 = r2.json()
+        assert body2["enabled"] is False
+        assert body2["interval"] == "manual"
+        persisted = _json.loads(state_file.read_text())
+        assert persisted["auto_update_enabled"] is False
+        assert persisted["auto_update_interval"] == "manual"
+
+    def test_persists_interval(self, client, tmp_path, monkeypatch):
+        """The ``interval`` field is persisted and echoed back."""
+        state_file = tmp_path / "state.json"
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+        import json as _json
+
+        for interval, expected_enabled in [
+            ("daily", True),
+            ("weekly", True),
+            ("monthly", True),
+            ("manual", False),
+        ]:
+            r = client.post("/system/update/auto", json={"interval": interval})
+            assert r.status_code == 200, (interval, r.json())
+            body = r.json()
+            assert body["interval"] == interval
+            assert body["enabled"] is expected_enabled
+            persisted = _json.loads(state_file.read_text())
+            assert persisted["auto_update_interval"] == interval
+            assert persisted["auto_update_enabled"] is expected_enabled
+
+    def test_invalid_interval_rejected(self, client, tmp_path, monkeypatch):
+        state_file = tmp_path / "state.json"
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+
+        r = client.post("/system/update/auto", json={"interval": "hourly"})
+        assert r.status_code == 422
+
+    def test_empty_body_rejected(self, client, tmp_path, monkeypatch):
+        """Must provide either ``interval`` or ``enabled``."""
+        state_file = tmp_path / "state.json"
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+
+        r = client.post("/system/update/auto", json={})
+        assert r.status_code == 422
+
+    def test_status_reports_default_interval_when_unset(self, client, tmp_path, monkeypatch):
+        """Fresh state file -> default interval based on profile."""
+        state_file = tmp_path / "state.json"
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+        monkeypatch.setenv("FIESTABOARD_PROFILE", "docker")
+
+        r = client.get("/system/update/status")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["auto_update_interval"] == "weekly"
+        assert body["auto_update_enabled"] is True
+
+    def test_status_reports_pi_default_interval(self, client, tmp_path, monkeypatch):
+        """FiestaPi profile defaults to ``daily`` (matching the prior auto-update-on behavior)."""
+        state_file = tmp_path / "state.json"
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+        monkeypatch.setenv("FIESTABOARD_PROFILE", "pi")
+
+        r = client.get("/system/update/status")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["auto_update_interval"] == "daily"
+        assert body["auto_update_enabled"] is True
+
+    def test_status_legacy_bool_maps_to_interval(self, client, tmp_path, monkeypatch):
+        """A state file with only the legacy bool maps to a sane interval."""
+        state_file = tmp_path / "state.json"
+        state_file.write_text('{"auto_update_enabled": false}')
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+
+        r = client.get("/system/update/status")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["auto_update_interval"] == "manual"
+        assert body["auto_update_enabled"] is False
+
+
+class TestUpdateCheckDueHelper:
+    """Tests for the ``_is_update_check_due`` background-loop helper."""
+
+    def test_no_last_check_is_due(self):
+        from src.api_server import _is_update_check_due
+        assert _is_update_check_due({}, period_days=7) is True
+
+    def test_recent_check_not_due(self):
+        from src.api_server import _is_update_check_due
+        from datetime import datetime, timezone
+        recent = datetime.now(timezone.utc).isoformat()
+        assert _is_update_check_due({"last_check": recent}, period_days=7) is False
+
+    def test_old_check_is_due(self):
+        from src.api_server import _is_update_check_due
+        from datetime import datetime, timezone, timedelta
+        old = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        assert _is_update_check_due({"last_check": old}, period_days=7) is True
+
+    def test_manual_period_never_due(self):
+        from src.api_server import _is_update_check_due
+        # period_days <= 0 means "manual"; never run regardless of last_check
+        assert _is_update_check_due({}, period_days=0) is False
+
+    def test_malformed_last_check_treated_as_due(self):
+        from src.api_server import _is_update_check_due
+        assert _is_update_check_due({"last_check": "not-a-date"}, period_days=7) is True
 
 
 # =============================================================================

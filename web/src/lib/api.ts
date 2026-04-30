@@ -929,11 +929,21 @@ export interface UpdateCheckResponse {
 export interface UpdateStatusResponse {
   updater_available: boolean;
   auto_update_enabled: boolean;
+  auto_update_interval: AutoUpdateInterval;
   profile: "docker" | "pi";
   sidecar_url: string;
   last_check: string | null;
   last_update: string | null;
 }
+
+export type AutoUpdateInterval = "daily" | "weekly" | "monthly" | "manual";
+
+export const AUTO_UPDATE_INTERVALS: AutoUpdateInterval[] = [
+  "daily",
+  "weekly",
+  "monthly",
+  "manual",
+];
 
 export interface UpdateApplyResponse {
   status: "queued" | "manual";
@@ -1382,9 +1392,15 @@ export const api = {
     fetchApi<UpdateApplyResponse>("/system/update", { method: "POST" }),
 
   setAutoUpdate: (enabled: boolean) =>
-    fetchApi<{ enabled: boolean }>("/system/update/auto", {
+    fetchApi<{ enabled: boolean; interval: AutoUpdateInterval }>("/system/update/auto", {
       method: "POST",
       body: JSON.stringify({ enabled }),
+    }),
+
+  setAutoUpdateInterval: (interval: AutoUpdateInterval) =>
+    fetchApi<{ enabled: boolean; interval: AutoUpdateInterval }>("/system/update/auto", {
+      method: "POST",
+      body: JSON.stringify({ interval }),
     }),
 
   restartSystem: () =>

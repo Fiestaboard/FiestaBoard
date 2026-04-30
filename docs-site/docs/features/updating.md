@@ -19,16 +19,24 @@ When a new version is available, a banner appears in **Settings → System**. Cl
 
 The whole process takes about a minute on a fast connection, a bit longer on a Raspberry Pi.
 
-## Auto-update
+## Update check interval
 
-In **Settings → System**, there's an **Auto-update** toggle:
+In **Settings → System**, there's a **Check for updates** dropdown that
+controls how often FiestaBoard looks for a new release in the background:
 
-| Install type | Default | What it does |
+| Option | Default for | Notes |
 |---|---|---|
-| **FiestaPi** | **On** | Checks for updates daily and applies them automatically |
-| **Docker / manual** | Off | Shows a banner when updates are available; you decide when to apply |
+| **Every day** | FiestaPi | Same cadence as before; you'll hear about updates the day they ship. |
+| **Every week** | Docker / manual | New default. Stay current without daily noise. |
+| **Every month** | — | Quiet option that still nudges you periodically. |
+| **Manual only** | — | No background checks; click the refresh button on the System card to check on demand. |
 
-You can flip the toggle any time.
+When a check finds a newer version, the "Update Available" banner appears
+on Settings → System. Picking the matching cadence for your install means
+you don't have to remember to open Settings to discover an update.
+
+You can change it any time; the running scheduler picks up the new value
+within an hour without needing a restart.
 
 ## How it works (technical)
 
