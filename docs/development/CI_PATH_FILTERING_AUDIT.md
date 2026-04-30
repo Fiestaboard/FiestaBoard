@@ -169,8 +169,9 @@ Python packaging / tool config lives in `pyproject.toml` but only
 re-runs manifest validation, registry validation, and every plugin's
 test suite. Low-impact, but adding `- '!plugins/**/*.md'` and
 `- '!plugins/**/docs/**'` would require switching the plugin filter to
-`predicate-quantifier: every` (same caveat as above), so it's not a
-drop-in change.
+`predicate-quantifier: every` (same caveat as in *Root cause* — that
+setting is global and would break the other filters that legitimately
+need `some` semantics), so it's not a drop-in change.
 
 ### 5. `release.yml` and `Dockerfile` interactions
 
