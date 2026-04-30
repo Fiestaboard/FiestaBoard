@@ -35,14 +35,19 @@ If you have a Raspberry Pi 3B or newer, the easiest path is our pre-built **Fies
 ### Alternative: Pull from Docker Hub (no clone needed)
 
 ```bash
-# 1. Download the compose file
+# 1. Create a dedicated folder and move into it (this is where your settings will live)
+mkdir -p ~/fiestaboard && cd ~/fiestaboard
+
+# 2. Download the compose file
 curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
 
-# 2. Start FiestaBoard
+# 3. Start FiestaBoard
 docker-compose -f docker-compose.hub.yml up -d
 ```
 
 Open **http://localhost:4420** in your browser, connect your board, and you're running.
+
+> **Important — keep using the same folder.** FiestaBoard stores all your settings, board credentials, and plugin configuration in a `./data` folder next to the compose file. Always `cd ~/fiestaboard` (or wherever you put it) before running `docker compose pull`, `up`, `down`, or any other compose command. Running compose from a different folder creates a brand-new empty `./data` and your previous settings will appear to be gone. See the [troubleshooting guide](https://fiestaboard.app/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update) if this has already happened to you.
 
 ### Alternative: Clone and use the install wizard
 

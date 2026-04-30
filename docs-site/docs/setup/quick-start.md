@@ -28,9 +28,12 @@ If you've never used Docker before, try the [Beginner's Guide](/docs/setup/begin
 
 ### Option B: Docker Hub (No Pi)
 
-No repository to clone. Just two commands:
+No repository to clone. Pick a folder to live in and run three commands:
 
 ```bash
+# Create a dedicated folder and move into it (your settings will live here)
+mkdir -p ~/fiestaboard && cd ~/fiestaboard
+
 # Download the compose file
 curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
 
@@ -39,6 +42,12 @@ docker-compose -f docker-compose.hub.yml up -d
 ```
 
 Open **http://localhost:4420** in your browser. You'll see the FiestaBoard dashboard.
+
+:::caution Run all `docker compose` commands from this same folder
+FiestaBoard persists its config, board credentials, pages, and plugin keys in a `./data` directory created next to the compose file. The path is **relative to your current shell directory**, not a fixed location.
+
+That means: when you later update with `docker compose pull && docker compose up -d`, you must `cd ~/fiestaboard` (or wherever you put it) first. Running the commands from a different folder will start FiestaBoard with an empty `./data` and your settings will appear to have reset. If that happens, see [Troubleshooting → Settings or board credentials are gone after an update](/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update).
+:::
 
 :::tip Accessing from another device?
 FiestaBoard advertises itself on your local network via mDNS/Bonjour. From any device on the same network you can use **http://fiestaboard.local:4420**. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
