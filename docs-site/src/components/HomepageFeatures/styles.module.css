@@ -327,3 +327,84 @@
   flex-wrap: wrap;
   gap: 1rem;
 }
+
+/* "What's New" highlights — paired feature cards */
+.highlights {
+  padding: 4rem 0;
+  background: linear-gradient(
+    180deg,
+    var(--ifm-background-color) 0%,
+    var(--ifm-color-emphasis-100) 100%
+  );
+}
+
+.highlightsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+@media screen and (max-width: 768px) {
+  .highlightsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.highlightCard {
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  border-radius: 16px;
+  background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.highlightCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .highlightCard {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.highlightBadge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: var(--ifm-color-primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.highlightIcon {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+
+.highlightCard h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.highlightCard p {
+  font-size: 1.05rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1.25rem;
+  flex: 1;
+}
+
+.highlightLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

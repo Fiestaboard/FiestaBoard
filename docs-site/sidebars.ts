@@ -27,6 +27,7 @@ const sidebars: SidebarsConfig = {
         'features/schedule',
         'features/silence-schedule',
         'features/home-assistant-control',
+        'features/updating',
       ],
     },
     {
@@ -72,6 +73,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'deployment/production',
         'deployment/raspberry-pi',
+        'deployment/fiestaupdater',
         'setup/docker-setup',
         'setup/cloud-api',
       ],

@@ -24,7 +24,7 @@ function HomepageHeader() {
           Vestaboard Flagship and Note. All beautifully formatted, endlessly customizable, and running in Docker with zero hassle.
         </p>
         <p className={styles.heroDescriptionShort}>
-          Weather, stocks, sports & more — powered by Docker
+          Weather, stocks, sports & more — flash a Raspberry Pi or run with Docker
         </p>
         <div className={styles.buttons}>
           <Link

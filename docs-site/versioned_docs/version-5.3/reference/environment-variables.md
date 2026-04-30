@@ -106,6 +106,19 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 | `REFRESH_INTERVAL_SECONDS` | Display update interval (seconds) | `300` |
 | `VERSION` | Build version (set automatically during Docker builds -- do not change) | `dev` |
 
+## FiestaUpdater
+
+These variables control the optional [`fiestaupdater`](/docs/deployment/fiestaupdater) sidecar that powers one-click in-app updates. On [FiestaPi](/docs/setup/raspberry-pi) they're configured automatically on first boot.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `COMPOSE_PROFILES` | Set to `fiestaupdater` to enable the updater sidecar in the compose stack. | - |
+| `FIESTAUPDATER_TOKEN` | Shared bearer token (64 hex chars) used to authenticate the FiestaBoard API → sidecar calls. Generate with `head -c 32 /dev/urandom \| od -An -tx1 \| tr -d ' \n'`. | - |
+| `FIESTAUPDATER_SERVICE` | Compose service name the sidecar is allowed to update. Validated against `^[a-z0-9_-]+$`. | `fiestaboard` |
+| `FIESTAUPDATER_COMPOSE_FILE` | Path inside the sidecar container to the mounted compose file. | `/compose/docker-compose.yml` |
+| `FIESTAUPDATER_PORT` | Port the sidecar listens on (Docker internal network only — never published to the host). | `8765` |
+| `COMPOSE_PROJECT_NAME` | Compose project name the sidecar should target. Must match the project the main stack runs under. | `fiestaboard` |
+
 ## Example `.env` File
 
 ```bash

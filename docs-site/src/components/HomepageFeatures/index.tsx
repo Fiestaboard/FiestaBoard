@@ -353,6 +353,69 @@ function PluginCard({title, image, alt, description, link}: ShowcaseItem) {
   );
 }
 
+type HighlightItem = {
+  badge: string;
+  icon: string;
+  title: string;
+  description: ReactNode;
+  primary: {label: string; to: string};
+  secondary?: {label: string; to: string};
+};
+
+const HighlightList: HighlightItem[] = [
+  {
+    badge: 'New',
+    icon: '🍓',
+    title: 'FiestaPi — flash a Raspberry Pi, done',
+    description: (
+      <>
+        A pre-built Raspberry Pi OS image with FiestaBoard, Docker, and the self-update
+        sidecar all pre-installed. Flash a microSD card with Raspberry Pi Imager, boot
+        your Pi, open <code>http://fiestapi.local:4420</code> — no Docker setup, no
+        terminal, no config files. Works on Pi 3B, Pi 4, Pi 5, and Pi Zero 2 W.
+      </>
+    ),
+    primary: {label: 'FiestaPi Quick Start', to: '/docs/setup/raspberry-pi'},
+    secondary: {label: 'Download image', to: 'https://github.com/Fiestaboard/FiestaBoard/releases/latest'},
+  },
+  {
+    badge: 'New',
+    icon: '⚡',
+    title: 'One-click in-app updates',
+    description: (
+      <>
+        When a new version ships, a banner appears in <strong>Settings → System</strong>.
+        Click <strong>Update Now</strong> and FiestaBoard updates itself — no SSH, no
+        <code> docker compose pull</code>. On for FiestaPi by default; opt in on Docker
+        installs by enabling the <code>fiestaupdater</code> sidecar.
+      </>
+    ),
+    primary: {label: 'How updates work', to: '/docs/features/updating'},
+    secondary: {label: 'FiestaUpdater reference', to: '/docs/deployment/fiestaupdater'},
+  },
+];
+
+function HighlightCard({badge, icon, title, description, primary, secondary}: HighlightItem) {
+  return (
+    <div className={styles.highlightCard}>
+      <span className={styles.highlightBadge}>{badge}</span>
+      <div className={styles.highlightIcon} aria-hidden="true">{icon}</div>
+      <Heading as="h3">{title}</Heading>
+      <p>{description}</p>
+      <div className={styles.highlightLinks}>
+        <Link className="button button--primary button--sm" to={primary.to}>
+          {primary.label} →
+        </Link>
+        {secondary && (
+          <Link className="button button--outline button--sm" to={secondary.to}>
+            {secondary.label}
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function HomepageFeatures(): ReactNode {
   return (
     <>
@@ -362,6 +425,25 @@ export default function HomepageFeatures(): ReactNode {
           <div className="row">
             {FeatureList.map((props, idx) => (
               <Feature key={idx} {...props} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* What's New highlights */}
+      <section className={styles.highlights}>
+        <div className="container">
+          <div className="text--center">
+            <Heading as="h2" className={styles.sectionTitle}>
+              What's New
+            </Heading>
+            <p className={styles.sectionSubtitle}>
+              The fastest way to run FiestaBoard, and updates without ever touching a terminal
+            </p>
+          </div>
+          <div className={styles.highlightsGrid}>
+            {HighlightList.map((props) => (
+              <HighlightCard key={props.title} {...props} />
             ))}
           </div>
         </div>
