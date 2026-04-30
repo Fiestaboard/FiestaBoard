@@ -97,11 +97,33 @@ jobs:
           # 30 days — weekly builds rotate frequently; grab the latest.
           retention-days: 30
 
-      - name: Attach to release (major-version tag builds only)
+      - name: Attach to major-version release (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.out.outputs.img }}
+
+      - name: Publish weekly/manual build as prerelease
+        # Weekly cron and manual dispatch builds — create/update a
+        # prerelease tagged 'fiestapi-<version>' (e.g. fiestapi-2026-W18)
+        # so the .img.xz is preserved beyond the 30-day artifact window
+        # and can be linked from docs / shared with testers.
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: fiestapi-${{ steps.version.outputs.version }}
+          name: FiestaPi ${{ steps.version.outputs.version }}
+          prerelease: true
+          # Replace the asset if the same tag is rebuilt (e.g. manual reruns).
+          files: ${{ steps.out.outputs.img }}
+          body: |
+            Automated FiestaPi image build.
+
+            - Trigger: `${{ github.event_name }}`
+            - Commit: ${{ github.sha }}
+            - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Flash the attached `.img.xz` to a Raspberry Pi using Raspberry Pi Imager.
 
       - name: Update latest-version file in docs (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
