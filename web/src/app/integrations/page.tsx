@@ -53,6 +53,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import {
   Cloud,
   Calendar,
@@ -1633,6 +1634,8 @@ function RegistryPluginRow({
 
 
 export default function IntegrationsPage() {
+  const t = useTranslations("integrations");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
@@ -1694,10 +1697,10 @@ export default function IntegrationsPage() {
     },
     onError: (err, { pluginId }, context) => {
       queryClient.setQueryData(["plugins"], context?.previousPlugins);
-      toast.error(`Failed to toggle ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(t("toastToggleFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     },
     onSuccess: (_, { pluginId, enabled }) => {
-      toast.success(`${pluginId} ${enabled ? 'enabled' : 'disabled'}`);
+      toast.success(t("toastToggleSuccess", { pluginId, state: enabled ? tCommon("enabled").toLowerCase() : tCommon("disabled").toLowerCase() }));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["plugins"], refetchType: 'active' });
@@ -1716,7 +1719,7 @@ export default function IntegrationsPage() {
     try {
       await api.installRegistryPlugin(pluginId);
       await api.enablePlugin(pluginId);
-      toast.success(`${pluginId} installed and enabled`);
+      toast.success(t("toastInstalledAndEnabled", { pluginId }));
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
       queryClient.invalidateQueries({ queryKey: ["template-variables"] });
@@ -1724,7 +1727,7 @@ export default function IntegrationsPage() {
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setActiveTab("installed");
     } catch (err) {
-      toast.error(`Failed to install ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(t("toastInstallFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setInstallingId(null);
     }
@@ -1734,14 +1737,14 @@ export default function IntegrationsPage() {
     setUninstallingId(pluginId);
     try {
       await api.uninstallPlugin(pluginId);
-      toast.success(`${pluginId} uninstalled`);
+      toast.success(t("toastUninstalled", { pluginId }));
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
       queryClient.invalidateQueries({ queryKey: ["template-variables"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
-      toast.error(`Failed to uninstall ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(t("toastUninstallFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setUninstallingId(null);
     }
@@ -1751,14 +1754,14 @@ export default function IntegrationsPage() {
     setUpdatingId(pluginId);
     try {
       await api.updatePlugin(pluginId);
-      toast.success(`${pluginId} updated successfully`);
+      toast.success(t("toastUpdated", { pluginId }));
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
       queryClient.invalidateQueries({ queryKey: ["template-variables"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
-      toast.error(`Failed to update ${pluginId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(t("toastUpdateFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setUpdatingId(null);
     }
@@ -1769,11 +1772,11 @@ export default function IntegrationsPage() {
     try {
       const result = await api.applyAllPluginUpdates();
       if (result.updated.length > 0) {
-        toast.success(`Updated ${result.updated.length} plugin(s)`);
+        toast.success(t("toastUpdateAllSuccess", { count: result.updated.length }));
       }
       const failedIds = Object.keys(result.failed);
       if (failedIds.length > 0) {
-        toast.error(`${failedIds.length} plugin(s) failed to update: ${failedIds.join(", ")}`);
+        toast.error(t("toastUpdateAllPartialFail", { count: failedIds.length, ids: failedIds.join(", ") }));
       }
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
@@ -1781,7 +1784,7 @@ export default function IntegrationsPage() {
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
-      toast.error(`Update all failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(t("toastUpdateAllFailed", { error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setIsUpdatingAll(false);
     }
@@ -1796,7 +1799,7 @@ export default function IntegrationsPage() {
         gitPluginId.trim() || undefined,
         gitBranch.trim() || undefined,
       );
-      toast.success(`${result.plugin_id} installed from git`);
+      toast.success(t("toastInstalledFromGit", { pluginId: result.plugin_id }));
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
       queryClient.invalidateQueries({ queryKey: ["template-variables"] });
@@ -1808,7 +1811,7 @@ export default function IntegrationsPage() {
       setGitPluginId("");
       setGitBranch("");
     } catch (err) {
-      toast.error(`Failed to install: ${err instanceof Error ? err.message : "Unknown error"}`);
+      toast.error(t("toastInstallFromGitFailed", { error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setIsInstallingGit(false);
     }
@@ -1899,21 +1902,21 @@ export default function IntegrationsPage() {
     <Dialog open={gitDialogOpen} onOpenChange={setGitDialogOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Install Plugin from Git</DialogTitle>
+          <DialogTitle>{t("gitInstallTitle")}</DialogTitle>
           <DialogDescription>
-            Install a plugin from any public git repository. The repository should contain a valid FiestaBoard plugin with a manifest.json.
+            {t("gitInstallDescription")}
           </DialogDescription>
         </DialogHeader>
         <Alert className="border-yellow-600 text-yellow-700 [&>svg]:text-yellow-600 dark:border-yellow-500 dark:text-yellow-400 dark:[&>svg]:text-yellow-500">
           <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>Security Warning</AlertTitle>
+          <AlertTitle>{t("securityWarningTitle")}</AlertTitle>
           <AlertDescription>
-            Only install plugins from sources you trust. External code runs on your device — review the repository before installing.
+            {t("securityWarning")}
           </AlertDescription>
         </Alert>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="git-url">Repository URL</Label>
+            <Label htmlFor="git-url">{t("repoUrl")}</Label>
             <Input
               id="git-url"
               placeholder="https://github.com/user/fiestaboard-plugin-example.git"
@@ -1924,20 +1927,20 @@ export default function IntegrationsPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="git-plugin-id">Plugin ID (optional)</Label>
+              <Label htmlFor="git-plugin-id">{t("pluginIdOptional")}</Label>
               <Input
                 id="git-plugin-id"
-                placeholder="Auto-detected"
+                placeholder={t("autoDetectedPlaceholder")}
                 value={gitPluginId}
                 onChange={(e) => setGitPluginId(e.target.value)}
                 disabled={isInstallingGit}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="git-branch">Branch (optional)</Label>
+              <Label htmlFor="git-branch">{t("branchOptional")}</Label>
               <Input
                 id="git-branch"
-                placeholder="Default branch"
+                placeholder={t("defaultBranchPlaceholder")}
                 value={gitBranch}
                 onChange={(e) => setGitBranch(e.target.value)}
                 disabled={isInstallingGit}
@@ -1947,18 +1950,18 @@ export default function IntegrationsPage() {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setGitDialogOpen(false)} disabled={isInstallingGit}>
-            Cancel
+            {tCommon("cancel")}
           </Button>
           <Button onClick={handleInstallFromGit} disabled={isInstallingGit || !gitUrl.trim()}>
             {isInstallingGit ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Installing...
+                {t("installing")}
               </>
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Install Plugin
+                {t("installPlugin")}
               </>
             )}
           </Button>
@@ -1971,8 +1974,8 @@ export default function IntegrationsPage() {
     <PageLayout>
       <PageHeader
         icon={Puzzle}
-        title="Integrations"
-        description="Enable and configure data source plugins for your FiestaBoard"
+        title={t("title")}
+        description={t("description")}
       />
 
       {/* Tabs */}
@@ -1986,7 +1989,7 @@ export default function IntegrationsPage() {
         >
           <TabsList className="w-fit">
             <TabsTrigger value="installed">
-              Installed
+              {t("tabInstalled")}
               {data && (
                 <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
                   {data.total}
@@ -1994,7 +1997,7 @@ export default function IntegrationsPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="marketplace">
-              Marketplace
+              {t("tabMarketplace")}
               {availableCount > 0 && (
                 <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
                   {availableCount}
@@ -2005,7 +2008,7 @@ export default function IntegrationsPage() {
           <div className="relative min-w-0 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder={activeTab === "installed" ? "Search installed plugins..." : "Search available plugins..."}
+              placeholder={activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 w-full"
@@ -2019,7 +2022,7 @@ export default function IntegrationsPage() {
                   size="icon"
                   className="h-9 w-9 rounded-none border-0"
                   onClick={() => setMarketplaceView("card")}
-                  aria-label="Card view"
+                  aria-label={t("cardViewAriaLabel")}
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </Button>
@@ -2028,14 +2031,14 @@ export default function IntegrationsPage() {
                   size="icon"
                   className="h-9 w-9 rounded-none border-0"
                   onClick={() => setMarketplaceView("list")}
-                  aria-label="List view"
+                  aria-label={t("listViewAriaLabel")}
                 >
                   <LayoutList className="h-4 w-4" />
                 </Button>
               </div>
               <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
                 <GitBranch className="h-4 w-4" />
-                Add from Git
+                {t("addFromGit")}
               </Button>
             </div>
           )}
@@ -2048,9 +2051,9 @@ export default function IntegrationsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">Name</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell">Category</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell">Status</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t("nameColumn")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell">{t("categoryColumn")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell">{t("statusColumn")}</th>
                     <th className="px-4 py-2.5 w-32" />
                   </tr>
                 </thead>
@@ -2089,7 +2092,7 @@ export default function IntegrationsPage() {
               <CardContent className="flex items-center gap-3 py-6">
                 <AlertCircle className="h-5 w-5 text-destructive" />
                 <p className="text-sm text-destructive">
-                  Failed to load plugins: {error instanceof Error ? error.message : "Unknown error"}
+                  {t("loadPluginsError", { error: error instanceof Error ? error.message : tCommon("error") })}
                 </p>
               </CardContent>
             </Card>
@@ -2098,17 +2101,17 @@ export default function IntegrationsPage() {
               {query ? (
                 <>
                   <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">No installed plugins match &quot;{searchQuery}&quot;</p>
+                  <p className="text-muted-foreground">{t("noInstalledMatch", { query: searchQuery })}</p>
                 </>
               ) : (
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="font-medium mb-1">No plugins installed yet</p>
+                  <p className="font-medium mb-1">{t("noPluginsInstalled")}</p>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Head to the Marketplace tab to discover and install plugins.
+                    {t("headToMarketplace")}
                   </p>
                   <Button variant="outline" onClick={() => setActiveTab("marketplace")}>
-                    Browse Marketplace
+                    {t("browseMarketplace")}
                   </Button>
                 </>
               )}
@@ -2118,7 +2121,7 @@ export default function IntegrationsPage() {
               {updatesAvailableCount > 0 && (
                 <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40">
                   <p className="text-sm text-amber-700 dark:text-amber-400">
-                    {updatesAvailableCount} plugin update{updatesAvailableCount !== 1 ? "s" : ""} available
+                    {t("pluginUpdatesAvailable", { count: updatesAvailableCount })}
                   </p>
                   <Button
                     size="sm"
@@ -2128,7 +2131,7 @@ export default function IntegrationsPage() {
                     disabled={isUpdatingAll || !!updatingId}
                   >
                     <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isUpdatingAll && "animate-spin")} />
-                    {isUpdatingAll ? "Updating…" : `Update All (${updatesAvailableCount})`}
+                    {isUpdatingAll ? t("updating") : t("updateAllCount", { count: updatesAvailableCount })}
                   </Button>
                 </div>
               )}
@@ -2137,7 +2140,11 @@ export default function IntegrationsPage() {
                 <thead>
                   <tr className="border-b bg-muted/40">
                     {(["name", "category", "status"] as const).map((col) => {
-                      const labels = { name: "Name", category: "Category", status: "Status" };
+                      const labels: Record<string, string> = {
+                        name: t("nameColumn"),
+                        category: t("categoryColumn"),
+                        status: t("statusColumn"),
+                      };
                       const active = installedSort.key === col;
                       return (
                         <th
@@ -2193,14 +2200,14 @@ export default function IntegrationsPage() {
               {query ? (
                 <>
                   <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">No plugins match &quot;{searchQuery}&quot;</p>
+                  <p className="text-muted-foreground">{t("noPluginsMatch", { query: searchQuery })}</p>
                 </>
               ) : (
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="font-medium mb-1">No registry plugins found</p>
+                  <p className="font-medium mb-1">{t("noRegistryPluginsFound")}</p>
                   <p className="text-sm text-muted-foreground">
-                    You can install custom plugins from any public git repository.
+                    {t("canInstallCustomGitDescription")}
                   </p>
                 </>
               )}
@@ -2247,7 +2254,11 @@ export default function IntegrationsPage() {
                 <thead>
                   <tr className="border-b bg-muted/40">
                     {(["name", "category", "author"] as const).map((col) => {
-                      const labels = { name: "Name", category: "Category", author: "Author" };
+                      const labels: Record<string, string> = {
+                        name: t("nameColumn"),
+                        category: t("categoryColumn"),
+                        author: t("authorColumn"),
+                      };
                       const active = marketplaceSort.key === col;
                       return (
                         <th
