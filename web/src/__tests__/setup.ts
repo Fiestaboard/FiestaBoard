@@ -35,7 +35,7 @@ vi.mock("next-intl", () => ({
       if (!params) return rawStr;
       // Handle ICU plural: {name, plural, one {...} other {...}}
       rawStr = rawStr.replace(
-        /\{(\w+),\s*plural,\s*([^}]*(?:\{[^}]*\}[^}]*)*)\}/g,
+        /\{(\w+),\s*plural,\s*((?:[^{}]|\{[^{}]*\})*)\}/g,
         (_full: string, name: string, branches: string) => {
           const value = Number(params[name]);
           const branchMap: Record<string, string> = {};
