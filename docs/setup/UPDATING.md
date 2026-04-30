@@ -38,14 +38,26 @@ The Update Now button will appear once the sidecar is healthy.
 
 It's already on. `FIESTABOARD_PROFILE=pi` is baked into the image, which flips the in-app **Auto-update** toggle to default ON, and a unique `FIESTAUPDATER_TOKEN` is generated at first boot. You can disable auto-update in Settings if you'd rather click each time.
 
-## Auto-update toggle
+## Update check interval
 
-In Settings → System there's an **Auto-update** switch:
+In Settings → System there's a **Check for updates** dropdown that controls
+how often FiestaBoard polls for a newer release in the background:
 
-- **On** (default for FiestaPi): a daily background check pulls and applies updates.
-- **Off** (default for Docker installs): you'll see a banner when an update is available and decide when to apply it.
+- **Every day** — default for FiestaPi.
+- **Every week** — default for Docker / manual installs. A good balance of
+  staying current without nagging.
+- **Every month** — quietest option that still nudges you periodically.
+- **Manual only** — no background checks; use the refresh button on the
+  Settings → System card to check on demand.
 
-The toggle persists in `data/.system-update.json`.
+When a check finds a newer version, you'll see an "Update Available" banner
+on Settings → System. Click **Update Now** (or follow the manual steps
+below) when you're ready to apply it.
+
+The choice persists in `data/.system-update.json` under
+`auto_update_interval`. Older installs that have only the legacy
+`auto_update_enabled` boolean continue to work — `true` is treated as the
+install's default interval and `false` as `manual`.
 
 ## Manual updating (always works)
 
