@@ -300,11 +300,29 @@ class ConfigManager:
                     logger.error(f"Invalid JSON in config file: {e}")
                     logger.info("Creating new config with defaults")
                     self._config = DEFAULT_CONFIG.copy()
+                    self._apply_profile_defaults()
                     self._save_internal()
             else:
                 logger.info(f"Config file not found, creating defaults at {self._config_path}")
                 self._config = self._deep_copy(DEFAULT_CONFIG)
+                self._apply_profile_defaults()
                 self._save_internal()
+
+    def _apply_profile_defaults(self) -> None:
+        """Apply install-profile-specific overrides at fresh-config creation
+        time only.
+
+        On the FiestaPi flashable image (`FIESTABOARD_PROFILE=pi`), default
+        the friendly instance name to "FiestaPi" so the sidebar/browser tab
+        show something meaningful out of the box. Users can rename via
+        Settings; we only set this when creating a brand-new config so a
+        deliberate clear from the UI isn't reset on every restart.
+        """
+        profile = os.getenv("FIESTABOARD_PROFILE", "docker").strip().lower() or "docker"
+        if profile == "pi":
+            general = self._config.setdefault("general", {})
+            if not general.get("instance_name"):
+                general["instance_name"] = "FiestaPi"
 
     def _deep_copy(self, obj: Any) -> Any:
         """Create a deep copy of a nested dict/list structure."""
