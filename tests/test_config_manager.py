@@ -55,6 +55,38 @@ def test_creates_default_config_when_no_file_exists(tmp_path):
     assert loaded["board"]["api_mode"] == "local"
 
 
+def test_pi_profile_defaults_instance_name_on_fresh_config(tmp_path, monkeypatch):
+    """On the FiestaPi image, a brand-new config gets instance_name='FiestaPi'."""
+    monkeypatch.setenv("FIESTABOARD_PROFILE", "pi")
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_general()["instance_name"] == "FiestaPi"
+    # Persisted to disk so the UI sees it without another save round-trip.
+    on_disk = json.loads(config_path.read_text())
+    assert on_disk["general"]["instance_name"] == "FiestaPi"
+
+
+def test_docker_profile_leaves_instance_name_empty(tmp_path, monkeypatch):
+    """Default Docker installs keep instance_name empty (existing behavior)."""
+    monkeypatch.delenv("FIESTABOARD_PROFILE", raising=False)
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_general()["instance_name"] == ""
+
+
+def test_pi_profile_does_not_overwrite_existing_instance_name(tmp_path, monkeypatch):
+    """Existing config (e.g. user renamed) is not stomped on next start."""
+    monkeypatch.setenv("FIESTABOARD_PROFILE", "pi")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({
+        "board": {"api_mode": "local"},
+        "features": {},
+        "general": {"instance_name": "Kitchen Board"},
+    }))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_general()["instance_name"] == "Kitchen Board"
+
+
 def test_loads_existing_valid_config_file(tmp_path):
     """Loads existing valid config file."""
     config_path = tmp_path / "config.json"
