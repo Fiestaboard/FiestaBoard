@@ -51,7 +51,11 @@ jobs:
       - name: Wire FiestaBoard stage into pi-gen
         run: |
           cd pi-gen
-          ln -s "$GITHUB_WORKSPACE/FiestaBoard/pi-image/stage-fiestaboard" stage-fiestaboard
+          # Copy (don't symlink) — pi-gen's build-docker.sh runs inside a
+          # container that only bind-mounts the pi-gen directory itself,
+          # so a symlink to $GITHUB_WORKSPACE/FiestaBoard/... is dangling
+          # inside the container and `realpath stage-fiestaboard` fails.
+          cp -r "$GITHUB_WORKSPACE/FiestaBoard/pi-image/stage-fiestaboard" stage-fiestaboard
           cp "$GITHUB_WORKSPACE/FiestaBoard/pi-image/config" config
           # Skip stages we don't ship (desktop, applications).
           # stage2/SKIP_IMAGES prevents a second image from being exported
