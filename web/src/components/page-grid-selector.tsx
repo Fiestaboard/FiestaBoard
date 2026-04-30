@@ -321,6 +321,8 @@ const CarouselButton = memo(function CarouselButton({
   showActiveIndicator?: boolean;
   boardType?: "black" | "white" | null;
 }) {
+  const t = useTranslations("pageGridSelector");
+  const tCommon = useTranslations("common");
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
@@ -358,7 +360,7 @@ const CarouselButton = memo(function CarouselButton({
         <GalleryHorizontalEnd className={iconClassName} />
         <span className={nameClassName}>{carousel.name}</span>
         <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
-          {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
+          {tCommon("pageCount", { count: carousel.page_ids.length })}
         </Badge>
       </div>
 
