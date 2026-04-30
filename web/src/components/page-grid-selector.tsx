@@ -92,6 +92,7 @@ const PageButtonPreview = memo(function PageButtonPreview({
   boardType?: "black" | "white" | null;
   deviceType?: "flagship" | "note";
 }) {
+  const t = useTranslations("pageGridSelector");
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 

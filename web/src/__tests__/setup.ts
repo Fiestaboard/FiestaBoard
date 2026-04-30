@@ -6,31 +6,102 @@ import { server } from "./mocks/server";
 import enMessages from "../../messages/en.json";
 
 // Mock next-intl: resolve translation keys from English messages
-function getNestedValue(obj: Record<string, unknown>, path: string): string {
+function getNestedRaw(obj: unknown, path: string): unknown {
+  if (!path) return obj;
   const parts = path.split(".");
   let current: unknown = obj;
   for (const part of parts) {
     if (current && typeof current === "object" && part in (current as Record<string, unknown>)) {
       current = (current as Record<string, unknown>)[part];
     } else {
-      return path;
+      return undefined;
     }
   }
-  return typeof current === "string" ? current : path;
+  return current;
+}
+
+function getNestedValue(obj: Record<string, unknown>, path: string): string {
+  const v = getNestedRaw(obj, path);
+  return typeof v === "string" ? v : path;
 }
 
 vi.mock("next-intl", () => ({
   useTranslations: (namespace?: string) => {
     const ns = namespace
-      ? (enMessages as Record<string, unknown>)[namespace]
+      ? getNestedRaw(enMessages, namespace)
       : enMessages;
-    return (key: string, params?: Record<string, unknown>) => {
-      const raw = typeof ns === "object" && ns ? getNestedValue(ns as Record<string, unknown>, key) : key;
-      if (!params) return raw;
-      return raw.replace(/\{(\w+)\}/g, (_: string, k: string) =>
+    const lookup = (key: string): unknown => {
+      const v = getNestedRaw(ns, key);
+      return v === undefined ? (namespace ? `${namespace}.${key}` : key) : v;
+    };
+    const t = (key: string, params?: Record<string, unknown>) => {
+      const raw = lookup(key);
+      let rawStr = typeof raw === "string" ? raw : (namespace ? `${namespace}.${key}` : key);
+      if (!params) return rawStr;
+      // Handle ICU plural: {name, plural, one {...} other {...}}
+      rawStr = rawStr.replace(
+        /\{(\w+),\s*plural,\s*([^}]*(?:\{[^}]*\}[^}]*)*)\}/g,
+        (_full: string, name: string, branches: string) => {
+          const value = Number(params[name]);
+          const branchMap: Record<string, string> = {};
+          const branchRe = /(\w+|=\d+)\s*\{([^{}]*)\}/g;
+          let m: RegExpExecArray | null;
+          while ((m = branchRe.exec(branches)) !== null) {
+            branchMap[m[1]] = m[2];
+          }
+          let chosen = branchMap.other ?? "";
+          if (`=${value}` in branchMap) chosen = branchMap[`=${value}`];
+          else if (value === 1 && branchMap.one) chosen = branchMap.one;
+          return chosen.replace(/#/g, String(value));
+        }
+      );
+      return rawStr.replace(/\{(\w+)\}/g, (_: string, k: string) =>
         params[k] != null ? String(params[k]) : `{${k}}`
       );
     };
+    // Mock t.rich: render the message, replacing <tag>...</tag> and {placeholder} with React elements
+    (t as unknown as { rich: (key: string, values?: Record<string, unknown>) => React.ReactNode }).rich = (
+      key: string,
+      values?: Record<string, unknown>
+    ) => {
+      const rawVal = lookup(key);
+      const raw = typeof rawVal === "string" ? rawVal : key;
+      if (!values) return raw;
+      const parts: React.ReactNode[] = [];
+      const regex = /<(\w+)>(.*?)<\/\1>|\{(\w+)\}/g;
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+      let nodeKey = 0;
+      while ((match = regex.exec(raw)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(raw.slice(lastIndex, match.index));
+        }
+        if (match[1]) {
+          const fn = values[match[1]];
+          if (typeof fn === "function") {
+            parts.push(React.createElement(React.Fragment, { key: nodeKey++ }, (fn as (chunks: string) => React.ReactNode)(match[2])));
+          } else {
+            parts.push(match[2]);
+          }
+        } else if (match[3]) {
+          const v = values[match[3]];
+          if (typeof v === "function") {
+            parts.push(React.createElement(React.Fragment, { key: nodeKey++ }, (v as () => React.ReactNode)()));
+          } else if (v != null) {
+            parts.push(String(v));
+          }
+        }
+        lastIndex = regex.lastIndex;
+      }
+      if (lastIndex < raw.length) parts.push(raw.slice(lastIndex));
+      return React.createElement(React.Fragment, null, ...parts);
+    };
+    // Mock t.raw: returns the raw value (object/array/string) at the given key
+    (t as unknown as { raw: (key: string) => unknown }).raw = (key: string) => {
+      const v = getNestedRaw(ns, key);
+      return v === undefined ? key : v;
+    };
+    return t;
   },
   useLocale: () => "en",
   NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
