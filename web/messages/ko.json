@@ -561,7 +561,16 @@
     "selectType": "유형 선택:",
     "boardAdded": "보드가 추가되었습니다",
     "boardRemoved": "보드가 제거되었습니다",
-    "atLeastOneBoard": "최소 하나의 보드가 필요합니다"
+    "atLeastOneBoard": "최소 하나의 보드가 필요합니다",
+    "connected": "Connected",
+    "notConfigured": "Not configured",
+    "disabledLabel": "Disabled",
+    "blackAriaLabel": "Black",
+    "whiteAriaLabel": "White",
+    "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Failed to enable local API"
   },
   "systemUpdate": {
     "updateAvailable": "업데이트 가능",

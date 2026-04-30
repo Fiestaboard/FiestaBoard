@@ -561,7 +561,16 @@
     "selectType": "Sélectionner le type :",
     "boardAdded": "Tableau ajouté",
     "boardRemoved": "Tableau retiré",
-    "atLeastOneBoard": "Au moins un tableau est requis"
+    "atLeastOneBoard": "Au moins un tableau est requis",
+    "connected": "Connecté",
+    "notConfigured": "Non configuré",
+    "disabledLabel": "Désactivé",
+    "blackAriaLabel": "Noir",
+    "whiteAriaLabel": "Blanc",
+    "boardNamePlaceholder": "p. ex. Tableau cuisine, Note bureau",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Échec de l'activation de l'API locale"
   },
   "systemUpdate": {
     "updateAvailable": "Mise à jour disponible",

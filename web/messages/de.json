@@ -561,7 +561,16 @@
     "selectType": "Typ auswählen:",
     "boardAdded": "Board hinzugefügt",
     "boardRemoved": "Board entfernt",
-    "atLeastOneBoard": "Mindestens ein Board ist erforderlich"
+    "atLeastOneBoard": "Mindestens ein Board ist erforderlich",
+    "connected": "Verbunden",
+    "notConfigured": "Nicht konfiguriert",
+    "disabledLabel": "Deaktiviert",
+    "blackAriaLabel": "Schwarz",
+    "whiteAriaLabel": "Weiß",
+    "boardNamePlaceholder": "z. B. Küchenboard, Büro Note",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Lokale API konnte nicht aktiviert werden"
   },
   "systemUpdate": {
     "updateAvailable": "Update verfügbar",

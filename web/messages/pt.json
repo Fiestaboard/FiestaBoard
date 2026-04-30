@@ -561,7 +561,16 @@
     "selectType": "Selecione o tipo:",
     "boardAdded": "Painel adicionado",
     "boardRemoved": "Painel removido",
-    "atLeastOneBoard": "É necessário pelo menos um painel"
+    "atLeastOneBoard": "É necessário pelo menos um painel",
+    "connected": "Connected",
+    "notConfigured": "Not configured",
+    "disabledLabel": "Disabled",
+    "blackAriaLabel": "Black",
+    "whiteAriaLabel": "White",
+    "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Failed to enable local API"
   },
   "systemUpdate": {
     "updateAvailable": "Atualização Disponível",

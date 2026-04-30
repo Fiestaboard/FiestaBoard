@@ -561,7 +561,16 @@
     "selectType": "Wybierz typ:",
     "boardAdded": "Tablica dodana",
     "boardRemoved": "Tablica usunięta",
-    "atLeastOneBoard": "Wymagana jest co najmniej jedna tablica"
+    "atLeastOneBoard": "Wymagana jest co najmniej jedna tablica",
+    "connected": "Connected",
+    "notConfigured": "Not configured",
+    "disabledLabel": "Disabled",
+    "blackAriaLabel": "Black",
+    "whiteAriaLabel": "White",
+    "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Failed to enable local API"
   },
   "systemUpdate": {
     "updateAvailable": "Dostępna aktualizacja",

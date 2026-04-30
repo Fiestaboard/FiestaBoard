@@ -561,7 +561,16 @@
     "selectType": "Selecciona el tipo:",
     "boardAdded": "Tablero agregado",
     "boardRemoved": "Tablero eliminado",
-    "atLeastOneBoard": "Se requiere al menos un tablero"
+    "atLeastOneBoard": "Se requiere al menos un tablero",
+    "connected": "Conectado",
+    "notConfigured": "No configurado",
+    "disabledLabel": "Deshabilitado",
+    "blackAriaLabel": "Negro",
+    "whiteAriaLabel": "Blanco",
+    "boardNamePlaceholder": "p. ej. Tablero Cocina, Note Oficina",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Error al activar la API local"
   },
   "systemUpdate": {
     "updateAvailable": "Actualización disponible",

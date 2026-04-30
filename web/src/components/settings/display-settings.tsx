@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import {
   Monitor, Smartphone, Plus, Trash2, ChevronDown, ChevronRight,
   Eye, EyeOff, AlertCircle, Check, Key, KeyRound, Loader2,
@@ -26,6 +27,7 @@ function BoardConnectionForm({
   board: BoardInstance;
   onUpdate: (boardId: string, updates: Partial<BoardInstance>) => void;
 }) {
+  const t = useTranslations("displaySettings");
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [localKeyMode, setLocalKeyMode] = useState<"api_key" | "enablement_token">("api_key");
   const [enablementToken, setEnablementToken] = useState("");
@@ -42,7 +44,7 @@ function BoardConnectionForm({
 
   const handleEnableLocalApi = async () => {
     if (!board.host || !enablementToken) {
-      toast.error("Board host and enablement token are required");
+      toast.error(t("boardHostAndTokenRequired"));
       return;
     }
     setIsEnabling(true);
@@ -55,12 +57,12 @@ function BoardConnectionForm({
         onUpdate(board.id, { local_api_key: result.api_key });
         setEnablementToken("");
         setLocalKeyMode("api_key");
-        toast.success("Local API enabled! API key retrieved and saved.");
+        toast.success(t("localApiEnabled"));
       } else {
-        toast.error(result.message || "Failed to enable local API");
+        toast.error(result.message || t("failedToEnable"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to enable local API");
+      toast.error(error instanceof Error ? error.message : t("failedToEnable"));
     } finally {
       setIsEnabling(false);
     }
@@ -69,16 +71,16 @@ function BoardConnectionForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium">Connection</Label>
+        <Label className="text-xs font-medium">{t("connectionLabel")}</Label>
         {isConfigured ? (
           <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
             <Check className="h-2.5 w-2.5 mr-0.5" />
-            Connected
+            {t("connected")}
           </BadgeUI>
         ) : (
           <BadgeUI variant="destructive" className="text-[10px] h-5">
             <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-            Not configured
+            {t("notConfigured")}
           </BadgeUI>
         )}
       </div>
@@ -93,8 +95,8 @@ function BoardConnectionForm({
               : "border-muted hover:border-primary/50"
           }`}
         >
-          <div className="text-xs font-medium">Local API</div>
-          <div className="text-[10px] text-muted-foreground">Direct connection</div>
+          <div className="text-xs font-medium">{t("localApiLabel")}</div>
+          <div className="text-[10px] text-muted-foreground">{t("localApiDescription")}</div>
         </button>
         <button
           onClick={() => onUpdate(board.id, { api_mode: "cloud" })}
@@ -104,8 +106,8 @@ function BoardConnectionForm({
               : "border-muted hover:border-primary/50"
           }`}
         >
-          <div className="text-xs font-medium">Cloud API</div>
-          <div className="text-[10px] text-muted-foreground">Via cloud servers</div>
+          <div className="text-xs font-medium">{t("cloudApiLabel")}</div>
+          <div className="text-[10px] text-muted-foreground">{t("cloudApiDescription")}</div>
         </button>
       </div>
 
@@ -114,7 +116,7 @@ function BoardConnectionForm({
         <>
           <div className="space-y-1">
             <label className="text-xs font-medium">
-              Board Host <span className="text-destructive">*</span>
+              {t("boardHostLabel")} <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
@@ -124,7 +126,7 @@ function BoardConnectionForm({
                   onUpdate(board.id, { host: e.target.value });
                 }
               }}
-              placeholder="192.168.1.100"
+              placeholder={t("boardHostPlaceholder")}
               className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
             />
           </div>
@@ -141,7 +143,7 @@ function BoardConnectionForm({
               }`}
             >
               <Key className="h-3 w-3" />
-              API Key
+              {t("apiKeyLabel")}
             </button>
             <button
               type="button"
@@ -153,14 +155,14 @@ function BoardConnectionForm({
               }`}
             >
               <KeyRound className="h-3 w-3" />
-              Enablement Token
+              {t("enablementTokenLabel")}
             </button>
           </div>
 
           {localKeyMode === "api_key" ? (
             <div className="space-y-1">
               <label className="text-xs font-medium">
-                Local API Key <span className="text-destructive">*</span>
+                {t("localApiKeyLabel")} <span className="text-destructive">*</span>
               </label>
               <div className="flex gap-1.5">
                 <input
@@ -172,7 +174,7 @@ function BoardConnectionForm({
                       onUpdate(board.id, { local_api_key: val });
                     }
                   }}
-                  placeholder={hasLocalKey ? "••••••••••• (set)" : "Enter local API key"}
+                  placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
                   className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
                 />
                 <Button
@@ -187,20 +189,22 @@ function BoardConnectionForm({
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                See our{" "}
-                <a href="https://fiestaboard.app/docs/setup/api-keys" target="_blank" rel="noopener noreferrer" className="underline">Local API setup guide</a>
-                {" "}for how to get your key
+                {t.rich("localApiKeyHelp", {
+                  link: (chunks) => (
+                    <a href="https://fiestaboard.app/docs/setup/api-keys" target="_blank" rel="noopener noreferrer" className="underline">{chunks}</a>
+                  ),
+                })}
               </p>
             </div>
           ) : (
             <div className="space-y-1.5">
-              <label className="text-xs font-medium">Enablement Token</label>
+              <label className="text-xs font-medium">{t("enablementTokenLabel")}</label>
               <div className="flex gap-1.5">
                 <input
                   type={showSecrets.enablement_token ? "text" : "password"}
                   value={enablementToken}
                   onChange={(e) => setEnablementToken(e.target.value)}
-                  placeholder="Token from vestaboard.com/local-api"
+                  placeholder={t("enablementTokenPlaceholder")}
                   className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
                 />
                 <Button
@@ -224,10 +228,10 @@ function BoardConnectionForm({
                 {isEnabling ? (
                   <>
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    Enabling...
+                    {t("enabling")}
                   </>
                 ) : (
-                  "Get API Key from Board"
+                  t("getApiKeyFromBoard")
                 )}
               </Button>
             </div>
@@ -239,7 +243,7 @@ function BoardConnectionForm({
       {apiMode === "cloud" && (
         <div className="space-y-1">
           <label className="text-xs font-medium">
-            Read/Write API Key <span className="text-destructive">*</span>
+            {t("cloudKeyLabel")} <span className="text-destructive">*</span>
           </label>
           <div className="flex gap-1.5">
             <input
@@ -251,7 +255,7 @@ function BoardConnectionForm({
                   onUpdate(board.id, { cloud_key: val });
                 }
               }}
-              placeholder={hasCloudKey ? "••••••••••• (set)" : "Enter R/W API key"}
+              placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
               className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
             />
             <Button
@@ -266,7 +270,7 @@ function BoardConnectionForm({
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
-            Found in the Vestaboard app under Settings → Read/Write API
+            {t("cloudKeyHelp")}
           </p>
         </div>
       )}
@@ -277,8 +281,8 @@ function BoardConnectionForm({
           <AlertCircle className="h-3 w-3 flex-shrink-0" />
           <span>
             {apiMode === "local"
-              ? "Local API key and host are required"
-              : "Cloud API key is required"}
+              ? t("localApiRequired")
+              : t("cloudApiRequired")}
           </span>
         </div>
       )}
@@ -288,6 +292,8 @@ function BoardConnectionForm({
 
 
 export function DisplaySettings() {
+  const t = useTranslations("displaySettings");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const { data: boardSettings, isLoading } = useBoardSettings();
   const [showTypePicker, setShowTypePicker] = useState(false);
@@ -316,7 +322,7 @@ export function DisplaySettings() {
       api.addBoard(board),
     onSuccess: () => {
       invalidate();
-      toast.success("Board added");
+      toast.success(t("boardAdded"));
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -327,7 +333,7 @@ export function DisplaySettings() {
     mutationFn: (boardId: string) => api.removeBoard(boardId),
     onSuccess: () => {
       invalidate();
-      toast.success("Board removed");
+      toast.success(t("boardRemoved"));
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -343,7 +349,7 @@ export function DisplaySettings() {
 
   const handleRemoveBoard = (boardId: string) => {
     if (boards.length <= 1) {
-      toast.error("At least one board is required");
+      toast.error(t("atLeastOneBoard"));
       return;
     }
     removeMutation.mutate(boardId);
@@ -375,10 +381,10 @@ export function DisplaySettings() {
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Monitor className="h-4 w-4" />
-          Your Boards
+          {t("title")}
         </CardTitle>
         <CardDescription>
-          Add each Vestaboard you own and configure its connection.
+          {t("description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -407,7 +413,7 @@ export function DisplaySettings() {
                     <ChevronDown className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{board.name || "Unnamed Board"}</div>
+                    <div className="text-sm font-medium truncate">{board.name || t("unnamedBoard")}</div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="capitalize">{board.device_type}</span>
                       <span>•</span>
@@ -420,7 +426,7 @@ export function DisplaySettings() {
                       {!isEnabled && (
                         <>
                           <span>•</span>
-                          <span className="italic">Disabled</span>
+                          <span className="italic">{t("disabledLabel")}</span>
                         </>
                       )}
                     </div>
@@ -429,12 +435,12 @@ export function DisplaySettings() {
                     {isConnected ? (
                       <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
                         <Check className="h-2.5 w-2.5 mr-0.5" />
-                        Connected
+                        {t("connected")}
                       </BadgeUI>
                     ) : (
                       <BadgeUI variant="destructive" className="text-[10px] h-5">
                         <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                        Not configured
+                        {t("notConfigured")}
                       </BadgeUI>
                     )}
                   </div>
@@ -452,12 +458,12 @@ export function DisplaySettings() {
                               handleUpdateBoard(board.id, { name: e.target.value });
                             }
                           }}
-                          placeholder="e.g. Kitchen Board, Office Note"
+                          placeholder={t("boardNamePlaceholder")}
                           className="h-8 text-xs"
                         />
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <label className="text-[11px] text-muted-foreground">Enabled</label>
+                        <label className="text-[11px] text-muted-foreground">{tCommon("enabled")}</label>
                         <Switch
                           checked={isEnabled}
                           onCheckedChange={(checked) =>
@@ -480,7 +486,7 @@ export function DisplaySettings() {
                                 : "border-transparent text-muted-foreground hover:text-foreground"
                             }`}
                           >
-                            Flagship
+                            {t("flagshipLabel")}
                           </button>
                           <button
                             onClick={() => handleUpdateBoard(board.id, { device_type: "note" })}
@@ -490,16 +496,16 @@ export function DisplaySettings() {
                                 : "border-transparent text-muted-foreground hover:text-foreground"
                             }`}
                           >
-                            Note
+                            {t("noteLabel")}
                           </button>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">Color</span>
+                        <span className="text-[11px] text-muted-foreground">{t("colorLabel")}</span>
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
-                            aria-label="Black"
+                            aria-label={t("blackAriaLabel")}
                             className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors ${
                               board.board_color === "black"
                                 ? "border-primary ring-2 ring-primary/30"
@@ -508,7 +514,7 @@ export function DisplaySettings() {
                           />
                           <button
                             onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
-                            aria-label="White"
+                            aria-label={t("whiteAriaLabel")}
                             className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors ${
                               board.board_color === "white"
                                 ? "border-primary ring-2 ring-primary/30"
@@ -537,7 +543,7 @@ export function DisplaySettings() {
                         disabled={boards.length <= 1}
                       >
                         <Trash2 className="h-3 w-3 mr-1" />
-                        Remove Board
+                        {t("removeBoard")}
                       </Button>
                     </div>
                   </div>
@@ -557,11 +563,11 @@ export function DisplaySettings() {
               onClick={() => setShowTypePicker(true)}
             >
               <Plus className="h-3 w-3 mr-1" />
-              Add Board
+              {t("addBoard")}
             </Button>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Select type:</span>
+              <span className="text-xs text-muted-foreground">{t("selectType")}</span>
               <Button
                 variant="outline"
                 size="sm"
@@ -569,7 +575,7 @@ export function DisplaySettings() {
                 onClick={() => handleAddBoard("flagship")}
               >
                 <Monitor className="h-3 w-3 mr-1" />
-                Flagship
+                {t("flagshipLabel")}
               </Button>
               <Button
                 variant="outline"
@@ -578,7 +584,7 @@ export function DisplaySettings() {
                 onClick={() => handleAddBoard("note")}
               >
                 <Smartphone className="h-3 w-3 mr-1" />
-                Note
+                {t("noteLabel")}
               </Button>
               <Button
                 variant="ghost"
@@ -586,7 +592,7 @@ export function DisplaySettings() {
                 className="text-xs text-muted-foreground"
                 onClick={() => setShowTypePicker(false)}
               >
-                Cancel
+                {tCommon("cancel")}
               </Button>
             </div>
           )}

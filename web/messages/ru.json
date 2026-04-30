@@ -561,7 +561,16 @@
     "selectType": "Выберите тип:",
     "boardAdded": "Доска добавлена",
     "boardRemoved": "Доска удалена",
-    "atLeastOneBoard": "Требуется хотя бы одна доска"
+    "atLeastOneBoard": "Требуется хотя бы одна доска",
+    "connected": "Connected",
+    "notConfigured": "Not configured",
+    "disabledLabel": "Disabled",
+    "blackAriaLabel": "Black",
+    "whiteAriaLabel": "White",
+    "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Failed to enable local API"
   },
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",

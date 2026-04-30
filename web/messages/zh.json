@@ -561,7 +561,16 @@
     "selectType": "选择类型：",
     "boardAdded": "看板已添加",
     "boardRemoved": "看板已移除",
-    "atLeastOneBoard": "至少需要一个看板"
+    "atLeastOneBoard": "至少需要一个看板",
+    "connected": "Connected",
+    "notConfigured": "Not configured",
+    "disabledLabel": "Disabled",
+    "blackAriaLabel": "Black",
+    "whiteAriaLabel": "White",
+    "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
+    "flagshipLabel": "Flagship",
+    "noteLabel": "Note",
+    "failedToEnable": "Failed to enable local API"
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",
