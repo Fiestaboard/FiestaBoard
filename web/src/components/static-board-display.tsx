@@ -3,6 +3,7 @@
 import { useMemo, memo } from "react";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
 import type { DeviceType } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
   flagship: { rows: 6, cols: 22 },
@@ -95,6 +96,7 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
   deviceType?: DeviceType;
   className?: string;
 }) {
+  const t = useTranslations("boardDisplay");
   const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
   const isWhiteBoard = boardType === "white";
   const tileBg = isWhiteBoard ? "var(--color-board-surface-light)" : "var(--color-board-surface-dark)";
@@ -153,7 +155,7 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
     <div className="w-full flex justify-center">
       <div
         role="img"
-        aria-label={message ? `Board preview` : "Empty board"}
+        aria-label={message ? t("preview") : t("empty")}
         className={`${borderClasses} ${className} max-w-full`}
         style={{ backgroundColor: bezelBg, borderColor, boxShadow, width: "fit-content" }}
       >

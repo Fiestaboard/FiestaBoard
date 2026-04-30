@@ -11,6 +11,7 @@ import {
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -148,6 +149,7 @@ function UpdateOverlay({
   currentVersion?: string;
   onDone: () => void;
 }) {
+  const t = useTranslations("updateOverlay");
   const [phase, setPhase] = useState<UpdatePhase>("pulling");
   const [elapsed, setElapsed] = useState(0);
   const everWentDown = useRef(false);
@@ -215,17 +217,19 @@ function UpdateOverlay({
   // Format elapsed time as M:SS.
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;
-  const elapsedLabel = `${minutes}:${String(seconds).padStart(2, "0")} elapsed`;
+  const elapsedLabel = t("elapsedLabel", { time: `${minutes}:${String(seconds).padStart(2, "0")}` });
 
   if (phase === "error") {
     return (
       <div className="fixed inset-0 z-[200] bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-4 max-w-sm mx-auto px-4">
-          <h2 className="text-xl font-semibold">Update taking longer than expected</h2>
+          <h2 className="text-xl font-semibold">{t("takingLonger")}</h2>
           <p className="text-sm text-white/70">
-            The update may still be running in the background. Check{" "}
-            <code className="text-xs bg-white/10 px-1 rounded">docker logs fiestaupdater</code>{" "}
-            on the host, then refresh.
+            {t.rich("takingLongerDescription", {
+              code: (chunks) => (
+                <code className="text-xs bg-white/10 px-1 rounded">{chunks}</code>
+              ),
+            })}
           </p>
           <Button
             variant="outline"
@@ -236,7 +240,7 @@ function UpdateOverlay({
             }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Dismiss and refresh page
+            {t("dismissAndRefresh")}
           </Button>
         </div>
       </div>
@@ -245,10 +249,10 @@ function UpdateOverlay({
 
   const phaseMessage =
     phase === "pulling" && !everWentDown.current
-      ? "Pulling the latest image from Docker Hub…"
+      ? t("phasePulling")
       : phase === "ready"
-        ? "Update complete. Reloading…"
-        : "Restarting FiestaBoard…";
+        ? t("phaseReady")
+        : t("phaseRestarting");
 
   return (
     <div className="fixed inset-0 z-[200] bg-black text-white flex items-center justify-center">
@@ -259,13 +263,13 @@ function UpdateOverlay({
           <Loader2 className="h-12 w-12 mx-auto animate-spin text-white" />
         )}
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold tracking-tight">Updating FiestaBoard</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t("updatingFiestaboard")}</h2>
           <p className="text-base text-white/80">{phaseMessage}</p>
         </div>
         <div className="space-y-1">
           <p className="text-sm text-white/50">{elapsedLabel}</p>
           <p className="text-xs text-white/40">
-            Updates can take a few minutes — please don&apos;t close this tab.
+            {t("dontCloseTab")}
           </p>
         </div>
       </div>

@@ -47,7 +47,8 @@
     "carousels": "캐러셀",
     "settings": "설정",
     "savingIndicator": "저장 중...",
-    "pageCount": "{count, plural, one {# 페이지} other {# 페이지}}"
+    "pageCount": "{count, plural, one {# 페이지} other {# 페이지}}",
+    "unknownError": "Unknown error"
   },
   "navigation": {
     "home": "홈",
@@ -1004,5 +1005,56 @@
     "optionsAriaLabel": "Timezone options",
     "showingFirst": "Showing first 50 of {total} results",
     "invalidTimezone": "Invalid timezone. Please select from the list or enter a valid IANA timezone name."
+  },
+  "pluginDetail": {
+    "categories": {
+      "art": "Display Art",
+      "data": "Data & Information",
+      "entertainment": "Entertainment",
+      "finance": "Finance",
+      "home": "Smart Home",
+      "transit": "Transportation",
+      "utility": "Utilities",
+      "weather": "Weather & Environment"
+    },
+    "backToMarketplace": "Back to Marketplace",
+    "byAuthor": "by {author}",
+    "requiresFiestaboard": "Requires FiestaBoard {version}",
+    "addInstance": "Add Instance",
+    "install": "Install",
+    "installing": "Installing...",
+    "documentationNotAvailable": "Documentation not available.",
+    "addInstanceOfTitle": "Add Instance of {name}",
+    "addInstanceDescription": "Create a new independent instance with its own configuration.",
+    "instanceNameLabel": "Instance name",
+    "instanceNamePlaceholder": "e.g. sf, prod, home",
+    "instanceNameHelp": "Use alphanumeric characters, hyphens, or underscores (1–40 chars).",
+    "create": "Create",
+    "creating": "Creating...",
+    "toastInstalled": "{name} installed and enabled",
+    "toastInstallFailed": "Failed to install: {error}",
+    "toastInstanceCreated": "Instance \"{label}\" created",
+    "toastCreateInstanceFailed": "Failed to create instance: {error}"
+  },
+  "boardDisplay": {
+    "loading": "Loading board display",
+    "empty": "Empty board display",
+    "preview": "Board preview",
+    "withMessage": "Board display: {message}"
+  },
+  "updateOverlay": {
+    "elapsedLabel": "{time} elapsed",
+    "takingLonger": "Update taking longer than expected",
+    "takingLongerDescription": "The update may still be running in the background. Check <code>docker logs fiestaupdater</code> on the host, then refresh.",
+    "dismissAndRefresh": "Dismiss and refresh page",
+    "phasePulling": "Pulling the latest image from Docker Hub…",
+    "phaseReady": "Update complete. Reloading…",
+    "phaseRestarting": "Restarting FiestaBoard…",
+    "updatingFiestaboard": "Updating FiestaBoard",
+    "dontCloseTab": "Updates can take a few minutes — please don't close this tab."
+  },
+  "wizardProvider": {
+    "loadingSetupWizard": "Loading setup wizard...",
+    "loading": "Loading..."
   }
 }

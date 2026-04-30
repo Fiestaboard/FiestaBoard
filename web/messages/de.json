@@ -47,7 +47,8 @@
     "carousels": "Karussells",
     "settings": "Einstellungen",
     "savingIndicator": "Wird gespeichert...",
-    "pageCount": "{count, plural, one {# Seite} other {# Seiten}}"
+    "pageCount": "{count, plural, one {# Seite} other {# Seiten}}",
+    "unknownError": "Unbekannter Fehler"
   },
   "navigation": {
     "home": "Startseite",
@@ -1004,5 +1005,56 @@
     "optionsAriaLabel": "Zeitzonenoptionen",
     "showingFirst": "Zeige erste 50 von {total} Ergebnissen",
     "invalidTimezone": "Ungültige Zeitzone. Bitte aus der Liste auswählen oder einen gültigen IANA-Zeitzonennamen eingeben."
+  },
+  "pluginDetail": {
+    "categories": {
+      "art": "Display-Kunst",
+      "data": "Daten & Informationen",
+      "entertainment": "Unterhaltung",
+      "finance": "Finanzen",
+      "home": "Smart Home",
+      "transit": "Verkehr",
+      "utility": "Dienstprogramme",
+      "weather": "Wetter & Umwelt"
+    },
+    "backToMarketplace": "Zurück zum Marktplatz",
+    "byAuthor": "von {author}",
+    "requiresFiestaboard": "Benötigt FiestaBoard {version}",
+    "addInstance": "Instanz hinzufügen",
+    "install": "Installieren",
+    "installing": "Wird installiert...",
+    "documentationNotAvailable": "Dokumentation nicht verfügbar.",
+    "addInstanceOfTitle": "Instanz von {name} hinzufügen",
+    "addInstanceDescription": "Erstellen Sie eine neue unabhängige Instanz mit eigener Konfiguration.",
+    "instanceNameLabel": "Instanzname",
+    "instanceNamePlaceholder": "z. B. sf, prod, home",
+    "instanceNameHelp": "Verwenden Sie alphanumerische Zeichen, Bindestriche oder Unterstriche (1–40 Zeichen).",
+    "create": "Erstellen",
+    "creating": "Wird erstellt...",
+    "toastInstalled": "{name} installiert und aktiviert",
+    "toastInstallFailed": "Installation fehlgeschlagen: {error}",
+    "toastInstanceCreated": "Instanz „{label}\" erstellt",
+    "toastCreateInstanceFailed": "Erstellen der Instanz fehlgeschlagen: {error}"
+  },
+  "boardDisplay": {
+    "loading": "Board-Anzeige wird geladen",
+    "empty": "Leere Board-Anzeige",
+    "preview": "Board-Vorschau",
+    "withMessage": "Board-Anzeige: {message}"
+  },
+  "updateOverlay": {
+    "elapsedLabel": "{time} verstrichen",
+    "takingLonger": "Aktualisierung dauert länger als erwartet",
+    "takingLongerDescription": "Das Update läuft möglicherweise noch im Hintergrund. Prüfen Sie <code>docker logs fiestaupdater</code> auf dem Host und aktualisieren Sie dann die Seite.",
+    "dismissAndRefresh": "Schließen und Seite aktualisieren",
+    "phasePulling": "Neuestes Image von Docker Hub wird heruntergeladen…",
+    "phaseReady": "Update abgeschlossen. Neuladen…",
+    "phaseRestarting": "FiestaBoard wird neu gestartet…",
+    "updatingFiestaboard": "FiestaBoard wird aktualisiert",
+    "dontCloseTab": "Updates können einige Minuten dauern – bitte schließen Sie diesen Tab nicht."
+  },
+  "wizardProvider": {
+    "loadingSetupWizard": "Einrichtungsassistent wird geladen...",
+    "loading": "Wird geladen..."
   }
 }

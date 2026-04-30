@@ -47,7 +47,8 @@
     "carousels": "Carruseles",
     "settings": "Configuración",
     "savingIndicator": "Guardando...",
-    "pageCount": "{count, plural, one {# página} other {# páginas}}"
+    "pageCount": "{count, plural, one {# página} other {# páginas}}",
+    "unknownError": "Error desconocido"
   },
   "navigation": {
     "home": "Inicio",
@@ -1004,5 +1005,56 @@
     "optionsAriaLabel": "Opciones de zona horaria",
     "showingFirst": "Mostrando los primeros 50 de {total} resultados",
     "invalidTimezone": "Zona horaria no válida. Selecciona una de la lista o introduce un nombre de zona horaria IANA válido."
+  },
+  "pluginDetail": {
+    "categories": {
+      "art": "Arte de pantalla",
+      "data": "Datos e información",
+      "entertainment": "Entretenimiento",
+      "finance": "Finanzas",
+      "home": "Hogar inteligente",
+      "transit": "Transporte",
+      "utility": "Utilidades",
+      "weather": "Clima y medio ambiente"
+    },
+    "backToMarketplace": "Volver al mercado",
+    "byAuthor": "por {author}",
+    "requiresFiestaboard": "Requiere FiestaBoard {version}",
+    "addInstance": "Añadir instancia",
+    "install": "Instalar",
+    "installing": "Instalando...",
+    "documentationNotAvailable": "Documentación no disponible.",
+    "addInstanceOfTitle": "Añadir instancia de {name}",
+    "addInstanceDescription": "Crea una nueva instancia independiente con su propia configuración.",
+    "instanceNameLabel": "Nombre de la instancia",
+    "instanceNamePlaceholder": "p. ej. sf, prod, home",
+    "instanceNameHelp": "Usa caracteres alfanuméricos, guiones o guiones bajos (1–40 caracteres).",
+    "create": "Crear",
+    "creating": "Creando...",
+    "toastInstalled": "{name} instalado y activado",
+    "toastInstallFailed": "Error al instalar: {error}",
+    "toastInstanceCreated": "Instancia «{label}» creada",
+    "toastCreateInstanceFailed": "Error al crear la instancia: {error}"
+  },
+  "boardDisplay": {
+    "loading": "Cargando visualización del tablero",
+    "empty": "Visualización del tablero vacía",
+    "preview": "Vista previa del tablero",
+    "withMessage": "Visualización del tablero: {message}"
+  },
+  "updateOverlay": {
+    "elapsedLabel": "{time} transcurrido",
+    "takingLonger": "La actualización está tardando más de lo esperado",
+    "takingLongerDescription": "Es posible que la actualización aún se esté ejecutando en segundo plano. Comprueba <code>docker logs fiestaupdater</code> en el host y actualiza la página.",
+    "dismissAndRefresh": "Cerrar y actualizar la página",
+    "phasePulling": "Descargando la última imagen de Docker Hub…",
+    "phaseReady": "Actualización completa. Recargando…",
+    "phaseRestarting": "Reiniciando FiestaBoard…",
+    "updatingFiestaboard": "Actualizando FiestaBoard",
+    "dontCloseTab": "Las actualizaciones pueden tardar unos minutos. Por favor, no cierres esta pestaña."
+  },
+  "wizardProvider": {
+    "loadingSetupWizard": "Cargando asistente de configuración...",
+    "loading": "Cargando..."
   }
 }
