@@ -148,6 +148,10 @@ jobs:
       - name: Locate output
         id: out
         run: |
+          # build-docker.sh runs as root, so pi-gen/deploy and its contents
+          # are root-owned. Reclaim ownership so subsequent steps (checksum,
+          # artifact upload, release attach) can read/write without sudo.
+          sudo chown -R "$USER:$USER" pi-gen/deploy
           IMG=$(find pi-gen/deploy -name '*.img.xz' | head -n1)
           test -n "$IMG"
           echo "img=$IMG" >> "$GITHUB_OUTPUT"
