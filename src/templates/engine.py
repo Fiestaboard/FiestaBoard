@@ -2,6 +2,9 @@
 
 Template syntax:
 - Data binding: {{plugin_id.field}} e.g., {{weather.temperature}}, {{date_time.time}}
+- Inline formulas: {{= EXPRESSION }} - Excel-like expressions with IF/AND/OR,
+  math, string functions, and COLOR(). See ``src/templates/expressions.py`` and
+  the user-facing reference docs at ``docs-site/docs/reference/template-formulas.md``.
 - Colors: {{red}}, {{blue}}, etc. - Single colored tile (not text wrapping)
 - Symbols: {sun}, {cloud}, {rain}
 - Formatting: {{value|pad:3}}, {{value|upper}}, {{value|lower}}, {{value|wrap}}
@@ -33,6 +36,7 @@ from dataclasses import dataclass
 from ..plugins import get_plugin_registry
 from ..text_utils import extract_alignment_from_line
 from ..devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+from .expressions import render_expressions
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +159,14 @@ class TemplateEngine:
         # Process colors FIRST (before variables) to prevent VAR_PATTERN from matching them
         # This converts {{red}} to {{63}}, etc.
         result = self._normalize_colors(result)
+        
+        # Process inline formula expressions ({{= ... }}) before plain variables.
+        # See ``src/templates/expressions.py`` for the language reference.
+        # Formulas resolve their own variable references against ``context``;
+        # the result is plain text (possibly containing color tile markers
+        # like ``{67}`` from ``COLOR()``) which then flows through the
+        # remaining passes unchanged.
+        result = render_expressions(result, context)
         
         # Process variables
         result = self._render_variables(result, context)
