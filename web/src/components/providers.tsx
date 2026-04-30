@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { FormatPreferencesProvider } from "@/hooks/use-format-preferences";
+import { UpdateProvider } from "@/components/update-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -39,7 +40,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <SidebarProvider>
           <ConfigOverridesProvider>
-            <FormatPreferencesProvider>{children}</FormatPreferencesProvider>
+            <FormatPreferencesProvider>
+              <UpdateProvider>{children}</UpdateProvider>
+            </FormatPreferencesProvider>
           </ConfigOverridesProvider>
         </SidebarProvider>
       </ThemeProvider>

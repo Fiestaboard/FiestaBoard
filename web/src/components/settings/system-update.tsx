@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useUpdate } from "@/components/update-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +24,6 @@ import {
 import {
   ArrowUpCircle,
   ExternalLink,
-  Loader2,
   RefreshCw,
 } from "lucide-react";
 
@@ -43,7 +43,7 @@ import {
 export function SystemUpdate() {
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [updating, setUpdating] = useState(false);
+  const { startUpdate } = useUpdate();
 
   const { data: updateCheck, isLoading, isError } = useQuery({
     queryKey: ["update-check"],
@@ -61,8 +61,7 @@ export function SystemUpdate() {
 
   const applyMutation = useMutation({
     mutationFn: () => api.applyUpdate(),
-    onMutate: () => setUpdating(true),
-    onError: () => setUpdating(false),
+    onSuccess: () => startUpdate(updateCheck?.current_version),
   });
 
   if (isLoading || isError || !updateCheck || !updateCheck.update_available) {
@@ -100,7 +99,7 @@ export function SystemUpdate() {
               <Button
                 size="sm"
                 onClick={() => setConfirmOpen(true)}
-                disabled={applyMutation.isPending || updating}
+                disabled={applyMutation.isPending}
               >
                 <ArrowUpCircle className="h-4 w-4 mr-2" />
                 Update Now
@@ -163,74 +162,6 @@ export function SystemUpdate() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {updating && (
-        <UpdatingOverlay currentVersion={updateCheck.current_version} />
-      )}
     </TooltipProvider>
-  );
-}
-
-/**
- * Full-screen overlay shown while the sidecar recreates the fiestaboard
- * container.  Polls /version every 2s.  Once it reports a different
- * version than we started with, reload the page to pick up the new web
- * bundle.
- */
-function UpdatingOverlay({ currentVersion }: { currentVersion: string }) {
-  const [phase, setPhase] = useState<"pulling" | "restarting" | "ready">(
-    "pulling",
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    let consecutiveOk = 0;
-
-    const tick = async () => {
-      if (cancelled) return;
-      try {
-        const v = await api.getVersion();
-        if (v.package_version && v.package_version !== currentVersion) {
-          consecutiveOk += 1;
-          if (consecutiveOk >= 2) {
-            setPhase("ready");
-            setTimeout(() => window.location.reload(), 800);
-            return;
-          }
-        }
-      } catch {
-        // Connection refused / timeout while the new container starts up.
-        setPhase("restarting");
-        consecutiveOk = 0;
-      }
-      setTimeout(tick, 2000);
-    };
-
-    tick();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentVersion]);
-
-  const message =
-    phase === "pulling"
-      ? "Pulling the latest image…"
-      : phase === "restarting"
-        ? "Restarting FiestaBoard…"
-        : "Update complete. Reloading…";
-
-  return (
-    <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
-        <h2 className="text-xl font-semibold">Updating FiestaBoard</h2>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-          {message}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Don&apos;t close this tab — it will reload automatically.
-        </p>
-      </div>
-    </div>
   );
 }
