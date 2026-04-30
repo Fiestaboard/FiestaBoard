@@ -24,6 +24,7 @@ rest of the template engine is reading variable values from a plain
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -925,23 +926,15 @@ def _fn_color(args: List[Any]) -> Any:
 
 
 def _math_floor(x: float) -> float:
-    """Round toward negative infinity (matches Python ``math.floor``)."""
-    truncated = int(x)
-    # ``int()`` truncates toward zero. For negative non-integers we need
-    # to step one further toward -infinity.
-    if x < 0 and x != truncated:
-        return float(truncated - 1)
-    return float(truncated)
+    """Round toward negative infinity. Wraps ``math.floor`` to keep the
+    return type a ``float`` (matches the rest of the math built-ins)."""
+    return float(math.floor(x))
 
 
 def _math_ceil(x: float) -> float:
-    """Round toward positive infinity (matches Python ``math.ceil``)."""
-    truncated = int(x)
-    # ``int()`` truncates toward zero. For positive non-integers we need
-    # to step one further toward +infinity.
-    if x > 0 and x != truncated:
-        return float(truncated + 1)
-    return float(truncated)
+    """Round toward positive infinity. Wraps ``math.ceil`` for a ``float``
+    return type."""
+    return float(math.ceil(x))
 
 
 _BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
