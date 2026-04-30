@@ -20,11 +20,6 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
-function getNestedValue(obj: Record<string, unknown>, path: string): string {
-  const v = getNestedRaw(obj, path);
-  return typeof v === "string" ? v : path;
-}
-
 vi.mock("next-intl", () => ({
   useTranslations: (namespace?: string) => {
     const ns = namespace
