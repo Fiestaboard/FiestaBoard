@@ -24,15 +24,32 @@ You bring the board. You bring the API keys for the services you care about. Fie
 
 ## Get Started in 5 Minutes
 
-**All you need:** Your board's API key + [Docker](https://docs.docker.com/get-started/get-docker/) installed.
+### 🥇 Easiest path for everyone: Flash a Raspberry Pi
 
-### 🥇 Recommended: FiestaPi (flash a Raspberry Pi)
+If you have (or are willing to buy) a Raspberry Pi 3B or newer, this is by far the simplest way to run FiestaBoard — no Docker setup, no command line, no config files. You only need three things:
 
-If you have a Raspberry Pi 3B or newer, the easiest path is our pre-built **FiestaPi** image. Flash it with [Raspberry Pi Imager](https://www.raspberrypi.com/software/), boot the Pi, and open **http://fiestapi.local:4420** in your browser. FiestaBoard runs on boot, updates itself with one click in Settings, and stays out of your way.
+1. A **Raspberry Pi** (3B / 3B+ / Zero 2 W / 4 / 5) with a microSD card and 5 V power supply
+2. **[Raspberry Pi Imager](https://www.raspberrypi.com/software/)** — a free official tool from the Raspberry Pi Foundation that flashes SD cards (works on Mac, Windows, Linux)
+3. The latest **FiestaPi image** from our [Releases page](https://github.com/Fiestaboard/FiestaBoard/releases/latest) (`fiestapi-<version>-arm64.img.xz`)
 
-→ [**Raspberry Pi setup guide**](docs/setup/RASPBERRY_PI.md) — download links, flashing instructions, troubleshooting.
+**The 4-step flow:**
 
-### Alternative: Pull from Docker Hub (no clone needed)
+1. Open Raspberry Pi Imager → **Choose OS** → **Use custom** → pick the FiestaPi `.img.xz`.
+2. Choose your microSD card and click **Next** → **Edit Settings** to pre-fill your Wi-Fi and timezone, then **Write**.
+3. Insert the SD card into the Pi, plug in power, and wait 2–3 minutes for first boot.
+4. Open **http://fiestapi.local:4420** in any browser on the same network. The setup wizard takes it from there.
+
+That's it — FiestaBoard starts on every boot and updates itself with one click in Settings.
+
+**→ [Full Raspberry Pi setup guide](docs/setup/RASPBERRY_PI.md)** with detailed flashing instructions, headless Wi-Fi setup, and troubleshooting.
+
+> **Why we recommend this path:** The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
+
+### Alternative: Run on a computer with Docker
+
+Already have a laptop, desktop, NAS, or home server? FiestaBoard runs anywhere Docker runs. **All you need:** Your board's API key + [Docker](https://docs.docker.com/get-started/get-docker/) installed.
+
+#### Pull from Docker Hub (no clone needed)
 
 ```bash
 # 1. Download the compose file
@@ -44,7 +61,7 @@ docker-compose -f docker-compose.hub.yml up -d
 
 Open **http://localhost:4420** in your browser, connect your board, and you're running.
 
-### Alternative: Clone and use the install wizard
+#### Clone and use the install wizard
 
 ```bash
 git clone https://github.com/Fiestaboard/FiestaBoard.git
@@ -59,7 +76,7 @@ cd FiestaBoard
 
 The wizard collects your board API key, starts the server, and opens the setup page in your browser.
 
-> **New to Docker or the terminal?** Follow the detailed [Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide) for step-by-step instructions with screenshots.
+> **New to Docker or the terminal?** Follow the detailed [Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide) for step-by-step instructions with screenshots — it leads with the easy Pi-flash path and falls back to Docker if you don't have a Pi.
 
 ### After Setup
 
@@ -184,7 +201,9 @@ See [Cloud API Setup](https://fiestaboard.app/docs/setup/cloud-api) for details 
 
 ## Running on a Raspberry Pi
 
-The pre-built Docker image supports ARM64 out of the box. Follow the same Docker Hub setup above on your Pi, or see the full [Raspberry Pi Guide](https://fiestaboard.app/docs/deployment/raspberry-pi) for auto-start on boot and performance tips.
+For most users, the easiest way to run on a Pi is the pre-built **FiestaPi** image — see the [Get Started](#get-started-in-5-minutes) section above for the 4-step flash flow, or the [full Raspberry Pi setup guide](docs/setup/RASPBERRY_PI.md).
+
+If you'd rather run Docker on a Pi you've already set up, the pre-built Docker image supports ARM64 out of the box — follow the same Docker Hub setup above. See the [Raspberry Pi Deployment guide](https://fiestaboard.app/docs/deployment/raspberry-pi) for advanced options.
 
 ---
 

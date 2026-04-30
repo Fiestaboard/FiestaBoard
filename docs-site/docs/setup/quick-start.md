@@ -1,32 +1,40 @@
 ---
-sidebar_position: 1
-description: "Get FiestaBoard running on your Vestaboard in minutes. Flash a Raspberry Pi, use Docker Hub, or run the install wizard."
+sidebar_position: 2
+description: "Get FiestaBoard running on your Vestaboard in minutes. Flash a Raspberry Pi (easiest), use Docker Hub, or run the install wizard."
 keywords: [FiestaBoard quick start, FiestaPi, Docker setup, getting started, Vestaboard setup, Vestaboard quick start, Vestaboard Docker, split-flap dashboard]
 ---
 
 # Quick Start
 
-Get FiestaBoard running in under 5 minutes.
+Get FiestaBoard running in under 5 minutes. There are two supported paths:
 
-## Option A: Raspberry Pi — FiestaPi (Easiest)
+1. **Flash a Raspberry Pi with FiestaPi** — the easiest route for anyone, technical or not.
+2. **Run with Docker** on a computer or home server you already own.
 
-Have a Raspberry Pi? Flash a microSD card and boot. No Docker setup, no command line.
+## 🥇 Easiest: Flash a Raspberry Pi (FiestaPi)
+
+Have a Raspberry Pi 3B or newer? Flash a microSD card with our pre-built **FiestaPi** image using [Raspberry Pi Imager](https://www.raspberrypi.com/software/), boot the Pi, and open a browser. **No Docker setup, no command line, no config files.** FiestaPi self-updates with one click in Settings.
 
 **→ [FiestaPi Quick Start](/docs/setup/raspberry-pi)** — Download, flash, boot, done.
 
-FiestaPi includes self-updating out of the box — when a new version is released, an **Update Now** button appears in Settings and handles everything for you.
+This is what we recommend for almost everyone — including users who have never used Docker, a terminal, or a Pi before. The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller.
+
+:::tip Don't have a Pi yet?
+Any Raspberry Pi 3B / 3B+ / Zero 2 W / 4 / 5 with 1 GB+ RAM works. Pi 4 and Pi 5 are great choices and have been thoroughly tested.
+:::
 
 ---
 
-## Options B & C: Docker (any computer)
+## Alternative: Docker (any computer)
 
-Running on a laptop, desktop, NAS, or server? You need:
+Already have a laptop, desktop, NAS, or home server you'd rather use? FiestaBoard runs anywhere Docker runs. You'll need:
+
 - **Your board's API key** ([how to find it](#getting-your-board-api-key))
 - **Docker and Docker Compose** ([install Docker Desktop](https://docs.docker.com/desktop/))
 
-If you've never used Docker before, try the [Beginner's Guide](/docs/setup/beginners-guide) instead.
+If you've never used Docker before, the [Beginner's Guide](/docs/setup/beginners-guide) walks through every step.
 
-### Option B: Docker Hub (No Pi)
+### Option 1: Pull from Docker Hub (no clone needed)
 
 No repository to clone. Just two commands:
 
@@ -44,7 +52,7 @@ Open **http://localhost:4420** in your browser. You'll see the FiestaBoard dashb
 FiestaBoard advertises itself on your local network via mDNS/Bonjour. From any device on the same network you can use **http://fiestaboard.local:4420**. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
 :::
 
-### Option C: Install Wizard
+### Option 2: Clone and use the install wizard
 
 Clone the repository and run the install script. It checks prerequisites, starts the server, and opens the setup wizard in your browser:
 
@@ -63,7 +71,7 @@ The wizard asks for your board API key, device type, and board color, then start
 
 ## Connect Your Board
 
-Once FiestaBoard is running at **http://localhost:4420**:
+Once FiestaBoard is running (either on your Pi at `http://fiestapi.local:4420` or on your computer at `http://localhost:4420`):
 
 1. The setup wizard will guide you through connecting your board (or go to **Settings** if you've already been through setup)
 2. Once connected, the display service starts automatically
@@ -111,7 +119,7 @@ Works from anywhere with internet. No transition animations. See [Cloud API Setu
 3. Enable **Read/Write API**
 4. Copy your key
 
-## Stopping and Restarting
+## Stopping and Restarting (Docker only)
 
 ```bash
 # Stop FiestaBoard
@@ -123,13 +131,13 @@ docker-compose up -d
 
 After restarting, open **http://localhost:4420** — the service resumes automatically.
 
-## Running on a Raspberry Pi?
-
-For the easiest Pi experience, flash the **[FiestaPi image](/docs/setup/raspberry-pi)** instead. It comes pre-configured with self-update enabled. For advanced setups (Pi you already have with Docker), see the [Raspberry Pi Deployment guide](/docs/deployment/raspberry-pi).
+On FiestaPi, FiestaBoard starts automatically on boot — there's nothing to stop or start manually.
 
 ## Next Steps
 
+- **[FiestaPi Quick Start](/docs/setup/raspberry-pi)** - The recommended Pi-flash path, in detail
 - **[Your First 10 Minutes](/docs/setup/first-10-minutes)** - Create your first page and enable plugins
-- **[Plugins Overview](/docs/plugins/overview)** - See all 23 available plugins
+- **[Plugins Overview](/docs/plugins/overview)** - See all available plugins
 - **[Beginner's Guide](/docs/setup/beginners-guide)** - More detailed step-by-step instructions
 - **[Docker Setup](/docs/setup/docker-setup)** - Understand the Docker architecture
+- **[Raspberry Pi Deployment](/docs/deployment/raspberry-pi)** - Advanced setups (Pi you already have with Docker)

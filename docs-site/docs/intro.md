@@ -36,39 +36,46 @@ Everything after the initial install is done through a web interface at **http:/
 ## What You'll Need
 
 - **A Vestaboard** (Flagship or Note) or compatible split-flap display, already set up and working
-- **Your board's API key** ([how to find it](/docs/setup/quick-start#getting-your-board-api-key))
-- **Docker** installed on your computer ([free download](https://docs.docker.com/get-started/get-docker/))
+- **Your board's API key** ([how to find it](/docs/setup/api-keys))
+- **A Raspberry Pi** (recommended — easiest path), **or** a computer with Docker installed
 
 That's it. No other API keys or configuration are needed to get started. Plugins that connect to external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
 
-## Choose Your Path
+## The Easiest Way: Flash a Raspberry Pi
+
+:::tip 🥇 Recommended for everyone
+The simplest, most reliable way to run FiestaBoard — for technical and non-technical users alike — is to flash a Raspberry Pi with our pre-built **FiestaPi** image using **[Raspberry Pi Imager](https://www.raspberrypi.com/software/)**.
+
+**No Docker setup. No command line. No config files. Self-updating with one click.**
+
+You only need: a Raspberry Pi (3B or newer), a microSD card, and 5 minutes.
+
+**[→ FiestaPi Quick Start](/docs/setup/raspberry-pi)** — flash the image, boot the Pi, open a browser.
+:::
+
+If you don't have a Pi yet, any model from the Raspberry Pi 3B onwards works. The Pi 4 and Pi 5 are great choices, and even the inexpensive **[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)** can run FiestaBoard.
+
+## Other Ways to Run FiestaBoard
+
+Don't have a Pi, or already have a home server? FiestaBoard runs anywhere Docker runs.
 
 <div className="row">
-<div className="col col--4">
-
-### I have a Raspberry Pi
-
-Flash a pre-built image, boot your Pi, open a browser — done. No Docker setup required. Self-updating out of the box.
-
-**[FiestaPi Quick Start →](/docs/setup/raspberry-pi)**
-
-</div>
-<div className="col col--4">
+<div className="col col--6">
 
 ### I'm new to all this
 
 Never used Docker or the command line? No problem.
 
-**[Beginner's Guide](/docs/setup/beginners-guide)** walks you through every step with clear instructions.
+**[Beginner's Guide](/docs/setup/beginners-guide)** walks you through every step with clear instructions — including the easy Pi-flash path and a Docker fallback.
 
 </div>
-<div className="col col--4">
+<div className="col col--6">
 
 ### I'm comfortable with Docker
 
-Know your way around `docker-compose`?
+Know your way around `docker-compose`? Run FiestaBoard on a laptop, NAS, or home server.
 
-**[Quick Start](/docs/setup/quick-start)** gets you running in under 5 minutes.
+**[Docker Quick Start](/docs/setup/quick-start)** gets you running in under 5 minutes.
 
 </div>
 </div>

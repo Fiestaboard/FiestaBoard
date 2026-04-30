@@ -8,6 +8,7 @@ const sidebars: SidebarsConfig = {
       label: 'Getting Started',
       collapsed: false,
       items: [
+        'setup/raspberry-pi',
         'setup/quick-start',
         'setup/beginners-guide',
         'setup/first-10-minutes',
