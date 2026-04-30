@@ -441,6 +441,18 @@ class TestSystemUpdateAutoToggle:
         assert body["auto_update_interval"] == "weekly"
         assert body["auto_update_enabled"] is True
 
+    def test_status_reports_pi_default_interval(self, client, tmp_path, monkeypatch):
+        """FiestaPi profile defaults to ``daily`` (matching the prior auto-update-on behavior)."""
+        state_file = tmp_path / "state.json"
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+        monkeypatch.setenv("FIESTABOARD_PROFILE", "pi")
+
+        r = client.get("/system/update/status")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["auto_update_interval"] == "daily"
+        assert body["auto_update_enabled"] is True
+
     def test_status_legacy_bool_maps_to_interval(self, client, tmp_path, monkeypatch):
         """A state file with only the legacy bool maps to a sane interval."""
         state_file = tmp_path / "state.json"

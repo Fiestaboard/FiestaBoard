@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type AutoUpdateInterval } from "@/lib/api";
+import { api, type AutoUpdateInterval, AUTO_UPDATE_INTERVALS } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -109,13 +109,11 @@ export function AutoUpdateIntervalCard() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(INTERVAL_LABELS) as AutoUpdateInterval[]).map(
-                (key) => (
-                  <SelectItem key={key} value={key}>
-                    {INTERVAL_LABELS[key]}
-                  </SelectItem>
-                ),
-              )}
+              {AUTO_UPDATE_INTERVALS.map((key) => (
+                <SelectItem key={key} value={key}>
+                  {INTERVAL_LABELS[key]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">

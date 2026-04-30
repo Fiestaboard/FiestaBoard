@@ -1173,17 +1173,6 @@ def _resolve_auto_update_interval(state: Dict[str, Any]) -> str:
     return _auto_update_default_interval()
 
 
-def _auto_update_default() -> bool:
-    """Default for the auto-update toggle when the user hasn't set one.
-    OFF on regular Docker installs, ON on the Pi flashable image.
-
-    Retained for backward compatibility — new code should use
-    ``_resolve_auto_update_interval`` and treat any interval other than
-    ``manual`` as "auto-update enabled".
-    """
-    return _auto_update_default_interval() != "manual" and _fiestaboard_profile() == "pi"
-
-
 def _updater_url() -> str:
     """Base URL of the fiestaupdater sidecar on the compose network."""
     return os.getenv("FIESTAUPDATER_URL", "http://fiestaupdater:8765").rstrip("/")
