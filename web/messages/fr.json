@@ -576,7 +576,11 @@
     "updateAvailable": "Mise à jour disponible",
     "youAreRunning": "Vous utilisez la version v{currentVersion}.",
     "viewRelease": "Voir la version",
-    "checkForUpdates": "Vérifier les mises à jour"
+    "checkForUpdates": "Vérifier les mises à jour",
+    "updateNow": "Mettre à jour maintenant",
+    "oneClickHint": "Vous voulez un bouton « Mettre à jour maintenant » en un clic ici ? Définissez <profile></profile> dans votre <envFile></envFile>, puis exécutez <command></command>.",
+    "dialogTitle": "Mettre à jour FiestaBoard ?",
+    "dialogDescription": "Cela téléchargera <version></version> et redémarrera FiestaBoard. L'affichage du tableau s'interrompra pendant environ 30 secondes et cette page se rechargera automatiquement."
   },
   "transitionSettings": {
     "title": "Transitions du tableau",
@@ -757,7 +761,10 @@
     "charsPerLine": "{width} caractères par ligne recommandés",
     "templateSyntax": "Syntaxe de modèle : {{variable}}, {{red}}, {{fill_space}}",
     "alignmentPrefixes": "Préfixes d'alignement : {left}, {center}, {right}",
-    "wrapPrefix": "Préfixe de retour à la ligne : {wrap}"
+    "wrapPrefix": "Préfixe de retour à la ligne : {wrap}",
+    "templateSyntaxIntro": "Syntaxe du modèle :",
+    "alignmentPrefixesIntro": "Préfixes d'alignement :",
+    "wrapPrefixIntro": "Préfixe de retour à la ligne :"
   },
   "outputTarget": {
     "title": "Cible de sortie",
@@ -777,7 +784,8 @@
     "noPagesTitle": "Aucune page pour le moment",
     "noPagesDescription": "Créez une page depuis l'écran Pages pour la sélectionner ici.",
     "pagesTab": "Pages ({count})",
-    "carouselsTab": "Carrousels ({count})"
+    "carouselsTab": "Carrousels ({count})",
+    "pageCount": "{count, plural, one {# page} other {# pages}}"
   },
   "pageGridSelector": {
     "selectPageLabel": "SÉLECTIONNER UNE PAGE",
@@ -921,5 +929,44 @@
     "toastSaved": "Paramètres MQTT enregistrés",
     "hidePassword": "Masquer le mot de passe",
     "showPassword": "Afficher le mot de passe"
+  },
+  "homeAssistantPicker": {
+    "title": "Sélectionner une entité Home Assistant",
+    "description": "Recherchez et sélectionnez une entité et un attribut Home Assistant à insérer",
+    "loadingEntities": "Chargement des entités...",
+    "searchPlaceholder": "Tapez pour rechercher des entités...",
+    "noEntities": "Aucune entité trouvée",
+    "change": "Modifier",
+    "selectAttribute": "Sélectionner un attribut",
+    "valueLabel": "Valeur",
+    "insert": "Insérer"
+  },
+  "systemControls": {
+    "title": "Système",
+    "description": "Gérer les mises à jour FiestaBoard et l'alimentation de l'hôte.",
+    "updateNow": "Mettre à jour maintenant",
+    "rePullLatest": "Re-télécharger la dernière",
+    "restart": "Redémarrer",
+    "shutdown": "Arrêter",
+    "updateDialogTitle": "Mettre à jour FiestaBoard ?",
+    "rePullDialogTitle": "Re-télécharger la dernière image ?",
+    "updateDialogDescription": "Cela téléchargera v{version} et recréera le conteneur FiestaBoard. L'affichage du tableau s'interrompra pendant environ 30 secondes et cette page se rechargera automatiquement.",
+    "rePullDialogDescription": "Cela téléchargera la dernière image pour la version actuelle et recréera le conteneur. Utile si vous voulez vous assurer d'exécuter la dernière build de la même version.",
+    "rePullNow": "Re-télécharger maintenant",
+    "restartDialogTitle": "Redémarrer FiestaBoard ?",
+    "restartDialogDescription": "Cela redémarrera le conteneur FiestaBoard. L'affichage du tableau s'interrompra pendant environ 5–10 secondes et cette page se rechargera automatiquement.",
+    "restartNow": "Redémarrer maintenant",
+    "shutdownDialogTitle": "Arrêter l'hôte ?",
+    "shutdownDialogDescription": "Cela arrêtera tous les services FiestaBoard et éteindra la machine hôte. Vous aurez besoin d'un accès physique (ou SSH distant) pour la rallumer.",
+    "shutdownConfirm": "Arrêter",
+    "takingLonger": "Cela prend plus de temps que prévu",
+    "takingLongerDescription": "FiestaBoard est peut-être encore en train de redémarrer. Consultez les journaux du conteneur, puis actualisez cette page.",
+    "refreshPage": "Actualiser la page",
+    "restartingFiestaboard": "Redémarrage de FiestaBoard…",
+    "backOnline": "De retour en ligne. Rechargement…",
+    "restartingDuration": "Cela prendra environ 5 à 10 secondes.",
+    "almostThere": "Presque…",
+    "shuttingDown": "Arrêt en cours…",
+    "shuttingDownDescription": "FiestaBoard arrête les services et éteint l'hôte. Rallumez-le pour redémarrer."
   }
 }

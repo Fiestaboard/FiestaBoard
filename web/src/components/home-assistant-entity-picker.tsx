@@ -15,6 +15,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { api, HomeAssistantEntity } from "@/lib/api";
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
 }
 
 export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
+  const t = useTranslations("homeAssistantPicker");
+  const tCommon = useTranslations("common");
   const [selectedEntity, setSelectedEntity] = useState<HomeAssistantEntity | null>(null);
   const [selectedAttribute, setSelectedAttribute] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,22 +69,22 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
     <AlertDialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
       <AlertDialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <AlertDialogHeader>
-          <AlertDialogTitle>Select Home Assistant Entity</AlertDialogTitle>
+          <AlertDialogTitle>{t("title")}</AlertDialogTitle>
           <AlertDialogDescription className="sr-only">
-            Search and select a Home Assistant entity and attribute to insert
+            {t("description")}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
+
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="text-sm text-muted-foreground">Loading entities...</div>
+            <div className="text-sm text-muted-foreground">{t("loadingEntities")}</div>
           </div>
         ) : (
           <div className="space-y-3 flex-1 overflow-y-auto">
             {!selectedEntity ? (
               <div className="space-y-2">
                 <Input
-                  placeholder="Type to search entities..."
+                  placeholder={t("searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
@@ -91,7 +94,7 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                   <div className="p-1">
                     {filteredEntities.length === 0 ? (
                       <div className="text-sm text-muted-foreground text-center py-3">
-                        No entities found
+                        {t("noEntities")}
                       </div>
                     ) : (
                       filteredEntities.map((entity) => (
@@ -128,13 +131,13 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                       }}
                       className="h-7 px-2 text-xs"
                     >
-                      Change
+                      {t("change")}
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground px-1">Select Attribute</label>
+                  <label className="text-xs font-medium text-muted-foreground px-1">{t("selectAttribute")}</label>
                   <ScrollArea className="h-[250px] border rounded-md">
                     <div className="p-1">
                       {availableAttributes.map((attr) => {
@@ -177,9 +180,9 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                   {`{{home_assistant.${selectedEntity.entity_id.replace(/\./g, '_')}.${selectedAttribute}}}`}
                 </code>
                 <div className="text-xs text-muted-foreground">
-                  Value: {
-                    selectedAttribute === "state" 
-                      ? selectedEntity.state 
+                  {t("valueLabel")}: {
+                    selectedAttribute === "state"
+                      ? selectedEntity.state
                       : String(selectedEntity.attributes[selectedAttribute] || "N/A")
                   }
                 </div>
@@ -187,15 +190,15 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
             )}
           </div>
         )}
-        
+
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <Button 
-            onClick={handleInsert} 
+          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+          <Button
+            onClick={handleInsert}
             disabled={!selectedEntity || !selectedAttribute || isLoading}
             size="sm"
           >
-            Insert
+            {t("insert")}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

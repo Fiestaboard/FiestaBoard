@@ -576,7 +576,11 @@
     "updateAvailable": "Actualización disponible",
     "youAreRunning": "Estás ejecutando v{currentVersion}.",
     "viewRelease": "Ver lanzamiento",
-    "checkForUpdates": "Buscar actualizaciones"
+    "checkForUpdates": "Buscar actualizaciones",
+    "updateNow": "Actualizar ahora",
+    "oneClickHint": "¿Quieres un botón de \"Actualizar ahora\" con un solo clic aquí? Establece <profile></profile> en tu <envFile></envFile>, luego ejecuta <command></command>.",
+    "dialogTitle": "¿Actualizar FiestaBoard?",
+    "dialogDescription": "Esto descargará <version></version> y reiniciará FiestaBoard. La pantalla del tablero se pausará durante unos 30 segundos y esta página se recargará automáticamente."
   },
   "transitionSettings": {
     "title": "Transiciones del tablero",
@@ -757,7 +761,10 @@
     "charsPerLine": "{width} caracteres por línea recomendados",
     "templateSyntax": "Usa sintaxis de plantilla: {{variable}}, {{red}}, {{fill_space}}",
     "alignmentPrefixes": "Prefijos de alineación: {left}, {center}, {right}",
-    "wrapPrefix": "Prefijo de ajuste de línea: {wrap}"
+    "wrapPrefix": "Prefijo de ajuste de línea: {wrap}",
+    "templateSyntaxIntro": "Sintaxis de plantilla:",
+    "alignmentPrefixesIntro": "Prefijos de alineación:",
+    "wrapPrefixIntro": "Prefijo de ajuste:"
   },
   "outputTarget": {
     "title": "Destino de salida",
@@ -777,7 +784,8 @@
     "noPagesTitle": "Aún no hay páginas",
     "noPagesDescription": "Crea una página desde la pantalla de Páginas para seleccionarla aquí.",
     "pagesTab": "Páginas ({count})",
-    "carouselsTab": "Carruseles ({count})"
+    "carouselsTab": "Carruseles ({count})",
+    "pageCount": "{count, plural, one {# página} other {# páginas}}"
   },
   "pageGridSelector": {
     "selectPageLabel": "SELECCIONAR PÁGINA",
@@ -921,5 +929,44 @@
     "toastSaved": "Ajustes MQTT guardados",
     "hidePassword": "Ocultar contraseña",
     "showPassword": "Mostrar contraseña"
+  },
+  "homeAssistantPicker": {
+    "title": "Seleccionar entidad de Home Assistant",
+    "description": "Busca y selecciona una entidad y atributo de Home Assistant para insertar",
+    "loadingEntities": "Cargando entidades...",
+    "searchPlaceholder": "Escribe para buscar entidades...",
+    "noEntities": "No se encontraron entidades",
+    "change": "Cambiar",
+    "selectAttribute": "Seleccionar atributo",
+    "valueLabel": "Valor",
+    "insert": "Insertar"
+  },
+  "systemControls": {
+    "title": "Sistema",
+    "description": "Gestionar actualizaciones de FiestaBoard y energía del host.",
+    "updateNow": "Actualizar ahora",
+    "rePullLatest": "Volver a descargar última",
+    "restart": "Reiniciar",
+    "shutdown": "Apagar",
+    "updateDialogTitle": "¿Actualizar FiestaBoard?",
+    "rePullDialogTitle": "¿Volver a descargar la última imagen?",
+    "updateDialogDescription": "Esto descargará v{version} y recreará el contenedor de FiestaBoard. La pantalla del tablero se pausará durante unos 30 segundos y esta página se recargará automáticamente.",
+    "rePullDialogDescription": "Esto descargará la última imagen de la versión actual y recreará el contenedor. Útil si quieres asegurarte de ejecutar la compilación más reciente de la misma versión.",
+    "rePullNow": "Volver a descargar ahora",
+    "restartDialogTitle": "¿Reiniciar FiestaBoard?",
+    "restartDialogDescription": "Esto reiniciará el contenedor de FiestaBoard. La pantalla del tablero se pausará durante unos 5–10 segundos y esta página se recargará automáticamente.",
+    "restartNow": "Reiniciar ahora",
+    "shutdownDialogTitle": "¿Apagar el host?",
+    "shutdownDialogDescription": "Esto detendrá todos los servicios de FiestaBoard y apagará la máquina host. Necesitarás acceso físico (o SSH remoto) para volver a encenderla.",
+    "shutdownConfirm": "Apagar",
+    "takingLonger": "Tarda más de lo esperado",
+    "takingLongerDescription": "Es posible que FiestaBoard aún esté reiniciándose. Revisa los registros del contenedor y luego actualiza esta página.",
+    "refreshPage": "Actualizar página",
+    "restartingFiestaboard": "Reiniciando FiestaBoard…",
+    "backOnline": "De vuelta en línea. Recargando…",
+    "restartingDuration": "Esto tardará unos 5–10 segundos.",
+    "almostThere": "Casi listo…",
+    "shuttingDown": "Apagando…",
+    "shuttingDownDescription": "FiestaBoard está deteniendo los servicios y apagando el host. Vuelve a encenderlo para reiniciar."
   }
 }

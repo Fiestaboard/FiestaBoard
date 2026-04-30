@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import type { DayPattern } from "@/lib/api";
 
 interface DaySelectorProps {
@@ -16,17 +17,9 @@ const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 const WEEKENDS = ["saturday", "sunday"];
 const ALL_DAYS = [...WEEKDAYS, ...WEEKENDS];
 
-const DAY_LABELS: Record<string, string> = {
-  monday: "Mon",
-  tuesday: "Tue",
-  wednesday: "Wed",
-  thursday: "Thu",
-  friday: "Fri",
-  saturday: "Sat",
-  sunday: "Sun",
-};
-
 export function DaySelector({ value, customDays = [], onChange, className }: DaySelectorProps) {
+  const t = useTranslations("daySelector");
+  const dayLabels = t.raw("dayLabels") as Record<string, string>;
   const [selectedCustomDays, setSelectedCustomDays] = useState<string[]>(customDays);
 
   // Update selectedCustomDays when customDays prop changes
@@ -56,10 +49,10 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
 
   return (
     <fieldset className={cn("space-y-3 border-none p-0 m-0", className)}>
-      <legend className="text-sm font-medium leading-none">Days</legend>
+      <legend className="text-sm font-medium leading-none">{t("daysLegend")}</legend>
       
       {/* Pattern Radio Buttons */}
-      <div className="flex flex-col gap-2" role="radiogroup" aria-label="Day pattern">
+      <div className="flex flex-col gap-2" role="radiogroup" aria-label={t("dayPatternAriaLabel")}>
         <button
           type="button"
           role="radio"
@@ -84,7 +77,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
               <div className="h-2 w-2 rounded-full bg-primary" />
             )}
           </div>
-          <span className="text-sm font-medium">All Days</span>
+          <span className="text-sm font-medium">{t("allDays")}</span>
           <div className="ml-auto flex gap-1">
             {ALL_DAYS.map((day) => (
               <Badge
@@ -92,7 +85,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
                 variant="secondary"
                 className="text-xs"
               >
-                {DAY_LABELS[day]}
+                {dayLabels[day]}
               </Badge>
             ))}
           </div>
@@ -122,7 +115,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
               <div className="h-2 w-2 rounded-full bg-primary" />
             )}
           </div>
-          <span className="text-sm font-medium">Weekdays (Mon-Fri)</span>
+          <span className="text-sm font-medium">{t("weekdays")}</span>
           <div className="ml-auto flex gap-1">
             {WEEKDAYS.map((day) => (
               <Badge
@@ -130,7 +123,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
                 variant="secondary"
                 className="text-xs"
               >
-                {DAY_LABELS[day]}
+                {dayLabels[day]}
               </Badge>
             ))}
           </div>
@@ -160,7 +153,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
               <div className="h-2 w-2 rounded-full bg-primary" />
             )}
           </div>
-          <span className="text-sm font-medium">Weekends (Sat-Sun)</span>
+          <span className="text-sm font-medium">{t("weekends")}</span>
           <div className="ml-auto flex gap-1">
             {WEEKENDS.map((day) => (
               <Badge
@@ -168,7 +161,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
                 variant="secondary"
                 className="text-xs"
               >
-                {DAY_LABELS[day]}
+                {dayLabels[day]}
               </Badge>
             ))}
           </div>
@@ -199,14 +192,14 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
               <div className="h-2 w-2 rounded-full bg-primary" />
             )}
           </div>
-          <span className="text-sm font-medium">Custom Days</span>
+          <span className="text-sm font-medium">{t("customDays")}</span>
         </button>
 
         {value === "custom" && (
           <div
             className="ml-6 flex flex-wrap gap-2 px-4 pb-3 pt-2 border border-t-0 border-primary bg-primary/5 rounded-b-lg"
             role="group"
-            aria-label="Select custom days"
+            aria-label={t("selectCustomDaysAriaLabel")}
           >
             {ALL_DAYS.map((day) => (
               <label
@@ -225,7 +218,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
                   className="sr-only"
                   aria-label={day.charAt(0).toUpperCase() + day.slice(1)}
                 />
-                {DAY_LABELS[day]}
+                {dayLabels[day]}
               </label>
             ))}
           </div>

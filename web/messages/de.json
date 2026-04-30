@@ -576,7 +576,11 @@
     "updateAvailable": "Update verfügbar",
     "youAreRunning": "Sie verwenden v{currentVersion}.",
     "viewRelease": "Release anzeigen",
-    "checkForUpdates": "Nach Updates suchen"
+    "checkForUpdates": "Nach Updates suchen",
+    "updateNow": "Jetzt aktualisieren",
+    "oneClickHint": "Möchten Sie hier einen Ein-Klick-„Jetzt aktualisieren“-Button? Setzen Sie <profile></profile> in Ihrer <envFile></envFile>-Datei und führen Sie dann <command></command> aus.",
+    "dialogTitle": "FiestaBoard aktualisieren?",
+    "dialogDescription": "Dadurch wird <version></version> heruntergeladen und FiestaBoard neu gestartet. Die Boardanzeige pausiert ca. 30 Sekunden und diese Seite wird automatisch neu geladen."
   },
   "transitionSettings": {
     "title": "Board-Übergänge",
@@ -757,7 +761,10 @@
     "charsPerLine": "{width} Zeichen pro Zeile empfohlen",
     "templateSyntax": "Vorlagensyntax verwenden: {{variable}}, {{red}}, {{fill_space}}",
     "alignmentPrefixes": "Ausrichtungspräfixe: {left}, {center}, {right}",
-    "wrapPrefix": "Umbruchpräfix: {wrap}"
+    "wrapPrefix": "Umbruchpräfix: {wrap}",
+    "templateSyntaxIntro": "Vorlagen-Syntax:",
+    "alignmentPrefixesIntro": "Ausrichtungs-Präfixe:",
+    "wrapPrefixIntro": "Umbruch-Präfix:"
   },
   "outputTarget": {
     "title": "Ausgabeziel",
@@ -777,7 +784,8 @@
     "noPagesTitle": "Noch keine Seiten",
     "noPagesDescription": "Erstellen Sie eine Seite auf der Seiten-Übersicht, um sie hier auszuwählen.",
     "pagesTab": "Seiten ({count})",
-    "carouselsTab": "Karussells ({count})"
+    "carouselsTab": "Karussells ({count})",
+    "pageCount": "{count, plural, one {# Seite} other {# Seiten}}"
   },
   "pageGridSelector": {
     "selectPageLabel": "SEITE AUSWÄHLEN",
@@ -921,5 +929,44 @@
     "toastSaved": "MQTT-Einstellungen gespeichert",
     "hidePassword": "Passwort ausblenden",
     "showPassword": "Passwort anzeigen"
+  },
+  "homeAssistantPicker": {
+    "title": "Home Assistant-Entität auswählen",
+    "description": "Suchen und wählen Sie eine Home Assistant-Entität und ein Attribut zum Einfügen",
+    "loadingEntities": "Entitäten werden geladen...",
+    "searchPlaceholder": "Tippen, um Entitäten zu suchen...",
+    "noEntities": "Keine Entitäten gefunden",
+    "change": "Ändern",
+    "selectAttribute": "Attribut auswählen",
+    "valueLabel": "Wert",
+    "insert": "Einfügen"
+  },
+  "systemControls": {
+    "title": "System",
+    "description": "FiestaBoard-Updates und Host-Stromversorgung verwalten.",
+    "updateNow": "Jetzt aktualisieren",
+    "rePullLatest": "Neueste erneut laden",
+    "restart": "Neustart",
+    "shutdown": "Herunterfahren",
+    "updateDialogTitle": "FiestaBoard aktualisieren?",
+    "rePullDialogTitle": "Neuestes Image erneut laden?",
+    "updateDialogDescription": "Dadurch wird v{version} heruntergeladen und der FiestaBoard-Container neu erstellt. Die Boardanzeige pausiert ca. 30 Sekunden und diese Seite wird automatisch neu geladen.",
+    "rePullDialogDescription": "Dadurch wird das neueste Image der aktuellen Version geladen und der Container neu erstellt. Nützlich, um sicherzustellen, dass Sie den neuesten Build derselben Version ausführen.",
+    "rePullNow": "Jetzt erneut laden",
+    "restartDialogTitle": "FiestaBoard neu starten?",
+    "restartDialogDescription": "Dadurch wird der FiestaBoard-Container neu gestartet. Die Boardanzeige pausiert ca. 5–10 Sekunden und diese Seite wird automatisch neu geladen.",
+    "restartNow": "Jetzt neu starten",
+    "shutdownDialogTitle": "Host herunterfahren?",
+    "shutdownDialogDescription": "Dadurch werden alle FiestaBoard-Dienste gestoppt und der Host-Rechner ausgeschaltet. Sie benötigen physischen Zugriff (oder Remote-SSH), um ihn wieder einzuschalten.",
+    "shutdownConfirm": "Herunterfahren",
+    "takingLonger": "Dauert länger als erwartet",
+    "takingLongerDescription": "FiestaBoard wird möglicherweise noch neu gestartet. Überprüfen Sie die Container-Logs und aktualisieren Sie dann diese Seite.",
+    "refreshPage": "Seite aktualisieren",
+    "restartingFiestaboard": "FiestaBoard wird neu gestartet…",
+    "backOnline": "Wieder online. Wird neu geladen…",
+    "restartingDuration": "Dies dauert ca. 5–10 Sekunden.",
+    "almostThere": "Fast geschafft…",
+    "shuttingDown": "Wird heruntergefahren…",
+    "shuttingDownDescription": "FiestaBoard stoppt Dienste und schaltet den Host aus. Schalten Sie ihn wieder ein, um neu zu starten."
   }
 }

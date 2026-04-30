@@ -576,7 +576,11 @@
     "updateAvailable": "Dostępna aktualizacja",
     "youAreRunning": "Używasz wersji v{currentVersion}.",
     "viewRelease": "Zobacz wydanie",
-    "checkForUpdates": "Sprawdź aktualizacje"
+    "checkForUpdates": "Sprawdź aktualizacje",
+    "updateNow": "Update Now",
+    "oneClickHint": "Want a one-click \"Update Now\" button here? Set <profile></profile> in your <envFile></envFile>, then run <command></command>.",
+    "dialogTitle": "Update FiestaBoard?",
+    "dialogDescription": "This will pull <version></version> and restart FiestaBoard. The board display will pause for about 30 seconds and this page will reload automatically."
   },
   "transitionSettings": {
     "title": "Przejścia tablicy",
@@ -757,7 +761,10 @@
     "charsPerLine": "{width} znaków na linię (zalecane)",
     "templateSyntax": "Składnia szablonu: {{variable}}, {{red}}, {{fill_space}}",
     "alignmentPrefixes": "Prefiksy wyrównania: {left}, {center}, {right}",
-    "wrapPrefix": "Prefiks zawijania: {wrap}"
+    "wrapPrefix": "Prefiks zawijania: {wrap}",
+    "templateSyntaxIntro": "Use template syntax:",
+    "alignmentPrefixesIntro": "Alignment prefixes:",
+    "wrapPrefixIntro": "Wrap prefix:"
   },
   "outputTarget": {
     "title": "Cel wyjściowy",
@@ -777,7 +784,8 @@
     "noPagesTitle": "Brak stron",
     "noPagesDescription": "Utwórz stronę na ekranie Stron, aby ją tutaj wybrać.",
     "pagesTab": "Strony ({count})",
-    "carouselsTab": "Karuzele ({count})"
+    "carouselsTab": "Karuzele ({count})",
+    "pageCount": "{count, plural, one {# page} other {# pages}}"
   },
   "pageGridSelector": {
     "selectPageLabel": "WYBIERZ STRONĘ",
@@ -921,5 +929,44 @@
     "toastSaved": "MQTT settings saved",
     "hidePassword": "Hide password",
     "showPassword": "Show password"
+  },
+  "homeAssistantPicker": {
+    "title": "Select Home Assistant Entity",
+    "description": "Search and select a Home Assistant entity and attribute to insert",
+    "loadingEntities": "Loading entities...",
+    "searchPlaceholder": "Type to search entities...",
+    "noEntities": "No entities found",
+    "change": "Change",
+    "selectAttribute": "Select Attribute",
+    "valueLabel": "Value",
+    "insert": "Insert"
+  },
+  "systemControls": {
+    "title": "System",
+    "description": "Manage FiestaBoard updates and host power.",
+    "updateNow": "Update Now",
+    "rePullLatest": "Re-pull Latest",
+    "restart": "Restart",
+    "shutdown": "Shutdown",
+    "updateDialogTitle": "Update FiestaBoard?",
+    "rePullDialogTitle": "Re-pull Latest Image?",
+    "updateDialogDescription": "This will pull v{version} and recreate the FiestaBoard container. The board display will pause for about 30 seconds and this page will reload automatically.",
+    "rePullDialogDescription": "This will pull the latest image for the current version and recreate the container. Useful if you want to ensure you're running the newest build of the same version.",
+    "rePullNow": "Re-pull now",
+    "restartDialogTitle": "Restart FiestaBoard?",
+    "restartDialogDescription": "This will restart the FiestaBoard container. The board display will pause for about 5–10 seconds and this page will reload automatically.",
+    "restartNow": "Restart now",
+    "shutdownDialogTitle": "Shut Down Host?",
+    "shutdownDialogDescription": "This will stop all FiestaBoard services and power off the host machine. You will need physical access (or remote SSH) to turn it back on.",
+    "shutdownConfirm": "Shut down",
+    "takingLonger": "Taking longer than expected",
+    "takingLongerDescription": "FiestaBoard may still be restarting. Check the container logs, then refresh this page.",
+    "refreshPage": "Refresh page",
+    "restartingFiestaboard": "Restarting FiestaBoard…",
+    "backOnline": "Back online. Reloading…",
+    "restartingDuration": "This will take about 5–10 seconds.",
+    "almostThere": "Almost there…",
+    "shuttingDown": "Shutting down…",
+    "shuttingDownDescription": "FiestaBoard is stopping services and powering off the host. Turn the power back on to restart."
   }
 }

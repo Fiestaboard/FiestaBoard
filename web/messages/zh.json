@@ -576,7 +576,11 @@
     "updateAvailable": "有可用更新",
     "youAreRunning": "您当前运行的是 v{currentVersion}。",
     "viewRelease": "查看发布详情",
-    "checkForUpdates": "检查更新"
+    "checkForUpdates": "检查更新",
+    "updateNow": "Update Now",
+    "oneClickHint": "Want a one-click \"Update Now\" button here? Set <profile></profile> in your <envFile></envFile>, then run <command></command>.",
+    "dialogTitle": "Update FiestaBoard?",
+    "dialogDescription": "This will pull <version></version> and restart FiestaBoard. The board display will pause for about 30 seconds and this page will reload automatically."
   },
   "transitionSettings": {
     "title": "看板过渡效果",
@@ -757,7 +761,10 @@
     "charsPerLine": "建议每行 {width} 个字符",
     "templateSyntax": "使用模板语法：{{variable}}、{{red}}、{{fill_space}}",
     "alignmentPrefixes": "对齐前缀：{left}、{center}、{right}",
-    "wrapPrefix": "换行前缀：{wrap}"
+    "wrapPrefix": "换行前缀：{wrap}",
+    "templateSyntaxIntro": "Use template syntax:",
+    "alignmentPrefixesIntro": "Alignment prefixes:",
+    "wrapPrefixIntro": "Wrap prefix:"
   },
   "outputTarget": {
     "title": "输出目标",
@@ -777,7 +784,8 @@
     "noPagesTitle": "暂无页面",
     "noPagesDescription": "在页面界面中创建页面后即可在此选择。",
     "pagesTab": "页面（{count}）",
-    "carouselsTab": "轮播（{count}）"
+    "carouselsTab": "轮播（{count}）",
+    "pageCount": "{count, plural, one {# page} other {# pages}}"
   },
   "pageGridSelector": {
     "selectPageLabel": "选择页面",
@@ -921,5 +929,44 @@
     "toastSaved": "MQTT settings saved",
     "hidePassword": "Hide password",
     "showPassword": "Show password"
+  },
+  "homeAssistantPicker": {
+    "title": "Select Home Assistant Entity",
+    "description": "Search and select a Home Assistant entity and attribute to insert",
+    "loadingEntities": "Loading entities...",
+    "searchPlaceholder": "Type to search entities...",
+    "noEntities": "No entities found",
+    "change": "Change",
+    "selectAttribute": "Select Attribute",
+    "valueLabel": "Value",
+    "insert": "Insert"
+  },
+  "systemControls": {
+    "title": "System",
+    "description": "Manage FiestaBoard updates and host power.",
+    "updateNow": "Update Now",
+    "rePullLatest": "Re-pull Latest",
+    "restart": "Restart",
+    "shutdown": "Shutdown",
+    "updateDialogTitle": "Update FiestaBoard?",
+    "rePullDialogTitle": "Re-pull Latest Image?",
+    "updateDialogDescription": "This will pull v{version} and recreate the FiestaBoard container. The board display will pause for about 30 seconds and this page will reload automatically.",
+    "rePullDialogDescription": "This will pull the latest image for the current version and recreate the container. Useful if you want to ensure you're running the newest build of the same version.",
+    "rePullNow": "Re-pull now",
+    "restartDialogTitle": "Restart FiestaBoard?",
+    "restartDialogDescription": "This will restart the FiestaBoard container. The board display will pause for about 5–10 seconds and this page will reload automatically.",
+    "restartNow": "Restart now",
+    "shutdownDialogTitle": "Shut Down Host?",
+    "shutdownDialogDescription": "This will stop all FiestaBoard services and power off the host machine. You will need physical access (or remote SSH) to turn it back on.",
+    "shutdownConfirm": "Shut down",
+    "takingLonger": "Taking longer than expected",
+    "takingLongerDescription": "FiestaBoard may still be restarting. Check the container logs, then refresh this page.",
+    "refreshPage": "Refresh page",
+    "restartingFiestaboard": "Restarting FiestaBoard…",
+    "backOnline": "Back online. Reloading…",
+    "restartingDuration": "This will take about 5–10 seconds.",
+    "almostThere": "Almost there…",
+    "shuttingDown": "Shutting down…",
+    "shuttingDownDescription": "FiestaBoard is stopping services and powering off the host. Turn the power back on to restart."
   }
 }
