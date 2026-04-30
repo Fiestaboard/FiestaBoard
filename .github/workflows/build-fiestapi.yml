@@ -4,17 +4,22 @@ name: Build FiestaPi image
 # Builds the flashable FiestaPi .img.xz — a slow job (~45-60 min), so we
 # only run it when it matters:
 #
-#   1. On major-version tags (v5.0.0, v6.0.0, …) — the milestone releases
-#      where a "fresh start" image makes sense. Minor/patch users are served
-#      by the in-app self-updater instead.
+#   1. After every app release (workflow_run on "Release and Publish") —
+#      the image is attached to that release's assets automatically.
 #
-#   2. Weekly (Tuesdays, 06:00 UTC) — keeps base OS packages and
-#      the Docker layer cache fresh between major releases.
+#   2. On major-version tags (v5.0.0, v6.0.0, …) — fallback/manual path
+#      for milestone releases pushed directly by tag.
 #
-#   3. Manual dispatch — for one-off builds during development or hot-patches.
+#   3. Weekly (Tuesdays, 06:00 UTC) — keeps base OS packages and
+#      the Docker layer cache fresh between releases.
+#
+#   4. Manual dispatch — for one-off builds during development or hot-patches.
 # =============================================================================
 
 on:
+  workflow_run:
+    workflows: ["Release and Publish"]
+    types: [completed]
   push:
     tags:
       # Only major-version tags: v5.0.0, v6.0.0, etc.
@@ -35,6 +40,8 @@ jobs:
     # flaky qemu setup that previously failed on ubuntu-latest (amd64).
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
+    # For workflow_run triggers, only proceed if the upstream workflow succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout FiestaBoard
         uses: actions/checkout@v6
@@ -95,9 +102,20 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # Triggered by a release: label the image with that release's version.
+            VERSION=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
+                        --json tagName,isDraft,isPrerelease \
+                        --jq 'map(select(.isDraft == false and .isPrerelease == false and (.tagName | startswith("v")))) | .[0].tagName | ltrimstr("v")')
+            if [[ -z "$VERSION" ]]; then
+              echo "::error::Could not determine version from latest release"
+              exit 1
+            fi
           else
             # Weekly builds labelled by year-week so the filename is
             # meaningful (e.g. fiestapi-2026-W18-arm64.img.xz).
@@ -136,7 +154,6 @@ jobs:
           echo "Found image: $IMG"
 
       - name: Generate SHA-256 checksum
-        if: startsWith(github.ref, 'refs/tags/')
         id: checksum
         run: |
           IMG="${{ steps.out.outputs.img }}"
@@ -153,67 +170,42 @@ jobs:
           # 30 days — weekly builds rotate frequently; grab the latest.
           retention-days: 30
 
-      - name: Attach to major-version release (tag builds only)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Resolve target app release tag
+        # Every build path attaches to an existing app release:
+        #   - Tag builds (refs/tags/vN.0.0) → attach to that tag's release.
+        #   - Weekly cron / manual dispatch → attach to the latest published
+        #     non-prerelease app release (e.g. v5.1.1).
+        # This keeps each app version's release page as the single source
+        # of truth for both the code release and its FiestaPi .img.xz.
+        id: target_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
+                    --json tagName,isDraft,isPrerelease \
+                    --jq 'map(select(.isDraft == false and .isPrerelease == false and (.tagName | startswith("v")))) | .[0].tagName')
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::No published release found to attach the FiestaPi image to."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Will attach FiestaPi image to release: $TAG"
+
+      - name: Attach FiestaPi image to app release
+        # Upload the .img.xz and .sha256 to the resolved release.
+        # softprops/action-gh-release@v3 replaces same-named assets in
+        # place, so re-running overwrites cleanly. Body is intentionally
+        # omitted so the existing app release notes are preserved.
         uses: softprops/action-gh-release@v3
         with:
-          name: FiestaPi ${{ steps.version.outputs.version }}
-          make_latest: "true"
-          body: |
-            ## FiestaPi ${{ steps.version.outputs.version }}
-
-            A flashable Raspberry Pi OS image with FiestaBoard pre-installed and
-            self-updating out of the box.
-
-            **Minimum hardware:** Raspberry Pi 3B (1 GB RAM, 64-bit). Pi 4 / Pi 5 recommended.
-
-            ### Flashing
-
-            Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/) and choose
-            **"Use custom image"**, or flash with `dd` / Balena Etcher.
-
-            ### Wi-Fi setup (headless)
-
-            Drop a `fiestapi-wifi.txt` file onto the boot partition before first boot:
-            ```
-            SSID=your-network
-            PASSWORD=your-password
-            ```
-            See the [setup guide](https://github.com/${{ github.repository }}/blob/main/docs/setup/RASPBERRY_PI.md)
-            for full instructions including SSH configuration.
-
-            ### Verify the image
-
-            ```bash
-            sha256sum -c fiestapi-${{ steps.version.outputs.version }}-arm64.img.xz.sha256
-            ```
+          tag_name: ${{ steps.target_release.outputs.tag }}
           files: |
             ${{ steps.out.outputs.img }}
             ${{ steps.checksum.outputs.sha256 }}
-
-      - name: Publish weekly/manual build as prerelease
-        # Weekly cron and manual dispatch builds — create/update a
-        # prerelease tagged 'fiestapi-<version>' (e.g. fiestapi-2026-W18)
-        # so the .img.xz is preserved beyond the 30-day artifact window
-        # and can be linked from docs / shared with testers.
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: fiestapi-${{ steps.version.outputs.version }}
-          name: FiestaPi ${{ steps.version.outputs.version }}
-          prerelease: true
-          # Replace the asset if the same tag is rebuilt (e.g. manual reruns).
-          files: |
-            ${{ steps.out.outputs.img }}
-            ${{ steps.checksum.outputs.sha256 }}
-          body: |
-            Automated FiestaPi image build.
-
-            - Trigger: `${{ github.event_name }}`
-            - Commit: ${{ github.sha }}
-            - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Flash the attached `.img.xz` to a Raspberry Pi using Raspberry Pi Imager.
 
       - name: Update latest-version file in docs (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')

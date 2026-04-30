@@ -10,6 +10,45 @@ Solutions for common FiestaBoard issues, organized by what you're seeing.
 
 ## Installation and Startup
 
+### Settings or board credentials are gone after an update
+
+**What you see:** After running `docker compose pull && docker compose up -d` (or re-running the install commands), FiestaBoard comes up looking like a fresh install — your board API key is missing, plugins are disabled, and pages are gone. The container itself updated successfully.
+
+**Why it happens:** The `docker-compose.hub.yml` and `docker-compose.yml` files use a **relative bind mount** for persistent data:
+
+```yaml
+volumes:
+  - ./data:/app/data
+```
+
+The `./data` path is resolved relative to **the directory you run `docker compose` from**, not a fixed location. So if you originally ran `docker compose up -d` from `~/fiestaboard`, your settings are saved in `~/fiestaboard/data`. If you later run an update from `~` or `~/Downloads` or any other folder, Docker creates a *brand new* empty `data/` directory in that folder and mounts it instead — making FiestaBoard look like a fresh install. Your old data is **not deleted**; it's still sitting in the original folder.
+
+**Fix (recover your data):**
+
+1. Stop the empty container:
+   ```bash
+   docker compose -f docker-compose.hub.yml down
+   ```
+2. Find your original `data` folder. It's wherever you first ran `docker compose up -d`. Common locations to check:
+   ```bash
+   ls -la ~/data ~/fiestaboard/data ~/Downloads/data 2>/dev/null
+   find ~ -maxdepth 4 -name 'config.json' -path '*/data/*' 2>/dev/null
+   ```
+3. `cd` into the folder that contains the populated `data/` directory (the one with `config.json`, `pages.json`, etc.).
+4. Make sure `docker-compose.hub.yml` lives in that same folder (download it again if needed), then start FiestaBoard from there:
+   ```bash
+   cd /path/to/your/original/folder
+   docker compose -f docker-compose.hub.yml up -d
+   ```
+
+**Prevent it next time:** Always `cd` to the same folder before running any `docker compose` command. The simplest habit:
+```bash
+mkdir -p ~/fiestaboard && cd ~/fiestaboard
+# ... all docker compose commands from here on out
+```
+
+If you want a setup that doesn't depend on which folder you're in, you can switch to a Docker named volume — but doing so requires migrating your existing data first. Open a discussion on GitHub if you'd like guidance.
+
 ### Docker is not running
 
 **What you see:** `Cannot connect to the Docker daemon`
