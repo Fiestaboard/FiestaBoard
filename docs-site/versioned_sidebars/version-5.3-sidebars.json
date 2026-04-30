@@ -62,6 +62,7 @@
       "items": [
         "deployment/production",
         "deployment/raspberry-pi",
+        "deployment/fiestaupdater",
         "setup/docker-setup",
         "setup/cloud-api"
       ]

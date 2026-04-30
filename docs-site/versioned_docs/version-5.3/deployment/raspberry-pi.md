@@ -60,7 +60,7 @@ COMPOSE_PROFILES=fiestaupdater
 FIESTAUPDATER_TOKEN=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
 ```
 
-Then restart: `docker compose -f docker-compose.hub.yml up -d`. See [In-App Updates](/docs/features/updating) for more detail.
+Then restart: `docker compose -f docker-compose.hub.yml up -d`. See [In-App Updates](/docs/features/updating) for more detail, or the [FiestaUpdater reference](/docs/deployment/fiestaupdater) for the full sidecar configuration.
 
 ### Auto-start on boot
 

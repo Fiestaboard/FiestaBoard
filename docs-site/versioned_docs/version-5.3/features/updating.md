@@ -36,6 +36,8 @@ FiestaBoard uses a small companion container called `fiestaupdater`. It sits on 
 
 When you click Update Now, the web UI POSTs to the FiestaBoard API, which calls the updater over the internal network. The updater runs `docker compose pull && docker compose up -d` against your compose file. Because it's a separate process, FiestaBoard can update itself without getting cut off mid-response.
 
+**See also:** [FiestaUpdater reference](/docs/deployment/fiestaupdater) for the full sidecar architecture, environment variables, and HTTP API.
+
 ## Opting in on Docker installs
 
 The updater is opt-in for Docker and manual installs (it's already on for FiestaPi).
