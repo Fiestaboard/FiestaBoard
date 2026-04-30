@@ -61,7 +61,7 @@ jobs:
         # before launching its build container. ubuntu-latest no longer
         # ships qemu-user-static, so we install + register binfmt handlers
         # via the standard Docker action.
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
 
@@ -117,7 +117,7 @@ jobs:
         # the most likely place for things to go wrong, and the logs are
         # otherwise discarded with the runner.
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pi-gen-build-logs-${{ steps.version.outputs.version || github.run_id }}
           path: |
@@ -145,7 +145,7 @@ jobs:
           cat "${IMG}.sha256"
 
       - name: Upload as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fiestapi-${{ steps.version.outputs.version }}-arm64
           path: ${{ steps.out.outputs.img }}
@@ -179,10 +179,10 @@ jobs:
 
       - name: Attach FiestaPi image to app release
         # Upload the .img.xz and .sha256 to the resolved release.
-        # softprops/action-gh-release@v2 replaces same-named assets in
+        # softprops/action-gh-release@v3 replaces same-named assets in
         # place, so re-running overwrites cleanly. Body is intentionally
         # omitted so the existing app release notes are preserved.
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.target_release.outputs.tag }}
           files: |

@@ -74,7 +74,9 @@ If you prefer not to use the Docker socket at all, leave the `fiestaupdater` pro
 The Update Now button is a convenience shortcut. You can always update from the terminal:
 
 ```bash
-# For Docker Hub installs
+# For Docker Hub installs — cd to the SAME folder you originally ran
+# `docker compose up -d` from. That's where your ./data folder lives.
+cd ~/fiestaboard
 docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
 
@@ -83,6 +85,10 @@ ssh fiesta@fiestapi.local
 cd /opt/fiestaboard
 docker compose pull && docker compose up -d
 ```
+
+:::caution Always `cd` first on Docker installs
+The compose file uses a relative bind mount (`./data:/app/data`), so persistence depends on your current shell directory. If you run `docker compose pull && up -d` from a different folder than your original install, FiestaBoard will come up with empty settings — your data isn't deleted, but Docker is mounting a different (empty) folder. See [Troubleshooting → Settings or board credentials are gone after an update](/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update) if this has happened.
+:::
 
 ## Troubleshooting
 

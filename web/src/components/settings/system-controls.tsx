@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useUpdate } from "@/components/update-context";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -59,17 +60,19 @@ export function SystemControls() {
     "update" | "restart" | "shutdown" | null
   >(null);
   const [activeOverlay, setActiveOverlay] = useState<
-    "restarting" | "shutdown" | null
+    "restart" | "shutdown" | null
   >(null);
+
+  const { startUpdate } = useUpdate();
 
   const updateMutation = useMutation({
     mutationFn: () => api.applyUpdate(),
-    onSuccess: () => setActiveOverlay("restarting"),
+    onSuccess: () => startUpdate(updateCheck?.current_version),
   });
 
   const restartMutation = useMutation({
     mutationFn: () => api.restartSystem(),
-    onSuccess: () => setActiveOverlay("restarting"),
+    onSuccess: () => setActiveOverlay("restart"),
   });
 
   const shutdownMutation = useMutation({
@@ -244,8 +247,8 @@ export function SystemControls() {
         </DialogContent>
       </Dialog>
 
-      {/* Restarting overlay (update or restart) */}
-      {activeOverlay === "restarting" && (
+      {/* Restarting overlay for plain container restart (not update). */}
+      {activeOverlay === "restart" && (
         <RestartingOverlay />
       )}
 
@@ -257,38 +260,101 @@ export function SystemControls() {
   );
 }
 
+// Timeout before showing the "something went wrong" error state.
+const RESTART_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Full-screen overlay shown while the container restarts.
- * Polls /health every 2 s; once it answers, reloads the page.
+ * Full-screen overlay shown while the container restarts (restart or update).
+ *
+ * For updates the old container keeps running during the image pull, so a
+ * naive "poll until /version responds" would reload the page immediately
+ * against the still-running old container.  Instead we use a two-phase
+ * approach:
+ *
+ *   Phase 1 (restarting): poll every 2 s.  Wait until the API goes DOWN
+ *     (catch) OR until a version change is detected (if currentVersion is
+ *     provided).  Track everWentDown so phase 2 knows a real restart began.
+ *   Phase 2 (back up): poll every 2 s.  Once the API responds successfully
+ *     after having been down, reload.
+ *
+ * A 5-minute timeout surfaces an error state with a manual refresh button
+ * so the user is never stuck in an infinite spinner.
  */
-function RestartingOverlay() {
-  const [phase, setPhase] = useState<"restarting" | "ready">("restarting");
+function RestartingOverlay({
+  currentVersion,
+}: {
+  currentVersion?: string;
+}) {
+  const [phase, setPhase] = useState<"restarting" | "ready" | "error">("restarting");
 
   useEffect(() => {
     let cancelled = false;
+    let everWentDown = false;
+    const deadline = Date.now() + RESTART_TIMEOUT_MS;
 
     const tick = async () => {
       if (cancelled) return;
+      if (Date.now() >= deadline) {
+        setPhase("error");
+        return;
+      }
       try {
-        await api.getVersion();
-        if (!cancelled) {
-          setPhase("ready");
-          setTimeout(() => window.location.reload(), 800);
+        const v = await api.getVersion();
+        if (everWentDown) {
+          // Container came back after a real restart — reload.
+          if (!cancelled) {
+            setPhase("ready");
+            setTimeout(() => window.location.reload(), 800);
+          }
+          return;
+        }
+        // Container is still running.  If a version change is detected
+        // (e.g. image was swapped without a visible down period), reload.
+        if (
+          currentVersion &&
+          v.package_version &&
+          v.package_version !== currentVersion
+        ) {
+          if (!cancelled) {
+            setPhase("ready");
+            setTimeout(() => window.location.reload(), 800);
+          }
           return;
         }
       } catch {
-        // Still coming back up — keep polling.
+        // API is down — the container stopped.  Start watching for it to
+        // come back.
+        everWentDown = true;
       }
       setTimeout(tick, 2000);
     };
 
-    // Short initial delay to let Docker actually stop the container before
-    // we start polling (otherwise we'd immediately see the old instance).
-    setTimeout(tick, 3000);
+    // Brief initial pause before the first poll.  This lets Docker process
+    // the restart/update command so the container has a chance to stop
+    // before we begin checking.
+    setTimeout(tick, 1500);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [currentVersion]);
+
+  if (phase === "error") {
+    return (
+      <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-sm mx-auto px-4">
+          <h2 className="text-xl font-semibold">Taking longer than expected</h2>
+          <p className="text-sm text-muted-foreground">
+            FiestaBoard may still be restarting. Check the container logs, then
+            refresh this page.
+          </p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh page
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
