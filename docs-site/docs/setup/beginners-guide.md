@@ -86,7 +86,11 @@ This is the fastest way. Open **Terminal** (Mac/Linux) or **PowerShell** (Window
 **On Mac:** Press Cmd+Space, type "Terminal", press Enter.
 **On Windows:** Press the Windows key, type "PowerShell", press Enter.
 
-Then paste these two commands one at a time:
+Then paste these three commands one at a time:
+
+```bash
+mkdir -p ~/fiestaboard && cd ~/fiestaboard
+```
 
 ```bash
 curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
@@ -97,6 +101,10 @@ docker-compose -f docker-compose.hub.yml up -d
 ```
 
 Wait for it to finish downloading and starting (this takes 1-2 minutes the first time). When you see the terminal prompt again, FiestaBoard is running. **Skip to Step 4.**
+
+:::caution Remember this folder!
+FiestaBoard stores all your settings (board API keys, weather keys, pages, schedules, etc.) in a `data` folder it creates inside `~/fiestaboard`. **Whenever you update FiestaBoard later, you must `cd ~/fiestaboard` first** so Docker can find that data folder. If you forget and run the update from a different folder, FiestaBoard will look like a brand-new install with nothing configured. (Don't worry — your old settings aren't deleted, they're just in the original folder. See [Troubleshooting](/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update) if this happens.)
+:::
 
 ### Path B: Clone and Install Wizard
 
