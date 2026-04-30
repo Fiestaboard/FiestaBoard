@@ -681,7 +681,27 @@
     "toastNetworkSuccess": "All network checks passed!",
     "toastNetworkFailed": "Some network checks failed — see details below",
     "toastNetworkError": "Network diagnostics failed: {error}",
-    "toastCacheClearFailed": "Failed to clear cache: {error}"
+    "toastCacheClearFailed": "Failed to clear cache: {error}",
+    "fillButton": "Fill",
+    "vestaboardLabel": "Vestaboard",
+    "noBoardConfigured": "No board configured",
+    "vestaboardCloudApiLabel": "Vestaboard Cloud API",
+    "cloudApiReachable": "Cloud API reachable",
+    "cloudApiUnreachable": "Could not reach cloud API",
+    "vestaboardLocalApiLabel": "Vestaboard (Local API)",
+    "boardDnsLabel": "Board DNS",
+    "boardPortLabel": "Board Port",
+    "boardApiLabel": "Board API",
+    "skipped": "skipped",
+    "failed": "failed",
+    "hostnameResolved": "{hostname} resolved",
+    "portOpen": "port {port} open",
+    "groups": {
+      "Letters": "Letters",
+      "Numbers": "Numbers",
+      "Symbols": "Symbols",
+      "Colors": "Colors"
+    }
   },
   "generalSettings": {
     "title": "Schedule & Automation",
@@ -794,7 +814,10 @@
     "pagesAriaLabel": "Pages",
     "carouselsAriaLabel": "Carousels",
     "pagesTab": "Pages ({count})",
-    "carouselsTab": "Carousels ({count})"
+    "carouselsTab": "Carousels ({count})",
+    "noPagesTitle": "No pages created yet.",
+    "noPagesDescription": "Create your first page to display on the board.",
+    "createFirstPage": "Create your first page"
   },
   "profile": {
     "title": "Profile",
@@ -968,5 +991,18 @@
     "almostThere": "Almost there…",
     "shuttingDown": "Shutting down…",
     "shuttingDownDescription": "FiestaBoard is stopping services and powering off the host. Turn the power back on to restart."
+  },
+  "timePicker": {
+    "hour": "Hour",
+    "minute": "Minute",
+    "quickPresets": "Quick presets"
+  },
+  "timezonePicker": {
+    "ariaLabel": "Timezone",
+    "placeholder": "Search timezone...",
+    "toggleAriaLabel": "Toggle timezone list",
+    "optionsAriaLabel": "Timezone options",
+    "showingFirst": "Showing first 50 of {total} results",
+    "invalidTimezone": "Invalid timezone. Please select from the list or enter a valid IANA timezone name."
   }
 }

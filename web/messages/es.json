@@ -681,7 +681,27 @@
     "toastNetworkSuccess": "¡Todas las verificaciones de red pasaron!",
     "toastNetworkFailed": "Algunas verificaciones de red fallaron — consulta los detalles a continuación",
     "toastNetworkError": "El diagnóstico de red falló: {error}",
-    "toastCacheClearFailed": "Error al limpiar el caché: {error}"
+    "toastCacheClearFailed": "Error al limpiar el caché: {error}",
+    "fillButton": "Llenar",
+    "vestaboardLabel": "Vestaboard",
+    "noBoardConfigured": "Ningún tablero configurado",
+    "vestaboardCloudApiLabel": "API en la nube de Vestaboard",
+    "cloudApiReachable": "API en la nube accesible",
+    "cloudApiUnreachable": "No se pudo acceder a la API en la nube",
+    "vestaboardLocalApiLabel": "Vestaboard (API local)",
+    "boardDnsLabel": "DNS del tablero",
+    "boardPortLabel": "Puerto del tablero",
+    "boardApiLabel": "API del tablero",
+    "skipped": "omitido",
+    "failed": "falló",
+    "hostnameResolved": "{hostname} resuelto",
+    "portOpen": "puerto {port} abierto",
+    "groups": {
+      "Letters": "Letras",
+      "Numbers": "Números",
+      "Symbols": "Símbolos",
+      "Colors": "Colores"
+    }
   },
   "generalSettings": {
     "title": "Configuración general",
@@ -794,7 +814,10 @@
     "pagesAriaLabel": "Páginas",
     "carouselsAriaLabel": "Carruseles",
     "pagesTab": "Páginas ({count})",
-    "carouselsTab": "Carruseles ({count})"
+    "carouselsTab": "Carruseles ({count})",
+    "noPagesTitle": "Aún no se han creado páginas.",
+    "noPagesDescription": "Crea tu primera página para mostrarla en el tablero.",
+    "createFirstPage": "Crear tu primera página"
   },
   "profile": {
     "title": "Profile",
@@ -968,5 +991,18 @@
     "almostThere": "Casi listo…",
     "shuttingDown": "Apagando…",
     "shuttingDownDescription": "FiestaBoard está deteniendo los servicios y apagando el host. Vuelve a encenderlo para reiniciar."
+  },
+  "timePicker": {
+    "hour": "Hora",
+    "minute": "Minuto",
+    "quickPresets": "Preajustes rápidos"
+  },
+  "timezonePicker": {
+    "ariaLabel": "Zona horaria",
+    "placeholder": "Buscar zona horaria...",
+    "toggleAriaLabel": "Alternar lista de zonas horarias",
+    "optionsAriaLabel": "Opciones de zona horaria",
+    "showingFirst": "Mostrando los primeros 50 de {total} resultados",
+    "invalidTimezone": "Zona horaria no válida. Selecciona una de la lista o introduce un nombre de zona horaria IANA válido."
   }
 }

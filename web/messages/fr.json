@@ -681,7 +681,27 @@
     "toastNetworkSuccess": "Tous les tests réseau ont réussi !",
     "toastNetworkFailed": "Certains tests réseau ont échoué — voir les détails ci-dessous",
     "toastNetworkError": "Échec des diagnostics réseau : {error}",
-    "toastCacheClearFailed": "Échec du vidage du cache : {error}"
+    "toastCacheClearFailed": "Échec du vidage du cache : {error}",
+    "fillButton": "Remplir",
+    "vestaboardLabel": "Vestaboard",
+    "noBoardConfigured": "Aucun tableau configuré",
+    "vestaboardCloudApiLabel": "API Cloud Vestaboard",
+    "cloudApiReachable": "API Cloud accessible",
+    "cloudApiUnreachable": "Impossible d'accéder à l'API Cloud",
+    "vestaboardLocalApiLabel": "Vestaboard (API locale)",
+    "boardDnsLabel": "DNS du tableau",
+    "boardPortLabel": "Port du tableau",
+    "boardApiLabel": "API du tableau",
+    "skipped": "ignoré",
+    "failed": "échec",
+    "hostnameResolved": "{hostname} résolu",
+    "portOpen": "port {port} ouvert",
+    "groups": {
+      "Letters": "Lettres",
+      "Numbers": "Chiffres",
+      "Symbols": "Symboles",
+      "Colors": "Couleurs"
+    }
   },
   "generalSettings": {
     "title": "Paramètres généraux",
@@ -794,7 +814,10 @@
     "pagesAriaLabel": "Pages",
     "carouselsAriaLabel": "Carrousels",
     "pagesTab": "Pages ({count})",
-    "carouselsTab": "Carrousels ({count})"
+    "carouselsTab": "Carrousels ({count})",
+    "noPagesTitle": "Aucune page créée pour le moment.",
+    "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
+    "createFirstPage": "Créer votre première page"
   },
   "profile": {
     "title": "Profile",
@@ -968,5 +991,18 @@
     "almostThere": "Presque…",
     "shuttingDown": "Arrêt en cours…",
     "shuttingDownDescription": "FiestaBoard arrête les services et éteint l'hôte. Rallumez-le pour redémarrer."
+  },
+  "timePicker": {
+    "hour": "Heure",
+    "minute": "Minute",
+    "quickPresets": "Préréglages rapides"
+  },
+  "timezonePicker": {
+    "ariaLabel": "Fuseau horaire",
+    "placeholder": "Rechercher un fuseau horaire...",
+    "toggleAriaLabel": "Afficher la liste des fuseaux horaires",
+    "optionsAriaLabel": "Options de fuseau horaire",
+    "showingFirst": "Affichage des 50 premiers résultats sur {total}",
+    "invalidTimezone": "Fuseau horaire invalide. Veuillez sélectionner dans la liste ou saisir un nom de fuseau horaire IANA valide."
   }
 }

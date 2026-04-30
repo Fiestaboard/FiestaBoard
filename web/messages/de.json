@@ -681,7 +681,27 @@
     "toastNetworkSuccess": "Alle Netzwerkprüfungen bestanden!",
     "toastNetworkFailed": "Einige Netzwerkprüfungen fehlgeschlagen — siehe Details unten",
     "toastNetworkError": "Netzwerkdiagnose fehlgeschlagen: {error}",
-    "toastCacheClearFailed": "Cache konnte nicht geleert werden: {error}"
+    "toastCacheClearFailed": "Cache konnte nicht geleert werden: {error}",
+    "fillButton": "Füllen",
+    "vestaboardLabel": "Vestaboard",
+    "noBoardConfigured": "Kein Board konfiguriert",
+    "vestaboardCloudApiLabel": "Vestaboard Cloud-API",
+    "cloudApiReachable": "Cloud-API erreichbar",
+    "cloudApiUnreachable": "Cloud-API konnte nicht erreicht werden",
+    "vestaboardLocalApiLabel": "Vestaboard (lokale API)",
+    "boardDnsLabel": "Board-DNS",
+    "boardPortLabel": "Board-Port",
+    "boardApiLabel": "Board-API",
+    "skipped": "übersprungen",
+    "failed": "fehlgeschlagen",
+    "hostnameResolved": "{hostname} aufgelöst",
+    "portOpen": "Port {port} offen",
+    "groups": {
+      "Letters": "Buchstaben",
+      "Numbers": "Zahlen",
+      "Symbols": "Symbole",
+      "Colors": "Farben"
+    }
   },
   "generalSettings": {
     "title": "Allgemeine Einstellungen",
@@ -794,7 +814,10 @@
     "pagesAriaLabel": "Seiten",
     "carouselsAriaLabel": "Karussells",
     "pagesTab": "Seiten ({count})",
-    "carouselsTab": "Karussells ({count})"
+    "carouselsTab": "Karussells ({count})",
+    "noPagesTitle": "Noch keine Seiten erstellt.",
+    "noPagesDescription": "Erstellen Sie Ihre erste Seite, um sie auf dem Board anzuzeigen.",
+    "createFirstPage": "Erste Seite erstellen"
   },
   "profile": {
     "title": "Profile",
@@ -968,5 +991,18 @@
     "almostThere": "Fast geschafft…",
     "shuttingDown": "Wird heruntergefahren…",
     "shuttingDownDescription": "FiestaBoard stoppt Dienste und schaltet den Host aus. Schalten Sie ihn wieder ein, um neu zu starten."
+  },
+  "timePicker": {
+    "hour": "Stunde",
+    "minute": "Minute",
+    "quickPresets": "Schnellauswahl"
+  },
+  "timezonePicker": {
+    "ariaLabel": "Zeitzone",
+    "placeholder": "Zeitzone suchen...",
+    "toggleAriaLabel": "Zeitzonenliste umschalten",
+    "optionsAriaLabel": "Zeitzonenoptionen",
+    "showingFirst": "Zeige erste 50 von {total} Ergebnissen",
+    "invalidTimezone": "Ungültige Zeitzone. Bitte aus der Liste auswählen oder einen gültigen IANA-Zeitzonennamen eingeben."
   }
 }
