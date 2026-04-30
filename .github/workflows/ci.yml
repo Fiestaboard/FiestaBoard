@@ -53,18 +53,21 @@ jobs:
             plugins:
               - 'plugins/**'
             shared:
+              # Files that genuinely affect every test surface (Platform,
+              # UI, Plugins, A11y, E2E, Build). Keep this list as an
+              # *explicit allowlist* — do NOT use `!`-negation patterns
+              # here. dorny/paths-filter defaults to
+              # `predicate-quantifier: some`, which makes a single negation
+              # like `!foo` match every file that isn't `foo`, turning the
+              # whole filter into a universal match. See
+              # docs/development/CI_PATH_FILTERING_AUDIT.md for details.
+              #
+              # Workflows that own their own pipelines (build-fiestapi,
+              # build-fiestaupdater, docs, registry-scan, pr-label,
+              # release) are intentionally NOT listed here.
               - 'docker-compose*.yml'
-              # Workflow changes can affect any job, but exclude workflows
-              # that build artifacts unrelated to the app (pi-gen image,
-              # fiestaupdater container, docs site, registry scan, PR
-              # labelling). Those have their own pipelines and don't need
-              # to retrigger Platform/Web tests when edited in isolation.
-              - '.github/workflows/**'
-              - '!.github/workflows/build-fiestapi.yml'
-              - '!.github/workflows/build-fiestaupdater.yml'
-              - '!.github/workflows/docs.yml'
-              - '!.github/workflows/registry-scan.yml'
-              - '!.github/workflows/pr-label.yml'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/integration-tests.yml'
               - 'package.json'
               - 'scripts/version-sync.js'
             docs:
