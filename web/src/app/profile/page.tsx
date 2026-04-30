@@ -174,7 +174,7 @@ export default function ProfilePage() {
       <PageHeader icon={User} title={t("title")} description={t("description")} />
 
       <div className="space-y-6">
-        {/* ── 1. Your FiestaBoard ──────────────────────────────────────────── */}
+        {/* ── 1. Instance Name ─────────────────────────────────────────────── */}
         <div className="animate-card-fade-in" style={{ animationDelay: "0ms" }}>
           <Card>
             <CardHeader>
