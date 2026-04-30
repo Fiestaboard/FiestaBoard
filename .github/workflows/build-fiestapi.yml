@@ -4,17 +4,22 @@ name: Build FiestaPi image
 # Builds the flashable FiestaPi .img.xz — a slow job (~45-60 min), so we
 # only run it when it matters:
 #
-#   1. On major-version tags (v5.0.0, v6.0.0, …) — the milestone releases
-#      where a "fresh start" image makes sense. Minor/patch users are served
-#      by the in-app self-updater instead.
+#   1. After every app release (workflow_run on "Release and Publish") —
+#      the image is attached to that release's assets automatically.
 #
-#   2. Weekly (Tuesdays, 06:00 UTC) — keeps base OS packages and
-#      the Docker layer cache fresh between major releases.
+#   2. On major-version tags (v5.0.0, v6.0.0, …) — fallback/manual path
+#      for milestone releases pushed directly by tag.
 #
-#   3. Manual dispatch — for one-off builds during development or hot-patches.
+#   3. Weekly (Tuesdays, 06:00 UTC) — keeps base OS packages and
+#      the Docker layer cache fresh between releases.
+#
+#   4. Manual dispatch — for one-off builds during development or hot-patches.
 # =============================================================================
 
 on:
+  workflow_run:
+    workflows: ["Release and Publish"]
+    types: [completed]
   push:
     tags:
       # Only major-version tags: v5.0.0, v6.0.0, etc.
@@ -35,6 +40,8 @@ jobs:
     # flaky qemu setup that previously failed on ubuntu-latest (amd64).
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
+    # For workflow_run triggers, only proceed if the upstream workflow succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout FiestaBoard
         uses: actions/checkout@v6
@@ -95,9 +102,20 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # Triggered by a release: label the image with that release's version.
+            VERSION=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
+                        --json tagName,isDraft,isPrerelease \
+                        --jq 'map(select(.isDraft == false and .isPrerelease == false and (.tagName | startswith("v")))) | .[0].tagName | ltrimstr("v")')
+            if [[ -z "$VERSION" ]]; then
+              echo "::error::Could not determine version from latest release"
+              exit 1
+            fi
           else
             # Weekly builds labelled by year-week so the filename is
             # meaningful (e.g. fiestapi-2026-W18-arm64.img.xz).
