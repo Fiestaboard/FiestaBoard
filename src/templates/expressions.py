@@ -924,6 +924,26 @@ def _fn_color(args: List[Any]) -> Any:
     return f"{{{code}}}"
 
 
+def _math_floor(x: float) -> float:
+    """Round toward negative infinity (matches Python ``math.floor``)."""
+    truncated = int(x)
+    # ``int()`` truncates toward zero. For negative non-integers we need
+    # to step one further toward -infinity.
+    if x < 0 and x != truncated:
+        return float(truncated - 1)
+    return float(truncated)
+
+
+def _math_ceil(x: float) -> float:
+    """Round toward positive infinity (matches Python ``math.ceil``)."""
+    truncated = int(x)
+    # ``int()`` truncates toward zero. For positive non-integers we need
+    # to step one further toward +infinity.
+    if x > 0 and x != truncated:
+        return float(truncated + 1)
+    return float(truncated)
+
+
 _BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
     # Logic
     "IF": _fn_if,
@@ -938,8 +958,8 @@ _BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
     "DEFAULT": _fn_default,
     # Math
     "ABS": _math_unary("ABS", abs),
-    "FLOOR": _math_unary("FLOOR", lambda x: float(int(x)) if x >= 0 else float(int(x)) - (1.0 if x != int(x) else 0.0)),
-    "CEIL": _math_unary("CEIL", lambda x: float(int(x)) + (1.0 if x > int(x) else 0.0) if x >= 0 else float(int(x))),
+    "FLOOR": _math_unary("FLOOR", _math_floor),
+    "CEIL": _math_unary("CEIL", _math_ceil),
     "INT": _math_unary("INT", lambda x: float(int(x))),
     "ROUND": _fn_round,
     "MIN": _fn_min,
@@ -1145,7 +1165,12 @@ def evaluate(expression: str, context: Optional[Dict[str, Any]] = None) -> str:
 # Match ``{{= ... }}`` blocks. Use ``[^}{]*`` for the body, mirroring
 # VAR_PATTERN in engine.py (prevents pathological backtracking and means
 # ``{`` / ``}`` cannot appear inside an expression -- documented constraint).
-_FORMULA_PATTERN = re.compile(r"\{\{\s*=\s*([^}{]*)\}\}")
+# We deliberately do **not** allow optional whitespace between ``{{`` and ``=``
+# (i.e. no ``\s*`` before ``=``): combined with the permissive body class it
+# would make the regex polynomial w.r.t. inputs like ``{{   `` with no
+# closing brace. Whitespace after ``=`` is fine because it's part of the body
+# and we strip it before parsing.
+_FORMULA_PATTERN = re.compile(r"\{\{=([^}{]*)\}\}")
 
 
 def render_expressions(template: str, context: Optional[Dict[str, Any]] = None) -> str:
