@@ -6,16 +6,49 @@ keywords: [FiestaBoard beginner guide, first time setup, step by step, Vestaboar
 
 # Beginner's Guide
 
-Never used Docker or the command line before? No problem. This guide walks through every step clearly, from installing Docker to seeing your first content on the board.
+Never used Docker or the command line before? No problem. This guide walks through every step clearly, from picking the easiest install path to seeing your first content on the board.
 
 **Time needed:** About 15 minutes.
 
 ## What You'll Need
 
-- A computer (Mac, Windows, or Linux)
 - A split-flap display that's already set up and working with the board's app
 - Your board's API key (Step 2 below shows you where to find it)
 - An internet connection
+- **Either** a Raspberry Pi + microSD card (the easiest path — see below), **or** a computer (Mac, Windows, or Linux) where we'll install Docker
+
+## The Easiest Path: Flash a Raspberry Pi
+
+:::tip 🥇 We strongly recommend this path for first-time users
+The simplest, most reliable way to run FiestaBoard — even if you've never touched a Pi or a terminal — is to flash a Raspberry Pi with our pre-built **FiestaPi** image.
+
+**No Docker setup. No command line. No config files. Self-updating with one click.**
+:::
+
+If you have (or are willing to buy) a Raspberry Pi, this is by far the easiest route. Here's the whole process:
+
+1. **Get a Raspberry Pi** (3B or newer — the Pi 4, Pi 5, and the inexpensive [Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) all work), plus a microSD card (8 GB minimum, 16 GB+ recommended) and a 5 V power supply.
+2. **Download Raspberry Pi Imager** — a free, official tool from the Raspberry Pi Foundation that flashes images to SD cards. Available for Mac, Windows, and Linux at [raspberrypi.com/software](https://www.raspberrypi.com/software/).
+3. **Download the FiestaPi image** from our [GitHub Releases page](https://github.com/Fiestaboard/FiestaBoard/releases/latest) — grab the file named `fiestapi-<version>-arm64.img.xz`.
+4. **Flash the SD card** with Raspberry Pi Imager:
+   - Choose Device → your Pi model
+   - Choose OS → scroll to the bottom → **Use custom** → pick the `.img.xz` file you downloaded
+   - Choose Storage → your SD card
+   - Click **Next** and use **Edit Settings** to pre-configure your Wi-Fi network and timezone
+   - Click **Write** and wait ~5 minutes
+5. **Insert the SD card into the Pi, plug it in**, and wait 2–3 minutes for first boot.
+6. **Open a browser** on any device on the same network and go to **[http://fiestapi.local:4420](http://fiestapi.local:4420)** — you'll see the FiestaBoard setup wizard.
+7. **Skip ahead to Step 2** below to grab your board's API key, then enter it in the wizard. You're done.
+
+That's the whole thing. No Docker. No Terminal. No PowerShell. The Pi runs FiestaBoard 24/7 and updates itself with one click in **Settings → System** when new versions release.
+
+**→ For the full step-by-step Pi-flash guide with screenshots and troubleshooting, see [FiestaPi Quick Start](/docs/setup/raspberry-pi).**
+
+---
+
+## Alternative: Run on Your Computer with Docker
+
+Don't have a Pi (or want to use a computer you already own)? Continue with the Docker-based setup below. It works, but there are more moving parts than the Pi-flash path.
 
 ## Step 1: Install Docker
 
