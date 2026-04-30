@@ -136,7 +136,6 @@ jobs:
           echo "Found image: $IMG"
 
       - name: Generate SHA-256 checksum
-        if: startsWith(github.ref, 'refs/tags/')
         id: checksum
         run: |
           IMG="${{ steps.out.outputs.img }}"
@@ -152,6 +151,26 @@ jobs:
           path: ${{ steps.out.outputs.img }}
           # 30 days — weekly builds rotate frequently; grab the latest.
           retention-days: 30
+
+      - name: Resolve latest app release tag (non-tag builds)
+        # Weekly cron and manual dispatch builds attach the .img.xz to the
+        # latest existing app release (e.g. v5.1.1) so each app version's
+        # release page is the single source of truth for code + image.
+        # Major-tag builds skip this — they attach to their own tag below.
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        id: latest_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
+                  --json tagName,isDraft,isPrerelease \
+                  --jq 'map(select(.isDraft == false and .isPrerelease == false and (.tagName | startswith("v")))) | .[0].tagName')
+          if [ -z "$TAG" ]; then
+            echo "::error::No published release found to attach the FiestaPi image to."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Will attach FiestaPi image to release: $TAG"
 
       - name: Attach to major-version release (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
@@ -191,29 +210,20 @@ jobs:
             ${{ steps.out.outputs.img }}
             ${{ steps.checksum.outputs.sha256 }}
 
-      - name: Publish weekly/manual build as prerelease
-        # Weekly cron and manual dispatch builds — create/update a
-        # prerelease tagged 'fiestapi-<version>' (e.g. fiestapi-2026-W18)
-        # so the .img.xz is preserved beyond the 30-day artifact window
-        # and can be linked from docs / shared with testers.
+      - name: Attach FiestaPi image to latest app release (non-tag builds)
+        # Weekly cron + manual dispatch — upload the .img.xz and .sha256
+        # to the latest published app release (resolved above). Re-running
+        # in the same week overwrites the assets in place so each release
+        # has exactly one current FiestaPi image.
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: fiestapi-${{ steps.version.outputs.version }}
-          name: FiestaPi ${{ steps.version.outputs.version }}
-          prerelease: true
-          # Replace the asset if the same tag is rebuilt (e.g. manual reruns).
+          # Attach to the existing app release; do NOT override its body
+          # (softprops keeps the existing body when none is provided).
+          tag_name: ${{ steps.latest_release.outputs.tag }}
           files: |
             ${{ steps.out.outputs.img }}
             ${{ steps.checksum.outputs.sha256 }}
-          body: |
-            Automated FiestaPi image build.
-
-            - Trigger: `${{ github.event_name }}`
-            - Commit: ${{ github.sha }}
-            - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Flash the attached `.img.xz` to a Raspberry Pi using Raspberry Pi Imager.
 
       - name: Update latest-version file in docs (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
