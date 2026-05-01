@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -10,50 +11,19 @@ import { toast } from "sonner";
 import { Sparkles, Info } from "lucide-react";
 import { api, TransitionSettings as TransitionSettingsType } from "@/lib/api";
 
-/** Human-friendly names and descriptions for each Vestaboard transition strategy. */
-const STRATEGY_OPTIONS: {
-  value: string | null;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: null,
-    label: "None",
-    description: "No transition animation — the board updates all characters at once.",
-  },
-  {
-    value: "column",
-    label: "Wave",
-    description: "Characters flip column-by-column from left to right.",
-  },
-  {
-    value: "reverse-column",
-    label: "Drift",
-    description: "Characters flip column-by-column from right to left.",
-  },
-  {
-    value: "edges-to-center",
-    label: "Curtain",
-    description: "Characters flip from both edges and meet in the center.",
-  },
-  {
-    value: "row",
-    label: "Row",
-    description: "Characters flip row-by-row from top to bottom.",
-  },
-  {
-    value: "diagonal",
-    label: "Diagonal",
-    description: "Characters flip in a diagonal wave from one corner to the other.",
-  },
-  {
-    value: "random",
-    label: "Random",
-    description: "Characters flip in a random order for a playful effect.",
-  },
+const STRATEGY_VALUES: { value: string | null; key: "none" | "column" | "reverseColumn" | "edgesToCenter" | "row" | "diagonal" | "random" }[] = [
+  { value: null, key: "none" },
+  { value: "column", key: "column" },
+  { value: "reverse-column", key: "reverseColumn" },
+  { value: "edges-to-center", key: "edgesToCenter" },
+  { value: "row", key: "row" },
+  { value: "diagonal", key: "diagonal" },
+  { value: "random", key: "random" },
 ];
 
 export function TransitionSettings() {
+  const t = useTranslations("transitionSettings");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
 
   const { data: allSettings, isLoading } = useQuery({
@@ -83,11 +53,11 @@ export function TransitionSettings() {
       api.updateTransitionSettings(settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-settings"] });
-      toast.success("Transition settings saved");
+      toast.success(t("toastSaved"));
       setHasChanges(false);
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save transition settings: ${error.message}`);
+      toast.error(t("toastSaveFailed", { error: error.message }));
     },
   });
 
@@ -151,18 +121,18 @@ export function TransitionSettings() {
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Sparkles className="h-4 w-4" />
-          Board Transitions
+          {t("title")}
         </CardTitle>
         <CardDescription>
-          Choose how the board animates when updating to a new message. Transitions control the flip animation style of the characters on your Vestaboard.
+          {t("description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Strategy Selector */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Transition Style</Label>
+          <Label className="text-sm font-medium">{t("transitionStyle")}</Label>
           <div className="flex flex-wrap gap-2">
-            {STRATEGY_OPTIONS.map((option) => {
+            {STRATEGY_VALUES.map((option) => {
               const isSelected = strategy === option.value;
               return (
                 <button
@@ -174,16 +144,16 @@ export function TransitionSettings() {
                       : "border-muted hover:border-brand/50 text-foreground"
                   }`}
                 >
-                  {option.label}
+                  {t(`strategies.${option.key}.label`)}
                 </button>
               );
             })}
           </div>
           {/* Description of selected strategy */}
           {(() => {
-            const selected = STRATEGY_OPTIONS.find((o) => o.value === strategy);
+            const selected = STRATEGY_VALUES.find((o) => o.value === strategy);
             return selected ? (
-              <p className="text-xs text-muted-foreground">{selected.description}</p>
+              <p className="text-xs text-muted-foreground">{t(`strategies.${selected.key}.description`)}</p>
             ) : null;
           })()}
         </div>
@@ -191,44 +161,44 @@ export function TransitionSettings() {
         {/* Advanced options — only shown when a strategy is selected */}
         {strategy && (
           <div className="space-y-4 pt-2 border-t">
-            <Label className="text-sm font-medium">Advanced Options</Label>
+            <Label className="text-sm font-medium">{t("advancedOptions")}</Label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Step Interval */}
               <div className="space-y-1.5">
                 <Label htmlFor="step-interval" className="text-xs">
-                  Step Interval (ms)
+                  {t("stepIntervalLabel")}
                 </Label>
                 <Input
                   id="step-interval"
                   type="number"
                   min={0}
-                  placeholder="Default"
+                  placeholder={t("stepIntervalPlaceholder")}
                   value={stepIntervalMs}
                   onChange={(e) => handleStepIntervalChange(e.target.value)}
                   className="w-full"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Delay between each animation step. Leave empty for the board default.
+                  {t("stepIntervalDescription")}
                 </p>
               </div>
 
               {/* Step Size */}
               <div className="space-y-1.5">
                 <Label htmlFor="step-size" className="text-xs">
-                  Step Size
+                  {t("stepSizeLabel")}
                 </Label>
                 <Input
                   id="step-size"
                   type="number"
                   min={1}
-                  placeholder="Default"
+                  placeholder={t("stepSizePlaceholder")}
                   value={stepSize}
                   onChange={(e) => handleStepSizeChange(e.target.value)}
                   className="w-full"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  How many rows or columns animate at once. Leave empty for the board default.
+                  {t("stepSizeDescription")}
                 </p>
               </div>
             </div>
@@ -239,7 +209,7 @@ export function TransitionSettings() {
         <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Transitions are supported on the <strong>Local API</strong> only. If your board is configured to use the Cloud API, transition settings will have no effect. Individual pages can also override this default in the page builder.
+            {t("localApiNote")}
           </span>
         </div>
 
@@ -247,7 +217,7 @@ export function TransitionSettings() {
         {updateMutation.isPending && (
           <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
             <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span>Saving...</span>
+            <span>{tCommon("saving")}</span>
           </div>
         )}
       </CardContent>

@@ -7,6 +7,7 @@ import { ALL_TIMEZONES } from "@/lib/timezone-utils";
 import { Input } from "@/components/ui/input";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
 interface TimezonePickerProps {
   value: string;
@@ -23,6 +24,7 @@ export function TimezonePicker({
   disabled,
   onValidationChange 
 }: TimezonePickerProps) {
+  const t = useTranslations("timezonePicker");
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -253,13 +255,13 @@ export function TimezonePicker({
           role="combobox"
           aria-expanded={isOpen}
           aria-autocomplete="list"
-          aria-label="Timezone"
+          aria-label={t("ariaLabel")}
           value={searchQuery}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onKeyDown={handleInputKeyDown}
           disabled={disabled}
-          placeholder="Search timezone..."
+          placeholder={t("placeholder")}
           className={cn(
             "pr-10",
             !isValid && value && "border-destructive focus-visible:ring-destructive"
@@ -276,7 +278,7 @@ export function TimezonePicker({
           }}
           disabled={disabled}
           tabIndex={-1}
-          aria-label="Toggle timezone list"
+          aria-label={t("toggleAriaLabel")}
         >
           <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
         </Button>
@@ -287,7 +289,7 @@ export function TimezonePicker({
             <div 
               ref={listRef}
               role="listbox"
-              aria-label="Timezone options"
+              aria-label={t("optionsAriaLabel")}
               style={dropdownStyle}
               className="max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md"
             >
@@ -319,7 +321,7 @@ export function TimezonePicker({
               })}
               {filteredTimezones.length > 50 && (
                 <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                  Showing first 50 of {filteredTimezones.length} results
+                  {t("showingFirst", { total: filteredTimezones.length })}
                 </div>
               )}
             </div>,
@@ -329,7 +331,7 @@ export function TimezonePicker({
       
       {!isValid && value && (
         <p className="mt-1 text-xs text-destructive">
-          Invalid timezone. Please select from the list or enter a valid IANA timezone name.
+          {t("invalidTimezone")}
         </p>
       )}
     </div>

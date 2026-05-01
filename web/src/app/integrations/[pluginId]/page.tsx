@@ -29,19 +29,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowDownToLine, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  art: "Display Art",
-  data: "Data & Information",
-  entertainment: "Entertainment",
-  finance: "Finance",
-  home: "Smart Home",
-  transit: "Transportation",
-  utility: "Utilities",
-  weather: "Weather & Environment",
-};
+import { useTranslations } from "next-intl";
 
 export default function PluginDetailPage() {
+  const t = useTranslations("pluginDetail");
+  const tCommon = useTranslations("common");
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -49,6 +41,17 @@ export default function PluginDetailPage() {
   const [addInstanceOpen, setAddInstanceOpen] = useState(false);
   const [instanceLabel, setInstanceLabel] = useState("");
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    art: t("categories.art"),
+    data: t("categories.data"),
+    entertainment: t("categories.entertainment"),
+    finance: t("categories.finance"),
+    home: t("categories.home"),
+    transit: t("categories.transit"),
+    utility: t("categories.utility"),
+    weather: t("categories.weather"),
+  };
 
   // Find the registry entry for this plugin
   const { data: registryData, isLoading: isLoadingRegistry } = useQuery({
@@ -77,7 +80,7 @@ export default function PluginDetailPage() {
       )
     : null;
   const categoryLabel =
-    CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? "Utility";
+    CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? t("categories.utility");
 
   // Install mutation
   const installMutation = useMutation({
@@ -86,7 +89,7 @@ export default function PluginDetailPage() {
       await api.enablePlugin(pluginId);
     },
     onSuccess: () => {
-      toast.success(`${entry?.name ?? pluginId} installed and enabled`);
+      toast.success(t("toastInstalled", { name: entry?.name ?? pluginId }));
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
       queryClient.invalidateQueries({ queryKey: ["template-variables"] });
@@ -95,7 +98,7 @@ export default function PluginDetailPage() {
       router.push("/integrations?tab=installed");
     },
     onError: (err) => {
-      toast.error(`Failed to install: ${err instanceof Error ? err.message : "Unknown error"}`);
+      toast.error(t("toastInstallFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }));
     },
   });
 
@@ -107,12 +110,12 @@ export default function PluginDetailPage() {
     setIsCreatingInstance(true);
     try {
       await api.createPluginInstance(pluginId, instanceLabel.trim());
-      toast.success(`Instance "${instanceLabel}" created`);
+      toast.success(t("toastInstanceCreated", { label: instanceLabel }));
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       setAddInstanceOpen(false);
       setInstanceLabel("");
     } catch (err) {
-      toast.error(`Failed to create instance: ${err instanceof Error ? err.message : "Unknown error"}`);
+      toast.error(t("toastCreateInstanceFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }));
     } finally {
       setIsCreatingInstance(false);
     }
@@ -125,7 +128,7 @@ export default function PluginDetailPage() {
         <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground" asChild>
           <Link href="/integrations?tab=marketplace">
             <ArrowLeft className="h-4 w-4" />
-            Back to Marketplace
+            {t("backToMarketplace")}
           </Link>
         </Button>
       </div>
@@ -153,9 +156,9 @@ export default function PluginDetailPage() {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {entry?.author && <span className="mr-3">by {entry.author}</span>}
+                      {entry?.author && <span className="mr-3">{t("byAuthor", { author: entry.author })}</span>}
                       {entry?.fiestaboard_version && (
-                        <span className="text-xs">Requires FiestaBoard {entry.fiestaboard_version}</span>
+                        <span className="text-xs">{t("requiresFiestaboard", { version: entry.fiestaboard_version })}</span>
                       )}
                     </p>
                   </>
@@ -177,7 +180,7 @@ export default function PluginDetailPage() {
                 isInstalled ? (
                   <Button size="sm" variant="outline" onClick={() => setAddInstanceOpen(true)}>
                     <CopyPlus className="h-3.5 w-3.5 mr-1.5" />
-                    Add Instance
+                    {t("addInstance")}
                   </Button>
                 ) : (
                   <Button
@@ -188,7 +191,7 @@ export default function PluginDetailPage() {
                     <ArrowDownToLine
                       className={cn("h-3.5 w-3.5 mr-1.5", installMutation.isPending && "animate-bounce")}
                     />
-                    {installMutation.isPending ? "Installing..." : "Install"}
+                    {installMutation.isPending ? t("installing") : t("install")}
                   </Button>
                 )
               )}
@@ -313,7 +316,7 @@ export default function PluginDetailPage() {
               </ReactMarkdown>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Documentation not available.</p>
+            <p className="text-sm text-muted-foreground italic">{t("documentationNotAvailable")}</p>
           )}
         </div>
       </div>
@@ -321,16 +324,16 @@ export default function PluginDetailPage() {
       <Dialog open={addInstanceOpen} onOpenChange={setAddInstanceOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Instance of {entry?.name ?? pluginId}</DialogTitle>
+            <DialogTitle>{t("addInstance")} of {entry?.name ?? pluginId}</DialogTitle>
             <DialogDescription>
-              Create a new independent instance with its own configuration.
+              {t("addInstanceDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="detail-instance-label">Instance name</Label>
+            <Label htmlFor="detail-instance-label">{t("instanceNameLabel")}</Label>
             <Input
               id="detail-instance-label"
-              placeholder="e.g. sf, prod, home"
+              placeholder={t("instanceNamePlaceholder")}
               value={instanceLabel}
               onChange={(e) => setInstanceLabel(e.target.value)}
               onKeyDown={(e) => {
@@ -340,15 +343,15 @@ export default function PluginDetailPage() {
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
-              Use alphanumeric characters, hyphens, or underscores (1–40 chars).
+              {t("instanceNameHelp")}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddInstanceOpen(false)} disabled={isCreatingInstance}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button onClick={handleAddInstance} disabled={!instanceLabel.trim() || isCreatingInstance}>
-              {isCreatingInstance ? "Creating..." : "Create"}
+              {isCreatingInstance ? t("creating") : t("create")}
             </Button>
           </DialogFooter>
         </DialogContent>

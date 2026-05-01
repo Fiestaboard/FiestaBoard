@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 interface TimePickerProps {
   value: string; // HH:MM format
@@ -15,6 +16,7 @@ interface TimePickerProps {
 }
 
 export function TimePicker({ value, onChange, placeholder = "00:00", className, disabled }: TimePickerProps) {
+  const t = useTranslations("timePicker");
   const [isOpen, setIsOpen] = useState(false);
   const [hours, setHours] = useState("00");
   const [minutes, setMinutes] = useState("00");
@@ -117,7 +119,7 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
         {/* Hours */}
         <div className="flex-1">
           <label className="text-xs font-medium text-muted-foreground mb-2 block">
-            Hour
+            {t("hour")}
           </label>
           <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
             {hourOptions.map((option) => (
@@ -139,7 +141,7 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
         {/* Minutes */}
         <div className="flex-1">
           <label className="text-xs font-medium text-muted-foreground mb-2 block">
-            Minute
+            {t("minute")}
           </label>
           <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
             {minuteOptions.map((option) => (
@@ -161,7 +163,7 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
 
       {/* Quick presets */}
       <div className="mt-4 pt-4 border-t">
-        <div className="text-xs font-medium text-muted-foreground mb-2">Quick presets</div>
+        <div className="text-xs font-medium text-muted-foreground mb-2">{t("quickPresets")}</div>
         <div className="flex gap-2 flex-wrap">
           {[
             { label: "8 AM", value: "08:00" },

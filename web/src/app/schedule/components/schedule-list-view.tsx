@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Calendar, GalleryHorizontalEnd } from "lucide-react";
 import type { ScheduleEntry, Page, Carousel } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 interface ScheduleListViewProps {
   schedules: ScheduleEntry[];
@@ -15,64 +16,65 @@ interface ScheduleListViewProps {
   onDelete: (id: string) => void;
 }
 
-const DAY_ABBREVIATIONS: Record<string, string> = {
-  monday: "Mon",
-  mon: "Mon",
-  tuesday: "Tue",
-  tue: "Tue",
-  wednesday: "Wed",
-  wed: "Wed",
-  thursday: "Thu",
-  thu: "Thu",
-  friday: "Fri",
-  fri: "Fri",
-  saturday: "Sat",
-  sat: "Sat",
-  sunday: "Sun",
-  sun: "Sun",
+const DAY_KEYS: Record<string, "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"> = {
+  monday: "monday", mon: "monday",
+  tuesday: "tuesday", tue: "tuesday",
+  wednesday: "wednesday", wed: "wednesday",
+  thursday: "thursday", thu: "thursday",
+  friday: "friday", fri: "friday",
+  saturday: "saturday", sat: "saturday",
+  sunday: "sunday", sun: "sunday",
 };
 
-function formatDays(schedule: ScheduleEntry): string {
-  if (schedule.day_pattern === "all") return "All days";
-  if (schedule.day_pattern === "weekdays") return "Mon-Fri";
-  if (schedule.day_pattern === "weekends") return "Sat-Sun";
-  if (schedule.day_pattern === "custom" && schedule.custom_days) {
-    return schedule.custom_days
-      .map((d) => {
-        const trimmed = d.trim();
-        return DAY_ABBREVIATIONS[trimmed.toLowerCase()] ?? trimmed;
-      })
-      .join(", ");
-  }
-  return "";
-}
+function useFormatters() {
+  const t = useTranslations("schedule");
+  const tDays = useTranslations("daySelector.dayLabels");
 
-function formatTimeDisplay(schedule: ScheduleEntry): string {
-  const startLabel = schedule.start_type === "sunrise"
-    ? `☀↑${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
-    : schedule.start_type === "sunset"
-    ? `☀↓${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
-    : schedule.start_time;
-
-  const resolvedStart = schedule.resolved_start_time && schedule.start_type !== "fixed"
-    ? ` (${schedule.resolved_start_time})`
-    : "";
-
-  if (!schedule.end_time && schedule.end_type === "fixed") {
-    return `${startLabel}${resolvedStart} - open`;
+  function formatDays(schedule: ScheduleEntry): string {
+    if (schedule.day_pattern === "all") return t("dayLabels.allDays");
+    if (schedule.day_pattern === "weekdays") return t("dayLabels.monFri");
+    if (schedule.day_pattern === "weekends") return t("dayLabels.satSun");
+    if (schedule.day_pattern === "custom" && schedule.custom_days) {
+      return schedule.custom_days
+        .map((d) => {
+          const trimmed = d.trim();
+          const key = DAY_KEYS[trimmed.toLowerCase()];
+          return key ? tDays(key) : trimmed;
+        })
+        .join(", ");
+    }
+    return "";
   }
 
-  const endLabel = schedule.end_type === "sunrise"
-    ? `☀↑${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
-    : schedule.end_type === "sunset"
-    ? `☀↓${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
-    : schedule.end_time || "open";
+  function formatTimeDisplay(schedule: ScheduleEntry): string {
+    const startLabel = schedule.start_type === "sunrise"
+      ? `☀↑${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
+      : schedule.start_type === "sunset"
+      ? `☀↓${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
+      : schedule.start_time;
 
-  const resolvedEnd = schedule.resolved_end_time && schedule.end_type !== "fixed"
-    ? ` (${schedule.resolved_end_time})`
-    : "";
+    const resolvedStart = schedule.resolved_start_time && schedule.start_type !== "fixed"
+      ? ` (${schedule.resolved_start_time})`
+      : "";
 
-  return `${startLabel}${resolvedStart} - ${endLabel}${resolvedEnd}`;
+    if (!schedule.end_time && schedule.end_type === "fixed") {
+      return `${startLabel}${resolvedStart} - ${t("openLabel")}`;
+    }
+
+    const endLabel = schedule.end_type === "sunrise"
+      ? `☀↑${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
+      : schedule.end_type === "sunset"
+      ? `☀↓${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
+      : schedule.end_time || t("openLabel");
+
+    const resolvedEnd = schedule.resolved_end_time && schedule.end_type !== "fixed"
+      ? ` (${schedule.resolved_end_time})`
+      : "";
+
+    return `${startLabel}${resolvedStart} - ${endLabel}${resolvedEnd}`;
+  }
+
+  return { formatDays, formatTimeDisplay };
 }
 
 export function ScheduleListView({
@@ -82,6 +84,10 @@ export function ScheduleListView({
   onEdit,
   onDelete,
 }: ScheduleListViewProps) {
+  const t = useTranslations("schedule");
+  const tCommon = useTranslations("common");
+  const { formatDays, formatTimeDisplay } = useFormatters();
+
   const getPageName = (pageId: string): string => {
     if (isCarouselId(pageId)) {
       const carousel = carousels.find((c) => c.id === pageId);
@@ -93,14 +99,14 @@ export function ScheduleListView({
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle className="text-lg">Schedule Entries</CardTitle>
+        <CardTitle className="text-lg">{t("scheduleEntriesTitle")}</CardTitle>
       </CardHeader>
       <CardContent>
         {schedules.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Calendar className="h-12 w-12 mx-auto mb-4" />
-            <p>No schedules created yet</p>
-            <p className="text-sm mt-1">Use the toolbar above to add your first schedule</p>
+            <p>{t("noSchedulesCreated")}</p>
+            <p className="text-sm mt-1">{t("useToolbarToAdd")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -118,7 +124,7 @@ export function ScheduleListView({
                       )}
                       <span className="font-medium">{pageName}</span>
                       {!schedule.enabled && (
-                        <Badge variant="secondary">Disabled</Badge>
+                        <Badge variant="secondary">{tCommon("disabled")}</Badge>
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">
@@ -130,7 +136,7 @@ export function ScheduleListView({
                       size="sm"
                       variant="ghost"
                       onClick={() => onEdit(schedule)}
-                      aria-label={`Edit schedule for ${pageName}`}
+                      aria-label={t("editScheduleAriaLabel", { pageName })}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -138,7 +144,7 @@ export function ScheduleListView({
                       size="sm"
                       variant="ghost"
                       onClick={() => onDelete(schedule.id)}
-                      aria-label={`Delete schedule for ${pageName}`}
+                      aria-label={t("deleteScheduleAriaLabel", { pageName })}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

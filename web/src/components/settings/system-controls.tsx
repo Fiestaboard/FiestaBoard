@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Cpu,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * Settings → System Controls card.
@@ -42,6 +43,8 @@ import {
  * Shutdown shows a final "shutting down" screen (no automatic reload).
  */
 export function SystemControls() {
+  const t = useTranslations("systemControls");
+  const tCommon = useTranslations("common");
   const { data: status, isLoading } = useQuery({
     queryKey: ["update-status"],
     queryFn: () => api.getUpdateStatus(),
@@ -97,10 +100,10 @@ export function SystemControls() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Cpu className="h-4 w-4" />
-            System
+            {t("title")}
           </CardTitle>
           <CardDescription>
-            Manage FiestaBoard updates and host power.
+            {t("description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -116,7 +119,7 @@ export function SystemControls() {
               ) : (
                 <ArrowUpCircle className="h-4 w-4 mr-2" />
               )}
-              {updateAvailable ? "Update Now" : "Re-pull Latest"}
+              {updateAvailable ? t("updateNow") : t("rePullLatest")}
             </Button>
 
             <Button
@@ -130,7 +133,7 @@ export function SystemControls() {
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
-              Restart
+              {t("restart")}
             </Button>
 
             <Button
@@ -145,7 +148,7 @@ export function SystemControls() {
               ) : (
                 <Power className="h-4 w-4 mr-2" />
               )}
-              Shutdown
+              {t("shutdown")}
             </Button>
           </div>
         </CardContent>
@@ -159,17 +162,17 @@ export function SystemControls() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {updateAvailable ? "Update FiestaBoard?" : "Re-pull Latest Image?"}
+              {updateAvailable ? t("updateDialogTitle") : t("rePullDialogTitle")}
             </DialogTitle>
             <DialogDescription>
               {updateAvailable
-                ? `This will pull v${updateCheck?.latest_version} and recreate the FiestaBoard container. The board display will pause for about 30 seconds and this page will reload automatically.`
-                : "This will pull the latest image for the current version and recreate the container. Useful if you want to ensure you're running the newest build of the same version."}
+                ? t("updateDialogDescription", { version: updateCheck?.latest_version ?? "" })
+                : t("rePullDialogDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -178,7 +181,7 @@ export function SystemControls() {
               }}
             >
               <ArrowUpCircle className="h-4 w-4 mr-2" />
-              {updateAvailable ? "Update now" : "Re-pull now"}
+              {updateAvailable ? t("updateNow") : t("rePullNow")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -191,16 +194,14 @@ export function SystemControls() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Restart FiestaBoard?</DialogTitle>
+            <DialogTitle>{t("restartDialogTitle")}</DialogTitle>
             <DialogDescription>
-              This will restart the FiestaBoard container. The board display
-              will pause for about 5–10 seconds and this page will reload
-              automatically.
+              {t("restartDialogDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -209,7 +210,7 @@ export function SystemControls() {
               }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Restart now
+              {t("restartNow")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -222,16 +223,14 @@ export function SystemControls() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Shut Down Host?</DialogTitle>
+            <DialogTitle>{t("shutdownDialogTitle")}</DialogTitle>
             <DialogDescription>
-              This will stop all FiestaBoard services and power off the host
-              machine. You will need physical access (or remote SSH) to turn it
-              back on.
+              {t("shutdownDialogDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -241,7 +240,7 @@ export function SystemControls() {
               }}
             >
               <Power className="h-4 w-4 mr-2" />
-              Shut down
+              {t("shutdownConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -285,6 +284,7 @@ function RestartingOverlay({
 }: {
   currentVersion?: string;
 }) {
+  const t = useTranslations("systemControls");
   const [phase, setPhase] = useState<"restarting" | "ready" | "error">("restarting");
 
   useEffect(() => {
@@ -342,14 +342,13 @@ function RestartingOverlay({
     return (
       <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
         <div className="text-center space-y-4 max-w-sm mx-auto px-4">
-          <h2 className="text-xl font-semibold">Taking longer than expected</h2>
+          <h2 className="text-xl font-semibold">{t("takingLonger")}</h2>
           <p className="text-sm text-muted-foreground">
-            FiestaBoard may still be restarting. Check the container logs, then
-            refresh this page.
+            {t("takingLongerDescription")}
           </p>
           <Button variant="outline" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh page
+            {t("refreshPage")}
           </Button>
         </div>
       </div>
@@ -361,12 +360,12 @@ function RestartingOverlay({
       <div className="text-center space-y-4">
         <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
         <h2 className="text-xl font-semibold">
-          {phase === "restarting" ? "Restarting FiestaBoard…" : "Back online. Reloading…"}
+          {phase === "restarting" ? t("restartingFiestaboard") : t("backOnline")}
         </h2>
         <p className="text-sm text-muted-foreground">
           {phase === "restarting"
-            ? "This will take about 5–10 seconds."
-            : "Almost there…"}
+            ? t("restartingDuration")
+            : t("almostThere")}
         </p>
       </div>
     </div>
@@ -378,14 +377,14 @@ function RestartingOverlay({
  * No automatic reload — the host is powering off.
  */
 function ShutdownOverlay() {
+  const t = useTranslations("systemControls");
   return (
     <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
       <div className="text-center space-y-4">
         <Power className="h-12 w-12 mx-auto text-muted-foreground" />
-        <h2 className="text-xl font-semibold">Shutting down…</h2>
+        <h2 className="text-xl font-semibold">{t("shuttingDown")}</h2>
         <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-          FiestaBoard is stopping services and powering off the host. Turn the
-          power back on to restart.
+          {t("shuttingDownDescription")}
         </p>
       </div>
     </div>

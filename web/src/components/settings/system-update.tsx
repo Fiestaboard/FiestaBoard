@@ -26,6 +26,7 @@ import {
   ExternalLink,
   RefreshCw,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * Settings → System → Update banner.
@@ -41,6 +42,8 @@ import {
  *   - If up to date, render nothing (consistent with prior behavior).
  */
 export function SystemUpdate() {
+  const t = useTranslations("systemUpdate");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { startUpdate } = useUpdate();
@@ -76,12 +79,12 @@ export function SystemUpdate() {
         <ArrowUpCircle className="h-4 w-4 text-warning" />
         <AlertDescription className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium">Update Available</span>
+            <span className="text-sm font-medium">{t("updateAvailable")}</span>
             <Badge variant="secondary" className="text-xs">
               v{updateCheck.latest_version}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              You are running v{updateCheck.current_version}.
+              {t("youAreRunning", { currentVersion: updateCheck.current_version })}
             </span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -92,7 +95,7 @@ export function SystemUpdate() {
                 rel="noopener noreferrer"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
-                View Release
+                {t("viewRelease")}
               </a>
             </Button>
             {sidecarReady && (
@@ -102,7 +105,7 @@ export function SystemUpdate() {
                 disabled={applyMutation.isPending}
               >
                 <ArrowUpCircle className="h-4 w-4 mr-2" />
-                Update Now
+                {t("updateNow")}
               </Button>
             )}
             <Tooltip>
@@ -115,12 +118,13 @@ export function SystemUpdate() {
                     queryClient.invalidateQueries({ queryKey: ["update-check"] });
                     queryClient.invalidateQueries({ queryKey: ["update-status"] });
                   }}
+                  aria-label={t("checkForUpdates")}
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Check for updates</p>
+                <p>{t("checkForUpdates")}</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -129,26 +133,27 @@ export function SystemUpdate() {
 
       {!sidecarReady && (
         <p className="text-xs text-muted-foreground mt-2 ml-1">
-          Want a one-click &quot;Update Now&quot; button here? Set{" "}
-          <span className="font-mono">COMPOSE_PROFILES=fiestaupdater</span> in
-          your <code>.env</code>, then run{" "}
-          <code>docker compose up -d</code>.
+          {t.rich("oneClickHint", {
+            profile: () => <span className="font-mono">COMPOSE_PROFILES=fiestaupdater</span>,
+            envFile: () => <code>.env</code>,
+            command: () => <code>docker compose up -d</code>,
+          })}
         </p>
       )}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update FiestaBoard?</DialogTitle>
+            <DialogTitle>{t("dialogTitle")}</DialogTitle>
             <DialogDescription>
-              This will pull <strong>v{updateCheck.latest_version}</strong> and
-              restart FiestaBoard. The board display will pause for about 30
-              seconds and this page will reload automatically.
+              {t.rich("dialogDescription", {
+                version: () => <strong>v{updateCheck.latest_version}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -157,7 +162,7 @@ export function SystemUpdate() {
               }}
             >
               <ArrowUpCircle className="h-4 w-4 mr-2" />
-              Update now
+              {t("updateNow")}
             </Button>
           </DialogFooter>
         </DialogContent>

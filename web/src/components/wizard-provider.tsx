@@ -3,20 +3,26 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { shouldShowWizard, clearWizardCompletion } from "@/lib/setup-detection";
+import { useTranslations } from "next-intl";
+
+function WizardLoadingFallback() {
+  const t = useTranslations("wizardProvider");
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-background">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="mt-4 text-muted-foreground">{t("loadingSetupWizard")}</p>
+      </div>
+    </div>
+  );
+}
 
 // Lazy load SetupWizard since it's only needed on first visit or when manually triggered
 const SetupWizard = dynamic(
   () => import("@/components/wizard").then(mod => ({ default: mod.SetupWizard })),
   {
     ssr: false,
-    loading: () => (
-      <div className="fixed inset-0 flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="mt-4 text-muted-foreground">Loading setup wizard...</p>
-        </div>
-      </div>
-    ),
+    loading: () => <WizardLoadingFallback />,
   }
 );
 
@@ -40,6 +46,7 @@ interface WizardProviderProps {
 }
 
 export function WizardProvider({ children }: WizardProviderProps) {
+  const t = useTranslations("wizardProvider");
   const [isWizardActive, setIsWizardActive] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
 
@@ -76,7 +83,7 @@ export function WizardProvider({ children }: WizardProviderProps) {
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+          <p className="mt-4 text-muted-foreground">{t("loading")}</p>
         </div>
       </div>
     );

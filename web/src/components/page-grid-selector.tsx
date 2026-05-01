@@ -13,6 +13,7 @@ import { StaticBoardDisplay } from "@/components/static-board-display";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Page, PagePreviewResponse, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -91,6 +92,7 @@ const PageButtonPreview = memo(function PageButtonPreview({
   boardType?: "black" | "white" | null;
   deviceType?: "flagship" | "note";
 }) {
+  const t = useTranslations("pageGridSelector");
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -108,7 +110,7 @@ const PageButtonPreview = memo(function PageButtonPreview({
 
   if (isLoading && !preview) {
     return (
-      <div ref={ref} className="w-full py-4" role="status" aria-label="Loading preview">
+      <div ref={ref} className="w-full py-4" role="status" aria-label={t("loadingPreviewAriaLabel")}>
         <Skeleton className="h-20 w-full rounded-md" />
       </div>
     );
@@ -319,6 +321,8 @@ const CarouselButton = memo(function CarouselButton({
   showActiveIndicator?: boolean;
   boardType?: "black" | "white" | null;
 }) {
+  const t = useTranslations("pageGridSelector");
+  const tCommon = useTranslations("common");
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
@@ -356,14 +360,14 @@ const CarouselButton = memo(function CarouselButton({
         <GalleryHorizontalEnd className={iconClassName} />
         <span className={nameClassName}>{carousel.name}</span>
         <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
-          {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
+          {tCommon("pageCount", { count: carousel.page_ids.length })}
         </Badge>
       </div>
 
       {/* Cascading stack of board previews */}
       <div className="relative h-[160px] w-full overflow-hidden hover-stable">
         {loadingPreviews && stackPages.every((sp) => !sp.preview) ? (
-          <div className="flex gap-2 items-end h-full p-2" role="status" aria-label="Loading previews">
+          <div className="flex gap-2 items-end h-full p-2" role="status" aria-label={t("loadingPreviewsAriaLabel")}>
             <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
             <Skeleton className="h-28 flex-1 max-w-[80px] rounded-md" />
             <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
@@ -441,11 +445,13 @@ export function PageGridSelector({
   onSelectPage,
   isPending = false,
   showActiveIndicator = true,
-  label = "SELECT PAGE",
+  label,
   deviceTypeFilter,
   viewMode = "grid",
   showCarousels = true,
 }: PageGridSelectorProps) {
+  const t = useTranslations("pageGridSelector");
+  const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
   // Fetch all pages
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
   
@@ -549,9 +555,9 @@ export function PageGridSelector({
   if (isLoadingPages) {
     return (
       <div aria-busy="true">
-        {label && (
+        {effectiveLabel && (
           <span className="text-xs font-medium text-muted-foreground mb-3 block">
-            {label}
+            {effectiveLabel}
           </span>
         )}
         {viewMode === "list" ? (
@@ -586,13 +592,13 @@ export function PageGridSelector({
         <CardContent className="py-6">
           <EmptyState
             icon={FilePlus}
-            title="No pages created yet."
-            description="Create your first page to display on the board."
+            title={t("noPagesTitle")}
+            description={t("noPagesDescription")}
             illustration={noPagesIllustration}
             action={
               <Button asChild variant="brand" size="sm" className="btn-lift">
                 <Link href={`/pages/new${deviceTypeFilter ? `?device=${deviceTypeFilter}` : ""}`}>
-                  Create your first page
+                  {t("createFirstPage")}
                 </Link>
               </Button>
             }
@@ -606,7 +612,7 @@ export function PageGridSelector({
   const defaultTab = activePageId && isCarouselId(activePageId) ? "carousels" : "pages";
 
   const pagesContent = viewMode === "list" ? (
-    <div className="flex flex-col gap-3" role="group" aria-label="Pages">
+    <div className="flex flex-col gap-3" role="group" aria-label={t("pagesAriaLabel")}>
       {pages.map((page) => (
         <PageListItem
           key={page.id}
@@ -618,7 +624,7 @@ export function PageGridSelector({
       ))}
     </div>
   ) : (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label="Pages">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("pagesAriaLabel")}>
       {pages.map((page) => (
         <PageButton
           key={page.id}
@@ -636,7 +642,7 @@ export function PageGridSelector({
   );
 
   const carouselsGrid = (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label="Carousels">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("carouselsAriaLabel")}>
       {carousels.map((carousel) => (
         <CarouselButton
           key={carousel.id}
@@ -657,9 +663,9 @@ export function PageGridSelector({
   if (!showCarouselItems) {
     return (
       <div>
-        {label && (
+        {effectiveLabel && (
           <label className="text-xs font-medium text-muted-foreground mb-3 block">
-            {label}
+            {effectiveLabel}
           </label>
         )}
         {pagesContent}
@@ -673,11 +679,11 @@ export function PageGridSelector({
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">
             <LayoutTemplate className="h-4 w-4" />
-            Pages ({pages.length})
+            {t("pagesTab", { count: pages.length })}
           </TabsTrigger>
           <TabsTrigger value="carousels" className="flex-1 gap-1.5">
             <GalleryHorizontalEnd className="h-4 w-4" />
-            Carousels ({carousels.length})
+            {t("carouselsTab", { count: carousels.length })}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pages">

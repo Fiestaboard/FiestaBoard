@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +17,8 @@ import { api } from "@/lib/api";
 import type { MqttSettings } from "@/lib/api";
 
 export function MqttSettingsCard() {
+  const t = useTranslations("mqttSettings");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +41,7 @@ export function MqttSettingsCard() {
       queryClient.invalidateQueries({ queryKey: ["mqtt-settings"] });
       queryClient.invalidateQueries({ queryKey: ["mqtt-status"] });
       setDraft({});
-      toast.success("MQTT settings saved");
+      toast.success(t("toastSaved"));
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -86,19 +89,19 @@ export function MqttSettingsCard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Radio className="h-4 w-4" />
-            <CardTitle className="text-base">Home Assistant (MQTT)</CardTitle>
+            <CardTitle className="text-base">{t("title")}</CardTitle>
           </div>
           <div className="flex items-center gap-3">
             {isEnabled && (
               isConnected ? (
                 <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
                   <CheckCircle2 className="h-2.5 w-2.5" />
-                  Connected
+                  {t("connected")}
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
                   <XCircle className="h-2.5 w-2.5" />
-                  Disconnected
+                  {t("disconnected")}
                 </Badge>
               )
             )}
@@ -110,13 +113,13 @@ export function MqttSettingsCard() {
           </div>
         </div>
         <CardDescription>
-          Expose FiestaBoard as a device in Home Assistant via MQTT auto-discovery. Requires a running MQTT broker (e.g. Mosquitto).
+          {t("description")}
         </CardDescription>
       </CardHeader>
 
       <Collapsible open={expanded} onOpenChange={setExpanded}>
         <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none">
-          <span>Broker configuration</span>
+          <span>{t("brokerConfiguration")}</span>
           <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
 
@@ -124,7 +127,7 @@ export function MqttSettingsCard() {
           <CardContent className="pt-2 space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2 space-y-1">
-                <Label className="text-xs">Broker Host</Label>
+                <Label className="text-xs">{t("brokerHost")}</Label>
                 <Input
                   value={merged.broker_host}
                   onChange={(e) => setDraft((d) => ({ ...d, broker_host: e.target.value }))}
@@ -133,7 +136,7 @@ export function MqttSettingsCard() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Port</Label>
+                <Label className="text-xs">{t("port")}</Label>
                 <Input
                   type="number"
                   value={merged.broker_port}
@@ -146,22 +149,22 @@ export function MqttSettingsCard() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Username</Label>
+                <Label className="text-xs">{t("username")}</Label>
                 <Input
                   value={merged.username}
                   onChange={(e) => setDraft((d) => ({ ...d, username: e.target.value }))}
-                  placeholder="Optional"
+                  placeholder={t("optional")}
                   className="h-8 text-xs"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Password</Label>
+                <Label className="text-xs">{t("password")}</Label>
                 <div className="flex gap-1.5">
                   <Input
                     type={showPassword ? "text" : "password"}
                     value={merged.password === "***" ? "" : merged.password}
                     onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
-                    placeholder={settings?.password === "***" ? "••• (set)" : "Optional"}
+                    placeholder={settings?.password === "***" ? t("passwordSet") : t("optional")}
                     className="h-8 text-xs font-mono flex-1"
                   />
                   <Button
@@ -170,6 +173,7 @@ export function MqttSettingsCard() {
                     size="sm"
                     onClick={() => setShowPassword((p) => !p)}
                     className="h-8 w-8 p-0 flex-shrink-0"
+                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                   >
                     {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </Button>
@@ -178,15 +182,15 @@ export function MqttSettingsCard() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">External URL</Label>
+              <Label className="text-xs">{t("externalUrl")}</Label>
               <Input
                 value={merged.external_url}
                 onChange={(e) => setDraft((d) => ({ ...d, external_url: e.target.value }))}
-                placeholder="http://192.168.1.50:4420 (shown as Visit link in HA)"
+                placeholder={t("externalUrlPlaceholder")}
                 className="h-8 text-xs font-mono"
               />
               <p className="text-[10px] text-muted-foreground">
-                The URL your browser uses to reach FiestaBoard — shown as a &quot;Visit&quot; link on the device page in Home Assistant.
+                {t("externalUrlHint")}
               </p>
             </div>
 
@@ -200,7 +204,7 @@ export function MqttSettingsCard() {
                   className="text-xs gap-1.5"
                 >
                   {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Save
+                  {tCommon("save")}
                 </Button>
               </div>
             )}

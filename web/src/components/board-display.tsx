@@ -3,6 +3,7 @@
 import { useMemo, memo, useState, useEffect, useRef } from "react";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
 import type { DeviceType } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 const ROWS = 6;
 const COLS = 22;
@@ -856,6 +857,7 @@ interface BoardDisplayProps {
 interface _FiestaboardDisplayProps extends BoardDisplayProps {}
 
 export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = false, size = "md", className = "", boardType = "black", deviceType = "flagship" }: BoardDisplayProps) {
+  const t = useTranslations("boardDisplay");
   // Get dimensions for the device type
   const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
   
@@ -911,10 +913,10 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
     : "rounded-lg sm:rounded-xl border-[3px] sm:border-[4px] lg:border-[5px]"; // md/lg are responsive
 
   const boardText = useMemo(() => {
-    if (isLoading) return "Loading board display";
-    if (!message) return "Empty board display";
-    return `Board display: ${message.replace(/\{[^}]*\}/g, "").replace(/\n/g, " ").trim()}`;
-  }, [message, isLoading]);
+    if (isLoading) return t("loading");
+    if (!message) return t("empty");
+    return t("withMessage", { message: message.replace(/\{[^}]*\}/g, "").replace(/\n/g, " ").trim() });
+  }, [message, isLoading, t]);
 
   return (
     <div className={`w-full flex justify-center`}>

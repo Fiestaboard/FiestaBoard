@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { 
   Bug, 
   Trash2, 
@@ -94,6 +95,8 @@ const CHARACTER_GROUPS = {
 };
 
 export function DebugSettings() {
+  const t = useTranslations("debugSettings");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<number>(63); // Default to Red
@@ -122,7 +125,7 @@ export function DebugSettings() {
       queryClient.invalidateQueries({ queryKey: ["status"] });
     },
     onError: (error: Error) => {
-      toast.error(`Failed to blank board: ${error.message}`);
+      toast.error(t("toastBlankFailed", { error: error.message }));
     },
   });
 
@@ -134,7 +137,7 @@ export function DebugSettings() {
       queryClient.invalidateQueries({ queryKey: ["status"] });
     },
     onError: (error: Error) => {
-      toast.error(`Failed to fill board: ${error.message}`);
+      toast.error(t("toastFillFailed", { error: error.message }));
     },
   });
 
@@ -146,7 +149,7 @@ export function DebugSettings() {
       queryClient.invalidateQueries({ queryKey: ["status"] });
     },
     onError: (error: Error) => {
-      toast.error(`Failed to show debug info: ${error.message}`);
+      toast.error(t("toastDebugInfoFailed", { error: error.message }));
     },
   });
 
@@ -158,13 +161,13 @@ export function DebugSettings() {
     },
     onSuccess: (data: NetworkDiagnosticsResult) => {
       if (data.overall_ok) {
-        toast.success("All network checks passed!");
+        toast.success(t("toastNetworkSuccess"));
       } else {
-        toast.error("Some network checks failed — see details below");
+        toast.error(t("toastNetworkFailed"));
       }
     },
     onError: (error: Error) => {
-      toast.error(`Network diagnostics failed: ${error.message}`);
+      toast.error(t("toastNetworkError", { error: error.message }));
     },
   });
 
@@ -177,7 +180,7 @@ export function DebugSettings() {
       queryClient.invalidateQueries({ queryKey: ["debug-cache-status"] });
     },
     onError: (error: Error) => {
-      toast.error(`Failed to clear cache: ${error.message}`);
+      toast.error(t("toastCacheClearFailed", { error: error.message }));
     },
   });
 
@@ -196,11 +199,11 @@ export function DebugSettings() {
       <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
         <div className="flex items-center gap-2">
           <Bug className="h-4 w-4 text-muted-foreground" />
-          <span className="text-base font-semibold">Debug Tools</span>
+          <span className="text-base font-semibold">{t("title")}</span>
           {!isBoardConfigured && (
             <Badge variant="destructive" className="text-xs">
               <AlertCircle className="h-3 w-3 mr-1" />
-              Not Configured
+              {t("boardNotConfiguredTitle")}
             </Badge>
           )}
         </div>
@@ -209,11 +212,11 @@ export function DebugSettings() {
 
       <CollapsibleContent>
         <div className="px-6 pb-4 pt-1 space-y-4">
-          <p className="text-sm text-muted-foreground">Test and debug your Vestaboard connection</p>
+          <p className="text-sm text-muted-foreground">{t("description")}</p>
           <div className="space-y-4">
         {/* Network Diagnostics */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Network Diagnostics</Label>
+          <Label className="text-xs font-medium">{t("networkDiagnosticsLabel")}</Label>
           <Button
             onClick={() => networkDiagnosticsMutation.mutate()}
             disabled={isAnyMutationLoading}
@@ -226,10 +229,10 @@ export function DebugSettings() {
             ) : (
               <Wifi className="h-4 w-4" />
             )}
-            {networkDiagnosticsMutation.isPending ? "Running diagnostics…" : "Run Network Diagnostics"}
+            {networkDiagnosticsMutation.isPending ? t("runningDiagnostics") : t("runNetworkDiagnostics")}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Tests DNS, internet connectivity, and Vestaboard reachability
+            {t("diagnosticsDescription")}
           </p>
 
           {/* Diagnostics Results */}
@@ -247,8 +250,8 @@ export function DebugSettings() {
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 )}
                 {networkDiagnosticsMutation.data.overall_ok
-                  ? "All checks passed — your connection is healthy"
-                  : "Some checks failed — see details below"}
+                  ? t("allChecksPassed")
+                  : t("someChecksFailed")}
               </div>
 
               {/* Step-by-step results */}
@@ -256,22 +259,22 @@ export function DebugSettings() {
                 {/* DNS Check */}
                 <DiagnosticRow
                   icon={<Globe className="h-3.5 w-3.5" />}
-                  label="DNS Resolution"
+                  label={t("dnsResolution")}
                   result={networkDiagnosticsMutation.data.dns}
                   detail={networkDiagnosticsMutation.data.dns.ok
-                    ? `Resolved ${networkDiagnosticsMutation.data.dns.hostname ?? "google.com"} → ${networkDiagnosticsMutation.data.dns.ip}`
-                    : networkDiagnosticsMutation.data.dns.error ?? "Could not resolve hostname"
+                    ? t("resolved", { hostname: networkDiagnosticsMutation.data.dns.hostname ?? "google.com", ip: networkDiagnosticsMutation.data.dns.ip ?? "" })
+                    : networkDiagnosticsMutation.data.dns.error ?? t("couldNotResolve")
                   }
                 />
 
                 {/* Internet Check */}
                 <DiagnosticRow
                   icon={<Wifi className="h-3.5 w-3.5" />}
-                  label="Internet Access"
+                  label={t("internetAccess")}
                   result={networkDiagnosticsMutation.data.internet}
                   detail={networkDiagnosticsMutation.data.internet.ok
-                    ? `Reached ${networkDiagnosticsMutation.data.internet.url ?? "google.com"}${networkDiagnosticsMutation.data.internet.latency_ms != null ? ` (${networkDiagnosticsMutation.data.internet.latency_ms}ms)` : ""}`
-                    : networkDiagnosticsMutation.data.internet.error ?? "Could not reach the internet"
+                    ? t("reached", { url: networkDiagnosticsMutation.data.internet.url ?? "google.com" }) + (networkDiagnosticsMutation.data.internet.latency_ms != null ? ` (${networkDiagnosticsMutation.data.internet.latency_ms}ms)` : "")
+                    : networkDiagnosticsMutation.data.internet.error ?? t("couldNotReach")
                   }
                 />
 
@@ -287,7 +290,7 @@ export function DebugSettings() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <Lightbulb className="h-3.5 w-3.5" />
-                    Troubleshooting
+                    {t("troubleshooting")}
                   </div>
                   {networkDiagnosticsMutation.data.recommendations.map((rec, i) => (
                     <div key={i} className="rounded-md border p-3 space-y-1.5 bg-muted/30">
@@ -309,7 +312,7 @@ export function DebugSettings() {
 
         {/* Blank Board */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Clear Board</Label>
+          <Label className="text-xs font-medium">{t("clearBoardLabel")}</Label>
           <Button
             onClick={() => blankMutation.mutate()}
             disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -322,16 +325,16 @@ export function DebugSettings() {
             ) : (
               <Trash2 className="h-4 w-4" />
             )}
-            Blank Board
+            {t("blankBoard")}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Fill the board with blank spaces
+            {t("blankBoardDescription")}
           </p>
         </div>
 
         {/* Fill Board with Character */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Fill with Character</Label>
+          <Label className="text-xs font-medium">{t("fillWithCharacterLabel")}</Label>
           <div className="flex gap-2">
             <Select
               value={selectedCharacter.toString()}
@@ -344,7 +347,7 @@ export function DebugSettings() {
                 {Object.entries(CHARACTER_GROUPS).map(([group, chars]) => (
                   <div key={group}>
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                      {group}
+                      {t(`groups.${group}` as "groups.Letters")}
                     </div>
                     {chars.map((char) => (
                       <SelectItem 
@@ -371,17 +374,17 @@ export function DebugSettings() {
               ) : (
                 <TestTube className="h-4 w-4" />
               )}
-              Fill
+              {t("fillButton")}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Fill entire board with selected character
+            {t("fillBoardDescription")}
           </p>
         </div>
 
         {/* Show Debug Info */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Display System Info</Label>
+          <Label className="text-xs font-medium">{t("displaySystemInfoLabel")}</Label>
           <Button
             onClick={() => debugInfoMutation.mutate()}
             disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -403,7 +406,7 @@ export function DebugSettings() {
 
         {/* Clear Cache */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Cache Management</Label>
+          <Label className="text-xs font-medium">{t("cacheManagementLabel")}</Label>
           <Button
             onClick={() => clearCacheMutation.mutate()}
             disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -432,7 +435,7 @@ export function DebugSettings() {
                 size="sm"
                 className="w-full justify-between text-xs font-medium"
               >
-                <span>System Information</span>
+                <span>{t("systemInformation")}</span>
                 {showSystemInfo ? (
                   <ChevronUp className="h-4 w-4" />
                 ) : (
@@ -450,32 +453,32 @@ export function DebugSettings() {
               ) : systemInfo ? (
                 <div className="space-y-2 text-xs">
                   <div className="grid grid-cols-2 gap-2 p-2 rounded bg-muted/50">
-                    <div className="font-medium text-muted-foreground">Board IP:</div>
-                    <div className="font-mono">{systemInfo.board_ip || "Not set"}</div>
+                    <div className="font-medium text-muted-foreground">{t("boardIpLabel")}</div>
+                    <div className="font-mono">{systemInfo.board_ip || t("notSet")}</div>
                     
-                    <div className="font-medium text-muted-foreground">Server IP:</div>
+                    <div className="font-medium text-muted-foreground">{t("serverIpLabel")}</div>
                     <div className="font-mono">{systemInfo.server_ip}</div>
                     
-                    <div className="font-medium text-muted-foreground">Connection:</div>
-                    <div className="font-mono">{systemInfo.connection_mode.toUpperCase()} API</div>
+                    <div className="font-medium text-muted-foreground">{t("connectionLabel")}</div>
+                    <div className="font-mono">{systemInfo.connection_mode.toUpperCase()} {t("apiSuffix")}</div>
                     
-                    <div className="font-medium text-muted-foreground">Uptime:</div>
+                    <div className="font-medium text-muted-foreground">{t("uptimeLabel")}</div>
                     <div className="font-mono">{systemInfo.uptime_formatted}</div>
                     
-                    <div className="font-medium text-muted-foreground">Version:</div>
+                    <div className="font-medium text-muted-foreground">{t("versionLabel")}</div>
                     <div className="font-mono">v{systemInfo.version}</div>
                     
-                    <div className="font-medium text-muted-foreground">Service:</div>
+                    <div className="font-medium text-muted-foreground">{t("serviceLabel")}</div>
                     <div className="flex items-center gap-1">
                       {systemInfo.service_running ? (
                         <>
                           <div className="h-2 w-2 rounded-full bg-success" />
-                          <span>Running</span>
+                          <span>{t("serviceRunning")}</span>
                         </>
                       ) : (
                         <>
                           <div className="h-2 w-2 rounded-full bg-destructive" />
-                          <span>Stopped</span>
+                          <span>{t("serviceStopped")}</span>
                         </>
                       )}
                     </div>
@@ -485,7 +488,7 @@ export function DebugSettings() {
                   {/* Cache Status */}
                   {systemInfo.cache_status && (
                     <div className="p-2 rounded bg-muted/50">
-                      <div className="font-medium text-muted-foreground mb-2">Cache Status:</div>
+                      <div className="font-medium text-muted-foreground mb-2">{t("cacheStatusLabel")}</div>
                       <div className="space-y-1 ml-2">
                         <div className="flex items-center gap-2">
                           <div className={`h-2 w-2 rounded-full ${
@@ -496,19 +499,19 @@ export function DebugSettings() {
                           }`} />
                           <span>
                             {systemInfo.cache_status.has_cached_text 
-                              ? "Text cached" 
+                              ? t("textCached") 
                               : systemInfo.cache_status.has_cached_characters
                               ? "Characters cached"
-                              : "No cache"}
+                              : t("noCache")}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">Skip unchanged:</span>
-                          <span>{systemInfo.cache_status.skip_unchanged_enabled ? "Yes" : "No"}</span>
+                          <span className="text-muted-foreground">{t("skipUnchanged")}</span>
+                          <span>{systemInfo.cache_status.skip_unchanged_enabled ? tCommon("yes") : tCommon("no")}</span>
                         </div>
                         {systemInfo.cache_status.cached_text_preview && (
                           <div className="mt-2">
-                            <div className="text-muted-foreground">Preview:</div>
+                            <div className="text-muted-foreground">{t("cachePreviewLabel")}</div>
                             <div className="font-mono text-xs mt-1 p-1 bg-background rounded">
                               {systemInfo.cache_status.cached_text_preview}
                             </div>
@@ -519,12 +522,12 @@ export function DebugSettings() {
                   )}
 
                   <div className="text-xs text-muted-foreground text-center pt-1">
-                    Auto-refreshes every 10 seconds
+                    {t("autoRefreshNote")}
                   </div>
                 </div>
               ) : (
                 <div className="text-xs text-center text-muted-foreground">
-                  No system info available
+                  {t("noSystemInfo")}
                 </div>
               )}
             </CollapsibleContent>
@@ -536,9 +539,9 @@ export function DebugSettings() {
           <div className="flex items-start gap-2 p-2 rounded-md bg-muted text-foreground text-xs">
             <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <div>
-              <div className="font-medium">Board not configured</div>
+              <div className="font-medium">{t("boardNotConfiguredTitle")}</div>
               <div className="text-xs mt-0.5">
-                Network diagnostics can still be run to test DNS and internet connectivity. Configure your board connection above to enable the other debug tools.
+                {t("boardNotConfiguredDescription")}
               </div>
             </div>
           </div>
@@ -605,6 +608,7 @@ function VestaboardDiagnosticRow({
     error?: string;
   };
 }) {
+  const t = useTranslations("debugSettings");
   if (vestaboard.mode === null) {
     return (
       <div className="flex items-start gap-2 p-2.5 text-xs">
@@ -612,10 +616,10 @@ function VestaboardDiagnosticRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 font-medium">
             <Server className="h-3.5 w-3.5" />
-            Vestaboard
+            {t("vestaboardLabel")}
           </div>
           <div className="mt-0.5 text-muted-foreground">
-            {vestaboard.error ?? "No board configured"}
+            {vestaboard.error ?? t("noBoardConfigured")}
           </div>
         </div>
       </div>
@@ -630,7 +634,7 @@ function VestaboardDiagnosticRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 font-medium">
             <Server className="h-3.5 w-3.5" />
-            Vestaboard Cloud API
+            {t("vestaboardCloudApiLabel")}
             {cloud?.latency_ms != null && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono">
                 {cloud.latency_ms}ms
@@ -639,8 +643,8 @@ function VestaboardDiagnosticRow({
           </div>
           <div className={`mt-0.5 ${vestaboard.ok ? "text-muted-foreground" : "text-destructive"}`}>
             {vestaboard.ok
-              ? `Cloud API reachable${cloud?.status_code ? ` (HTTP ${cloud.status_code})` : ""}`
-              : cloud?.error ?? (cloud?.status_code ? `HTTP ${cloud.status_code}` : "Could not reach cloud API")}
+              ? t("cloudApiReachable") + (cloud?.status_code ? ` (HTTP ${cloud.status_code})` : "")
+              : cloud?.error ?? (cloud?.status_code ? `HTTP ${cloud.status_code}` : t("cloudApiUnreachable"))}
           </div>
         </div>
       </div>
@@ -650,9 +654,9 @@ function VestaboardDiagnosticRow({
   // Local mode — show sub-steps
   const steps = vestaboard.steps;
   const stepEntries: { key: string; label: string; icon: React.ReactNode }[] = [
-    { key: "dns", label: "Board DNS", icon: <Globe className="h-3 w-3" /> },
-    { key: "port", label: "Board Port", icon: <Server className="h-3 w-3" /> },
-    { key: "api", label: "Board API", icon: <Wifi className="h-3 w-3" /> },
+    { key: "dns", label: t("boardDnsLabel"), icon: <Globe className="h-3 w-3" /> },
+    { key: "port", label: t("boardPortLabel"), icon: <Server className="h-3 w-3" /> },
+    { key: "api", label: t("boardApiLabel"), icon: <Wifi className="h-3 w-3" /> },
   ];
 
   return (
@@ -661,7 +665,7 @@ function VestaboardDiagnosticRow({
         <DiagnosticStatusIcon ok={vestaboard.ok} />
         <div className="flex items-center gap-1.5 font-medium">
           <Server className="h-3.5 w-3.5" />
-          Vestaboard (Local API)
+          {t("vestaboardLocalApiLabel")}
         </div>
       </div>
       <div className="space-y-1 pl-1 border-l-2 border-muted ml-[11px]">
@@ -674,7 +678,7 @@ function VestaboardDiagnosticRow({
                 <div className="h-3 w-3 rounded-full border border-muted-foreground/30 flex-shrink-0" />
                 {icon}
                 <span>{label}</span>
-                <span className="text-muted-foreground">— skipped</span>
+                <span className="text-muted-foreground">— {t("skipped")}</span>
               </div>
             );
           }
@@ -691,13 +695,13 @@ function VestaboardDiagnosticRow({
                 )}
                 {step.ok ? (
                   <span className="text-muted-foreground ml-1">
-                    {key === "dns" && step.hostname ? `${step.hostname} resolved` : ""}
-                    {key === "port" && step.port ? `port ${step.port} open` : ""}
+                    {key === "dns" && step.hostname ? t("hostnameResolved", { hostname: step.hostname }) : ""}
+                    {key === "port" && step.port ? t("portOpen", { port: step.port }) : ""}
                     {key === "api" && step.status_code ? `HTTP ${step.status_code}` : ""}
                   </span>
                 ) : (
                   <span className="text-destructive ml-1">
-                    {step.error ?? (step.status_code ? `HTTP ${step.status_code}` : "failed")}
+                    {step.error ?? (step.status_code ? `HTTP ${step.status_code}` : t("failed"))}
                   </span>
                 )}
               </div>

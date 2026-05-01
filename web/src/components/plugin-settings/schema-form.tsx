@@ -17,6 +17,7 @@ import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { cn } from "@/lib/utils";
 import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
 import { Plus, Trash2, Eye, EyeOff, MapPin, Loader2, ChevronRight, ChevronDown, Zap, Copy, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // JSON Schema types (simplified for our use case)
 interface SchemaProperty {
@@ -222,30 +223,31 @@ interface NumberFieldProps extends FieldProps {
 }
 
 function NumberField({ name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading }: NumberFieldProps) {
+  const t = useTranslations("schemaForm");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   // Helper function to get user-friendly error message
   const getErrorMessage = (error: GeolocationPositionError | null | undefined): string => {
     if (!error) {
-      return "Failed to get your location. Please check that Location Services are enabled in System Settings → Privacy & Security → Location Services, and that Safari has permission to access your location.";
+      return t("geoErrorGeneric");
     }
 
     const errorCode = error.code;
-    let message = "Failed to get your location. ";
+    let message = t("geoErrorPrefix") + " ";
     
     if (errorCode === 1) {
-      message += "Location permission denied. Please enable location access in Safari settings (Safari → Settings → Websites → Location Services).";
+      message += t("geoErrorPermissionDenied");
     } else if (errorCode === 2) {
       const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       if (isMacOS) {
-        message += "Location information unavailable. On macOS, Wi-Fi must be enabled for location services to work, even if you're connected via Ethernet. Please: 1) Enable Wi-Fi in System Settings, 2) Ensure Location Services is enabled in System Settings → Privacy & Security → Location Services, 3) Wait a few moments for location to be determined, then try again.";
+        message += t("geoErrorUnavailableMac");
       } else {
-        message += "Location information unavailable. This usually means your device cannot determine its location. Try: 1) Ensure Location Services is enabled, 2) Make sure Wi-Fi is enabled (needed for location on some systems), 3) Try moving to a different location or wait a few moments and try again, 4) Restart your browser if the issue persists.";
+        message += t("geoErrorUnavailableGeneric");
       }
     } else if (errorCode === 3) {
-      message += "Location request timed out. Please try again.";
+      message += t("geoErrorTimeout");
     } else {
-      message += "Please check that Location Services are enabled in System Settings → Privacy & Security → Location Services, and that Safari has permission to access your location.";
+      message += t("geoErrorOther");
     }
     
     return message;
@@ -255,17 +257,17 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
     // Check if we're on HTTPS or localhost (required for Safari)
     const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (!isSecure) {
-      toast.error("Geolocation requires HTTPS or localhost. Please use a secure connection.");
+      toast.error(t("geoRequiresHttps"));
       return;
     }
     
     if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
+      toast.error(t("geoNotSupported"));
       return;
     }
 
     if (!onLocationRequest) {
-      toast.error("Location request callback not available");
+      toast.error(t("geoNoCallback"));
       return;
     }
 
@@ -277,7 +279,7 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
         setIsGettingLocation(false);
         if (onLocationRequest && position.coords) {
           onLocationRequest(position.coords.latitude, position.coords.longitude);
-          toast.success("Location obtained successfully");
+          toast.success(t("geoSuccess"));
         }
       },
       (error: GeolocationPositionError) => {
@@ -359,7 +361,7 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
           onClick={handleLocationClick}
           disabled={disabled || isGettingLocation || (isLocationLoading ?? false)}
           tabIndex={-1}
-          title="Use my current location"
+          title={t("useMyCurrentLocation")}
         >
           {(isGettingLocation || isLocationLoading) ? (
             <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
@@ -401,6 +403,7 @@ interface WsdotRoutePickerProps extends FieldProps {
 }
 
 function WsdotRoutePicker({ name, property: _property, value, onChange, disabled, maxItems = 4 }: WsdotRoutePickerProps) {
+  const t = useTranslations("schemaForm");
   const items = Array.isArray(value) ? value : [];
   const routeEntries = items.map((item) => (item && typeof item === "object" && "route_id" in item ? Number((item as { route_id: number }).route_id) : 0));
 
@@ -433,7 +436,7 @@ function WsdotRoutePicker({ name, property: _property, value, onChange, disabled
             disabled={disabled}
           >
             <SelectTrigger id={`${name}-${index}`} className="flex-1">
-              <SelectValue placeholder="Select a ferry route" />
+              <SelectValue placeholder={t("selectFerryRoute")} />
             </SelectTrigger>
             <SelectContent>
               {WSDOT_FERRY_ROUTES.map((route) => (
@@ -451,7 +454,7 @@ function WsdotRoutePicker({ name, property: _property, value, onChange, disabled
               onClick={() => handleRemove(index)}
               disabled={disabled}
               className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-              aria-label="Remove route"
+              aria-label={t("removeRoute")}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -468,7 +471,7 @@ function WsdotRoutePicker({ name, property: _property, value, onChange, disabled
           className="w-full"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add ferry route
+          {t("addFerryRoute")}
         </Button>
       )}
     </div>
@@ -484,6 +487,7 @@ interface ParkRideEntry {
 interface DisneyParksTimesPickerProps extends FieldProps {}
 
 function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParksTimesPickerProps) {
+  const t = useTranslations("schemaForm");
   const [parks, setParks] = useState<QueueTimesPark[]>([]);
   const [parksLoading, setParksLoading] = useState(true);
   const [ridesByParkId, setRidesByParkId] = useState<Record<number, QueueTimesRide[]>>({});
@@ -567,7 +571,7 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Loading parks…
+        {t("loadingParks")}
       </div>
     );
   }
@@ -583,7 +587,7 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
               disabled={disabled}
             >
               <SelectTrigger id={`${name}-park-${index}`} className="flex-1">
-                <SelectValue placeholder="Select park" />
+                <SelectValue placeholder={t("selectPark")} />
               </SelectTrigger>
               <SelectContent>
                 {parks.map((p) => (
@@ -600,14 +604,14 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
               onClick={() => handleRemovePark(index)}
               disabled={disabled}
               className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-              aria-label="Remove park"
+              aria-label={t("removePark")}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
           {entry.park_id > 0 && (
             <>
-              <div className="text-xs text-muted-foreground">Rides (shown by name)</div>
+              <div className="text-xs text-muted-foreground">{t("ridesByName")}</div>
               <div className="flex flex-wrap gap-1">
                 {(entry.ride_ids || []).map((rid, rideIndex) => (
                   <span
@@ -620,7 +624,7 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
                       onClick={() => removeRideAt(index, rideIndex)}
                       disabled={disabled}
                       className="rounded hover:bg-muted-foreground/20"
-                      aria-label="Remove ride"
+                      aria-label={t("removeRide")}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -633,7 +637,7 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
                 disabled={disabled}
               >
                 <SelectTrigger className="w-full max-w-xs">
-                  <SelectValue placeholder="Add ride…" />
+                  <SelectValue placeholder={t("addRide")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(ridesByParkId[entry.park_id] ?? []).filter(
@@ -658,7 +662,7 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
         className="w-full"
       >
         <Plus className="h-4 w-4 mr-2" />
-        Add park
+        {t("addPark")}
       </Button>
     </div>
   );
@@ -802,6 +806,7 @@ interface GenericDataMappingHelperProps extends FieldProps {
 }
 
 function GenericDataMappingHelper({ name: _name, property: _property, value, onChange, disabled, allValues }: GenericDataMappingHelperProps) {
+  const t = useTranslations("schemaForm");
   const [previewData, setPreviewData] = useState<unknown>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -811,7 +816,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
   const handleFetchPreview = async () => {
     const url = (allValues.url as string) || "";
     if (!url) {
-      toast.error("Enter a Data URL first, then click Test & Preview");
+      toast.error(t("enterDataUrlFirst"));
       return;
     }
 
@@ -827,11 +832,11 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
         body: (allValues.body as string) || undefined,
       });
       setPreviewData(result.data);
-      toast.success("Data fetched — browse the response below and click values to create mappings");
+      toast.success(t("dataFetched"));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setPreviewError(msg);
-      toast.error(`Fetch failed: ${msg}`);
+      toast.error(t("fetchFailed", { error: msg }));
     } finally {
       setPreviewLoading(false);
     }
@@ -848,7 +853,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
     }
     const newMappings = [...mappings, { variable: finalVar, path, default: "" }];
     onChange(newMappings);
-    toast.success(`Added mapping: ${finalVar} ← ${path}`);
+    toast.success(t("addedMapping", { variable: finalVar, path }));
   };
 
   const handleAdd = () => {
@@ -914,10 +919,10 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
           ) : (
             <Zap className="h-4 w-4" />
           )}
-          Test &amp; Preview
+          {t("testAndPreview")}
         </Button>
         <p className="text-xs text-muted-foreground self-center">
-          Fetch the URL and browse the response to build mappings
+          {t("testAndPreviewHelp")}
         </p>
       </div>
 
@@ -932,7 +937,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
       {previewData && (
         <div className="border rounded-lg p-3 bg-muted/20 max-h-64 overflow-auto">
           <div className="text-xs font-medium text-muted-foreground mb-2">
-            Response — click a value to add it as a mapping
+            {t("responseClickToAdd")}
           </div>
           <JsonTreeNode data={previewData} path="" onSelect={handlePathSelect} defaultExpanded={true} />
         </div>
@@ -946,21 +951,21 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
             <div className="flex-1 grid gap-2 p-3 border rounded-lg bg-muted/30">
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
-                  <Label className="text-xs">Variable Name</Label>
+                  <Label className="text-xs">{t("variableName")}</Label>
                   <Input
                     value={mapping.variable || ""}
                     onChange={(e) => handleItemChange(index, "variable", e.target.value)}
-                    placeholder="e.g. temperature"
+                    placeholder={t("variableNamePlaceholder")}
                     disabled={disabled}
                     className="h-8 text-sm"
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-xs">Data Path</Label>
+                  <Label className="text-xs">{t("dataPath")}</Label>
                   <Input
                     value={mapping.path || ""}
                     onChange={(e) => handleItemChange(index, "path", e.target.value)}
-                    placeholder="e.g. current.temp_f"
+                    placeholder={t("dataPathPlaceholder")}
                     disabled={disabled}
                     className="h-8 text-sm"
                   />
@@ -968,18 +973,18 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
-                  <Label className="text-xs">Default Value</Label>
+                  <Label className="text-xs">{t("defaultValue")}</Label>
                   <Input
                     value={mapping.default || ""}
                     onChange={(e) => handleItemChange(index, "default", e.target.value)}
-                    placeholder="fallback if path not found"
+                    placeholder={t("defaultValuePlaceholder")}
                     disabled={disabled}
                     className="h-8 text-sm"
                   />
                 </div>
                 {preview !== null && (
                   <div className="grid gap-1">
-                    <Label className="text-xs text-green-700 dark:text-green-400">Preview</Label>
+                    <Label className="text-xs text-green-700 dark:text-green-400">{t("preview")}</Label>
                     <div className="h-8 flex items-center text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 rounded-md px-2 truncate border border-green-200 dark:border-green-800">
                       {preview}
                     </div>
@@ -987,7 +992,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Use in templates: <code className="bg-muted px-1 rounded">{"{{"}generic_data.{mapping.variable || "..."}{"}}"}</code>
+                {t("useInTemplates")} <code className="bg-muted px-1 rounded">{"{{"}generic_data.{mapping.variable || "..."}{"}}"}</code>
               </p>
             </div>
             <Button
@@ -1013,7 +1018,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
         className="w-full"
       >
         <Plus className="h-4 w-4 mr-2" />
-        Add mapping
+        {t("addMapping")}
       </Button>
     </div>
   );
@@ -1277,6 +1282,7 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
  * - Nested object fields
  */
 export function SchemaForm({ schema, values, onChange, disabled, className }: SchemaFormProps) {
+  const t = useTranslations("schemaForm");
   const handleFieldChange = useCallback(
     (fieldName: string, fieldValue: unknown) => {
       onChange({ ...values, [fieldName]: fieldValue });
@@ -1303,7 +1309,7 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
   if (!schema.properties) {
     return (
       <div className="text-sm text-muted-foreground">
-        No schema properties defined
+        {t("noSchemaProperties")}
       </div>
     );
   }
@@ -1347,12 +1353,12 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
             )}
             {showLocationButton && (
               <p className="text-xs text-muted-foreground">
-                Click the location icon to use your current location
+                {t("clickLocationIcon")}
               </p>
             )}
             {shouldDisableDigitColor && (
               <p className="text-xs text-muted-foreground">
-                Digit color is not used when a color pattern is selected
+                {t("digitColorNotUsed")}
               </p>
             )}
           </div>

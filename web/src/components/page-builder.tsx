@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { queryKeys } from "@/hooks/use-board";
 import {
   ArrowLeft,
@@ -81,6 +82,8 @@ interface DraftData {
 }
 
 export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", onClose, onSave }: PageBuilderProps) {
+  const t = useTranslations("pageBuilder");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
 
   // Fetch board settings for display type
@@ -141,7 +144,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const disableLiveOutput = useCallback(() => {
     setLiveOutputEnabled(false);
     lastLiveSentPreview.current = null;
-    toast.info("Live output turned off due to inactivity");
+    toast.info(t("toastLiveOutputOff"));
   }, []);
 
   // Debounced state (for expensive operations)
@@ -480,7 +483,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: 'active' });
       
-      toast.success(pageId ? "Page updated" : "Page created");
+      toast.success(pageId ? t("toastPageUpdated") : t("toastPageCreated"));
       onSave?.();
       onClose();
     },
@@ -517,16 +520,16 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       
       // Show appropriate message
       if (data.default_page_created) {
-        toast.success("Page deleted. A default welcome page was created.");
+        toast.success(t("toastDeletedDefaultCreated"));
       } else if (data.active_page_updated) {
-        toast.success("Page deleted. Active display updated.");
+        toast.success(t("toastDeletedActiveUpdated"));
       } else {
-        toast.success("Page deleted");
+        toast.success(t("toastPageDeleted"));
       }
       onClose();
     },
     onError: () => {
-      toast.error("Failed to delete page");
+      toast.error(t("toastDeleteFailed"));
     },
   });
 
@@ -558,10 +561,10 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         setDeviceType(data.device_type);
       }
 
-      toast.success(`Synced from "${data.page_name}"`);
+      toast.success(t("toastSyncedFrom", { name: data.page_name }));
     },
     onError: () => {
-      toast.error("No active display to sync from");
+      toast.error(t("toastNoActiveDisplay"));
     },
   });
 
@@ -704,7 +707,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     },
     onError: (error: Error) => {
       console.error('[LiveOutput] Send failed:', error.message);
-      toast.error("Failed to send to board");
+      toast.error(t("toastLiveSendFailed"));
     },
   });
 
@@ -836,37 +839,37 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                   size="icon"
                   className="h-8 w-8 shrink-0"
                   onClick={onClose}
-                  aria-label="Back to Pages"
+                  aria-label={t("backToPages")}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <CardTitle className="text-base sm:text-lg truncate">
-                  {pageId ? "Edit Page" : "Create Page"}
+                  {pageId ? t("editPage") : t("createPage")}
                 </CardTitle>
               </div>
               <TooltipProvider>
               <div className="flex items-center gap-1.5">
                 {/* Editor mode toggle */}
-                <div className="flex items-center border rounded-md" role="group" aria-label="Editor mode">
+                <div className="flex items-center border rounded-md" role="group" aria-label={t("editorModeAriaLabel")}>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => handleEditorModeChange("rich")}
                     className={`h-7 px-2 text-[11px] rounded-r-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
-                    aria-label="Rich Editor"
+                    aria-label={t("richEditorAriaLabel")}
                     aria-pressed={editorMode === "rich"}
                   >
-                    Rich
+                    {t("richEditor")}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => handleEditorModeChange("plain")}
                     className={`h-7 px-2 text-[11px] rounded-l-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
-                    aria-label="Plain Text"
+                    aria-label={t("plainTextAriaLabel")}
                     aria-pressed={editorMode === "plain"}
                   >
-                    Plain
+                    {t("plainEditor")}
                   </Button>
                 </div>
                 {/* Delete button - only show when editing */}
@@ -875,33 +878,36 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            aria-label={t("deletePageTooltip")}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Delete Page</p>
+                        <p>{t("deletePageTooltip")}</p>
                       </TooltipContent>
                     </Tooltip>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Page</AlertDialogTitle>
+                        <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete &quot;{name || "this page"}&quot;? This action cannot be undone.
+                          {name
+                            ? t("deletePageConfirmation", { pageName: name })
+                            : t("deletePageConfirmationGeneric")}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => deleteMutation.mutate()}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                          {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -916,14 +922,14 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       className="h-8 gap-1.5 px-3"
                       onClick={() => saveMutation.mutate()}
                       disabled={!name.trim() || saveMutation.isPending}
-                      aria-label="Save Page"
+                      aria-label={t("savePageAriaLabel")}
                     >
                       <Save className="h-3.5 w-3.5" />
-                      <span className="text-xs">{saveMutation.isPending ? "Saving..." : "Save"}</span>
+                      <span className="text-xs">{saveMutation.isPending ? tCommon("saving") : t("savePage")}</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Save Page</p>
+                    <p>{t("savePageTooltip")}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -937,19 +943,19 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
             {draftRestored && (
               <Alert className="bg-info/10 border-info/20">
                 <AlertDescription className="text-sm">
-                  Draft restored from your previous session. Your work has been automatically saved.
+                  {t("draftRestored")}
                 </AlertDescription>
               </Alert>
             )}
-            
+
             {/* Page name */}
             <div className="space-y-1.5">
-              <label className="text-xs sm:text-sm font-medium">Page Name</label>
+              <label className="text-xs sm:text-sm font-medium">{t("pageNameLabel")}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Custom Page"
+                placeholder={t("pageNamePlaceholder")}
                 className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background"
               />
             </div>
@@ -1019,7 +1025,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       newWrapStates[lineIndex] = wrapEnabled;
                       setLineWrapEnabled(newWrapStates);
                     }}
-                    placeholder="Type template syntax like {{weather.temp}} or {{red}} for color tiles"
+                    placeholder={t("richEditorPlaceholder")}
                     showAlignmentControls={true}
                     showToolbar={true}
                     boardWidth={dims.cols}
@@ -1036,7 +1042,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     onChange={(newValue) => {
                       setTemplateLines(newValue.split('\n'));
                     }}
-                    placeholder="Type your template text using {{variable}} syntax for dynamic data"
+                    placeholder={t("plainEditorPlaceholder")}
                     boardLines={numLines}
                     boardWidth={dims.cols}
                   />
@@ -1046,10 +1052,9 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
               {/* Line count validation warning */}
               {lineCount > numLines && (
                 <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
-                  <span className="font-medium shrink-0">Warning:</span>
+                  <span className="font-medium shrink-0">{t("warningLabel")}</span>
                   <span>
-                    Template has {lineCount} lines but the board only displays {numLines}.
-                    Lines beyond {numLines} will be ignored.
+                    {t("lineCountWarning", { lineCount, maxLines: numLines })}
                   </span>
                 </div>
               )}
@@ -1057,12 +1062,12 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
               {/* Live preview */}
               <div className="mt-4">
                 <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
-                  <label className="text-xs sm:text-sm font-medium">Preview</label>
+                  <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] text-muted-foreground mr-0.5">Board color</span>
+                    <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>
                     <button
                       onClick={() => setPreviewBoardColor("black")}
-                      aria-label="Preview as black board"
+                      aria-label={t("previewAsBlack")}
                       className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors ${
                         effectiveBoardColor === "black"
                           ? "border-primary ring-1 ring-primary/30"
@@ -1071,7 +1076,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     />
                     <button
                       onClick={() => setPreviewBoardColor("white")}
-                      aria-label="Preview as white board"
+                      aria-label={t("previewAsWhite")}
                       className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors ${
                         effectiveBoardColor === "white"
                           ? "border-primary ring-1 ring-primary/30"
@@ -1122,17 +1127,17 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       id="live-output-toggle"
                       checked={liveOutputEnabled}
                       onCheckedChange={setLiveOutputEnabled}
-                      aria-label="Toggle live output to board"
+                      aria-label={t("liveOutputAriaLabel")}
                     />
                     <label
                       htmlFor="live-output-toggle"
                       className="flex items-center gap-1.5 text-xs sm:text-sm font-medium cursor-pointer select-none"
                     >
                       <Radio className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-destructive animate-pulse" : "text-muted-foreground"}`} />
-                      Live Output
+                      {t("liveOutput")}
                     </label>
                     {liveSendMutation.isPending && (
-                      <span className="text-[10px] text-muted-foreground">Sending...</span>
+                      <span className="text-[10px] text-muted-foreground">{tCommon("sending")}</span>
                     )}
                   </div>
 
@@ -1141,8 +1146,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                       value={selectedBoardId}
                       onValueChange={setSelectedBoardId}
                     >
-                      <SelectTrigger className="h-7 w-[140px] text-xs" aria-label="Select board for live output">
-                        <SelectValue placeholder="Select board" />
+                      <SelectTrigger className="h-7 w-[140px] text-xs" aria-label={t("selectBoardAriaLabel")}>
+                        <SelectValue placeholder={t("selectBoardPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
                         {boardSettings.boards.map((board: BoardInstance) => (

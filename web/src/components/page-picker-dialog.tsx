@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, GalleryHorizontalEnd, LayoutTemplate, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useTranslations } from "next-intl";
 import type { Carousel } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
 
@@ -32,6 +33,7 @@ export function PagePickerDialog({
   onSelect,
   allowNone = false,
 }: PagePickerDialogProps) {
+  const t = useTranslations("pagePickerDialog");
   const hasCarousels = carousels.length > 0;
   const defaultTab = selectedPageId && isCarouselId(selectedPageId) ? "carousels" : "pages";
 
@@ -43,7 +45,7 @@ export function PagePickerDialog({
         selectedPageId === null ? "border-brand bg-muted/50" : ""
       }`}
     >
-      <span className="text-sm font-medium">None (no default)</span>
+      <span className="text-sm font-medium">{t("noneNoDefault")}</span>
       {selectedPageId === null && (
         <Check className="h-4 w-4 text-brand" aria-hidden="true" />
       )}
@@ -51,7 +53,7 @@ export function PagePickerDialog({
   );
 
   const pagesList = (
-    <div className="space-y-2" role="listbox" aria-label="Pages">
+    <div className="space-y-2" role="listbox" aria-label={t("pagesAriaLabel")}>
       {pages.map((page) => (
         <button
           key={page.id}
@@ -79,7 +81,7 @@ export function PagePickerDialog({
   );
 
   const carouselsList = (
-    <div className="space-y-2" role="listbox" aria-label="Carousels">
+    <div className="space-y-2" role="listbox" aria-label={t("carouselsAriaLabel")}>
       {carousels.map((carousel) => (
         <button
           key={carousel.id}
@@ -94,7 +96,7 @@ export function PagePickerDialog({
             <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">{carousel.name}</span>
             <Badge variant="secondary" className="text-[10px]">
-              {carousel.page_ids.length} {carousel.page_ids.length === 1 ? "page" : "pages"}
+              {t("pageCount", { count: carousel.page_ids.length })}
             </Badge>
           </div>
           {selectedPageId === carousel.id && (
@@ -112,8 +114,8 @@ export function PagePickerDialog({
         {pages.length === 0 ? (
           <EmptyState
             icon={FileText}
-            title="No pages yet"
-            description="Create a page from the Pages screen to select it here."
+            title={t("noPagesTitle")}
+            description={t("noPagesDescription")}
           />
         ) : (
           pagesList
@@ -129,19 +131,19 @@ export function PagePickerDialog({
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">
             <LayoutTemplate className="h-4 w-4" />
-            Pages ({pages.length})
+            {t("pagesTab", { count: pages.length })}
           </TabsTrigger>
           <TabsTrigger value="carousels" className="flex-1 gap-1.5">
             <GalleryHorizontalEnd className="h-4 w-4" />
-            Carousels ({carousels.length})
+            {t("carouselsTab", { count: carousels.length })}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pages">
           {pages.length === 0 ? (
             <EmptyState
               icon={FileText}
-              title="No pages yet"
-              description="Create a page from the Pages screen to select it here."
+              title={t("noPagesTitle")}
+              description={t("noPagesDescription")}
             />
           ) : (
             pagesList

@@ -65,6 +65,7 @@ import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
 import { useCarousels } from "@/hooks/use-board";
+import { useTranslations } from "next-intl";
 
 type ViewMode = "list" | "calendar";
 
@@ -72,6 +73,8 @@ const SCHEDULE_VIEW_MODE_KEY = "schedule-view-mode";
 const NO_DEFAULT_PAGE = "__none__";
 
 export default function SchedulePage() {
+  const t = useTranslations("schedule");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   
   // Initialize viewMode from localStorage if available
@@ -147,10 +150,10 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-      toast.success(schedulesData?.enabled ? "Schedule disabled" : "Schedule enabled");
+      toast.success(schedulesData?.enabled ? t("toastScheduleDisabled") : t("toastScheduleEnabled"));
     },
     onError: () => {
-      toast.error("Failed to toggle schedule");
+      toast.error(t("toastToggleFailed"));
     },
   });
 
@@ -163,12 +166,12 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-      toast.success("Schedule created");
+      toast.success(t("toastCreated"));
       setShowForm(false);
       setPrefillData(null);
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to create schedule");
+      toast.error(error.message || t("toastCreateFailed"));
       throw error;
     },
   });
@@ -182,12 +185,12 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-      toast.success("Schedule updated");
+      toast.success(t("toastUpdated"));
       setShowForm(false);
       setEditingSchedule(null);
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update schedule");
+      toast.error(error.message || t("toastUpdateFailed"));
       throw error;
     },
   });
@@ -200,11 +203,11 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-      toast.success("Schedule deleted");
+      toast.success(t("toastDeleted"));
       setDeleteScheduleId(null);
     },
     onError: () => {
-      toast.error("Failed to delete schedule");
+      toast.error(t("toastDeleteFailed"));
     },
   });
 
@@ -216,10 +219,10 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-      toast.success("Default page updated");
+      toast.success(t("toastDefaultPageUpdated"));
     },
     onError: () => {
-      toast.error("Failed to set default page");
+      toast.error(t("toastDefaultPageFailed"));
     },
   });
 
@@ -288,7 +291,7 @@ export default function SchedulePage() {
   const getPageName = (pageId: string): string => {
     if (isCarouselId(pageId)) {
       const carousel = carouselsData?.carousels?.find((c) => c.id === pageId);
-      return carousel ? `${carousel.name} (carousel)` : pageId;
+      return carousel ? `${carousel.name} ${t("carouselSuffix")}` : pageId;
     }
     return pagesData?.pages.find((p) => p.id === pageId)?.name || pageId;
   };
@@ -304,9 +307,9 @@ export default function SchedulePage() {
     const hasAllWeekends = weekends.every(d => days.includes(d));
     const hasAllDays = allDays.every(d => days.includes(d));
     
-    if (hasAllDays) return "Every day";
-    if (hasAllWeekdays && days.length === 5) return "Weekdays";
-    if (hasAllWeekends && days.length === 2) return "Weekends";
+    if (hasAllDays) return t("everyDay");
+    if (hasAllWeekdays && days.length === 5) return t("weekdays");
+    if (hasAllWeekends && days.length === 2) return t("weekends");
     
     return days
       .map(d => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3))
@@ -343,9 +346,9 @@ export default function SchedulePage() {
       {/* ── Page header ── */}
       <PageHeader
         icon={CalendarIcon}
-        title="Schedule"
+        title={t("title")}
         className="flex-shrink-0"
-        description={`Automate page rotation by time and day · ${Intl.DateTimeFormat().resolvedOptions().timeZone}`}
+        description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
       />
 
       {/* ── Compact toolbar: everything in one row ── */}
@@ -362,7 +365,7 @@ export default function SchedulePage() {
                 className="px-3"
               >
                 <List className="h-4 w-4 mr-1.5" />
-                List
+                {t("listView")}
               </Button>
               <Button
                 variant={viewMode === "calendar" ? "secondary" : "ghost"}
@@ -371,7 +374,7 @@ export default function SchedulePage() {
                 className="px-3"
               >
                 <CalendarDays className="h-4 w-4 mr-1.5" />
-                Calendar
+                {t("calendarView")}
               </Button>
             </div>
           }
@@ -381,12 +384,12 @@ export default function SchedulePage() {
               {boards.length > 1 && (
                 <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
                   <SelectTrigger data-testid="board-selector" className="h-8 w-[130px] text-xs">
-                    <SelectValue placeholder="Board" />
+                    <SelectValue placeholder={t("boardSelectorLabel")} />
                   </SelectTrigger>
                   <SelectContent>
                     {boards.map((b: { id: string; name?: string }) => (
                       <SelectItem key={b.id} value={b.id}>
-                        {b.name || `Board ${b.id.slice(0, 8)}`}
+                        {b.name || t("boardFallback", { id: b.id.slice(0, 8) })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -398,7 +401,7 @@ export default function SchedulePage() {
                 <TooltipTrigger asChild>
                   <div data-testid="schedule-enabled-toggle" className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer" onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}>
                     <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
-                    <span className="text-xs font-medium">{scheduleEnabled ? "On" : "Off"}</span>
+                    <span className="text-xs font-medium">{scheduleEnabled ? tCommon("on") : tCommon("off")}</span>
                     <Switch
                       checked={scheduleEnabled}
                       onCheckedChange={toggleSchedule.mutate}
@@ -409,7 +412,7 @@ export default function SchedulePage() {
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  {scheduleEnabled ? "Disable schedule mode" : "Enable schedule mode"}
+                  {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
                 </TooltipContent>
               </Tooltip>
 
@@ -421,18 +424,18 @@ export default function SchedulePage() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <SelectTrigger data-testid="gap-default-select" className="h-8 w-[150px] text-xs">
-                      <SelectValue placeholder="Gap default…" />
+                      <SelectValue placeholder={t("gapDefaultPlaceholder")} />
                     </SelectTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Default page shown during schedule gaps</TooltipContent>
+                  <TooltipContent side="bottom">{t("gapDefaultTooltip")}</TooltipContent>
                 </Tooltip>
                 <SelectContent>
-                  <SelectItem value={NO_DEFAULT_PAGE}>No default</SelectItem>
+                  <SelectItem value={NO_DEFAULT_PAGE}>{t("noDefault")}</SelectItem>
                   {pagesData?.pages.map((page) => (
                     <SelectItem key={page.id} value={page.id}>{page.name}</SelectItem>
                   ))}
                   {carouselsData?.carousels?.map((carousel) => (
-                    <SelectItem key={carousel.id} value={carousel.id}>{carousel.name} (carousel)</SelectItem>
+                    <SelectItem key={carousel.id} value={carousel.id}>{carousel.name} {t("carouselSuffix")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -458,27 +461,27 @@ export default function SchedulePage() {
                       </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      {hasOverlaps ? `${issueCount} schedule conflict${issueCount !== 1 ? "s" : ""}` : `${issueCount} schedule gap${issueCount !== 1 ? "s" : ""}`}
+                      {hasOverlaps ? t("conflictsCountTooltip", { count: issueCount }) : t("gapsCountTooltip", { count: issueCount })}
                     </TooltipContent>
                   </Tooltip>
                   <DropdownMenuContent align="end" className="w-80">
                     <DropdownMenuLabel className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}>
-                      {hasOverlaps ? "Schedule Conflicts" : "Schedule Gaps"}
+                      {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {hasOverlaps
                       ? validation?.overlaps?.map((overlap, i) => (
                           <DropdownMenuItem key={i} className="text-xs whitespace-normal cursor-default focus:bg-transparent" variant="destructive">
-                            {overlap?.conflict_description || "Unknown conflict"}
+                            {overlap?.conflict_description || t("unknownConflict")}
                           </DropdownMenuItem>
                         ))
                       : (
                         <>
                           <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
-                            {issueCount} gap{issueCount !== 1 ? "s" : ""} in schedule.{" "}
+                            {t("gapsInSchedule", { count: issueCount })}{" "}
                             {defaultPageId
-                              ? <>Default: <span className="font-medium">{getPageName(defaultPageId)}</span></>
-                              : <span className="text-muted-foreground">No default page set.</span>}
+                              ? <>{t("defaultLabel")} <span className="font-medium">{getPageName(defaultPageId)}</span></>
+                              : <span className="text-muted-foreground">{t("noDefaultPageSet")}</span>}
                           </DropdownMenuItem>
                           {validation?.gaps && validation.gaps.length > 0 && (
                             <>
@@ -502,7 +505,7 @@ export default function SchedulePage() {
 
               <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
                 <Plus className="h-4 w-4 mr-1" />
-                Add Schedule
+                {t("addSchedule")}
               </Button>
             </div>
           }
@@ -514,9 +517,9 @@ export default function SchedulePage() {
         <div className="flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0">
           <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
           <span>
-            One or more schedules use sunrise/sunset times, but no location is configured — showing fallback times instead.{" "}
+            {t("locationWarning")}{" "}
             <Link href="/settings" className="font-medium underline underline-offset-2 hover:no-underline">
-              Configure location in Settings
+              {t("configureLocationLink")}
             </Link>
             .
           </span>
@@ -536,7 +539,7 @@ export default function SchedulePage() {
         /* Calendar card: grows to fill remaining space in the pinned layout */
         <Card className="flex-1 min-h-0 flex flex-col overflow-hidden animate-card-fade-in" style={{ animationDelay: "300ms" }}>
           <CardHeader className="flex-shrink-0 py-3">
-            <CardTitle className="text-base">Schedule Calendar</CardTitle>
+            <CardTitle className="text-base">{t("scheduleCalendar")}</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 overflow-hidden pt-0">
             <ScheduleCalendarView
@@ -556,9 +559,9 @@ export default function SchedulePage() {
         <Sheet open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
           <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>{editingSchedule ? "Edit" : "Add"} Schedule</SheetTitle>
+              <SheetTitle>{editingSchedule ? t("editScheduleTitle") : t("addScheduleTitle")}</SheetTitle>
               <SheetDescription>
-                {editingSchedule ? "Update the schedule entry details" : "Create a new schedule entry"}
+                {editingSchedule ? t("editScheduleDescription") : t("addScheduleDescription")}
               </SheetDescription>
             </SheetHeader>
             {pagesData && (
@@ -586,17 +589,17 @@ export default function SchedulePage() {
         <AlertDialog open={!!deleteScheduleId} onOpenChange={() => setDeleteScheduleId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
+              <AlertDialogTitle>{t("deleteScheduleTitle")}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete this schedule? This action cannot be undone.
+                {t("deleteScheduleConfirmation")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => deleteScheduleId && deleteSchedule.mutate(deleteScheduleId)}
               >
-                Delete
+                {tCommon("delete")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
