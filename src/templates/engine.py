@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from ..plugins import get_plugin_registry
 from ..text_utils import extract_alignment_from_line
 from ..devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
-from .expressions import render_expressions
+from .expressions import render_expressions, validate_expression, find_formulas
 
 logger = logging.getLogger(__name__)
 
@@ -1334,6 +1334,9 @@ class TemplateEngine:
             # Check for invalid variable references
             for match in VAR_PATTERN.finditer(line):
                 expr = match.group(1).split('|')[0].strip()
+                # Skip formula bodies -- they're validated separately below.
+                if expr.startswith('='):
+                    continue
                 parts = expr.split('.')
                 if len(parts) >= 2:
                     source = parts[0].lower()
@@ -1343,7 +1346,21 @@ class TemplateEngine:
                             column=match.start(),
                             message=f"Unknown source: {source}"
                         ))
-        
+
+            # Validate inline formulas ({{= ... }}). This surfaces parse
+            # errors, unknown function names, unknown variable sources,
+            # and obvious arity mistakes at edit time so users don't have
+            # to wait for a render to discover problems.
+            for start, _end, body in find_formulas(line):
+                if not body:
+                    continue
+                for issue in validate_expression(body, known_sources=available_sources):
+                    errors.append(TemplateError(
+                        line=line_num,
+                        column=start,
+                        message=f"Formula {issue.code}: {issue.message}",
+                    ))
+
         return errors
     
     def _get_all_known_sources(self) -> set:

@@ -266,10 +266,16 @@ class TestErrorPropagation:
         assert evaluate("BOGUSFN(1)") == "#NAME?"
 
     def test_syntax_error(self):
-        assert evaluate("1 + ") == "#SYNTAX"
-        assert evaluate('"unterminated') == "#SYNTAX"
-        assert evaluate("(1 + 2") == "#SYNTAX"
-        assert evaluate("@@@") == "#SYNTAX"
+        # New: #SYNTAX errors include a character position when available.
+        assert evaluate("1 + ").startswith("#SYNTAX")
+        assert evaluate('"unterminated').startswith("#SYNTAX")
+        assert evaluate("(1 + 2").startswith("#SYNTAX")
+        assert evaluate("@@@").startswith("#SYNTAX")
+
+    def test_syntax_error_includes_position(self):
+        # Position is the character offset in the source.
+        assert evaluate("@@@") == "#SYNTAX:0"
+        assert evaluate("1 + @") == "#SYNTAX:4"
 
 
 class TestMath:
@@ -461,5 +467,353 @@ class TestPublicAPI:
                          "ROUND", "IFERROR", "CONCAT"):
             assert required in names
 
+    def test_list_builtins_matches_signatures(self):
+        # Every built-in must have signature metadata so the editor's
+        # function picker is never missing entries. This is the test that
+        # would have caught COALESCE/PROPER/etc. being added without docs.
+        from src.templates.expressions import _BUILTINS, _SIGNATURES  # noqa: PLC2701
+        assert set(_BUILTINS.keys()) == set(_SIGNATURES.keys())
+
     def test_error_value_repr(self):
         assert str(ErrorValue("#REF")) == "#REF"
+
+
+# --------------------------------------------------------------------------- #
+# New built-ins added in response to review feedback
+# --------------------------------------------------------------------------- #
+
+
+class TestCoalesce:
+    def test_returns_first_real_value(self):
+        assert evaluate('COALESCE(NULL, "", missing.x, "fallback")') == "fallback"
+
+    def test_passes_through_first_value(self):
+        assert evaluate('COALESCE("a", "b", "c")') == "a"
+
+    def test_skips_blanks_and_errors(self):
+        assert evaluate('COALESCE("", missing.x, 7)') == "7"
+
+    def test_returns_last_when_all_blank(self):
+        # Same shape as SQL: if every input is null/blank, hand back the
+        # final fallback so the user always sees *something*.
+        assert evaluate('COALESCE("", NULL, "—")') == "—"
+
+    def test_no_args(self):
+        assert evaluate("COALESCE()") == "#VALUE"
+
+    def test_single_arg(self):
+        assert evaluate('COALESCE("x")') == "x"
+
+
+class TestProper:
+    def test_simple(self):
+        assert evaluate('PROPER("hello world")') == "Hello World"
+
+    def test_handles_apostrophes(self):
+        # ``str.title()`` famously breaks on this; PROPER must not.
+        assert evaluate('PROPER("don\'t stop")') == "Don't Stop"
+
+    def test_mixed_case_input(self):
+        assert evaluate('PROPER("hELLO wORLD")') == "Hello World"
+
+    def test_numbers_and_punctuation(self):
+        assert evaluate('PROPER("foo-bar 123 baz")') == "Foo-Bar 123 Baz"
+
+
+class TestFindSearch:
+    def test_find_basic(self):
+        assert evaluate('FIND("lo", "hello")') == "4"
+
+    def test_find_missing_returns_value_error(self):
+        assert evaluate('FIND("xx", "hello")') == "#VALUE"
+
+    def test_find_is_case_sensitive(self):
+        assert evaluate('FIND("LO", "hello")') == "#VALUE"
+
+    def test_find_with_start(self):
+        assert evaluate('FIND("o", "foo bar foo", 5)') == "10"
+
+    def test_search_is_case_insensitive(self):
+        assert evaluate('SEARCH("LO", "hello")') == "4"
+
+    def test_search_missing_returns_zero(self):
+        # Template-friendly: 0 lets you do `IF(SEARCH(...) > 0, ...)`.
+        assert evaluate('SEARCH("xx", "hello")') == "0"
+
+
+class TestPowerSqrt:
+    def test_power_int_exp(self):
+        assert evaluate("POWER(2, 10)") == "1024"
+
+    def test_power_fractional(self):
+        assert evaluate("POWER(9, 0.5)") == "3"
+
+    def test_power_zero(self):
+        assert evaluate("POWER(0, 0)") == "1"
+
+    def test_power_negative_fractional_returns_num(self):
+        # math.pow(-1, 0.5) is a complex; surface as #NUM.
+        assert evaluate("POWER(-1, 0.5)") == "#NUM"
+
+    def test_sqrt(self):
+        assert evaluate("SQRT(16)") == "4"
+
+    def test_sqrt_zero(self):
+        assert evaluate("SQRT(0)") == "0"
+
+    def test_sqrt_negative(self):
+        assert evaluate("SQRT(-1)") == "#NUM"
+
+
+class TestRoundUpDown:
+    def test_roundup_positive(self):
+        assert evaluate("ROUNDUP(3.2)") == "4"
+        assert evaluate("ROUNDUP(3.21, 1)") == "3.3"
+
+    def test_roundup_negative_goes_away_from_zero(self):
+        # Excel ROUNDUP rounds away from zero, not toward +infinity.
+        assert evaluate("ROUNDUP(-3.2)") == "-4"
+
+    def test_rounddown_positive(self):
+        assert evaluate("ROUNDDOWN(3.7)") == "3"
+        assert evaluate("ROUNDDOWN(3.79, 1)") == "3.7"
+
+    def test_rounddown_negative_toward_zero(self):
+        assert evaluate("ROUNDDOWN(-3.7)") == "-3"
+
+
+# --------------------------------------------------------------------------- #
+# Validation API + engine integration
+# --------------------------------------------------------------------------- #
+
+
+class TestValidateExpression:
+    def test_clean_expression(self):
+        from src.templates.expressions import validate_expression
+        assert validate_expression("1 + 2") == []
+        assert validate_expression('IF(1 > 0, "y", "n")') == []
+
+    def test_syntax_error_reports_position(self):
+        from src.templates.expressions import validate_expression
+        issues = validate_expression("1 + @")
+        assert len(issues) == 1
+        assert issues[0].code == "#SYNTAX"
+        assert issues[0].pos == 4
+
+    def test_unknown_function(self):
+        from src.templates.expressions import validate_expression
+        issues = validate_expression("BOGUS(1)")
+        assert any(i.code == "#NAME?" for i in issues)
+
+    def test_arity_too_few(self):
+        from src.templates.expressions import validate_expression
+        issues = validate_expression("IF(TRUE)")
+        assert any(i.code == "#VALUE" and "expected at least 2" in i.message
+                   for i in issues)
+
+    def test_arity_too_many(self):
+        from src.templates.expressions import validate_expression
+        issues = validate_expression("ABS(1, 2, 3)")
+        assert any(i.code == "#VALUE" and "expected at most 1" in i.message
+                   for i in issues)
+
+    def test_unknown_source_with_known_set(self):
+        from src.templates.expressions import validate_expression
+        issues = validate_expression("missing.field", known_sources={"weather"})
+        assert any(i.code == "#REF" for i in issues)
+
+    def test_known_source_no_issue(self):
+        from src.templates.expressions import validate_expression
+        issues = validate_expression("weather.temperature",
+                                     known_sources={"weather"})
+        assert issues == []
+
+    def test_plugin_instance_with_colon(self):
+        from src.templates.expressions import validate_expression
+        # ``weather:home.temperature`` -- the source is "weather".
+        issues = validate_expression("weather:home.temperature",
+                                     known_sources={"weather"})
+        assert issues == []
+
+
+class TestFindFormulas:
+    def test_single_formula(self):
+        from src.templates.expressions import find_formulas
+        out = find_formulas("Hi {{= 1 + 1 }} there")
+        assert len(out) == 1
+        start, end, body = out[0]
+        assert body == "1 + 1"
+        assert start == 3
+
+    def test_multiple_formulas(self):
+        from src.templates.expressions import find_formulas
+        out = find_formulas("{{= 1 }} and {{= 2 }}")
+        assert [o[2] for o in out] == ["1", "2"]
+
+    def test_ignores_plain_vars(self):
+        from src.templates.expressions import find_formulas
+        assert find_formulas("hi {{plugin.field}} there") == []
+
+
+class TestFunctionSignatures:
+    def test_returns_dict(self):
+        from src.templates.expressions import function_signatures, list_builtins
+        sigs = function_signatures()
+        # Every built-in is documented.
+        assert set(sigs.keys()) == set(list_builtins())
+        # Each entry has the documented shape.
+        for name, info in sigs.items():
+            assert set(info.keys()) == {"category", "signature", "summary"}
+            assert info["signature"].startswith(name)
+            assert info["summary"]
+            assert info["category"] in {"logic", "math", "text",
+                                         "convert", "color"}
+
+    def test_categories_balance(self):
+        from src.templates.expressions import function_signatures
+        sigs = function_signatures()
+        # A sanity check that we have a useful spread.
+        cats = {info["category"] for info in sigs.values()}
+        assert cats >= {"logic", "math", "text", "convert", "color"}
+
+
+class TestEngineValidationIntegration:
+    @pytest.fixture
+    def engine(self):
+        e = TemplateEngine()
+        # Pretend "weather" is a known plugin so unknown-source errors
+        # actually trigger.
+        from unittest.mock import Mock
+        e._plugin_registry = Mock()
+        e._plugin_registry.plugins = {"weather": object()}
+        e._plugin_registry._manifests = {}
+        return e
+
+    def test_clean_template_no_errors(self, engine):
+        errs = engine.validate_template("{{= weather.temperature + 1 }}")
+        assert errs == []
+
+    def test_formula_syntax_error_surfaced(self, engine):
+        errs = engine.validate_template("{{= 1 + @ }}")
+        assert any("Formula #SYNTAX" in e.message for e in errs)
+
+    def test_formula_unknown_function_surfaced(self, engine):
+        errs = engine.validate_template("{{= BOGUSFN(1) }}")
+        assert any("Formula #NAME?" in e.message for e in errs)
+
+    def test_formula_unknown_source_surfaced(self, engine):
+        errs = engine.validate_template("{{= mystery.thing }}")
+        assert any("Formula #REF" in e.message and "mystery" in e.message
+                   for e in errs)
+
+    def test_formula_arity_error_surfaced(self, engine):
+        errs = engine.validate_template("{{= IF(TRUE) }}")
+        assert any("Formula #VALUE" in e.message for e in errs)
+
+    def test_plain_var_unknown_source_still_flagged(self, engine):
+        # Make sure formula validation doesn't break the existing path.
+        errs = engine.validate_template("{{mystery.thing}}")
+        assert any("Unknown source" in e.message for e in errs)
+
+    def test_formula_validation_does_not_double_count_plain_var(self, engine):
+        # The new "skip ``=``" guard in the plain-var loop must really skip.
+        errs = engine.validate_template("{{= weather.temperature }}")
+        assert errs == []
+
+
+class TestRenderLinesIntegration:
+    """End-to-end: a formula in a real ``render_lines`` call."""
+
+    @pytest.fixture
+    def engine(self):
+        return TemplateEngine()
+
+    def test_left_aligned_formula(self, engine):
+        ctx = {"weather": {"temperature": 72}}
+        out = engine.render_lines(
+            ["{{= weather.temperature & \"F\" }}"],
+            context=ctx,
+            line_metadata=[{"alignment": "left", "wrap": False}],
+            device_type="flagship",
+        )
+        line = out.split("\n")[0]
+        assert line.startswith("72F")
+        assert len(line) == 22
+
+    def test_centered_formula(self, engine):
+        out = engine.render_lines(
+            ['{{= "HI" }}'],
+            context={},
+            line_metadata=[{"alignment": "center", "wrap": False}],
+            device_type="flagship",
+        )
+        line = out.split("\n")[0]
+        # "HI" centered in 22 cols.
+        assert line.strip() == "HI"
+        assert "HI" in line[9:13]
+
+    def test_color_function_counts_as_one_tile(self, engine):
+        # Verify: a COLOR(...) tile inside a formula gets the same single-
+        # tile treatment that a static {{red}} would.
+        ctx = {"weather": {"temperature": 72}}
+        out = engine.render_lines(
+            ['{{= COLOR("red") }}{{= weather.temperature }}'],
+            context=ctx,
+            line_metadata=[{"alignment": "left", "wrap": False}],
+            device_type="flagship",
+        )
+        line = out.split("\n")[0]
+        # 1 color tile + "72" + 19 spaces of padding = 22 board cells.
+        assert engine._count_tiles(line) == 22
+
+
+class TestDeepNestingAndStress:
+    def test_deeply_nested_if(self):
+        # 30 levels of IF -- well within reasonable.
+        expr = "1"
+        for _ in range(30):
+            expr = f"IF(TRUE, {expr}, 0)"
+        assert evaluate(expr) == "1"
+
+    def test_long_arg_list(self):
+        # SUM of 100 numbers.
+        expr = "SUM(" + ",".join(str(i) for i in range(100)) + ")"
+        assert evaluate(expr) == "4950"
+
+    def test_long_string_concat(self):
+        expr = " & ".join(['"a"'] * 50)
+        assert evaluate(expr) == "a" * 50
+
+
+class TestNullAndBlankSemantics:
+    def test_null_literal_renders_empty(self):
+        assert evaluate("NULL") == ""
+
+    def test_null_in_concat(self):
+        assert evaluate('"x:" & NULL & ":y"') == "x::y"
+
+    def test_null_in_arithmetic_is_zero(self):
+        # Excel-ish: NULL coerces to 0 in numeric context.
+        assert evaluate("NULL + 5") == "5"
+
+    def test_null_isblank(self):
+        assert evaluate("ISBLANK(NULL)") == "Yes"
+
+    def test_missing_sentinel_treated_as_blank(self):
+        # If a plain {{var}} was rendered before us as ``???``, ISBLANK and
+        # DEFAULT must still recognise it.
+        ctx = {"x": {"y": "???"}}
+        assert evaluate("ISBLANK(x.y)", ctx) == "Yes"
+        assert evaluate('DEFAULT(x.y, "fallback")', ctx) == "fallback"
+
+
+class TestExpressionIssueShape:
+    def test_is_serializable_friendly(self):
+        from dataclasses import asdict
+        from src.templates.expressions import validate_expression
+        issues = validate_expression("@@@")
+        assert issues
+        d = asdict(issues[0])
+        assert set(d.keys()) == {"code", "message", "pos"}
+        assert d["code"] == "#SYNTAX"
+        assert d["pos"] == 0

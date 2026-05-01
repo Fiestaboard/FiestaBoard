@@ -53,11 +53,19 @@ _COLOR_CODES: Dict[str, int] = {
 
 
 class FormulaError(Exception):
-    """Raised internally by the evaluator. ``code`` is the user-visible tag."""
+    """Raised internally by the evaluator. ``code`` is the user-visible tag.
 
-    def __init__(self, code: str, message: str = ""):
+    ``pos`` (when set) is the character offset in the source expression
+    where the problem was detected. It's surfaced in the rendered tag so
+    a user can find it (e.g. ``#SYNTAX:12``) and is also returned by the
+    public :func:`validate_expression` helper.
+    """
+
+    def __init__(self, code: str, message: str = "", pos: Optional[int] = None):
         super().__init__(message or code)
         self.code = code
+        self.message = message or code
+        self.pos = pos
 
 
 @dataclass(frozen=True)
@@ -135,7 +143,7 @@ def _tokenize(source: str) -> List[Token]:
             try:
                 value = float(text) if "." in text else int(text)
             except ValueError as exc:  # pragma: no cover - lexer invariant
-                raise FormulaError("#SYNTAX", f"Bad number: {text}") from exc
+                raise FormulaError("#SYNTAX", f"Bad number: {text}", pos=start) from exc
             tokens.append(Token(_T_NUMBER, value, start))
             continue
 
@@ -155,7 +163,7 @@ def _tokenize(source: str) -> List[Token]:
                     buf.append(source[i])
                     i += 1
             if i >= n:
-                raise FormulaError("#SYNTAX", "Unterminated string literal")
+                raise FormulaError("#SYNTAX", "Unterminated string literal", pos=start)
             i += 1  # closing quote
             tokens.append(Token(_T_STRING, "".join(buf), start))
             continue
@@ -173,7 +181,9 @@ def _tokenize(source: str) -> List[Token]:
             # Strip a trailing dot which is almost certainly a typo, leaving
             # it would produce a misleading "Unknown source" error.
             if text.endswith("."):
-                raise FormulaError("#SYNTAX", f"Trailing dot in identifier: {text}")
+                raise FormulaError(
+                    "#SYNTAX", f"Trailing dot in identifier: {text}", pos=start
+                )
             tokens.append(Token(_T_IDENT, text, start))
             continue
 
@@ -202,7 +212,9 @@ def _tokenize(source: str) -> List[Token]:
         if matched:
             continue
 
-        raise FormulaError("#SYNTAX", f"Unexpected character {ch!r} at position {i}")
+        raise FormulaError(
+            "#SYNTAX", f"Unexpected character {ch!r} at position {i}", pos=i
+        )
 
     tokens.append(Token(_T_EOF, None, n))
     return tokens
@@ -303,6 +315,7 @@ class _Parser:
             raise FormulaError(
                 "#SYNTAX",
                 f"Unexpected token {self._peek().value!r} at position {self._peek().pos}",
+                pos=self._peek().pos,
             )
         return node
 
@@ -394,7 +407,7 @@ class _Parser:
             node = self._parse_or()
             close = self._advance()
             if close.kind != _T_RPAREN:
-                raise FormulaError("#SYNTAX", "Missing closing ')'")
+                raise FormulaError("#SYNTAX", "Missing closing ')'", pos=close.pos)
             return node
 
         if tok.kind == _T_IDENT:
@@ -422,7 +435,7 @@ class _Parser:
                 close = self._advance()
                 if close.kind != _T_RPAREN:
                     raise FormulaError(
-                        "#SYNTAX", f"Missing ')' in call to {name}"
+                        "#SYNTAX", f"Missing ')' in call to {name}", pos=close.pos
                     )
                 return _Call(upper, args)
 
@@ -432,6 +445,7 @@ class _Parser:
         raise FormulaError(
             "#SYNTAX",
             f"Unexpected token {tok.value!r} at position {tok.pos}",
+            pos=tok.pos,
         )
 
 
@@ -657,6 +671,28 @@ def _fn_default(args: List[Any]) -> Any:
     return v
 
 
+def _fn_coalesce(args: List[Any]) -> Any:
+    """Return the first argument that isn't an error / NULL / blank.
+
+    Mirrors SQL's COALESCE and is the n-ary form of DEFAULT. Falls
+    through silently on errors so a chain of fallbacks "just works".
+    """
+    if not args:
+        raise FormulaError("#VALUE", "COALESCE: expected at least 1 argument")
+    last = args[-1]
+    for v in args:
+        if _is_error(v):
+            continue
+        if v is None:
+            continue
+        if isinstance(v, str) and (v == "" or v == _MISSING_SENTINEL):
+            continue
+        return v
+    # Nothing usable; return the last value as-is so the user sees the
+    # final fallback (which may itself be a literal string they chose).
+    return last
+
+
 # Math
 def _math_unary(name: str, fn: Callable[[float], float]) -> Callable[[List[Any]], Any]:
     def impl(args: List[Any]) -> Any:
@@ -676,6 +712,61 @@ def _fn_round(args: List[Any]) -> Any:
     x = _to_number(args[0])
     n = int(_to_number(args[1])) if len(args) == 2 else 0
     return round(x, n)
+
+
+def _fn_roundup(args: List[Any]) -> Any:
+    """Round away from zero to ``n`` decimals (Excel's ROUNDUP)."""
+    _expect_args("ROUNDUP", args, 1, 2)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    x = _to_number(args[0])
+    n = int(_to_number(args[1])) if len(args) == 2 else 0
+    multiplier = 10 ** n
+    if x >= 0:
+        return math.ceil(x * multiplier) / multiplier
+    return math.floor(x * multiplier) / multiplier
+
+
+def _fn_rounddown(args: List[Any]) -> Any:
+    """Round toward zero to ``n`` decimals (Excel's ROUNDDOWN)."""
+    _expect_args("ROUNDDOWN", args, 1, 2)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    x = _to_number(args[0])
+    n = int(_to_number(args[1])) if len(args) == 2 else 0
+    multiplier = 10 ** n
+    if x >= 0:
+        return math.floor(x * multiplier) / multiplier
+    return math.ceil(x * multiplier) / multiplier
+
+
+def _fn_power(args: List[Any]) -> Any:
+    _expect_args("POWER", args, 2, 2)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    base = _to_number(args[0])
+    exp = _to_number(args[1])
+    try:
+        result = math.pow(base, exp)
+    except (ValueError, OverflowError):
+        return ErrorValue("#NUM")
+    if math.isnan(result) or math.isinf(result):
+        return ErrorValue("#NUM")
+    return result
+
+
+def _fn_sqrt(args: List[Any]) -> Any:
+    _expect_args("SQRT", args, 1, 1)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    x = _to_number(args[0])
+    if x < 0:
+        return ErrorValue("#NUM")
+    return math.sqrt(x)
 
 
 def _fn_min(args: List[Any]) -> Any:
@@ -792,6 +883,71 @@ def _fn_replace(args: List[Any]) -> Any:
     if err is not None:
         return err
     return _to_string(args[0]).replace(_to_string(args[1]), _to_string(args[2]))
+
+
+def _fn_proper(args: List[Any]) -> Any:
+    """Title-case (capitalize the first letter of every word).
+
+    Similar to Excel's PROPER but with a friendlier treatment of intra-word
+    apostrophes: ``"don't stop"`` becomes ``"Don't Stop"``, not
+    ``"Don'T Stop"`` (which is what both Excel and Python's ``str.title()``
+    produce). Boards are short -- the prettier rendering wins here.
+    """
+    _expect_args("PROPER", args, 1, 1)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    s = _to_string(args[0])
+    out: List[str] = []
+    prev_in_word = False
+    for ch in s:
+        if ch.isalpha():
+            out.append(ch.lower() if prev_in_word else ch.upper())
+            prev_in_word = True
+        elif ch == "'":
+            # Apostrophe stays inside a word so the next letter isn't
+            # re-capitalised. Standalone leading quotes are rare enough
+            # that we accept the trade-off.
+            out.append(ch)
+            # prev_in_word unchanged
+        else:
+            out.append(ch)
+            prev_in_word = False
+    return "".join(out)
+
+
+def _fn_find(args: List[Any]) -> Any:
+    """Case-sensitive substring search. 1-indexed like Excel; ``#VALUE`` if not found."""
+    _expect_args("FIND", args, 2, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    needle = _to_string(args[0])
+    haystack = _to_string(args[1])
+    start = int(_to_number(args[2])) - 1 if len(args) == 3 else 0
+    if start < 0:
+        start = 0
+    idx = haystack.find(needle, start)
+    if idx < 0:
+        return ErrorValue("#VALUE")
+    return idx + 1  # 1-indexed
+
+
+def _fn_search(args: List[Any]) -> Any:
+    """Case-insensitive version of FIND. Returns 0 if not found (template-friendly)."""
+    _expect_args("SEARCH", args, 2, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    needle = _to_string(args[0]).lower()
+    haystack = _to_string(args[1]).lower()
+    start = int(_to_number(args[2])) - 1 if len(args) == 3 else 0
+    if start < 0:
+        start = 0
+    idx = haystack.find(needle, start)
+    if idx < 0:
+        return 0  # 0 means "not found", easy to test with `> 0`
+    return idx + 1
 
 
 def _fn_rept(args: List[Any]) -> Any:
@@ -949,12 +1105,17 @@ _BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
     "ISERROR": _fn_iserror,
     "ISBLANK": _fn_isblank,
     "DEFAULT": _fn_default,
+    "COALESCE": _fn_coalesce,
     # Math
     "ABS": _math_unary("ABS", abs),
     "FLOOR": _math_unary("FLOOR", _math_floor),
     "CEIL": _math_unary("CEIL", _math_ceil),
     "INT": _math_unary("INT", lambda x: float(int(x))),
     "ROUND": _fn_round,
+    "ROUNDUP": _fn_roundup,
+    "ROUNDDOWN": _fn_rounddown,
+    "POWER": _fn_power,
+    "SQRT": _fn_sqrt,
     "MIN": _fn_min,
     "MAX": _fn_max,
     "SUM": _fn_sum,
@@ -965,10 +1126,13 @@ _BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
     "UPPER": lambda args: _text_unary("UPPER", args, str.upper),
     "LOWER": lambda args: _text_unary("LOWER", args, str.lower),
     "TRIM": lambda args: _text_unary("TRIM", args, str.strip),
+    "PROPER": _fn_proper,
     "LEN": _fn_len,
     "LEFT": _fn_left,
     "RIGHT": _fn_right,
     "MID": _fn_mid,
+    "FIND": _fn_find,
+    "SEARCH": _fn_search,
     "CONCAT": _fn_concat,
     "REPLACE": _fn_replace,
     "REPT": _fn_rept,
@@ -984,6 +1148,70 @@ _BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
     "FIXED": _fn_fixed,
     # Color
     "COLOR": _fn_color,
+}
+
+
+# --- Function metadata for editor autocomplete & help --------------------- #
+#
+# Each entry: (category, signature, summary). Kept here so the page editor
+# can render a function picker without any further introspection. The shape
+# is intentionally simple and stable; it is part of the public API surface.
+
+_SIGNATURES: Dict[str, Tuple[str, str, str]] = {
+    # Logic
+    "IF":        ("logic", "IF(cond, then[, else])",          "Conditional value"),
+    "IFS":       ("logic", "IFS(c1, v1, c2, v2, ...[, def])", "First matching condition's value"),
+    "SWITCH":    ("logic", "SWITCH(x, m1, r1, ...[, def])",   "Match value against options"),
+    "AND":       ("logic", "AND(a, b, ...)",                  "True if all args truthy (short-circuit)"),
+    "OR":        ("logic", "OR(a, b, ...)",                   "True if any arg truthy (short-circuit)"),
+    "NOT":       ("logic", "NOT(x)",                          "Logical negation"),
+    "IFERROR":   ("logic", "IFERROR(expr, fallback)",         "Replace error result with fallback"),
+    "ISERROR":   ("logic", "ISERROR(expr)",                   "True if expr evaluated to an error"),
+    "ISBLANK":   ("logic", "ISBLANK(expr)",                   "True if expr is null/empty/missing"),
+    "DEFAULT":   ("logic", "DEFAULT(expr, fallback)",         "Fallback for error/null/blank"),
+    "COALESCE":  ("logic", "COALESCE(a, b, c, ...)",          "First non-error/non-blank value"),
+    # Math
+    "ABS":       ("math",  "ABS(x)",                          "Absolute value"),
+    "FLOOR":     ("math",  "FLOOR(x)",                        "Round toward -infinity"),
+    "CEIL":      ("math",  "CEIL(x)",                         "Round toward +infinity"),
+    "INT":       ("math",  "INT(x)",                          "Truncate toward zero"),
+    "ROUND":     ("math",  "ROUND(x[, n])",                   "Round to n decimals"),
+    "ROUNDUP":   ("math",  "ROUNDUP(x[, n])",                 "Round away from zero"),
+    "ROUNDDOWN": ("math",  "ROUNDDOWN(x[, n])",               "Round toward zero"),
+    "POWER":     ("math",  "POWER(base, exp)",                "Exponentiation"),
+    "SQRT":      ("math",  "SQRT(x)",                         "Square root"),
+    "MIN":       ("math",  "MIN(a, b, ...)",                  "Smallest value"),
+    "MAX":       ("math",  "MAX(a, b, ...)",                  "Largest value"),
+    "SUM":       ("math",  "SUM(a, b, ...)",                  "Sum of values"),
+    "AVG":       ("math",  "AVG(a, b, ...)",                  "Arithmetic mean"),
+    "MOD":       ("math",  "MOD(a, b)",                       "a modulo b"),
+    "SIGN":      ("math",  "SIGN(x)",                         "-1, 0, or 1"),
+    # Text
+    "UPPER":     ("text",  "UPPER(s)",                        "Convert to uppercase"),
+    "LOWER":     ("text",  "LOWER(s)",                        "Convert to lowercase"),
+    "TRIM":      ("text",  "TRIM(s)",                         "Strip leading/trailing whitespace"),
+    "PROPER":    ("text",  "PROPER(s)",                       "Title-case each word"),
+    "LEN":       ("text",  "LEN(s)",                          "Character length"),
+    "LEFT":      ("text",  "LEFT(s, n)",                      "First n characters"),
+    "RIGHT":     ("text",  "RIGHT(s, n)",                     "Last n characters"),
+    "MID":       ("text",  "MID(s, start, length)",           "Substring (start is 1-indexed)"),
+    "FIND":      ("text",  "FIND(needle, haystack[, start])", "Case-sensitive position (1-indexed); #VALUE if missing"),
+    "SEARCH":    ("text",  "SEARCH(needle, haystack[, start])", "Case-insensitive position; 0 if missing"),
+    "CONCAT":    ("text",  "CONCAT(a, b, ...)",               "Join values as text"),
+    "REPLACE":   ("text",  "REPLACE(s, find, repl)",          "Replace all occurrences"),
+    "REPT":      ("text",  "REPT(s, n)",                      "Repeat n times (capped at 1024)"),
+    "CONTAINS":  ("text",  "CONTAINS(s, sub)",                "True if s contains sub"),
+    "STARTSWITH":("text",  "STARTSWITH(s, prefix)",           "True if s starts with prefix"),
+    "ENDSWITH":  ("text",  "ENDSWITH(s, suffix)",             "True if s ends with suffix"),
+    "PAD":       ("text",  "PAD(s, width)",                   "Right-pad to width"),
+    "PADLEFT":   ("text",  "PADLEFT(s, width)",               "Left-pad to width"),
+    "CENTER":    ("text",  "CENTER(s, width)",                "Center within width"),
+    # Conversion
+    "TEXT":      ("convert", "TEXT(x)",                       "Convert to string"),
+    "NUM":       ("convert", "NUM(x)",                        "Convert to number"),
+    "FIXED":     ("convert", "FIXED(x[, n])",                 "Format with n decimals (default 2)"),
+    # Color
+    "COLOR":     ("color",   "COLOR(name_or_code)",           "Single color tile (e.g. \"red\" or 67)"),
 }
 
 
@@ -1141,7 +1369,8 @@ def evaluate(expression: str, context: Optional[Dict[str, Any]] = None) -> str:
 
     Parsing or evaluation errors render as their short code (e.g. ``#REF``)
     instead of raising, so a single bad formula never breaks rendering of
-    the surrounding template.
+    the surrounding template. ``#SYNTAX`` errors include the source-character
+    offset where they were detected (``#SYNTAX:12``) when one is available.
     """
     ctx = context or {}
     try:
@@ -1149,10 +1378,127 @@ def evaluate(expression: str, context: Optional[Dict[str, Any]] = None) -> str:
         tree = _Parser(tokens).parse()
         result = _eval_node(tree, ctx)
     except FormulaError as exc:
+        if exc.code == "#SYNTAX" and exc.pos is not None:
+            return f"#SYNTAX:{exc.pos}"
         return exc.code
     if _is_error(result):
         return result.code
     return _to_string(result)
+
+
+@dataclass(frozen=True)
+class ExpressionIssue:
+    """A single problem found by :func:`validate_expression`.
+
+    Designed to be JSON-serialisable for editor integrations.
+    """
+
+    code: str           # e.g. "#SYNTAX", "#NAME?"
+    message: str        # Human-readable diagnostic
+    pos: Optional[int]  # Character offset within the expression (None if unknown)
+
+
+def validate_expression(
+    expression: str,
+    known_sources: Optional[set] = None,
+) -> List[ExpressionIssue]:
+    """Statically validate a formula body.
+
+    Returns an empty list if the expression looks well-formed. This is a
+    *lightweight* check -- it confirms the expression parses, that all
+    function names are recognised, that variable references look like a
+    known plugin source (when ``known_sources`` is provided), and that
+    obvious arity mistakes are flagged. It does not attempt to evaluate.
+    """
+    issues: List[ExpressionIssue] = []
+    try:
+        tokens = _tokenize(expression)
+        tree = _Parser(tokens).parse()
+    except FormulaError as exc:
+        issues.append(ExpressionIssue(exc.code, exc.message, exc.pos))
+        return issues
+
+    def _walk(node: _Node) -> None:
+        if isinstance(node, _Call):
+            if node.name not in _BUILTINS:
+                issues.append(
+                    ExpressionIssue(
+                        "#NAME?",
+                        f"Unknown function: {node.name}",
+                        None,
+                    )
+                )
+            else:
+                _check_arity(node, issues)
+            for child in node.args:
+                _walk(child)
+        elif isinstance(node, _Var):
+            if known_sources is not None:
+                source = node.path.split(".", 1)[0].split(":", 1)[0].lower()
+                if source not in known_sources:
+                    issues.append(
+                        ExpressionIssue(
+                            "#REF",
+                            f"Unknown source: {source}",
+                            None,
+                        )
+                    )
+        elif isinstance(node, _Unary):
+            _walk(node.operand)
+        elif isinstance(node, _Binary):
+            _walk(node.left)
+            _walk(node.right)
+
+    _walk(tree)
+    return issues
+
+
+# Statically known minimum/maximum arities, used by :func:`validate_expression`.
+# ``None`` means "unbounded". Functions that don't appear here are assumed to
+# accept any number of arguments (we still rely on runtime ``_expect_args``
+# checks for the strict variants).
+_ARITY: Dict[str, Tuple[int, Optional[int]]] = {
+    "IF": (2, 3), "NOT": (1, 1), "IFERROR": (2, 2), "ISERROR": (1, 1),
+    "ISBLANK": (1, 1), "DEFAULT": (2, 2), "COALESCE": (1, None),
+    "ABS": (1, 1), "FLOOR": (1, 1), "CEIL": (1, 1), "INT": (1, 1),
+    "ROUND": (1, 2), "ROUNDUP": (1, 2), "ROUNDDOWN": (1, 2),
+    "POWER": (2, 2), "SQRT": (1, 1), "MOD": (2, 2), "SIGN": (1, 1),
+    "MIN": (1, None), "MAX": (1, None), "SUM": (1, None), "AVG": (1, None),
+    "AND": (0, None), "OR": (0, None),
+    "UPPER": (1, 1), "LOWER": (1, 1), "TRIM": (1, 1), "PROPER": (1, 1),
+    "LEN": (1, 1), "LEFT": (2, 2), "RIGHT": (2, 2), "MID": (3, 3),
+    "FIND": (2, 3), "SEARCH": (2, 3),
+    "REPLACE": (3, 3), "REPT": (2, 2),
+    "CONTAINS": (2, 2), "STARTSWITH": (2, 2), "ENDSWITH": (2, 2),
+    "PAD": (2, 2), "PADLEFT": (2, 2), "CENTER": (2, 2),
+    "TEXT": (1, 1), "NUM": (1, 1), "FIXED": (1, 2),
+    "COLOR": (1, 1),
+    "IFS": (2, None), "SWITCH": (3, None),
+}
+
+
+def _check_arity(node: _Call, issues: List[ExpressionIssue]) -> None:
+    spec = _ARITY.get(node.name)
+    if spec is None:
+        return
+    minimum, maximum = spec
+    n = len(node.args)
+    if n < minimum:
+        issues.append(
+            ExpressionIssue(
+                "#VALUE",
+                f"{node.name}: expected at least {minimum} arg(s), got {n}",
+                None,
+            )
+        )
+    elif maximum is not None and n > maximum:
+        issues.append(
+            ExpressionIssue(
+                "#VALUE",
+                f"{node.name}: expected at most {maximum} arg(s), got {n}",
+                None,
+            )
+        )
 
 
 # Match ``{{= ... }}`` blocks. Use ``[^}{]*`` for the body, mirroring
@@ -1182,15 +1528,43 @@ def render_expressions(template: str, context: Optional[Dict[str, Any]] = None) 
     return _FORMULA_PATTERN.sub(_sub, template)
 
 
+def find_formulas(template: str) -> List[Tuple[int, int, str]]:
+    """Return ``(start, end, body)`` for each formula in ``template``.
+
+    Useful for editor tooling that wants to underline / lint the formula
+    bodies in-place.
+    """
+    return [
+        (m.start(), m.end(), m.group(1).strip())
+        for m in _FORMULA_PATTERN.finditer(template)
+    ]
+
+
 def list_builtins() -> Tuple[str, ...]:
     """Return a stable, sorted tuple of all built-in formula function names."""
     return tuple(sorted(_BUILTINS.keys()))
 
 
+def function_signatures() -> Dict[str, Dict[str, str]]:
+    """Return ``{ name: {category, signature, summary} }`` for every built-in.
+
+    Editors and docs can use this to render an autocomplete picker without
+    importing private symbols. The shape is part of the public API.
+    """
+    return {
+        name: {"category": cat, "signature": sig, "summary": summary}
+        for name, (cat, sig, summary) in _SIGNATURES.items()
+    }
+
+
 __all__ = [
     "ErrorValue",
+    "ExpressionIssue",
     "FormulaError",
     "evaluate",
+    "validate_expression",
     "render_expressions",
+    "find_formulas",
     "list_builtins",
+    "function_signatures",
 ]

@@ -132,16 +132,21 @@ Custom user‑defined functions are intentionally **not supported**.
 | `ISERROR(expr)` | `TRUE` if `expr` evaluated to an error. |
 | `ISBLANK(expr)` | `TRUE` for `NULL`, empty string, or the missing-value sentinel `???`. (Errors propagate.) |
 | `DEFAULT(expr, fallback)` | Returns `fallback` if `expr` is missing, blank, or an error; otherwise `expr`. |
+| `COALESCE(a, b, c, ...)` | The first argument that isn't an error / `NULL` / blank. The n-ary version of `DEFAULT`; great for fallback chains. |
 
 ### Math
 
 | Function | Description |
 |----------|-------------|
 | `ABS(x)` | Absolute value. |
-| `ROUND(x [, n])` | Round to `n` decimals (default `0`). |
+| `ROUND(x [, n])` | Round to `n` decimals (default `0`). Banker's rounding. |
+| `ROUNDUP(x [, n])` | Round **away from zero** to `n` decimals (Excel ROUNDUP). |
+| `ROUNDDOWN(x [, n])` | Round **toward zero** to `n` decimals (Excel ROUNDDOWN). |
 | `FLOOR(x)` | Round toward negative infinity. |
 | `CEIL(x)` | Round toward positive infinity. |
 | `INT(x)` | Truncate toward zero. |
+| `POWER(base, exp)` | `base` raised to `exp`. Returns `#NUM` for complex/overflow results. |
+| `SQRT(x)` | Square root. `#NUM` for negatives. |
 | `MIN(a, b, ...)` / `MAX(a, b, ...)` | Smallest / largest. |
 | `SUM(a, b, ...)` / `AVG(a, b, ...)` | Sum / arithmetic mean. |
 | `MOD(a, b)` | `a` modulo `b`. `#DIV/0` if `b == 0`. |
@@ -152,10 +157,13 @@ Custom user‑defined functions are intentionally **not supported**.
 | Function | Description |
 |----------|-------------|
 | `UPPER(s)` / `LOWER(s)` | Case conversion. |
+| `PROPER(s)` | Title-case each word. Apostrophes stay inside the word (`don't` → `Don't`). |
 | `TRIM(s)` | Strip leading/trailing whitespace. |
 | `LEN(s)` | Length in characters. |
 | `LEFT(s, n)` / `RIGHT(s, n)` | First/last `n` characters. |
 | `MID(s, start, length)` | Substring. **`start` is 1‑indexed**, like Excel. |
+| `FIND(needle, haystack [, start])` | Case-sensitive position (1-indexed). Returns `#VALUE` if not found. |
+| `SEARCH(needle, haystack [, start])` | Case-insensitive position. Returns `0` if not found (so `IF(SEARCH(...) > 0, ...)` works). |
 | `CONCAT(a, b, ...)` | Concatenate (alternative to `&`). |
 | `REPLACE(s, find, repl)` | Replace all occurrences. |
 | `REPT(s, n)` | Repeat `s` `n` times. Capped at 1024 to prevent runaway memory (`#NUM` if exceeded). |
@@ -194,11 +202,24 @@ how Excel surfaces problems.
 | Tag        | Means                                                 |
 |------------|-------------------------------------------------------|
 | `#REF`     | A variable, field, or array index could not be found. |
-| `#VALUE`   | Wrong types (e.g., adding to a non-numeric string).   |
+| `#VALUE`   | Wrong types (e.g., adding to a non-numeric string), or wrong number of arguments. |
 | `#DIV/0`   | Division or modulo by zero.                           |
 | `#NAME?`   | Unknown function name.                                |
-| `#NUM`     | Numeric out of range (e.g., `REPT` over the cap).     |
-| `#SYNTAX`  | Couldn't parse the formula.                           |
+| `#NUM`     | Numeric out of range or undefined (e.g., `SQRT(-1)`, `REPT` over the cap). |
+| `#SYNTAX`  | Couldn't parse the formula. Includes the character offset where parsing stopped (e.g. `#SYNTAX:12`). |
+
+### Editor validation
+
+The page-editor's `validate_template` API now also parses every `{{= ... }}`
+body and reports the same problems **before** you save the template, so you
+don't have to wait for a render to find a typo. You'll see entries like:
+
+- `Formula #SYNTAX: Unexpected character '@' at position 4`
+- `Formula #NAME?: Unknown function: BOGUS`
+- `Formula #VALUE: IF: expected at least 2 arg(s), got 1`
+- `Formula #REF: Unknown source: misspelled_plugin`
+
+### Trapping errors at render time
 
 Trap errors with `IFERROR` so a missing data source can never break a board:
 
@@ -211,6 +232,15 @@ empty, or errored":
 
 ```text
 {{= DEFAULT(weather.condition, "n/a") }}
+```
+
+`COALESCE(a, b, c, ...)` walks a chain of fallbacks — the first one that
+isn't an error, `NULL`, or blank wins:
+
+```text
+{{= COALESCE(home_assistant.weather.attributes.friendly_name,
+             weather.condition,
+             "n/a") }}
 ```
 
 ---
@@ -334,3 +364,23 @@ Two practical consequences:
 - The board is at most 22 columns wide on a flagship device and 22 columns
   on a Note (3 rows). Use `LEFT`, `PAD`, or `FIXED` to keep your output a
   predictable width.
+
+---
+
+## For editor / tool builders
+
+`src.templates.expressions` exports a small public API designed for editor
+integrations (autocomplete, in-line linting, function pickers):
+
+| Symbol | Description |
+|--------|-------------|
+| `evaluate(expr, ctx)` → `str` | Evaluate a single formula; never raises. |
+| `render_expressions(template, ctx)` → `str` | Replace every `{{= ... }}` in a template. Used by the engine. |
+| `validate_expression(expr, known_sources=None)` → `list[ExpressionIssue]` | Static check: parse error, unknown function, arity mismatch, unknown source. Each issue has `code`, `message`, and optional `pos`. |
+| `find_formulas(template)` → `list[(start, end, body)]` | Locate every formula block in a template — useful for rendering inline diagnostics. |
+| `list_builtins()` → `tuple[str, ...]` | Sorted tuple of every built-in name. |
+| `function_signatures()` → `dict` | `{ NAME: { category, signature, summary } }` for every built-in. Drives the function picker. |
+
+`TemplateEngine.validate_template()` already calls `validate_expression`
+under the hood, so editor validation is wired up "for free" for callers
+that already use that endpoint.
