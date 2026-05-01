@@ -1334,7 +1334,8 @@ class TemplateEngine:
             # Check for invalid variable references
             for match in VAR_PATTERN.finditer(line):
                 expr = match.group(1).split('|')[0].strip()
-                # Skip formula bodies -- they're validated separately below.
+                # Skip formula bodies -- they're validated in the separate
+                # ``find_formulas`` loop below.
                 if expr.startswith('='):
                     continue
                 parts = expr.split('.')

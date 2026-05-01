@@ -471,8 +471,8 @@ class TestPublicAPI:
         # Every built-in must have signature metadata so the editor's
         # function picker is never missing entries. This is the test that
         # would have caught COALESCE/PROPER/etc. being added without docs.
-        from src.templates.expressions import _BUILTINS, _SIGNATURES  # noqa: PLC2701
-        assert set(_BUILTINS.keys()) == set(_SIGNATURES.keys())
+        from src.templates.expressions import function_signatures
+        assert set(list_builtins()) == set(function_signatures().keys())
 
     def test_error_value_repr(self):
         assert str(ErrorValue("#REF")) == "#REF"
@@ -492,6 +492,15 @@ class TestCoalesce:
 
     def test_skips_blanks_and_errors(self):
         assert evaluate('COALESCE("", missing.x, 7)') == "7"
+
+    def test_skips_null_in_isolation(self):
+        assert evaluate('COALESCE(NULL, "x")') == "x"
+
+    def test_skips_empty_string_in_isolation(self):
+        assert evaluate('COALESCE("", "x")') == "x"
+
+    def test_skips_missing_variable_in_isolation(self):
+        assert evaluate('COALESCE(missing.var, "x")') == "x"
 
     def test_returns_last_when_all_blank(self):
         # Same shape as SQL: if every input is null/blank, hand back the

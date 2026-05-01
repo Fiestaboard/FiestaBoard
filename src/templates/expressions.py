@@ -678,7 +678,7 @@ def _fn_coalesce(args: List[Any]) -> Any:
     through silently on errors so a chain of fallbacks "just works".
     """
     if not args:
-        raise FormulaError("#VALUE", "COALESCE: expected at least 1 argument")
+        raise FormulaError("#VALUE", "COALESCE: expected at least 1 arg(s), got 0")
     last = args[-1]
     for v in args:
         if _is_error(v):
