@@ -1,4 +1,4 @@
-"""Inline formula expressions for FiestaBoard templates ("FiestaForm").
+"""Inline formula expressions for FiestaBoard templates.
 
 A small, sandboxed, Excel-like expression language that runs inside
 ``{{= ... }}`` blocks of a template. Designed to give users one-line

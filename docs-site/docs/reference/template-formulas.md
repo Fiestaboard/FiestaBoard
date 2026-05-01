@@ -1,12 +1,12 @@
 ---
 sidebar_position: 6
-description: "Reference for FiestaForm — the Excel-like inline formula language for FiestaBoard templates. Use IF/ELSE, math, and string functions in a single line."
-keywords: [FiestaBoard templates, formula language, Excel formulas, IF ELSE template, FiestaForm, conditional template, inline expressions]
+description: "Reference for template expressions — the Excel-like inline formula language for FiestaBoard templates. Use IF/ELSE, math, and string functions in a single line."
+keywords: [FiestaBoard templates, formula language, Excel formulas, IF ELSE template, template expressions, conditional template, inline expressions]
 ---
 
-# Template Formulas (FiestaForm)
+# Template Expressions
 
-FiestaForm is a small, Excel‑style formula language that runs inside a single
+Template expressions are a small, Excel‑style formula language that runs inside a single
 line of any FiestaBoard template. If you've ever written `=IF(A1>10, "hot", "ok")`
 in a spreadsheet cell, you already know most of it.
 
@@ -15,7 +15,7 @@ inline, without leaving the template, without writing Python**.
 
 > **Why a new language?** A template line is a single cell. Sometimes you need
 > "if it's raining, show an umbrella; otherwise show a sun" or "show the price
-> in green when it's up, red when it's down". FiestaForm gives you a sandboxed
+> in green when it's up, red when it's down". Template expressions give you a sandboxed
 > way to express that logic without us shipping Turing‑complete code execution
 > on the device.
 
@@ -195,7 +195,7 @@ behave correctly.
 
 ## Errors
 
-When something goes wrong, FiestaForm produces an **error value** that
+When something goes wrong, an expression produces an **error value** that
 short‑circuits the surrounding expression and renders as a tag. This matches
 how Excel surfaces problems.
 
@@ -323,7 +323,7 @@ Two equivalent ways:
 
 ## How it interacts with the rest of the template engine
 
-A FiestaBoard template is rendered in passes. FiestaForm fits between color
+A FiestaBoard template is rendered in passes. Expressions fit between color
 normalization and plain variable substitution:
 
 1. **Named color tags** (`{{red}} → {63}`).
@@ -349,7 +349,7 @@ Two practical consequences:
   If you need re‑use, repeat the expression — boards are short.
 - **Loops, `MAP`, `REDUCE`, array formulas.** A board cell is one line of
   output; loops would just truncate.
-- **Side effects** (HTTP calls, time advance, mutations). FiestaForm is a
+- **Side effects** (HTTP calls, time advance, mutations). Expressions are a
   pure expression language. Use plugins to bring data in.
 - **Access to Python or the OS.** Formulas run in a small interpreter, not
   via `eval`. You can't import modules, read files, or escape the sandbox.

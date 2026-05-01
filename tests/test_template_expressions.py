@@ -1,4 +1,4 @@
-"""Tests for the FiestaForm inline expression language.
+"""Tests for the inline template expression language.
 
 Covers the standalone evaluator/parser as well as integration with the
 template engine via ``{{= ... }}`` blocks.
