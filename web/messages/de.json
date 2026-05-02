@@ -1043,7 +1043,6 @@
     "withMessage": "Board-Anzeige: {message}"
   },
   "updateOverlay": {
-    "elapsedLabel": "{time} verstrichen",
     "takingLonger": "Aktualisierung dauert länger als erwartet",
     "takingLongerDescription": "Das Update läuft möglicherweise noch im Hintergrund. Prüfen Sie <code>docker logs fiestaupdater</code> auf dem Host und aktualisieren Sie dann die Seite.",
     "dismissAndRefresh": "Schließen und Seite aktualisieren",
@@ -1051,7 +1050,10 @@
     "phaseReady": "Update abgeschlossen. Neuladen…",
     "phaseRestarting": "FiestaBoard wird neu gestartet…",
     "updatingFiestaboard": "FiestaBoard wird aktualisiert",
-    "dontCloseTab": "Updates können einige Minuten dauern – bitte schließen Sie diesen Tab nicht."
+    "dontCloseTab": "Updates können einige Minuten dauern – bitte schließen Sie diesen Tab nicht.",
+    "stepPull": "Herunterladen",
+    "stepRestart": "Neustart",
+    "stepDone": "Fertig"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Einrichtungsassistent wird geladen...",

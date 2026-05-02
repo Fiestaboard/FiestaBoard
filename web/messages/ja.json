@@ -1043,7 +1043,6 @@
     "withMessage": "Board display: {message}"
   },
   "updateOverlay": {
-    "elapsedLabel": "{time} elapsed",
     "takingLonger": "Update taking longer than expected",
     "takingLongerDescription": "The update may still be running in the background. Check <code>docker logs fiestaupdater</code> on the host, then refresh.",
     "dismissAndRefresh": "Dismiss and refresh page",
@@ -1051,7 +1050,10 @@
     "phaseReady": "Update complete. Reloading…",
     "phaseRestarting": "Restarting FiestaBoard…",
     "updatingFiestaboard": "Updating FiestaBoard",
-    "dontCloseTab": "Updates can take a few minutes — please don't close this tab."
+    "dontCloseTab": "Updates can take a few minutes — please don't close this tab.",
+    "stepPull": "ダウンロード中",
+    "stepRestart": "再起動中",
+    "stepDone": "完了"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Loading setup wizard...",
