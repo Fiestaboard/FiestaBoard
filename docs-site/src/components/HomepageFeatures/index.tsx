@@ -355,7 +355,6 @@ function PluginCard({title, image, alt, description, link}: ShowcaseItem) {
 
 type HighlightItem = {
   badge: string;
-  icon: string;
   title: string;
   description: ReactNode;
   primary: {label: string; to: string};
@@ -365,7 +364,6 @@ type HighlightItem = {
 const HighlightList: HighlightItem[] = [
   {
     badge: 'New',
-    icon: '🍓',
     title: 'FiestaPi — flash a Raspberry Pi, done',
     description: (
       <>
@@ -380,7 +378,6 @@ const HighlightList: HighlightItem[] = [
   },
   {
     badge: 'New',
-    icon: '⚡',
     title: 'One-click in-app updates',
     description: (
       <>
@@ -395,11 +392,10 @@ const HighlightList: HighlightItem[] = [
   },
 ];
 
-function HighlightCard({badge, icon, title, description, primary, secondary}: HighlightItem) {
+function HighlightCard({badge, title, description, primary, secondary}: HighlightItem) {
   return (
     <div className={styles.highlightCard}>
       <span className={styles.highlightBadge}>{badge}</span>
-      <div className={styles.highlightIcon} aria-hidden="true">{icon}</div>
       <Heading as="h3">{title}</Heading>
       <p>{description}</p>
       <div className={styles.highlightLinks}>
