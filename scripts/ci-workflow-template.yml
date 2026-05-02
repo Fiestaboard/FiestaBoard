@@ -40,7 +40,7 @@ jobs:
 
       - name: Run tests
         env:
-          PYTHONPATH: "fiestaboard-core:${{ github.workspace }}:fiestaboard-core/plugins"
+          PYTHONPATH: "${{ github.workspace }}:fiestaboard-core"
           BOARD_READ_WRITE_KEY: test_key
         run: |
           cat > .coveragerc << 'RCEOF'
