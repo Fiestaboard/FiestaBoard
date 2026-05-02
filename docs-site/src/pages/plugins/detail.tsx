@@ -167,7 +167,7 @@ function DetailContent() {
   }
 
   const categoryLabel = CATEGORY_LABELS[plugin.category] ?? plugin.category;
-  const heroImage = pluginBoardImagePath(plugin.id, boardColor === 'white' ? 'light' : 'dark');
+  const heroImage = pluginBoardImagePath(plugin, boardColor === 'white' ? 'light' : 'dark');
 
   return (
     <>

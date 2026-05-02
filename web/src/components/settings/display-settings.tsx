@@ -480,7 +480,8 @@ export function DisplaySettings() {
                         <div className="flex gap-1">
                           <button
                             onClick={() => handleUpdateBoard(board.id, { device_type: "flagship" })}
-                            className={`px-2.5 py-1 rounded-full border text-[11px] transition-colors ${
+                            aria-pressed={board.device_type === "flagship"}
+                            className={`px-2.5 py-1 rounded-full border text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               board.device_type === "flagship"
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -490,7 +491,8 @@ export function DisplaySettings() {
                           </button>
                           <button
                             onClick={() => handleUpdateBoard(board.id, { device_type: "note" })}
-                            className={`px-2.5 py-1 rounded-full border text-[11px] transition-colors ${
+                            aria-pressed={board.device_type === "note"}
+                            className={`px-2.5 py-1 rounded-full border text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               board.device_type === "note"
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -506,7 +508,8 @@ export function DisplaySettings() {
                           <button
                             onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
                             aria-label={t("blackAriaLabel")}
-                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors ${
+                            aria-pressed={board.board_color === "black"}
+                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                               board.board_color === "black"
                                 ? "border-primary ring-2 ring-primary/30"
                                 : "border-border hover:border-muted-foreground"
@@ -515,7 +518,8 @@ export function DisplaySettings() {
                           <button
                             onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
                             aria-label={t("whiteAriaLabel")}
-                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors ${
+                            aria-pressed={board.board_color === "white"}
+                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                               board.board_color === "white"
                                 ? "border-primary ring-2 ring-primary/30"
                                 : "border-border hover:border-muted-foreground"

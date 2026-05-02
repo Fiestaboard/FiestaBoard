@@ -886,7 +886,11 @@
     "latitudeRange": "Breitengrad muss eine Zahl zwischen -90 und 90 sein",
     "longitudeRange": "Längengrad muss eine Zahl zwischen -180 und 180 sein",
     "toastSaved": "Standorteinstellungen gespeichert",
-    "toastSaveFailed": "Standort konnte nicht gespeichert werden: {error}"
+    "toastSaveFailed": "Standort konnte nicht gespeichert werden: {error}",
+    "useMyLocation": "Meinen Standort verwenden",
+    "locating": "Ortung...",
+    "locationDenied": "Standortzugriff wurde verweigert",
+    "locationUnavailable": "Standort nicht verfügbar"
   },
   "boardSettings": {
     "connection": "Board-Verbindung",
@@ -1043,7 +1047,6 @@
     "withMessage": "Board-Anzeige: {message}"
   },
   "updateOverlay": {
-    "elapsedLabel": "{time} verstrichen",
     "takingLonger": "Aktualisierung dauert länger als erwartet",
     "takingLongerDescription": "Das Update läuft möglicherweise noch im Hintergrund. Prüfen Sie <code>docker logs fiestaupdater</code> auf dem Host und aktualisieren Sie dann die Seite.",
     "dismissAndRefresh": "Schließen und Seite aktualisieren",
@@ -1051,7 +1054,10 @@
     "phaseReady": "Update abgeschlossen. Neuladen…",
     "phaseRestarting": "FiestaBoard wird neu gestartet…",
     "updatingFiestaboard": "FiestaBoard wird aktualisiert",
-    "dontCloseTab": "Updates können einige Minuten dauern – bitte schließen Sie diesen Tab nicht."
+    "dontCloseTab": "Updates können einige Minuten dauern – bitte schließen Sie diesen Tab nicht.",
+    "stepPull": "Herunterladen",
+    "stepRestart": "Neustart",
+    "stepDone": "Fertig"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Einrichtungsassistent wird geladen...",
@@ -1096,6 +1102,8 @@
     "preview": "Vorschau",
     "useInTemplates": "In Vorlagen verwenden:",
     "addMapping": "Zuordnung hinzufügen",
+    "removeMapping": "Zuordnung entfernen",
+    "removeItem": "Element entfernen",
     "noSchemaProperties": "Keine Schema-Eigenschaften definiert",
     "clickLocationIcon": "Klicken Sie auf das Standortsymbol, um Ihren aktuellen Standort zu verwenden",
     "digitColorNotUsed": "Ziffernfarbe wird nicht verwendet, wenn ein Farbmuster ausgewählt ist",

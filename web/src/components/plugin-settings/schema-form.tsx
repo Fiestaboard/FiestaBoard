@@ -176,6 +176,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
   if (isTimezone) {
     return (
       <TimezonePicker
+        id={name}
         value={String(value || "")}
         onChange={onChange}
         disabled={disabled}
@@ -951,8 +952,9 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
             <div className="flex-1 grid gap-2 p-3 border rounded-lg bg-muted/30">
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
-                  <Label className="text-xs">{t("variableName")}</Label>
+                  <Label htmlFor={`mapping-${index}-variable`} className="text-xs">{t("variableName")}</Label>
                   <Input
+                    id={`mapping-${index}-variable`}
                     value={mapping.variable || ""}
                     onChange={(e) => handleItemChange(index, "variable", e.target.value)}
                     placeholder={t("variableNamePlaceholder")}
@@ -961,8 +963,9 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-xs">{t("dataPath")}</Label>
+                  <Label htmlFor={`mapping-${index}-path`} className="text-xs">{t("dataPath")}</Label>
                   <Input
+                    id={`mapping-${index}-path`}
                     value={mapping.path || ""}
                     onChange={(e) => handleItemChange(index, "path", e.target.value)}
                     placeholder={t("dataPathPlaceholder")}
@@ -973,8 +976,9 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
-                  <Label className="text-xs">{t("defaultValue")}</Label>
+                  <Label htmlFor={`mapping-${index}-default`} className="text-xs">{t("defaultValue")}</Label>
                   <Input
+                    id={`mapping-${index}-default`}
                     value={mapping.default || ""}
                     onChange={(e) => handleItemChange(index, "default", e.target.value)}
                     placeholder={t("defaultValuePlaceholder")}
@@ -1002,6 +1006,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
               onClick={() => handleRemove(index)}
               disabled={disabled}
               className="h-9 w-9 text-destructive hover:text-destructive self-start mt-3"
+              aria-label={t("removeMapping")}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -1107,6 +1112,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
               onClick={() => handleRemove(index)}
               disabled={disabled}
               className="h-9 w-9 text-destructive hover:text-destructive"
+              aria-label={t("removeItem")}
             >
               <Trash2 className="h-4 w-4" />
             </Button>

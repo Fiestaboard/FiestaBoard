@@ -15,6 +15,7 @@ interface TimezonePickerProps {
   className?: string;
   disabled?: boolean;
   onValidationChange?: (isValid: boolean) => void;
+  id?: string;
 }
 
 export function TimezonePicker({ 
@@ -22,7 +23,8 @@ export function TimezonePicker({
   onChange, 
   className, 
   disabled,
-  onValidationChange 
+  onValidationChange,
+  id,
 }: TimezonePickerProps) {
   const t = useTranslations("timezonePicker");
   const [searchQuery, setSearchQuery] = useState("");
@@ -251,6 +253,7 @@ export function TimezonePicker({
       <div className="relative">
         <Input
           ref={inputRef}
+          id={id}
           type="text"
           role="combobox"
           aria-expanded={isOpen}

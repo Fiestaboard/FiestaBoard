@@ -15,7 +15,7 @@
   --ifm-color-primary-lightest: #f9c873;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(245, 166, 35, 0.15);
-  
+
   /* Additional FiestaBoard colors */
   --fiesta-red: #eb4034;
   --fiesta-orange: #f5a623;
@@ -23,6 +23,20 @@
   --fiesta-green: #7ed321;
   --fiesta-blue: #4a90d9;
   --fiesta-violet: #9b59b6;
+
+  /*
+   * Accessible orange tokens for use against light backgrounds.
+   * The brand orange (#f5a623) only reaches ~2.03:1 on white, so we use
+   * a darker shade for text, links, badges, and button fills in light mode
+   * to meet WCAG 2.2 AA (4.5:1 for normal text, 3:1 for UI components).
+   */
+  --fiesta-accessible-orange: #a06800;       /* 4.69:1 on white */
+  --fiesta-accessible-orange-hover: #8f5b00; /* 5.73:1 on white */
+  --fiesta-hero-gradient-end: #a04d00;       /* 5.91:1 with white text */
+
+  /* Use the accessible shade for links so body copy passes WCAG 2.2 AA. */
+  --ifm-link-color: var(--fiesta-accessible-orange);
+  --ifm-link-hover-color: var(--fiesta-accessible-orange-hover);
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
@@ -35,11 +49,18 @@
   --ifm-color-primary-lighter: #f7b749;
   --ifm-color-primary-lightest: #f9c873;
   --docusaurus-highlighted-code-line-bg: rgba(245, 166, 35, 0.25);
+
+  /*
+   * On the dark background (#1b1b1d) the brand orange reaches ~7.8:1, so
+   * we keep links on the brand color in dark mode.
+   */
+  --ifm-link-color: var(--ifm-color-primary);
+  --ifm-link-hover-color: var(--ifm-color-primary-light);
 }
 
 /* Hero section styling */
 .hero--primary {
-  background: linear-gradient(135deg, #b35900 0%, #c07800 100%);
+  background: linear-gradient(135deg, #b35900 0%, var(--fiesta-hero-gradient-end) 100%);
   color: #fff;
 }
 
@@ -49,7 +70,7 @@
 }
 
 [data-theme='dark'] .hero--primary {
-  background: linear-gradient(135deg, #8b2d00 0%, #b35900 50%, #c07800 100%);
+  background: linear-gradient(135deg, #8b2d00 0%, #b35900 50%, var(--fiesta-hero-gradient-end) 100%);
 }
 
 /* Align logo with nav: anchor image to bottom so text baseline matches nav links;
@@ -71,4 +92,46 @@
 .button--secondary:hover {
   background-color: var(--ifm-color-primary-light);
   border-color: var(--ifm-color-primary-light);
+}
+
+/*
+ * Outline buttons in light mode: the brand orange only reaches ~2.03:1 on
+ * white, so we shift to the accessible orange for both the resting state
+ * (text + border) and the hover/focus/active fill (white text on darker
+ * orange = 4.69:1+). This fixes the contrast issue on the secondary
+ * "outline" links inside the homepage highlight cards.
+ */
+html[data-theme='light'] .button--outline.button--primary {
+  color: var(--fiesta-accessible-orange);
+  border-color: var(--fiesta-accessible-orange);
+}
+
+html[data-theme='light'] .button--outline.button--primary:hover,
+html[data-theme='light'] .button--outline.button--primary:focus,
+html[data-theme='light'] .button--outline.button--primary:active {
+  background-color: var(--fiesta-accessible-orange);
+  border-color: var(--fiesta-accessible-orange);
+  color: #fff;
+}
+
+/*
+ * Plain `.button--outline` (no `.button--primary` modifier) inside doc
+ * content — e.g. the "Download image" / "FiestaUpdater reference"
+ * secondary links in the homepage highlight cards — inherits the brand
+ * orange via Infima. Make those AA-compliant in light mode too.
+ *
+ * Excluding navbar/hero contexts so we don't override the white-on-hero
+ * GitHub button (which has its own scoped styling).
+ */
+html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary) {
+  color: var(--fiesta-accessible-orange);
+  border-color: var(--fiesta-accessible-orange);
+}
+
+html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary):hover,
+html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary):focus,
+html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary):active {
+  background-color: var(--fiesta-accessible-orange);
+  border-color: var(--fiesta-accessible-orange);
+  color: #fff;
 }
