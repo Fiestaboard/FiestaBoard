@@ -68,6 +68,20 @@ Here are some commonly used template variables:
 - `{date_time.datetime}` - Current date and time
 - `{muni.formatted}` - Transit arrival times
 
+### Inline Formulas (`{{= ... }}`)
+
+For anything beyond a plain value — `IF` / `ELSE`, comparisons, math, string
+manipulation, conditional colors — FiestaBoard supports an Excel-style
+formula language inside `{{= ... }}` blocks:
+
+```text
+{{= IF(weather.temperature > 80, "HOT", "OK") }}
+{{= IF(stocks.AAPL.change >= 0, COLOR("green"), COLOR("red")) }} AAPL
+```
+
+See the [Template Formulas reference](/docs/reference/template-formulas) for
+the complete syntax, function list, and recipes.
+
 ## Working with Colors
 
 The split-flap display supports colored tiles using special character codes. You can use these in the editor to add visual emphasis to your pages.

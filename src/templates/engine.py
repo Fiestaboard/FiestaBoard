@@ -2,6 +2,9 @@
 
 Template syntax:
 - Data binding: {{plugin_id.field}} e.g., {{weather.temperature}}, {{date_time.time}}
+- Inline formulas: {{= EXPRESSION }} - Excel-like expressions with IF/AND/OR,
+  math, string functions, and COLOR(). See ``src/templates/expressions.py`` and
+  the user-facing reference docs at ``docs-site/docs/reference/template-formulas.md``.
 - Colors: {{red}}, {{blue}}, etc. - Single colored tile (not text wrapping)
 - Symbols: {sun}, {cloud}, {rain}
 - Formatting: {{value|pad:3}}, {{value|upper}}, {{value|lower}}, {{value|wrap}}
@@ -33,6 +36,7 @@ from dataclasses import dataclass
 from ..plugins import get_plugin_registry
 from ..text_utils import extract_alignment_from_line
 from ..devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+from .expressions import render_expressions, validate_expression, find_formulas
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +159,14 @@ class TemplateEngine:
         # Process colors FIRST (before variables) to prevent VAR_PATTERN from matching them
         # This converts {{red}} to {{63}}, etc.
         result = self._normalize_colors(result)
+        
+        # Process inline formula expressions ({{= ... }}) before plain variables.
+        # See ``src/templates/expressions.py`` for the language reference.
+        # Formulas resolve their own variable references against ``context``;
+        # the result is plain text (possibly containing color tile markers
+        # like ``{67}`` from ``COLOR()``) which then flows through the
+        # remaining passes unchanged.
+        result = render_expressions(result, context)
         
         # Process variables
         result = self._render_variables(result, context)
@@ -1322,6 +1334,10 @@ class TemplateEngine:
             # Check for invalid variable references
             for match in VAR_PATTERN.finditer(line):
                 expr = match.group(1).split('|')[0].strip()
+                # Skip formula bodies -- they're validated in the separate
+                # ``find_formulas`` loop below.
+                if expr.startswith('='):
+                    continue
                 parts = expr.split('.')
                 if len(parts) >= 2:
                     source = parts[0].lower()
@@ -1331,7 +1347,21 @@ class TemplateEngine:
                             column=match.start(),
                             message=f"Unknown source: {source}"
                         ))
-        
+
+            # Validate inline formulas ({{= ... }}). This surfaces parse
+            # errors, unknown function names, unknown variable sources,
+            # and obvious arity mistakes at edit time so users don't have
+            # to wait for a render to discover problems.
+            for start, _end, body in find_formulas(line):
+                if not body:
+                    continue
+                for issue in validate_expression(body, known_sources=available_sources):
+                    errors.append(TemplateError(
+                        line=line_num,
+                        column=start,
+                        message=f"Formula {issue.code}: {issue.message}",
+                    ))
+
         return errors
     
     def _get_all_known_sources(self) -> set:
