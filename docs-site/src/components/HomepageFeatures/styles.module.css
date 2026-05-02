@@ -114,12 +114,18 @@
 
 .showcaseToggleBtnActive {
   background: var(--ifm-background-color);
-  color: var(--ifm-color-primary);
+  /*
+   * Use the accessible orange (4.69:1 on white). The dark-mode block
+   * below switches back to the brand primary where contrast on the
+   * dark surface is already ~7.8:1.
+   */
+  color: var(--fiesta-accessible-orange);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   font-weight: 600;
 }
 
 [data-theme='dark'] .showcaseToggleBtnActive {
+  color: var(--ifm-color-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
@@ -376,13 +382,24 @@
   align-self: flex-start;
   padding: 0.2rem 0.7rem;
   border-radius: 999px;
-  background: var(--ifm-color-primary);
+  /*
+   * `--fiesta-accessible-orange` is defined in custom.css. White text on
+   * this shade reaches 4.69:1, meeting WCAG 2.2 AA. The dark-mode block
+   * below restores the brand orange, which has enough contrast against
+   * dark text in dark mode.
+   */
+  background: var(--fiesta-accessible-orange);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 1rem;
+}
+
+[data-theme='dark'] .highlightBadge {
+  background: var(--ifm-color-primary);
+  color: #1b1b1d;
 }
 
 .highlightCard h3 {
