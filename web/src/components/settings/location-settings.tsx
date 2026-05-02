@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, LocateFixed } from "lucide-react";
 import { api, LocationSettings } from "@/lib/api";
 import { queryKeys } from "@/hooks/use-board";
 
@@ -25,6 +25,7 @@ export function LocationSettingsCard() {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const [isGeolocating, setIsGeolocating] = useState(false);
 
   useEffect(() => {
     if (location) {
@@ -81,6 +82,33 @@ export function LocationSettingsCard() {
     setIsDirty(true);
   };
 
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error(t("locationUnavailable"));
+      return;
+    }
+    setIsGeolocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude.toFixed(6);
+        const lon = position.coords.longitude.toFixed(6);
+        setLatitude(lat);
+        setLongitude(lon);
+        setIsDirty(true);
+        setIsGeolocating(false);
+      },
+      (error) => {
+        setIsGeolocating(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error(t("locationDenied"));
+        } else {
+          toast.error(t("locationUnavailable"));
+        }
+      },
+      { timeout: 10000 }
+    );
+  };
+
   const isConfigured = location?.latitude != null && location?.longitude != null;
 
   return (
@@ -134,6 +162,19 @@ export function LocationSettingsCard() {
               {t("tip")}
             </p>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleUseMyLocation}
+                disabled={mutation.isPending || isGeolocating}
+                size="sm"
+              >
+                {isGeolocating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LocateFixed className="mr-2 h-4 w-4" />
+                )}
+                {isGeolocating ? t("locating") : t("useMyLocation")}
+              </Button>
               <Button
                 onClick={handleSave}
                 disabled={mutation.isPending || !isDirty}

@@ -886,7 +886,11 @@
     "latitudeRange": "La latitud debe ser un número entre -90 y 90",
     "longitudeRange": "La longitud debe ser un número entre -180 y 180",
     "toastSaved": "Ajustes de ubicación guardados",
-    "toastSaveFailed": "No se pudo guardar la ubicación: {error}"
+    "toastSaveFailed": "No se pudo guardar la ubicación: {error}",
+    "useMyLocation": "Usar mi ubicación",
+    "locating": "Localizando...",
+    "locationDenied": "Se denegó el acceso a la ubicación",
+    "locationUnavailable": "La ubicación no está disponible"
   },
   "boardSettings": {
     "connection": "Conexión del tablero",
