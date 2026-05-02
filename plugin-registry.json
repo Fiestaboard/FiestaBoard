@@ -6,6 +6,16 @@
   "version": "1.0.0",
   "plugins": [
     {
+      "id": "airport_board",
+      "name": "Airport Board",
+      "description": "Display live flight information near a configurable airport.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--airport-board",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "plane",
+      "category": "transit"
+    },
+    {
       "id": "air_fog",
       "name": "Air Quality & Fog",
       "description": "Display air quality (AQI), fog/visibility conditions, and pollen/allergen levels",
@@ -14,6 +24,16 @@
       "fiestaboard_version": ">=2.10.0",
       "icon": "wind",
       "category": "weather"
+    },
+    {
+      "id": "aurora_forecast",
+      "name": "Aurora Forecast",
+      "description": "Display the current geomagnetic Kp index and aurora activity forecast.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--aurora-forecast",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "zap",
+      "category": "data"
     },
     {
       "id": "baywheels",
@@ -36,6 +56,16 @@
       "category": "utility"
     },
     {
+      "id": "currency",
+      "name": "Currency Exchange",
+      "description": "Display live currency exchange rates using the Frankfurter API.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--currency",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "banknote",
+      "category": "data"
+    },
+    {
       "id": "dad_jokes",
       "name": "Dad Jokes",
       "description": "Display random dad jokes from the icanhazdadjoke API",
@@ -54,6 +84,26 @@
       "fiestaboard_version": ">=2.10.0",
       "icon": "landmark",
       "category": "entertainment"
+    },
+    {
+      "id": "earthquake",
+      "name": "Earthquake Monitor",
+      "description": "Display recent earthquake activity from USGS GeoJSON feeds.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--earthquake",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "activity",
+      "category": "data"
+    },
+    {
+      "id": "element_of_day",
+      "name": "Element of the Day",
+      "description": "Display a periodic table element that changes daily.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--element-of-day",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "atom",
+      "category": "utility"
     },
     {
       "id": "generic_data",
@@ -76,6 +126,16 @@
       "category": "utility"
     },
     {
+      "id": "hacker_news",
+      "name": "Hacker News",
+      "description": "Display the top Hacker News story title and score on your board.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--hacker-news",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "newspaper",
+      "category": "data"
+    },
+    {
       "id": "health",
       "name": "Allergy & Health",
       "description": "Display allergy levels (pollen counts) and health risk indicators for your area using Open-Meteo Air Quality data",
@@ -96,6 +156,16 @@
       "category": "home"
     },
     {
+      "id": "iss_tracker",
+      "name": "ISS Tracker",
+      "description": "Display the real-time position and altitude of the ISS.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--iss-tracker",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "satellite",
+      "category": "data"
+    },
+    {
       "id": "last_fm",
       "name": "Last.fm Now Playing",
       "description": "Display what's currently playing via Last.fm scrobbling. Works with Apple Music, Spotify, and any scrobbling source.",
@@ -104,6 +174,26 @@
       "fiestaboard_version": ">=2.10.0",
       "icon": "music",
       "category": "entertainment"
+    },
+    {
+      "id": "lightning",
+      "name": "Lightning Alerts",
+      "description": "Display active weather alerts for a US state from the NWS.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--lightning",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "cloud-lightning",
+      "category": "data"
+    },
+    {
+      "id": "moon_phase",
+      "name": "Moon Phase",
+      "description": "Display the current lunar phase and illumination.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--moon-phase",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "moon",
+      "category": "data"
     },
     {
       "id": "muni",
@@ -116,6 +206,16 @@
       "category": "transit"
     },
     {
+      "id": "national_day",
+      "name": "National Day",
+      "description": "Display today's national days and fun observances.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--national-day",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "calendar-heart",
+      "category": "utility"
+    },
+    {
       "id": "nearby_aircraft",
       "name": "Nearby Aircraft",
       "description": "Display real-time nearby aircraft information from OpenSky Network API",
@@ -123,6 +223,76 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "plane",
+      "category": "data"
+    },
+    {
+      "id": "network_speed",
+      "name": "Network Speed",
+      "description": "Display your internet connection speed.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--network-speed",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "gauge",
+      "category": "utility"
+    },
+    {
+      "id": "on_this_day",
+      "name": "On This Day",
+      "description": "Display a notable historical event that happened on today's date.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--on-this-day",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "history",
+      "category": "utility"
+    },
+    {
+      "id": "pet_facts",
+      "name": "Pet Facts",
+      "description": "Display a random fun fact about cats or dogs.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--pet-facts",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "paw-print",
+      "category": "entertainment"
+    },
+    {
+      "id": "pihole",
+      "name": "Pi-hole Stats",
+      "description": "Display DNS query statistics from a local Pi-hole ad blocker.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--pihole",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "shield",
+      "category": "utility"
+    },
+    {
+      "id": "quote_of_day",
+      "name": "Quote of the Day",
+      "description": "Display a daily inspirational quote from ZenQuotes.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--quote-of-day",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "quote",
+      "category": "utility"
+    },
+    {
+      "id": "reddit_hot",
+      "name": "Reddit Hot",
+      "description": "Display the top hot post from any subreddit.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--reddit-hot",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "message-circle",
+      "category": "data"
+    },
+    {
+      "id": "river_flow",
+      "name": "River Flow",
+      "description": "Display real-time streamflow data from a USGS monitoring station.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--river-flow",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "droplets",
       "category": "data"
     },
     {
@@ -134,6 +304,16 @@
       "fiestaboard_version": ">=2.10.0",
       "icon": "gift",
       "category": "entertainment"
+    },
+    {
+      "id": "solar_activity",
+      "name": "Solar Activity",
+      "description": "Display current solar activity and sunspot data from NOAA.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--solar-activity",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "sun",
+      "category": "data"
     },
     {
       "id": "spacecraft_launches",
@@ -206,6 +386,16 @@
       "category": "weather"
     },
     {
+      "id": "tide_times",
+      "name": "Tide Times",
+      "description": "Display NOAA tide predictions for a configured station.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--tide-times",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "waves",
+      "category": "data"
+    },
+    {
       "id": "traffic",
       "name": "Traffic",
       "description": "Display commute times and traffic conditions using Google Routes API",
@@ -214,6 +404,16 @@
       "fiestaboard_version": ">=2.10.0",
       "icon": "car",
       "category": "transit"
+    },
+    {
+      "id": "uv_index",
+      "name": "UV Index",
+      "description": "Display the current UV index and protection advice.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--uv-index",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "sun-medium",
+      "category": "weather"
     },
     {
       "id": "visual_clock",
@@ -226,6 +426,16 @@
       "category": "art"
     },
     {
+      "id": "volcano",
+      "name": "Volcano Activity",
+      "description": "Display current volcanic activity from the Smithsonian GVP.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--volcano",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "flame",
+      "category": "data"
+    },
+    {
       "id": "weather",
       "name": "Weather",
       "description": "Display current weather conditions with temperature, humidity, and wind speed",
@@ -236,6 +446,16 @@
       "category": "weather"
     },
     {
+      "id": "webhook",
+      "name": "Webhook",
+      "description": "Display a custom message pushed via an HTTP webhook.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--webhook",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "webhook",
+      "category": "utility"
+    },
+    {
       "id": "white_noise",
       "name": "White Noise",
       "description": "Gentle rain / white noise mode \u2014 softly cascading tiles that create a soothing ambient pitter-patter",
@@ -244,6 +464,26 @@
       "fiestaboard_version": ">=2.10.0",
       "icon": "cloud-rain",
       "category": "art"
+    },
+    {
+      "id": "wildfire",
+      "name": "Wildfire Monitor",
+      "description": "Display active wildfire information from NIFC.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--wildfire",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "flame-kindling",
+      "category": "data"
+    },
+    {
+      "id": "word_of_day",
+      "name": "Word of the Day",
+      "description": "Display a word, its pronunciation, and definition.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "book-open",
+      "category": "utility"
     },
     {
       "id": "wsdot",
