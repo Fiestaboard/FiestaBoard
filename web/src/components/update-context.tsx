@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -9,8 +10,9 @@ import {
   useState,
 } from "react";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 // ---------------------------------------------------------------------------
@@ -151,14 +153,7 @@ function UpdateOverlay({
 }) {
   const t = useTranslations("updateOverlay");
   const [phase, setPhase] = useState<UpdatePhase>("pulling");
-  const [elapsed, setElapsed] = useState(0);
   const everWentDown = useRef(false);
-
-  // Elapsed-time counter — ticks every second.
-  useEffect(() => {
-    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   // Polling loop.
   useEffect(() => {
@@ -214,11 +209,6 @@ function UpdateOverlay({
     };
   }, [currentVersion]);
 
-  // Format elapsed time as M:SS.
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  const elapsedLabel = t("elapsedLabel", { time: `${minutes}:${String(seconds).padStart(2, "0")}` });
-
   if (phase === "error") {
     return (
       <div className="fixed inset-0 z-[200] bg-black text-white flex items-center justify-center">
@@ -247,6 +237,13 @@ function UpdateOverlay({
     );
   }
 
+  const steps = [
+    { key: "pull", label: t("stepPull") },
+    { key: "restart", label: t("stepRestart") },
+    { key: "done", label: t("stepDone") },
+  ];
+  const stepIndex = phase === "ready" ? 2 : phase === "restarting" ? 1 : 0;
+
   const phaseMessage =
     phase === "pulling" && !everWentDown.current
       ? t("phasePulling")
@@ -256,22 +253,60 @@ function UpdateOverlay({
 
   return (
     <div className="fixed inset-0 z-[200] bg-black text-white flex items-center justify-center">
-      <div className="text-center space-y-6 max-w-sm mx-auto px-4">
+      <div className="text-center space-y-6 max-w-xs mx-auto px-4">
+        {/* Spinner */}
         {phase === "ready" ? (
           <RefreshCw className="h-12 w-12 mx-auto animate-spin text-white" />
         ) : (
-          <Loader2 className="h-12 w-12 mx-auto animate-spin text-white" />
+          <div className="h-12 w-12 mx-auto rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
         )}
+
+        {/* Title + current phase message */}
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight">{t("updatingFiestaboard")}</h2>
           <p className="text-base text-white/80">{phaseMessage}</p>
         </div>
-        <div className="space-y-1">
-          <p className="text-sm text-white/50">{elapsedLabel}</p>
-          <p className="text-xs text-white/40">
-            {t("dontCloseTab")}
-          </p>
+
+        {/* Step dots */}
+        <div className="flex items-start w-full">
+          {steps.map((step, i) => {
+            const isCompleted = i < stepIndex;
+            const isActive = i === stepIndex;
+            return (
+              <Fragment key={step.key}>
+                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                  <div
+                    className={cn(
+                      "h-2.5 w-2.5 rounded-full transition-all duration-500",
+                      isCompleted || isActive ? "bg-white" : "bg-white/25",
+                      isActive && "ring-2 ring-white/40 ring-offset-2 ring-offset-black",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-xs leading-none transition-colors duration-500",
+                      isActive ? "text-white" : isCompleted ? "text-white/50" : "text-white/25",
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+                {i < steps.length - 1 && (
+                  <div
+                    className={cn(
+                      "flex-1 h-px mt-[5px] mx-2 transition-all duration-500",
+                      isCompleted ? "bg-white/50" : "bg-white/15",
+                    )}
+                  />
+                )}
+              </Fragment>
+            );
+          })}
         </div>
+
+        <p className="text-xs text-white/40">
+          {t("dontCloseTab")}
+        </p>
       </div>
     </div>
   );

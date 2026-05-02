@@ -1047,7 +1047,6 @@
     "withMessage": "Affichage du tableau : {message}"
   },
   "updateOverlay": {
-    "elapsedLabel": "{time} écoulées",
     "takingLonger": "La mise à jour prend plus de temps que prévu",
     "takingLongerDescription": "La mise à jour peut encore s'exécuter en arrière-plan. Vérifiez <code>docker logs fiestaupdater</code> sur l'hôte, puis actualisez.",
     "dismissAndRefresh": "Ignorer et actualiser la page",
@@ -1055,7 +1054,10 @@
     "phaseReady": "Mise à jour terminée. Rechargement…",
     "phaseRestarting": "Redémarrage de FiestaBoard…",
     "updatingFiestaboard": "Mise à jour de FiestaBoard",
-    "dontCloseTab": "Les mises à jour peuvent prendre quelques minutes — veuillez ne pas fermer cet onglet."
+    "dontCloseTab": "Les mises à jour peuvent prendre quelques minutes — veuillez ne pas fermer cet onglet.",
+    "stepPull": "Téléchargement",
+    "stepRestart": "Redémarrage",
+    "stepDone": "Terminé"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Chargement de l'assistant de configuration...",

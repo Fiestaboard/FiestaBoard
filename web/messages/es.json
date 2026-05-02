@@ -1047,7 +1047,6 @@
     "withMessage": "Visualización del tablero: {message}"
   },
   "updateOverlay": {
-    "elapsedLabel": "{time} transcurrido",
     "takingLonger": "La actualización está tardando más de lo esperado",
     "takingLongerDescription": "Es posible que la actualización aún se esté ejecutando en segundo plano. Comprueba <code>docker logs fiestaupdater</code> en el host y actualiza la página.",
     "dismissAndRefresh": "Cerrar y actualizar la página",
@@ -1055,7 +1054,10 @@
     "phaseReady": "Actualización completa. Recargando…",
     "phaseRestarting": "Reiniciando FiestaBoard…",
     "updatingFiestaboard": "Actualizando FiestaBoard",
-    "dontCloseTab": "Las actualizaciones pueden tardar unos minutos. Por favor, no cierres esta pestaña."
+    "dontCloseTab": "Las actualizaciones pueden tardar unos minutos. Por favor, no cierres esta pestaña.",
+    "stepPull": "Descargando",
+    "stepRestart": "Reiniciando",
+    "stepDone": "Listo"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Cargando asistente de configuración...",
