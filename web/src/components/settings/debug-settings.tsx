@@ -216,7 +216,7 @@ export function DebugSettings() {
           <div className="space-y-4">
         {/* Network Diagnostics */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">{t("networkDiagnosticsLabel")}</Label>
+          <p className="text-xs font-medium">{t("networkDiagnosticsLabel")}</p>
           <Button
             onClick={() => networkDiagnosticsMutation.mutate()}
             disabled={isAnyMutationLoading}
@@ -312,7 +312,7 @@ export function DebugSettings() {
 
         {/* Blank Board */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">{t("clearBoardLabel")}</Label>
+          <p className="text-xs font-medium">{t("clearBoardLabel")}</p>
           <Button
             onClick={() => blankMutation.mutate()}
             disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -334,13 +334,13 @@ export function DebugSettings() {
 
         {/* Fill Board with Character */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">{t("fillWithCharacterLabel")}</Label>
+          <Label htmlFor="fill-character" className="text-xs font-medium">{t("fillWithCharacterLabel")}</Label>
           <div className="flex gap-2">
             <Select
               value={selectedCharacter.toString()}
               onValueChange={(value) => setSelectedCharacter(parseInt(value))}
             >
-              <SelectTrigger className="flex-1 h-9 text-xs">
+              <SelectTrigger id="fill-character" className="flex-1 h-9 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-80">
@@ -384,7 +384,7 @@ export function DebugSettings() {
 
         {/* Show Debug Info */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">{t("displaySystemInfoLabel")}</Label>
+          <p className="text-xs font-medium">{t("displaySystemInfoLabel")}</p>
           <Button
             onClick={() => debugInfoMutation.mutate()}
             disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -406,7 +406,7 @@ export function DebugSettings() {
 
         {/* Clear Cache */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium">{t("cacheManagementLabel")}</Label>
+          <p className="text-xs font-medium">{t("cacheManagementLabel")}</p>
           <Button
             onClick={() => clearCacheMutation.mutate()}
             disabled={!isBoardConfigured || isAnyMutationLoading}

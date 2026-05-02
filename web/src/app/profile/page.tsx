@@ -186,7 +186,9 @@ export default function ProfilePage() {
                 <Skeleton className="h-10 w-full max-w-sm" />
               ) : (
                 <div className="space-y-2 max-w-sm">
+                  <Label htmlFor="instance-name">{t("instanceNameTitle")}</Label>
                   <Input
+                    id="instance-name"
                     value={instanceName}
                     onChange={(e) => setInstanceName(e.target.value)}
                     onBlur={handleInstanceNameBlur}
@@ -281,20 +283,20 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   {/* Timezone */}
                   <div className="space-y-2 max-w-sm">
-                    <Label className="text-sm font-medium">{t("timezoneLabel")}</Label>
-                    <TimezonePicker value={timezone} onChange={handleTimezoneChange} />
+                    <Label id="timezone-label" htmlFor="timezone-picker" className="text-sm font-medium">{t("timezoneLabel")}</Label>
+                    <TimezonePicker id="timezone-picker" value={timezone} onChange={handleTimezoneChange} />
                   </div>
 
                   {/* Format selects */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">{t("timeFormat")}</Label>
+                      <Label htmlFor="time-format" className="text-sm font-medium">{t("timeFormat")}</Label>
                       <Select
                         value={selectedTimeFormat}
                         onValueChange={(v) => handleTimeFormatChange(v as "12h" | "24h")}
                         disabled={isSaving}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="time-format">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -305,7 +307,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">{t("dateFormat")}</Label>
+                      <Label htmlFor="date-format" className="text-sm font-medium">{t("dateFormat")}</Label>
                       <Select
                         value={selectedDateFormat}
                         onValueChange={(v) =>
@@ -315,7 +317,7 @@ export default function ProfilePage() {
                         }
                         disabled={isSaving}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="date-format">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

@@ -258,8 +258,9 @@ export function StepEasyPlugins({
               {plugin.id === "date_time" && selected && (
                 <CardContent className="pt-2 space-y-3" onClick={(e) => e.stopPropagation()}>
                   <div className="space-y-2">
-                    <Label className="text-sm">{t("timezoneLabel")}</Label>
+                    <Label htmlFor="wizard-timezone" className="text-sm">{t("timezoneLabel")}</Label>
                     <TimezonePicker
+                      id="wizard-timezone"
                       value={config.date_time.timezone}
                       onChange={(timezone) =>
                         onConfigChange({

@@ -235,6 +235,7 @@ export function GeneralSettings() {
                       <div className="space-y-2">
                         <Label htmlFor="silence-start" className="text-xs">{t("startTimeLabel")}</Label>
                         <TimePicker
+                          id="silence-start"
                           value={silenceStartTime}
                           onChange={(val) => handleSilenceTimeChange("start", val)}
                           disabled={isSaving}
@@ -244,6 +245,7 @@ export function GeneralSettings() {
                       <div className="space-y-2">
                         <Label htmlFor="silence-end" className="text-xs">{t("endTimeLabel")}</Label>
                         <TimePicker
+                          id="silence-end"
                           value={silenceEndTime}
                           onChange={(val) => handleSilenceTimeChange("end", val)}
                           disabled={isSaving}

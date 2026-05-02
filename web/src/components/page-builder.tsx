@@ -951,13 +951,14 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
             {/* Page name */}
             <div className="space-y-1.5">
-              <label className="text-xs sm:text-sm font-medium">{t("pageNameLabel")}</label>
+              <label htmlFor="page-name" className="text-xs sm:text-sm font-medium">{t("pageNameLabel")}</label>
               <input
+                id="page-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("pageNamePlaceholder")}
-                className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background"
+                className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
@@ -1069,7 +1070,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     <button
                       onClick={() => setPreviewBoardColor("black")}
                       aria-label={t("previewAsBlack")}
-                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors ${
+                      aria-pressed={effectiveBoardColor === "black"}
+                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                         effectiveBoardColor === "black"
                           ? "border-primary ring-1 ring-primary/30"
                           : "border-border hover:border-muted-foreground"
@@ -1078,7 +1080,8 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     <button
                       onClick={() => setPreviewBoardColor("white")}
                       aria-label={t("previewAsWhite")}
-                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors ${
+                      aria-pressed={effectiveBoardColor === "white"}
+                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                         effectiveBoardColor === "white"
                           ? "border-primary ring-1 ring-primary/30"
                           : "border-border hover:border-muted-foreground"

@@ -664,9 +664,9 @@ export function PageGridSelector({
     return (
       <div>
         {effectiveLabel && (
-          <label className="text-xs font-medium text-muted-foreground mb-3 block">
+          <p className="text-xs font-medium text-muted-foreground mb-3">
             {effectiveLabel}
-          </label>
+          </p>
         )}
         {pagesContent}
       </div>
