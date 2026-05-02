@@ -121,33 +121,58 @@ FiestaBoard has **26 built-in plugins** covering weather, finance, transit, spor
 
 | Plugin | What It Shows | API Key? |
 |--------|--------------|----------|
-| [Weather](https://github.com/Fiestaboard/fiestaboard-plugin--weather) | Temperature, UV, precipitation, high/low | Yes (free) |
-| [Stocks](https://github.com/Fiestaboard/fiestaboard-plugin--stocks) | Stock prices with color indicators | Optional |
-| [Sports Scores](https://github.com/Fiestaboard/fiestaboard-plugin--sports-scores) | NFL, Soccer, NHL, NBA scores | Optional |
-| [Traffic](https://github.com/Fiestaboard/fiestaboard-plugin--traffic) | Travel time with live traffic | Yes (free tier) |
-| [Muni Transit](https://github.com/Fiestaboard/fiestaboard-plugin--muni) | Real-time SF Muni arrivals | Yes (free) |
-| [Home Assistant](https://github.com/Fiestaboard/fiestaboard-plugin--home-assistant) | Smart home status (doors, locks, garage) | Yes (self-hosted) |
-| [Last.fm Now Playing](https://github.com/Fiestaboard/fiestaboard-plugin--last-fm) | Currently playing music | Yes (free) |
-| [Surf Conditions](https://github.com/Fiestaboard/fiestaboard-plugin--surf) | Wave height and quality ratings | No |
+| [Airport Board](https://github.com/Fiestaboard/fiestaboard-plugin--airport-board) | Live flights near a configurable airport | No |
 | [Air Quality & Fog](https://github.com/Fiestaboard/fiestaboard-plugin--air-fog) | AQI and fog conditions | Yes |
-| [Nearby Aircraft](https://github.com/Fiestaboard/fiestaboard-plugin--nearby-aircraft) | Real-time aircraft tracking | Optional |
-| [Disney Park Queue Times](https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times) | Wait times for Disney rides | No |
-| [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
+| [Aurora Forecast](https://github.com/Fiestaboard/fiestaboard-plugin--aurora-forecast) | Geomagnetic Kp index and aurora visibility | No |
 | [Bay Wheels](https://github.com/Fiestaboard/fiestaboard-plugin--baywheels) | Bike availability at stations | No |
+| [Calendar Subscription](https://github.com/Fiestaboard/fiestaboard-plugin--calendar-sub) | Upcoming events from any .ics URL | No |
+| [Currency Exchange](https://github.com/Fiestaboard/fiestaboard-plugin--currency) | Live exchange rates (Frankfurter/ECB) | No |
+| [Dad Jokes](https://github.com/Fiestaboard/fiestaboard-plugin--dad-jokes) | Random dad jokes | No |
+| [Disney Park Queue Times](https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times) | Wait times for Disney rides | No |
+| [Earthquake Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--earthquake) | Recent USGS earthquake data | No |
+| [Element of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--element-of-day) | Periodic table element of the day | No |
+| [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
+| [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
+| [Hacker News](https://github.com/Fiestaboard/fiestaboard-plugin--hacker-news) | Top Hacker News story title and score | No |
+| [Allergy & Health](https://github.com/Fiestaboard/fiestaboard-plugin--health) | Allergy levels and health risk indicators | No |
+| [Home Assistant](https://github.com/Fiestaboard/fiestaboard-plugin--home-assistant) | Smart home status (doors, locks, garage) | Yes (self-hosted) |
+| [ISS Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--iss-tracker) | Real-time ISS position and altitude | No |
+| [Last.fm Now Playing](https://github.com/Fiestaboard/fiestaboard-plugin--last-fm) | Currently playing music | Yes (free) |
+| [Lightning Alerts](https://github.com/Fiestaboard/fiestaboard-plugin--lightning) | Active NWS weather alerts by US state | No |
+| [Moon Phase](https://github.com/Fiestaboard/fiestaboard-plugin--moon-phase) | Current lunar phase and illumination | No |
+| [Muni Transit](https://github.com/Fiestaboard/fiestaboard-plugin--muni) | Real-time SF Muni arrivals | Yes (free) |
+| [National Day](https://github.com/Fiestaboard/fiestaboard-plugin--national-day) | Today's national days and observances | No |
+| [Nearby Aircraft](https://github.com/Fiestaboard/fiestaboard-plugin--nearby-aircraft) | Real-time aircraft tracking | Optional |
+| [Network Speed](https://github.com/Fiestaboard/fiestaboard-plugin--network-speed) | Internet download/upload speed | No |
+| [On This Day](https://github.com/Fiestaboard/fiestaboard-plugin--on-this-day) | Historical event from today's date | No |
+| [Pet Facts](https://github.com/Fiestaboard/fiestaboard-plugin--pet-facts) | Random cat or dog fact | No |
+| [Pi-hole Stats](https://github.com/Fiestaboard/fiestaboard-plugin--pihole) | DNS query stats from local Pi-hole | No |
+| [Quote of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--quote-of-day) | Daily inspirational quote | No |
+| [Reddit Hot](https://github.com/Fiestaboard/fiestaboard-plugin--reddit-hot) | Top post from any subreddit | No |
+| [River Flow](https://github.com/Fiestaboard/fiestaboard-plugin--river-flow) | Real-time USGS streamflow data | No |
+| [Santa Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--santa-tracker) | Track Santa's journey on Christmas | No |
+| [Solar Activity](https://github.com/Fiestaboard/fiestaboard-plugin--solar-activity) | Sunspot count and solar flare data | No |
+| [Spacecraft Launches](https://github.com/Fiestaboard/fiestaboard-plugin--spacecraft-launches) | Upcoming rocket launch countdowns | No |
+| [Sports Scores](https://github.com/Fiestaboard/fiestaboard-plugin--sports-scores) | NFL, Soccer, NHL, NBA scores | Optional |
+| [Star Trek Quotes](https://github.com/Fiestaboard/fiestaboard-plugin--star-trek-quotes) | Quotes from TNG, Voyager, DS9 | No |
+| [Stardate](https://github.com/Fiestaboard/fiestaboard-plugin--stardate) | Current TNG-era stardate | No |
+| [Stocks](https://github.com/Fiestaboard/fiestaboard-plugin--stocks) | Stock prices with color indicators | Optional |
+| [Sun Art](https://github.com/Fiestaboard/fiestaboard-plugin--sun-art) | Art pattern that follows the sun | No |
+| [Surf Conditions](https://github.com/Fiestaboard/fiestaboard-plugin--surf) | Wave height and quality ratings | No |
+| [Tide Times](https://github.com/Fiestaboard/fiestaboard-plugin--tide-times) | NOAA tide predictions by station | No |
+| [Traffic](https://github.com/Fiestaboard/fiestaboard-plugin--traffic) | Travel time with live traffic | Yes (free tier) |
+| [UV Index](https://github.com/Fiestaboard/fiestaboard-plugin--uv-index) | UV index and sun protection advice | No |
+| [Visual Clock](https://github.com/Fiestaboard/fiestaboard-plugin--visual-clock) | Large pixel-art style clock | No |
+| [Volcano Activity](https://github.com/Fiestaboard/fiestaboard-plugin--volcano) | Active volcanoes from Smithsonian GVP | No |
+| [Weather](https://github.com/Fiestaboard/fiestaboard-plugin--weather) | Temperature, UV, precipitation, high/low | Yes (free) |
+| [Webhook](https://github.com/Fiestaboard/fiestaboard-plugin--webhook) | Custom message via HTTP webhook | No |
+| [White Noise](https://github.com/Fiestaboard/fiestaboard-plugin--white-noise) | Ambient rain/white noise effect | No |
+| [Wildfire Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--wildfire) | Active wildfires from NIFC | No |
+| [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
+| [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
 | [Countdown](./plugins/countdown/README.md) | Time remaining until an event | No |
 | [Date & Time](./plugins/date_time/README.md) | Current date/time in many formats | No |
 | [Random](./plugins/random/README.md) | Randomly selected values from a custom list, coin flip, or board color | No |
-| [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
-| [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
-| [Allergy & Health](https://github.com/Fiestaboard/fiestaboard-plugin--health) | Allergy levels and health risk indicators | No |
-| [Star Trek Quotes](https://github.com/Fiestaboard/fiestaboard-plugin--star-trek-quotes) | Quotes from TNG, Voyager, DS9 | No |
-| [Dad Jokes](https://github.com/Fiestaboard/fiestaboard-plugin--dad-jokes) | Random dad jokes | No |
-| [Santa Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--santa-tracker) | Track Santa's journey on Christmas | No |
-| [Spacecraft Launches](https://github.com/Fiestaboard/fiestaboard-plugin--spacecraft-launches) | Upcoming rocket launch countdowns | No |
-| [Stardate](https://github.com/Fiestaboard/fiestaboard-plugin--stardate) | Current TNG-era stardate | No |
-| [Sun Art](https://github.com/Fiestaboard/fiestaboard-plugin--sun-art) | Art pattern that follows the sun | No |
-| [Visual Clock](https://github.com/Fiestaboard/fiestaboard-plugin--visual-clock) | Large pixel-art style clock | No |
-| [White Noise](https://github.com/Fiestaboard/fiestaboard-plugin--white-noise) | Ambient rain/white noise effect | No |
 
 ---
 
