@@ -115,8 +115,16 @@
       "icon": "database",
       "category": "data"
     },
-    {
-      "id": "guest_wifi",
+    {      "id": "generative_ai_art",
+      "name": "Generative AI Art",
+      "description": "Generate full-screen abstract art for your split-flap display using an LLM. Each piece is a unique, thought-out composition using the board's 8-color palette.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--generative-ai-art",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "palette",
+      "category": "art"
+    },
+    {      "id": "guest_wifi",
       "name": "Guest WiFi",
       "description": "Display guest WiFi credentials on your board",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi",
