@@ -1096,6 +1096,8 @@
     "preview": "Vorschau",
     "useInTemplates": "In Vorlagen verwenden:",
     "addMapping": "Zuordnung hinzufügen",
+    "removeMapping": "Zuordnung entfernen",
+    "removeItem": "Element entfernen",
     "noSchemaProperties": "Keine Schema-Eigenschaften definiert",
     "clickLocationIcon": "Klicken Sie auf das Standortsymbol, um Ihren aktuellen Standort zu verwenden",
     "digitColorNotUsed": "Ziffernfarbe wird nicht verwendet, wenn ein Farbmuster ausgewählt ist"

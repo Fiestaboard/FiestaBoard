@@ -1096,6 +1096,8 @@
     "preview": "Aperçu",
     "useInTemplates": "Utiliser dans les modèles :",
     "addMapping": "Ajouter un mapping",
+    "removeMapping": "Supprimer le mapping",
+    "removeItem": "Supprimer l'élément",
     "noSchemaProperties": "Aucune propriété de schéma définie",
     "clickLocationIcon": "Cliquez sur l'icône de localisation pour utiliser votre position actuelle",
     "digitColorNotUsed": "La couleur du chiffre n'est pas utilisée lorsqu'un motif de couleur est sélectionné"
