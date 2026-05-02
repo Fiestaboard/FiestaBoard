@@ -1170,6 +1170,8 @@
     "itemInfo": "Item Info",
     "general": "General",
     "searchPlaceholder": "Search variables...",
-    "indexLabel": "Index: {index}"
+    "indexLabel": "Index: {index}",
+    "configureHint": "Configure {arrayName} in Settings to see indexed variables here.",
+    "configureExample": "Example:"
   }
 }

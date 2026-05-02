@@ -206,13 +206,14 @@ function renderArraySection(
   searchQuery: string,
   showAll: boolean = false,
   IconComp?: LucideIcon | null,
+  t?: ReturnType<typeof useTranslations>,
 ) {
   if (!arrayData || arrayData.length === 0) {
     return (
       <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
-        <p className="mb-2">Configure {arrayName} in Settings to see indexed variables here.</p>
+        <p className="mb-2">{t ? t("configureHint", { arrayName }) : `Configure ${arrayName} in Settings to see indexed variables here.`}</p>
         <p className="font-mono text-[10px]">
-          Example: <code className="bg-background px-1 rounded">{arrayName}.0.*</code>
+          {t ? t("configureExample") : "Example:"} <code className="bg-background px-1 rounded">{arrayName}.0.*</code>
         </p>
       </div>
     );
@@ -281,7 +282,7 @@ function renderArraySection(
                   {IconComp && <IconComp className="h-3 w-3" />}
                   <div className="text-left">
                     <div className="font-medium">{itemLabel}</div>
-                    <div className="text-muted-foreground text-xs">{t("indexLabel", { index })}</div>
+                    <div className="text-muted-foreground text-xs">{t ? t("indexLabel", { index }) : `Index: ${index}`}</div>
                   </div>
                 </div>
               </AccordionTrigger>
@@ -289,7 +290,7 @@ function renderArraySection(
                 <div className="space-y-3 pt-2 pl-2">
                   {filteredItemFields.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1.5">{t("itemInfo")}</p>
+                      <p className="text-xs text-muted-foreground mb-1.5">{t ? t("itemInfo") : "Item Info"}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {filteredItemFields.map((field: string) => {
                           const varValue = `{{${pluginId}.${arrayName}.${index}.${field}}}`;
@@ -573,7 +574,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
                             {IconComp && <IconComp className="h-3 w-3" />}
                             {arrayName.charAt(0).toUpperCase() + arrayName.slice(1)} {arrayData ? `(${arrayData.length})` : "(None configured)"}
                           </p>
-                          {renderArraySection(category, arrayName, arrayData, manifest!, onInsert, searchQuery, !!categoryMatches, IconComp)}
+                          {renderArraySection(category, arrayName, arrayData, manifest!, onInsert, searchQuery, !!categoryMatches, IconComp, t)}
                         </div>
                       );
                     })}
