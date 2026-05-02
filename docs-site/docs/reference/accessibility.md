@@ -1,18 +1,18 @@
 ---
 sidebar_position: 5
-description: "FiestaBoard's commitment to WCAG 2.2 Level AAA accessibility compliance."
-keywords: [FiestaBoard, accessibility, WCAG, WCAG 2.2, AAA, a11y, assistive technology]
+description: "FiestaBoard's commitment to WCAG 2.2 Level AA accessibility compliance."
+keywords: [FiestaBoard, accessibility, WCAG, WCAG 2.2, AA, a11y, assistive technology]
 ---
 
 # Accessibility
 
-FiestaBoard aims to conform to the [Web Content Accessibility Guidelines (WCAG) 2.2](https://www.w3.org/TR/WCAG22/) at the **AAA** level. This is the highest tier of the WCAG standard, and it guides every decision we make about the web UI.
+FiestaBoard aims to conform to the [Web Content Accessibility Guidelines (WCAG) 2.2](https://www.w3.org/TR/WCAG22/) at the **AA** level. AA is the standard most public sector and commercial sites target, and it guides every decision we make about the web UI.
 
 ## What This Means
 
-WCAG 2.2 AAA covers a wide range of requirements across four principles:
+WCAG 2.2 AA covers a wide range of requirements across four principles:
 
-- **Perceivable** — Content is presented in ways that all users can perceive, including text alternatives for images, captions, and enhanced contrast (minimum 7:1 ratio for normal text).
+- **Perceivable** — Content is presented in ways that all users can perceive, including text alternatives for images, captions, and sufficient contrast (minimum 4.5:1 ratio for normal text and 3:1 for large text and UI components).
 - **Operable** — The interface is fully navigable by keyboard, provides visible focus indicators, and avoids content that could cause seizures or motion sickness.
 - **Understandable** — Text is readable and predictable. Forms include labels, instructions, and helpful error messages.
 - **Robust** — Markup is valid and compatible with current and future assistive technologies.
@@ -24,7 +24,7 @@ If you are contributing to FiestaBoard, please keep these guidelines in mind:
 - Use **semantic HTML** elements (`<button>`, `<nav>`, `<main>`, headings in order, etc.) instead of generic `<div>` or `<span>` elements with click handlers.
 - Provide **text alternatives** — every meaningful image should have descriptive `alt` text.
 - Ensure **color is not the only indicator** — do not rely solely on color to convey information. Use text labels, icons, or patterns alongside color.
-- Maintain **sufficient color contrast** — aim for at least a 7:1 contrast ratio for normal text and 4.5:1 for large text (WCAG AAA).
+- Maintain **sufficient color contrast** — aim for at least a 4.5:1 contrast ratio for normal text and 3:1 for large text and non-text UI components (WCAG AA). Verify both the resting *and* hover/focus states of interactive elements.
 - Support **keyboard navigation** — all interactive elements must be reachable and operable with the keyboard alone.
 - Use **ARIA attributes** only when native HTML semantics are insufficient. Prefer native elements over ARIA roles.
 - Test changes with a **screen reader** (e.g., VoiceOver, NVDA) when possible.
