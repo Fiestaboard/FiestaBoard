@@ -471,19 +471,28 @@ jobs:
               releaseNotes += `\n\n**Full Changelog**: [\`${previousTag}...${tagName}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/compare/${previousTag}...${tagName})\n`;
             }
 
-            releaseNotes += `\n## 🐳 Docker\n\n`;
-            releaseNotes += `| | |\n`;
-            releaseNotes += `|---|---|\n`;
-            releaseNotes += `| **Image** | [\`fiestaboard/fiestaboard:${version}\`](https://hub.docker.com/r/fiestaboard/fiestaboard/tags?name=${version}) |\n`;
-            releaseNotes += `| **Platforms** | \`linux/amd64\`, \`linux/arm64\` |\n`;
-            releaseNotes += `| **Docker Hub** | [hub.docker.com/r/fiestaboard/fiestaboard](https://hub.docker.com/r/fiestaboard/fiestaboard) |\n\n`;
+            releaseNotes += `\n---\n\n## Raspberry Pi\n\n`;
+            releaseNotes += `Download the FiestaPi image from the **Assets** section below and flash it to a microSD card — no Docker setup, no command line.\n\n`;
+            releaseNotes += `1. Download \`image_...-fiestapi-lite.img.xz\` from **Assets** below\n`;
+            releaseNotes += `2. Flash it with [Raspberry Pi Imager](https://www.raspberrypi.com/software/) — choose **Use custom** and pick the file\n`;
+            releaseNotes += `3. Boot your Pi — FiestaBoard starts automatically at **http://fiestapi.local:4420**\n\n`;
+            releaseNotes += `Full setup guide: [FiestaPi Quick Start](https://fiestaboard.app/docs/setup/raspberry-pi)\n`;
+            releaseNotes += `\n---\n\n## Docker\n\n`;
+            releaseNotes += `### docker-compose (recommended)\n\n`;
             releaseNotes += `\`\`\`bash\n`;
-            releaseNotes += `# Pull this release\n`;
+            releaseNotes += `mkdir -p ~/fiestaboard && cd ~/fiestaboard\n`;
+            releaseNotes += `curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml\n`;
+            releaseNotes += `docker-compose -f docker-compose.hub.yml up -d\n`;
+            releaseNotes += `\`\`\`\n\n`;
+            releaseNotes += `Open **http://localhost:4420** in your browser.\n\n`;
+            releaseNotes += `### docker pull\n\n`;
+            releaseNotes += `\`\`\`bash\n`;
             releaseNotes += `docker pull fiestaboard/fiestaboard:${version}\n\n`;
-            releaseNotes += `# Or use the latest tag\n`;
+            releaseNotes += `# or\n`;
             releaseNotes += `docker pull fiestaboard/fiestaboard:latest\n`;
-            releaseNotes += `\`\`\`\n`;
-            releaseNotes += `\n> 🍓 **Raspberry Pi**: This release includes arm64 images — use the same pull commands on your Pi!\n`;
+            releaseNotes += `\`\`\`\n\n`;
+            releaseNotes += `Supports \`linux/amd64\` and \`linux/arm64\`. Running FiestaBoard in Docker on a Pi? Use these same commands.\n\n`;
+            releaseNotes += `Full setup guide: [Docker Setup](https://fiestaboard.app/docs/setup/quick-start)\n`;
 
             if (contributors.size > 0) {
               const sorted = [...contributors].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
