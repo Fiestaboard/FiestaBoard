@@ -308,13 +308,24 @@ test.describe("Sync from Board", () => {
       name: "Sync from current board display",
     });
     await expect(syncBtn).toBeVisible({ timeout: 10_000 });
-    await syncBtn.click();
+
+    // Wait for the expected 404 from the sync API call, then verify the error toast.
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (res) =>
+          res.url().includes("/api/pages/current-display") &&
+          res.status() === 404,
+        { timeout: 10_000 },
+      ),
+      syncBtn.click(),
+    ]);
+    expect(response.status()).toBe(404);
 
     // An error toast should be visible — use text-based detection since Sonner
     // toast attribute structure can vary between versions/configurations.
     await expect(
       page.getByText("No active display to sync from").first(),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 5_000 });
   });
 
   test("populates template lines from active page on successful sync", async ({

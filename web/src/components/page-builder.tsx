@@ -536,6 +536,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   // Sync from current board display mutation (new pages only)
   const syncFromBoardMutation = useMutation({
     mutationFn: () => api.getCurrentDisplay(),
+    retry: false, // No-active-page (404) is not a transient error; don't retry
     onSuccess: (data) => {
       const lines = data.template || [];
       setTemplateLines(lines);
