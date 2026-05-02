@@ -1145,6 +1145,7 @@ interface FormFieldProps extends FieldProps {
 }
 
 function FormField({ name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading, allValues }: FormFieldProps) {
+  const t = useTranslations("schemaForm");
   switch (property.type) {
     case "string":
       return (
@@ -1235,7 +1236,7 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
           />
         );
       }
-      return <div className="text-sm text-muted-foreground">Array type without items schema</div>;
+      return <div className="text-sm text-muted-foreground">{t("arrayTypeNoItems")}</div>;
     case "object":
       if (property.properties) {
         return (
@@ -1270,7 +1271,7 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
           </div>
         );
       }
-      return <div className="text-sm text-muted-foreground">Object type without properties schema</div>;
+      return <div className="text-sm text-muted-foreground">{t("objectTypeNoProperties")}</div>;
     default:
       return <div className="text-sm text-muted-foreground">Unknown type: {property.type}</div>;
   }

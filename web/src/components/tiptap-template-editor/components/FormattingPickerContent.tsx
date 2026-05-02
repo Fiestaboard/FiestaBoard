@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ChevronsLeftRight, ChevronRight } from "lucide-react";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "next-intl";
 
 interface FormattingOption {
   name: string;
@@ -35,6 +36,7 @@ const COLOR_MAP: Record<string, { bg: string; needsDarkText: boolean }> = {
 const COLOR_ORDER = ['red', 'orange', 'yellow', 'green', 'blue', 'violet', 'white', 'black'] as const;
 
 export function FormattingPickerContent({ formatting, onInsert }: FormattingPickerContentProps) {
+  const t = useTranslations("formattingPicker");
   const [showRepeatColorPicker, setShowRepeatColorPicker] = React.useState(false);
   const [customChar, setCustomChar] = React.useState("");
 
@@ -47,7 +49,7 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
   if (options.length === 0) {
     return (
       <div className="p-3 text-sm text-muted-foreground">
-        No formatting options available
+        {t("noFormattingAvailable")}
       </div>
     );
   }
@@ -84,12 +86,12 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
           onClick={() => setShowRepeatColorPicker(false)}
           className="text-xs text-muted-foreground hover:text-foreground mb-2 flex items-center gap-1"
         >
-          ← Back
+          {t("back")}
         </button>
         
         {/* Colors Section */}
         <div className="text-xs font-medium mb-2 text-muted-foreground">
-          Select color:
+          {t("selectColor")}
         </div>
         
         <div className="grid grid-cols-4 gap-2 mb-3">
@@ -124,7 +126,7 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
 
         {/* Custom String */}
         <div className="pt-2 border-t border-border">
-          <div className="text-xs text-muted-foreground mb-1.5">Or custom pattern:</div>
+          <div className="text-xs text-muted-foreground mb-1.5">{t("orCustomPattern")}</div>
           <form onSubmit={handleCustomCharSubmit} className="flex gap-1.5">
             <input
               type="text"
@@ -148,7 +150,7 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
             >
-              Use
+              {t("use")}
             </button>
           </form>
         </div>

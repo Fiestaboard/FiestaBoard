@@ -1106,6 +1106,72 @@
     "removeItem": "Eliminar elemento",
     "noSchemaProperties": "No hay propiedades de esquema definidas",
     "clickLocationIcon": "Haz clic en el icono de ubicación para usar tu ubicación actual",
-    "digitColorNotUsed": "El color del dígito no se usa cuando se selecciona un patrón de color"
+    "digitColorNotUsed": "El color del dígito no se usa cuando se selecciona un patrón de color",
+    "arrayTypeNoItems": "Array type without items schema",
+    "objectTypeNoProperties": "Object type without properties schema"
+  },
+  "filterPicker": {
+    "noFiltersAvailable": "No filters available",
+    "selectVariableFirst": "Select a variable first to apply a filter, or click to insert filter text.",
+    "filterDescWrap": "Wraps long text across multiple lines",
+    "filterDescPad": "Pads text to specified width",
+    "filterDescTruncate": "Truncates text to specified length",
+    "wrapInstruction": "|wrap: Wraps long text. Leave empty lines below for text to flow into."
+  },
+  "formattingPicker": {
+    "noFormattingAvailable": "No formatting options available",
+    "back": "← Back",
+    "selectColor": "Select color:",
+    "orCustomPattern": "Or custom pattern:",
+    "use": "Use"
+  },
+  "formulaEditor": {
+    "formulaExpression": "Formula expression",
+    "functionsTab": "Functions",
+    "variablesTab": "Variables",
+    "insert": "Insert",
+    "done": "Done",
+    "close": "Close",
+    "cancel": "Cancel",
+    "categoryLogic": "Logic",
+    "categoryMath": "Math",
+    "categoryText": "Text",
+    "categoryConversion": "Conversion",
+    "categoryColor": "Color",
+    "clickToEditFormula": "Click to edit formula",
+    "newFormula": "new formula",
+    "loading": "Loading…"
+  },
+  "templateEditor": {
+    "variables": "Variables",
+    "variablesNoVarsAvailable": "Variables (no variables available)",
+    "noVariablesAvailable": "No template variables available. Configure plugins in Settings.",
+    "colors": "Colors",
+    "formatting": "Formatting",
+    "insertFormula": "Insert formula",
+    "toggleWrap": "Toggle wrap for current line",
+    "disableWrap": "Disable wrap for this line",
+    "enableWrap": "Enable wrap for this line",
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Shift+Z)",
+    "cut": "Cut (Ctrl+X)",
+    "copy": "Copy (Ctrl+C)",
+    "paste": "Paste (Ctrl+V)",
+    "alignLeft": "Align left",
+    "alignCenter": "Align center",
+    "alignRight": "Align right",
+    "syncFromBoardTooltip": "Populate template from what's currently displayed on the board",
+    "syncFromBoard": "Sync from current board display",
+    "alignment": "Alignment:"
+  },
+  "variablePicker": {
+    "noVariablesAvailable": "No variables available",
+    "noVariablesFound": "No variables found matching \"{searchQuery}\"",
+    "itemInfo": "Item Info",
+    "general": "General",
+    "searchPlaceholder": "Search variables...",
+    "indexLabel": "Index: {index}",
+    "configureHint": "Configure {arrayName} in Settings to see indexed variables here.",
+    "configureExample": "Example:"
   }
 }

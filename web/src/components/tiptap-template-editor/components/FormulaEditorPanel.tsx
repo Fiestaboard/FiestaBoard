@@ -20,16 +20,10 @@ import type { LucideIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { VariablePickerContent } from "./VariablePickerContent";
+import { useTranslations } from "next-intl";
 
 // ─── Category metadata ────────────────────────────────────────────────────────
 
-const CATEGORY_LABELS: Record<string, string> = {
-  logic: "Logic",
-  math: "Math",
-  text: "Text",
-  convert: "Conversion",
-  color: "Color",
-};
 const CATEGORY_ORDER = ["logic", "math", "text", "convert", "color"];
 
 const CATEGORY_META: Record<string, { icon: LucideIcon; text: string; border: string }> = {
@@ -61,6 +55,14 @@ export function FormulaEditorPanel({
   onConfirm,
   onCancel,
 }: FormulaEditorPanelProps) {
+  const t = useTranslations("formulaEditor");
+  const categoryLabels: Record<string, string> = {
+    logic: t("categoryLogic"),
+    math: t("categoryMath"),
+    text: t("categoryText"),
+    convert: t("categoryConversion"),
+    color: t("categoryColor"),
+  };
   const [expr, setExpr] = useState(initialExpr);
   const [validationState, setValidationState] = useState<
     "idle" | "validating" | "valid" | "invalid"
@@ -223,7 +225,7 @@ export function FormulaEditorPanel({
         {/* ── Header: expression input + inline validation ── */}
         <div className="px-3 pt-3 pb-2.5 space-y-1.5">
           <label htmlFor="formula-expression" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-            Formula expression
+            {t("formulaExpression")}
           </label>
           <div className="relative">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/40 font-mono select-none pointer-events-none">
@@ -257,7 +259,7 @@ export function FormulaEditorPanel({
                 validationState === "valid" &&
                   "border-green-500 focus:ring-green-500/50"
               )}
-              aria-label="Formula expression"
+              aria-label={t("formulaExpression")}
               spellCheck={false}
             />
             {/* Inline validation icon — replaces `}}` chrome */}
@@ -296,13 +298,13 @@ export function FormulaEditorPanel({
                   value="functions"
                   className="flex-1 h-full text-xs px-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
                 >
-                  Functions
+                  {t("functionsTab")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="variables"
                   className="flex-1 h-full text-xs px-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
                 >
-                  Variables
+                  {t("variablesTab")}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -310,7 +312,7 @@ export function FormulaEditorPanel({
             {/* ── Functions tab ── */}
             <TabsContent value="functions" className="mt-0">
               {loadingFns && (
-                <p className="text-xs text-muted-foreground px-3 py-2">Loading…</p>
+                <p className="text-xs text-muted-foreground px-3 py-2">{t("loading") ?? "Loading…"}</p>
               )}
               <div className="overflow-y-auto max-h-[240px] px-2 pb-2 space-y-1">
                 {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((cat) => {
@@ -331,7 +333,7 @@ export function FormulaEditorPanel({
                       >
                         <span className="flex items-center gap-1.5">
                           {IconComp && <IconComp className="w-3 h-3" />}
-                          {CATEGORY_LABELS[cat] ?? cat}
+                          {categoryLabels[cat] ?? cat}
                         </span>
                         {isCollapsed ? (
                           <ChevronRight className="w-3 h-3 text-muted-foreground" />
@@ -391,7 +393,7 @@ export function FormulaEditorPanel({
               onClick={onCancel}
               className="px-3 py-1.5 rounded-md text-xs font-medium transition-colors border border-border hover:bg-muted/50"
             >
-              {initialExpr ? "Close" : "Cancel"}
+              {initialExpr ? t("close") : t("cancel")}
             </button>
           )}
           <button
@@ -404,7 +406,7 @@ export function FormulaEditorPanel({
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            {mode === "create" ? "Insert" : "Done"}
+            {mode === "create" ? t("insert") : t("done")}
           </button>
         </div>
 

@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sigma } from 'lucide-react';
 import { FormulaEditorPanel } from '../components/FormulaEditorPanel';
+import { useTranslations } from 'next-intl';
 
 interface FormulaNodeViewProps {
   node: {
@@ -29,6 +30,7 @@ interface FormulaNodeViewProps {
 }
 
 export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaNodeViewProps) {
+  const t = useTranslations("formulaEditor");
   const { expression, autoOpen } = node.attrs;
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
@@ -41,7 +43,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
   const preview =
     expression.length > 0
       ? expression.length > 20 ? expression.slice(0, 20) + '\u2026' : expression
-      : 'new formula';
+      : t("newFormula");
 
   /** Apply position from an already-retrieved DOMRect. */
   const applyPanelStyleFromRect = useCallback((rect: DOMRect) => {
@@ -163,7 +165,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
           </TooltipTrigger>
           <TooltipContent>
             <p className="font-mono text-xs">{'{{= ' + expression + ' }}'}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Click to edit formula</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("clickToEditFormula")}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

@@ -25,6 +25,7 @@ import { AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 export type LineAlignment = 'left' | 'center' | 'right';
 import { TemplateEditorToolbar } from './components/TemplateEditorToolbar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from 'next-intl';
 
 /**
  * Serialize a TipTap slice to template string format
@@ -123,6 +124,7 @@ export function TipTapTemplateEditor({
   onSyncFromBoard,
   syncFromBoardPending = false,
 }: TipTapTemplateEditorProps) {
+  const t = useTranslations("templateEditor");
   // Use device-aware defaults when props not provided
   const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => 'left' as LineAlignment);
   const effectiveWrapEnabled = lineWrapEnabled || Array.from({ length: boardLines }, () => false);
@@ -896,7 +898,7 @@ export function TipTapTemplateEditor({
         {!showToolbar && showAlignmentControls && (
             <TooltipProvider>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-muted-foreground">Alignment:</span>
+                <span className="text-xs text-muted-foreground">{t("alignment")}</span>
                 <div className="flex rounded-md border overflow-hidden">
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -914,7 +916,7 @@ export function TipTapTemplateEditor({
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Align left</p>
+                      {t("alignLeft")}
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
@@ -933,7 +935,7 @@ export function TipTapTemplateEditor({
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Align center</p>
+                      {t("alignCenter")}
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
@@ -952,7 +954,7 @@ export function TipTapTemplateEditor({
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Align right</p>
+                      {t("alignRight")}
                     </TooltipContent>
                   </Tooltip>
                 </div>

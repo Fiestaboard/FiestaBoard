@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CalendarClock } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * Settings → System → "Check for updates" interval card.
@@ -55,6 +56,7 @@ function formatLastCheck(iso: string | null | undefined): string {
 }
 
 export function AutoUpdateIntervalCard() {
+  const t = useTranslations("systemUpdate");
   const queryClient = useQueryClient();
 
   const { data: status, isLoading } = useQuery({
@@ -86,7 +88,7 @@ export function AutoUpdateIntervalCard() {
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <CalendarClock className="h-4 w-4" />
-          Check for updates
+          {t("checkForUpdates")}
         </CardTitle>
         <CardDescription>
           How often FiestaBoard should look for a new release in the
