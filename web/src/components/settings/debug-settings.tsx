@@ -400,7 +400,7 @@ export function DebugSettings() {
             Show Debug Info on Board
           </Button>
           <p className="text-xs text-muted-foreground">
-            Display system information on the board
+            {t("showDebugInfoDescription")}
           </p>
         </div>
 
@@ -422,7 +422,7 @@ export function DebugSettings() {
             Clear Message Cache
           </Button>
           <p className="text-xs text-muted-foreground">
-            Force next message to send regardless of content
+            {t("clearCacheDescription")}
           </p>
         </div>
 

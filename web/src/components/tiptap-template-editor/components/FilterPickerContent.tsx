@@ -8,6 +8,7 @@ import { Editor } from '@tiptap/react';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface FilterPickerContentProps {
   filters: string[];
@@ -16,10 +17,11 @@ interface FilterPickerContentProps {
 }
 
 export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerContentProps) {
+  const t = useTranslations("filterPicker");
   if (filters.length === 0) {
     return (
       <div className="p-3 text-sm text-muted-foreground">
-        No filters available
+        {t("noFiltersAvailable")}
       </div>
     );
   }
@@ -159,7 +161,7 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
       {!hasVariableSelected && editor && (
         <div className="mb-2 p-2 bg-muted/50 rounded-md text-xs text-muted-foreground flex items-start gap-2">
           <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-          <span>Select a variable first to apply a filter, or click to insert filter text.</span>
+          <span>{t("selectVariableFirst")}</span>
         </div>
       )}
       <div className="space-y-2">
@@ -180,9 +182,9 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
                 |{filter}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                {filterName === 'wrap' && 'Wraps long text across multiple lines'}
-                {filterName === 'pad' && 'Pads text to specified width'}
-                {filterName === 'truncate' && 'Truncates text to specified length'}
+                {filterName === 'wrap' && t("filterDescWrap")}
+                {filterName === 'pad' && t("filterDescPad")}
+                {filterName === 'truncate' && t("filterDescTruncate")}
               </span>
             </button>
           );
@@ -191,7 +193,7 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
       <div className="mt-3 pt-3 border-t text-xs text-muted-foreground space-y-1">
         <p>Example: {"{{weather.temperature|pad:3}}"}</p>
         <p className="text-[10px]">
-          <strong>|wrap</strong>: Wraps long text. Leave empty lines below for text to flow into.
+          <strong>|wrap</strong>: {t("wrapInstruction")}
         </p>
       </div>
     </div>

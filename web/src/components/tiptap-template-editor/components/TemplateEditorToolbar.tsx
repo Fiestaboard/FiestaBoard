@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import type { LineAlignment } from '../TipTapTemplateEditor';
 import type { DeviceType } from '@/lib/api';
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface TemplateEditorToolbarProps {
   editor: Editor | null;
@@ -43,6 +44,7 @@ export function TemplateEditorToolbar({
   onSyncFromBoard,
   syncFromBoardPending = false,
 }: TemplateEditorToolbarProps) {
+  const t = useTranslations("templateEditor");
   const { data: templateVars } = useQuery({
     queryKey: ["template-variables"],
     queryFn: api.getTemplateVariables,
@@ -198,7 +200,7 @@ export function TemplateEditorToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Undo (Ctrl+Z)</p>
+              <p>{t("undo")}</p>
             </TooltipContent>
           </Tooltip>
           
@@ -220,7 +222,7 @@ export function TemplateEditorToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Redo (Ctrl+Shift+Z)</p>
+              <p>{t("redo")}</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -249,7 +251,7 @@ export function TemplateEditorToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Cut (Ctrl+X)</p>
+              <p>{t("cut")}</p>
             </TooltipContent>
           </Tooltip>
 
@@ -272,7 +274,7 @@ export function TemplateEditorToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Copy (Ctrl+C)</p>
+              <p>{t("copy")}</p>
             </TooltipContent>
           </Tooltip>
 
@@ -294,7 +296,7 @@ export function TemplateEditorToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Paste (Ctrl+V)</p>
+              <p>{t("paste")}</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -305,7 +307,7 @@ export function TemplateEditorToolbar({
         {/* Variables Dropdown */}
         {hasVariables ? (
           <ToolbarDropdown
-            label="Variables"
+            label={t("variables")}
             icon={<Code2 className="w-4 h-4" />}
           >
             {(close) => (
@@ -328,13 +330,13 @@ export function TemplateEditorToolbar({
                   "text-muted-foreground cursor-not-allowed opacity-60",
                   "border border-transparent"
                 )}
-                aria-label="Variables (no variables available)"
+                aria-label={t("variablesNoVarsAvailable")}
               >
                 <Code2 className="w-4 h-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>No template variables available. Configure plugins in Settings.</p>
+              <p>{t("noVariablesAvailable")}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -342,7 +344,7 @@ export function TemplateEditorToolbar({
         {/* Colors Dropdown */}
         {hasColors && (
           <ToolbarDropdown
-            label="Colors"
+            label={t("colors")}
             icon={<Palette className="w-4 h-4" />}
           >
             {(close) => (
@@ -360,7 +362,7 @@ export function TemplateEditorToolbar({
         {/* Formatting Dropdown */}
         {hasFormatting && (
           <ToolbarDropdown
-            label="Formatting"
+            label={t("formatting")}
             icon={<Type className="w-4 h-4" />}
           >
             {(close) => (
@@ -390,13 +392,13 @@ export function TemplateEditorToolbar({
                 "flex items-center gap-1 px-2 py-1.5 rounded-md text-sm font-medium",
                 "hover:bg-muted/50 transition-colors"
               )}
-              aria-label="Insert formula"
+              aria-label={t("insertFormula")}
             >
               <Sigma className="w-4 h-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Insert formula</p>
+            <p>{t("insertFormula")}</p>
           </TooltipContent>
         </Tooltip>
 
@@ -412,13 +414,13 @@ export function TemplateEditorToolbar({
                 "border border-transparent",
                 currentWrapEnabled && "bg-muted/70 border-border"
               )}
-              aria-label="Toggle wrap for current line"
+              aria-label={t("toggleWrap")}
             >
               <WrapText className={cn("w-4 h-4", currentWrapEnabled && "text-primary")} />
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>{currentWrapEnabled ? "Disable wrap for this line" : "Enable wrap for this line"}</p>
+            <p>{currentWrapEnabled ? t("disableWrap") : t("enableWrap")}</p>
           </TooltipContent>
         </Tooltip>
 
@@ -435,12 +437,12 @@ export function TemplateEditorToolbar({
                 type="button"
                 onClick={() => handleAlignmentClick('left')}
                 className="px-2 py-1.5 transition-colors hover:bg-muted/50"
-                aria-label="Align left"
+                aria-label={t("alignLeft")}
               >
                 <AlignLeft className="w-4 h-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Align left</TooltipContent>
+            <TooltipContent>{t("alignLeft")}</TooltipContent>
           </Tooltip>
           
           <Tooltip>
@@ -449,12 +451,12 @@ export function TemplateEditorToolbar({
                 type="button"
                 onClick={() => handleAlignmentClick('center')}
                 className="px-2 py-1.5 border-x border-border transition-colors hover:bg-muted/50"
-                aria-label="Align center"
+                aria-label={t("alignCenter")}
               >
                 <AlignCenter className="w-4 h-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Align center</TooltipContent>
+            <TooltipContent>{t("alignCenter")}</TooltipContent>
           </Tooltip>
           
           <Tooltip>
@@ -463,12 +465,12 @@ export function TemplateEditorToolbar({
                 type="button"
                 onClick={() => handleAlignmentClick('right')}
                 className="px-2 py-1.5 transition-colors hover:bg-muted/50"
-                aria-label="Align right"
+                aria-label={t("alignRight")}
               >
                 <AlignRight className="w-4 h-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Align right</TooltipContent>
+            <TooltipContent>{t("alignRight")}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -486,13 +488,13 @@ export function TemplateEditorToolbar({
                     "hover:bg-muted/50 border border-transparent",
                     syncFromBoardPending && "opacity-60 cursor-not-allowed"
                   )}
-                  aria-label="Sync from current board display"
+                  aria-label={t("syncFromBoard")}
                 >
                   <Download className={cn("w-4 h-4", syncFromBoardPending && "animate-pulse")} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Populate template from what&apos;s currently displayed on the board</p>
+                <p>{t("syncFromBoardTooltip")}</p>
               </TooltipContent>
             </Tooltip>
           </>

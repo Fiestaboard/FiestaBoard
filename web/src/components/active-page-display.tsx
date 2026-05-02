@@ -392,12 +392,12 @@ export function ActivePageDisplay() {
               {scheduleEnabled ? (
                 <>
                   <Calendar className="h-4 w-4" />
-                  View Schedule
+                  {t("viewSchedule")}
                 </>
               ) : (
                 <>
                   <ArrowLeftRight className="h-4 w-4" />
-                  Change Page
+                  {t("changePage")}
                 </>
               )}
             </Button>

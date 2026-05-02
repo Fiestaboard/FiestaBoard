@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { api, PluginManifest } from "@/lib/api";
 import { Search, icons as lucideIcons } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface VariablePickerContentProps {
   onInsert: (variable: string) => void;
@@ -280,7 +281,7 @@ function renderArraySection(
                   {IconComp && <IconComp className="h-3 w-3" />}
                   <div className="text-left">
                     <div className="font-medium">{itemLabel}</div>
-                    <div className="text-muted-foreground text-xs">Index: {index}</div>
+                    <div className="text-muted-foreground text-xs">{t("indexLabel", { index })}</div>
                   </div>
                 </div>
               </AccordionTrigger>
@@ -288,7 +289,7 @@ function renderArraySection(
                 <div className="space-y-3 pt-2 pl-2">
                   {filteredItemFields.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1.5">Item Info</p>
+                      <p className="text-xs text-muted-foreground mb-1.5">{t("itemInfo")}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {filteredItemFields.map((field: string) => {
                           const varValue = `{{${pluginId}.${arrayName}.${index}.${field}}}`;
@@ -318,6 +319,7 @@ function renderArraySection(
 }
 
 export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocusSearch = true }: VariablePickerContentProps) {
+  const t = useTranslations("variablePicker");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: templateVars, isLoading: isLoadingVars } = useQuery({
@@ -394,7 +396,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
   if (!templateVars?.variables) {
     return (
       <div className="p-3 text-sm text-muted-foreground min-w-[300px]">
-        No variables available
+        {t("noVariablesAvailable")}
       </div>
     );
   }
@@ -445,7 +447,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
             <Input
               autoFocus={autoFocusSearch}
               type="text"
-              placeholder="Search variables..."
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 h-9"
@@ -457,7 +459,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
           <div className="p-2 space-y-3">
             {filteredCategories.length === 0 ? (
               <div className="p-3 text-sm text-muted-foreground text-center">
-                No variables found matching &quot;{searchQuery}&quot;
+                {t("noVariablesFound", { searchQuery })}
               </div>
             ) : (
               filteredCategories.map(([category, vars]) => {
@@ -545,7 +547,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
                         })}
                         {groupedVars["__ungrouped__"] && groupedVars["__ungrouped__"].length > 0 && (
                           <div>
-                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">General</p>
+                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">{t("general")}</p>
                             <div className="flex flex-wrap gap-1.5">{groupedVars["__ungrouped__"].map(renderVarPill)}</div>
                           </div>
                         )}
@@ -553,7 +555,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
                     ) : (
                       filteredGeneralVars.length > 0 && (
                         <div>
-                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">General</p>
+                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">{t("general")}</p>
                           <div className="flex flex-wrap gap-1.5">{filteredGeneralVars.map(renderVarPill)}</div>
                         </div>
                       )

@@ -567,6 +567,8 @@ function ColorRulesEditor({
   onCopyVar: (varName: string) => void;
   copiedVar: string | null;
 }) {
+  const t = useTranslations("integrations");
+  const tCommon = useTranslations("common");
   const [newFieldName, setNewFieldName] = useState("");
   const [showAddField, setShowAddField] = useState(false);
 
@@ -627,8 +629,8 @@ function ColorRulesEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium text-muted-foreground">
-          Dynamic Colors
-          <span className="ml-2 text-xs font-normal">(first match wins)</span>
+          {t("colorRules.title")}
+          <span className="ml-2 text-xs font-normal">({t("colorRules.firstMatchWins")})</span>
         </h4>
         <Button
           variant="outline"
@@ -637,7 +639,7 @@ function ColorRulesEditor({
           onClick={() => setShowAddField(!showAddField)}
         >
           <Plus className="h-3 w-3 mr-1" />
-          Add Field
+          {t("colorRules.addField")}
         </Button>
       </div>
 
@@ -652,10 +654,10 @@ function ColorRulesEditor({
             className="flex-1 h-8 px-2 text-xs rounded border bg-background"
           />
           <Button size="sm" className="h-8 text-xs" onClick={handleAddField}>
-            Add
+            {tCommon("add")}
           </Button>
           <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setShowAddField(false)}>
-            Cancel
+            {tCommon("cancel")}
           </Button>
         </div>
       )}
@@ -700,7 +702,7 @@ function ColorRulesEditor({
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Delete all rules for this field</p>
+                        <p>{t("colorRules.deleteFieldTooltip")}</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -794,7 +796,7 @@ function ColorRulesEditor({
                     className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                   >
                     <Plus className="h-3 w-3" />
-                    Add rule
+                    {t("colorRules.addRule")}
                   </button>
                 </div>
               </div>
@@ -804,7 +806,7 @@ function ColorRulesEditor({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Rules are evaluated in order (first match wins). Use <code className="bg-muted px-1 rounded">{`{{${pluginId}.field_color}}`}</code> for just the color tile.
+        {t("colorRules.ruleDescription", { example: `{{${pluginId}.field_color}}` })}
       </p>
     </div>
     </TooltipProvider>
