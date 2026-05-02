@@ -118,7 +118,7 @@ export function MqttSettingsCard() {
       </CardHeader>
 
       <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none">
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
           <span>{t("brokerConfiguration")}</span>
           <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
@@ -127,8 +127,9 @@ export function MqttSettingsCard() {
           <CardContent className="pt-2 space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2 space-y-1">
-                <Label className="text-xs">{t("brokerHost")}</Label>
+                <Label htmlFor="mqtt-broker-host" className="text-xs">{t("brokerHost")}</Label>
                 <Input
+                  id="mqtt-broker-host"
                   value={merged.broker_host}
                   onChange={(e) => setDraft((d) => ({ ...d, broker_host: e.target.value }))}
                   placeholder="localhost"
@@ -136,8 +137,9 @@ export function MqttSettingsCard() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">{t("port")}</Label>
+                <Label htmlFor="mqtt-broker-port" className="text-xs">{t("port")}</Label>
                 <Input
+                  id="mqtt-broker-port"
                   type="number"
                   value={merged.broker_port}
                   onChange={(e) => setDraft((d) => ({ ...d, broker_port: Number(e.target.value) }))}
@@ -149,8 +151,9 @@ export function MqttSettingsCard() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">{t("username")}</Label>
+                <Label htmlFor="mqtt-username" className="text-xs">{t("username")}</Label>
                 <Input
+                  id="mqtt-username"
                   value={merged.username}
                   onChange={(e) => setDraft((d) => ({ ...d, username: e.target.value }))}
                   placeholder={t("optional")}
@@ -158,9 +161,10 @@ export function MqttSettingsCard() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">{t("password")}</Label>
+                <Label htmlFor="mqtt-password" className="text-xs">{t("password")}</Label>
                 <div className="flex gap-1.5">
                   <Input
+                    id="mqtt-password"
                     type={showPassword ? "text" : "password"}
                     value={merged.password === "***" ? "" : merged.password}
                     onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
@@ -182,8 +186,9 @@ export function MqttSettingsCard() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">{t("externalUrl")}</Label>
+              <Label htmlFor="mqtt-external-url" className="text-xs">{t("externalUrl")}</Label>
               <Input
+                id="mqtt-external-url"
                 value={merged.external_url}
                 onChange={(e) => setDraft((d) => ({ ...d, external_url: e.target.value }))}
                 placeholder={t("externalUrlPlaceholder")}

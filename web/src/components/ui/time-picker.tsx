@@ -13,9 +13,11 @@ interface TimePickerProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  id?: string;
+  "aria-label"?: string;
 }
 
-export function TimePicker({ value, onChange, placeholder = "00:00", className, disabled }: TimePickerProps) {
+export function TimePicker({ value, onChange, placeholder = "00:00", className, disabled, id, "aria-label": ariaLabel }: TimePickerProps) {
   const t = useTranslations("timePicker");
   const [isOpen, setIsOpen] = useState(false);
   const [hours, setHours] = useState("00");
@@ -194,10 +196,14 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <Button
+        id={id}
         type="button"
         variant="outline"
         onClick={toggleDropdown}
         disabled={disabled}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
         className={cn(
           "w-full h-9 px-3 text-sm justify-start font-normal",
           !value && "text-muted-foreground"

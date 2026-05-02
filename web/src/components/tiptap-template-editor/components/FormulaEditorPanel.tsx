@@ -222,7 +222,7 @@ export function FormulaEditorPanel({
 
         {/* ── Header: expression input + inline validation ── */}
         <div className="px-3 pt-3 pb-2.5 space-y-1.5">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+          <label htmlFor="formula-expression" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
             Formula expression
           </label>
           <div className="relative">
@@ -230,6 +230,7 @@ export function FormulaEditorPanel({
               {"{{="}
             </span>
             <input
+              id="formula-expression"
               ref={inputRef}
               type="text"
               value={expr}

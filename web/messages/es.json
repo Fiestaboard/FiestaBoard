@@ -1102,6 +1102,8 @@
     "preview": "Vista previa",
     "useInTemplates": "Uso en plantillas:",
     "addMapping": "Añadir mapeo",
+    "removeMapping": "Eliminar mapeo",
+    "removeItem": "Eliminar elemento",
     "noSchemaProperties": "No hay propiedades de esquema definidas",
     "clickLocationIcon": "Haz clic en el icono de ubicación para usar tu ubicación actual",
     "digitColorNotUsed": "El color del dígito no se usa cuando se selecciona un patrón de color"

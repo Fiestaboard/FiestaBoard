@@ -137,7 +137,7 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground px-1">{t("selectAttribute")}</label>
+                  <p className="text-xs font-medium text-muted-foreground px-1">{t("selectAttribute")}</p>
                   <ScrollArea className="h-[250px] border rounded-md">
                     <div className="p-1">
                       {availableAttributes.map((attr) => {

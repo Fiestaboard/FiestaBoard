@@ -52,6 +52,7 @@ export function StepBoardSetup({
 }: StepBoardSetupProps) {
   const t = useTranslations("wizard.boardSetup");
   const tc = useTranslations("common");
+  const tbs = useTranslations("boardSettings");
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -237,7 +238,7 @@ export function StepBoardSetup({
     <div className="space-y-6">
       {/* API Mode Selection */}
       <div className="space-y-3">
-        <Label className="text-base font-medium">{t("connectionType")}</Label>
+        <p className="text-base font-medium">{t("connectionType")}</p>
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -305,7 +306,8 @@ export function StepBoardSetup({
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showApiKey ? tbs("hideApiKey") : tbs("showApiKey")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
               >
                 {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -373,9 +375,9 @@ export function StepBoardSetup({
           )}
           {scanStatus === "done" && discoveredBoards.length >= 1 && (
             <div className="space-y-2">
-              <Label className="text-sm">
+              <p className="text-sm">
                 {t("foundBoards", { count: discoveredBoards.length })}
-              </Label>
+              </p>
               <div className="space-y-1.5">
                 {discoveredBoards.map((board) => (
                   <button
@@ -407,7 +409,7 @@ export function StepBoardSetup({
 
           {/* Local Key Mode Toggle */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">{t("authenticationMethod")}</Label>
+            <p className="text-sm font-medium">{t("authenticationMethod")}</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -460,7 +462,8 @@ export function StepBoardSetup({
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showApiKey ? tbs("hideApiKey") : tbs("showApiKey")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 >
                   {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -489,7 +492,8 @@ export function StepBoardSetup({
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showApiKey ? tbs("hideToken") : tbs("showToken")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                   >
                     {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -602,11 +606,12 @@ export function StepBoardSetup({
       {/* Device Type & Board Color */}
       <div className="space-y-4 pt-4 border-t">
         <div className="space-y-3">
-          <Label className="text-sm font-medium">{t("boardType")}</Label>
+          <p className="text-sm font-medium">{t("boardType")}</p>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, device_type: "flagship" })}
+              aria-pressed={config.device_type === "flagship"}
               className={cn(
                 "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
                 config.device_type === "flagship"
@@ -620,6 +625,7 @@ export function StepBoardSetup({
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, device_type: "note" })}
+              aria-pressed={config.device_type === "note"}
               className={cn(
                 "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
                 config.device_type === "note"
@@ -634,14 +640,15 @@ export function StepBoardSetup({
         </div>
 
         <div className="space-y-3">
-          <Label className="text-sm font-medium">{t("boardColor")}</Label>
+          <p className="text-sm font-medium">{t("boardColor")}</p>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, board_color: "black" })}
               aria-label={tc("black")}
+              aria-pressed={config.board_color === "black"}
               className={cn(
-                "h-8 w-8 rounded-full border-2 bg-board-surface-dark transition-colors",
+                "h-8 w-8 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 config.board_color === "black"
                   ? "border-primary ring-2 ring-primary/30"
                   : "border-border hover:border-muted-foreground"
@@ -651,8 +658,9 @@ export function StepBoardSetup({
               type="button"
               onClick={() => onConfigChange({ ...config, board_color: "white" })}
               aria-label={tc("white")}
+              aria-pressed={config.board_color === "white"}
               className={cn(
-                "h-8 w-8 rounded-full border-2 bg-board-surface-light transition-colors",
+                "h-8 w-8 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 config.board_color === "white"
                   ? "border-primary ring-2 ring-primary/30"
                   : "border-border hover:border-muted-foreground"
@@ -663,7 +671,7 @@ export function StepBoardSetup({
 
         {/* Live board preview */}
         <div className="space-y-2 pt-3">
-          <Label className="text-sm font-medium text-muted-foreground">{tc("preview")}</Label>
+          <p className="text-sm font-medium text-muted-foreground">{tc("preview")}</p>
           <BoardDisplay
             message={previewMessage}
             size="sm"

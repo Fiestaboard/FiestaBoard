@@ -1102,6 +1102,8 @@
     "preview": "Preview",
     "useInTemplates": "Use in templates:",
     "addMapping": "Add mapping",
+    "removeMapping": "Remove mapping",
+    "removeItem": "Remove item",
     "noSchemaProperties": "No schema properties defined",
     "clickLocationIcon": "Click the location icon to use your current location",
     "digitColorNotUsed": "Digit color is not used when a color pattern is selected"

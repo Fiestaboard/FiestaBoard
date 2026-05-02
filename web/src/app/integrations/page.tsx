@@ -1029,7 +1029,7 @@ function PluginCard({
   const configSheet = (
     <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7">
+        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Configure">
           <Settings className="h-3.5 w-3.5" />
         </Button>
       </SheetTrigger>
@@ -1360,7 +1360,7 @@ function PluginCard({
           {configSheet}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More options">
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>

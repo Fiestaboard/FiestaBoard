@@ -153,14 +153,14 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
 
       {/* Interval */}
       <div className="space-y-2">
-        <Label>{t("pageDurationLabel")}</Label>
+        <Label htmlFor="carousel-interval">{t("pageDurationLabel")}</Label>
         <p className="text-xs text-muted-foreground">{t("pageDurationDescription")}</p>
         <Select
           value={String(intervalSeconds)}
           onValueChange={(v) => setIntervalSeconds(Number(v))}
           modal={false}
         >
-          <SelectTrigger>
+          <SelectTrigger id="carousel-interval">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
