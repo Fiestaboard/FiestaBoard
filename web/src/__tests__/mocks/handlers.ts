@@ -1128,5 +1128,24 @@ export const handlers = [
       }
     });
   }),
+
+  // Location settings endpoints
+  http.get(`${API_BASE}/settings/location`, () => {
+    return HttpResponse.json({
+      latitude: null,
+      longitude: null,
+    });
+  }),
+
+  http.put(`${API_BASE}/settings/location`, async ({ request }) => {
+    const body = await request.json() as { latitude: number | null; longitude: number | null };
+    return HttpResponse.json({
+      status: "success",
+      settings: {
+        latitude: body.latitude,
+        longitude: body.longitude,
+      },
+    });
+  }),
 ];
 

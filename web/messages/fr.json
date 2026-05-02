@@ -886,7 +886,11 @@
     "latitudeRange": "La latitude doit être un nombre entre -90 et 90",
     "longitudeRange": "La longitude doit être un nombre entre -180 et 180",
     "toastSaved": "Paramètres de position enregistrés",
-    "toastSaveFailed": "Échec de l'enregistrement de la position : {error}"
+    "toastSaveFailed": "Échec de l'enregistrement de la position : {error}",
+    "useMyLocation": "Utiliser ma position",
+    "locating": "Localisation...",
+    "locationDenied": "L'accès à la position a été refusé",
+    "locationUnavailable": "La position n'est pas disponible"
   },
   "boardSettings": {
     "connection": "Connexion du tableau",
