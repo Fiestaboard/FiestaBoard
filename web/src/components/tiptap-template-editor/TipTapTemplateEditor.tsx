@@ -13,6 +13,7 @@ import { SingleParagraphDoc } from './extensions/single-paragraph-doc';
 import { VariableNode } from './extensions/variable-node';
 import { ColorTileNode } from './extensions/color-tile-node';
 import { FillSpaceNode } from './extensions/fill-space-node';
+import { FormulaNode } from './extensions/formula-node';
 import { WrappedTextNode } from './extensions/wrapped-text-node';
 import { LineNavigation } from './extensions/line-navigation';
 import { TrailingNewline } from './extensions/trailing-newline';
@@ -63,6 +64,8 @@ function serializeSliceToTemplate(slice: Slice | null | undefined): string {
           }
         } else if (node.type.name === 'wrappedText') {
           text += `{{${node.attrs?.text || ''}|wrap}}`;
+        } else if (node.type.name === 'formula') {
+          text += `{{= ${node.attrs?.expression || ''} }}`;
         } else if (node.type.name === 'hardBreak') {
           text += '\n';
         }
@@ -158,6 +161,7 @@ export function TipTapTemplateEditor({
       VariableNode,
       ColorTileNode,
       FillSpaceNode,
+      FormulaNode,
       WrappedTextNode,
       LineNavigation,
       TrailingNewline,

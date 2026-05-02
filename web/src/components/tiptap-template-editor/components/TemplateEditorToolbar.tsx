@@ -6,13 +6,14 @@
 
 import { Editor } from '@tiptap/react';
 import { useQuery } from '@tanstack/react-query';
-import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste, Download } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste, Download, Sigma } from 'lucide-react';
 import { api } from '@/lib/api';
 import { insertTemplateContent } from '../utils/insertion';
 import { ToolbarDropdown } from './ToolbarDropdown';
 import { VariablePickerContent } from './VariablePickerContent';
 import { ColorPickerContent } from './ColorPickerContent';
 import { FormattingPickerContent } from './FormattingPickerContent';
+
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LineAlignment } from '../TipTapTemplateEditor';
@@ -373,6 +374,31 @@ export function TemplateEditorToolbar({
             )}
           </ToolbarDropdown>
         )}
+
+        {/* Formulas — insert an empty formula node; the pill's panel auto-opens in the editor */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => {
+                editor?.chain().focus().insertContent({
+                  type: 'formula',
+                  attrs: { expression: '', autoOpen: true },
+                }).run();
+              }}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1.5 rounded-md text-sm font-medium",
+                "hover:bg-muted/50 transition-colors"
+              )}
+              aria-label="Insert formula"
+            >
+              <Sigma className="w-4 h-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Insert formula</p>
+          </TooltipContent>
+        </Tooltip>
 
         {/* Wrap Toggle Button */}
         <Tooltip>

@@ -137,14 +137,17 @@ function serializeNodeContent(node: JSONContent): string {
     
     case 'wrappedText':
       return `{{${node.attrs?.text}|wrap}}`;
-    
+
+    case 'formula':
+      return `{{= ${node.attrs?.expression} }}`;
+
     default:
       return '';
   }
 }
 
 /** Node types that are inline atoms (cursor can't sit inside them). */
-const ATOM_NODE_TYPES = new Set(['variable', 'colorTile', 'fillSpace']);
+const ATOM_NODE_TYPES = new Set(['variable', 'colorTile', 'fillSpace', 'formula']);
 
 /**
  * Parse line content into TipTap nodes
@@ -196,6 +199,14 @@ export function parseLineContent(text: string): JSONContent[] {
             id: Math.random().toString(36).substr(2, 9),
             repeatChar,
           },
+        });
+      }
+      // Formula expression: {{= ... }} — parse as a formula node
+      else if (content.trimStart().startsWith('=')) {
+        const expression = content.trimStart().slice(1).trim();
+        nodes.push({
+          type: 'formula',
+          attrs: { expression },
         });
       }
       // Otherwise it's a variable

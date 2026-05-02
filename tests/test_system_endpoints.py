@@ -579,3 +579,28 @@ class TestSystemShutdown:
         data = response.json()
         assert data["status"] == "queued"
         assert data["action"] == "shutdown"
+
+
+class TestFormulaFunctions:
+    """Tests for GET /templates/formula-functions endpoint."""
+
+    def test_returns_200(self, client):
+        response = client.get("/templates/formula-functions")
+        assert response.status_code == 200
+
+    def test_has_functions_key(self, client):
+        data = client.get("/templates/formula-functions").json()
+        assert "functions" in data
+        assert isinstance(data["functions"], dict)
+
+    def test_contains_known_builtins(self, client):
+        functions = client.get("/templates/formula-functions").json()["functions"]
+        for name in ("IF", "ROUND", "UPPER", "COLOR", "IFERROR"):
+            assert name in functions, f"Expected built-in {name!r} to be present"
+
+    def test_each_entry_has_required_fields(self, client):
+        functions = client.get("/templates/formula-functions").json()["functions"]
+        for name, entry in functions.items():
+            assert "category" in entry, f"{name} missing 'category'"
+            assert "signature" in entry, f"{name} missing 'signature'"
+            assert "summary" in entry, f"{name} missing 'summary'"

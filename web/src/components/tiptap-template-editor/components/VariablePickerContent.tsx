@@ -19,6 +19,8 @@ import type { LucideIcon } from "lucide-react";
 
 interface VariablePickerContentProps {
   onInsert: (variable: string) => void;
+  maxHeight?: string;
+  autoFocusSearch?: boolean;
 }
 
 function resolveIcon(iconName: string | undefined): LucideIcon | null {
@@ -315,7 +317,7 @@ function renderArraySection(
   );
 }
 
-export function VariablePickerContent({ onInsert }: VariablePickerContentProps) {
+export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocusSearch = true }: VariablePickerContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: templateVars, isLoading: isLoadingVars } = useQuery({
@@ -436,12 +438,12 @@ export function VariablePickerContent({ onInsert }: VariablePickerContentProps) 
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="w-[350px] flex flex-col">
+      <div className="w-full min-w-[min(340px,calc(100vw-24px))] flex flex-col">
         <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              autoFocus
+              autoFocus={autoFocusSearch}
               type="text"
               placeholder="Search variables..."
               value={searchQuery}
@@ -451,7 +453,7 @@ export function VariablePickerContent({ onInsert }: VariablePickerContentProps) 
           </div>
         </div>
 
-        <ScrollArea className="h-[400px] flex-1">
+        <ScrollArea className="flex-1" style={{ height: maxHeight }}>
           <div className="p-2 space-y-3">
             {filteredCategories.length === 0 ? (
               <div className="p-3 text-sm text-muted-foreground text-center">
@@ -523,9 +525,9 @@ export function VariablePickerContent({ onInsert }: VariablePickerContentProps) 
 
                 return (
                   <div key={category} className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {IconComp && <IconComp className="h-3 w-3" />}
-                      <span>{category.replace(/_/g, " ")}</span>
+                    <div className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1.5 -mx-1">
+                      {IconComp && <IconComp className="h-3 w-3 text-muted-foreground" />}
+                      <span className="text-xs font-semibold text-foreground">{category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
                     </div>
 
                     {/* Grouped variables */}
@@ -536,14 +538,14 @@ export function VariablePickerContent({ onInsert }: VariablePickerContentProps) 
                           if (!groupVars || groupVars.length === 0) return null;
                           return (
                             <div key={groupId}>
-                              <p className="text-xs text-muted-foreground mb-1.5">{groupDef.label}</p>
+                              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">{groupDef.label}</p>
                               <div className="flex flex-wrap gap-1.5">{groupVars.map(renderVarPill)}</div>
                             </div>
                           );
                         })}
                         {groupedVars["__ungrouped__"] && groupedVars["__ungrouped__"].length > 0 && (
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1.5">General</p>
+                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">General</p>
                             <div className="flex flex-wrap gap-1.5">{groupedVars["__ungrouped__"].map(renderVarPill)}</div>
                           </div>
                         )}
@@ -551,7 +553,7 @@ export function VariablePickerContent({ onInsert }: VariablePickerContentProps) 
                     ) : (
                       filteredGeneralVars.length > 0 && (
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1.5">General</p>
+                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">General</p>
                           <div className="flex flex-wrap gap-1.5">{filteredGeneralVars.map(renderVarPill)}</div>
                         </div>
                       )

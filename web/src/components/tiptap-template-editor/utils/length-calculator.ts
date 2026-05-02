@@ -39,6 +39,11 @@ export function calculateLineLength(lineContent: JSONContent[]): number {
         tileCount += 0;
         break;
 
+      case 'formula':
+        // Formula result length is dynamic; use a conservative estimate
+        tileCount += node.attrs?.estimatedLength ?? 10;
+        break;
+
       default:
         break;
     }

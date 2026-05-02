@@ -13,9 +13,11 @@ interface ToolbarDropdownProps {
   children: React.ReactNode | ((close: () => void) => React.ReactNode);
   className?: string;
   onClose?: () => void;
+  /** When false, clicking outside will NOT close the dropdown. Default: true */
+  closeOnOutsideClick?: boolean;
 }
 
-export function ToolbarDropdown({ label, icon, children, className, onClose }: ToolbarDropdownProps) {
+export function ToolbarDropdown({ label, icon, children, className, onClose, closeOnOutsideClick = true }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -24,19 +26,31 @@ export function ToolbarDropdown({ label, icon, children, className, onClose }: T
     onClose?.();
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (only if closeOnOutsideClick is true)
   useEffect(() => {
+    if (!isOpen || !closeOnOutsideClick) return;
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         onClose?.();
       }
     }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, closeOnOutsideClick, onClose]);
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+  // Always close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setIsOpen(false);
+        onClose?.();
+      }
     }
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [isOpen, onClose]);
 
   return (

@@ -341,6 +341,16 @@ export interface QueueTimesRide {
   name: string;
 }
 
+export interface FunctionSignatureEntry {
+  category: string;
+  signature: string;
+  summary: string;
+}
+
+export interface FormulaFunctionsResponse {
+  functions: Record<string, FunctionSignatureEntry>;
+}
+
 export interface TemplateValidationResponse {
   valid: boolean;
   errors: Array<{
@@ -1067,6 +1077,7 @@ export const api = {
 
   // Templates endpoints
   getTemplateVariables: () => fetchApi<TemplateVariables>("/templates/variables"),
+  getFormulaFunctions: () => fetchApi<FormulaFunctionsResponse>("/templates/formula-functions"),
   validateTemplate: (template: string | string[]) =>
     fetchApi<TemplateValidationResponse>("/templates/validate", {
       method: "POST",

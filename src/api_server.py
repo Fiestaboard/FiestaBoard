@@ -37,6 +37,7 @@ from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .carousels.service import get_carousel_service
 from .carousels.models import CarouselCreate, CarouselUpdate, is_carousel_id
 from .templates.engine import get_template_engine, reset_template_engine
+from .templates.expressions import function_signatures
 from .text_to_board import text_to_board_array
 from .devices import get_dimensions
 from .board_client import board_client_from_board_dict
@@ -5129,6 +5130,19 @@ async def validate_template(request: dict):
             for e in errors
         ]
     }
+
+
+@app.get("/templates/formula-functions")
+async def get_formula_functions():
+    """
+    Return metadata for every built-in formula function.
+
+    Response shape:
+      { "functions": { NAME: { "category": str, "signature": str, "summary": str } } }
+
+    Intended for editor tooling (autocomplete, function picker).
+    """
+    return {"functions": function_signatures()}
 
 
 @app.post("/templates/render")
