@@ -40,10 +40,24 @@ export function pluginImagePath(id: string): string {
 }
 
 /**
- * Converts a plugin ID to its board display image path for a specific board colour.
- * e.g. pluginBoardImagePath("air_fog", "dark") → "/img/black/air-fog-display.png"
+ * Derives the raw GitHub content URL for a plugin's board-display screenshot.
+ * e.g. pluginBoardImagePath(plugin, "dark")
+ *   → "https://raw.githubusercontent.com/Fiestaboard/fiestaboard-plugin--air-fog/main/docs/black/board-display.png"
+ *
+ * Falls back to the legacy local static path if no repository is available.
  */
-export function pluginBoardImagePath(id: string, colorMode: 'light' | 'dark'): string {
+export function pluginBoardImagePath(plugin: PluginEntry, colorMode: 'light' | 'dark'): string {
   const boardDir = colorMode === 'light' ? 'white' : 'black';
-  return `/img/${boardDir}/${id.replace(/_/g, '-')}-display.png`;
+
+  if (plugin.repository) {
+    const cleaned = plugin.repository.replace(/\.git$/, '').replace(/\/$/, '');
+    const match = cleaned.match(/github\.com\/(.+)/);
+    if (match) {
+      const branch = plugin.branch?.trim() || 'main';
+      return `https://raw.githubusercontent.com/${match[1]}/${branch}/docs/${boardDir}/board-display.png`;
+    }
+  }
+
+  // Fallback for plugins without an external repository
+  return `/img/${boardDir}/${plugin.id.replace(/_/g, '-')}-display.png`;
 }

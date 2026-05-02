@@ -18,7 +18,7 @@ function CategoryBadge({category}: {category: string}) {
 }
 
 function PluginCard({plugin, boardColor}: {plugin: PluginEntry; boardColor: 'black' | 'white'}) {
-  const imgSrc = pluginBoardImagePath(plugin.id, boardColor === 'white' ? 'light' : 'dark');
+  const imgSrc = pluginBoardImagePath(plugin, boardColor === 'white' ? 'light' : 'dark');
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
