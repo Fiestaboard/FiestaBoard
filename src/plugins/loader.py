@@ -291,11 +291,19 @@ class PluginLoader:
                 )
 
         # Load Python module
+        # Support two repo layouts:
+        #   1. Root layout:    <plugin_dir>/__init__.py                     (older repos)
+        #   2. Package layout: <plugin_dir>/plugins/<id>/__init__.py        (newer repos)
         init_path = plugin_dir / "__init__.py"
         if not init_path.exists():
-            errors.append(f"Plugin __init__.py not found: {init_path}")
-            self._load_errors[plugin_name] = errors
-            return None
+            subdir_path = plugin_dir / "plugins" / plugin_name / "__init__.py"
+            if subdir_path.exists():
+                init_path = subdir_path
+                logger.debug("Using package layout for plugin %s: %s", plugin_name, init_path)
+            else:
+                errors.append(f"Plugin __init__.py not found: {init_path}")
+                self._load_errors[plugin_name] = errors
+                return None
         
         try:
             # Import the plugin module dynamically

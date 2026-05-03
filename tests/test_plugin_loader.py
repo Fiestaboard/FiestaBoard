@@ -217,6 +217,39 @@ def test_load_plugin_handles_missing_init(tmp_path):
     assert any("__init__.py" in e for e in loader.load_errors["no_init"])
 
 
+def test_load_plugin_loads_package_layout(tmp_path):
+    """load_plugin finds __init__.py in plugins/<id>/ subdirectory (newer repo layout)."""
+    plugin_id = "pkg_layout"
+    plugin_dir = tmp_path / plugin_id
+    plugin_dir.mkdir()
+    (plugin_dir / "manifest.json").write_text(
+        '{"id":"pkg_layout","name":"Test","version":"1.0.0","description":"","author":"","variables":{"simple":["var1"]},"max_lengths":{}}'
+    )
+    # Create package layout: plugins/pkg_layout/__init__.py (no root __init__.py)
+    sub_pkg = plugin_dir / "plugins" / plugin_id
+    sub_pkg.mkdir(parents=True)
+    (plugin_dir / "plugins" / "__init__.py").write_text("")
+    plugin_code = f'''
+"""Test plugin with package layout."""
+from src.plugins.base import PluginBase, PluginResult
+
+class PkgLayoutPlugin(PluginBase):
+    @property
+    def plugin_id(self) -> str:
+        return "{plugin_id}"
+
+    def fetch_data(self) -> PluginResult:
+        return PluginResult(available=True, data={{"value": "test"}})
+'''
+    (sub_pkg / "__init__.py").write_text(plugin_code)
+
+    loader = _loader_for_tests(tmp_path)
+    plugin = loader.load_plugin(plugin_id)
+    assert plugin is not None
+    assert plugin.plugin_id == plugin_id
+    assert plugin_id in loader.loaded_plugins
+
+
 def test_load_plugin_handles_import_errors(tmp_path):
     """load_plugin handles import errors in __init__.py."""
     plugin_dir = tmp_path / "import_error"
