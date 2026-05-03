@@ -5,11 +5,8 @@ feature. These tests run a real openssl invocation when openssl is
 available on PATH, and otherwise verify the expected RuntimeError.
 """
 
-import os
 import shutil
 import subprocess
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 

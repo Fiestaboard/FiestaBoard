@@ -235,8 +235,8 @@ def generate_cert(
     finally:
         try:
             os.unlink(cfg_path)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.debug("Failed to remove temporary openssl config %s: %s", cfg_path, e)
 
     # Lock down the private key permissions. The cert is fine world-readable.
     try:
