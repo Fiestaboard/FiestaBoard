@@ -410,8 +410,10 @@ def clone_or_update_repo(
         logger.info("Installed external plugin repository to %s", _candidate)
         return True, ""
     except subprocess.SubprocessError as exc:
+        shutil.rmtree(_candidate, ignore_errors=True)
         return False, f"git clone failed: {exc}"
     except OSError as exc:
+        shutil.rmtree(_candidate, ignore_errors=True)
         return False, f"git clone failed (I/O error): {exc}"
 
 

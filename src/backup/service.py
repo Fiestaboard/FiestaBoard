@@ -30,12 +30,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 #: Strict allowlist for repository URLs read from a backup file.  We only
 #: clone HTTPS URLs that contain a conservative set of characters; anything
-#: else is rejected before reaching the install pipeline.  Re-deriving the
-#: value from a regex match here also breaks static-analysis taint tracking
-#: (CodeQL py/command-line-injection) when the validated URL is later passed
-#: to ``git`` via :mod:`subprocess`.
-_BACKUP_REPO_URL_RE = re.compile(r"https://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+")
-
 #: Strict allowlist for plugin ids read from a backup file.  Mirrors the
 #: ``PLUGIN_ID_RE`` used in :mod:`src.plugins.sources` but is duplicated here
 #: so the validation runs before any plugin code is imported.
@@ -169,6 +163,7 @@ class BackupService:
             "installed": [],
             "already_present": [],
             "failed": [],
+            "manual_reinstall_required": [],
         }
 
         installed_meta = backup.get("installed_plugins") or []
@@ -308,6 +303,7 @@ class BackupService:
             "installed": [],
             "already_present": [],
             "failed": [],
+            "manual_reinstall_required": [],
         }
 
         try:
@@ -334,17 +330,10 @@ class BackupService:
         for entry in installed_meta:
             plugin_id = entry.get("plugin_id") or ""
             source_type = entry.get("source_type") or ""
-            repo = entry.get("repository_url") or ""
-            if not plugin_id or not repo:
+            if not plugin_id:
                 continue
 
-            # Validate plugin_id and repo URL with strict allowlists before
-            # passing them into the install pipeline.  Re-derive both values
-            # from a regex ``fullmatch`` so that even if upstream call sites
-            # gain new code paths, only well-formed values reach
-            # :mod:`subprocess`.  This also prevents
-            # CodeQL ``py/command-line-injection`` from flagging the
-            # downstream ``git clone`` as receiving an uncontrolled value.
+            # Validate plugin_id with a strict allowlist.
             pid_m = _BACKUP_PLUGIN_ID_RE.fullmatch(plugin_id)
             if pid_m is None:
                 result["failed"].append(
@@ -353,18 +342,24 @@ class BackupService:
                 continue
             safe_plugin_id = pid_m.group(0)
 
-            safe_repo: Optional[str] = None
+            # External git plugins carry a user-controlled repository_url from
+            # the backup file.  Passing that URL into subprocess (even after
+            # regex validation) creates a CodeQL py/command-line-injection
+            # finding, and automatically cloning arbitrary URLs from an uploaded
+            # file is an SSRF risk.  These plugins are surfaced in
+            # ``manual_reinstall_required`` so the operator can re-add them
+            # explicitly via the Integrations UI.  Only registry plugins can
+            # be reinstalled automatically because their URL is looked up from
+            # the trusted static plugin-registry.json, not from the backup.
             if source_type != "registry":
-                repo_m = _BACKUP_REPO_URL_RE.fullmatch(repo)
-                if repo_m is None:
-                    result["failed"].append(
-                        {
-                            "plugin_id": safe_plugin_id,
-                            "error": "invalid repository URL in backup",
-                        }
-                    )
-                    continue
-                safe_repo = repo_m.group(0)
+                result["manual_reinstall_required"].append(
+                    {
+                        "plugin_id": safe_plugin_id,
+                        "reason": "external_git_plugin",
+                        "repository_url": entry.get("repository_url") or "",
+                    }
+                )
+                continue
 
             result["attempted"].append(safe_plugin_id)
 
@@ -373,13 +368,7 @@ class BackupService:
                 continue
 
             try:
-                if source_type == "registry":
-                    errors = registry.install_from_registry(safe_plugin_id)
-                else:
-                    assert safe_repo is not None  # for type-checkers
-                    errors = registry.install_from_git(
-                        safe_repo, plugin_id=safe_plugin_id
-                    )
+                errors = registry.install_from_registry(safe_plugin_id)
             except Exception:  # pragma: no cover - defensive
                 logger.exception("Plugin reinstall raised: %s", safe_plugin_id)
                 result["failed"].append(
@@ -388,8 +377,6 @@ class BackupService:
                 continue
 
             if errors:
-                # Errors from install_from_* are validation messages, not
-                # exception traces, so they are safe to surface to callers.
                 result["failed"].append(
                     {"plugin_id": safe_plugin_id, "error": "; ".join(errors)}
                 )

@@ -219,7 +219,7 @@ def test_collect_installed_plugins_skips_builtins(tmp_path):
 def test_reinstall_plugins_skips_already_installed(tmp_path):
     fake_registry = MagicMock()
     fake_registry.get_plugin.return_value = object()  # already installed
-    fake_registry.install_from_git.return_value = []
+    fake_registry.install_from_registry.return_value = []
 
     with patch(
         "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
@@ -228,7 +228,7 @@ def test_reinstall_plugins_skips_already_installed(tmp_path):
             [
                 {
                     "plugin_id": "weather",
-                    "source_type": "external",
+                    "source_type": "registry",
                     "repository_url": "https://example.com/p.git",
                 }
             ]
@@ -236,13 +236,14 @@ def test_reinstall_plugins_skips_already_installed(tmp_path):
 
     assert result["already_present"] == ["weather"]
     assert result["installed"] == []
+    fake_registry.install_from_registry.assert_not_called()
     fake_registry.install_from_git.assert_not_called()
 
 
 def test_reinstall_plugins_records_failures(tmp_path):
     fake_registry = MagicMock()
     fake_registry.get_plugin.return_value = None
-    fake_registry.install_from_git.return_value = ["clone failed"]
+    fake_registry.install_from_registry.return_value = ["clone failed"]
 
     with patch(
         "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
@@ -251,7 +252,7 @@ def test_reinstall_plugins_records_failures(tmp_path):
             [
                 {
                     "plugin_id": "weather",
-                    "source_type": "external",
+                    "source_type": "registry",
                     "repository_url": "https://example.com/p.git",
                 }
             ]
@@ -261,10 +262,38 @@ def test_reinstall_plugins_records_failures(tmp_path):
     assert result["failed"] and result["failed"][0]["plugin_id"] == "weather"
 
 
-def test_reinstall_plugins_rejects_malicious_repository_url(tmp_path):
-    """Repository URLs that don't match the strict allowlist must be rejected
-    *before* reaching the install pipeline (defence against
-    py/command-line-injection)."""
+def test_reinstall_plugins_rejects_malicious_plugin_id(tmp_path):
+    """Plugin IDs with shell metacharacters must be rejected before reaching
+    the install pipeline."""
+    fake_registry = MagicMock()
+    fake_registry.get_plugin.return_value = None
+
+    with patch(
+        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
+    ):
+        result = BackupService._reinstall_plugins(
+            [
+                {
+                    # Plugin id with shell metacharacter must be rejected.
+                    "plugin_id": "weather; rm -rf /",
+                    "source_type": "registry",
+                    "repository_url": "https://example.com/p.git",
+                },
+            ]
+        )
+
+    assert result["installed"] == []
+    assert result["attempted"] == []
+    assert len(result["failed"]) == 1
+    fake_registry.install_from_registry.assert_not_called()
+    fake_registry.install_from_git.assert_not_called()
+
+
+def test_reinstall_plugins_skips_external_git_plugins(tmp_path):
+    """External git plugins (non-registry source_type) must never trigger an
+    install call — they are surfaced in manual_reinstall_required instead.
+    This prevents user-controlled repository_url from the backup JSON from
+    flowing into subprocess (py/command-line-injection)."""
     fake_registry = MagicMock()
     fake_registry.get_plugin.return_value = None
 
@@ -276,23 +305,29 @@ def test_reinstall_plugins_rejects_malicious_repository_url(tmp_path):
                 {
                     "plugin_id": "weather",
                     "source_type": "external",
-                    # Leading dash + space would be highly suspicious — must
-                    # be rejected by the URL allowlist regex.
-                    "repository_url": "--upload-pack=evil https://example.com/p.git",
+                    "repository_url": "https://github.com/Org/fiestaboard-plugin--weather",
                 },
                 {
-                    # Plugin id with shell metacharacter must also be rejected.
-                    "plugin_id": "weather; rm -rf /",
-                    "source_type": "external",
-                    "repository_url": "https://example.com/p.git",
+                    "plugin_id": "surf",
+                    "source_type": "git",
+                    "repository_url": "https://github.com/Org/fiestaboard-plugin--surf",
                 },
             ]
         )
 
+    # No install calls whatsoever
+    fake_registry.install_from_git.assert_not_called()
+    fake_registry.install_from_registry.assert_not_called()
+
+    # Both plugins appear in manual_reinstall_required with repo URL preserved
     assert result["installed"] == []
     assert result["attempted"] == []
-    assert len(result["failed"]) == 2
-    fake_registry.install_from_git.assert_not_called()
+    required = result["manual_reinstall_required"]
+    assert len(required) == 2
+    assert required[0]["plugin_id"] == "weather"
+    assert required[0]["reason"] == "external_git_plugin"
+    assert "repository_url" in required[0]
+    assert required[1]["plugin_id"] == "surf"
 
 
 # ── API endpoint tests ──────────────────────────────────────────────────────
