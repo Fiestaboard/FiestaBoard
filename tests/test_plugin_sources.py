@@ -217,12 +217,24 @@ class TestGitUrlValidation:
 class TestCloneOrUpdateRepo:
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_clone_fresh(self, mock_run, tmp_path):
+        """Fresh install uses git init + config write + fetch + reset (no git clone)."""
+        plugin_dest = tmp_path / "my_plugin"
+
+        def _fake_run(cmd, **kwargs):
+            if "init" in cmd:
+                plugin_dest.mkdir(parents=True, exist_ok=True)
+                (plugin_dest / ".git").mkdir(exist_ok=True)
+            return mock.MagicMock()
+
+        mock_run.side_effect = _fake_run
         ok, err = clone_or_update_repo("https://github.com/Org/repo", "my_plugin", external_dir=tmp_path)
-        assert ok
+        assert ok, f"expected ok but got err={err!r}"
         assert err == ""
-        mock_run.assert_called_once()
-        cmd = mock_run.call_args[0][0]
-        assert "clone" in cmd
+        assert mock_run.call_count == 3  # git init, git fetch, git reset
+        calls = [c[0][0] for c in mock_run.call_args_list]
+        assert "init" in calls[0]
+        assert "fetch" in calls[1]
+        assert "reset" in calls[2]
 
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_fetch_reset_existing(self, mock_run, tmp_path):
@@ -256,9 +268,11 @@ class TestCloneOrUpdateRepo:
         side_effect=subprocess.SubprocessError("network error"),
     )
     def test_clone_failure(self, mock_run, tmp_path):
+        """Subprocess failure during fresh install surfaces as an error."""
         ok, err = clone_or_update_repo("https://github.com/Org/repo", "fail_plugin", external_dir=tmp_path)
         assert not ok
-        assert "network error" in err
+        # git init raises SubprocessError; caught and wrapped as "git clone failed: ..."
+        assert "clone" in err and "failed" in err
 
     @mock.patch(
         "src.plugins.sources.subprocess.run",
@@ -315,7 +329,15 @@ class TestCloneOrUpdateRepoPathSafety:
         """A valid plugin_id is accepted and the path is computed correctly."""
         allowed_root = tmp_path / "external_plugins"
         allowed_root.mkdir()
-        with mock.patch("src.plugins.sources.subprocess.run"):
+        plugin_dest = allowed_root / "my_plugin"
+
+        def _fake_run(cmd, **kwargs):
+            if "init" in cmd:
+                plugin_dest.mkdir(parents=True, exist_ok=True)
+                (plugin_dest / ".git").mkdir(exist_ok=True)
+            return mock.MagicMock()
+
+        with mock.patch("src.plugins.sources.subprocess.run", side_effect=_fake_run):
             ok, err = clone_or_update_repo(
                 "https://github.com/Org/repo", "my_plugin", external_dir=allowed_root
             )
