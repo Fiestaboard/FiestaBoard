@@ -1259,10 +1259,6 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
                 if candidate in value:
                     resolved = value[candidate]
                     break
-            # Fallback: replace only the first underscore (legacy behaviour).
-            if resolved is None:
-                fallback = entity_id_part.replace("_", ".", 1)
-                resolved = value.get(fallback)
         else:
             resolved = value.get(entity_id_part)
 
