@@ -88,7 +88,10 @@ def _detect_lan_ips() -> List[str]:
     try:
         hostname = socket.gethostname()
         for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
-            addr = info[4][0]
+            # getaddrinfo tuple shape: (family, type, proto, canonname, sockaddr)
+            # where sockaddr for AF_INET is (host, port).
+            sockaddr = info[4]
+            addr = sockaddr[0]
             if addr and addr not in ips:
                 ips.append(addr)
     except (OSError, socket.gaierror) as e:
