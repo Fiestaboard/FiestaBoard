@@ -760,17 +760,44 @@ export function TipTapTemplateEditor({
   // Handle alignment button clicks
   const handleAlignmentClick = useCallback((alignment: LineAlignment) => {
     if (!editor) return;
-    
-    const lineIndex = getCurrentLineIndex();
-    if (lineIndex === null || lineIndex < 0 || lineIndex >= boardLines) {
-      return; // Can't apply alignment if no line is selected
-    }
 
-    // Notify parent of alignment change (parent handles state)
-    if (onLineAlignmentChange) {
-      onLineAlignmentChange(lineIndex, alignment);
+    try {
+      if (!editor.state || !editor.state.selection) return;
+      const { state } = editor;
+      const { selection } = state;
+      if (!selection || !selection.$from) return;
+
+      // Count hard breaks before $from to get starting line index
+      let fromLine = 0;
+      state.doc.nodesBetween(0, selection.$from.pos, (node) => {
+        if (node && node.type && node.type.name === 'hardBreak') {
+          fromLine++;
+        }
+      });
+
+      // Count hard breaks between $from and $to to get ending line index
+      let toLine = fromLine;
+      if (!selection.empty) {
+        state.doc.nodesBetween(selection.$from.pos, selection.$to.pos, (node) => {
+          if (node && node.type && node.type.name === 'hardBreak') {
+            toLine++;
+          }
+        });
+      }
+
+      if (fromLine < 0 || fromLine >= boardLines) return;
+      const clampedToLine = Math.min(toLine, boardLines - 1);
+
+      // Notify parent of alignment change for each selected line
+      if (onLineAlignmentChange) {
+        for (let i = fromLine; i <= clampedToLine; i++) {
+          onLineAlignmentChange(i, alignment);
+        }
+      }
+    } catch (error) {
+      console.warn('Error in handleAlignmentClick:', error);
     }
-  }, [editor, getCurrentLineIndex, onLineAlignmentChange]);
+  }, [editor, boardLines, onLineAlignmentChange]);
 
   // Handle wrap toggle
   const handleWrapClick = useCallback(() => {

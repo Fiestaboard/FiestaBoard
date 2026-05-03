@@ -1018,14 +1018,18 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     lineAlignments={lineAlignments}
                     lineWrapEnabled={lineWrapEnabled}
                     onLineAlignmentChange={(lineIndex, alignment) => {
-                      const newAlignments = [...lineAlignments];
-                      newAlignments[lineIndex] = alignment;
-                      setLineAlignments(newAlignments);
+                      setLineAlignments(prev => {
+                        const newAlignments = [...prev];
+                        newAlignments[lineIndex] = alignment;
+                        return newAlignments;
+                      });
                     }}
                     onLineWrapChange={(lineIndex, wrapEnabled) => {
-                      const newWrapStates = [...lineWrapEnabled];
-                      newWrapStates[lineIndex] = wrapEnabled;
-                      setLineWrapEnabled(newWrapStates);
+                      setLineWrapEnabled(prev => {
+                        const newWrapStates = [...prev];
+                        newWrapStates[lineIndex] = wrapEnabled;
+                        return newWrapStates;
+                      });
                     }}
                     placeholder={t("richEditorPlaceholder")}
                     showAlignmentControls={true}
