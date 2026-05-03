@@ -1247,24 +1247,27 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
     # instead.  Resolve that first segment with smart conversion so that
     # the normal traversal loop below handles the rest of the path.
     start_idx = 1
+    # Require at least source.entity_id.field (3 parts) to enter HA resolution.
     if source == "home_assistant" and len(parts) >= 3 and isinstance(value, dict):
         entity_id_part = parts[1]
-        resolved: Optional[Any] = None
 
-        if "_" in entity_id_part and entity_id_part not in value:
-            # Try each underscore as the domain/name boundary.
+        # Try the key as-is first (handles cases where the entity is stored
+        # without dots, e.g. an underscore-only key).
+        entity_data: Optional[Any] = value.get(entity_id_part)
+
+        if entity_data is None and "_" in entity_id_part:
+            # Try each underscore as the domain/name boundary until a match
+            # is found (e.g. sensor_outdoor_temp → sensor.outdoor_temp).
             sub = entity_id_part.split("_")
             for i in range(1, len(sub)):
                 candidate = "_".join(sub[:i]) + "." + "_".join(sub[i:])
                 if candidate in value:
-                    resolved = value[candidate]
+                    entity_data = value[candidate]
                     break
-        else:
-            resolved = value.get(entity_id_part)
 
-        if resolved is None:
+        if entity_data is None:
             return ErrorValue("#REF")
-        value = resolved
+        value = entity_data
         start_idx = 2  # entity segment already consumed
 
     for part in parts[start_idx:]:
