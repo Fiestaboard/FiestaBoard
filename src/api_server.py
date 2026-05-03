@@ -1325,16 +1325,19 @@ def _take_settings_snapshot() -> Optional[Dict[str, Any]]:
         ts = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond // 1000:03d}Z"
         target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
         # Belt-and-braces against same-millisecond collisions: bump the
-        # millisecond field forward until we find a free name.
-        bump = 0
-        while target.exists():
-            bump += 1
-            ms = (now.microsecond // 1000 + bump) % 1000
+        # millisecond field forward until we find a free name.  1000 is
+        # the natural upper bound (one full second of ms slots); we treat
+        # exhaustion as a fatal-but-non-fatal "snapshot unavailable".
+        _MAX_MS_SLOTS = 1000
+        for bump in range(1, _MAX_MS_SLOTS + 1):
+            if not target.exists():
+                break
+            ms = (now.microsecond // 1000 + bump) % _MAX_MS_SLOTS
             ts = now.strftime("%Y%m%dT%H%M%S") + f".{ms:03d}Z"
             target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
-            if bump > 1000:  # pragma: no cover - effectively unreachable
-                logger.warning("Could not find a free snapshot filename")
-                return None
+        else:  # pragma: no cover - effectively unreachable
+            logger.warning("Could not find a free snapshot filename")
+            return None
         # Use a temp file + atomic rename so a crash mid-write can't leave a
         # truncated snapshot in place.
         tmp = target.with_suffix(target.suffix + ".tmp")
@@ -1352,7 +1355,9 @@ def _take_settings_snapshot() -> Optional[Dict[str, Any]]:
     return {
         "name": target.name,
         "path": str(target),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        # Use the same wall-clock value that's encoded in the filename so
+        # the metadata returned to callers matches the on-disk artifact.
+        "created_at": now.isoformat(),
         "bytes": size,
     }
 
