@@ -173,6 +173,25 @@ def _is_host_allowed(host: str, allowed_hosts: List[str]) -> bool:
 
 
 # Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
+_PLUGIN_ID_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def _sanitize_optional_plugin_id(plugin_id: Optional[str]) -> Optional[str]:
+    """Validate optional plugin id from user input.
+
+    Accepts ``None`` (meaning "derive from repo name"), otherwise enforces
+    lowercase letters, digits, and underscores only.
+    """
+    if plugin_id is None:
+        return None
+    if not isinstance(plugin_id, str) or not plugin_id:
+        raise HTTPException(status_code=400, detail="plugin_id must be a non-empty string")
+    if not _PLUGIN_ID_RE.fullmatch(plugin_id):
+        raise HTTPException(
+            status_code=400,
+            detail="plugin_id may contain only lowercase letters, digits, and underscores",
+        )
+    return plugin_id
 # IPv4 dotted-quad notation.  This rejects exotic forms (URL-encoded chars,
 # ``user:pass@host``, schemes embedded in the host, etc.) before we ever try
 # to connect to a board over HTTP.
@@ -6224,10 +6243,12 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
             detail="branch must be one of: main, master, develop",
         )
 
+    safe_plugin_id = _sanitize_optional_plugin_id(request.plugin_id)
+
     registry = get_plugin_registry()
     errors = registry.install_from_git(
         request.repository,
-        plugin_id=request.plugin_id,
+        plugin_id=safe_plugin_id,
         branch=safe_branch,
     )
 
@@ -6235,7 +6256,7 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
         raise HTTPException(status_code=400, detail="; ".join(errors))
 
     # Derive the final plugin id
-    pid = request.plugin_id
+    pid = safe_plugin_id
     if pid is None:
         from .plugins.sources import repo_name_from_url, plugin_id_from_repo_name
         pid = plugin_id_from_repo_name(repo_name_from_url(request.repository))
@@ -6336,31 +6357,30 @@ async def update_plugin(plugin_id: str):
             detail=f"Plugin '{plugin_id}' has no local path for updating.",
         )
 
-    from pathlib import Path as _Path
+    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
     import os as _os
-    from .plugins.sources import get_external_plugins_dir
-    local_path = _Path(source.local_path)
-    # Verify local_path is within the external plugins directory before
-    # passing it to subprocess calls — canonical path-injection barrier.
-    _ext_root = _os.path.realpath(str(get_external_plugins_dir()))
-    _real_local = _os.path.realpath(str(local_path))
+
+    # Verify the plugin's local_path is within the external plugins directory
+    # before updating, as a defence-in-depth check.
+    _ext_dir = get_external_plugins_dir()
+    _ext_root = _os.path.realpath(str(_ext_dir))
+    _real_local = _os.path.realpath(str(source.local_path))
     try:
         _common = _os.path.commonpath([_ext_root, _real_local])
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid plugin path.")
     if _common != _ext_root or _real_local == _ext_root:
         raise HTTPException(status_code=400, detail="Invalid plugin path.")
-    local_path = _Path(_real_local)
 
-    if not (local_path / ".git").is_dir():
+    if not (_real_local and (Path(_real_local) / ".git").is_dir()):
         raise HTTPException(
             status_code=400,
             detail=f"Plugin '{plugin_id}' is not a git repository.",
         )
 
-    from .plugins.sources import clone_or_update_repo
-    # repo_url is not needed for the update path (fetch uses existing origin remote)
-    ok, err = clone_or_update_repo("", local_path)
+    # Pass the validated plugin_id — clone_or_update_repo resolves the path
+    # internally so no user-controlled Path flows into subprocess sinks.
+    ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
     if not ok:
         raise HTTPException(status_code=500, detail=f"Update failed: {err}")
 
@@ -6408,7 +6428,8 @@ async def apply_all_plugin_updates():
 
     updated: list = []
     failed: dict = {}
-    _ext_root = _os.path.realpath(str(get_external_plugins_dir()))
+    _ext_dir = get_external_plugins_dir()
+    _ext_root = _os.path.realpath(str(_ext_dir))
 
     for plugin_id in pending:
         source = registry.get_plugin_source(plugin_id)
@@ -6425,12 +6446,13 @@ async def apply_all_plugin_updates():
         if _common != _ext_root or _real_local == _ext_root:
             failed[plugin_id] = "Invalid plugin path."
             continue
-        local_path = _Path(_real_local)
-        if not (local_path / ".git").is_dir():
+        if not (_Path(_real_local) / ".git").is_dir():
             failed[plugin_id] = "Plugin is not a git repository."
             continue
 
-        ok, err = clone_or_update_repo("", local_path)
+        # Pass the validated plugin_id — clone_or_update_repo resolves the path
+        # internally so no user-controlled Path flows into subprocess sinks.
+        ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
         if not ok:
             failed[plugin_id] = f"git fetch failed: {err}"
             continue
@@ -6629,6 +6651,62 @@ async def generic_data_test_fetch(request: dict):
     except Exception:
         logger.exception("generic-data test-fetch failed")
         raise HTTPException(status_code=500, detail="Failed to fetch data")
+
+
+# =============================================================================
+# Backup & Restore — export and import all user data as a single JSON file
+# =============================================================================
+
+
+@app.get("/backup/export")
+async def export_backup():
+    """Download a JSON file containing all user data (config, settings,
+    pages, carousels, schedules, and metadata for installed external
+    plugins).
+
+    The file can be re-uploaded to ``/backup/import`` on a new instance
+    to migrate or restore a configuration.
+    """
+    from .backup import get_backup_service
+
+    payload = get_backup_service().export_to_json()
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"fiestaboard-backup-{timestamp}.json"
+    return Response(
+        content=payload,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.post("/backup/import")
+async def import_backup(
+    payload: Dict[str, Any] = Body(...),
+    reinstall_plugins: bool = Query(True),
+):
+    """Restore a backup file produced by ``/backup/export``.
+
+    Existing data files are preserved as ``<name>.json.pre-restore-<ts>``
+    siblings before being overwritten so the operator can roll back
+    manually if needed.  In-memory service singletons are reloaded so the
+    change takes effect without restarting the container.
+    """
+    from .backup import BackupError, get_backup_service
+
+    try:
+        result = get_backup_service().import_from_dict(
+            payload, reinstall_plugins=reinstall_plugins
+        )
+    except BackupError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        logger.exception("Backup import failed")
+        raise HTTPException(status_code=500, detail="Backup import failed")
+
+    return result
 
 
 if __name__ == "__main__":

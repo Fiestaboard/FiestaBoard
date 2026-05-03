@@ -541,8 +541,8 @@ class TestPluginManagement:
         mock_registry.reload_plugin.return_value = Mock()
         mock_registry._update_status = {"good_plugin": True, "bad_plugin": True}
 
-        def fake_clone(url, path, *args, **kwargs):
-            if "fail" in str(path):
+        def fake_clone(url, plugin_id, *args, **kwargs):
+            if plugin_id == "bad_plugin":
                 return (False, "git fetch error")
             return (True, "")
 
