@@ -335,24 +335,27 @@ def clone_or_update_repo(
     # used for all subsequent path operations and subprocess -C arguments.
     _ext_root = os.path.realpath(str(_ext_dir))
     _candidate = os.path.realpath(os.path.join(_ext_root, _safe_id))
-    try:
-        _common = os.path.commonpath([_ext_root, _candidate])
-    except ValueError:
+    # os.path.commonpath is the CodeQL-recognised py/path-injection barrier.
+    # It must appear as a plain if-guard (not inside try/except) so the
+    # control-flow graph shows the barrier on every path to the sinks below.
+    if os.path.commonpath([_ext_root, _candidate]) != _ext_root:
         return False, "Plugin path is outside the external plugins directory"
-    if _common != _ext_root or _candidate == _ext_root:
-        return False, "Plugin path is outside the external plugins directory"
-    # From this point _candidate is CodeQL-clean for path and subprocess sinks.
+    if _candidate == _ext_root:
+        return False, "Refusing to install plugin at root directory"
+    # _candidate is now verified to be strictly inside _ext_root.
 
     # ── Update path (no URL required) ─────────────────────────────────────────
     if os.path.isdir(os.path.join(_candidate, ".git")):
         try:
             subprocess.run(
-                ["git", "-C", _candidate, "fetch", "--depth=1", "origin"],
+                ["git", "fetch", "--depth=1", "origin"],
+                cwd=_candidate,
                 check=True, capture_output=True, text=True,
                 timeout=120, env=env,
             )
             subprocess.run(
-                ["git", "-C", _candidate, "reset", "--hard", "FETCH_HEAD"],
+                ["git", "reset", "--hard", "FETCH_HEAD"],
+                cwd=_candidate,
                 check=True, capture_output=True, text=True,
                 timeout=30, env=env,
             )
@@ -377,7 +380,8 @@ def clone_or_update_repo(
     os.makedirs(_candidate, exist_ok=True)
     try:
         subprocess.run(
-            ["git", "init", "--quiet", _candidate],
+            ["git", "init", "--quiet"],
+            cwd=_candidate,
             check=True, capture_output=True, text=True,
             timeout=30, env=env,
         )
@@ -388,15 +392,18 @@ def clone_or_update_repo(
                 f"\turl = {repo_url}\n"
                 "\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
             )
-        _fetch_cmd = ["git", "-C", _candidate, "fetch", "--depth=1", "origin"]
+        _fetch_cmd = ["git", "fetch", "--depth=1", "origin"]
         if branch:
             _fetch_cmd.append(branch)
         subprocess.run(
-            _fetch_cmd, check=True, capture_output=True, text=True,
+            _fetch_cmd,
+            cwd=_candidate,
+            check=True, capture_output=True, text=True,
             timeout=120, env=env,
         )
         subprocess.run(
-            ["git", "-C", _candidate, "reset", "--hard", "FETCH_HEAD"],
+            ["git", "reset", "--hard", "FETCH_HEAD"],
+            cwd=_candidate,
             check=True, capture_output=True, text=True,
             timeout=30, env=env,
         )
