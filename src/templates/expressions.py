@@ -1223,6 +1223,13 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
     Returns ``ErrorValue('#REF')`` if any segment is missing. Values come
     back in their native Python type (int/float/bool/str) so that the
     evaluator can do numeric comparisons without re-parsing.
+
+    Home Assistant entity IDs use dot notation (``sensor.outdoor_temp``) but
+    dots are path separators in the template language, so users write
+    underscores (``sensor_outdoor_temp``).  When the source is
+    ``home_assistant`` and the direct key lookup for the entity segment fails,
+    every possible underscore position is tried as a domain separator, exactly
+    as ``engine._get_variable_value`` does for plain ``{{ }}`` substitution.
     """
     parts = path.split(".")
     if len(parts) < 2:
@@ -1233,7 +1240,38 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
         return ErrorValue("#REF")
 
     value: Any = context[source]
-    for part in parts[1:]:
+
+    # --- Home Assistant entity ID resolution --------------------------------
+    # HA entities are keyed by their real ID which contains a dot
+    # (e.g. "sensor.outdoor_temp").  The template path uses underscores
+    # instead.  Resolve that first segment with smart conversion so that
+    # the normal traversal loop below handles the rest of the path.
+    start_idx = 1
+    if source == "home_assistant" and len(parts) >= 3 and isinstance(value, dict):
+        entity_id_part = parts[1]
+        resolved: Optional[Any] = None
+
+        if "_" in entity_id_part and entity_id_part not in value:
+            # Try each underscore as the domain/name boundary.
+            sub = entity_id_part.split("_")
+            for i in range(1, len(sub)):
+                candidate = "_".join(sub[:i]) + "." + "_".join(sub[i:])
+                if candidate in value:
+                    resolved = value[candidate]
+                    break
+            # Fallback: replace only the first underscore (legacy behaviour).
+            if resolved is None:
+                fallback = entity_id_part.replace("_", ".", 1)
+                resolved = value.get(fallback)
+        else:
+            resolved = value.get(entity_id_part)
+
+        if resolved is None:
+            return ErrorValue("#REF")
+        value = resolved
+        start_idx = 2  # entity segment already consumed
+
+    for part in parts[start_idx:]:
         if isinstance(value, dict):
             if part in value:
                 value = value[part]
