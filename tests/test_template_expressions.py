@@ -227,6 +227,61 @@ class TestVariables:
         ctx = {"baywheels": {"stations": [{"name": "A"}]}}
         assert evaluate("baywheels.stations.5.name", ctx) == "#REF"
 
+    def test_home_assistant_entity_state(self):
+        # HA entities are stored under their real ID which contains a dot
+        # (e.g. "sensor.outdoor_temp"). The template path uses underscores.
+        ctx = {"home_assistant": {"sensor.outdoor_temp": {"state": "72"}}}
+        assert evaluate("home_assistant.sensor_outdoor_temp.state", ctx) == "72"
+
+    def test_home_assistant_domain_with_underscore(self):
+        # Domains like media_player, binary_sensor contain underscores; the
+        # smart resolution must try each position to find the right split.
+        ctx = {
+            "home_assistant": {
+                "media_player.living_room": {"state": "playing"},
+                "binary_sensor.front_door": {"state": "on"},
+            }
+        }
+        assert evaluate("home_assistant.media_player_living_room.state", ctx) == "playing"
+        assert evaluate("home_assistant.binary_sensor_front_door.state", ctx) == "on"
+
+    def test_home_assistant_nested_attribute(self):
+        ctx = {
+            "home_assistant": {
+                "sensor.outdoor_temp": {
+                    "state": "72",
+                    "attributes": {"friendly_name": "Outdoor Temp"},
+                }
+            }
+        }
+        assert (
+            evaluate(
+                "home_assistant.sensor_outdoor_temp.attributes.friendly_name", ctx
+            )
+            == "Outdoor Temp"
+        )
+
+    def test_home_assistant_missing_entity_returns_ref(self):
+        ctx = {"home_assistant": {"sensor.outdoor_temp": {"state": "72"}}}
+        assert evaluate("home_assistant.no_such_entity.state", ctx) == "#REF"
+
+    def test_home_assistant_in_arithmetic(self):
+        ctx = {"home_assistant": {"sensor.outdoor_temp": {"state": 72}}}
+        assert evaluate("home_assistant.sensor_outdoor_temp.state + 32", ctx) == "104"
+
+    def test_home_assistant_in_iferror(self):
+        ctx = {"home_assistant": {}}
+        assert (
+            evaluate('IFERROR(home_assistant.missing_entity.state, "n/a")', ctx)
+            == "n/a"
+        )
+
+    def test_home_assistant_direct_key_still_works(self):
+        # If the context already stores the entity under an underscore key
+        # (no dot conversion needed), the direct lookup path is used.
+        ctx = {"home_assistant": {"sensor_no_dot": {"state": "ok"}}}
+        assert evaluate("home_assistant.sensor_no_dot.state", ctx) == "ok"
+
 
 class TestErrorPropagation:
     def test_arithmetic_with_missing_propagates(self):

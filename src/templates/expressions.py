@@ -1223,6 +1223,13 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
     Returns ``ErrorValue('#REF')`` if any segment is missing. Values come
     back in their native Python type (int/float/bool/str) so that the
     evaluator can do numeric comparisons without re-parsing.
+
+    Home Assistant entity IDs use dot notation (``sensor.outdoor_temp``) but
+    dots are path separators in the template language, so users write
+    underscores (``sensor_outdoor_temp``).  When the source is
+    ``home_assistant`` and the direct key lookup for the entity segment fails,
+    every possible underscore position is tried as a domain separator, exactly
+    as ``engine._get_variable_value`` does for plain ``{{ }}`` substitution.
     """
     parts = path.split(".")
     if len(parts) < 2:
@@ -1233,7 +1240,37 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
         return ErrorValue("#REF")
 
     value: Any = context[source]
-    for part in parts[1:]:
+
+    # --- Home Assistant entity ID resolution --------------------------------
+    # HA entities are keyed by their real ID which contains a dot
+    # (e.g. "sensor.outdoor_temp").  The template path uses underscores
+    # instead.  Resolve that first segment with smart conversion so that
+    # the normal traversal loop below handles the rest of the path.
+    start_idx = 1
+    # Require at least source.entity_id.field (3 parts) to enter HA resolution.
+    if source == "home_assistant" and len(parts) >= 3 and isinstance(value, dict):
+        entity_id_part = parts[1]
+
+        # Try the key as-is first (handles cases where the entity is stored
+        # without dots, e.g. an underscore-only key).
+        entity_data: Optional[Any] = value.get(entity_id_part)
+
+        if entity_data is None and "_" in entity_id_part:
+            # Try each underscore as the domain/name boundary until a match
+            # is found (e.g. sensor_outdoor_temp → sensor.outdoor_temp).
+            sub = entity_id_part.split("_")
+            for i in range(1, len(sub)):
+                candidate = "_".join(sub[:i]) + "." + "_".join(sub[i:])
+                if candidate in value:
+                    entity_data = value[candidate]
+                    break
+
+        if entity_data is None:
+            return ErrorValue("#REF")
+        value = entity_data
+        start_idx = 2  # entity segment already consumed
+
+    for part in parts[start_idx:]:
         if isinstance(value, dict):
             if part in value:
                 value = value[part]
