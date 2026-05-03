@@ -215,6 +215,28 @@ class DisplaySettings:
 
 
 @dataclass
+class BetaSettings:
+    """Opt-in beta features.
+
+    These are experimental settings that may change behavior, require a
+    container restart, or be removed in future releases. Currently:
+
+    - https_enabled: When true, nginx serves HTTPS on the container's
+      external port using a per-instance self-signed certificate
+      generated at container startup. Toggling this requires a restart
+      to take effect.
+    """
+    https_enabled: bool = False
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "BetaSettings":
+        return cls(https_enabled=bool(data.get("https_enabled", False)))
+
+
+@dataclass
 class MQTTSettings:
     """MQTT integration settings for Home Assistant auto-discovery.
 
@@ -291,6 +313,7 @@ class SettingsService:
         self._mqtt = self._load_mqtt_settings()
         self._display = self._load_display_settings()
         self._location = self._load_location_settings()
+        self._beta = self._load_beta_settings()
         
         if getattr(self, "_needs_migration_save", False):
             self._save_to_file()
@@ -321,6 +344,7 @@ class SettingsService:
                 "mqtt": self._mqtt.to_dict(mask_secrets=False),
                 "display": self._display.to_dict(),
                 "location": self._location.to_dict(),
+                "beta": self._beta.to_dict(),
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -449,6 +473,13 @@ class SettingsService:
         if "location" in file_data:
             return LocationSettings.from_dict(file_data["location"])
         return LocationSettings()
+
+    def _load_beta_settings(self) -> "BetaSettings":
+        """Load beta-feature settings from file."""
+        file_data = self._load_from_file()
+        if "beta" in file_data:
+            return BetaSettings.from_dict(file_data["beta"])
+        return BetaSettings()
 
     # Transition settings
     def get_transition_settings(self) -> TransitionSettings:
@@ -845,6 +876,24 @@ class SettingsService:
         self._save_to_file()
         logger.info(f"Location settings updated: {self._location}")
         return self._location
+
+    def get_beta_settings(self) -> "BetaSettings":
+        """Return current beta-feature settings."""
+        return self._beta
+
+    def update_beta_settings(self, updates: dict) -> "BetaSettings":
+        """Update beta-feature settings and persist.
+
+        Only keys present in *updates* are changed. This method only
+        records the user's preference -- side effects like generating
+        or removing TLS certificates are handled by the API layer so
+        the settings module stays free of system-level concerns.
+        """
+        if "https_enabled" in updates:
+            self._beta.https_enabled = bool(updates["https_enabled"])
+        self._save_to_file()
+        logger.info(f"Beta settings updated: {self._beta}")
+        return self._beta
 
 
 # Singleton instance

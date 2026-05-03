@@ -18,6 +18,7 @@ from src.settings.service import (
     PollingSettings,
     BoardSettings,
     ScheduleSettings,
+    BetaSettings,
     get_settings_service,
     VALID_OUTPUT_TARGETS,
 )
@@ -600,3 +601,67 @@ class TestGetSettingsService:
         svc = get_settings_service()
         assert svc is not None
         assert isinstance(svc, SettingsService)
+
+
+# ==================== BetaSettings ====================
+
+
+class TestBetaSettings:
+    """Test BetaSettings dataclass."""
+
+    def test_defaults_to_disabled(self):
+        bs = BetaSettings()
+        assert bs.https_enabled is False
+
+    def test_from_dict_with_https_enabled(self):
+        bs = BetaSettings.from_dict({"https_enabled": True})
+        assert bs.https_enabled is True
+
+    def test_from_dict_empty(self):
+        bs = BetaSettings.from_dict({})
+        assert bs.https_enabled is False
+
+    def test_from_dict_coerces_truthy(self):
+        bs = BetaSettings.from_dict({"https_enabled": 1})
+        assert bs.https_enabled is True
+        bs = BetaSettings.from_dict({"https_enabled": ""})
+        assert bs.https_enabled is False
+
+    def test_to_dict_roundtrip(self):
+        original = BetaSettings(https_enabled=True)
+        restored = BetaSettings.from_dict(original.to_dict())
+        assert restored.https_enabled is True
+
+
+class TestSettingsServiceBeta:
+    """Test SettingsService beta-feature methods."""
+
+    def test_get_beta_settings_default(self, settings_service):
+        bs = settings_service.get_beta_settings()
+        assert bs.https_enabled is False
+
+    def test_update_beta_settings_enables_https(self, settings_service):
+        bs = settings_service.update_beta_settings({"https_enabled": True})
+        assert bs.https_enabled is True
+        # Reload from disk to confirm persistence.
+        with open(settings_service.settings_file) as f:
+            data = json.load(f)
+        assert data["beta"]["https_enabled"] is True
+
+    def test_update_beta_settings_partial_update_preserves_other_keys(self, settings_service):
+        settings_service.update_beta_settings({"https_enabled": True})
+        # Empty update keeps existing value.
+        bs = settings_service.update_beta_settings({})
+        assert bs.https_enabled is True
+
+    def test_update_beta_settings_disables_https(self, settings_service):
+        settings_service.update_beta_settings({"https_enabled": True})
+        bs = settings_service.update_beta_settings({"https_enabled": False})
+        assert bs.https_enabled is False
+
+    def test_beta_settings_persist_across_reload(self, settings_file, mock_config):
+        svc1 = SettingsService(settings_file=settings_file)
+        svc1.update_beta_settings({"https_enabled": True})
+
+        svc2 = SettingsService(settings_file=settings_file)
+        assert svc2.get_beta_settings().https_enabled is True

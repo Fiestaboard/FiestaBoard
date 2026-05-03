@@ -605,6 +605,30 @@ export interface DisplaySettings {
   reduce_motion: boolean;
 }
 
+export interface BetaSettings {
+  https_enabled: boolean;
+}
+
+export interface BetaHttpsStatus {
+  cert_present: boolean;
+  cert_path: string;
+  key_path: string;
+  updater_available: boolean;
+}
+
+export interface BetaSettingsResponse {
+  settings: BetaSettings;
+  https: BetaHttpsStatus;
+}
+
+export interface BetaSettingsUpdateResponse {
+  status: string;
+  settings: BetaSettings;
+  https: BetaHttpsStatus;
+  restart_required: boolean;
+  cert_error?: string;
+}
+
 export interface LocationSettings {
   latitude: number | null;
   longitude: number | null;
@@ -631,6 +655,7 @@ export interface AllSettingsResponse {
   mqtt: MqttSettings;
   display: DisplaySettings;
   location: LocationSettings;
+  beta: BetaSettings;
   status: {
     running: boolean;
   };
@@ -1376,6 +1401,15 @@ export const api = {
     fetchApi<SunTimesResponse>(`/settings/location/sun-times${date ? `?date=${date}` : ""}`),
   getSunTimesWeek: (weekStart: string) =>
     fetchApi<SunTimesWeekResponse>(`/settings/location/sun-times-week?week_start=${weekStart}`),
+
+  // Beta features (HTTPS, etc.)
+  getBetaSettings: () => fetchApi<BetaSettingsResponse>("/settings/beta"),
+  updateBetaSettings: (updates: Partial<BetaSettings>) =>
+    fetchApi<BetaSettingsUpdateResponse>("/settings/beta", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    }),
 
   // Home Assistant endpoints
   getHomeAssistantEntities: () =>

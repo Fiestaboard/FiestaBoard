@@ -69,6 +69,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     gosu \
     nginx \
+    openssl \
     wget \
     && curl -fsSL https://deb.nodesource.com/setup_25.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
@@ -90,8 +91,12 @@ COPY --from=ui-builder /app/.next/standalone ./web/
 COPY --from=ui-builder /app/.next/static ./web/.next/static
 COPY --from=ui-builder /app/public ./web/public
 
-# Copy nginx configuration
+# Copy nginx configuration (default HTTP) and the alternate HTTPS template.
+# entrypoint.sh swaps in the HTTPS template at startup when the user has
+# enabled the HTTPS (Beta) setting and a valid cert exists.
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /app/nginx.http.conf
+COPY nginx.https.conf /app/nginx.https.conf
 
 # Copy "please wait" static page served by nginx while the API is starting up
 RUN mkdir -p /app/static
