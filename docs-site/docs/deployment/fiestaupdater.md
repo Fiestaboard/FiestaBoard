@@ -167,7 +167,8 @@ None of them are reachable from the host.
 |---|---|---|---|
 | `GET` | `/healthz` | none | Liveness probe. Returns `{"status":"ok"}`. |
 | `GET` | `/version` | none | Returns the running container's image and digest. Used by the UI to detect when an update has actually landed. |
-| `POST` | `/update` | bearer | `docker compose pull` + `up -d --no-deps` for the configured service. Returns `202 Accepted` immediately; the update runs in the background. |
+| `GET` | `/last-update` | none | Returns the outcome of the most recent `/update` attempt (`status`, `previous_digest`, `failed_digest`, `rolled_back_to`, `completed_at`, …). Returns `{"status":"none"}` when no attempt has been made. |
+| `POST` | `/update` | bearer | `docker compose pull` + `up -d --no-deps` for the configured service, then probes the service's `/api/health` for up to 60 s and **automatically rolls back to the previous image digest** if the probe never returns 200. Returns `202 Accepted` immediately; the update runs in the background. |
 | `POST` | `/restart` | bearer | `docker compose restart` for the configured service. Returns `202`. |
 | `POST` | `/shutdown` | bearer | Stops the compose stack and powers off the host. Requires the `SYS_BOOT` capability. Returns `202`. |
 
@@ -178,6 +179,39 @@ returns `401`. Unknown routes return `404`.
 the action will tear down the `fiestaboard` container that originated the
 HTTP request — the connection would otherwise be cut before any response
 could be flushed.
+
+### Automated rollback (5.1+)
+
+`POST /update` does more than blindly recreate the service:
+
+1. The sidecar runs `docker inspect` against the live container to capture
+   both its **image digest** (e.g. `sha256:abc…`) and its **image
+   reference** (e.g. `fiestaboard/fiestaboard:latest`). Both are written to
+   `${FIESTAUPDATER_STATE_DIR}/last-update.json` with `status: in_progress`.
+2. `docker compose pull` + `up -d --no-deps` runs as before.
+3. The sidecar then polls `${FIESTAUPDATER_PROBE_URL}` (default
+   `http://fiestaboard:3000/api/health`) every
+   `${FIESTAUPDATER_PROBE_INTERVAL_SECS}` seconds for up to
+   `${FIESTAUPDATER_PROBE_TIMEOUT_SECS}` seconds (default 60 s).
+4. If any poll returns `200`, the state is updated to `status: success` and
+   the new image stays in place.
+5. If the timeout is reached without success, the sidecar `docker tag`s the
+   saved digest back onto the original image reference and runs
+   `docker compose up -d --no-deps --force-recreate` to recreate the
+   service on the known-good image. The state file ends up as
+   `status: rolled_back` (or `rolled_back_unhealthy` if even the rollback
+   target fails the probe).
+
+The main `fiestaboard` API mirrors this state in `GET /system/update/status`
+as `last_update_status`, `last_update_previous_digest`,
+`last_update_failed_digest`, and `last_update_rolled_back_to`, so the UI
+can show **"Update failed; reverted to `<digest>`"** after the page reloads.
+
+`fiestaboard` also takes a configuration snapshot at
+`data/update-backups/pre-update-<timestamp>.json` before each update (the
+newest five are retained). Operators can revert configuration alongside the
+image with `POST /system/update/restore-settings` — useful when an update
+introduces a settings migration that didn't go as planned.
 
 ## Security
 

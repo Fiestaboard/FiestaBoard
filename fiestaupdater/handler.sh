@@ -6,7 +6,10 @@
 # Routes:
 #   GET  /healthz         → 200  {"status":"ok"}
 #   GET  /version         → 200  {"image":"<repo:tag>","digest":"<sha256:...>"}
-#   POST /update          → 202  {"status":"queued"}   (requires Bearer auth)
+#   GET  /last-update     → 200  {"status":"...", ...}  (last update result)
+#   POST /update          → 202  {"status":"queued"}    (requires Bearer auth)
+#   POST /restart         → 202                         (requires Bearer auth)
+#   POST /shutdown        → 202                         (requires Bearer auth)
 #
 # Security notes:
 #   - Authentication: shared bearer token from FIESTAUPDATER_TOKEN env.
@@ -16,12 +19,39 @@
 #     to `docker compose`.  No user input is ever interpolated into a shell
 #     command.
 #   - The listener is *not* published to the host (compose-network only).
+#
+# Rollback behaviour for /update:
+#   1. Snapshot the running container's image digest *and* image reference
+#      (e.g. ``fiestaboard/fiestaboard:latest``) before pulling.
+#   2. ``docker compose pull`` + ``up -d --no-deps`` for the service.
+#   3. Probe ``${FIESTAUPDATER_PROBE_URL}`` (default
+#      ``http://${SERVICE}:3000/api/health``) for up to
+#      ``${FIESTAUPDATER_PROBE_TIMEOUT_SECS}`` seconds (default 60).
+#   4. If the probe never returns HTTP 200, retag the saved digest back onto
+#      the original image reference and ``up -d --force-recreate`` again so
+#      the user is left on a known-good version.
+#   5. Either way, write a JSON status document to
+#      ``${FIESTAUPDATER_STATE_DIR}/last-update.json`` for the main API to
+#      surface in ``GET /system/update/status`` (and the new
+#      ``GET /last-update`` route on this sidecar).
 # =============================================================================
 set -u
 
 PORT="${FIESTAUPDATER_PORT:-8765}"
 COMPOSE_FILE="${FIESTAUPDATER_COMPOSE_FILE:-/compose/docker-compose.yml}"
 SERVICE="${FIESTAUPDATER_SERVICE:-fiestaboard}"
+
+# Where we persist the result of the most recent /update attempt.  This file
+# is read by GET /last-update (no auth) so the main fiestaboard UI can show
+# "Update failed; reverted to <digest>" without needing another channel.
+STATE_DIR="${FIESTAUPDATER_STATE_DIR:-/var/lib/fiestaupdater}"
+STATE_FILE="${STATE_DIR}/last-update.json"
+
+# Health probe knobs.  Overridable from the environment so tests (and
+# advanced operators) can point the probe at a stub server / loopback URL.
+PROBE_URL="${FIESTAUPDATER_PROBE_URL:-http://${SERVICE}:3000/api/health}"
+PROBE_TIMEOUT_SECS="${FIESTAUPDATER_PROBE_TIMEOUT_SECS:-60}"
+PROBE_INTERVAL_SECS="${FIESTAUPDATER_PROBE_INTERVAL_SECS:-2}"
 
 # ---------------------------------------------------------------------------
 # Allow-list: the service name we are willing to act on.  Even with a
@@ -105,6 +135,68 @@ parse_request() {
 }
 
 # ---------------------------------------------------------------------------
+# Persist the result of the most recent update attempt so the main
+# fiestaboard API can surface it in /system/update/status.  Writes are
+# best-effort: a missing/unwritable STATE_DIR is logged and ignored
+# rather than aborting the update.
+# ---------------------------------------------------------------------------
+write_state() {
+    local body="$1"
+    mkdir -p "$STATE_DIR" 2>/dev/null || {
+        log "could not create state dir ${STATE_DIR}"
+        return 0
+    }
+    local tmp="${STATE_FILE}.tmp"
+    if ! printf '%s' "$body" >"$tmp" 2>/dev/null; then
+        log "could not write state file ${tmp}"
+        return 0
+    fi
+    mv -f "$tmp" "$STATE_FILE" 2>/dev/null || log "could not move state file into place"
+}
+
+# ---------------------------------------------------------------------------
+# Single attempt at the FiestaBoard health probe.  Returns 0 iff the
+# configured ${PROBE_URL} responded with HTTP 200 within the per-attempt
+# timeout.  Uses busybox `wget` (already on docker:cli's alpine base).
+# ---------------------------------------------------------------------------
+probe_once() {
+    wget -q -O /dev/null --tries=1 --timeout=5 "$PROBE_URL"
+}
+
+# ---------------------------------------------------------------------------
+# Poll ${PROBE_URL} every PROBE_INTERVAL_SECS for up to PROBE_TIMEOUT_SECS.
+# Returns 0 if any poll succeeds, 1 otherwise.  We do not log on every
+# failed attempt — that would be very noisy during a normal restart.
+# ---------------------------------------------------------------------------
+probe_until_healthy() {
+    local deadline=$(( $(date +%s) + PROBE_TIMEOUT_SECS ))
+    while [ "$(date +%s)" -lt "$deadline" ]; do
+        if probe_once; then
+            return 0
+        fi
+        sleep "$PROBE_INTERVAL_SECS"
+    done
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# GET /last-update — return the persisted result of the most recent /update
+# attempt.  No auth required: this is read-only status.  If no attempt has
+# been made yet (or the state file was lost), return a benign placeholder.
+# ---------------------------------------------------------------------------
+handle_last_update() {
+    if [ -f "$STATE_FILE" ]; then
+        local body
+        body=$(cat "$STATE_FILE" 2>/dev/null || echo '')
+        if [ -n "$body" ]; then
+            respond 200 OK "$body"
+            return
+        fi
+    fi
+    respond 200 OK '{"status":"none"}'
+}
+
+# ---------------------------------------------------------------------------
 # GET /version — current digest of the running fiestaboard container.
 # ---------------------------------------------------------------------------
 handle_version() {
@@ -178,10 +270,20 @@ handle_update() {
         respond 500 "Internal Server Error" '{"error":"compose_file_missing"}'
         return
     fi
-    # Capture the digest before so logs show the change.
-    local before
+    # Capture the digest *and* image reference before we pull.  The image
+    # reference (e.g. ``fiestaboard/fiestaboard:latest``) is what we will
+    # retag the saved digest onto if we have to roll back, so capturing it
+    # now — before the new image overwrites the tag — is mandatory.
+    local before before_image
     before=$(docker inspect --format '{{.Image}}' "$SERVICE" 2>/dev/null || echo "")
-    log "pre-update digest=${before}"
+    before_image=$(docker inspect --format '{{.Config.Image}}' "$SERVICE" 2>/dev/null || echo "")
+    log "pre-update digest=${before} image=${before_image}"
+
+    # Mark the attempt as in-progress immediately so the main API can
+    # display "updating…" while the recreate runs.
+    local started_at
+    started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    write_state "{\"status\":\"in_progress\",\"service\":\"${SERVICE}\",\"previous_digest\":\"${before}\",\"previous_image\":\"${before_image}\",\"started_at\":\"${started_at}\"}"
 
     # Run the actual update detached so we can ack the client first.
     # We want the output to appear in `docker logs fiestaupdater`, which means
@@ -193,17 +295,99 @@ handle_update() {
     else
         logsink=/dev/null
     fi
-    nohup bash -c "
-        set -eu
-        echo '[fiestaupdater] pulling latest image for ${SERVICE}...'
-        docker compose -f '${COMPOSE_FILE}' pull '${SERVICE}'
-        echo '[fiestaupdater] recreating ${SERVICE}...'
-        docker compose -f '${COMPOSE_FILE}' up -d --no-deps '${SERVICE}'
-        after=\$(docker inspect --format '{{.Image}}' '${SERVICE}' 2>/dev/null || echo '')
-        echo \"[fiestaupdater] post-update digest=\${after}\"
-    " >>"$logsink" 2>&1 &
+    # Export everything the background script needs.  We deliberately pass
+    # values through the environment rather than interpolating them into the
+    # bash -c argument: it keeps the script free of injection seams.
+    export FU_SERVICE="$SERVICE"
+    export FU_COMPOSE_FILE="$COMPOSE_FILE"
+    export FU_BEFORE_DIGEST="$before"
+    export FU_BEFORE_IMAGE="$before_image"
+    export FU_STATE_FILE="$STATE_FILE"
+    export FU_STATE_DIR="$STATE_DIR"
+    export FU_PROBE_URL="$PROBE_URL"
+    export FU_PROBE_TIMEOUT_SECS="$PROBE_TIMEOUT_SECS"
+    export FU_PROBE_INTERVAL_SECS="$PROBE_INTERVAL_SECS"
 
-    respond 202 Accepted "{\"status\":\"queued\",\"service\":\"${SERVICE}\",\"previous_digest\":\"${before}\"}"
+    nohup bash -c '
+        set -u
+        # Helpers (duplicated from the parent because the background shell is
+        # a fresh process; keeping them inline avoids sourcing handler.sh
+        # recursively).
+        _write_state() {
+            mkdir -p "$FU_STATE_DIR" 2>/dev/null || true
+            local tmp="${FU_STATE_FILE}.tmp"
+            printf "%s" "$1" >"$tmp" 2>/dev/null && mv -f "$tmp" "$FU_STATE_FILE" 2>/dev/null
+        }
+        _probe_once() {
+            wget -q -O /dev/null --tries=1 --timeout=5 "$FU_PROBE_URL"
+        }
+        _probe_until_healthy() {
+            local deadline=$(( $(date +%s) + FU_PROBE_TIMEOUT_SECS ))
+            while [ "$(date +%s)" -lt "$deadline" ]; do
+                if _probe_once; then return 0; fi
+                sleep "$FU_PROBE_INTERVAL_SECS"
+            done
+            return 1
+        }
+
+        echo "[fiestaupdater] pulling latest image for ${FU_SERVICE}..."
+        if ! docker compose -f "$FU_COMPOSE_FILE" pull "$FU_SERVICE"; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            _write_state "{\"status\":\"failed\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"error\":\"pull_failed\",\"completed_at\":\"${completed_at}\"}"
+            echo "[fiestaupdater] pull failed; aborting without recreate"
+            exit 0
+        fi
+
+        echo "[fiestaupdater] recreating ${FU_SERVICE}..."
+        docker compose -f "$FU_COMPOSE_FILE" up -d --no-deps "$FU_SERVICE"
+        after=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
+        echo "[fiestaupdater] post-update digest=${after}"
+
+        echo "[fiestaupdater] probing ${FU_PROBE_URL} for up to ${FU_PROBE_TIMEOUT_SECS}s..."
+        if _probe_until_healthy; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "[fiestaupdater] update succeeded; new digest=${after}"
+            _write_state "{\"status\":\"success\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"new_digest\":\"${after}\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
+
+        echo "[fiestaupdater] health probe failed after ${FU_PROBE_TIMEOUT_SECS}s; rolling back to ${FU_BEFORE_DIGEST}"
+        # Mark "in_progress" → "rolling_back" so a UI polling /last-update
+        # sees the intent before the rollback finishes.
+        _write_state "{\"status\":\"rolling_back\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"failed_digest\":\"${after}\"}"
+
+        if [ -z "$FU_BEFORE_DIGEST" ] || [ -z "$FU_BEFORE_IMAGE" ]; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "[fiestaupdater] cannot roll back: pre-update digest or image was unknown"
+            _write_state "{\"status\":\"rollback_unavailable\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"failed_digest\":\"${after}\",\"error\":\"missing_pre_update_state\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
+
+        # Pin the previous digest back onto the image reference compose
+        # uses, then force-recreate so the new container picks it up.
+        if ! docker tag "$FU_BEFORE_DIGEST" "$FU_BEFORE_IMAGE"; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "[fiestaupdater] docker tag failed during rollback"
+            _write_state "{\"status\":\"rollback_failed\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"failed_digest\":\"${after}\",\"error\":\"retag_failed\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
+        docker compose -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate "$FU_SERVICE"
+        rolled_to=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
+        completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        # Probe once more so we can tell the user whether the rollback
+        # itself recovered the service.  We use a short window (the
+        # rollback target is a known-good image, so it should answer
+        # quickly).
+        if _probe_until_healthy; then
+            echo "[fiestaupdater] rollback complete; service healthy on ${rolled_to}"
+            _write_state "{\"status\":\"rolled_back\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"failed_digest\":\"${after}\",\"rolled_back_to\":\"${rolled_to}\",\"completed_at\":\"${completed_at}\"}"
+        else
+            echo "[fiestaupdater] rollback complete but service is still unhealthy on ${rolled_to}"
+            _write_state "{\"status\":\"rolled_back_unhealthy\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"failed_digest\":\"${after}\",\"rolled_back_to\":\"${rolled_to}\",\"completed_at\":\"${completed_at}\"}"
+        fi
+    ' >>"$logsink" 2>&1 &
+
+    respond 202 Accepted "{\"status\":\"queued\",\"service\":\"${SERVICE}\",\"previous_digest\":\"${before}\",\"previous_image\":\"${before_image}\"}"
 }
 
 # ---------------------------------------------------------------------------
@@ -217,6 +401,9 @@ case "${REQ_METHOD} ${REQ_PATH}" in
         ;;
     "GET /version")
         handle_version
+        ;;
+    "GET /last-update")
+        handle_last_update
         ;;
     "POST /update"|"POST /restart"|"POST /shutdown")
         # Drain body (we don't use it but must consume Content-Length bytes
