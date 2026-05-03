@@ -969,6 +969,25 @@
     "valueLabel": "Value",
     "insert": "Insert"
   },
+  "betaSettings": {
+    "title": "Beta Features",
+    "betaBadge": "Beta",
+    "description": "Experimental features we're testing. Enable at your own risk — these may change or be removed.",
+    "httpsLabel": "HTTPS",
+    "httpsActive": "Active",
+    "httpsDescription": "Serve the FiestaBoard web UI over HTTPS using a self-signed certificate. Each FiestaBoard instance generates its own certificate on first start.",
+    "httpsWarning": "Because the certificate is self-signed, your browser will show a security warning the first time you visit. You'll need to accept it once per device.",
+    "savedToast": "Beta settings saved.",
+    "saveFailedToast": "Couldn't save beta settings: {error}",
+    "certErrorToast": "Couldn't generate the HTTPS certificate: {error}",
+    "restartFailedToast": "Couldn't restart FiestaBoard: {error}",
+    "restartDialogTitleEnabled": "Restart to finish enabling HTTPS?",
+    "restartDialogDescriptionEnabled": "FiestaBoard needs to restart for nginx to pick up the new certificate. This takes about 5–10 seconds and the page will reload.",
+    "restartDialogTitleDisabled": "Restart to finish disabling HTTPS?",
+    "restartDialogDescriptionDisabled": "FiestaBoard needs to restart for nginx to revert to plain HTTP. This takes about 5–10 seconds and the page will reload.",
+    "restartManualHint": "The fiestaupdater sidecar isn't running, so we can't restart automatically. From your install directory, run: docker compose restart",
+    "restartNow": "Restart now"
+  },
   "systemControls": {
     "title": "System",
     "description": "Manage FiestaBoard updates and host power.",

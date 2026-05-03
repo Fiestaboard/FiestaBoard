@@ -3949,6 +3949,99 @@ async def get_location_sun_times_week(week_start: str):
     return {"location_configured": True, "dates": result}
 
 
+# ==================== Beta Settings (HTTPS, etc.) ====================
+
+
+def _beta_https_status() -> Dict[str, Any]:
+    """Return the runtime status of the HTTPS beta feature.
+
+    Reports whether the cert files currently exist on disk and whether
+    the fiestaupdater sidecar is reachable for one-click restarts.
+    """
+    from .system import https_certs
+
+    cert_path, key_path = https_certs.cert_paths()
+    return {
+        "cert_present": https_certs.cert_exists(),
+        "cert_path": str(cert_path),
+        "key_path": str(key_path),
+        "updater_available": bool(_updater_token()) and _updater_probe(),
+    }
+
+
+@app.get("/settings/beta")
+async def get_beta_settings():
+    """Get opt-in beta-feature settings + runtime status."""
+    settings_service = get_settings_service()
+    settings = settings_service.get_beta_settings()
+    status = await asyncio.to_thread(_beta_https_status)
+    return {
+        "settings": settings.to_dict(),
+        "https": status,
+    }
+
+
+@app.put("/settings/beta")
+async def update_beta_settings(request: dict):
+    """Update beta-feature settings.
+
+    Body may include:
+    - https_enabled: bool — enable/disable the HTTPS (Beta) feature.
+
+    Side effects:
+    - When https_enabled flips to ``true``, a self-signed certificate is
+      generated under ``data/certs/`` (if not already present). nginx
+      will switch to HTTPS the next time the container starts.
+    - When https_enabled flips to ``false``, the cert files are removed
+      so the next container start reverts to HTTP.
+
+    Returns the updated settings, the cert status, and a hint about
+    whether a restart is required for the change to take effect.
+    """
+    from .system import https_certs
+
+    settings_service = get_settings_service()
+    previous = settings_service.get_beta_settings().https_enabled
+    requested = request.get("https_enabled", previous) if isinstance(request, dict) else previous
+
+    cert_error: Optional[str] = None
+    if "https_enabled" in (request or {}):
+        if requested and not previous:
+            # User just turned HTTPS on -> generate cert eagerly so nginx
+            # finds it on the next restart. Failure here shouldn't block
+            # persisting the user's preference, but we surface the error.
+            try:
+                await asyncio.to_thread(https_certs.generate_cert)
+            except Exception as e:  # noqa: BLE001 - report to caller
+                logger.error("Failed to generate HTTPS certificate: %s", e)
+                cert_error = str(e)
+        elif previous and not requested:
+            # User just turned HTTPS off -> remove the cert so nginx
+            # falls back to HTTP on next restart.
+            try:
+                await asyncio.to_thread(https_certs.remove_cert)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Failed to remove HTTPS certificate: %s", e)
+
+    updated = settings_service.update_beta_settings(request or {})
+    status = await asyncio.to_thread(_beta_https_status)
+
+    # A restart is required whenever the on/off state changed, since
+    # nginx only re-reads its config on container start.
+    restart_required = updated.https_enabled != previous
+
+    response: Dict[str, Any] = {
+        "status": "success",
+        "settings": updated.to_dict(),
+        "https": status,
+        "restart_required": restart_required,
+    }
+    if cert_error:
+        response["status"] = "warning"
+        response["cert_error"] = cert_error
+    return response
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """
@@ -3980,6 +4073,7 @@ async def get_all_settings():
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
     location = settings_service.get_location_settings()
+    beta = settings_service.get_beta_settings()
 
     return {
         "general": general,
@@ -3993,6 +4087,7 @@ async def get_all_settings():
         "mqtt": mqtt.to_dict(mask_secrets=True),
         "display": display.to_dict(),
         "location": location.to_dict(),
+        "beta": beta.to_dict(),
         "status": {
             "running": _service_running,
         }

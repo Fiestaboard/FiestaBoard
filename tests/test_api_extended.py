@@ -107,6 +107,12 @@ def mock_settings_service():
         location.to_dict.return_value = {"latitude": None, "longitude": None}
         ss.get_location_settings.return_value = location
 
+        beta = Mock()
+        beta.https_enabled = False
+        beta.to_dict.return_value = {"https_enabled": False}
+        ss.get_beta_settings.return_value = beta
+        ss.update_beta_settings.return_value = beta
+
         mock_get.return_value = ss
         yield ss
 
