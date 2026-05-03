@@ -68,34 +68,33 @@ def _has_git():
 class TestCloneOrUpdateRepoIntegration:
     def test_fresh_clone(self, tmp_path):
         """Cloning a real repo succeeds and creates expected plugin files."""
-        dest = tmp_path / REGISTRY_PLUGIN_ID
-        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, REGISTRY_PLUGIN_ID, external_dir=tmp_path)
 
         assert ok, f"clone failed: {err}"
         assert err == ""
+        dest = tmp_path / REGISTRY_PLUGIN_ID
         assert dest.is_dir()
         assert (dest / "manifest.json").exists()
         assert (dest / "__init__.py").exists()
 
     def test_clone_creates_valid_git_repo(self, tmp_path):
         """Cloned directory is a proper git repo with commit history."""
-        dest = tmp_path / REGISTRY_PLUGIN_ID
-        clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
+        clone_or_update_repo(REGISTRY_REPO_URL, REGISTRY_PLUGIN_ID, external_dir=tmp_path)
 
+        dest = tmp_path / REGISTRY_PLUGIN_ID
         commits = _git_log(dest)
         assert len(commits) >= 1, "expected at least one commit in cloned repo"
 
     def test_update_existing_clone_via_pull(self, tmp_path):
         """Re-running clone_or_update_repo on an existing directory runs git pull."""
-        dest = tmp_path / REGISTRY_PLUGIN_ID
-
         # First clone
-        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, REGISTRY_PLUGIN_ID, external_dir=tmp_path)
         assert ok, f"initial clone failed: {err}"
+        dest = tmp_path / REGISTRY_PLUGIN_ID
         commits_before = _git_log(dest)
 
         # Second call should succeed (pull, already up-to-date is fine)
-        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo(REGISTRY_REPO_URL, REGISTRY_PLUGIN_ID, external_dir=tmp_path)
         assert ok, f"update (git pull) failed: {err}"
 
         commits_after = _git_log(dest)
@@ -104,14 +103,14 @@ class TestCloneOrUpdateRepoIntegration:
 
     def test_invalid_url_returns_error(self, tmp_path):
         """Cloning a non-existent repo returns (False, <error message>)."""
-        dest = tmp_path / "nonexistent"
         ok, err = clone_or_update_repo(
             "https://github.com/Fiestaboard/fiestaboard-plugin--does-not-exist-xyz",
-            dest,
-            allowed_root=tmp_path,
+            "nonexistent",
+            external_dir=tmp_path,
         )
         assert not ok
         assert err  # some error message present
+        dest = tmp_path / "nonexistent"
         assert not dest.exists()
 
 

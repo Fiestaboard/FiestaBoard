@@ -217,8 +217,7 @@ class TestGitUrlValidation:
 class TestCloneOrUpdateRepo:
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_clone_fresh(self, mock_run, tmp_path):
-        dest = tmp_path / "my_plugin"
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo("https://github.com/Org/repo", "my_plugin", external_dir=tmp_path)
         assert ok
         assert err == ""
         mock_run.assert_called_once()
@@ -231,7 +230,7 @@ class TestCloneOrUpdateRepo:
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()  # Simulate existing shallow clone
-        ok, err = clone_or_update_repo("", dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo("", "my_plugin", external_dir=tmp_path)
         assert ok
         assert err == ""
         # Two subprocess calls: fetch then reset
@@ -249,7 +248,7 @@ class TestCloneOrUpdateRepo:
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()
-        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", "my_plugin", external_dir=tmp_path)
         assert ok, "Update path should succeed regardless of URL"
 
     @mock.patch(
@@ -257,8 +256,7 @@ class TestCloneOrUpdateRepo:
         side_effect=subprocess.SubprocessError("network error"),
     )
     def test_clone_failure(self, mock_run, tmp_path):
-        dest = tmp_path / "fail_plugin"
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo("https://github.com/Org/repo", "fail_plugin", external_dir=tmp_path)
         assert not ok
         assert "network error" in err
 
@@ -271,78 +269,55 @@ class TestCloneOrUpdateRepo:
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()
-        ok, err = clone_or_update_repo("", dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo("", "my_plugin", external_dir=tmp_path)
         assert not ok
         assert "fetch" in err.lower() or "failed" in err.lower()
 
     def test_rejects_ssh_url_for_fresh_clone(self, tmp_path):
         """SSH URLs are rejected only for fresh clones (URL validation skipped for updates)."""
-        dest = tmp_path / "ssh_plugin"
-        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", dest, allowed_root=tmp_path)
+        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", "ssh_plugin", external_dir=tmp_path)
         assert not ok
         assert "HTTPS" in err
 
     @mock.patch("src.plugins.sources.subprocess.run")
-    def test_rejects_dest_outside_external_plugins_dir(self, mock_run, tmp_path):
-        """Destination outside the external plugins directory is rejected."""
-        other_dir = tmp_path / "other"
-        other_dir.mkdir()
-        ext_dir = tmp_path / "external_plugins"
-        ext_dir.mkdir()
-        dest = other_dir / "my_plugin"
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", dest, allowed_root=ext_dir)
+    def test_rejects_invalid_plugin_id(self, mock_run, tmp_path):
+        """A plugin_id with path separators or invalid characters is rejected."""
+        ok, err = clone_or_update_repo("https://github.com/Org/repo", "../escaped", external_dir=tmp_path)
         assert not ok
-        assert "outside" in err.lower()
         mock_run.assert_not_called()
 
     @mock.patch("src.plugins.sources.subprocess.run")
-    def test_rejects_path_traversal_via_dest(self, mock_run, tmp_path):
-        """A dest_dir that escapes via '..' is caught by the containment check."""
+    def test_rejects_path_traversal_via_plugin_id(self, mock_run, tmp_path):
+        """A plugin_id that would escape via '..' is caught by _safe_external_dest."""
         ext_dir = tmp_path / "external_plugins"
         ext_dir.mkdir()
-        # Construct a path that appears to be inside external_plugins but resolves outside
-        dest = ext_dir / ".." / "escaped"
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", dest, allowed_root=ext_dir)
+        ok, err = clone_or_update_repo("https://github.com/Org/repo", "../../escaped", external_dir=ext_dir)
         assert not ok
-        assert "outside" in err.lower()
         mock_run.assert_not_called()
 
 
 class TestCloneOrUpdateRepoPathSafety:
-    """Verify the sink-level path-containment check in clone_or_update_repo."""
+    """Verify the path-containment check in clone_or_update_repo via plugin_id."""
 
-    def test_rejects_dest_outside_external_root(self, tmp_path):
-        """Destination outside the trusted root must be rejected."""
+    def test_rejects_invalid_plugin_id_characters(self):
+        """Plugin ids with path separators or shell chars are rejected."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            from pathlib import Path
+            ext_dir = Path(tmp) / "external_plugins"
+            ext_dir.mkdir()
+            ok, err = clone_or_update_repo(
+                "https://github.com/Org/repo", "../../etc/passwd", external_dir=ext_dir
+            )
+            assert not ok
+
+    def test_accepts_valid_plugin_id(self, tmp_path):
+        """A valid plugin_id is accepted and the path is computed correctly."""
         allowed_root = tmp_path / "external_plugins"
         allowed_root.mkdir()
-        # Attempt to clone into a sibling directory outside the trusted root
-        outside_dest = tmp_path / "sibling" / "my_plugin"
-        ok, err = clone_or_update_repo(
-            "https://github.com/Org/repo", outside_dest, allowed_root=allowed_root
-        )
-        assert not ok
-        assert "outside" in err.lower()
-
-    def test_rejects_path_traversal_sequence(self, tmp_path):
-        """A dest_dir that resolves above the root via '..' must be rejected."""
-        allowed_root = tmp_path / "external_plugins"
-        allowed_root.mkdir()
-        # Construct a path that tries to escape via traversal
-        traversal_dest = allowed_root / ".." / "sneaky"
-        ok, err = clone_or_update_repo(
-            "https://github.com/Org/repo", traversal_dest, allowed_root=allowed_root
-        )
-        assert not ok
-        assert "outside" in err.lower()
-
-    def test_accepts_valid_dest_inside_root(self, tmp_path):
-        """A destination legitimately inside the root is accepted."""
-        allowed_root = tmp_path / "external_plugins"
-        allowed_root.mkdir()
-        valid_dest = allowed_root / "my_plugin"
         with mock.patch("src.plugins.sources.subprocess.run"):
             ok, err = clone_or_update_repo(
-                "https://github.com/Org/repo", valid_dest, allowed_root=allowed_root
+                "https://github.com/Org/repo", "my_plugin", external_dir=allowed_root
             )
         assert ok
         assert err == ""
@@ -393,9 +368,9 @@ class TestInstallGitPlugin:
             external_dir=tmp_path,
         )
         assert ok
-        # Check that the dest directory used the override id
-        dest = mock_clone.call_args[0][1]
-        assert dest == tmp_path / "custom_id"
+        # Check that the plugin_id used is the override id
+        plugin_id_arg = mock_clone.call_args[0][1]
+        assert plugin_id_arg == "custom_id"
 
 
 # ── remove_external_plugin ───────────────────────────────────────────────────

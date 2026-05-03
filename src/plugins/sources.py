@@ -281,10 +281,10 @@ def _validate_git_ref(ref: str) -> Tuple[bool, str]:
 
 def clone_or_update_repo(
     repo_url: str,
-    dest_dir: Path,
+    plugin_id: str,
     branch: str = "",
     *,
-    allowed_root: Optional[Path] = None,
+    external_dir: Optional[Path] = None,
 ) -> Tuple[bool, str]:
     """Clone a git repository, or fetch/reset if it already exists.
 
@@ -300,91 +300,26 @@ def clone_or_update_repo(
 
     Args:
         repo_url: HTTPS URL of the repository (required for fresh clones only).
-        dest_dir: Local directory to clone into.
+        plugin_id: The validated plugin identifier.  The destination path is
+            computed internally by :func:`_safe_external_dest` so no
+            user-controlled path ever reaches a filesystem or subprocess sink.
         branch: Optional branch/tag.  Uses the repo default when empty.
-        allowed_root: Trusted root directory that ``dest_dir`` must be contained
-            within.  If not provided, defaults to the result of
-            :func:`get_external_plugins_dir`.  High-level callers (e.g.
-            :func:`install_registry_plugin`) should pass the same
-            ``external_dir`` they used when constructing ``dest_dir`` so that
-            the containment check uses a consistent boundary.
+        external_dir: Override the external plugins directory root.  When
+            *None* :func:`get_external_plugins_dir` is used.
 
     Returns:
         ``(True, "")`` on success, ``(False, error_message)`` on failure.
     """
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
-    # Defensive sink-level guard.  The path used at filesystem and
-    # subprocess sinks is built **purely** from trusted constants:
-    #
-    #   * ``external_root`` — the realpath of the trusted ``allowed_root``
-    #     parameter (defaults to :func:`get_external_plugins_dir`).
-    #   * ``safe_basename`` — extracted via :func:`re.fullmatch` against
-    #     :data:`PLUGIN_ID_RE` and reassigned from ``m.group(0)``.
-    #     ``m.group(0)`` is a CodeQL-recognised sanitiser for
-    #     ``py/path-injection`` / ``py/command-line-injection`` because
-    #     the matched substring is, by construction, a member of the
-    #     literal alphabet ``[a-z][a-z0-9_]{0,63}`` (no ``/``, ``\``,
-    #     ``..``, NUL, or shell metacharacters can appear).
-    #
-    # The raw ``dest_dir`` argument is used only for two things:
-    #   1. An *input* containment check — we reject callers that pass a
-    #      path pointing outside ``allowed_root`` (path traversal,
-    #      sibling dirs, …).  This is a guard, not a source for ``safe_dest``.
-    #   2. Extracting the basename string for regex validation.  The
-    #      basename never reaches a sink directly — only ``m.group(0)``
-    #      does.
-    root = allowed_root if allowed_root is not None else get_external_plugins_dir()
-    external_root = os.path.realpath(str(root))
-
-    # (1) Reject inputs that resolve outside the trusted root.  This is a
-    #     pure boolean guard — ``input_real`` does **not** flow into the
-    #     path actually used at the sinks below.
-    input_real = os.path.realpath(str(dest_dir))
-    try:
-        _common = os.path.commonpath([external_root, input_real])
-    except ValueError:
-        return False, (
-            f"Refusing to use destination outside external plugins directory: "
-            f"{dest_dir}"
-        )
-    if _common != external_root or input_real == external_root:
-        return False, (
-            f"Refusing to use destination outside external plugins directory: "
-            f"{dest_dir}"
-        )
-
-    # (2) Extract the basename as a *string* and validate via regex.
-    raw_basename = os.path.basename(os.path.normpath(str(dest_dir)))
-    if not PLUGIN_ID_RE.fullmatch(raw_basename):
-        return False, (
-            f"Refusing to use destination with invalid basename: {dest_dir}"
-        )
-
-    # (3) Reconstruct the basename by indexing the *literal* constant
-    #     ``_PLUGIN_ID_ALLOWED`` with the position of each validated
-    #     character.  Every character in ``safe_basename`` is therefore
-    #     sourced from a literal string defined in this module — no
-    #     dataflow path exists from ``dest_dir`` to ``safe_basename``.
-    #     This is the textbook CodeQL sanitiser pattern (literal-pool
-    #     indexing) for ``py/path-injection`` and
-    #     ``py/command-line-injection``.
-    _trusted_chars: List[str] = []
-    for _c in raw_basename:
-        _idx = _PLUGIN_ID_ALLOWED.find(_c)
-        if _idx < 0:
-            return False, (
-                f"Refusing to use destination with invalid basename: {dest_dir}"
-            )
-        # ``_PLUGIN_ID_ALLOWED[_idx]`` is a substring of a literal
-        # constant — its value does not depend on ``dest_dir``.
-        _trusted_chars.append(_PLUGIN_ID_ALLOWED[_idx])
-    safe_basename = "".join(_trusted_chars)
-
-    # Build the path actually used at the sinks from the trusted root
-    # and the literal-sourced basename only.  ``safe_dest`` therefore
-    # has zero dataflow from the raw ``dest_dir`` argument.
-    safe_dest = Path(os.path.join(external_root, safe_basename))
+    # Resolve the destination path entirely from the trusted plugin_id and
+    # the trusted external_dir root.  No user-controlled path argument flows
+    # into safe_dest — CodeQL sees only the sanitised output of
+    # _safe_external_dest (regex + allow-list + commonpath containment check).
+    _ext_dir = external_dir if external_dir is not None else get_external_plugins_dir()
+    safe_dest, err = _safe_external_dest(_ext_dir, plugin_id)
+    if safe_dest is None:
+        return False, err
 
     if safe_dest.exists() and (safe_dest / ".git").is_dir():
         # Already cloned — fetch latest commits and reset to remote HEAD.
@@ -625,10 +560,7 @@ def install_registry_plugin(
     if external_dir is None:
         external_dir = get_external_plugins_dir()
 
-    dest, err = _safe_external_dest(external_dir, entry.plugin_id)
-    if dest is None:
-        return False, err
-    return clone_or_update_repo(entry.repository, dest, entry.branch, allowed_root=external_dir)
+    return clone_or_update_repo(entry.repository, entry.plugin_id, entry.branch, external_dir=external_dir)
 
 
 def install_git_plugin(
@@ -672,7 +604,4 @@ def install_git_plugin(
     if not ok:
         return False, err
 
-    dest, err = _safe_external_dest(external_dir, plugin_id)
-    if dest is None:
-        return False, err
-    return clone_or_update_repo(repo_url, dest, branch, allowed_root=external_dir)
+    return clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)

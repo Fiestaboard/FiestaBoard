@@ -6357,31 +6357,30 @@ async def update_plugin(plugin_id: str):
             detail=f"Plugin '{plugin_id}' has no local path for updating.",
         )
 
-    from pathlib import Path as _Path
+    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
     import os as _os
-    from .plugins.sources import get_external_plugins_dir
-    local_path = _Path(source.local_path)
-    # Verify local_path is within the external plugins directory before
-    # passing it to subprocess calls — canonical path-injection barrier.
-    _ext_root = _os.path.realpath(str(get_external_plugins_dir()))
-    _real_local = _os.path.realpath(str(local_path))
+
+    # Verify the plugin's local_path is within the external plugins directory
+    # before updating, as a defence-in-depth check.
+    _ext_dir = get_external_plugins_dir()
+    _ext_root = _os.path.realpath(str(_ext_dir))
+    _real_local = _os.path.realpath(str(source.local_path))
     try:
         _common = _os.path.commonpath([_ext_root, _real_local])
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid plugin path.")
     if _common != _ext_root or _real_local == _ext_root:
         raise HTTPException(status_code=400, detail="Invalid plugin path.")
-    local_path = _Path(_real_local)
 
-    if not (local_path / ".git").is_dir():
+    if not (_real_local and (Path(_real_local) / ".git").is_dir()):
         raise HTTPException(
             status_code=400,
             detail=f"Plugin '{plugin_id}' is not a git repository.",
         )
 
-    from .plugins.sources import clone_or_update_repo
-    # repo_url is not needed for the update path (fetch uses existing origin remote)
-    ok, err = clone_or_update_repo("", local_path)
+    # Pass the validated plugin_id — clone_or_update_repo resolves the path
+    # internally so no user-controlled Path flows into subprocess sinks.
+    ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
     if not ok:
         raise HTTPException(status_code=500, detail=f"Update failed: {err}")
 
@@ -6429,7 +6428,8 @@ async def apply_all_plugin_updates():
 
     updated: list = []
     failed: dict = {}
-    _ext_root = _os.path.realpath(str(get_external_plugins_dir()))
+    _ext_dir = get_external_plugins_dir()
+    _ext_root = _os.path.realpath(str(_ext_dir))
 
     for plugin_id in pending:
         source = registry.get_plugin_source(plugin_id)
@@ -6446,12 +6446,13 @@ async def apply_all_plugin_updates():
         if _common != _ext_root or _real_local == _ext_root:
             failed[plugin_id] = "Invalid plugin path."
             continue
-        local_path = _Path(_real_local)
-        if not (local_path / ".git").is_dir():
+        if not (_Path(_real_local) / ".git").is_dir():
             failed[plugin_id] = "Plugin is not a git repository."
             continue
 
-        ok, err = clone_or_update_repo("", local_path)
+        # Pass the validated plugin_id — clone_or_update_repo resolves the path
+        # internally so no user-controlled Path flows into subprocess sinks.
+        ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
         if not ok:
             failed[plugin_id] = f"git fetch failed: {err}"
             continue
