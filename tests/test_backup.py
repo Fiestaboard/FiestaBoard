@@ -262,6 +262,33 @@ def test_reinstall_plugins_records_failures(tmp_path):
     assert result["failed"] and result["failed"][0]["plugin_id"] == "weather"
 
 
+def test_reinstall_plugins_installs_registry_plugin(tmp_path):
+    """A registry plugin not yet present should be installed and appear in
+    the 'installed' list."""
+    fake_registry = MagicMock()
+    fake_registry.get_plugin.return_value = None  # not yet installed
+    fake_registry.install_from_registry.return_value = []  # success — no errors
+
+    with patch(
+        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
+    ):
+        result = BackupService._reinstall_plugins(
+            [
+                {
+                    "plugin_id": "stocks",
+                    "source_type": "registry",
+                    "repository_url": "https://example.com/stocks.git",
+                }
+            ]
+        )
+
+    fake_registry.install_from_registry.assert_called_once_with("stocks")
+    assert result["installed"] == ["stocks"]
+    assert result["attempted"] == ["stocks"]
+    assert result["failed"] == []
+    assert result["manual_reinstall_required"] == []
+
+
 def test_reinstall_plugins_rejects_malicious_plugin_id(tmp_path):
     """Plugin IDs with shell metacharacters must be rejected before reaching
     the install pipeline."""

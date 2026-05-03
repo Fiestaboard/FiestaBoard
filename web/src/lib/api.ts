@@ -1646,6 +1646,11 @@ export const api = {
         installed: string[];
         already_present: string[];
         failed: { plugin_id: string; error: string }[];
+        manual_reinstall_required: {
+          plugin_id: string;
+          reason: string;
+          repository_url: string;
+        }[];
       };
       reload_errors: string[];
     }>(`/backup/import?reinstall_plugins=${reinstallPlugins ? "true" : "false"}`, {

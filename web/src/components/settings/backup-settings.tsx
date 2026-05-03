@@ -38,6 +38,8 @@ export function BackupSettings() {
       const restored = result.restored_files.length;
       const failed = result.plugins.failed.length;
       const installed = result.plugins.installed.length;
+      const manualRequired = result.plugins.manual_reinstall_required ?? [];
+
       let msg = `Restored ${restored} file${restored === 1 ? "" : "s"}.`;
       if (installed > 0) {
         msg += ` Reinstalled ${installed} plugin${installed === 1 ? "" : "s"}.`;
@@ -46,6 +48,15 @@ export function BackupSettings() {
         msg += ` ${failed} plugin${failed === 1 ? "" : "s"} could not be reinstalled — install manually.`;
       }
       toast.success(msg);
+
+      if (manualRequired.length > 0) {
+        const names = manualRequired.map((p) => p.plugin_id).join(", ");
+        toast.warning(
+          `${manualRequired.length} external plugin${manualRequired.length === 1 ? "" : "s"} must be reinstalled manually via Integrations: ${names}`,
+          { duration: 8000 },
+        );
+      }
+
       // Invalidate every query so the UI re-fetches the restored data.
       queryClient.invalidateQueries();
     },
