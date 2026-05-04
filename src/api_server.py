@@ -499,6 +499,24 @@ class UpdateStatusResponse(BaseModel):
     sidecar_url: str
     last_check: str | None = None
     last_update: str | None = None
+    # ── Rollback bookkeeping (5.1) ──────────────────────────────────────
+    # ``last_update_status`` reflects the most recent /update or /rollback
+    # attempt as reported by the sidecar's GET /last-update endpoint:
+    #   * ``in_progress``     – pull/recreate is currently running
+    #   * ``success``         – /update completed; new image is in place
+    #   * ``rolled_back``     – /rollback completed; previous digest restored
+    #   * ``rollback_failed`` – /rollback errored out (typically retag failure)
+    #   * ``failed``          – /update pull failed before we could recreate
+    #   * ``none``            – no attempt has been made yet
+    last_update_status: str | None = None
+    last_update_action: str | None = None  # "update" | "rollback"
+    last_update_error: str | None = None
+    last_update_previous_digest: str | None = None
+    last_update_completed_at: str | None = None
+    # Most recent settings snapshots taken before each /system/update call.
+    # Each entry includes ``previous_digest`` and ``previous_image`` so the
+    # UI can offer "revert to the version that was running on <date>".
+    settings_snapshots: List[Dict[str, Any]] = []
 
 
 class UpdateApplyResponse(BaseModel):
@@ -507,6 +525,40 @@ class UpdateApplyResponse(BaseModel):
     mode: str  # "sidecar" | "manual"
     previous_digest: str | None = None
     hint: str | None = None
+    # Metadata about the pre-update settings snapshot we just took.  None
+    # when the snapshot could not be produced (still safe to update — the
+    # user can still roll back the image alone via /system/update/rollback).
+    settings_snapshot: Optional[Dict[str, Any]] = None
+
+
+class RollbackRequest(BaseModel):
+    """Request body for ``POST /system/update/rollback``.
+
+    The user picks a snapshot to roll back to; the API restores the
+    settings from that snapshot and asks the sidecar to retag the
+    snapshot's recorded ``previous_digest`` / ``previous_image`` back
+    onto the running container.
+
+    * ``snapshot`` — optional snapshot filename.  When omitted, the most
+      recent snapshot is used.  Must match the strict
+      ``pre-update-YYYYMMDDTHHMMSS[.fff]Z.json`` shape produced by the API.
+    * ``restore_settings`` — when False, only the image is rolled back
+      (settings are left untouched).  Defaults to True.
+    * ``restore_image`` — when False, only the settings are rolled back
+      (image is left untouched).  Defaults to True.
+    """
+    snapshot: Optional[str] = None
+    restore_settings: bool = True
+    restore_image: bool = True
+
+
+class RollbackResponse(BaseModel):
+    """Response model for the user-initiated rollback endpoint."""
+    status: str  # "success" | "queued" | "partial"
+    snapshot: Optional[str] = None
+    image_rollback: Optional[Dict[str, Any]] = None  # {target_digest, target_image, queued} or None
+    settings_rollback: Optional[Dict[str, Any]] = None  # output of BackupService.import_from_json
+    warnings: List[str] = []
 
 
 class AutoUpdateRequest(BaseModel):
@@ -1213,6 +1265,244 @@ def _updater_probe() -> bool:
         return False
 
 
+def _updater_last_update() -> Dict[str, Any]:
+    """Return the sidecar's view of the most recent /update attempt.
+
+    The sidecar persists this in ``/var/lib/fiestaupdater/last-update.json``
+    and exposes it (no auth, read-only) via ``GET /last-update``.  Returns
+    an empty dict on any error so callers can ``data.get(...)`` without
+    extra branching.
+    """
+    try:
+        resp = requests.get(f"{_updater_url()}/last-update", timeout=3)
+        if resp.status_code == 200:
+            body = resp.json()
+            if isinstance(body, dict):
+                return body
+    except Exception as e:
+        logger.debug("fiestaupdater /last-update fetch failed: %s", e)
+    return {}
+
+
+# ── Settings snapshots (used by the rollback flow) ──────────────────────────
+
+# Where pre-update settings snapshots live.  Each snapshot is a single JSON
+# document (the same format the BackupService uses for hand-rolled backups)
+# named ``pre-update-<timestamp>.json``.  Kept under data/ so they survive
+# container recreates via the ``./data:/app/data`` bind mount.
+SETTINGS_SNAPSHOT_DIR = Path("data/update-backups")
+
+# How many pre-update snapshots to retain.  Older ones are pruned after each
+# successful snapshot.  Five mirrors the user's ".json.bak" rotation request.
+SETTINGS_SNAPSHOT_RETENTION = 5
+
+#: Strict allow-list for snapshot filenames coming in from the API.  We only
+#: accept the exact ``pre-update-YYYYMMDDTHHMMSS[.fff]Z.json`` shape we
+#: produce (sub-second component optional for back-compat), so the restore
+#: endpoint cannot be coaxed into reading arbitrary files.
+_SETTINGS_SNAPSHOT_NAME_RE = re.compile(
+    r"^pre-update-\d{8}T\d{6}(?:\.\d{3})?Z\.json$"
+)
+
+
+def _take_settings_snapshot(
+    previous_digest: Optional[str] = None,
+    previous_image: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Snapshot ``data/*.json`` to ``data/update-backups/pre-update-<ts>.json``.
+
+    Uses :class:`~src.backup.service.BackupService` so the snapshot is the
+    same self-contained document the user could hand-restore later.  Returns
+    a small metadata dict (``{"name", "path", "created_at", "bytes",
+    "previous_digest", "previous_image"}``) or ``None`` if a backup could
+    not be produced — the update is allowed to proceed even when
+    snapshotting fails, since the user can still roll the image back via
+    the sidecar's /rollback alone.
+
+    Args:
+        previous_digest: image digest of the running container at the
+            moment the snapshot is taken.  Stored inside the snapshot
+            JSON so a future /system/update/rollback knows which image
+            to revert to alongside the settings.
+        previous_image: image reference (``repo:tag``) of the running
+            container at the moment the snapshot is taken.
+    """
+    try:
+        from .backup.service import get_backup_service
+        service = get_backup_service()
+        document = service.export_to_json()
+    except Exception:
+        logger.exception("Failed to build pre-update settings snapshot")
+        return None
+
+    # Embed the pre-update image identity so a later rollback can pair the
+    # restored settings with the matching image without us having to keep
+    # a separate index file in sync.  We splice it into the existing JSON
+    # document under a ``_fiestaupdater`` key so we don't collide with any
+    # existing field that BackupService might add.
+    if previous_digest or previous_image:
+        try:
+            doc = json.loads(document)
+            if isinstance(doc, dict):
+                # Store ``None`` (not "") for missing values so the
+                # round-trip through ``_read_snapshot_metadata`` is
+                # symmetric — that helper normalises empty strings to
+                # ``None`` when reading, so we may as well write ``None``
+                # in the first place.
+                doc["_fiestaupdater"] = {
+                    "previous_digest": previous_digest or None,
+                    "previous_image": previous_image or None,
+                }
+                document = json.dumps(doc, indent=2)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Could not annotate snapshot with previous image metadata; "
+                "rollback will fall back to the sidecar's last-update record."
+            )
+
+    try:
+        SETTINGS_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        # Millisecond precision so multiple snapshots within the same
+        # second (e.g. tests, or a user retrying immediately) don't
+        # collide on filename and silently overwrite each other.
+        now = datetime.now(timezone.utc)
+        ts = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond // 1000:03d}Z"
+        target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
+        # Belt-and-braces against same-millisecond collisions: bump the
+        # millisecond field forward until we find a free name.  1000 is
+        # the natural upper bound (one full second of ms slots); we treat
+        # exhaustion as a fatal-but-non-fatal "snapshot unavailable".
+        _MAX_MS_SLOTS = 1000
+        for bump in range(1, _MAX_MS_SLOTS + 1):
+            if not target.exists():
+                break
+            ms = (now.microsecond // 1000 + bump) % _MAX_MS_SLOTS
+            ts = now.strftime("%Y%m%dT%H%M%S") + f".{ms:03d}Z"
+            target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
+        else:  # pragma: no cover - effectively unreachable
+            logger.warning("Could not find a free snapshot filename")
+            return None
+        # Use a temp file + atomic rename so a crash mid-write can't leave a
+        # truncated snapshot in place.
+        tmp = target.with_suffix(target.suffix + ".tmp")
+        tmp.write_text(document, encoding="utf-8")
+        tmp.replace(target)
+    except OSError:
+        logger.exception("Failed to write pre-update settings snapshot")
+        return None
+
+    _prune_settings_snapshots()
+    try:
+        size = target.stat().st_size
+    except OSError:
+        size = 0
+    return {
+        "name": target.name,
+        "path": str(target),
+        # Use the same wall-clock value that's encoded in the filename so
+        # the metadata returned to callers matches the on-disk artifact.
+        "created_at": now.isoformat(),
+        "bytes": size,
+        "previous_digest": previous_digest or None,
+        "previous_image": previous_image or None,
+    }
+
+
+def _read_snapshot_metadata(path: Path) -> Dict[str, Optional[str]]:
+    """Return ``{previous_digest, previous_image}`` recorded inside a snapshot.
+
+    Snapshots produced before this metadata was added (or that failed to
+    annotate cleanly) return ``{"previous_digest": None, "previous_image": None}``.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+        doc = json.loads(raw)
+    except (OSError, ValueError, TypeError):
+        return {"previous_digest": None, "previous_image": None}
+    meta = doc.get("_fiestaupdater") if isinstance(doc, dict) else None
+    if not isinstance(meta, dict):
+        return {"previous_digest": None, "previous_image": None}
+    return {
+        "previous_digest": meta.get("previous_digest") or None,
+        "previous_image": meta.get("previous_image") or None,
+    }
+
+
+def _list_settings_snapshots() -> List[Dict[str, Any]]:
+    """Return metadata for every snapshot currently on disk, newest first.
+
+    Each entry includes the recorded ``previous_digest`` / ``previous_image``
+    so the UI can label snapshots with the version they will roll back to.
+    """
+    if not SETTINGS_SNAPSHOT_DIR.exists():
+        return []
+    out: List[Dict[str, Any]] = []
+    try:
+        entries = sorted(SETTINGS_SNAPSHOT_DIR.iterdir(), reverse=True)
+    except OSError:
+        return []
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        if not _SETTINGS_SNAPSHOT_NAME_RE.fullmatch(entry.name):
+            continue
+        try:
+            stat = entry.stat()
+        except OSError:
+            continue
+        meta = _read_snapshot_metadata(entry)
+        out.append(
+            {
+                "name": entry.name,
+                "bytes": stat.st_size,
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "previous_digest": meta["previous_digest"],
+                "previous_image": meta["previous_image"],
+            }
+        )
+    return out
+
+
+def _prune_settings_snapshots() -> None:
+    """Delete all but the ``SETTINGS_SNAPSHOT_RETENTION`` newest snapshots."""
+    snapshots = _list_settings_snapshots()
+    if len(snapshots) <= SETTINGS_SNAPSHOT_RETENTION:
+        return
+    for stale in snapshots[SETTINGS_SNAPSHOT_RETENTION:]:
+        path = SETTINGS_SNAPSHOT_DIR / stale["name"]
+        try:
+            path.unlink()
+        except OSError:
+            logger.warning("Could not prune old settings snapshot %s", path)
+
+
+def _resolve_snapshot_name(name: Optional[str]) -> Optional[Path]:
+    """Return the absolute path of the named snapshot, or the newest one
+    if *name* is None.  Returns ``None`` when no valid snapshot exists.
+
+    The resolved path is constrained to ``SETTINGS_SNAPSHOT_DIR`` and the
+    filename must match :data:`_SETTINGS_SNAPSHOT_NAME_RE`, so a caller
+    cannot pass ``../../etc/passwd`` or any other path outside the
+    snapshot directory.
+    """
+    if name is None:
+        snaps = _list_settings_snapshots()
+        if not snaps:
+            return None
+        name = snaps[0]["name"]
+    if not _SETTINGS_SNAPSHOT_NAME_RE.fullmatch(name):
+        return None
+    candidate = (SETTINGS_SNAPSHOT_DIR / name).resolve()
+    base = SETTINGS_SNAPSHOT_DIR.resolve()
+    try:
+        candidate.relative_to(base)
+    except ValueError:
+        return None
+    if not candidate.is_file():
+        return None
+    return candidate
+
+
 @app.get("/system/update/status", response_model=UpdateStatusResponse)
 async def system_update_status():
     """Report whether the FiestaUpdater sidecar is reachable and whether the
@@ -1220,10 +1510,19 @@ async def system_update_status():
     
     The UI uses this to decide between showing the in-app "Update Now" button
     or fallback "manual update" instructions.
+
+    Also reports the outcome of the most recent /system/update or
+    /system/update/rollback attempt, plus the list of available settings
+    snapshots, so the UI can offer "revert to the version that was
+    running on <date>" without polling the sidecar separately.
     """
     state = _system_update_state_load()
-    available = await asyncio.to_thread(_updater_probe) if _updater_token() else False
+    has_token = bool(_updater_token())
+    available = await asyncio.to_thread(_updater_probe) if has_token else False
+    # Only consult the sidecar's last-update record when it is reachable.
+    last = await asyncio.to_thread(_updater_last_update) if available else {}
     interval = _resolve_auto_update_interval(state)
+    snapshots = await asyncio.to_thread(_list_settings_snapshots)
     return UpdateStatusResponse(
         updater_available=available,
         auto_update_enabled=interval != "manual",
@@ -1232,7 +1531,33 @@ async def system_update_status():
         sidecar_url=_updater_url(),
         last_check=state.get("last_check"),
         last_update=state.get("last_update"),
+        last_update_status=last.get("status"),
+        last_update_action=last.get("action"),
+        last_update_error=last.get("error"),
+        last_update_previous_digest=last.get("previous_digest"),
+        last_update_completed_at=last.get("completed_at"),
+        settings_snapshots=snapshots,
     )
+
+
+def _updater_version() -> Dict[str, Any]:
+    """Return the sidecar's view of the running container's image+digest.
+
+    Used by /system/update to label the pre-update snapshot with the exact
+    image we're rolling back *from*, so a later /system/update/rollback
+    can pair the restored settings with the matching image.  Returns an
+    empty dict on any failure — the snapshot is still useful without it,
+    just less informative for the UI.
+    """
+    try:
+        resp = requests.get(f"{_updater_url()}/version", timeout=3)
+        if resp.status_code == 200:
+            body = resp.json()
+            if isinstance(body, dict):
+                return body
+    except Exception as e:
+        logger.debug("fiestaupdater /version fetch failed: %s", e)
+    return {}
 
 
 @app.post("/system/update", response_model=UpdateApplyResponse)
@@ -1256,6 +1581,20 @@ async def system_update_apply():
                 "hint": "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env and run 'docker compose up -d' to enable in-app updates.",
             },
         )
+
+    # Snapshot the current settings *before* we trigger the update so the
+    # user can later choose to roll configuration back to this exact
+    # moment via /system/update/rollback.  We tag the snapshot with the
+    # currently-running image's digest + reference (looked up via the
+    # sidecar's /version endpoint) so rollback knows which image to pair
+    # with the restored settings.  A snapshot failure is non-fatal: the
+    # user can still manually roll the image back via the sidecar.
+    version = await asyncio.to_thread(_updater_version)
+    snapshot = await asyncio.to_thread(
+        _take_settings_snapshot,
+        version.get("digest"),
+        version.get("image"),
+    )
 
     url = f"{_updater_url()}/update"
     headers = {"Authorization": f"Bearer {_updater_token()}"}
@@ -1304,6 +1643,174 @@ async def system_update_apply():
         status="queued",
         mode="sidecar",
         previous_digest=body.get("previous_digest"),
+        settings_snapshot=snapshot,
+    )
+
+
+# ── Strict shape constraints for /rollback's image+digest fields ────────────
+# These mirror the patterns enforced inside the sidecar's handler.sh and
+# act as a defense-in-depth check on the API side: if a digest looks
+# valid but the image reference doesn't (or vice versa), we refuse to
+# call the sidecar at all.
+_DIGEST_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
+_IMAGE_REF_RE = re.compile(r"^[a-z0-9][a-z0-9._/-]{0,199}(:[a-zA-Z0-9._-]{1,128})?$")
+
+
+@app.post("/system/update/rollback", response_model=RollbackResponse)
+async def system_update_rollback(req: RollbackRequest):
+    """Roll the running instance back to a previous version.
+
+    The user selects a snapshot — the most recent by default — and we:
+
+    1. Look up the snapshot's recorded ``previous_digest`` /
+       ``previous_image`` (captured the moment the snapshot was taken).
+    2. (When ``restore_settings=True``, the default) restore configuration
+       from the snapshot via :class:`~src.backup.service.BackupService`.
+    3. (When ``restore_image=True``, the default) ask the sidecar's
+       ``POST /rollback`` to retag that digest back onto the original
+       image reference and force-recreate the container.
+
+    Settings are restored *before* the image flip so that when the
+    container comes back up on the previous image, it reads the matching
+    configuration.
+
+    Raises:
+        404 when no matching snapshot exists.
+        400 when the snapshot is unreadable, both ``restore_*`` flags
+            are False, or the snapshot has no recorded image to roll
+            back to (and the user asked us to roll the image back).
+        503 when the sidecar is needed but unreachable.
+    """
+    if not req.restore_settings and not req.restore_image:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error": "At least one of restore_settings, restore_image must be true.",
+            },
+        )
+
+    path = await asyncio.to_thread(_resolve_snapshot_name, req.snapshot)
+    if path is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "not_found",
+                "error": "No matching settings snapshot was found.",
+            },
+        )
+
+    snapshot_meta = await asyncio.to_thread(_read_snapshot_metadata, path)
+
+    warnings: List[str] = []
+    settings_result: Optional[Dict[str, Any]] = None
+    image_result: Optional[Dict[str, Any]] = None
+
+    # ── Settings rollback ───────────────────────────────────────────────
+    if req.restore_settings:
+        try:
+            raw = await asyncio.to_thread(path.read_text, "utf-8")
+        except OSError as e:
+            logger.warning("Could not read snapshot %s: %s", path, e)
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "error": f"Could not read snapshot: {e}"},
+            )
+        try:
+            from .backup.service import get_backup_service, BackupError
+        except Exception as e:  # pragma: no cover - import error is exceptional
+            logger.exception("BackupService unavailable")
+            raise HTTPException(status_code=500, detail={"status": "error", "error": str(e)})
+
+        service = get_backup_service()
+        try:
+            # Don't reinstall plugins from a settings-only snapshot: the user is
+            # rolling back configuration, not reshaping their plugin set.
+            result = await asyncio.to_thread(
+                service.import_from_json, raw, reinstall_plugins=False
+            )
+        except BackupError as e:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "error": str(e)},
+            )
+        settings_result = {
+            "restored_from": path.name,
+            "restored_files": result.get("restored_files", []),
+            "skipped_files": result.get("skipped_files", []),
+            "pre_restore_backup_suffix": result.get("pre_restore_backup_suffix", ""),
+            "reload_errors": result.get("reload_errors", []),
+        }
+
+    # ── Image rollback ──────────────────────────────────────────────────
+    if req.restore_image:
+        digest = snapshot_meta.get("previous_digest")
+        image_ref = snapshot_meta.get("previous_image")
+        if not digest or not image_ref:
+            # Old snapshot taken before we started annotating.  We can't
+            # safely guess the digest, so report partial success rather
+            # than guessing.
+            warnings.append(
+                "Snapshot does not record a previous image digest; image was not rolled back."
+            )
+        elif not _DIGEST_RE.fullmatch(digest) or not _IMAGE_REF_RE.fullmatch(image_ref):
+            warnings.append(
+                "Snapshot's recorded image identity is malformed; image was not rolled back."
+            )
+        elif not _updater_token():
+            warnings.append(
+                "FIESTAUPDATER_TOKEN is not set; image rollback is unavailable. "
+                "Settings have been restored but the image is unchanged."
+            )
+        else:
+            url = f"{_updater_url()}/rollback"
+            headers = {
+                "Authorization": f"Bearer {_updater_token()}",
+                "Content-Type": "application/json",
+            }
+            payload = {"digest": digest, "image": image_ref}
+
+            def _post():
+                return requests.post(url, headers=headers, json=payload, timeout=(5, 30))
+
+            try:
+                resp = await asyncio.to_thread(_post)
+            except requests.exceptions.ConnectionError:
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "status": "manual",
+                        "error": "Could not reach the fiestaupdater sidecar; image rollback unavailable.",
+                    },
+                )
+            except Exception as e:
+                logger.warning("fiestaupdater rollback call failed: %s", e)
+                raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+
+            if resp.status_code == 401:
+                raise HTTPException(
+                    status_code=500,
+                    detail={"status": "error", "error": "fiestaupdater rejected our token"},
+                )
+            if resp.status_code >= 400:
+                raise HTTPException(
+                    status_code=502,
+                    detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
+                )
+
+            image_result = {
+                "target_digest": digest,
+                "target_image": image_ref,
+                "queued": True,
+            }
+
+    overall = "success" if not warnings else "partial"
+    return RollbackResponse(
+        status=overall,
+        snapshot=path.name,
+        image_rollback=image_result,
+        settings_rollback=settings_result,
+        warnings=warnings,
     )
 
 
