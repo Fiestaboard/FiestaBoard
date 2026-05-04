@@ -1186,11 +1186,13 @@ async def generate_ai_page(request: Request):
         raise HTTPException(status_code=400, detail=str(exc))
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /pages/ai/generate")
         raise HTTPException(
             status_code=500,
-            detail=f"Unexpected AI generation error: {exc}",
+            detail=(
+                "Unexpected AI generation error. See server logs for details."
+            ),
         )
 
     return result

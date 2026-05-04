@@ -197,6 +197,7 @@ Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and
 
 ### More
 
+- **Gen AI Page Drafts** - Bring your own LLM (OpenAI-compatible, e.g. OpenRouter); describe a page and have it drafted for you. See [docs/setup/AI_PROVIDERS.md](docs/setup/AI_PROVIDERS.md).
 - **Configurable Update Interval** - Refresh every 10 seconds to every hour
 - **Silence Schedule** - Set quiet hours so the board doesn't flip at night
 - **Smart Caching** - Page previews load fast; active displays always get fresh data

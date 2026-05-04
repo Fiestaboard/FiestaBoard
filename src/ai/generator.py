@@ -491,8 +491,17 @@ async def test_provider(
     except AIGenerationError as exc:
         return {"ok": False, "message": str(exc), "model_used": chosen_model}
     except Exception as exc:  # pragma: no cover — defensive
-        logger.warning("Unexpected error during provider test: %s", exc)
-        return {"ok": False, "message": str(exc), "model_used": chosen_model}
+        # Log the full exception server-side, but only return a generic
+        # message to avoid leaking stack-trace details to API consumers.
+        logger.exception("Unexpected error during provider test")
+        return {
+            "ok": False,
+            "message": (
+                "Unexpected error contacting the provider. "
+                "See server logs for details."
+            ),
+            "model_used": chosen_model,
+        }
 
     return {
         "ok": True,
