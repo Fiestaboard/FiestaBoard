@@ -969,6 +969,14 @@
     "valueLabel": "Valor",
     "insert": "Insertar"
   },
+  "pluginSettings": {
+    "title": "Actualizaciones de plugins",
+    "description": "Controla cómo se mantienen actualizados los plugins instalados.",
+    "autoUpdateLabel": "Actualizar plugins automáticamente",
+    "autoUpdateDescription": "Cuando está activado, FiestaBoard actualizará silenciosamente todos los plugins instalados cuando haya una nueva versión disponible. Desactívalo para actualizar los plugins manualmente desde la página de Integraciones.",
+    "savedToast": "Configuración de plugins guardada.",
+    "saveFailedToast": "No se pudo guardar la configuración de plugins: {error}"
+  },
   "betaSettings": {
     "title": "Beta Features",
     "betaBadge": "Beta",

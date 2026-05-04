@@ -1,10 +1,8 @@
 """Tests for plugin settings: /settings/plugins endpoints and auto-apply logic."""
 
 import asyncio
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import _auto_apply_plugin_updates, app
