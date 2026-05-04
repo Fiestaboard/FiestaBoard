@@ -2300,6 +2300,11 @@ def _build_welcome_template(device_type: str, custom_msg: str) -> list:
         rows = list(_WELCOME_TEMPLATE_FLAGSHIP)
 
     center_text = (custom_msg.upper() if custom_msg else default_msg)[:cols]
+    if custom_msg and len(custom_msg) > cols:
+        logger.debug(
+            "Welcome message truncated from %d to %d characters for %s device",
+            len(custom_msg), cols, device_type,
+        )
     return [row.replace("{center}", center_text) for row in rows]
 
 

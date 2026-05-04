@@ -365,10 +365,15 @@ class TestSendWelcomeMessage:
             kwargs = mock_ttba.call_args.kwargs
             assert kwargs.get("rows") == 3
             assert kwargs.get("cols") == 15
-            # And that the rendered welcome text has 3 lines, none longer than 15 chars
+            # And that the rendered welcome text has 3 lines; the center row
+            # (plain text, not color markers) fits in the 15-column Note width.
             welcome_text = mock_ttba.call_args.args[0]
             lines = welcome_text.split("\n")
             assert len(lines) == 3
+            # Center line is the only one without color markers
+            center = lines[1]
+            assert "{" not in center
+            assert len(center) <= 15
 
     def test_welcome_uses_flagship_template_for_flagship_board(self, client):
         """When the configured board is a Flagship, render the 6x22 template."""
