@@ -6,6 +6,7 @@ Includes schema versioning and automatic migration on startup.
 
 import json
 import logging
+import re
 import shutil
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
@@ -16,7 +17,17 @@ from ..text_utils import extract_alignment_from_line as _extract_alignment_from_
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
+
+
+# Mapping from obsolete plugin id (used in template variable references,
+# `display_type` for single pages, and `rows[].source` for composite
+# pages) to its replacement id. Driven by the same renames in
+# `src/config_manager.py:PLUGIN_ID_RENAMES`; kept local here to avoid a
+# cross-module import from a low-level storage layer.
+_PLUGIN_ID_RENAMES: Dict[str, str] = {
+    "baywheels": "lyft_bike_share",
+}
 
 
 def _migrate_v0_to_v1(pages_data: List[dict]) -> int:
@@ -63,11 +74,107 @@ def _migrate_v1_to_v2(pages_data: List[dict]) -> int:
     return migrated
 
 
+def _build_plugin_id_rename_pattern() -> re.Pattern:
+    """Build a single regex matching any obsolete plugin id from
+    ``_PLUGIN_ID_RENAMES`` followed by a ``.`` (variable accessor).
+
+    The negative lookbehind on ``[A-Za-z0-9_]`` ensures we don't match
+    an id that's the suffix of a longer identifier (e.g. ``mybaywheels.``).
+    """
+    alternation = "|".join(re.escape(old_id) for old_id in _PLUGIN_ID_RENAMES)
+    return re.compile(rf"(?<![A-Za-z0-9_])({alternation})\.")
+
+
+_PLUGIN_ID_RENAME_PATTERN = _build_plugin_id_rename_pattern()
+
+
+def _rewrite_plugin_id_references(text: str) -> Tuple[str, int]:
+    """Rewrite obsolete plugin id references in *text*.
+
+    Replaces any occurrence of ``<old_id>.`` (where ``<old_id>`` is a key
+    of ``_PLUGIN_ID_RENAMES``) that is not part of a longer identifier
+    with ``<new_id>.``. Returns the rewritten string and the number of
+    substitutions made. Catches both plain ``{{baywheels.x}}`` references
+    and formula references like ``{{= baywheels.x + 1 }}``.
+    """
+    if not text or "." not in text:
+        return text, 0
+
+    def _sub(match: re.Match) -> str:
+        return _PLUGIN_ID_RENAMES[match.group(1)] + "."
+
+    new_text, n = _PLUGIN_ID_RENAME_PATTERN.subn(_sub, text)
+    return new_text, n
+
+
+def _migrate_v2_to_v3(pages_data: List[dict]) -> int:
+    """Migration 2 -> 3: rewrite obsolete plugin id references.
+
+    Updates pages that reference plugin ids listed in
+    ``_PLUGIN_ID_RENAMES`` (e.g. ``baywheels`` → ``lyft_bike_share``):
+
+    * Template strings: rewrites every ``<old_id>.<field>`` reference,
+      including those inside ``{{ ... }}`` and ``{{= ... }}`` formulas.
+    * Single pages: rewrites ``display_type`` if it equals an old id.
+    * Composite pages: rewrites ``rows[].source`` if it equals an old id.
+    * Demo-page tracking: rewrites ``demo_plugin_id`` if it equals an old id.
+
+    Returns the number of pages that were modified.
+    """
+    migrated = 0
+    for page_data in pages_data:
+        page_changed = False
+
+        # Template strings (template-type pages)
+        template = page_data.get("template")
+        if isinstance(template, list):
+            new_template: List = []
+            for line in template:
+                if isinstance(line, str):
+                    rewritten, count = _rewrite_plugin_id_references(line)
+                    if count:
+                        page_changed = True
+                    new_template.append(rewritten)
+                else:
+                    new_template.append(line)
+            if page_changed:
+                page_data["template"] = new_template
+
+        # Single-page display_type
+        display_type = page_data.get("display_type")
+        if isinstance(display_type, str) and display_type in _PLUGIN_ID_RENAMES:
+            page_data["display_type"] = _PLUGIN_ID_RENAMES[display_type]
+            page_changed = True
+
+        # Composite-page row sources
+        rows = page_data.get("rows")
+        if isinstance(rows, list):
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                source = row.get("source")
+                if isinstance(source, str) and source in _PLUGIN_ID_RENAMES:
+                    row["source"] = _PLUGIN_ID_RENAMES[source]
+                    page_changed = True
+
+        # Demo-page tracking field
+        demo_plugin_id = page_data.get("demo_plugin_id")
+        if isinstance(demo_plugin_id, str) and demo_plugin_id in _PLUGIN_ID_RENAMES:
+            page_data["demo_plugin_id"] = _PLUGIN_ID_RENAMES[demo_plugin_id]
+            page_changed = True
+
+        if page_changed:
+            migrated += 1
+
+    return migrated
+
+
 # Ordered list of (target_version, migration_function).
 # Each function receives the raw pages list and returns the number of pages affected.
 MIGRATIONS: List[Tuple[int, Callable[[List[dict]], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
+    (3, _migrate_v2_to_v3),
 ]
 
 
