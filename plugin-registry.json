@@ -36,7 +36,7 @@
       "category": "data"
     },
     {
-      "id": "lyft_bikeshare",
+      "id": "lyft_bike_share",
       "name": "Lyft Bike Share",
       "description": "Display Lyft bike share availability with electric and classic bike counts. Works with Bay Wheels, CitiBike, Capital Bikeshare, Biketown, Divvy, and other Lyft-operated systems.",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--lyft-bike-share",

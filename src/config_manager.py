@@ -46,15 +46,15 @@ PLUGIN_ID_RENAMES: Dict[str, str] = {
     # v2.0.0 of the bike share plugin generalised to all Lyft-operated
     # GBFS systems (Bay Wheels, CitiBike, Capital Bikeshare, Biketown,
     # Divvy, ...) and renamed the plugin id.
-    "baywheels": "lyft_bikeshare",
+    "baywheels": "lyft_bike_share",
 }
 
 # Per-rename adjustments to the migrated settings dict. Each handler
 # receives a deep-copied settings dict and returns the adjusted dict
 # that will be written under the new plugin id. Used to drop fields
 # that no longer exist in the new manifest and seed new defaults.
-def _adjust_baywheels_to_lyft_bikeshare(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    """Adjust a v1 baywheels config to fit the v2 lyft_bikeshare schema.
+def _adjust_baywheels_to_lyft_bike_share(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Adjust a v1 baywheels config to fit the v2 lyft_bike_share schema.
 
     - Promotes the legacy singular ``station_id`` into ``station_ids`` if
       the list is empty (so users with the old single-station setup
@@ -77,7 +77,7 @@ def _adjust_baywheels_to_lyft_bikeshare(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
 
 PLUGIN_RENAME_ADJUSTERS: Dict[str, Any] = {
-    "baywheels": _adjust_baywheels_to_lyft_bikeshare,
+    "baywheels": _adjust_baywheels_to_lyft_bike_share,
 }
 
 # Default configuration schema

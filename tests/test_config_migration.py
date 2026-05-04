@@ -366,10 +366,10 @@ class TestConfigPersistence:
 
 
 class TestPluginIdRename:
-    """Tests for one-shot plugin id renames (e.g. baywheels -> lyft_bikeshare)."""
+    """Tests for one-shot plugin id renames (e.g. baywheels -> lyft_bike_share)."""
 
-    def test_baywheels_renamed_to_lyft_bikeshare(self, tmp_path):
-        """plugins.baywheels should be renamed to plugins.lyft_bikeshare."""
+    def test_baywheels_renamed_to_lyft_bike_share(self, tmp_path):
+        """plugins.baywheels should be renamed to plugins.lyft_bike_share."""
         config = {
             "plugins": {
                 "baywheels": {
@@ -385,7 +385,7 @@ class TestPluginIdRename:
         cm = ConfigManager(config_path=str(cfg_path))
 
         assert cm.get_plugin_config("baywheels") is None
-        lyft = cm.get_plugin_config("lyft_bikeshare")
+        lyft = cm.get_plugin_config("lyft_bike_share")
         assert lyft is not None
         assert lyft["enabled"] is True
         assert lyft["station_ids"] == ["123", "456"]
@@ -411,14 +411,14 @@ class TestPluginIdRename:
 
         cm = ConfigManager(config_path=str(cfg_path))
 
-        lyft = cm.get_plugin_config("lyft_bikeshare")
+        lyft = cm.get_plugin_config("lyft_bike_share")
         assert lyft is not None
         assert lyft["station_ids"] == ["abc-1"]
         # Deprecated singular fields removed
         assert "station_id" not in lyft
         assert "station_name" not in lyft
 
-    def test_baywheels_rename_preserves_existing_lyft_bikeshare(self, tmp_path):
+    def test_baywheels_rename_preserves_existing_lyft_bike_share(self, tmp_path):
         """If both ids exist, the new id wins and the old one is dropped."""
         config = {
             "plugins": {
@@ -427,7 +427,7 @@ class TestPluginIdRename:
                     "station_ids": ["old"],
                     "refresh_seconds": 60,
                 },
-                "lyft_bikeshare": {
+                "lyft_bike_share": {
                     "enabled": True,
                     "station_ids": ["new"],
                     "refresh_seconds": 120,
@@ -441,7 +441,7 @@ class TestPluginIdRename:
         cm = ConfigManager(config_path=str(cfg_path))
 
         assert cm.get_plugin_config("baywheels") is None
-        lyft = cm.get_plugin_config("lyft_bikeshare")
+        lyft = cm.get_plugin_config("lyft_bike_share")
         assert lyft["station_ids"] == ["new"]
         assert lyft["refresh_seconds"] == 120
         assert lyft["gbfs_base_url"] == "https://gbfs.citibikenyc.com/gbfs/en"
@@ -461,11 +461,11 @@ class TestPluginIdRename:
         cfg_path.write_text(json.dumps(config))
 
         cm = ConfigManager(config_path=str(cfg_path))
-        first = cm.get_plugin_config("lyft_bikeshare")
+        first = cm.get_plugin_config("lyft_bike_share")
 
         _reset_singleton()
         cm2 = ConfigManager(config_path=str(cfg_path))
-        second = cm2.get_plugin_config("lyft_bikeshare")
+        second = cm2.get_plugin_config("lyft_bike_share")
 
         assert first == second
         assert cm2.get_plugin_config("baywheels") is None
@@ -483,11 +483,11 @@ class TestPluginIdRename:
         cm = ConfigManager(config_path=str(cfg_path))
 
         assert cm.get_plugin_config("baywheels") is None
-        assert cm.get_plugin_config("lyft_bikeshare") is None
+        assert cm.get_plugin_config("lyft_bike_share") is None
         assert cm.get_plugin_config("weather")["api_key"] == "x"
 
     def test_baywheels_feature_then_rename_chain(self, tmp_path):
-        """v1 features.baywheels should migrate to plugins, then rename to lyft_bikeshare."""
+        """v1 features.baywheels should migrate to plugins, then rename to lyft_bike_share."""
         config = _make_v1_config()
         config["features"]["baywheels"] = {
             "enabled": True,
@@ -504,7 +504,7 @@ class TestPluginIdRename:
 
         # Old id should not exist; new one should, with promoted station id
         assert cm.get_plugin_config("baywheels") is None
-        lyft = cm.get_plugin_config("lyft_bikeshare")
+        lyft = cm.get_plugin_config("lyft_bike_share")
         assert lyft is not None
         assert lyft["enabled"] is True
         assert lyft["station_ids"] == ["xyz"]

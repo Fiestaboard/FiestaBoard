@@ -26,7 +26,7 @@ CURRENT_SCHEMA_VERSION = 3
 # `src/config_manager.py:PLUGIN_ID_RENAMES`; kept local here to avoid a
 # cross-module import from a low-level storage layer.
 _PLUGIN_ID_RENAMES: Dict[str, str] = {
-    "baywheels": "lyft_bikeshare",
+    "baywheels": "lyft_bike_share",
 }
 
 
@@ -111,7 +111,7 @@ def _migrate_v2_to_v3(pages_data: List[dict]) -> int:
     """Migration 2 -> 3: rewrite obsolete plugin id references.
 
     Updates pages that reference plugin ids listed in
-    ``_PLUGIN_ID_RENAMES`` (e.g. ``baywheels`` → ``lyft_bikeshare``):
+    ``_PLUGIN_ID_RENAMES`` (e.g. ``baywheels`` → ``lyft_bike_share``):
 
     * Template strings: rewrites every ``<old_id>.<field>`` reference,
       including those inside ``{{ ... }}`` and ``{{= ... }}`` formulas.

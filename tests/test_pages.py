@@ -488,9 +488,9 @@ class TestMigrateV2ToV3:
         count = _migrate_v2_to_v3(pages)
         assert count == 1
         assert pages[0]["template"] == [
-            "{{lyft_bikeshare.station_name}}",
-            "E:{{lyft_bikeshare.electric_bikes}} C:{{lyft_bikeshare.classic_bikes}}",
-            "{{lyft_bikeshare.stations.0.electric_bikes}}",
+            "{{lyft_bike_share.station_name}}",
+            "E:{{lyft_bike_share.electric_bikes}} C:{{lyft_bike_share.classic_bikes}}",
+            "{{lyft_bike_share.stations.0.electric_bikes}}",
             "no vars here",
         ]
 
@@ -507,14 +507,14 @@ class TestMigrateV2ToV3:
         count = _migrate_v2_to_v3(pages)
         assert count == 1
         assert pages[0]["template"] == [
-            "{{= IF(lyft_bikeshare.electric_bikes > 0, lyft_bikeshare.electric_bikes, 'NO') }}",
+            "{{= IF(lyft_bike_share.electric_bikes > 0, lyft_bike_share.electric_bikes, 'NO') }}",
         ]
 
     def test_single_page_display_type_rewritten(self):
         pages = [{"id": "1", "type": "single", "display_type": "baywheels"}]
         count = _migrate_v2_to_v3(pages)
         assert count == 1
-        assert pages[0]["display_type"] == "lyft_bikeshare"
+        assert pages[0]["display_type"] == "lyft_bike_share"
 
     def test_composite_row_source_rewritten(self):
         pages = [
@@ -529,7 +529,7 @@ class TestMigrateV2ToV3:
         ]
         count = _migrate_v2_to_v3(pages)
         assert count == 1
-        assert pages[0]["rows"][0]["source"] == "lyft_bikeshare"
+        assert pages[0]["rows"][0]["source"] == "lyft_bike_share"
         assert pages[0]["rows"][1]["source"] == "weather"
 
     def test_demo_plugin_id_rewritten(self):
@@ -537,13 +537,13 @@ class TestMigrateV2ToV3:
             {
                 "id": "1",
                 "type": "single",
-                "display_type": "lyft_bikeshare",
+                "display_type": "lyft_bike_share",
                 "demo_plugin_id": "baywheels",
             }
         ]
         count = _migrate_v2_to_v3(pages)
         assert count == 1
-        assert pages[0]["demo_plugin_id"] == "lyft_bikeshare"
+        assert pages[0]["demo_plugin_id"] == "lyft_bike_share"
 
     def test_unrelated_pages_not_modified(self):
         pages = [
@@ -581,7 +581,7 @@ class TestMigrateV2ToV3:
             {
                 "id": "1",
                 "type": "template",
-                "template": ["{{lyft_bikeshare.station_name}}"],
+                "template": ["{{lyft_bike_share.station_name}}"],
             }
         ]
         count = _migrate_v2_to_v3(pages)
@@ -592,7 +592,7 @@ class TestMigrateV2ToV3:
             "{{baywheels.x}} and {{baywheels.y}} but not {{weather.t}}"
         )
         assert n == 2
-        assert out == "{{lyft_bikeshare.x}} and {{lyft_bikeshare.y}} but not {{weather.t}}"
+        assert out == "{{lyft_bike_share.x}} and {{lyft_bike_share.y}} but not {{weather.t}}"
 
     def test_rewrite_helper_empty_input(self):
         assert _rewrite_plugin_id_references("") == ("", 0)
@@ -648,8 +648,8 @@ class TestPageStorageV2ToV3Integration:
         storage = PageStorage(storage_file=temp_storage_file)
         page = storage.get("p1")
         assert page is not None
-        assert page.template[0] == "{{lyft_bikeshare.station_name}}"
-        assert page.template[1] == "E:{{lyft_bikeshare.electric_bikes}}"
+        assert page.template[0] == "{{lyft_bike_share.station_name}}"
+        assert page.template[1] == "E:{{lyft_bike_share.electric_bikes}}"
 
         with open(temp_storage_file) as f:
             data = json.load(f)
