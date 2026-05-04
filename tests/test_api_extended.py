@@ -113,6 +113,11 @@ def mock_settings_service():
         ss.get_beta_settings.return_value = beta
         ss.update_beta_settings.return_value = beta
 
+        plugin_settings = Mock()
+        plugin_settings.to_dict.return_value = {"auto_update": True}
+        ss.get_plugin_settings.return_value = plugin_settings
+        ss.update_plugin_settings.return_value = plugin_settings
+
         mock_get.return_value = ss
         yield ss
 

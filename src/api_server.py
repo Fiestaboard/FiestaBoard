@@ -643,7 +643,7 @@ async def lifespan(app: FastAPI):
         import asyncio as _asyncio
 
         async def _plugin_update_check_loop():
-            interval = 6 * 3600  # 6 hours
+            interval = 3600  # 1 hour
             # Initial delay of 5 minutes so startup isn't burdened
             await _asyncio.sleep(300)
             while True:
@@ -653,9 +653,14 @@ async def lifespan(app: FastAPI):
                         results = registry.check_for_updates()
                         updates = [p for p, v in results.items() if v]
                         if updates:
-                            logger.info(
-                                "Plugin updates available: %s", ", ".join(updates)
-                            )
+                            auto_update = get_settings_service().get_plugin_settings().auto_update
+                            if auto_update:
+                                await _auto_apply_plugin_updates(registry, updates)
+                            else:
+                                logger.info(
+                                    "Plugin updates available (auto-update off): %s",
+                                    ", ".join(updates),
+                                )
                         else:
                             logger.debug("Plugin update check: all plugins up to date")
                 except Exception as exc:
@@ -1243,6 +1248,57 @@ def _resolve_auto_update_interval(state: Dict[str, Any]) -> str:
     if "auto_update_enabled" in state:
         return _auto_update_default_interval() if bool(state["auto_update_enabled"]) else "manual"
     return _auto_update_default_interval()
+
+
+async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
+    """Silently apply pending plugin updates in the background update loop."""
+    import os as _os
+    from pathlib import Path as _Path
+    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
+
+    _ext_dir = get_external_plugins_dir()
+    _ext_root = _os.path.realpath(str(_ext_dir))
+    updated = []
+    failed = []
+
+    for plugin_id in plugin_ids:
+        source = registry.get_plugin_source(plugin_id)
+        if source is None or not source.local_path:
+            failed.append(plugin_id)
+            continue
+
+        _real_local = _os.path.realpath(str(_Path(source.local_path)))
+        try:
+            _common = _os.path.commonpath([_ext_root, _real_local])
+        except ValueError:
+            failed.append(plugin_id)
+            continue
+        if _common != _ext_root or _real_local == _ext_root:
+            failed.append(plugin_id)
+            continue
+        if not (_Path(_real_local) / ".git").is_dir():
+            failed.append(plugin_id)
+            continue
+
+        ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
+        if not ok:
+            logger.warning("Auto-update: git fetch failed for %s: %s", plugin_id, err)
+            failed.append(plugin_id)
+            continue
+
+        reloaded = registry.reload_plugin(plugin_id)
+        if reloaded is None:
+            logger.warning("Auto-update: reload failed for %s", plugin_id)
+            failed.append(plugin_id)
+            continue
+
+        registry._update_status.pop(plugin_id, None)
+        updated.append(plugin_id)
+
+    if updated:
+        logger.info("Auto-updated plugins: %s", ", ".join(updated))
+    if failed:
+        logger.warning("Auto-update failed for plugins: %s", ", ".join(failed))
 
 
 def _updater_url() -> str:
@@ -4568,6 +4624,25 @@ async def update_beta_settings(request: dict):
     return response
 
 
+@app.get("/settings/plugins")
+async def get_plugin_settings():
+    """Get plugin system settings."""
+    settings_service = get_settings_service()
+    return {"settings": settings_service.get_plugin_settings().to_dict()}
+
+
+@app.put("/settings/plugins")
+async def update_plugin_settings(request: dict):
+    """Update plugin system settings.
+
+    Body may include:
+    - auto_update: bool — when true, plugins are updated automatically in the background.
+    """
+    settings_service = get_settings_service()
+    updated = settings_service.update_plugin_settings(request or {})
+    return {"status": "success", "settings": updated.to_dict()}
+
+
 @app.get("/settings/all")
 async def get_all_settings():
     """
@@ -4600,6 +4675,7 @@ async def get_all_settings():
     display = settings_service.get_display_settings()
     location = settings_service.get_location_settings()
     beta = settings_service.get_beta_settings()
+    plugins = settings_service.get_plugin_settings()
 
     return {
         "general": general,
@@ -4614,6 +4690,7 @@ async def get_all_settings():
         "display": display.to_dict(),
         "location": location.to_dict(),
         "beta": beta.to_dict(),
+        "plugins": plugins.to_dict(),
         "status": {
             "running": _service_running,
         }

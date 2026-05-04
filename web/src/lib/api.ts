@@ -609,6 +609,19 @@ export interface BetaSettings {
   https_enabled: boolean;
 }
 
+export interface PluginSettings {
+  auto_update: boolean;
+}
+
+export interface PluginSettingsResponse {
+  settings: PluginSettings;
+}
+
+export interface PluginSettingsUpdateResponse {
+  status: string;
+  settings: PluginSettings;
+}
+
 export interface BetaHttpsStatus {
   cert_present: boolean;
   cert_path: string;
@@ -656,6 +669,7 @@ export interface AllSettingsResponse {
   display: DisplaySettings;
   location: LocationSettings;
   beta: BetaSettings;
+  plugins: PluginSettings;
   status: {
     running: boolean;
   };
@@ -1406,6 +1420,14 @@ export const api = {
   getBetaSettings: () => fetchApi<BetaSettingsResponse>("/settings/beta"),
   updateBetaSettings: (updates: Partial<BetaSettings>) =>
     fetchApi<BetaSettingsUpdateResponse>("/settings/beta", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    }),
+
+  getPluginSettings: () => fetchApi<PluginSettingsResponse>("/settings/plugins"),
+  updatePluginSettings: (updates: Partial<PluginSettings>) =>
+    fetchApi<PluginSettingsUpdateResponse>("/settings/plugins", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
