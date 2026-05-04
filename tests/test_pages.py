@@ -604,13 +604,15 @@ class TestPageStorageV2ToV3Integration:
 
     @pytest.fixture
     def temp_storage_file(self):
+        import glob
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             yield f.name
         os.unlink(f.name)
-        for suffix in (".v0_backup", ".v1_backup", ".v2_backup"):
-            backup = f.name + suffix
-            if os.path.exists(backup):
-                os.unlink(backup)
+        # Migration may create per-source-version backup files (.vN_backup)
+        # alongside the storage file; sweep them all so the suite stays tidy
+        # as CURRENT_SCHEMA_VERSION grows.
+        for backup in glob.glob(f.name + ".v*_backup"):
+            os.unlink(backup)
 
     def test_v2_file_migrated_to_v3(self, temp_storage_file):
         with open(temp_storage_file, "w") as f:
