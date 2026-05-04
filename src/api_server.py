@@ -1344,9 +1344,14 @@ def _take_settings_snapshot(
         try:
             doc = json.loads(document)
             if isinstance(doc, dict):
+                # Store ``None`` (not "") for missing values so the
+                # round-trip through ``_read_snapshot_metadata`` is
+                # symmetric — that helper normalises empty strings to
+                # ``None`` when reading, so we may as well write ``None``
+                # in the first place.
                 doc["_fiestaupdater"] = {
-                    "previous_digest": previous_digest or "",
-                    "previous_image": previous_image or "",
+                    "previous_digest": previous_digest or None,
+                    "previous_image": previous_image or None,
                 }
                 document = json.dumps(doc, indent=2)
         except (ValueError, TypeError):

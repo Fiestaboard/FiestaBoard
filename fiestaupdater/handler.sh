@@ -336,7 +336,12 @@ handle_rollback() {
     local body="${REQ_BODY:-}"
     # Extract digest + image from the JSON body.  We do not bring in jq
     # to keep the alpine image small; a small grep is sufficient because
-    # we then validate every captured value against a strict regex.
+    # we then validate every captured value against a strict regex below.
+    # The regex *is* the security boundary here — even if the extraction
+    # mis-parses a body containing backslash-escaped quotes, the strict
+    # `^sha256:[a-f0-9]{64}$` and image-reference allow-list will reject
+    # anything that isn't an exact match before either value is passed
+    # to ``docker``.  The body is also size-capped to 8 KiB upstream.
     local digest image
     digest=$(printf '%s' "$body" | grep -oE '"digest"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*"digest"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
     image=$(printf '%s' "$body" | grep -oE '"image"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*"image"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
