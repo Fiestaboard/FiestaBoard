@@ -1358,7 +1358,13 @@ export const api = {
   getSilenceStatus: () => fetchApi<SilenceStatus>("/silence-status"),
 
   // Silence schedule (system feature, not a plugin)
-  updateSilenceSchedule: (data: { enabled: boolean; start_time: string; end_time: string }) =>
+  updateSilenceSchedule: (data: {
+    enabled: boolean;
+    start_time: string;
+    end_time: string;
+    mode?: "indicator" | "freeze" | "page";
+    page_id?: string | null;
+  }) =>
     fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

@@ -63,6 +63,9 @@ class TestUpdateSilenceScheduleEndpoint:
         assert data["config"]["enabled"] is True
         assert data["config"]["start_time"] == "04:00+00:00"
         assert data["config"]["end_time"] == "15:00+00:00"
+        # New optional fields default to indicator/None
+        assert data["config"]["mode"] == "indicator"
+        assert data["config"]["page_id"] is None
 
         cm.set_feature.assert_called_once_with(
             "silence_schedule",
@@ -70,6 +73,8 @@ class TestUpdateSilenceScheduleEndpoint:
                 "enabled": True,
                 "start_time": "04:00+00:00",
                 "end_time": "15:00+00:00",
+                "mode": "indicator",
+                "page_id": None,
             },
         )
 
@@ -89,6 +94,8 @@ class TestUpdateSilenceScheduleEndpoint:
             "enabled": True,
             "start_time": "05:30+00:00",
             "end_time": "13:15+00:00",
+            "mode": "indicator",
+            "page_id": None,
         }
 
     def test_update_missing_fields_returns_422(self, client, mock_config_manager_for_silence):
@@ -143,3 +150,85 @@ class TestUpdateSilenceScheduleEndpoint:
         assert data["enabled"] is True
         assert data["start_time_utc"] == "04:00+00:00"
         assert data["end_time_utc"] == "15:00+00:00"
+        # New silence-mode fields are surfaced
+        assert data["mode"] == "indicator"
+        assert data["page_id"] is None
+
+
+class TestSilenceScheduleModes:
+    """Tests for the silence-mode options (indicator/freeze/page)."""
+
+    def test_freeze_mode_persists(self, client, mock_config_manager_for_silence):
+        _, store = mock_config_manager_for_silence
+        response = client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "04:00+00:00",
+                "end_time": "15:00+00:00",
+                "mode": "freeze",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["config"]["mode"] == "freeze"
+        assert store["mode"] == "freeze"
+
+    def test_page_mode_requires_page_id(self, client, mock_config_manager_for_silence):
+        response = client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "04:00+00:00",
+                "end_time": "15:00+00:00",
+                "mode": "page",
+            },
+        )
+        assert response.status_code == 400
+
+    def test_page_mode_with_page_id(self, client, mock_config_manager_for_silence):
+        _, store = mock_config_manager_for_silence
+        response = client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "04:00+00:00",
+                "end_time": "15:00+00:00",
+                "mode": "page",
+                "page_id": "page-abc",
+            },
+        )
+        assert response.status_code == 200
+        config = response.json()["config"]
+        assert config["mode"] == "page"
+        assert config["page_id"] == "page-abc"
+        assert store["page_id"] == "page-abc"
+
+    def test_invalid_mode_falls_back_to_indicator(self, client, mock_config_manager_for_silence):
+        response = client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "04:00+00:00",
+                "end_time": "15:00+00:00",
+                "mode": "garbage",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["config"]["mode"] == "indicator"
+
+    def test_silence_status_exposes_mode_and_page_id(self, client, mock_config_manager_for_silence):
+        client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "04:00+00:00",
+                "end_time": "15:00+00:00",
+                "mode": "page",
+                "page_id": "page-xyz",
+            },
+        )
+        response = client.get("/silence-status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "page"
+        assert data["page_id"] == "page-xyz"

@@ -731,7 +731,17 @@
     "reduceMotionLabel": "モーションを減らす",
     "reduceMotionDescription": "インターフェースのアニメーションとトランジションを無効にする",
     "toastDisplaySaved": "表示設定を保存しました",
-    "toastDisplaySaveFailed": "表示設定の保存に失敗しました: {error}"
+    "toastDisplaySaveFailed": "表示設定の保存に失敗しました: {error}",
+    "silenceModeLabel": "While Silenced",
+    "silenceModeIndicator": "Show \"SNOOZING\" message",
+    "silenceModeIndicatorHelp": "Display only the word SNOOZING (sized for your board) while silence is active.",
+    "silenceModeFreeze": "Leave board unchanged",
+    "silenceModeFreezeHelp": "Stop updating the board while silence is active. Whatever is currently on the board stays there.",
+    "silenceModePage": "Show a specific page",
+    "silenceModePageHelp": "Display the chosen page once when silence begins. Variables are frozen until silence ends.",
+    "silencePageLabel": "Silence Page",
+    "silencePagePlaceholder": "Select a page...",
+    "silencePageHelp": "This page will be displayed when the silence schedule starts. Its variables will not refresh while silenced."
   },
   "themeToggle": {
     "toggleTheme": "テーマを切り替え"

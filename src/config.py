@@ -539,6 +539,22 @@ class Config:
     def SILENCE_SCHEDULE_END_TIME(cls) -> str:
         """Silence schedule end time (HH:MM format)."""
         return cls._get_feature("silence_schedule").get("end_time", "07:00")
+
+    @classproperty
+    def SILENCE_SCHEDULE_MODE(self) -> str:
+        """Silence behaviour: 'indicator' (default), 'freeze', or 'page'."""
+        mode = self._get_feature("silence_schedule").get("mode", "indicator")
+        if mode not in ("indicator", "freeze", "page"):
+            return "indicator"
+        return mode
+
+    @classproperty
+    def SILENCE_SCHEDULE_PAGE_ID(self):
+        """Page id to display when SILENCE_SCHEDULE_MODE == 'page'."""
+        page_id = self._get_feature("silence_schedule").get("page_id")
+        if isinstance(page_id, str) and page_id.strip():
+            return page_id
+        return None
     
     @classmethod
     def is_silence_mode_active(cls) -> bool:

@@ -9,10 +9,20 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { CalendarClock } from "lucide-react";
 import { api } from "@/lib/api";
+import { usePages } from "@/hooks/use-board";
 import { utcToLocalTime, localTimeToUTC } from "@/lib/timezone-utils";
+
+type SilenceMode = "indicator" | "freeze" | "page";
 
 export function GeneralSettings() {
   const t = useTranslations("generalSettings");
@@ -22,6 +32,8 @@ export function GeneralSettings() {
   const [silenceEnabled, setSilenceEnabled] = useState(false);
   const [silenceStartTime, setSilenceStartTime] = useState("20:00");
   const [silenceEndTime, setSilenceEndTime] = useState("07:00");
+  const [silenceMode, setSilenceMode] = useState<SilenceMode>("indicator");
+  const [silencePageId, setSilencePageId] = useState<string>("");
   const [pollingInterval, setPollingInterval] = useState(15);
 
   // Fetch all settings in one request
@@ -48,20 +60,26 @@ export function GeneralSettings() {
     if (deferredSilenceConfig?.config && generalConfig?.timezone) {
       const userTimezone = generalConfig.timezone ?? "America/Los_Angeles";
       const config = deferredSilenceConfig.config;
-      
+
       setSilenceEnabled((config.enabled as boolean) ?? false);
-      
+
       // Convert UTC times to local for display
       const startUtc = config.start_time as string;
       const endUtc = config.end_time as string;
-      
+
       if (startUtc && endUtc) {
         const startLocal = utcToLocalTime(startUtc, userTimezone) || "20:00";
         const endLocal = utcToLocalTime(endUtc, userTimezone) || "07:00";
         setSilenceStartTime(startLocal);
         setSilenceEndTime(endLocal);
       }
-      
+
+      const rawMode = (config.mode as string) ?? "indicator";
+      setSilenceMode(
+        rawMode === "freeze" || rawMode === "page" ? rawMode : "indicator"
+      );
+      setSilencePageId(((config.page_id as string) ?? "") || "");
+
       setHasChanges(false);
     }
   }, [deferredSilenceConfig, generalConfig?.timezone]);
@@ -75,8 +93,13 @@ export function GeneralSettings() {
 
   // Update silence schedule mutation (system feature endpoint, not plugin API)
   const updateSilenceMutation = useMutation({
-    mutationFn: (data: { enabled: boolean; start_time: string; end_time: string }) =>
-      api.updateSilenceSchedule(data),
+    mutationFn: (data: {
+      enabled: boolean;
+      start_time: string;
+      end_time: string;
+      mode: SilenceMode;
+      page_id: string | null;
+    }) => api.updateSilenceSchedule(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-settings"], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ["silence-status"], refetchType: 'active' });
@@ -128,16 +151,41 @@ export function GeneralSettings() {
     setHasChanges(true);
   };
 
+  const handleSilenceModeChange = (mode: SilenceMode) => {
+    setSilenceMode(mode);
+    setHasChanges(true);
+  };
+
+  const handleSilencePageChange = (pageId: string) => {
+    setSilencePageId(pageId);
+    setHasChanges(true);
+  };
+
+  // Pages for the "page" mode selector. Only fetched while silence is
+  // enabled; the underlying query is otherwise idle and shared with the
+  // rest of the app.
+  const { data: pagesData } = usePages();
+  const availablePages = pagesData?.pages ?? [];
+
   const handleSave = async () => {
     const timezone = generalConfig?.timezone ?? "America/Los_Angeles";
     const startUtc = localTimeToUTC(silenceStartTime, timezone);
     const endUtc = localTimeToUTC(silenceEndTime, timezone);
+
+    // If "page" mode is chosen but no page is selected, don't auto-save —
+    // the API rejects this with a 400. We still keep the toggled state in
+    // the form so the user can pick a page.
+    if (silenceMode === "page" && !silencePageId) {
+      return;
+    }
 
     if (startUtc && endUtc) {
       await updateSilenceMutation.mutateAsync({
         enabled: silenceEnabled,
         start_time: startUtc,
         end_time: endUtc,
+        mode: silenceMode,
+        page_id: silencePageId || null,
       });
     }
 
@@ -154,7 +202,7 @@ export function GeneralSettings() {
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [silenceEnabled, silenceStartTime, silenceEndTime, hasChanges]);
+  }, [silenceEnabled, silenceStartTime, silenceEndTime, silenceMode, silencePageId, hasChanges]);
 
   const isSaving = updateSilenceMutation.isPending || updatePollingMutation.isPending;
 
@@ -253,6 +301,67 @@ export function GeneralSettings() {
                         <p className="text-xs text-muted-foreground">{t("whenSilenceEnds")}</p>
                       </div>
                     </div>
+
+                    {/* Silence behaviour selector */}
+                    <div className="mt-4 space-y-2">
+                      <Label htmlFor="silence-mode" className="text-xs">
+                        {t("silenceModeLabel")}
+                      </Label>
+                      <Select
+                        value={silenceMode}
+                        onValueChange={(val) =>
+                          handleSilenceModeChange(val as SilenceMode)
+                        }
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger id="silence-mode" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="indicator">
+                            {t("silenceModeIndicator")}
+                          </SelectItem>
+                          <SelectItem value="freeze">
+                            {t("silenceModeFreeze")}
+                          </SelectItem>
+                          <SelectItem value="page">
+                            {t("silenceModePage")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {silenceMode === "indicator" && t("silenceModeIndicatorHelp")}
+                        {silenceMode === "freeze" && t("silenceModeFreezeHelp")}
+                        {silenceMode === "page" && t("silenceModePageHelp")}
+                      </p>
+                    </div>
+
+                    {silenceMode === "page" && (
+                      <div className="mt-3 space-y-2">
+                        <Label htmlFor="silence-page" className="text-xs">
+                          {t("silencePageLabel")}
+                        </Label>
+                        <Select
+                          value={silencePageId || undefined}
+                          onValueChange={handleSilencePageChange}
+                          disabled={isSaving || availablePages.length === 0}
+                        >
+                          <SelectTrigger id="silence-page" className="w-full">
+                            <SelectValue placeholder={t("silencePagePlaceholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availablePages.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name || p.id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {t("silencePageHelp")}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </>

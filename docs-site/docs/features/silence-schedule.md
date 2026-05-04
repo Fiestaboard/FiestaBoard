@@ -36,10 +36,18 @@ SILENCE_SCHEDULE_END_TIME=07:00      # 7:00 AM
 
 ## How It Works
 
-When the current time falls within the silence window:
+When the current time falls within the silence window, FiestaBoard chooses
+how to handle the board based on the configured **silence mode**:
 
-- The display service **stops sending updates** to the board
-- The board remains on whatever was last displayed
+| Mode | Behaviour |
+| --- | --- |
+| **Show "SNOOZING" message** (default) | The board is set to a clean `SNOOZING` message sized for your device (Flagship or Note). No other content is overlaid. |
+| **Leave board unchanged** | The board is left exactly as it was — no further updates are sent until silence ends. |
+| **Show a specific page** | A page you choose is rendered once when silence begins and frozen on the board. Template variables are not refreshed until silence ends. |
+
+Regardless of which mode you pick:
+
+- The display service stops sending refresh updates while silenced
 - The web UI and API continue to function normally
 - Scheduled pages are skipped during silence hours
 

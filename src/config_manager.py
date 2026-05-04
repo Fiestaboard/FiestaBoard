@@ -233,6 +233,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "enabled": False,
             "start_time": "20:00",  # 8pm (will be migrated to UTC ISO format)
             "end_time": "07:00",  # 7am (will be migrated to UTC ISO format)
+            # Behavior while silence is active:
+            #   "indicator" - clear the board and show "SNOOZING" centered (default)
+            #   "freeze"    - leave whatever is currently on the board, stop updating
+            #   "page"      - render the chosen page once, then stop updating
+            "mode": "indicator",
+            # Page id to display when mode == "page" (variables are frozen at silence-start)
+            "page_id": None,
         },
         "stocks": {
             "enabled": False,
