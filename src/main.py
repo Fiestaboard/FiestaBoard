@@ -138,11 +138,44 @@ class DisplayService:
             settings_service = get_settings_service()
             page_service = get_page_service()
             schedule_service = get_schedule_service()
-            
-            # --- Check for active triggers (highest priority) ---
-            trigger_content = self._check_trigger_override()
-            if trigger_content is not None:
-                return self._send_trigger_content(trigger_content)
+
+            # --- Silence mode short-circuit (evaluated FIRST) ---
+            # Important: we evaluate silence before doing ANY plugin/API work
+            # (trigger evaluation, page rendering, carousel resolution) so a
+            # "snoozed" board doesn't cause weather/transit/stocks/etc. APIs
+            # to be hit on every poll. We send exactly one update when entering
+            # silence (with the SNOOZING indicator) and then go quiet until
+            # the silence window ends.
+            silence_mode_active = Config.is_silence_mode_active()
+            entering_silence_mode = silence_mode_active and not self._last_silence_mode_active
+            exiting_silence_mode = not silence_mode_active and self._last_silence_mode_active
+
+            if silence_mode_active and self._snoozing_message_sent:
+                # Steady-state silence: indicator is already on the board.
+                # Do nothing — no rendering, no plugin fetches, no trigger
+                # evaluation, no board send.
+                # (If we are here, _snoozing_message_sent=True implies a prior
+                # successful silence-mode send, which set _last_silence_mode_active
+                # to True, so this is necessarily not the entering-silence tick.)
+                logger.debug("Silence mode active - skipping update (board already snoozing)")
+                self._last_silence_mode_active = True
+                return False
+
+            if exiting_silence_mode:
+                logger.info("▶️  Exiting silence mode - resuming normal updates")
+                self._snoozing_message_sent = False
+                # The board currently shows the SNOOZING indicator on top of
+                # whatever content was last rendered. Clear the content cache
+                # so the next render is unconditionally pushed to the board,
+                # otherwise we'd see "content unchanged, skipping send" and
+                # leave the indicator stuck on the board.
+                self._last_active_page_content = None
+
+            # --- Check for active triggers (highest priority, but suppressed during silence) ---
+            if not silence_mode_active:
+                trigger_content = self._check_trigger_override()
+                if trigger_content is not None:
+                    return self._send_trigger_content(trigger_content)
 
             # Determine active page based on schedule mode
             if settings_service.is_schedule_enabled():
@@ -207,50 +240,24 @@ class DisplayService:
                 logger.warning(f"Failed to render active page: {active_page_id}")
                 return False
             
-            # Check current silence mode state
-            silence_mode_active = Config.is_silence_mode_active()
-            entering_silence_mode = silence_mode_active and not self._last_silence_mode_active
-            exiting_silence_mode = not silence_mode_active and self._last_silence_mode_active
-            
-            # Check if board currently has the snoozing indicator
-            board_has_indicator = self._last_active_page_content and "snoozing" in self._last_active_page_content
-            
-            # CRITICAL: If in silence mode BUT board doesn't have indicator yet, allow ONE update
-            # This handles power outages, restarts, or any scenario where indicator is missing
-            if silence_mode_active and not board_has_indicator:
-                logger.info("🔄 Silence mode active but board missing snoozing indicator - allowing update")
-                # Will add indicator and send below
-            # CRITICAL: If in silence mode AND board already has indicator, BLOCK ALL UPDATES
-            elif silence_mode_active and board_has_indicator:
-                logger.info("Silence mode active - blocking update to prevent wake-up (indicator already shown)")
-                return False
-            
+            # Silence-mode state was already evaluated at the top of this method.
+            # If we get here while silence is active, it means we are entering
+            # silence (or recovering from a missing indicator after restart /
+            # power outage) and need to send exactly one update with the
+            # SNOOZING indicator stamped onto the board.
+
             # Get base content
             current_content = result.formatted
             content_to_send = current_content
-            
-            # Handle entering silence mode - send ONE update with indicator
-            if entering_silence_mode:
-                logger.info("⏸️  Entering silence mode - sending snoozing indicator")
-                content_to_send = current_content
-                # Indicator will be added to board array before sending
-            
-            # Handle exiting silence mode - resume normal operation
-            elif exiting_silence_mode:
-                logger.info("▶️  Exiting silence mode - resuming normal updates")
-                self._snoozing_message_sent = False
-                content_to_send = current_content
-                # No indicator will be added
-            
-            # Handle silence mode active but indicator missing (power outage, restart, etc.)
-            elif silence_mode_active and not board_has_indicator:
-                logger.info("⚡ Silence mode active - ensuring snoozing indicator is displayed")
-                content_to_send = current_content
-                # Indicator will be added to board array before sending
-            
-            # Normal mode (not in silence) - check if content changed
-            elif not silence_mode_active:
-                if (current_content == self._last_active_page_content and 
+
+            if silence_mode_active:
+                if entering_silence_mode:
+                    logger.info("⏸️  Entering silence mode - sending snoozing indicator")
+                else:
+                    logger.info("⚡ Silence mode active - ensuring snoozing indicator is displayed")
+            else:
+                # Normal mode - check if content changed
+                if (current_content == self._last_active_page_content and
                     active_page_id == self._last_active_page_id):
                     logger.debug("Active page content unchanged, skipping send")
                     return False
@@ -295,15 +302,13 @@ class DisplayService:
                 self._last_active_page_content = content_to_send
                 self._last_active_page_id = active_page_id
                 self._last_silence_mode_active = silence_mode_active
-                
-                # Mark snoozing message as sent if we sent content WITH indicator during silence mode
-                # This covers entering silence mode AND edge cases (restart, power outage, etc.)
-                if silence_mode_active and "snoozing" in content_to_send:
+
+                # If we just sent an update while in silence mode, the board
+                # now displays the SNOOZING indicator. Mark it so subsequent
+                # polls short-circuit and do not re-send (or fetch plugin data).
+                if silence_mode_active:
                     self._snoozing_message_sent = True
-                    logger.info("🔇 Silence mode fully activated - ALL further updates blocked until silence ends")
-                # Clear flag when exiting silence mode
-                elif exiting_silence_mode:
-                    self._snoozing_message_sent = False
+                    logger.info("🔇 Silence mode fully activated - all further updates blocked until silence ends")
                 
                 if was_sent:
                     logger.info(f"Active page sent to board: {active_page_id}")
