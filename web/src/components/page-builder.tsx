@@ -29,6 +29,7 @@ import {
   Save,
   Trash2,
   Radio,
+  Sparkles,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -41,12 +42,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineAlignment, LineMetadata } from "@/lib/api";
+import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineAlignment, LineMetadata, AIGenerateResult } from "@/lib/api";
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
 import { writeLiveOutputMessage, onLiveOutputMessageChange } from "@/lib/live-output-channel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AiPageDialog } from "@/components/ai-page-dialog";
 
 
 
@@ -115,6 +117,48 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [_pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+
+  // Whether AI providers are configured + enabled. Drives the "Gen AI"
+  // button enabled state. Cheap query — same key as the settings page,
+  // so it's shared.
+  const { data: aiSettings } = useQuery({
+    queryKey: ["ai-settings"],
+    queryFn: () => api.getAiSettings(),
+    // Don't retry forever if the user has the AI endpoints disabled at
+    // the proxy level.
+    retry: 1,
+  });
+  const aiAvailable = !!(
+    aiSettings?.enabled && (aiSettings?.providers?.length ?? 0) > 0
+  );
+
+  const handleAiInsert = useCallback(
+    (page: AIGenerateResult["page"]) => {
+      // Adopt device_type / name / template / metadata from the AI
+      // page. We do NOT save — the user must still click Save.
+      if (page.device_type && page.device_type !== deviceType) {
+        setDeviceType(page.device_type);
+      }
+      if (page.name) {
+        setName(page.name);
+      }
+      const lines = page.template ?? [];
+      const meta = page.line_metadata ?? [];
+      const alignments = lines.map(
+        (_, i) => (meta[i]?.alignment as LineAlignment) ?? "left",
+      );
+      const wraps = lines.map((_, i) => Boolean(meta[i]?.wrap));
+      setTemplateLines(lines);
+      setLineAlignments(alignments);
+      setLineWrapEnabled(wraps);
+      setDebouncedTemplateLines(lines);
+      setDebouncedLineAlignments(alignments);
+      setDebouncedLineWrapEnabled(wraps);
+      toast.success("AI page inserted — review and click Save to keep it");
+    },
+    [deviceType],
+  );
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
     setEditorMode(mode);
@@ -867,6 +911,24 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
   return (
     <>
+      <AiPageDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        deviceType={deviceType}
+        currentPage={
+          name || templateLines.some((l) => l)
+            ? {
+                name,
+                template: templateLines,
+                line_metadata: templateLines.map((_, i) => ({
+                  alignment: lineAlignments[i] ?? "left",
+                  wrap: lineWrapEnabled[i] ?? false,
+                })),
+              }
+            : undefined
+        }
+        onInsert={handleAiInsert}
+      />
       <div className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
         {/* Main Editor */}
         <Card className="flex flex-col min-h-0 w-full max-w-full overflow-x-hidden">
@@ -911,6 +973,32 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                     {t("plainEditor")}
                   </Button>
                 </div>
+                {/* Gen AI button — opens the AI page-generation dialog. */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 px-2"
+                        onClick={() => setAiDialogOpen(true)}
+                        disabled={!aiAvailable}
+                        aria-label="Gen AI"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span className="text-[11px]">Gen AI</span>
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {aiAvailable
+                        ? "Generate a page with AI"
+                        : "Configure an AI provider in Settings to enable"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
                 {/* Delete button - only show when editing */}
                 {pageId && (
                   <AlertDialog>

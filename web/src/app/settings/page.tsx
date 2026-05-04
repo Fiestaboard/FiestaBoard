@@ -9,6 +9,7 @@ import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interv
 import { PluginSettingsCard } from "@/components/settings/plugin-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
+import { AiSettings } from "@/components/settings/ai-settings";
 import { BetaSettings } from "@/components/settings/beta-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { GeneralSettings } from "@/components/general-settings";
@@ -50,6 +51,10 @@ export default function SettingsPage() {
 
         <div className="animate-card-fade-in" style={{ animationDelay: "440ms" }}>
           <LocationSettingsCard />
+        </div>
+
+        <div className="animate-card-fade-in" style={{ animationDelay: "460ms" }}>
+          <AiSettings />
         </div>
 
         <div className="animate-card-fade-in overflow-hidden" style={{ animationDelay: "480ms" }}>
