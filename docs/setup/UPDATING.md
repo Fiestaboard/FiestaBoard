@@ -59,6 +59,14 @@ The choice persists in `data/.system-update.json` under
 `auto_update_enabled` boolean continue to work — `true` is treated as the
 install's default interval and `false` as `manual`.
 
+## Plugin auto-updates
+
+External plugins (installed from the registry or a git URL) are kept up to date automatically. FiestaBoard checks for new plugin versions every hour and silently pulls the latest commit for any plugin that has changed.
+
+This is enabled by default. To turn it off, go to **Settings → Plugin Updates** and toggle **Auto-update plugins** off. When disabled, you can update plugins individually from the **Integrations** page.
+
+The setting is stored in `data/settings.json` under `plugins.auto_update`.
+
 ## Manual updating (always works)
 
 The Update Now button is convenience; it's not the source of truth. You can always update from the shell:
