@@ -63,7 +63,7 @@ After flashing, plug the SD card back into your computer. A small FAT32 drive ca
 
    ```
    SSID=YourNetworkName
-   ******
+   PASSWORD=YourPassword
    ```
 
 3. Save the file and eject the SD card
