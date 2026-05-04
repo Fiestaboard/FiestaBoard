@@ -16,14 +16,18 @@ Grab the latest `fiestapi-<version>-arm64.img.xz` from the [GitHub Releases](htt
 
 ## 2. Flash the SD card
 
-The simplest tool is [Raspberry Pi Imager](https://www.raspberrypi.com/software/):
+The simplest tool is [Raspberry Pi Imager](https://www.raspberrypi.com/software/) — use **version 1.8.5 or newer** so OS customisation works with custom images:
 
 1. Open Imager.
 2. Choose device → your Pi model.
 3. Choose OS → **Use custom** → select the `.img.xz` you downloaded.
 4. Choose storage → your SD card.
-5. (Optional) Click the gear icon to pre-configure Wi-Fi credentials and your timezone.
-6. Click Write.
+5. Click **Next**. When the **"Would you like to apply OS customisation settings?"** dialog appears, click **Edit Settings** to pre-configure:
+   - **Wi-Fi**: SSID, password, and **Wireless LAN country** (e.g. `US`, `GB`) — the country code is required, otherwise the Pi's Wi-Fi radio stays rfkill-blocked on first boot.
+   - **Locale**: timezone and keyboard layout.
+6. Click **Save**, then **Yes** to apply OS customisation, then **Yes** to confirm and write.
+
+> **Note:** The **Customisation** entry in Imager's left-hand sidebar isn't a clickable step — it lights up briefly during the write. The customisation dialog is the pop-up that appears *after* you click **Next**. If no pop-up appears, you're on Imager < 1.8.5; upgrade and re-flash, or use the `fiestapi-wifi.txt` method below.
 
 Other tools that work: [Balena Etcher](https://etcher.balena.io/), or `dd` on Linux/macOS:
 
@@ -34,7 +38,7 @@ sudo dd if=fiestapi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=prog
 
 ### Adding Wi-Fi credentials after flashing
 
-If you flashed with `dd` or Balena Etcher (no gear-icon customization), you can still configure Wi-Fi headlessly by dropping a plain-text file onto the SD card's boot partition before the first boot. The boot partition is the small FAT32 partition — it shows up as a drive called **`bootfs`** on Windows and macOS without any special tools.
+If you flashed with `dd` or Balena Etcher (no Imager customisation), you can still configure Wi-Fi headlessly by dropping a plain-text file onto the SD card's boot partition before the first boot. The boot partition is the small FAT32 partition — it shows up as a drive called **`bootfs`** on Windows and macOS without any special tools.
 
 1. Open the `bootfs` drive that appeared when you plugged in the SD card.
 2. Create a file named **`fiestapi-wifi.txt`** with the following content:
@@ -42,13 +46,17 @@ If you flashed with `dd` or Balena Etcher (no gear-icon customization), you can 
    ```
    SSID=YourNetworkName
    PASSWORD=YourPassword
+   COUNTRY=US
    ```
 
 3. Save the file, eject the SD card, and insert it into the Pi.
 
-On first boot FiestaPi reads the file, connects to Wi-Fi, and **immediately deletes the file** so your credentials don't sit on the readable FAT partition. For open (password-free) networks, omit the `PASSWORD` line.
+On first boot FiestaPi sets the Wi-Fi regulatory country, connects to Wi-Fi, and **immediately deletes the file** so your credentials don't sit on the readable FAT partition.
 
-> **Tip:** This works alongside Raspberry Pi Imager — if you used the gear icon, there's no need for this file.
+- `COUNTRY=` is the [ISO-3166 alpha-2 country code](https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes) (e.g. `US`, `GB`, `DE`). It is **optional and defaults to `US`**, but is needed because Raspberry Pi OS keeps the Wi-Fi radio rfkill-blocked until a wireless regulatory country is set. Set it to your actual country if you're not in the US.
+- For open (password-free) networks, omit the `PASSWORD` line.
+
+> **Tip:** This works alongside Raspberry Pi Imager — if you used the customisation dialog, there's no need for this file.
 
 ## 3. First boot
 

@@ -34,17 +34,23 @@ Download the `.img.xz` file. It's compressed — Raspberry Pi Imager handles dec
 
 ## Step 2 — Flash the microSD card
 
-The simplest tool is [**Raspberry Pi Imager**](https://www.raspberrypi.com/software/) (free, works on Mac/Windows/Linux):
+The simplest tool is [**Raspberry Pi Imager**](https://www.raspberrypi.com/software/) (free, works on Mac/Windows/Linux). Use **version 1.8.5 or newer** so OS customisation works with custom images.
 
 1. Open Raspberry Pi Imager
 2. Click **Choose Device** → select your Pi model
 3. Click **Choose OS** → scroll to the bottom → **Use custom** → pick the `.img.xz` you downloaded
 4. Click **Choose Storage** → select your microSD card
-5. Click **Next** — Imager will ask if you want to apply OS customisations
-6. **Recommended:** click Edit Settings to pre-configure:
-   - Your Wi-Fi network name and password (so the Pi connects automatically)
-   - Your timezone
-7. Click **Write** and wait ~5 minutes
+5. Click **Next**
+6. When prompted **"Would you like to apply OS customisation settings?"**, click **Edit Settings** and pre-configure:
+   - **Wi-Fi**: SSID, password, and **Wireless LAN country** (e.g. `US`, `GB`) — the country is required, otherwise the Pi's Wi-Fi radio stays disabled on first boot
+   - **Locale**: timezone and keyboard layout
+   - **General → Set username and password**: optional, replaces the default `fiesta` / `fiestaboard`
+7. Click **Save**, then **Yes** to apply OS customisation, then **Yes** to confirm the write
+8. Wait ~5 minutes for the flash to complete
+
+:::warning "Customisation" step is greyed out?
+The **Customisation** step in the Imager sidebar is only used during the flash — it's normal for it to look disabled in earlier steps. The customisation dialog appears as a pop-up *after* you click **Next** in step 5 above. If the pop-up doesn't appear at all, you're on a version of Imager older than 1.8.5; [upgrade Raspberry Pi Imager](https://www.raspberrypi.com/software/) and re-flash, or use the `fiestapi-wifi.txt` method below.
+:::
 
 Alternative tools: [Balena Etcher](https://etcher.balena.io/) works too. On Linux/macOS with `dd`:
 ```bash
@@ -64,14 +70,18 @@ After flashing, plug the SD card back into your computer. A small FAT32 drive ca
    ```
    SSID=YourNetworkName
    PASSWORD=YourPassword
+   COUNTRY=US
    ```
 
 3. Save the file and eject the SD card
 
-On first boot FiestaPi reads the file, connects to Wi-Fi, and **immediately deletes the file** so your credentials are never left sitting on the readable FAT partition. For open (password-free) networks, omit the `PASSWORD` line entirely.
+On first boot FiestaPi sets the Wi-Fi regulatory country, connects to Wi-Fi, and **immediately deletes the file** so your credentials are never left sitting on the readable FAT partition.
+
+- The `COUNTRY=` line is the [ISO-3166 alpha-2 country code](https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes) (e.g. `US`, `GB`, `DE`, `AU`). It is **optional and defaults to `US`**, but is needed because Raspberry Pi OS keeps the Wi-Fi radio disabled (rfkill-blocked) until a wireless regulatory country is set. Set it to your actual country if you're not in the US.
+- For open (password-free) networks, omit the `PASSWORD` line entirely.
 
 :::tip Already used Raspberry Pi Imager's OS customisation?
-If you already entered Wi-Fi credentials via Imager's settings screen, the `fiestapi-wifi.txt` file isn't needed — Imager handles it for you.
+If you already entered Wi-Fi credentials and a Wireless LAN country via Imager's settings screen, the `fiestapi-wifi.txt` file isn't needed — Imager handles it for you.
 :::
 
 ## Step 3 — Boot your Pi
@@ -115,7 +125,7 @@ On first SSH login, run `passwd` to set a strong password.
 
 ## Troubleshooting
 
-**Pi won't connect to Wi-Fi** — If you didn't set Wi-Fi credentials in Raspberry Pi Imager, drop a `fiestapi-wifi.txt` file on the `bootfs` partition (see [Adding Wi-Fi credentials without Raspberry Pi Imager](#adding-wi-fi-credentials-without-raspberry-pi-imager) above). Alternatively, re-flash using Raspberry Pi Imager's Edit Settings screen to pre-configure Wi-Fi. Or plug in an Ethernet cable and set Wi-Fi up later via SSH.
+**Pi won't connect to Wi-Fi** — The most common cause is a missing wireless regulatory country (Raspberry Pi OS keeps the radio rfkill-blocked until one is set). If you flashed with Imager, re-flash and set **Wireless LAN country** in **Edit Settings**. Otherwise, drop a `fiestapi-wifi.txt` file on the `bootfs` partition with `SSID=`, `PASSWORD=`, and (recommended) a `COUNTRY=` line — see [Adding Wi-Fi credentials without Raspberry Pi Imager](#adding-wi-fi-credentials-without-raspberry-pi-imager) above. Or plug in an Ethernet cable, SSH in, and run `sudo raspi-config` → **Localisation Options** → **WLAN Country** to fix it manually.
 
 **FiestaBoard isn't starting** — SSH in (`ssh fiesta@fiestapi.local`) and check logs: `docker logs fiestaboard`. If Docker images haven't pulled yet, wait another minute.
 
