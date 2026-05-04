@@ -19,11 +19,9 @@ setup() {
     export FIESTAUPDATER_PORT=18765
     export FIESTAUPDATER_SERVICE="fiestaboard"
     export FIESTAUPDATER_COMPOSE_FILE="${SANDBOX}/docker-compose.yml"
-    # Keep tests fast and deterministic: short probe window, state in sandbox.
+    # State (last-update.json) lives in the sandbox so each test starts
+    # from a clean slate.
     export FIESTAUPDATER_STATE_DIR="${SANDBOX}/state"
-    export FIESTAUPDATER_PROBE_URL="file://${SANDBOX}/probe-result"
-    export FIESTAUPDATER_PROBE_TIMEOUT_SECS=2
-    export FIESTAUPDATER_PROBE_INTERVAL_SECS=1
 
     cat >"${SANDBOX}/docker-compose.yml" <<'YAML'
 services:
@@ -54,20 +52,6 @@ case "$1" in
 esac
 SH
     chmod +x "${SANDBOX}/docker"
-
-    # Fake wget that decides probe success based on a sentinel file the
-    # individual tests write.  The default — file absent — means "probe
-    # always fails", which exercises the rollback path; tests that want
-    # the happy path write "ok" into PROBE_RESULT.
-    cat >"${SANDBOX}/wget" <<'SH'
-#!/bin/sh
-echo "wget $*" >> "${SANDBOX}/wget.calls"
-if [ -f "${SANDBOX}/probe-result" ] && [ "$(cat "${SANDBOX}/probe-result")" = "ok" ]; then
-    exit 0
-fi
-exit 8
-SH
-    chmod +x "${SANDBOX}/wget"
     export SANDBOX
 }
 
@@ -240,11 +224,9 @@ SH
 }
 
 @test "GET /last-update reflects success after a healthy update" {
-    # Probe must succeed for the update to be recorded as successful.
-    echo "ok" > "${SANDBOX}/probe-result"
     req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
     send "$req" >/dev/null
-    # Wait for the background worker (probe + state write) to finish.
+    # Wait for the background worker to finish writing state.
     for _ in 1 2 3 4 5 6 7 8 9 10; do
         if [ -f "${SANDBOX}/state/last-update.json" ] && \
            grep -q '"status":"success"' "${SANDBOX}/state/last-update.json"; then
@@ -261,42 +243,70 @@ SH
     [[ "$out" == *'"previous_image":"fiestaboard/fiestaboard:latest"'* ]]
 }
 
-# ---- /update : rollback ---------------------------------------------------
+# ---- /rollback ------------------------------------------------------------
 
-@test "POST /update rolls back when the health probe never succeeds" {
-    # No probe-result file ⇒ fake wget exits non-zero ⇒ probe loop fails.
-    rm -f "${SANDBOX}/probe-result"
-    req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+@test "POST /rollback with no Authorization → 401" {
+    body='{"digest":"sha256:0000000000000000000000000000000000000000000000000000000000000000","image":"fiestaboard/fiestaboard:latest"}'
+    len=${#body}
+    req=$(printf 'POST /rollback HTTP/1.1\r\nHost: x\r\nContent-Length: %d\r\n\r\n%s' "$len" "$body")
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+}
+
+@test "POST /rollback rejects invalid digest (no docker call)" {
+    body='{"digest":"not-a-digest","image":"fiestaboard/fiestaboard:latest"}'
+    len=${#body}
+    req=$(printf 'POST /rollback HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: %d\r\n\r\n%s' "$len" "$body")
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 400 Bad Request" ]]
+    [[ "$out" == *'"error":"invalid_digest"'* ]]
+    # Must not have called `docker tag` or `docker compose up`.
+    if [ -f "${SANDBOX}/docker.calls" ]; then
+        ! grep -q '^tag ' "${SANDBOX}/docker.calls"
+        ! grep -q 'force-recreate' "${SANDBOX}/docker.calls"
+    fi
+}
+
+@test "POST /rollback rejects shell-injection image references" {
+    body='{"digest":"sha256:0000000000000000000000000000000000000000000000000000000000000000","image":"foo;rm -rf /"}'
+    len=${#body}
+    req=$(printf 'POST /rollback HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: %d\r\n\r\n%s' "$len" "$body")
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 400 Bad Request" ]]
+    [[ "$out" == *'"error":"invalid_image"'* ]]
+}
+
+@test "POST /rollback with valid body retags digest and force-recreates" {
+    digest='sha256:1111111111111111111111111111111111111111111111111111111111111111'
+    body="{\"digest\":\"${digest}\",\"image\":\"fiestaboard/fiestaboard:latest\"}"
+    len=${#body}
+    req=$(printf 'POST /rollback HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: %d\r\n\r\n%s' "$len" "$body")
     out=$(send "$req")
     [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
-    # The 202 ack already exposes pre-update digest + image so the UI can
-    # show the user what we will roll back to if needed.
-    [[ "$out" == *'"previous_digest":"sha256:abc123"'* ]]
-    [[ "$out" == *'"previous_image":"fiestaboard/fiestaboard:latest"'* ]]
+    [[ "$out" == *"\"target_digest\":\"${digest}\""* ]]
 
-    # Wait for rollback to land in state.
+    # Wait for the background worker to finish writing state.
     for _ in 1 2 3 4 5 6 7 8 9 10; do
         if [ -f "${SANDBOX}/state/last-update.json" ] && \
-           grep -qE '"status":"(rolled_back|rolled_back_unhealthy)"' "${SANDBOX}/state/last-update.json"; then
+           grep -q '"status":"rolled_back"' "${SANDBOX}/state/last-update.json"; then
             break
         fi
         sleep 1
     done
 
-    # The retag MUST have been issued with the saved digest and the
-    # original image reference.  This is the heart of the rollback.
-    grep -q "tag sha256:abc123 fiestaboard/fiestaboard:latest" "${SANDBOX}/docker.calls"
+    # Heart of the rollback: retag target digest onto image ref, then
+    # force-recreate the service so it picks the rollback target up.
+    grep -q "tag ${digest} fiestaboard/fiestaboard:latest" "${SANDBOX}/docker.calls"
     grep -q "up -d --no-deps --force-recreate fiestaboard" "${SANDBOX}/docker.calls"
-
-    # And the state file must record the rollback for the UI.
-    grep -q '"status":"rolled_back' "${SANDBOX}/state/last-update.json"
-    grep -q '"previous_digest":"sha256:abc123"' "${SANDBOX}/state/last-update.json"
+    grep -q '"status":"rolled_back"' "${SANDBOX}/state/last-update.json"
+    grep -q "\"target_digest\":\"${digest}\"" "${SANDBOX}/state/last-update.json"
 }
+
+# ---- /update : in-progress bookkeeping ------------------------------------
 
 @test "POST /update writes in_progress state immediately" {
     # Even before the background worker finishes, the state file should
     # reflect that an attempt is underway so the UI can show progress.
-    rm -f "${SANDBOX}/probe-result"
     req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
     send "$req" >/dev/null
     [ -f "${SANDBOX}/state/last-update.json" ]

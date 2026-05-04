@@ -621,7 +621,7 @@ class TestFormulaFunctions:
 # Tests for the 5.1 update-rollback features:
 #   * pre-update settings snapshots (5-deep retention)
 #   * /system/update/status surfacing the sidecar's last-update result
-#   * POST /system/update/restore-settings
+#   * POST /system/update/rollback (settings + image)
 # =============================================================================
 
 
@@ -722,8 +722,9 @@ class TestSystemUpdateStatusRollbackFields:
                 last = Mock(status_code=200)
                 last.json.return_value = {
                     "status": "rolled_back",
-                    "previous_digest": "sha256:old",
-                    "failed_digest": "sha256:bad",
+                    "action": "rollback",
+                    "previous_digest": "sha256:bad",
+                    "target_digest": "sha256:old",
                     "rolled_back_to": "sha256:old",
                     "completed_at": "2026-05-03T12:00:00Z",
                 }
@@ -736,9 +737,9 @@ class TestSystemUpdateStatusRollbackFields:
         body = r.json()
         assert body["updater_available"] is True
         assert body["last_update_status"] == "rolled_back"
-        assert body["last_update_previous_digest"] == "sha256:old"
-        assert body["last_update_failed_digest"] == "sha256:bad"
-        assert body["last_update_rolled_back_to"] == "sha256:old"
+        assert body["last_update_action"] == "rollback"
+        assert body["last_update_previous_digest"] == "sha256:bad"
+        assert body["last_update_completed_at"] == "2026-05-03T12:00:00Z"
 
     def test_status_skips_last_update_when_sidecar_unreachable(
         self, client, tmp_path, monkeypatch
@@ -803,14 +804,14 @@ class TestSystemUpdateApplyTakesSnapshot:
         assert (snap_dir / body["settings_snapshot"]["name"]).exists()
 
 
-class TestSystemUpdateRestoreSettings:
-    """``POST /system/update/restore-settings`` rolls settings back."""
+class TestSystemUpdateRollback:
+    """``POST /system/update/rollback`` rolls settings + image back."""
 
     def test_404_when_no_snapshots_exist(self, client, tmp_path, monkeypatch):
         monkeypatch.setattr(
             "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "empty"
         )
-        r = client.post("/system/update/restore-settings", json={})
+        r = client.post("/system/update/rollback", json={"restore_image": False})
         assert r.status_code == 404
 
     def test_404_for_unknown_named_snapshot(self, client, tmp_path, monkeypatch):
@@ -818,8 +819,8 @@ class TestSystemUpdateRestoreSettings:
         snap_dir.mkdir()
         monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", snap_dir)
         r = client.post(
-            "/system/update/restore-settings",
-            json={"name": "pre-update-20260101T000000Z.json"},
+            "/system/update/rollback",
+            json={"snapshot": "pre-update-20260101T000000Z.json", "restore_image": False},
         )
         assert r.status_code == 404
 
@@ -832,12 +833,22 @@ class TestSystemUpdateRestoreSettings:
             '{"fiestaboard_backup":true,"schema_version":1,"data":{}}'
         )
         r = client.post(
-            "/system/update/restore-settings",
-            json={"name": "../secret.json"},
+            "/system/update/rollback",
+            json={"snapshot": "../secret.json", "restore_image": False},
         )
         assert r.status_code == 404
 
-    def test_happy_path_restores_latest(self, client, tmp_path, monkeypatch):
+    def test_400_when_neither_settings_nor_image_requested(self, client, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps"
+        )
+        r = client.post(
+            "/system/update/rollback",
+            json={"restore_settings": False, "restore_image": False},
+        )
+        assert r.status_code == 400
+
+    def test_settings_only_happy_path(self, client, tmp_path, monkeypatch):
         from src import api_server as api
         snap_dir = tmp_path / "snaps"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
@@ -860,16 +871,94 @@ class TestSystemUpdateRestoreSettings:
         # touch global singletons we don't want to mess with from tests.
         monkeypatch.setattr(backup_service, "_reload_services", lambda: [])
 
-        r = client.post("/system/update/restore-settings", json={})
+        # Settings-only rollback (restore_image=False so we don't need
+        # to mock the sidecar's /rollback endpoint).
+        r = client.post("/system/update/rollback", json={"restore_image": False})
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["status"] == "success"
-        assert body["restored_from"] == meta["name"]
-        assert "settings.json" in body["restored_files"]
+        assert body["snapshot"] == meta["name"]
+        assert body["image_rollback"] is None
+        assert "settings.json" in body["settings_rollback"]["restored_files"]
         # The original value is back.
         import json as _json
         with (tmp_path / "data" / "settings.json").open() as fh:
             assert _json.load(fh) == {"k": "v"}
+
+    def test_image_rollback_calls_sidecar_with_snapshot_metadata(
+        self, client, tmp_path, monkeypatch
+    ):
+        """When ``restore_image=True``, the sidecar /rollback is called
+        with the digest+image recorded inside the snapshot.
+
+        Settings-restore is also enabled (the default) so we exercise the
+        full end-to-end path.
+        """
+        from src import api_server as api
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        snap_dir = tmp_path / "snaps"
+        monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
+        from src.backup import service as backup_service
+        bs = backup_service.BackupService(data_dir=tmp_path / "data")
+        monkeypatch.setattr(backup_service, "_backup_service", bs)
+        (tmp_path / "data").mkdir()
+        (tmp_path / "data" / "settings.json").write_text('{"k":"v"}')
+        monkeypatch.setattr(backup_service, "_reload_services", lambda: [])
+
+        # Take a snapshot annotated with a known digest+image.
+        digest = "sha256:" + ("a" * 64)
+        meta = api._take_settings_snapshot(digest, "fiestaboard/fiestaboard:latest")
+        assert meta is not None
+
+        captured: Dict[str, Any] = {}
+
+        def _fake_post(url, json=None, **_kwargs):
+            captured["url"] = url
+            captured["json"] = json
+            return Mock(status_code=202)
+
+        with patch("src.api_server.requests.post", side_effect=_fake_post):
+            r = client.post("/system/update/rollback", json={})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["status"] == "success"
+        assert body["image_rollback"]["target_digest"] == digest
+        assert body["image_rollback"]["target_image"] == "fiestaboard/fiestaboard:latest"
+        # Sidecar was called with the digest+image from the snapshot.
+        assert captured["url"].endswith("/rollback")
+        assert captured["json"] == {
+            "digest": digest,
+            "image": "fiestaboard/fiestaboard:latest",
+        }
+
+    def test_image_rollback_warns_on_unannotated_snapshot(
+        self, client, tmp_path, monkeypatch
+    ):
+        """A snapshot with no recorded digest/image cannot drive the
+        sidecar's /rollback — we surface a warning rather than guess."""
+        from src import api_server as api
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        snap_dir = tmp_path / "snaps"
+        monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
+        from src.backup import service as backup_service
+        bs = backup_service.BackupService(data_dir=tmp_path / "data")
+        monkeypatch.setattr(backup_service, "_backup_service", bs)
+        (tmp_path / "data").mkdir()
+        (tmp_path / "data" / "settings.json").write_text('{"k":"v"}')
+        monkeypatch.setattr(backup_service, "_reload_services", lambda: [])
+
+        # Snapshot without any digest/image annotation.
+        meta = api._take_settings_snapshot()
+        assert meta is not None
+
+        # No requests.post mock — if we tried to call the sidecar the
+        # test would error out.  We assert we did NOT.
+        r = client.post("/system/update/rollback", json={})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["status"] == "partial"
+        assert body["image_rollback"] is None
+        assert any("does not record" in w for w in body["warnings"])
 
 
 class TestUpdaterLastUpdateHelper:
