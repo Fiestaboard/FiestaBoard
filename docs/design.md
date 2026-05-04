@@ -99,7 +99,7 @@ Use the shared `EmptyState` component (`web/src/components/ui/empty-state.tsx`) 
 
 ## Design Pass 2
 
-A second design pass (2025/2026) applied accessibility, typography, hierarchy, and loading improvements. See [Design Pass 2](design-pass-2.md) for the full plan and research. Principles: no mouse-follow or cursor-based effects in the main UI; performance and clarity over decoration; accessibility and reduced motion are non-negotiable; extend existing tokens, don’t replace.
+A second design pass (2025/2026) applied accessibility, typography, hierarchy, and loading improvements. Principles: no mouse-follow or cursor-based effects in the main UI; performance and clarity over decoration; accessibility and reduced motion are non-negotiable; extend existing tokens, don’t replace.
 
 ## Design Pass 3 – Neutral Palette and Surface Consistency
 
