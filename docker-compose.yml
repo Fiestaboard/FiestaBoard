@@ -1,40 +1,21 @@
 services:
   # FiestaBoard - Unified container with API + Web UI
   fiestaboard:
+    container_name: fiestaboard
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fiestaboard
     env_file:
       - .env
     environment:
       - PRODUCTION=true
     restart: unless-stopped
-    # --- Networking ---
-    # Option A (default): Bridge networking with port mapping
     ports:
       - "4420:3000"
-    # Option B: Host networking – required for mDNS / Bonjour support
-    #           (allows access via http://fiestaboard.local:4420).
-    #           Uncomment the line below and remove/comment the 'ports' block.
-    # network_mode: host
     volumes:
-      # Persist data (including config) to local filesystem.
-      #
-      # IMPORTANT: this is a RELATIVE bind mount. Docker resolves `./data`
-      # against the directory you run `docker compose` from, not against the
-      # location of this file. Always run `docker compose pull`, `up`, `down`,
-      # etc. from the same folder you originally started FiestaBoard in -
-      # otherwise your settings will look like they have reset (your data is
-      # not deleted, it just lives in the original folder).
-      # See: https://fiestaboard.app/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update
+      - ./src:/app/src
       - ./data:/app/data
-      # Persist marketplace-installed (external) plugins across rebuilds
       - ./external_plugins:/app/external_plugins
-      # Docker socket for container management (restart/upgrade from UI)
-      # Note: Required for self-update and restart features. Grants container
-      # access to the host Docker daemon. Remove this line if you do not need
-      # in-app restart/upgrade functionality.
       - /var/run/docker.sock:/var/run/docker.sock
     logging:
       driver: "json-file"

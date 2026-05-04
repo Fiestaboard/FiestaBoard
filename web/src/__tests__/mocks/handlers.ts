@@ -105,6 +105,7 @@ export const mockTransitionSettings: TransitionSettings = {
     "row",
     "diagonal",
     "random",
+    "quietLibrary",
   ],
 };
 

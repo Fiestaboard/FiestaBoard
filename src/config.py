@@ -36,7 +36,7 @@ class Config:
     # Valid transition strategies
     VALID_TRANSITION_STRATEGIES = [
         "column", "reverse-column", "edges-to-center",
-        "row", "diagonal", "random"
+        "row", "diagonal", "random", "quietLibrary"
     ]
     
     @classmethod

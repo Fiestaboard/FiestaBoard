@@ -625,6 +625,10 @@
       "random": {
         "label": "Random",
         "description": "Characters flip in a random order for a playful effect."
+      },
+      "quietLibrary": {
+        "label": "Quiet Library",
+        "description": "Row by row, word by word transitions, to make a quiet transition"
       }
     }
   },
