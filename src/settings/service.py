@@ -215,6 +215,19 @@ class DisplaySettings:
 
 
 @dataclass
+class PluginSettings:
+    """Plugin system settings."""
+    auto_update: bool = True
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PluginSettings":
+        return cls(auto_update=bool(data.get("auto_update", True)))
+
+
+@dataclass
 class BetaSettings:
     """Opt-in beta features.
 
@@ -314,6 +327,7 @@ class SettingsService:
         self._display = self._load_display_settings()
         self._location = self._load_location_settings()
         self._beta = self._load_beta_settings()
+        self._plugins = self._load_plugin_settings()
         
         if getattr(self, "_needs_migration_save", False):
             self._save_to_file()
@@ -345,6 +359,7 @@ class SettingsService:
                 "display": self._display.to_dict(),
                 "location": self._location.to_dict(),
                 "beta": self._beta.to_dict(),
+                "plugins": self._plugins.to_dict(),
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -480,6 +495,13 @@ class SettingsService:
         if "beta" in file_data:
             return BetaSettings.from_dict(file_data["beta"])
         return BetaSettings()
+
+    def _load_plugin_settings(self) -> "PluginSettings":
+        """Load plugin system settings from file."""
+        file_data = self._load_from_file()
+        if "plugins" in file_data:
+            return PluginSettings.from_dict(file_data["plugins"])
+        return PluginSettings()
 
     # Transition settings
     def get_transition_settings(self) -> TransitionSettings:
@@ -894,6 +916,18 @@ class SettingsService:
         self._save_to_file()
         logger.info(f"Beta settings updated: {self._beta}")
         return self._beta
+
+    def get_plugin_settings(self) -> "PluginSettings":
+        """Return current plugin system settings."""
+        return self._plugins
+
+    def update_plugin_settings(self, updates: dict) -> "PluginSettings":
+        """Update plugin settings and persist. Only keys present in *updates* are changed."""
+        if "auto_update" in updates:
+            self._plugins.auto_update = bool(updates["auto_update"])
+        self._save_to_file()
+        logger.info(f"Plugin settings updated: {self._plugins}")
+        return self._plugins
 
 
 # Singleton instance
