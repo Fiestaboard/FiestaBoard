@@ -20,6 +20,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
+from pydantic import ValidationError
 
 from ..devices import DeviceType, get_dimensions
 from ..pages.models import Page, PageCreate
@@ -226,9 +227,18 @@ def _validate_and_repair(
         if config_errors:
             warnings.extend(config_errors)
         page = validated.model_dump(mode="json")
-    except Exception as exc:
+    except ValidationError as exc:
+        # Pydantic ValidationError messages are curated and safe to
+        # surface — they describe the field that failed, not internals.
         raise AIGenerationError(
             f"Model output failed validation: {exc}"
+        ) from exc
+    except Exception as exc:
+        # Defensive: anything else here is unexpected. Log it but
+        # don't expose the raw message to the API consumer.
+        logger.exception("Unexpected error validating model output")
+        raise AIGenerationError(
+            "Model output failed validation."
         ) from exc
 
     return page, warnings
@@ -370,8 +380,12 @@ async def _post_chat_completion(
         try:
             return response.json()
         except Exception as exc:
+            # Don't include the raw exception details in the user-facing
+            # message — only that it was non-JSON. The full exception is
+            # logged for debugging.
+            logger.warning("AI provider returned non-JSON response: %s", exc)
             raise AIGenerationError(
-                f"AI provider returned non-JSON response: {exc}"
+                "AI provider returned a non-JSON response."
             ) from exc
     finally:
         if owns_client:
