@@ -1,0 +1,501 @@
+"""Talk to a user-configured OpenAI-compatible LLM and return a draft page.
+
+Used by ``POST /pages/ai/generate``. Pure-async via ``httpx``.
+
+Robust against bad model output:
+- malformed JSON → raises ``AIGenerationError`` (caller surfaces it as a
+  user-visible warning, not a 500),
+- oversized lines → trimmed to the device's column count and reported in
+  ``warnings``,
+- hallucinated variable references → flagged in ``warnings`` (we do not
+  delete them, since the template engine handles unknown vars gracefully
+  and the user may want to fix it manually).
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+from typing import Any, Dict, List, Optional, Tuple
+
+import httpx
+
+from ..devices import DeviceType, get_dimensions
+from ..pages.models import Page, PageCreate
+from .prompt_builder import PromptContext, build_prompt
+
+logger = logging.getLogger(__name__)
+
+
+# Conservative defaults; OpenAI-compatible endpoints accept these.
+_DEFAULT_TEMPERATURE = 0.7
+_DEFAULT_MAX_TOKENS = 1500
+_DEFAULT_TIMEOUT_SECONDS = 60.0
+
+
+# Match a {{plugin.var}} reference (without filters / pipes) so we can
+# cross-check the model's output against the supplied variable registry.
+_VARIABLE_REF_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\b")
+
+
+class AIGenerationError(Exception):
+    """A user-visible error in the AI generation flow.
+
+    Raised for predictable failure modes (provider not configured, model
+    returned non-JSON, network timeout). The API layer turns these into
+    a 4xx/5xx response with the message in the body so the UI can show
+    it without exposing tracebacks.
+    """
+
+
+def _extract_json_object(text: str) -> Dict[str, Any]:
+    """Parse the first JSON object found in ``text``.
+
+    Some models wrap their JSON in markdown fences or a short preamble
+    even when asked not to. We try strict parsing first, then fall back
+    to extracting the outermost ``{...}`` block.
+    """
+    text = text.strip()
+    if not text:
+        raise AIGenerationError("Model returned an empty response.")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Strip markdown fences.
+    fenced = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE)
+    try:
+        return json.loads(fenced.strip())
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: greedy outermost {...} match.
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        candidate = text[start : end + 1]
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            raise AIGenerationError(
+                f"Model output was not valid JSON: {exc}"
+            ) from exc
+    raise AIGenerationError("Model output did not contain a JSON object.")
+
+
+def _line_visible_width(line: str) -> int:
+    """Approximate the rendered column count of a template line.
+
+    This is a best-effort sanity check, not a full template render. We
+    treat each color/symbol token (e.g. ``{red}``, ``{sun}``,
+    ``{degree}``) as one column, leave variables alone (their width is
+    documented to the model in the prompt and varies at render time),
+    and count remaining literal characters as one column each.
+    """
+    # Replace {{var|filter}} blocks with a placeholder of unknown width
+    # — we don't penalize lines for variable refs; the model has been
+    # told their max widths.
+    without_vars = re.sub(r"\{\{[^}]+\}\}", "", line)
+    # Replace single-brace tokens with one char.
+    collapsed = re.sub(r"\{[^{}]+\}", "X", without_vars)
+    return len(collapsed)
+
+
+def _validate_and_repair(
+    raw: Dict[str, Any],
+    device_type: DeviceType,
+    known_variables: Dict[str, Dict[str, Dict[str, Any]]],
+) -> Tuple[Dict[str, Any], List[str]]:
+    """Coerce model output into a ``PageCreate``-shaped dict.
+
+    Returns the cleaned page dict and a list of human-readable warnings
+    describing repairs we made (or things we noticed but couldn't fix).
+    """
+    warnings: List[str] = []
+    dims = get_dimensions(device_type)
+
+    if not isinstance(raw, dict):
+        raise AIGenerationError("Model output was not a JSON object.")
+
+    page: Dict[str, Any] = {}
+
+    # name
+    name = raw.get("name")
+    if not isinstance(name, str) or not name.strip():
+        page["name"] = "AI Page"
+        warnings.append("Model did not return a name; using \"AI Page\".")
+    else:
+        page["name"] = name.strip()[:100]
+
+    # type — always template for AI pages.
+    if raw.get("type") not in (None, "template"):
+        warnings.append(
+            f"Model returned type={raw.get('type')!r}; coerced to 'template'."
+        )
+    page["type"] = "template"
+
+    # device_type — force to requested.
+    if raw.get("device_type") not in (None, device_type):
+        warnings.append(
+            f"Model returned device_type={raw.get('device_type')!r}; "
+            f"coerced to {device_type!r}."
+        )
+    page["device_type"] = device_type
+
+    # template lines
+    template = raw.get("template")
+    if not isinstance(template, list) or not template:
+        raise AIGenerationError(
+            "Model output is missing the required 'template' list."
+        )
+    template = [str(line) if line is not None else "" for line in template]
+
+    # Pad/trim to exact device row count.
+    if len(template) < dims.rows:
+        warnings.append(
+            f"Model returned {len(template)} lines; padded to {dims.rows} for "
+            f"{device_type}."
+        )
+        template = template + [""] * (dims.rows - len(template))
+    elif len(template) > dims.rows:
+        warnings.append(
+            f"Model returned {len(template)} lines; truncated to {dims.rows} "
+            f"for {device_type}."
+        )
+        template = template[: dims.rows]
+
+    # line_metadata
+    raw_meta = raw.get("line_metadata")
+    line_metadata: List[Dict[str, Any]] = []
+    if isinstance(raw_meta, list):
+        for item in raw_meta:
+            if not isinstance(item, dict):
+                line_metadata.append({"alignment": "left", "wrap": False})
+                continue
+            alignment = item.get("alignment", "left")
+            if alignment not in ("left", "center", "right"):
+                alignment = "left"
+            wrap = bool(item.get("wrap", False))
+            line_metadata.append({"alignment": alignment, "wrap": wrap})
+    while len(line_metadata) < len(template):
+        line_metadata.append({"alignment": "left", "wrap": False})
+    line_metadata = line_metadata[: len(template)]
+
+    # Trim oversized lines (only when wrap is False).
+    for i, line in enumerate(template):
+        if line_metadata[i].get("wrap"):
+            continue
+        width = _line_visible_width(line)
+        if width > dims.cols:
+            warnings.append(
+                f"Line {i + 1} was {width} columns wide (max {dims.cols}); "
+                "trimmed to fit. Consider enabling wrap on that line."
+            )
+            # Trim from the end while preserving leading variable refs.
+            # Conservative: just slice the literal string.
+            template[i] = line[: dims.cols]
+
+    page["template"] = template
+    page["line_metadata"] = line_metadata
+
+    # duration_seconds — clamp to allowed range.
+    duration = raw.get("duration_seconds", 300)
+    try:
+        duration = int(duration)
+    except (TypeError, ValueError):
+        duration = 300
+    page["duration_seconds"] = max(10, min(3600, duration))
+
+    # Flag references to unknown variables (don't strip — the engine
+    # tolerates unknown vars and the user may simply enable a plugin).
+    unknown = _find_unknown_variables(template, known_variables)
+    for ref in unknown:
+        warnings.append(
+            f"Template references unknown variable {{{{{ref}}}}}. The "
+            "plugin may not be enabled."
+        )
+
+    # Final structural validation via Pydantic.
+    try:
+        validated = PageCreate(**page)
+        # Also run the Page-level structural validator.
+        page_obj = Page(**validated.model_dump())
+        config_errors = page_obj.validate_config()
+        if config_errors:
+            warnings.extend(config_errors)
+        page = validated.model_dump(mode="json")
+    except Exception as exc:
+        raise AIGenerationError(
+            f"Model output failed validation: {exc}"
+        ) from exc
+
+    return page, warnings
+
+
+def _find_unknown_variables(
+    template: List[str],
+    known_variables: Dict[str, Dict[str, Dict[str, Any]]],
+) -> List[str]:
+    """Return a list of ``plugin.var`` refs not in ``known_variables``."""
+    seen: List[str] = []
+    for line in template:
+        for match in _VARIABLE_REF_RE.finditer(line):
+            plugin_id, var_name = match.group(1), match.group(2)
+            if plugin_id not in known_variables:
+                ref = f"{plugin_id}.{var_name}"
+                if ref not in seen:
+                    seen.append(ref)
+                continue
+            if var_name not in known_variables[plugin_id]:
+                ref = f"{plugin_id}.{var_name}"
+                if ref not in seen:
+                    seen.append(ref)
+    return seen
+
+
+def _resolve_provider(
+    providers_block: Dict[str, Any],
+    provider_id: Optional[str],
+) -> Dict[str, Any]:
+    """Pick the provider to use, preferring an explicit ``provider_id``.
+
+    Falls back to the configured default; raises if nothing is usable.
+    """
+    if not providers_block.get("enabled"):
+        raise AIGenerationError(
+            "AI providers are not enabled. Configure one in Settings first."
+        )
+    providers = providers_block.get("providers") or []
+    if not providers:
+        raise AIGenerationError(
+            "No AI providers are configured. Add one in Settings first."
+        )
+
+    if provider_id:
+        for provider in providers:
+            if provider.get("id") == provider_id:
+                return provider
+        raise AIGenerationError(f"AI provider {provider_id!r} not found.")
+
+    default_id = providers_block.get("default_provider_id")
+    if default_id:
+        for provider in providers:
+            if provider.get("id") == default_id:
+                return provider
+
+    return providers[0]
+
+
+def _resolve_model(provider: Dict[str, Any], model: Optional[str]) -> str:
+    """Pick the model id to send. Prefers explicit, then provider default."""
+    if model:
+        return model
+    if provider.get("default_model"):
+        return provider["default_model"]
+    models = provider.get("models") or []
+    if models:
+        return models[0]
+    raise AIGenerationError(
+        f"AI provider {provider.get('name', provider.get('id'))!r} has no "
+        "models configured."
+    )
+
+
+def _build_request_payload(
+    model: str,
+    context: PromptContext,
+) -> Dict[str, Any]:
+    """OpenAI-compatible chat completion request body."""
+    return {
+        "model": model,
+        "messages": context.to_messages(),
+        "temperature": _DEFAULT_TEMPERATURE,
+        "max_tokens": _DEFAULT_MAX_TOKENS,
+        # Most modern endpoints honor this; ones that don't will still
+        # produce JSON because the prompt is explicit.
+        "response_format": {"type": "json_object"},
+    }
+
+
+async def _post_chat_completion(
+    provider: Dict[str, Any],
+    payload: Dict[str, Any],
+    *,
+    timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    client: Optional[httpx.AsyncClient] = None,
+) -> Dict[str, Any]:
+    """POST to ``{base_url}/chat/completions`` and return the parsed JSON."""
+    base_url = (provider.get("base_url") or "").rstrip("/")
+    if not base_url:
+        raise AIGenerationError("AI provider has no base_url configured.")
+    url = f"{base_url}/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+    }
+    api_key = provider.get("api_key") or ""
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    extra = provider.get("headers") or {}
+    if isinstance(extra, dict):
+        for k, v in extra.items():
+            if isinstance(k, str) and isinstance(v, str):
+                headers[k] = v
+
+    owns_client = client is None
+    if owns_client:
+        client = httpx.AsyncClient(timeout=timeout_seconds)
+    try:
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+        except httpx.HTTPError as exc:
+            raise AIGenerationError(
+                f"Could not reach AI provider: {exc}"
+            ) from exc
+        if response.status_code >= 400:
+            # Try to surface the provider's own error message.
+            try:
+                err_body = response.json()
+                err_msg = (
+                    err_body.get("error", {}).get("message")
+                    if isinstance(err_body, dict)
+                    else None
+                ) or response.text
+            except Exception:
+                err_msg = response.text
+            raise AIGenerationError(
+                f"AI provider returned {response.status_code}: {err_msg}"
+            )
+        try:
+            return response.json()
+        except Exception as exc:
+            raise AIGenerationError(
+                f"AI provider returned non-JSON response: {exc}"
+            ) from exc
+    finally:
+        if owns_client:
+            await client.aclose()
+
+
+def _extract_message_content(api_response: Dict[str, Any]) -> str:
+    """Pull the assistant's text out of an OpenAI-shaped response."""
+    choices = api_response.get("choices") or []
+    if not choices:
+        raise AIGenerationError("AI provider returned no choices.")
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+    if isinstance(content, list):
+        # Some providers return content as a list of parts.
+        text_parts = [
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict) and part.get("type") in (None, "text")
+        ]
+        content = "".join(text_parts)
+    if not isinstance(content, str) or not content.strip():
+        raise AIGenerationError("AI provider returned an empty message.")
+    return content
+
+
+async def generate_page(
+    *,
+    user_prompt: str,
+    device_type: DeviceType,
+    providers_block: Dict[str, Any],
+    variables: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
+    plugin_demos: Optional[List[Dict[str, Any]]] = None,
+    current_page: Optional[Dict[str, Any]] = None,
+    provider_id: Optional[str] = None,
+    model: Optional[str] = None,
+    client: Optional[httpx.AsyncClient] = None,
+) -> Dict[str, Any]:
+    """Ask the user's configured LLM to draft a page.
+
+    Returns a dict ``{page, model_used, provider_id, warnings, usage}``.
+    The ``page`` value is a ``PageCreate``-shaped dict; the caller is
+    responsible for handing it to the editor (we never persist it).
+
+    Raises:
+        AIGenerationError: For predictable, user-visible failures.
+    """
+    if not user_prompt or not user_prompt.strip():
+        raise AIGenerationError("Prompt is empty.")
+
+    provider = _resolve_provider(providers_block, provider_id)
+    chosen_model = _resolve_model(provider, model)
+
+    context = build_prompt(
+        user_prompt=user_prompt.strip(),
+        device_type=device_type,
+        variables=variables,
+        plugin_demos=plugin_demos,
+        current_page=current_page,
+    )
+
+    payload = _build_request_payload(chosen_model, context)
+    api_response = await _post_chat_completion(provider, payload, client=client)
+
+    text = _extract_message_content(api_response)
+    raw = _extract_json_object(text)
+    page, warnings = _validate_and_repair(raw, device_type, variables or {})
+
+    usage = api_response.get("usage") or {}
+
+    return {
+        "page": page,
+        "model_used": chosen_model,
+        "provider_id": provider.get("id"),
+        "warnings": warnings,
+        "usage": {
+            "prompt_tokens": usage.get("prompt_tokens"),
+            "completion_tokens": usage.get("completion_tokens"),
+            "total_tokens": usage.get("total_tokens"),
+        },
+    }
+
+
+async def test_provider(
+    provider: Dict[str, Any],
+    *,
+    model: Optional[str] = None,
+    client: Optional[httpx.AsyncClient] = None,
+    timeout_seconds: float = 30.0,
+) -> Dict[str, Any]:
+    """Send a tiny smoke-test request to verify a provider works.
+
+    Returns ``{ok: bool, message: str, model_used: str}``. Never raises;
+    failures are returned as ``ok: False``.
+    """
+    try:
+        chosen_model = _resolve_model(provider, model)
+    except AIGenerationError as exc:
+        return {"ok": False, "message": str(exc), "model_used": None}
+
+    payload = {
+        "model": chosen_model,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Reply with the single word: ok",
+            }
+        ],
+        "max_tokens": 5,
+        "temperature": 0,
+    }
+    try:
+        response = await _post_chat_completion(
+            provider, payload, timeout_seconds=timeout_seconds, client=client
+        )
+        content = _extract_message_content(response)
+    except AIGenerationError as exc:
+        return {"ok": False, "message": str(exc), "model_used": chosen_model}
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("Unexpected error during provider test: %s", exc)
+        return {"ok": False, "message": str(exc), "model_used": chosen_model}
+
+    return {
+        "ok": True,
+        "message": f"Connected. Model replied: {content[:80]}",
+        "model_used": chosen_model,
+    }
