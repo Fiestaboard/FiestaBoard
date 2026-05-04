@@ -39,6 +39,47 @@ FEATURE_TO_PLUGIN_MAP = {
 # Fields excluded from feature-to-plugin migration (handled by manifest defaults)
 MIGRATION_EXCLUDED_FIELDS = {"color_rules"}
 
+# Plugin renames applied on startup. Maps an obsolete plugin id to its
+# replacement id. Each entry is a one-shot, idempotent rename of the
+# `plugins.<old_id>` config block to `plugins.<new_id>`.
+PLUGIN_ID_RENAMES: Dict[str, str] = {
+    # v2.0.0 of the bike share plugin generalised to all Lyft-operated
+    # GBFS systems (Bay Wheels, CitiBike, Capital Bikeshare, Biketown,
+    # Divvy, ...) and renamed the plugin id.
+    "baywheels": "lyft_bikeshare",
+}
+
+# Per-rename adjustments to the migrated settings dict. Each handler
+# receives a deep-copied settings dict and returns the adjusted dict
+# that will be written under the new plugin id. Used to drop fields
+# that no longer exist in the new manifest and seed new defaults.
+def _adjust_baywheels_to_lyft_bikeshare(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Adjust a v1 baywheels config to fit the v2 lyft_bikeshare schema.
+
+    - Promotes the legacy singular ``station_id`` into ``station_ids`` if
+      the list is empty (so users with the old single-station setup
+      keep monitoring the same station).
+    - Drops the deprecated singular ``station_id`` and ``station_name``
+      fields, which were removed in v2.0.0.
+    - Seeds a default ``gbfs_base_url`` (Bay Wheels) if not present, so
+      existing users keep pointing at the same feed without manual
+      reconfiguration.
+    """
+    legacy_id = cfg.pop("station_id", None)
+    cfg.pop("station_name", None)
+
+    station_ids = cfg.get("station_ids")
+    if not station_ids and legacy_id:
+        cfg["station_ids"] = [legacy_id]
+
+    cfg.setdefault("gbfs_base_url", "https://gbfs.baywheels.com/gbfs/en")
+    return cfg
+
+
+PLUGIN_RENAME_ADJUSTERS: Dict[str, Any] = {
+    "baywheels": _adjust_baywheels_to_lyft_bikeshare,
+}
+
 # Default configuration schema
 DEFAULT_CONFIG: Dict[str, Any] = {
     "board": {
@@ -276,6 +317,7 @@ class ConfigManager:
         self._raw_features: Dict[str, Any] = {}
         self._load_or_create()
         self._auto_migrate_features_to_plugins()
+        self._migrate_renamed_plugins()
         self._apply_env_overrides()
         self._initialized = True
 
@@ -416,6 +458,70 @@ class ConfigManager:
 
         logger.info(
             f"Auto-migration complete: {len(to_migrate)} feature(s) migrated to plugins"
+        )
+
+    def _migrate_renamed_plugins(self) -> None:
+        """Apply one-shot plugin id renames defined in PLUGIN_ID_RENAMES.
+
+        For each ``old_id -> new_id`` entry, if ``plugins.<old_id>`` exists
+        and ``plugins.<new_id>`` does not, the old block is moved under the
+        new id (running an optional adjuster to drop/rename fields). If
+        both exist, the old block is dropped to avoid leaking stale
+        settings. The pass is naturally idempotent — once the rename has
+        run, ``plugins.<old_id>`` no longer exists and the loop is a
+        no-op.
+        """
+        plugins = self._config.get("plugins")
+        if not isinstance(plugins, dict) or not plugins:
+            return
+
+        renamed: List[tuple] = []
+        for old_id, new_id in PLUGIN_ID_RENAMES.items():
+            if old_id not in plugins:
+                continue
+
+            old_cfg = plugins[old_id]
+            if not isinstance(old_cfg, dict):
+                # Unexpected shape; drop it silently rather than raise.
+                plugins.pop(old_id, None)
+                continue
+
+            if new_id in plugins:
+                # User already has the new plugin configured; drop the
+                # stale old entry without overwriting their config.
+                plugins.pop(old_id, None)
+                logger.info(
+                    f"Plugin rename '{old_id}' -> '{new_id}': new id already "
+                    f"present, dropping stale old config"
+                )
+                renamed.append((old_id, new_id, False))
+                continue
+
+            adjuster = PLUGIN_RENAME_ADJUSTERS.get(old_id)
+            new_cfg = self._deep_copy(old_cfg)
+            if adjuster is not None:
+                try:
+                    new_cfg = adjuster(new_cfg)
+                except Exception as e:  # pragma: no cover - defensive
+                    logger.warning(
+                        f"Adjuster for plugin rename '{old_id}' -> '{new_id}' "
+                        f"failed ({e}); falling back to a plain rename"
+                    )
+                    new_cfg = self._deep_copy(old_cfg)
+
+            plugins[new_id] = new_cfg
+            plugins.pop(old_id, None)
+            renamed.append((old_id, new_id, True))
+            logger.info(f"Renamed plugin config '{old_id}' -> '{new_id}'")
+
+        if not renamed:
+            return
+
+        with self._file_lock:
+            self._save_internal()
+
+        logger.info(
+            f"Plugin rename migration complete: {len(renamed)} plugin(s) processed"
         )
 
     def _save_internal(self) -> None:
