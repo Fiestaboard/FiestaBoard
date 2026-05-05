@@ -1489,6 +1489,46 @@ def validate_expression(
     return issues
 
 
+def extract_sources(expression: str) -> set:
+    """Return the set of plugin source IDs referenced by a formula body.
+
+    Walks the parsed AST for :class:`_Var` nodes and returns the first
+    dotted segment (the plugin source) of each, lower-cased. Unlike
+    :func:`validate_expression` this preserves any instance suffix
+    (``weather:sf``) so callers can distinguish instances from the base
+    plugin.
+
+    Returns an empty set for an empty body or a body that fails to
+    parse — the caller is expected to surface parse errors via
+    :func:`validate_expression` separately.
+    """
+    sources: set = set()
+    if not expression or not expression.strip():
+        return sources
+    try:
+        tokens = _tokenize(expression)
+        tree = _Parser(tokens).parse()
+    except FormulaError:
+        return sources
+
+    def _walk(node: _Node) -> None:
+        if isinstance(node, _Var):
+            head = node.path.split(".", 1)[0].strip().lower()
+            if head:
+                sources.add(head)
+        elif isinstance(node, _Call):
+            for child in node.args:
+                _walk(child)
+        elif isinstance(node, _Unary):
+            _walk(node.operand)
+        elif isinstance(node, _Binary):
+            _walk(node.left)
+            _walk(node.right)
+
+    _walk(tree)
+    return sources
+
+
 # Statically known minimum/maximum arities, used by :func:`validate_expression`.
 # ``None`` means "unbounded". Functions that don't appear here are assumed to
 # accept any number of arguments (we still rely on runtime ``_expect_args``
@@ -1599,6 +1639,7 @@ __all__ = [
     "FormulaError",
     "evaluate",
     "validate_expression",
+    "extract_sources",
     "render_expressions",
     "find_formulas",
     "list_builtins",

@@ -423,7 +423,24 @@ class PageService:
             # The template engine already handles tile-aware truncation in render_lines()
             # via _truncate_to_tiles() - color codes like {63} count as 1 tile each
             meta = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
-            formatted = template_engine.render_lines(page.template, context=context, line_metadata=meta, device_type=page.device_type)
+            # Scope plugin fetches to only the plugins this template actually
+            # references.  This prevents quota-bound plugins (genai, weather,
+            # stocks, …) from being polled on every render when nothing on
+            # the board uses them.  When ``context`` is supplied by a batch
+            # caller it is reused as-is — the batch already scoped its own
+            # context build to the union of references across pages.
+            referenced = (
+                template_engine.referenced_plugin_ids(page.template, line_metadata=meta)
+                if context is None
+                else None
+            )
+            formatted = template_engine.render_lines(
+                page.template,
+                context=context,
+                line_metadata=meta,
+                device_type=page.device_type,
+                plugin_ids=referenced,
+            )
             
             # Note: We do NOT truncate/pad by character count here because:
             # - Color codes like {63} are 4 characters but represent 1 tile
@@ -521,13 +538,25 @@ class PageService:
             
             pages_to_render.append((page_id, page))
         
-        # Build shared template context once if any template pages need rendering
+        # Build shared template context once if any template pages need rendering.
+        # Scope the build to the union of plugins referenced across all template
+        # pages in the batch, so unrelated plugins are never fetched.
         shared_context = None
-        has_template_pages = any(p.type == "template" for _, p in pages_to_render)
-        if has_template_pages:
+        template_pages = [(pid, p) for pid, p in pages_to_render if p.type == "template"]
+        if template_pages:
             try:
                 template_engine = get_template_engine()
-                shared_context = template_engine._build_context()
+                referenced: set = set()
+                for _, p in template_pages:
+                    meta = (
+                        [m.model_dump() for m in p.line_metadata]
+                        if p.line_metadata
+                        else None
+                    )
+                    referenced.update(
+                        template_engine.referenced_plugin_ids(p.template, line_metadata=meta)
+                    )
+                shared_context = template_engine._build_context(plugin_ids=referenced)
             except Exception as e:
                 logger.error(f"Failed to build shared template context: {e}")
         

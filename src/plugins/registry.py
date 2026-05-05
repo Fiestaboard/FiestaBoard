@@ -12,7 +12,7 @@ import re
 import logging
 from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
@@ -1006,11 +1006,28 @@ class PluginRegistry:
             if self._enabled.get(pid, False) and plugin.supports_triggers
         }
 
-    def build_template_context(self) -> Dict[str, Any]:
+    def build_template_context(
+        self,
+        plugin_ids: Optional[Iterable[str]] = None,
+    ) -> Dict[str, Any]:
         """Build context dictionary for template rendering.
 
-        Fetches data from all enabled plugins in parallel so that slow or
+        Fetches data from enabled plugins in parallel so that slow or
         unresponsive external data sources do not block each other.
+
+        Args:
+            plugin_ids: Optional iterable of base plugin IDs to limit the
+                fetch to.  When provided, only enabled plugins whose
+                base ID (the part before any ``:instance`` suffix) is in
+                this set are queried.  Plugins outside the set are
+                simply absent from the returned context — templates that
+                reference them will render those slots as empty strings,
+                which is the same behavior as a disabled plugin.
+
+                When ``None`` (the default) every enabled plugin is
+                fetched.  This preserves the legacy behavior used by
+                tooling that needs to expose all available data, such
+                as the variable picker in the page editor.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -1020,6 +1037,19 @@ class PluginRegistry:
 
         if not enabled:
             return context
+
+        if plugin_ids is not None:
+            scope = {pid.lower() for pid in plugin_ids if pid}
+            if not scope:
+                # Explicit empty scope: fetch nothing.
+                return context
+            enabled = [
+                key
+                for key in enabled
+                if self.parse_instance_key(key)[0].lower() in scope
+            ]
+            if not enabled:
+                return context
 
         # Fetch every plugin concurrently; cap the pool to avoid spawning an
         # unbounded number of threads when many plugins are enabled.

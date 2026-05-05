@@ -930,6 +930,7 @@ class TestPageService:
         mock_engine = Mock()
         mock_engine._build_context.return_value = {"weather": {"temp": 72}}
         mock_engine.render_lines.return_value = "Hello World\n\n\n\n\n"
+        mock_engine.referenced_plugin_ids.return_value = set()
         mock_get_engine.return_value = mock_engine
         
         # Create multiple template pages
@@ -954,6 +955,7 @@ class TestPageService:
         mock_engine = Mock()
         mock_engine._build_context.return_value = {}
         mock_engine.render_lines.return_value = "Rendered\n\n\n\n\n"
+        mock_engine.referenced_plugin_ids.return_value = set()
         mock_get_engine.return_value = mock_engine
         
         page1 = service.create_page(PageCreate(name="Page 1", type="template", template=["Hello", "", "", "", "", ""]))
@@ -975,6 +977,88 @@ class TestPageService:
         """Test that batch preview handles nonexistent pages."""
         results = service.preview_pages_batch(["nonexistent-id"])
         assert results["nonexistent-id"] is None
+
+    @patch('src.pages.service.get_template_engine')
+    def test_render_template_only_fetches_referenced_plugins(self, mock_get_engine, service):
+        """_render_template scopes the context build to the plugins the
+        template actually references — quota-bound plugins (genai etc.)
+        are not fetched when unrelated pages are rendered.
+
+        This is the regression that caused the once-per-hour OpenRouter
+        heartbeat described in the bug report.
+        """
+        mock_engine = Mock()
+        mock_engine.referenced_plugin_ids.return_value = {"date_time"}
+        mock_engine.render_lines.return_value = "12:00\n\n\n\n\n"
+        mock_get_engine.return_value = mock_engine
+
+        page = service.create_page(PageCreate(
+            name="Clock",
+            type="template",
+            template=["{{date_time.time}}", "", "", "", "", ""],
+        ))
+
+        result = service.render_page(page)
+
+        assert result.available is True
+        # The engine was asked to build context only for date_time —
+        # genai / weather / stocks were not part of the scope.
+        mock_engine.render_lines.assert_called_once()
+        kwargs = mock_engine.render_lines.call_args.kwargs
+        assert kwargs.get("plugin_ids") == {"date_time"}
+
+    @patch('src.pages.service.get_template_engine')
+    def test_preview_pages_batch_scopes_shared_context(self, mock_get_engine, service):
+        """Batch preview builds shared context from the union of referenced
+        plugin ids across template pages — never the full enabled set."""
+        mock_engine = Mock()
+        # Each page references a different plugin.
+        mock_engine.referenced_plugin_ids.side_effect = lambda template, line_metadata=None: (
+            {"date_time"} if "date_time" in (template[0] if template else "")
+            else {"weather"} if "weather" in (template[0] if template else "")
+            else set()
+        )
+        mock_engine._build_context.return_value = {}
+        mock_engine.render_lines.return_value = "Rendered\n\n\n\n\n"
+        mock_get_engine.return_value = mock_engine
+
+        page1 = service.create_page(PageCreate(
+            name="Clock", type="template",
+            template=["{{date_time.time}}", "", "", "", "", ""],
+        ))
+        page2 = service.create_page(PageCreate(
+            name="Weather", type="template",
+            template=["{{weather.temp}}", "", "", "", "", ""],
+        ))
+
+        service.preview_pages_batch([page1.id, page2.id])
+
+        mock_engine._build_context.assert_called_once()
+        # Either positional or keyword — accept both.
+        call_args = mock_engine._build_context.call_args
+        scope = call_args.kwargs.get("plugin_ids")
+        if scope is None and call_args.args:
+            scope = call_args.args[0]
+        assert scope == {"date_time", "weather"}
+
+    @patch('src.pages.service.get_template_engine')
+    def test_render_template_with_no_references_uses_empty_scope(self, mock_get_engine, service):
+        """A static template with no {{plugin.x}} references must not
+        trigger any plugin fetches at all."""
+        mock_engine = Mock()
+        mock_engine.referenced_plugin_ids.return_value = set()
+        mock_engine.render_lines.return_value = "Hello\n\n\n\n\n"
+        mock_get_engine.return_value = mock_engine
+
+        page = service.create_page(PageCreate(
+            name="Static", type="template",
+            template=["Hello", "", "", "", "", ""],
+        ))
+
+        service.render_page(page)
+
+        mock_engine.render_lines.assert_called_once()
+        assert mock_engine.render_lines.call_args.kwargs.get("plugin_ids") == set()
 
 
 class TestPagesAPIEndpoints:

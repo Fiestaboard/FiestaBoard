@@ -969,3 +969,85 @@ class TestCompoundPluginKeys:
         engine._get_color_only("weather:sf", "change_percent", context)
         mock_cm.get_color_rules.assert_called_with("weather", "change_percent")
 
+
+
+class TestReferencedPluginIds:
+    """Tests for TemplateEngine.referenced_plugin_ids — static extraction of
+    the plugin sources a template depends on.
+
+    These tests guard the optimization that prevents quota-bound plugins
+    (genai, weather, stocks, …) from being polled when nothing on the
+    board references them.
+    """
+
+    @pytest.fixture
+    def engine(self):
+        return TemplateEngine()
+
+    def test_empty_inputs_return_empty_set(self, engine):
+        assert engine.referenced_plugin_ids([]) == set()
+        assert engine.referenced_plugin_ids("") == set()
+        assert engine.referenced_plugin_ids(None) == set()
+        assert engine.referenced_plugin_ids(["", "", ""]) == set()
+
+    def test_plain_variable_reference(self, engine):
+        assert engine.referenced_plugin_ids(["{{weather.temperature}}"]) == {"weather"}
+
+    def test_filtered_variable_reference(self, engine):
+        # |pad:3 has its own colon argument; the source must still be 'weather'.
+        assert engine.referenced_plugin_ids(["{{weather.temperature|pad:3}}"]) == {"weather"}
+
+    def test_instance_suffix_is_stripped_to_base_id(self, engine):
+        # weather:sf is an instance of the weather plugin; the registry stores
+        # both as separate keys, but referenced_plugin_ids returns the base id
+        # so build_template_context can match enabled instances by base.
+        assert engine.referenced_plugin_ids(["{{weather:sf.temp}}"]) == {"weather"}
+
+    def test_formula_reference(self, engine):
+        result = engine.referenced_plugin_ids(["{{= weather.temp + stocks.aapl }}"])
+        assert result == {"weather", "stocks"}
+
+    def test_formula_with_function_calls(self, engine):
+        result = engine.referenced_plugin_ids(
+            ["{{= IF(weather.temp > 70, COLOR(stocks.color), date_time.time) }}"]
+        )
+        assert result == {"weather", "stocks", "date_time"}
+
+    def test_mixed_template(self, engine):
+        lines = [
+            "{{date_time.time}}",
+            "Temp: {{weather.temperature|pad:3}}",
+            "{{red}} {{stocks.aapl}} {{blue}}",
+            "{{= weather.feels_like - 5 }}",
+            "Hello world",
+        ]
+        assert engine.referenced_plugin_ids(lines) == {"date_time", "weather", "stocks"}
+
+    def test_color_tokens_are_excluded(self, engine):
+        # {{red}}, {{blue}}, {{63}}, {{filled}} are not plugin references.
+        assert engine.referenced_plugin_ids(
+            ["{{red}}", "{{blue}}", "{{63}}", "{{filled}}", "{{purple}}"]
+        ) == set()
+
+    def test_fill_space_tokens_are_excluded(self, engine):
+        assert engine.referenced_plugin_ids(
+            ["{{fill_space}}", "{{fill_space_repeat:abc}}"]
+        ) == set()
+
+    def test_symbols_are_excluded(self, engine):
+        # {sun}, {cloud} use single braces and never look like plugin refs,
+        # but ensure they don't contribute regardless.
+        assert engine.referenced_plugin_ids(["{sun} {cloud}"]) == set()
+
+    def test_string_template_input(self, engine):
+        assert engine.referenced_plugin_ids("{{weather.temp}}\n{{stocks.aapl}}") == {
+            "weather",
+            "stocks",
+        }
+
+    def test_unparseable_formula_does_not_raise(self, engine):
+        # A malformed formula body should not crash extraction; it just
+        # contributes no sources (validate_expression surfaces the syntax
+        # error separately).
+        result = engine.referenced_plugin_ids(["Hello {{= ( }}", "{{date_time.time}}"])
+        assert result == {"date_time"}

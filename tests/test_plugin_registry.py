@@ -544,6 +544,148 @@ def test_build_template_context_skips_unavailable(registry, mock_loader, mock_pl
     assert "test_plugin" not in context
 
 
+# --- build_template_context: scoping (plugin_ids) ---
+
+
+def _make_plugin(plugin_id: str, data: dict):
+    """Build a mock plugin that returns the given data when fetched."""
+    p = MagicMock(spec=PluginBase)
+    p.plugin_id = plugin_id
+    p.validate_config.return_value = []
+    p._validate_refresh_seconds.return_value = []
+    p.get_data.return_value = PluginResult(available=True, data=data)
+    p.fetch_data.return_value = PluginResult(available=True, data=data)
+    p.enabled = False
+    p.config = {}
+    return p
+
+
+@pytest.fixture
+def multi_plugin_registry(mock_loader, mock_manifest):
+    """Registry with three enabled plugins: date_time, weather, genai."""
+    plugins = {
+        "date_time": _make_plugin("date_time", {"time": "12:00"}),
+        "weather": _make_plugin("weather", {"temperature": 72}),
+        "genai": _make_plugin("genai", {"image": "x"}),
+    }
+    mock_loader.load_all_plugins.return_value = plugins
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid in plugins else None
+    with patch("src.plugins.registry.PluginLoader", return_value=mock_loader):
+        reg = PluginRegistry(plugins_dir=Path("/fake/plugins"))
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            pid: {"enabled": True} for pid in plugins
+        }
+        reg.initialize()
+    return reg, plugins
+
+
+def test_build_template_context_scope_only_fetches_listed_plugins(multi_plugin_registry):
+    """When plugin_ids is provided, only listed plugins are fetched."""
+    registry, plugins = multi_plugin_registry
+
+    context = registry.build_template_context(plugin_ids={"date_time"})
+
+    assert set(context.keys()) == {"date_time"}
+    plugins["date_time"].get_data.assert_called_once()
+    plugins["weather"].get_data.assert_not_called()
+    plugins["genai"].get_data.assert_not_called()
+
+
+def test_build_template_context_scope_supports_multiple_ids(multi_plugin_registry):
+    registry, plugins = multi_plugin_registry
+
+    context = registry.build_template_context(plugin_ids={"date_time", "weather"})
+
+    assert set(context.keys()) == {"date_time", "weather"}
+    plugins["genai"].get_data.assert_not_called()
+
+
+def test_build_template_context_none_scope_fetches_all(multi_plugin_registry):
+    """plugin_ids=None preserves the legacy 'fetch every enabled' behavior."""
+    registry, plugins = multi_plugin_registry
+
+    context = registry.build_template_context()
+
+    assert set(context.keys()) == {"date_time", "weather", "genai"}
+    for plugin in plugins.values():
+        plugin.get_data.assert_called_once()
+
+
+def test_build_template_context_empty_scope_fetches_nothing(multi_plugin_registry):
+    """An explicit empty scope must short-circuit and never fetch anything."""
+    registry, plugins = multi_plugin_registry
+
+    context = registry.build_template_context(plugin_ids=set())
+
+    assert context == {}
+    for plugin in plugins.values():
+        plugin.get_data.assert_not_called()
+
+
+def test_build_template_context_scope_skips_unknown_ids(multi_plugin_registry):
+    """Plugins outside enabled_plugins are silently ignored."""
+    registry, plugins = multi_plugin_registry
+
+    context = registry.build_template_context(plugin_ids={"date_time", "not_a_plugin"})
+
+    assert set(context.keys()) == {"date_time"}
+    plugins["weather"].get_data.assert_not_called()
+    plugins["genai"].get_data.assert_not_called()
+
+
+def test_build_template_context_scope_skips_disabled_plugins(mock_loader, mock_manifest):
+    """A disabled plugin is never fetched even when listed in plugin_ids.
+
+    This guarantees the existing user kill-switch (disable in settings)
+    keeps working: fetch_plugin_data short-circuits on _enabled.
+    """
+    weather = _make_plugin("weather", {"temperature": 72})
+    mock_loader.load_all_plugins.return_value = {"weather": weather}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "weather" else None
+    with patch("src.plugins.registry.PluginLoader", return_value=mock_loader):
+        reg = PluginRegistry(plugins_dir=Path("/fake/plugins"))
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        # Plugin loaded but disabled.
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": False}}
+        reg.initialize()
+
+    context = reg.build_template_context(plugin_ids={"weather"})
+
+    assert context == {}
+    weather.get_data.assert_not_called()
+
+
+def test_build_template_context_scope_matches_instance_keys_by_base_id(mock_loader, mock_manifest):
+    """plugin_ids contains base IDs; instance keys (weather:sf) match by base."""
+    weather_sf = _make_plugin("weather", {"temperature": 72})
+    weather_nyc = _make_plugin("weather", {"temperature": 50})
+    stocks = _make_plugin("stocks", {"aapl": 200})
+    mock_loader.load_all_plugins.return_value = {
+        "weather:sf": weather_sf,
+        "weather:nyc": weather_nyc,
+        "stocks": stocks,
+    }
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid in {
+        "weather:sf", "weather:nyc", "stocks"
+    } else None
+    with patch("src.plugins.registry.PluginLoader", return_value=mock_loader):
+        reg = PluginRegistry(plugins_dir=Path("/fake/plugins"))
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "weather:sf": {"enabled": True},
+            "weather:nyc": {"enabled": True},
+            "stocks": {"enabled": True},
+        }
+        reg.initialize()
+
+    context = reg.build_template_context(plugin_ids={"weather"})
+
+    # Both instances should be fetched because their base id is 'weather'.
+    assert set(context.keys()) == {"weather:sf", "weather:nyc"}
+    stocks.get_data.assert_not_called()
+
+
 # --- get_plugin_registry / reset_plugin_registry ---
 
 

@@ -30,13 +30,18 @@ Plugin IDs are used as template namespaces (e.g., {{weather.temp}}, {{stocks.sym
 
 import re
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Iterable, List, Optional, Set
 from dataclasses import dataclass
 
 from ..plugins import get_plugin_registry
 from ..text_utils import extract_alignment_from_line
 from ..devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
-from .expressions import render_expressions, validate_expression, find_formulas
+from .expressions import (
+    extract_sources,
+    find_formulas,
+    render_expressions,
+    validate_expression,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +279,7 @@ class TemplateEngine:
         context: Optional[Dict[str, Any]] = None,
         line_metadata: Optional[List[dict]] = None,
         device_type: Optional[str] = None,
+        plugin_ids: Optional[Iterable[str]] = None,
     ) -> str:
         """Render a list of template lines (for template pages).
         
@@ -293,12 +299,19 @@ class TemplateEngine:
                 content (no prefix parsing).
             device_type: Device type ('flagship' or 'note') to determine board
                 dimensions. Defaults to flagship (22 cols, 6 rows).
-            
+            plugin_ids: Optional iterable of plugin IDs to scope the
+                context fetch to.  Only used when ``context`` is None
+                (i.e. this method is responsible for building it).
+                When ``None``, all enabled plugins are fetched (legacy
+                behavior).  Pass the result of
+                :meth:`referenced_plugin_ids` to ensure that only
+                plugins actually used by the template are queried.
+
         Returns:
             Rendered string with newlines
         """
         if context is None:
-            context = self._build_context()
+            context = self._build_context(plugin_ids=plugin_ids)
         
         dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
                                       DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
@@ -714,16 +727,25 @@ class TemplateEngine:
         
         return lines
     
-    def _build_context(self) -> Dict[str, Any]:
-        """Build context by fetching all available data from enabled plugins.
-        
+    def _build_context(
+        self, plugin_ids: Optional[Iterable[str]] = None
+    ) -> Dict[str, Any]:
+        """Build context by fetching available data from enabled plugins.
+
+        Args:
+            plugin_ids: Optional iterable of base plugin IDs to scope the
+                fetch to. Plugin instances whose base ID is in this set
+                are included; all others are skipped. ``None`` keeps the
+                legacy "fetch every enabled plugin" behavior used by
+                tooling (variable picker, etc).
+
         Returns:
             Dictionary mapping plugin_id to plugin data
         """
         if not self._plugin_registry:
             return {}
-        
-        return self._plugin_registry.build_template_context()
+
+        return self._plugin_registry.build_template_context(plugin_ids=plugin_ids)
     
     def _render_variables(self, template: str, context: Dict[str, Any]) -> str:
         """Replace {{source.field}} variables with values from context.
@@ -1295,7 +1317,88 @@ class TemplateEngine:
         if not self._plugin_registry:
             return []
         return list(self._plugin_registry.enabled_plugins.keys())
-    
+
+    def referenced_plugin_ids(
+        self,
+        template: Any,
+        line_metadata: Optional[List[dict]] = None,
+    ) -> Set[str]:
+        """Return the set of base plugin IDs referenced by a template.
+
+        Walks the template lines (or single string) and statically extracts
+        every plugin source mentioned by either a plain ``{{plugin.field}}``
+        variable, an ``{{= ... }}`` formula, or an alignment-prefixed line.
+
+        - Filter suffixes (``|pad:3``, ``|upper``) are stripped.
+        - Instance suffixes (``weather:sf``) are stripped to the base ID
+          (``weather``) so the caller fetches the entire instance family
+          owned by the underlying plugin module.
+        - Color names, color codes, symbol shortcuts, and the
+          ``fill_space`` token are excluded — they are not plugin sources.
+
+        Args:
+            template: Either a list of template lines or a single template
+                string.  Empty/None inputs return an empty set.
+            line_metadata: Unused today but accepted to mirror
+                :meth:`render_lines` so callers can pass through the
+                same shape without conditionals.
+
+        Returns:
+            Set of base plugin IDs (lower-cased) referenced by the
+            template.  Pure parsing — no plugin code runs.
+        """
+        del line_metadata  # not needed; kept for signature symmetry
+        if not template:
+            return set()
+
+        if isinstance(template, str):
+            lines: List[str] = template.split("\n")
+        else:
+            lines = [str(line) if line is not None else "" for line in template]
+
+        # Reserved tokens that match VAR_PATTERN but are not plugin sources.
+        reserved_heads = set(COLOR_CODES.keys()) | {"fill_space"}
+
+        sources: Set[str] = set()
+        for line in lines:
+            if not line:
+                continue
+
+            # Plain {{source.field|filter}} references.
+            for match in VAR_PATTERN.finditer(line):
+                expr = match.group(1).strip()
+                if not expr or expr.startswith("="):
+                    # Formulas are handled below.
+                    continue
+                # Drop trailing |filter[:arg] segments.
+                head = expr.split("|", 1)[0].strip()
+                # fill_space_repeat:... has a colon-separated argument.
+                head = head.split(":", 1)[0] if head.lower().startswith("fill_space") else head
+                if "." not in head:
+                    # Tokens like {{red}}, {{63}}, {{fill_space}} have no dot.
+                    if head.lower() in reserved_heads:
+                        continue
+                    if head.lower().isdigit():
+                        continue
+                    # Bare identifier — not a plugin reference.
+                    continue
+                source = head.split(".", 1)[0].strip().lower()
+                if not source or source in reserved_heads:
+                    continue
+                # Strip instance suffix: "weather:sf" -> "weather".
+                base = source.split(":", 1)[0]
+                if base:
+                    sources.add(base)
+
+            # Formula bodies ({{= ... }}).
+            for _start, _end, body in find_formulas(line):
+                for source in extract_sources(body):
+                    base = source.split(":", 1)[0]
+                    if base and base not in reserved_heads:
+                        sources.add(base)
+
+        return sources
+
     def validate_template(self, template: str) -> List[TemplateError]:
         """Validate template syntax.
         

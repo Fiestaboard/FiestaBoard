@@ -881,3 +881,46 @@ class TestExpressionIssueShape:
         assert set(d.keys()) == {"code", "message", "pos"}
         assert d["code"] == "#SYNTAX"
         assert d["pos"] == 0
+
+
+# --- extract_sources -----------------------------------------------------
+
+
+class TestExtractSources:
+    """Tests for :func:`src.templates.expressions.extract_sources`."""
+
+    def test_empty(self):
+        from src.templates.expressions import extract_sources
+
+        assert extract_sources("") == set()
+        assert extract_sources("   ") == set()
+
+    def test_single_source(self):
+        from src.templates.expressions import extract_sources
+
+        assert extract_sources("weather.temp") == {"weather"}
+
+    def test_multiple_sources_via_arithmetic(self):
+        from src.templates.expressions import extract_sources
+
+        assert extract_sources("weather.temp + stocks.aapl") == {"weather", "stocks"}
+
+    def test_function_call_args(self):
+        from src.templates.expressions import extract_sources
+
+        assert extract_sources("IF(weather.temp > 70, stocks.aapl, date_time.time)") == {
+            "weather",
+            "stocks",
+            "date_time",
+        }
+
+    def test_lowercases_source(self):
+        from src.templates.expressions import extract_sources
+
+        assert extract_sources("WEATHER.temp") == {"weather"}
+
+    def test_unparseable_returns_empty(self):
+        from src.templates.expressions import extract_sources
+
+        # Garbled expression must not raise.
+        assert extract_sources("(((") == set()
