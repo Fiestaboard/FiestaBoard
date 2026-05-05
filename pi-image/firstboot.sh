@@ -33,10 +33,18 @@ fi
 # Expected file format (plain text, one key=value per line):
 #   SSID=MyNetwork
 #   PASSWORD=MyPassword
+#   COUNTRY=US        # optional, ISO-3166 alpha-2; defaults to US
 #
+# NOTE: On a fresh Raspberry Pi OS install the WiFi radio is rfkill-blocked
+# until a wireless regulatory country is set.  Without this, `nmcli device
+# wifi connect` fails with "Error: Failed to add/activate new connection:
+# WiFi is currently blocked by rfkill" and the user has to drop into
+# raspi-config manually.  We unblock + set the country *before* attempting
+# the connection.
 if [ -f "$WIFI_CONFIG_FILE" ]; then
     WIFI_SSID=""
     WIFI_PASSWORD=""
+    WIFI_COUNTRY=""
 
     while IFS='=' read -r key value; do
         # Strip leading/trailing whitespace and ignore comment lines.
@@ -45,6 +53,7 @@ if [ -f "$WIFI_CONFIG_FILE" ]; then
         case "$key" in
             SSID)     WIFI_SSID="$value" ;;
             PASSWORD) WIFI_PASSWORD="$value" ;;
+            COUNTRY)  WIFI_COUNTRY="$value" ;;
         esac
     done < "$WIFI_CONFIG_FILE"
 
@@ -53,6 +62,27 @@ if [ -f "$WIFI_CONFIG_FILE" ]; then
     rm -f "$WIFI_CONFIG_FILE"
 
     if [ -n "$WIFI_SSID" ]; then
+        # Default to US if the user didn't specify a country.  The radio
+        # stays rfkill-blocked until a country is set, so a default is
+        # better than failing silently.  Uppercase to match ISO-3166.
+        WIFI_COUNTRY="${WIFI_COUNTRY:-US}"
+        WIFI_COUNTRY="$(echo "$WIFI_COUNTRY" | tr '[:lower:]' '[:upper:]')"
+
+        # Set the WiFi regulatory domain.  raspi-config's nonint helper
+        # writes the country to wpa_supplicant.conf / NetworkManager,
+        # calls `iw reg set`, and unblocks rfkill in one shot.
+        if command -v raspi-config >/dev/null 2>&1; then
+            raspi-config nonint do_wifi_country "$WIFI_COUNTRY" \
+                2>&1 | logger -t fiestapi-firstboot || true
+        fi
+        # Belt-and-braces: unblock rfkill directly in case raspi-config
+        # isn't available or didn't take effect this boot.
+        if command -v rfkill >/dev/null 2>&1; then
+            rfkill unblock wifi 2>&1 | logger -t fiestapi-firstboot || true
+        fi
+        logger -t fiestapi-firstboot \
+            "WiFi country set to ${WIFI_COUNTRY}; rfkill unblocked"
+
         if [ -n "$WIFI_PASSWORD" ]; then
             nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" \
                 2>&1 | logger -t fiestapi-firstboot || true
