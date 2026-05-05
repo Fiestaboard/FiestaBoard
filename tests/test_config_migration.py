@@ -363,3 +363,151 @@ class TestConfigPersistence:
         cm2 = ConfigManager(config_path=v1_config_path)
         assert cm2.get_plugin_config("weather") is not None
         assert cm2.get_plugin_config("muni") is not None
+
+
+class TestPluginIdRename:
+    """Tests for one-shot plugin id renames (e.g. baywheels -> lyft_bike_share)."""
+
+    def test_baywheels_renamed_to_lyft_bike_share(self, tmp_path):
+        """plugins.baywheels should be renamed to plugins.lyft_bike_share."""
+        config = {
+            "plugins": {
+                "baywheels": {
+                    "enabled": True,
+                    "station_ids": ["123", "456"],
+                    "refresh_seconds": 90,
+                },
+            },
+        }
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text(json.dumps(config))
+
+        cm = ConfigManager(config_path=str(cfg_path))
+
+        assert cm.get_plugin_config("baywheels") is None
+        lyft = cm.get_plugin_config("lyft_bike_share")
+        assert lyft is not None
+        assert lyft["enabled"] is True
+        assert lyft["station_ids"] == ["123", "456"]
+        assert lyft["refresh_seconds"] == 90
+        # gbfs_base_url default should be seeded
+        assert lyft["gbfs_base_url"] == "https://gbfs.baywheels.com/gbfs/en"
+
+    def test_baywheels_legacy_station_id_promoted(self, tmp_path):
+        """A user with only the legacy singular station_id should keep that station."""
+        config = {
+            "plugins": {
+                "baywheels": {
+                    "enabled": True,
+                    "station_id": "abc-1",
+                    "station_name": "Market St",
+                    "station_ids": [],
+                    "refresh_seconds": 60,
+                },
+            },
+        }
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text(json.dumps(config))
+
+        cm = ConfigManager(config_path=str(cfg_path))
+
+        lyft = cm.get_plugin_config("lyft_bike_share")
+        assert lyft is not None
+        assert lyft["station_ids"] == ["abc-1"]
+        # Deprecated singular fields removed
+        assert "station_id" not in lyft
+        assert "station_name" not in lyft
+
+    def test_baywheels_rename_preserves_existing_lyft_bike_share(self, tmp_path):
+        """If both ids exist, the new id wins and the old one is dropped."""
+        config = {
+            "plugins": {
+                "baywheels": {
+                    "enabled": True,
+                    "station_ids": ["old"],
+                    "refresh_seconds": 60,
+                },
+                "lyft_bike_share": {
+                    "enabled": True,
+                    "station_ids": ["new"],
+                    "refresh_seconds": 120,
+                    "gbfs_base_url": "https://gbfs.citibikenyc.com/gbfs/en",
+                },
+            },
+        }
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text(json.dumps(config))
+
+        cm = ConfigManager(config_path=str(cfg_path))
+
+        assert cm.get_plugin_config("baywheels") is None
+        lyft = cm.get_plugin_config("lyft_bike_share")
+        assert lyft["station_ids"] == ["new"]
+        assert lyft["refresh_seconds"] == 120
+        assert lyft["gbfs_base_url"] == "https://gbfs.citibikenyc.com/gbfs/en"
+
+    def test_baywheels_rename_idempotent(self, tmp_path):
+        """A second startup must not recreate or alter the renamed entry."""
+        config = {
+            "plugins": {
+                "baywheels": {
+                    "enabled": True,
+                    "station_ids": ["123"],
+                    "refresh_seconds": 60,
+                },
+            },
+        }
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text(json.dumps(config))
+
+        cm = ConfigManager(config_path=str(cfg_path))
+        first = cm.get_plugin_config("lyft_bike_share")
+
+        _reset_singleton()
+        cm2 = ConfigManager(config_path=str(cfg_path))
+        second = cm2.get_plugin_config("lyft_bike_share")
+
+        assert first == second
+        assert cm2.get_plugin_config("baywheels") is None
+
+    def test_no_rename_when_old_id_absent(self, tmp_path):
+        """Configs with no obsolete plugin id should be left untouched."""
+        config = {
+            "plugins": {
+                "weather": {"enabled": True, "api_key": "x"},
+            },
+        }
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text(json.dumps(config))
+
+        cm = ConfigManager(config_path=str(cfg_path))
+
+        assert cm.get_plugin_config("baywheels") is None
+        assert cm.get_plugin_config("lyft_bike_share") is None
+        assert cm.get_plugin_config("weather")["api_key"] == "x"
+
+    def test_baywheels_feature_then_rename_chain(self, tmp_path):
+        """v1 features.baywheels should migrate to plugins, then rename to lyft_bike_share."""
+        config = _make_v1_config()
+        config["features"]["baywheels"] = {
+            "enabled": True,
+            "station_id": "xyz",
+            "station_name": "Embarcadero",
+            "station_ids": [],
+            "refresh_seconds": 75,
+            "color_rules": {},
+        }
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text(json.dumps(config))
+
+        cm = ConfigManager(config_path=str(cfg_path))
+
+        # Old id should not exist; new one should, with promoted station id
+        assert cm.get_plugin_config("baywheels") is None
+        lyft = cm.get_plugin_config("lyft_bike_share")
+        assert lyft is not None
+        assert lyft["enabled"] is True
+        assert lyft["station_ids"] == ["xyz"]
+        assert lyft["refresh_seconds"] == 75
+        assert "station_id" not in lyft
+        assert "station_name" not in lyft

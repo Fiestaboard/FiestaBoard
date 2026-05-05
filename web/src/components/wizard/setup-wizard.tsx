@@ -118,10 +118,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     markWizardComplete();
     clearWizardProgress();
     onComplete?.();
-    // Redirect to home dashboard
     router.push("/");
-    // Reload to ensure fresh state
-    window.location.reload();
   }, [onComplete, router]);
 
   // Render step content

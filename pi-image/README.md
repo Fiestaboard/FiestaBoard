@@ -14,7 +14,7 @@ A flashable Raspberry Pi OS image with FiestaBoard pre-installed and self-updati
 - mDNS hostname `fiestapi.local`
 - `FIESTABOARD_PROFILE=pi` env baked in (flips the in-app auto-update toggle to default ON, and seeds the instance name to "FiestaPi" on first boot)
 - First-boot script that generates a unique `FIESTAUPDATER_TOKEN`
-- Post-flash Wi-Fi provisioning: drop `fiestapi-wifi.txt` on the boot partition — see [RASPBERRY_PI.md](../docs/setup/RASPBERRY_PI.md)
+- Post-flash Wi-Fi provisioning: drop `fiestapi-wifi.txt` (with `SSID=`, `PASSWORD=`, optional `COUNTRY=`) on the boot partition — see [RASPBERRY_PI.md](../docs/setup/RASPBERRY_PI.md). The first-boot script sets the wireless regulatory country and unblocks rfkill before connecting, so Wi-Fi works even on a fresh image.
 
 ## Building locally
 

@@ -643,6 +643,14 @@ logger.warning("Non-critical issue occurred")
 logger.error("Failed to fetch data")
 ```
 
+## Plugin Updates
+
+External plugins installed from the registry or a git URL are updated automatically. FiestaBoard checks for new versions every hour and silently pulls the latest commit for any plugin that has changed.
+
+This behaviour is controlled by the **Auto-update plugins** toggle in **Settings → Plugin Updates** (enabled by default). When disabled, users can update plugins manually from the Integrations page using the per-plugin update button or the bulk "Apply all updates" action.
+
+For plugin authors this means users will receive fixes and new variables automatically as soon as changes land on the plugin's default branch. Keep the default branch stable — breaking changes should be gated behind a version bump in `manifest.json`.
+
 ## Contributing Plugins
 
 To contribute a plugin to the FiestaBoard repository:

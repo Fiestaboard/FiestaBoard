@@ -167,17 +167,51 @@ None of them are reachable from the host.
 |---|---|---|---|
 | `GET` | `/healthz` | none | Liveness probe. Returns `{"status":"ok"}`. |
 | `GET` | `/version` | none | Returns the running container's image and digest. Used by the UI to detect when an update has actually landed. |
-| `POST` | `/update` | bearer | `docker compose pull` + `up -d --no-deps` for the configured service. Returns `202 Accepted` immediately; the update runs in the background. |
+| `GET` | `/last-update` | none | Returns the outcome of the most recent `/update` or `/rollback` attempt (`status`, `action`, `previous_digest`, `completed_at`, …). Returns `{"status":"none"}` when no attempt has been made. |
+| `POST` | `/update` | bearer | `docker compose pull` + `up -d --no-deps` for the configured service. Records the pre-update digest + image reference in the state file so a later `/rollback` can revert to it. Returns `202 Accepted` immediately; the recreate runs in the background. |
+| `POST` | `/rollback` | bearer | Body: `{"digest":"sha256:…","image":"repo:tag"}`. Retags the supplied digest onto the supplied image reference and runs `docker compose up -d --no-deps --force-recreate`. The digest must already be present locally. Returns `202`. |
 | `POST` | `/restart` | bearer | `docker compose restart` for the configured service. Returns `202`. |
 | `POST` | `/shutdown` | bearer | Stops the compose stack and powers off the host. Requires the `SYS_BOOT` capability. Returns `202`. |
 
 Authentication is `Authorization: Bearer <FIESTAUPDATER_TOKEN>`. Failed auth
 returns `401`. Unknown routes return `404`.
 
-`POST /update` and `POST /restart` return `202` before the work starts because
-the action will tear down the `fiestaboard` container that originated the
-HTTP request — the connection would otherwise be cut before any response
-could be flushed.
+`POST /update`, `POST /rollback`, and `POST /restart` return `202` before the
+work starts because the action will tear down the `fiestaboard` container
+that originated the HTTP request — the connection would otherwise be cut
+before any response could be flushed.
+
+### User-initiated rollback (5.1+)
+
+Updates are *not* rolled back automatically. The user decides if and when to
+revert via the Settings UI, which calls the main `fiestaboard` API at
+`POST /system/update/rollback`.
+
+The flow is:
+
+1. **At update time** — `POST /system/update` snapshots `data/*.json` to
+   `data/update-backups/pre-update-<timestamp>.json` (newest five retained)
+   *and* tags each snapshot with the running container's image digest +
+   reference (looked up via the sidecar's `/version`). The sidecar then
+   pulls + recreates as normal and persists `previous_digest` /
+   `previous_image` to `last-update.json` with `status: success`.
+2. **At rollback time** — the user picks a snapshot. The main API
+   restores configuration from that snapshot via `BackupService` and then
+   POSTs `{"digest": "<saved digest>", "image": "<saved image ref>"}` to
+   the sidecar's `/rollback`. The sidecar `docker tag`s the digest back
+   onto the image reference and `docker compose up -d --no-deps
+   --force-recreate`s the service so it boots on the rollback target.
+
+Both fields in the `/rollback` body are validated with strict regexes
+(`^sha256:[a-f0-9]{64}$` for the digest; an explicit Docker-reference
+allow-list for the image), and the body is size-capped at 8&nbsp;KiB, so a
+malformed call cannot lead to arbitrary `docker tag` invocations.
+
+The result is mirrored in `GET /system/update/status` as
+`last_update_status`, `last_update_action`, `last_update_previous_digest`,
+and `last_update_completed_at`, plus a `settings_snapshots` list (each with
+its own recorded `previous_digest` / `previous_image`) so the UI can label
+snapshots with the version they will roll back to.
 
 ## Security
 

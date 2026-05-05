@@ -449,6 +449,9 @@ export interface SilenceStatus {
   end_time_utc: string;
   current_time_utc: string;
   next_change_utc: string;
+  mode?: string;
+  indicator_text?: string;
+  indicator_position?: string;
 }
 
 export interface PollingSettings {
@@ -609,6 +612,19 @@ export interface BetaSettings {
   https_enabled: boolean;
 }
 
+export interface PluginSettings {
+  auto_update: boolean;
+}
+
+export interface PluginSettingsResponse {
+  settings: PluginSettings;
+}
+
+export interface PluginSettingsUpdateResponse {
+  status: string;
+  settings: PluginSettings;
+}
+
 export interface BetaHttpsStatus {
   cert_present: boolean;
   cert_path: string;
@@ -656,6 +672,7 @@ export interface AllSettingsResponse {
   display: DisplaySettings;
   location: LocationSettings;
   beta: BetaSettings;
+  plugins: PluginSettings;
   status: {
     running: boolean;
   };
@@ -1344,7 +1361,15 @@ export const api = {
   getSilenceStatus: () => fetchApi<SilenceStatus>("/silence-status"),
 
   // Silence schedule (system feature, not a plugin)
-  updateSilenceSchedule: (data: { enabled: boolean; start_time: string; end_time: string }) =>
+  updateSilenceSchedule: (data: {
+    enabled: boolean;
+    start_time: string;
+    end_time: string;
+    mode?: "indicator" | "freeze" | "page";
+    page_id?: string | null;
+    indicator_text?: string | null;
+    indicator_position?: string | null;
+  }) =>
     fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1406,6 +1431,14 @@ export const api = {
   getBetaSettings: () => fetchApi<BetaSettingsResponse>("/settings/beta"),
   updateBetaSettings: (updates: Partial<BetaSettings>) =>
     fetchApi<BetaSettingsUpdateResponse>("/settings/beta", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    }),
+
+  getPluginSettings: () => fetchApi<PluginSettingsResponse>("/settings/plugins"),
+  updatePluginSettings: (updates: Partial<PluginSettings>) =>
+    fetchApi<PluginSettingsUpdateResponse>("/settings/plugins", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),

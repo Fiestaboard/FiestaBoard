@@ -731,7 +731,25 @@
     "reduceMotionLabel": "모션 줄이기",
     "reduceMotionDescription": "인터페이스의 애니메이션 및 전환 효과 비활성화",
     "toastDisplaySaved": "디스플레이 설정이 저장되었습니다",
-    "toastDisplaySaveFailed": "디스플레이 설정 저장 실패: {error}"
+    "toastDisplaySaveFailed": "디스플레이 설정 저장 실패: {error}",
+    "silenceModeLabel": "While Silenced",
+    "silenceModeIndicator": "Show \"SNOOZING\" message",
+    "silenceModeIndicatorHelp": "Display only the word SNOOZING (sized for your board) while silence is active.",
+    "silenceModeFreeze": "Leave board unchanged",
+    "silenceModeFreezeHelp": "Stop updating the board while silence is active. Whatever is currently on the board stays there.",
+    "silenceModePage": "Show a specific page",
+    "silenceModePageHelp": "Display the chosen page once when silence begins. Variables are frozen until silence ends.",
+    "silencePageLabel": "Silence Page",
+    "silencePagePlaceholder": "Select a page...",
+    "silencePageHelp": "This page will be displayed when the silence schedule starts. Its variables will not refresh while silenced.",
+    "silenceIndicatorTextLabel": "Message Text",
+    "silenceIndicatorTextHelp": "Uppercase letters and numbers only. Max 22 characters.",
+    "silenceIndicatorPositionLabel": "Message Position",
+    "positionTopLeft": "Top left",
+    "positionTopRight": "Top right",
+    "positionCenter": "Center",
+    "positionBottomLeft": "Bottom left",
+    "positionBottomRight": "Bottom right"
   },
   "themeToggle": {
     "toggleTheme": "테마 전환"
@@ -968,6 +986,14 @@
     "selectAttribute": "Select Attribute",
     "valueLabel": "Value",
     "insert": "Insert"
+  },
+  "pluginSettings": {
+    "title": "Plugin Updates",
+    "description": "Control how installed plugins are kept up to date.",
+    "autoUpdateLabel": "Auto-update plugins",
+    "autoUpdateDescription": "When enabled, FiestaBoard will silently update all installed plugins whenever a new version is available. Disable to update plugins manually from the Integrations page.",
+    "savedToast": "Plugin settings saved.",
+    "saveFailedToast": "Couldn't save plugin settings: {error}"
   },
   "betaSettings": {
     "title": "Beta Features",

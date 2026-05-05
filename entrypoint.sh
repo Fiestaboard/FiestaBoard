@@ -46,6 +46,12 @@ fi
 # When disabled (or no cert files present):
 #   * Install /app/nginx.http.conf as /etc/nginx/nginx.conf.
 configure_https() {
+    # Skip if nginx.conf is a read-only bind mount (e.g. dev compose).
+    if ! touch /etc/nginx/nginx.conf 2>/dev/null; then
+        echo "[entrypoint] /etc/nginx/nginx.conf is read-only; skipping nginx config setup."
+        return 0
+    fi
+
     HTTPS_ENABLED=$(python -c '
 import json, sys
 try:

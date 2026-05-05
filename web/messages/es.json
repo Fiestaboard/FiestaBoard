@@ -731,7 +731,25 @@
     "reduceMotionLabel": "Reducir movimiento",
     "reduceMotionDescription": "Desactivar animaciones y transiciones en la interfaz",
     "toastDisplaySaved": "Configuración de pantalla guardada",
-    "toastDisplaySaveFailed": "Error al guardar la configuración de pantalla: {error}"
+    "toastDisplaySaveFailed": "Error al guardar la configuración de pantalla: {error}",
+    "silenceModeLabel": "While Silenced",
+    "silenceModeIndicator": "Show \"SNOOZING\" message",
+    "silenceModeIndicatorHelp": "Display only the word SNOOZING (sized for your board) while silence is active.",
+    "silenceModeFreeze": "Leave board unchanged",
+    "silenceModeFreezeHelp": "Stop updating the board while silence is active. Whatever is currently on the board stays there.",
+    "silenceModePage": "Show a specific page",
+    "silenceModePageHelp": "Display the chosen page once when silence begins. Variables are frozen until silence ends.",
+    "silencePageLabel": "Silence Page",
+    "silencePagePlaceholder": "Select a page...",
+    "silencePageHelp": "This page will be displayed when the silence schedule starts. Its variables will not refresh while silenced.",
+    "silenceIndicatorTextLabel": "Message Text",
+    "silenceIndicatorTextHelp": "Uppercase letters and numbers only. Max 22 characters.",
+    "silenceIndicatorPositionLabel": "Message Position",
+    "positionTopLeft": "Top left",
+    "positionTopRight": "Top right",
+    "positionCenter": "Center",
+    "positionBottomLeft": "Bottom left",
+    "positionBottomRight": "Bottom right"
   },
   "themeToggle": {
     "toggleTheme": "Cambiar tema"
@@ -968,6 +986,14 @@
     "selectAttribute": "Seleccionar atributo",
     "valueLabel": "Valor",
     "insert": "Insertar"
+  },
+  "pluginSettings": {
+    "title": "Actualizaciones de plugins",
+    "description": "Controla cómo se mantienen actualizados los plugins instalados.",
+    "autoUpdateLabel": "Actualizar plugins automáticamente",
+    "autoUpdateDescription": "Cuando está activado, FiestaBoard actualizará silenciosamente todos los plugins instalados cuando haya una nueva versión disponible. Desactívalo para actualizar los plugins manualmente desde la página de Integraciones.",
+    "savedToast": "Configuración de plugins guardada.",
+    "saveFailedToast": "No se pudo guardar la configuración de plugins: {error}"
   },
   "betaSettings": {
     "title": "Beta Features",

@@ -113,6 +113,11 @@ def mock_settings_service():
         ss.get_beta_settings.return_value = beta
         ss.update_beta_settings.return_value = beta
 
+        plugin_settings = Mock()
+        plugin_settings.to_dict.return_value = {"auto_update": True}
+        ss.get_plugin_settings.return_value = plugin_settings
+        ss.update_plugin_settings.return_value = plugin_settings
+
         mock_get.return_value = ss
         yield ss
 
@@ -362,14 +367,14 @@ class TestConfigEndpoints:
         data = response.json()
         assert data["valid"] is True
 
-    def test_validate_config_first_run(self, client, mock_config_manager):
+    def test_validate_config_first_run(self, client, mock_config_manager, mock_settings_service):
         mock_config_manager.get_board.return_value = {"api_mode": "local", "local_api_key": "", "host": ""}
         response = client.get("/config/validate")
         assert response.status_code == 200
         data = response.json()
         assert data["is_first_run"] is True
 
-    def test_validate_config_cloud_missing_key(self, client, mock_config_manager):
+    def test_validate_config_cloud_missing_key(self, client, mock_config_manager, mock_settings_service):
         mock_config_manager.get_board.return_value = {"api_mode": "cloud", "cloud_key": ""}
         response = client.get("/config/validate")
         assert response.status_code == 200
