@@ -687,9 +687,12 @@ export interface MqttSettings {
   external_url: string;
 }
 
+export type AIProviderProtocol = "openai" | "anthropic";
+
 export interface AIProvider {
   id: string;
   name: string;
+  protocol?: AIProviderProtocol;
   base_url: string;
   api_key: string;
   models: string[];

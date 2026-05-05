@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from ..devices import DeviceType, get_dimensions
 from ..pages.models import Page, PageCreate
 from .prompt_builder import PromptContext, build_prompt
+from .protocols import Protocol, get_protocol
 
 logger = logging.getLogger(__name__)
 
@@ -316,42 +317,41 @@ def _resolve_model(provider: Dict[str, Any], model: Optional[str]) -> str:
 def _build_request_payload(
     model: str,
     context: PromptContext,
+    protocol: Protocol,
 ) -> Dict[str, Any]:
-    """OpenAI-compatible chat completion request body."""
-    return {
-        "model": model,
-        "messages": context.to_messages(),
-        "temperature": _DEFAULT_TEMPERATURE,
-        "max_tokens": _DEFAULT_MAX_TOKENS,
-        # Most modern endpoints honor this; ones that don't will still
-        # produce JSON because the prompt is explicit.
-        "response_format": {"type": "json_object"},
-    }
+    """Build a request body for the given protocol."""
+    return protocol.build_body(
+        model,
+        context.to_messages(),
+        _DEFAULT_TEMPERATURE,
+        _DEFAULT_MAX_TOKENS,
+    )
 
 
 async def _post_chat_completion(
     provider: Dict[str, Any],
     payload: Dict[str, Any],
     *,
+    protocol: Optional[Protocol] = None,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
     client: Optional[httpx.AsyncClient] = None,
 ) -> Dict[str, Any]:
-    """POST to ``{base_url}/chat/completions`` and return the parsed JSON."""
+    """POST to the provider's chat endpoint and return the parsed JSON.
+
+    The endpoint path and auth headers are determined by ``protocol``;
+    if not supplied it is derived from ``provider['protocol']`` (default
+    OpenAI-compatible).
+    """
+    proto = protocol or get_protocol(provider.get("protocol"))
     base_url = (provider.get("base_url") or "").rstrip("/")
     if not base_url:
         raise AIGenerationError("AI provider has no base_url configured.")
-    url = f"{base_url}/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-    }
-    api_key = provider.get("api_key") or ""
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
+    url = f"{base_url}{proto.request_path}"
     extra = provider.get("headers") or {}
-    if isinstance(extra, dict):
-        for k, v in extra.items():
-            if isinstance(k, str) and isinstance(v, str):
-                headers[k] = v
+    headers = proto.build_headers(
+        provider.get("api_key") or "",
+        extra if isinstance(extra, dict) else {},
+    )
 
     owns_client = client is None
     if owns_client:
@@ -364,15 +364,16 @@ async def _post_chat_completion(
                 f"Could not reach AI provider: {exc}"
             ) from exc
         if response.status_code >= 400:
-            # Try to surface the provider's own error message.
+            # Try to surface the provider's own error message via the
+            # protocol-specific error parser.
+            err_msg: Optional[str] = None
             try:
                 err_body = response.json()
-                err_msg = (
-                    err_body.get("error", {}).get("message")
-                    if isinstance(err_body, dict)
-                    else None
-                ) or response.text
+                if isinstance(err_body, dict):
+                    err_msg = proto.parse_error(err_body)
             except Exception:
+                err_msg = None
+            if not err_msg:
                 err_msg = response.text
             raise AIGenerationError(
                 f"AI provider returned {response.status_code}: {err_msg}"
@@ -392,21 +393,17 @@ async def _post_chat_completion(
             await client.aclose()
 
 
-def _extract_message_content(api_response: Dict[str, Any]) -> str:
-    """Pull the assistant's text out of an OpenAI-shaped response."""
-    choices = api_response.get("choices") or []
-    if not choices:
-        raise AIGenerationError("AI provider returned no choices.")
-    message = choices[0].get("message") or {}
-    content = message.get("content")
-    if isinstance(content, list):
-        # Some providers return content as a list of parts.
-        text_parts = [
-            part.get("text", "")
-            for part in content
-            if isinstance(part, dict) and part.get("type") in (None, "text")
-        ]
-        content = "".join(text_parts)
+def _extract_message_content(
+    api_response: Dict[str, Any],
+    protocol: Optional[Protocol] = None,
+) -> str:
+    """Pull the assistant's text out of a provider response.
+
+    Uses the supplied protocol adapter; falls back to the OpenAI shape
+    for backwards compatibility with callers that don't pass one.
+    """
+    proto = protocol or get_protocol(None)
+    content = proto.parse_content(api_response)
     if not isinstance(content, str) or not content.strip():
         raise AIGenerationError("AI provider returned an empty message.")
     return content
@@ -438,6 +435,7 @@ async def generate_page(
 
     provider = _resolve_provider(providers_block, provider_id)
     chosen_model = _resolve_model(provider, model)
+    protocol = get_protocol(provider.get("protocol"))
 
     context = build_prompt(
         user_prompt=user_prompt.strip(),
@@ -447,25 +445,23 @@ async def generate_page(
         current_page=current_page,
     )
 
-    payload = _build_request_payload(chosen_model, context)
-    api_response = await _post_chat_completion(provider, payload, client=client)
+    payload = _build_request_payload(chosen_model, context, protocol)
+    api_response = await _post_chat_completion(
+        provider, payload, protocol=protocol, client=client
+    )
 
-    text = _extract_message_content(api_response)
+    text = _extract_message_content(api_response, protocol)
     raw = _extract_json_object(text)
     page, warnings = _validate_and_repair(raw, device_type, variables or {})
 
-    usage = api_response.get("usage") or {}
+    usage = protocol.parse_usage(api_response)
 
     return {
         "page": page,
         "model_used": chosen_model,
         "provider_id": provider.get("id"),
         "warnings": warnings,
-        "usage": {
-            "prompt_tokens": usage.get("prompt_tokens"),
-            "completion_tokens": usage.get("completion_tokens"),
-            "total_tokens": usage.get("total_tokens"),
-        },
+        "usage": usage,
     }
 
 
@@ -486,22 +482,22 @@ async def test_provider(
     except AIGenerationError as exc:
         return {"ok": False, "message": str(exc), "model_used": None}
 
-    payload = {
-        "model": chosen_model,
-        "messages": [
-            {
-                "role": "user",
-                "content": "Reply with the single word: ok",
-            }
-        ],
-        "max_tokens": 5,
-        "temperature": 0,
-    }
+    protocol = get_protocol(provider.get("protocol"))
+    payload = protocol.build_body(
+        chosen_model,
+        [{"role": "user", "content": "Reply with the single word: ok"}],
+        0.0,
+        5,
+    )
     try:
         response = await _post_chat_completion(
-            provider, payload, timeout_seconds=timeout_seconds, client=client
+            provider,
+            payload,
+            protocol=protocol,
+            timeout_seconds=timeout_seconds,
+            client=client,
         )
-        content = _extract_message_content(response)
+        content = _extract_message_content(response, protocol)
     except AIGenerationError as exc:
         return {"ok": False, "message": str(exc), "model_used": chosen_model}
     except Exception as exc:  # pragma: no cover — defensive

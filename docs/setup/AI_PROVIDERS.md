@@ -6,24 +6,32 @@ template for you. You then review and save the result yourself —
 nothing is auto-saved.
 
 FiestaBoard ships **without any bundled LLM credentials**. You bring
-your own provider, your own API key, and your own model list. We
-support any **OpenAI-compatible** chat-completions endpoint, which
-covers OpenRouter, OpenAI, and most local servers (Ollama, LM Studio,
-vLLM, llama.cpp, …).
+your own provider, your own API key, and your own model list.
+
+Two protocols are supported out of the box:
+
+- **OpenAI-compatible** chat-completions — works with OpenRouter,
+  OpenAI, Ollama, LM Studio, vLLM, llama.cpp, and most other local
+  servers.
+- **Anthropic Messages API** — direct access to `api.anthropic.com`
+  using a Claude API key.
 
 ## Configuration
 
 1. Open **Settings → AI Providers**.
 2. Toggle the top switch to **Enabled**.
 3. Click **Add provider** and fill in:
-   - **Name** — any label, e.g. `OpenRouter`.
-   - **Base URL** — the chat-completions root, e.g.
-     `https://openrouter.ai/api/v1`. Quick-pick buttons are provided
-     for OpenRouter, OpenAI, and a local server.
+   - **Name** — any label, e.g. `OpenRouter` or `Claude`.
+   - **Protocol** — pick `OpenAI-compatible` or `Anthropic`. The
+     quick-pick buttons below also set this for you.
+   - **Base URL** — the API root, e.g.
+     `https://openrouter.ai/api/v1` or `https://api.anthropic.com/v1`.
+     Quick-pick buttons are provided for OpenRouter, OpenAI,
+     Anthropic, and a local server.
    - **API Key** — paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
    - **Models** — type each model id and press Enter or click `+`
-     (e.g. `openai/gpt-4o-mini`, `anthropic/claude-3.5-sonnet`).
+     (e.g. `openai/gpt-4o-mini`, `claude-3-5-sonnet-20241022`).
    - **Default model** — picked automatically once you add at least
      one model.
 4. (Optional) Click **Test connection** to send a one-token smoke
@@ -37,12 +45,14 @@ using the **Make default** button.
 
 These all work well with the FiestaBoard prompt format:
 
-| Provider     | Model                                  | Notes                              |
-| ------------ | -------------------------------------- | ---------------------------------- |
-| OpenRouter   | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output. |
-| OpenRouter   | `anthropic/claude-3.5-sonnet`          | High-quality, slower.              |
-| OpenAI       | `gpt-4o-mini`                          | Same as via OpenRouter.            |
-| Local Ollama | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.   |
+| Provider     | Protocol  | Model                                  | Notes                              |
+| ------------ | --------- | -------------------------------------- | ---------------------------------- |
+| OpenRouter   | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output. |
+| OpenRouter   | OpenAI    | `anthropic/claude-3.5-sonnet`          | High-quality, slower.              |
+| OpenAI       | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.            |
+| Anthropic    | Anthropic | `claude-3-5-sonnet-20241022`           | Direct, no OpenRouter markup.      |
+| Anthropic    | Anthropic | `claude-3-5-haiku-20241022`            | Cheaper, fast.                     |
+| Local Ollama | OpenAI    | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.   |
 
 Smaller (≤ 7B) local models often struggle to emit valid JSON for
 the FiestaBoard schema; if you see frequent "Could not parse JSON"
@@ -68,8 +78,10 @@ service — there is no FiestaBoard AI proxy.
 
 ## Limitations (v1)
 
-- OpenAI-compatible providers only. Raw Anthropic, Google, or Cohere
-  APIs are not supported in v1; use OpenRouter to access them.
+- Two protocols supported: OpenAI-compatible chat completions, and
+  the Anthropic Messages API. Other native APIs (Google Gemini,
+  Cohere, …) can be reached today through OpenRouter, or added by
+  registering a new entry in `src/ai/protocols.py`.
 - No streaming UI: a single request/response.
 - No automatic page creation or scheduling — you always review and
   click **Save**.

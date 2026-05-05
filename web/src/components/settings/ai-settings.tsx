@@ -38,16 +38,22 @@ import {
 import { api } from "@/lib/api";
 import type { AIProvider, AISettings } from "@/lib/api";
 
-const PROVIDER_PRESETS: { label: string; base_url: string }[] = [
-  { label: "OpenRouter", base_url: "https://openrouter.ai/api/v1" },
-  { label: "OpenAI", base_url: "https://api.openai.com/v1" },
-  { label: "Local (Ollama / LM Studio)", base_url: "http://localhost:11434/v1" },
+const PROVIDER_PRESETS: {
+  label: string;
+  base_url: string;
+  protocol: "openai" | "anthropic";
+}[] = [
+  { label: "OpenRouter", base_url: "https://openrouter.ai/api/v1", protocol: "openai" },
+  { label: "OpenAI", base_url: "https://api.openai.com/v1", protocol: "openai" },
+  { label: "Anthropic", base_url: "https://api.anthropic.com/v1", protocol: "anthropic" },
+  { label: "Local (Ollama / LM Studio)", base_url: "http://localhost:11434/v1", protocol: "openai" },
 ];
 
 function emptyProvider(): AIProvider {
   return {
     id: `provider-${Math.random().toString(36).slice(2, 10)}`,
     name: "",
+    protocol: "openai",
     base_url: PROVIDER_PRESETS[0].base_url,
     api_key: "",
     models: [],
@@ -172,6 +178,33 @@ function ProviderRow({
       </div>
 
       <div className="space-y-1.5">
+        <Label htmlFor={`protocol-${provider.id}`} className="text-xs">
+          Protocol
+        </Label>
+        <Select
+          value={provider.protocol ?? "openai"}
+          onValueChange={(value) =>
+            onChange({
+              ...provider,
+              protocol: value as "openai" | "anthropic",
+            })
+          }
+        >
+          <SelectTrigger id={`protocol-${provider.id}`} className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="openai">
+              OpenAI-compatible (OpenAI, OpenRouter, Ollama, LM Studio)
+            </SelectItem>
+            <SelectItem value="anthropic">
+              Anthropic (Messages API)
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
         <Label htmlFor={`url-${provider.id}`} className="text-xs">
           Base URL
         </Label>
@@ -193,7 +226,11 @@ function ProviderRow({
               variant="ghost"
               className="h-6 px-2 text-[11px]"
               onClick={() =>
-                onChange({ ...provider, base_url: preset.base_url })
+                onChange({
+                  ...provider,
+                  base_url: preset.base_url,
+                  protocol: preset.protocol,
+                })
               }
             >
               {preset.label}
