@@ -342,11 +342,22 @@ class DisplayService:
         dims = get_dimensions(device_type)
         board_array = [[BoardChars.SPACE] * dims.cols for _ in range(dims.rows)]
 
-        indicator = "SNOOZING"
+        indicator = Config.SILENCE_SCHEDULE_INDICATOR_TEXT
         # Truncate to fit if a future device is narrower.
         text = indicator[: dims.cols]
-        row = dims.rows // 2
-        start_col = max(0, (dims.cols - len(text)) // 2)
+
+        position = Config.SILENCE_SCHEDULE_INDICATOR_POSITION
+        if position == "top-left":
+            row, start_col = 0, 0
+        elif position == "top-right":
+            row, start_col = 0, max(0, dims.cols - len(text))
+        elif position == "bottom-left":
+            row, start_col = dims.rows - 1, 0
+        elif position == "bottom-right":
+            row, start_col = dims.rows - 1, max(0, dims.cols - len(text))
+        else:  # center (default)
+            row = dims.rows // 2
+            start_col = max(0, (dims.cols - len(text)) // 2)
         for i, char in enumerate(text):
             char_code = BoardChars.get_char_code(char)
             if char_code is not None:

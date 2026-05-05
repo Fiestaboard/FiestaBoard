@@ -126,6 +126,8 @@ class TestSilenceModeDispatch:
         config.is_silence_mode_active.return_value = silence_active
         config.SILENCE_SCHEDULE_MODE = mode
         config.SILENCE_SCHEDULE_PAGE_ID = page_id
+        config.SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
+        config.SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
 
         return page, page_service, settings, config
 
@@ -242,3 +244,91 @@ class TestSilenceModeDispatch:
         args, _ = service.vb_client.send_characters.call_args
         board_array = args[0]
         assert _decode_board_text(board_array).strip() == "SNOOZING"
+
+
+class TestCustomIndicatorTextAndPosition:
+    """Indicator dispatch must honor custom text + position from Config."""
+
+    def _patch_common(self, indicator_text="SNOOZING", indicator_position="center"):
+        page = Mock(
+            id="active-page",
+            device_type="flagship",
+            transition_strategy=None,
+            transition_interval_ms=None,
+            transition_step_size=None,
+        )
+        result = Mock(available=True, formatted="WEATHER\nTEMP")
+
+        page_service = Mock()
+        page_service.get_page.return_value = page
+        page_service.preview_page.return_value = result
+
+        settings = Mock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = "active-page"
+        settings.get_board_settings.return_value = Mock(boards=[{"device_type": "flagship"}])
+        settings.get_transition_settings.return_value = Mock(
+            strategy=None, step_interval_ms=500, step_size=1
+        )
+
+        config = Mock()
+        config.is_silence_mode_active.return_value = True
+        config.SILENCE_SCHEDULE_MODE = "indicator"
+        config.SILENCE_SCHEDULE_PAGE_ID = None
+        config.SILENCE_SCHEDULE_INDICATOR_TEXT = indicator_text
+        config.SILENCE_SCHEDULE_INDICATOR_POSITION = indicator_position
+        return page_service, settings, config
+
+    def test_indicator_uses_custom_text(self, service):
+        page_service, settings, config = self._patch_common(indicator_text="ZZZ")
+        with patch("src.main.get_page_service", return_value=page_service), \
+             patch("src.main.get_settings_service", return_value=settings), \
+             patch("src.main.get_schedule_service"), \
+             patch("src.main.Config", config), \
+             patch.object(service, "_check_trigger_override", return_value=None):
+            service.check_and_send_active_page()
+
+        args, _ = service.vb_client.send_characters.call_args
+        board_array = args[0]
+        text = _decode_board_text(board_array).strip()
+        assert text == "ZZZ"
+
+    def test_indicator_at_bottom_right_for_flagship(self, service):
+        page_service, settings, config = self._patch_common(
+            indicator_text="ZZZ", indicator_position="bottom-right"
+        )
+        with patch("src.main.get_page_service", return_value=page_service), \
+             patch("src.main.get_settings_service", return_value=settings), \
+             patch("src.main.get_schedule_service"), \
+             patch("src.main.Config", config), \
+             patch.object(service, "_check_trigger_override", return_value=None):
+            service.check_and_send_active_page()
+
+        args, _ = service.vb_client.send_characters.call_args
+        board_array = args[0]
+        # Flagship: 6 rows x 22 cols. Bottom row, right-aligned ZZZ at cols 19-21.
+        assert len(board_array) == 6
+        bottom = board_array[5]
+        # All cols except 19,20,21 should be SPACE
+        for col, code in enumerate(bottom):
+            if col in (19, 20, 21):
+                assert code != BoardChars.SPACE
+            else:
+                assert code == BoardChars.SPACE
+        # Top 5 rows entirely blank
+        for row in board_array[:5]:
+            assert all(c == BoardChars.SPACE for c in row)
+
+    def test_freeze_is_default_when_mode_unset(self, service):
+        """If config provides no mode (so Config.SILENCE_SCHEDULE_MODE == 'freeze'), no send."""
+        page_service, settings, config = self._patch_common()
+        config.SILENCE_SCHEDULE_MODE = "freeze"
+        with patch("src.main.get_page_service", return_value=page_service), \
+             patch("src.main.get_settings_service", return_value=settings), \
+             patch("src.main.get_schedule_service"), \
+             patch("src.main.Config", config), \
+             patch.object(service, "_check_trigger_override", return_value=None):
+            sent = service.check_and_send_active_page()
+
+        assert sent is False
+        service.vb_client.send_characters.assert_not_called()

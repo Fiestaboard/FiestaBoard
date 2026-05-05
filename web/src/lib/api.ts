@@ -449,6 +449,9 @@ export interface SilenceStatus {
   end_time_utc: string;
   current_time_utc: string;
   next_change_utc: string;
+  mode?: string;
+  indicator_text?: string;
+  indicator_position?: string;
 }
 
 export interface PollingSettings {
@@ -1364,6 +1367,8 @@ export const api = {
     end_time: string;
     mode?: "indicator" | "freeze" | "page";
     page_id?: string | null;
+    indicator_text?: string | null;
+    indicator_position?: string | null;
   }) =>
     fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
       method: "PUT",

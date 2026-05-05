@@ -741,7 +741,15 @@
     "silenceModePageHelp": "Display the chosen page once when silence begins. Variables are frozen until silence ends.",
     "silencePageLabel": "Silence Page",
     "silencePagePlaceholder": "Select a page...",
-    "silencePageHelp": "This page will be displayed when the silence schedule starts. Its variables will not refresh while silenced."
+    "silencePageHelp": "This page will be displayed when the silence schedule starts. Its variables will not refresh while silenced.",
+    "silenceIndicatorTextLabel": "Message Text",
+    "silenceIndicatorTextHelp": "Uppercase letters and numbers only. Max 22 characters.",
+    "silenceIndicatorPositionLabel": "Message Position",
+    "positionTopLeft": "Top left",
+    "positionTopRight": "Top right",
+    "positionCenter": "Center",
+    "positionBottomLeft": "Bottom left",
+    "positionBottomRight": "Bottom right"
   },
   "themeToggle": {
     "toggleTheme": "Temayı değiştir"

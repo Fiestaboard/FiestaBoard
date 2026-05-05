@@ -234,10 +234,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "start_time": "20:00",  # 8pm (will be migrated to UTC ISO format)
             "end_time": "07:00",  # 7am (will be migrated to UTC ISO format)
             # Behavior while silence is active:
-            #   "indicator" - clear the board and show "SNOOZING" centered (default)
+            #   "indicator" - clear the board and show custom text centered (default)
             #   "freeze"    - leave whatever is currently on the board, stop updating
             #   "page"      - render the chosen page once, then stop updating
-            "mode": "indicator",
+            "mode": "freeze",
+            # Custom text to display when mode == "indicator"
+            "indicator_text": "SNOOZING",
+            # Position of indicator text on board: center, top-left, top-right, bottom-left, bottom-right
+            "indicator_position": "center",
             # Page id to display when mode == "page" (variables are frozen at silence-start)
             "page_id": None,
         },

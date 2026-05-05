@@ -542,10 +542,10 @@ class Config:
 
     @classproperty
     def SILENCE_SCHEDULE_MODE(self) -> str:
-        """Silence behaviour: 'indicator' (default), 'freeze', or 'page'."""
-        mode = self._get_feature("silence_schedule").get("mode", "indicator")
+        """Silence behaviour: 'freeze' (default), 'indicator', or 'page'."""
+        mode = self._get_feature("silence_schedule").get("mode", "freeze")
         if mode not in ("indicator", "freeze", "page"):
-            return "indicator"
+            return "freeze"
         return mode
 
     @classproperty
@@ -555,6 +555,22 @@ class Config:
         if isinstance(page_id, str) and page_id.strip():
             return page_id
         return None
+
+    @classproperty
+    def SILENCE_SCHEDULE_INDICATOR_TEXT(self) -> str:
+        """Custom text to display when SILENCE_SCHEDULE_MODE == 'indicator'. Defaults to 'SNOOZING'."""
+        text = self._get_feature("silence_schedule").get("indicator_text", "SNOOZING")
+        if isinstance(text, str) and text.strip():
+            return text.strip().upper()
+        return "SNOOZING"
+
+    @classproperty
+    def SILENCE_SCHEDULE_INDICATOR_POSITION(self) -> str:
+        """Position of indicator text: 'center' (default), 'top-left', 'top-right', 'bottom-left', 'bottom-right'."""
+        pos = self._get_feature("silence_schedule").get("indicator_position", "center")
+        if pos not in ("center", "top-left", "top-right", "bottom-left", "bottom-right"):
+            return "center"
+        return pos
     
     @classmethod
     def is_silence_mode_active(cls) -> bool:

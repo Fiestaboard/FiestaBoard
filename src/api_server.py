@@ -3087,9 +3087,9 @@ async def get_silence_status():
     enabled = silence_config.get("enabled", False)
     start_time = silence_config.get("start_time", "20:00+00:00")
     end_time = silence_config.get("end_time", "07:00+00:00")
-    mode = silence_config.get("mode", "indicator")
+    mode = silence_config.get("mode", "freeze")
     if mode not in ("indicator", "freeze", "page"):
-        mode = "indicator"
+        mode = "freeze"
     page_id = silence_config.get("page_id")
 
     # Check if currently active
@@ -3113,6 +3113,8 @@ async def get_silence_status():
         "next_change_utc": next_change_utc,
         "mode": mode,
         "page_id": page_id,
+        "indicator_text": silence_config.get("indicator_text", "SNOOZING"),
+        "indicator_position": silence_config.get("indicator_position", "center"),
     }
 
 
@@ -3121,8 +3123,10 @@ class SilenceScheduleRequest(BaseModel):
     enabled: bool
     start_time: str
     end_time: str
-    mode: Optional[str] = None  # "indicator" (default), "freeze", or "page"
+    mode: Optional[str] = None  # "freeze" (default), "indicator", or "page"
     page_id: Optional[str] = None  # Page id to display when mode == "page"
+    indicator_text: Optional[str] = None  # Custom text to display when mode == "indicator"
+    indicator_position: Optional[str] = None  # Position: center, top-left, top-right, bottom-left, bottom-right
 
 
 @app.put("/settings/silence-schedule")
@@ -3142,7 +3146,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     config_manager = get_config_manager()
 
     # Validate mode and page_id together
-    mode = request.mode if request.mode in ("indicator", "freeze", "page") else "indicator"
+    mode = request.mode if request.mode in ("indicator", "freeze", "page") else "freeze"
     page_id: Optional[str] = None
     if mode == "page":
         if not request.page_id:
@@ -3156,12 +3160,25 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         # so the user can toggle back without losing their choice.
         page_id = request.page_id
 
+    # Normalize indicator_text: uppercase, strip, fallback to "SNOOZING"
+    indicator_text_raw = request.indicator_text
+    if isinstance(indicator_text_raw, str) and indicator_text_raw.strip():
+        indicator_text = indicator_text_raw.strip().upper()
+    else:
+        indicator_text = "SNOOZING"
+
+    # Normalize indicator_position
+    _valid_positions = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
+    indicator_position = request.indicator_position if request.indicator_position in _valid_positions else "center"
+
     updated = {
         "enabled": request.enabled,
         "start_time": request.start_time,
         "end_time": request.end_time,
         "mode": mode,
         "page_id": page_id,
+        "indicator_text": indicator_text,
+        "indicator_position": indicator_position,
     }
 
     success = config_manager.set_feature("silence_schedule", updated)
@@ -3172,12 +3189,14 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         )
 
     logger.info(
-        "Silence schedule updated: enabled=%s, start=%s, end=%s, mode=%s, page_id=%s",
+        "Silence schedule updated: enabled=%s, start=%s, end=%s, mode=%s, page_id=%s, indicator_text=%s, indicator_position=%s",
         request.enabled,
         request.start_time,
         request.end_time,
         mode,
         page_id,
+        indicator_text,
+        indicator_position,
     )
 
     return {

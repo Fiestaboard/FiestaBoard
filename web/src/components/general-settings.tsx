@@ -34,6 +34,8 @@ export function GeneralSettings() {
   const [silenceEndTime, setSilenceEndTime] = useState("07:00");
   const [silenceMode, setSilenceMode] = useState<SilenceMode>("indicator");
   const [silencePageId, setSilencePageId] = useState<string>("");
+  const [silenceIndicatorText, setSilenceIndicatorText] = useState<string>("SNOOZING");
+  const [silenceIndicatorPosition, setSilenceIndicatorPosition] = useState<string>("center");
   const [pollingInterval, setPollingInterval] = useState(15);
 
   // Fetch all settings in one request
@@ -79,6 +81,8 @@ export function GeneralSettings() {
         rawMode === "freeze" || rawMode === "page" ? rawMode : "indicator"
       );
       setSilencePageId(((config.page_id as string) ?? "") || "");
+      setSilenceIndicatorText(((config.indicator_text as string) ?? "") || "SNOOZING");
+      setSilenceIndicatorPosition(((config.indicator_position as string) ?? "") || "center");
 
       setHasChanges(false);
     }
@@ -161,6 +165,16 @@ export function GeneralSettings() {
     setHasChanges(true);
   };
 
+  const handleSilenceIndicatorTextChange = (text: string) => {
+    setSilenceIndicatorText(text.toUpperCase());
+    setHasChanges(true);
+  };
+
+  const handleSilenceIndicatorPositionChange = (position: string) => {
+    setSilenceIndicatorPosition(position);
+    setHasChanges(true);
+  };
+
   // Pages for the "page" mode selector. Only fetched while silence is
   // enabled; the underlying query is otherwise idle and shared with the
   // rest of the app.
@@ -186,6 +200,8 @@ export function GeneralSettings() {
         end_time: endUtc,
         mode: silenceMode,
         page_id: silencePageId || null,
+        indicator_text: silenceIndicatorText || null,
+        indicator_position: silenceIndicatorPosition || null,
       });
     }
 
@@ -202,7 +218,7 @@ export function GeneralSettings() {
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [silenceEnabled, silenceStartTime, silenceEndTime, silenceMode, silencePageId, hasChanges]);
+  }, [silenceEnabled, silenceStartTime, silenceEndTime, silenceMode, silencePageId, silenceIndicatorText, silenceIndicatorPosition, hasChanges]);
 
   const isSaving = updateSilenceMutation.isPending || updatePollingMutation.isPending;
 
@@ -335,6 +351,49 @@ export function GeneralSettings() {
                         {silenceMode === "page" && t("silenceModePageHelp")}
                       </p>
                     </div>
+
+                    {silenceMode === "indicator" && (
+                      <>
+                      <div className="mt-3 space-y-2">
+                        <Label htmlFor="silence-indicator-text" className="text-xs">
+                          {t("silenceIndicatorTextLabel")}
+                        </Label>
+                        <Input
+                          id="silence-indicator-text"
+                          value={silenceIndicatorText}
+                          onChange={(e) => handleSilenceIndicatorTextChange(e.target.value)}
+                          disabled={isSaving}
+                          maxLength={22}
+                          placeholder="SNOOZING"
+                          className="uppercase"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t("silenceIndicatorTextHelp")}
+                        </p>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        <Label htmlFor="silence-indicator-position" className="text-xs">
+                          {t("silenceIndicatorPositionLabel")}
+                        </Label>
+                        <Select
+                          value={silenceIndicatorPosition}
+                          onValueChange={handleSilenceIndicatorPositionChange}
+                          disabled={isSaving}
+                        >
+                          <SelectTrigger id="silence-indicator-position" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="top-left">{t("positionTopLeft")}</SelectItem>
+                            <SelectItem value="top-right">{t("positionTopRight")}</SelectItem>
+                            <SelectItem value="center">{t("positionCenter")}</SelectItem>
+                            <SelectItem value="bottom-left">{t("positionBottomLeft")}</SelectItem>
+                            <SelectItem value="bottom-right">{t("positionBottomRight")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      </>
+                    )}
 
                     {silenceMode === "page" && (
                       <div className="mt-3 space-y-2">
