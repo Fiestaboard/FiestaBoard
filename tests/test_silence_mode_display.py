@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.board_chars import BoardChars
 from src.main import DisplayService
 
 

@@ -38,6 +38,10 @@ def service_factory():
 
         mocks['config'].is_silence_mode_active.return_value = is_silence
         mocks['config'].get_transition_settings.return_value = {"strategy": None}
+        mocks['config'].SILENCE_SCHEDULE_MODE = "indicator"
+        mocks['config'].SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
+        mocks['config'].SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
+        mocks['config'].SILENCE_SCHEDULE_PAGE_ID = None
 
         settings_service = Mock()
         settings_service.is_schedule_enabled.return_value = False
@@ -140,12 +144,13 @@ class TestEnteringSilence:
         assert svc._snoozing_message_sent is True
         assert svc._last_silence_mode_active is True
 
-        # Verify SNOOZING was stamped on the board array (bottom-right).
+        # Verify SNOOZING was stamped on the board array (center row by default).
         sent_array = svc.vb_client.send_characters.call_args.args[0]
-        last_row_text = "".join(
-            chr(c + 64) if 1 <= c <= 26 else "?" for c in sent_array[-1]
+        center_row = sent_array[len(sent_array) // 2]
+        center_row_text = "".join(
+            chr(c + 64) if 1 <= c <= 26 else "?" for c in center_row
         )
-        assert "SNOOZING" in last_row_text
+        assert "SNOOZING" in center_row_text
 
     def test_second_tick_after_entering_silence_is_a_noop(self, service_factory):
         """After the entering-silence send, subsequent polls must not send."""

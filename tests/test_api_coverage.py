@@ -506,7 +506,7 @@ class TestValidateConfig:
         assert data["is_first_run"] is False
         assert data["missing_fields"] == []
 
-    def test_validate_config_first_run_local_no_key(self, client, mock_config_manager):
+    def test_validate_config_first_run_local_no_key(self, client, mock_config_manager, mock_settings_service):
         """Local mode with missing key is first-run."""
         mock_config_manager.get_board.return_value = {
             "api_mode": "local",
@@ -519,7 +519,7 @@ class TestValidateConfig:
         assert "board.local_api_key" in data["missing_fields"]
         assert "board.host" in data["missing_fields"]
 
-    def test_validate_config_first_run_cloud(self, client, mock_config_manager):
+    def test_validate_config_first_run_cloud(self, client, mock_config_manager, mock_settings_service):
         """Cloud mode with missing key is first-run."""
         mock_config_manager.get_board.return_value = {
             "api_mode": "cloud",

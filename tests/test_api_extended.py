@@ -367,14 +367,14 @@ class TestConfigEndpoints:
         data = response.json()
         assert data["valid"] is True
 
-    def test_validate_config_first_run(self, client, mock_config_manager):
+    def test_validate_config_first_run(self, client, mock_config_manager, mock_settings_service):
         mock_config_manager.get_board.return_value = {"api_mode": "local", "local_api_key": "", "host": ""}
         response = client.get("/config/validate")
         assert response.status_code == 200
         data = response.json()
         assert data["is_first_run"] is True
 
-    def test_validate_config_cloud_missing_key(self, client, mock_config_manager):
+    def test_validate_config_cloud_missing_key(self, client, mock_config_manager, mock_settings_service):
         mock_config_manager.get_board.return_value = {"api_mode": "cloud", "cloud_key": ""}
         response = client.get("/config/validate")
         assert response.status_code == 200
