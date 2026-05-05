@@ -360,8 +360,11 @@ async def _post_chat_completion(
         try:
             response = await client.post(url, headers=headers, json=payload)
         except httpx.HTTPError as exc:
+            # Don't echo the raw httpx exception message — it can include
+            # URL/host details and CodeQL flags it as stack-trace exposure.
+            logger.warning("AI provider HTTP error: %s", exc)
             raise AIGenerationError(
-                f"Could not reach AI provider: {exc}"
+                "Could not reach AI provider."
             ) from exc
         if response.status_code >= 400:
             # Try to surface the provider's own error message via the
