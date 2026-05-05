@@ -328,6 +328,141 @@ class TestSendWelcomeMessage:
             assert data["status"] == "success"
             assert data.get("skipped") is True
 
+    def test_welcome_uses_note_template_for_note_board(self, client):
+        """When the configured board is a Note, render the 3x15 template."""
+        with patch("src.api_server.Config") as mock_config, \
+             patch("src.board_client.BoardClient") as MockBoardClient, \
+             patch("src.api_server.text_to_board_array") as mock_ttba, \
+             patch("src.api_server.get_settings_service") as mock_ss:
+            mock_config.is_silence_mode_active.return_value = False
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.get_board_api_key.return_value = "test_key_12345"
+            mock_config.BOARD_HOST = "192.168.1.100"
+
+            board_client = Mock()
+            board_client.send_characters.return_value = (True, True)
+            MockBoardClient.return_value = board_client
+
+            mock_ttba.return_value = [[0] * 15 for _ in range(3)]
+
+            ss = Mock()
+            transition = Mock()
+            transition.strategy = "column"
+            transition.step_interval_ms = 100
+            transition.step_size = 1
+            ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [{"device_type": "note"}]
+            ss.get_board_settings.return_value = board_settings
+            mock_ss.return_value = ss
+
+            response = client.post("/send-welcome-message")
+            assert response.status_code == 200
+            assert response.json()["status"] == "success"
+
+            # Verify text_to_board_array was called with Note dimensions
+            assert mock_ttba.call_count == 1
+            kwargs = mock_ttba.call_args.kwargs
+            assert kwargs.get("rows") == 3
+            assert kwargs.get("cols") == 15
+            # And that the rendered welcome text has 3 lines; the center row
+            # (plain text, not color markers) fits in the 15-column Note width.
+            welcome_text = mock_ttba.call_args.args[0]
+            lines = welcome_text.split("\n")
+            assert len(lines) == 3
+            # Center line is the only one without color markers
+            center = lines[1]
+            assert "{" not in center
+            assert len(center) <= 15
+
+    def test_welcome_uses_flagship_template_for_flagship_board(self, client):
+        """When the configured board is a Flagship, render the 6x22 template."""
+        with patch("src.api_server.Config") as mock_config, \
+             patch("src.board_client.BoardClient") as MockBoardClient, \
+             patch("src.api_server.text_to_board_array") as mock_ttba, \
+             patch("src.api_server.get_settings_service") as mock_ss:
+            mock_config.is_silence_mode_active.return_value = False
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.get_board_api_key.return_value = "test_key_12345"
+            mock_config.BOARD_HOST = "192.168.1.100"
+
+            board_client = Mock()
+            board_client.send_characters.return_value = (True, True)
+            MockBoardClient.return_value = board_client
+
+            mock_ttba.return_value = [[0] * 22 for _ in range(6)]
+
+            ss = Mock()
+            transition = Mock()
+            transition.strategy = "column"
+            transition.step_interval_ms = 100
+            transition.step_size = 1
+            ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [{"device_type": "flagship"}]
+            ss.get_board_settings.return_value = board_settings
+            mock_ss.return_value = ss
+
+            response = client.post("/send-welcome-message")
+            assert response.status_code == 200
+            assert response.json()["status"] == "success"
+
+            assert mock_ttba.call_count == 1
+            kwargs = mock_ttba.call_args.kwargs
+            assert kwargs.get("rows") == 6
+            assert kwargs.get("cols") == 22
+            welcome_text = mock_ttba.call_args.args[0]
+            assert "HIYA FROM FIESTABOARD" in welcome_text
+
+
+class TestBuildWelcomeTemplate:
+    """Unit tests for _build_welcome_template helper."""
+
+    def test_flagship_default_message(self):
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template("flagship", "")
+        assert len(template) == 6
+        # Center row (index 2) carries the default Flagship message
+        assert template[2] == "HIYA FROM FIESTABOARD"
+
+    def test_note_default_message(self):
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template("note", "")
+        assert len(template) == 3
+        # Center row (index 1) carries the default Note message
+        assert template[1] == "HIYA FIESTA!"
+        # Center text fits in 15 cols
+        assert len(template[1]) <= 15
+
+    def test_note_custom_message_truncated_to_15(self):
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template(
+            "note", "this message is way too long for a note"
+        )
+        assert len(template) == 3
+        assert template[1] == "THIS MESSAGE IS"
+        assert len(template[1]) == 15
+
+    def test_flagship_custom_message_truncated_to_22(self):
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template(
+            "flagship", "this message is much longer than twenty two cols"
+        )
+        assert len(template) == 6
+        assert template[2] == "THIS MESSAGE IS MUCH L"
+        assert len(template[2]) == 22
+
+    def test_unknown_device_falls_back_to_flagship(self):
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template("unknown", "")
+        assert len(template) == 6
+        assert template[2] == "HIYA FROM FIESTABOARD"
+
 
 # ===========================================================================
 # Priority 2 – Configuration Endpoints

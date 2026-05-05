@@ -2253,6 +2253,61 @@ async def get_config():
     return Config.get_summary()
 
 
+# Default welcome messages, sized to fit each device's center row.
+# Flagship has 22 columns; Note has 15 columns.
+_DEFAULT_WELCOME_FLAGSHIP = "HIYA FROM FIESTABOARD"
+_DEFAULT_WELCOME_NOTE = "HIYA FIESTA!"
+
+# Colorful welcome template for Flagship (6 rows x 22 cols).
+# Matches the welcome page in pages.json.
+_WELCOME_TEMPLATE_FLAGSHIP = [
+    "{{red}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}",
+    "{{orange}}{{yellow}}{{red}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}",
+    "{center}",
+    "{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{orange}}",
+    "{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{orange}}{{red}}{{violet}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}",
+    "{{orange}}{{violet}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{red}}{{orange}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}",
+]
+
+# Colorful welcome template for Note (3 rows x 15 cols).
+# Two colorful border rows surround a centered text row.
+_WELCOME_TEMPLATE_NOTE = [
+    "{{red}}{{orange}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}",
+    "{center}",
+    "{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{orange}}{{violet}}",
+]
+
+
+def _build_welcome_template(device_type: str, custom_msg: str) -> list:
+    """Build the welcome message template for a given device type.
+
+    Returns a list of template strings (one per row) sized appropriately
+    for the device. The center row contains the welcome text, truncated to
+    fit the device's column count.
+
+    Args:
+        device_type: "flagship" or "note"
+        custom_msg: Optional user-configured welcome message; when empty,
+            a device-appropriate default is used.
+    """
+    if device_type == "note":
+        cols = 15
+        default_msg = _DEFAULT_WELCOME_NOTE
+        rows = list(_WELCOME_TEMPLATE_NOTE)
+    else:
+        cols = 22
+        default_msg = _DEFAULT_WELCOME_FLAGSHIP
+        rows = list(_WELCOME_TEMPLATE_FLAGSHIP)
+
+    center_text = (custom_msg.upper() if custom_msg else default_msg)[:cols]
+    if custom_msg and len(custom_msg) > cols:
+        logger.debug(
+            "Welcome message truncated from %d to %d characters for %s device",
+            len(custom_msg), cols, device_type,
+        )
+    return [row.replace("{center}", center_text) for row in rows]
+
+
 @app.post("/send-welcome-message")
 async def send_welcome_message():
     """
@@ -2294,24 +2349,34 @@ async def send_welcome_message():
         config_manager = get_config_manager()
         general = config_manager.get_general()
         custom_msg = general.get("welcome_message", "").strip()
-        center_line = custom_msg.upper() if custom_msg else "HIYA FROM FIESTABOARD"
 
-        # Colorful welcome template (matches pages.json welcome page)
-        welcome_template = [
-            "{{red}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}",
-            "{{orange}}{{yellow}}{{red}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}",
-            center_line,
-            "{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{orange}}",
-            "{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{orange}}{{red}}{{violet}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}",
-            "{{orange}}{{violet}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{red}}{{orange}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}"
-        ]
-        
-        # Convert template to board array
-        welcome_text = "\n".join(welcome_template)
-        board_array = text_to_board_array(welcome_text)
-        
         settings_service = get_settings_service()
         transition = settings_service.get_transition_settings()
+
+        # Determine device type from configured boards (defaults to flagship).
+        # The Note has different dimensions (3x15 vs flagship's 6x22), so we
+        # render a smaller welcome message that fits its display.
+        device_type = "flagship"
+        try:
+            board_settings = settings_service.get_board_settings()
+            boards = getattr(board_settings, "boards", None) or []
+            if boards:
+                first = boards[0]
+                if isinstance(first, dict):
+                    dt = first.get("device_type", "flagship")
+                else:
+                    dt = getattr(first, "device_type", "flagship")
+                if dt in ("flagship", "note"):
+                    device_type = dt
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug(f"Could not determine device type for welcome message: {exc}")
+
+        welcome_template = _build_welcome_template(device_type, custom_msg)
+
+        # Convert template to board array sized for the target device
+        welcome_text = "\n".join(welcome_template)
+        dims = get_dimensions(device_type)
+        board_array = text_to_board_array(welcome_text, rows=dims.rows, cols=dims.cols)
         
         success, was_sent = board_client.send_characters(
             board_array,
