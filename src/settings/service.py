@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 # Valid values
 VALID_STRATEGIES = [
     "column", "reverse-column", "edges-to-center",
-    "row", "diagonal", "random"
+    "row", "diagonal", "random", "quietLibrary"
 ]
 VALID_OUTPUT_TARGETS = ["ui", "board", "both"]
 
 OutputTarget = Literal["ui", "board", "both"]
 TransitionStrategy = Literal[
     "column", "reverse-column", "edges-to-center",
-    "row", "diagonal", "random"
+    "row", "diagonal", "random", "quietLibrary"
 ]
 
 

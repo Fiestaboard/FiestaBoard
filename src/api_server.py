@@ -4270,7 +4270,7 @@ async def update_transition_settings(request: dict):
     Update transition animation settings.
     
     Body can include:
-    - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random, or null
+    - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random, quietLibrary, or null
     - step_interval_ms: Delay between animation steps (ms), or null for default
     - step_size: How many columns/rows animate at once, or null for default
     """

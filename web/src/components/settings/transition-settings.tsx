@@ -19,6 +19,7 @@ const STRATEGY_VALUES: { value: string | null; key: "none" | "column" | "reverse
   { value: "row", key: "row" },
   { value: "diagonal", key: "diagonal" },
   { value: "random", key: "random" },
+  { value: "quietLibrary", key: "quietLibrary" },
 ];
 
 export function TransitionSettings() {
