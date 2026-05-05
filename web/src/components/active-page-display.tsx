@@ -18,86 +18,8 @@ import type { SilenceStatus, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { readLiveOutputMessage, onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { addSnoozingIndicator } from "@/lib/snoozing-indicator";
 
-
-// Parse a line into tokens (same logic as BoardDisplay)
-type Token = { type: "char"; value: string } | { type: "color"; code: string };
-
-function parseLine(line: string): Token[] {
-  const tokens: Token[] = [];
-  let i = 0;
-  
-  while (i < line.length) {
-    if (line[i] === "{") {
-      const closingBrace = line.indexOf("}", i);
-      if (closingBrace !== -1) {
-        const content = line.substring(i + 1, closingBrace);
-        
-        // Skip end tags {/...} or {/}
-        if (content.startsWith("/")) {
-          i = closingBrace + 1;
-          continue;
-        }
-        
-        // Check if it's a color code (63-70 or named colors)
-        if (/^\d+$/.test(content) && parseInt(content) >= 63 && parseInt(content) <= 70) {
-          tokens.push({ type: "color", code: content });
-          i = closingBrace + 1;
-          continue;
-        }
-      }
-    }
-    
-    // Convert to uppercase since board only supports uppercase letters
-    tokens.push({ type: "char", value: line[i].toUpperCase() });
-    i++;
-  }
-  
-  return tokens;
-}
-
-function tokensToString(tokens: Token[]): string {
-  return tokens.map(token => {
-    if (token.type === "color") {
-      return `{${token.code}}`;
-    }
-    return token.value;
-  }).join('');
-}
-
-// Add snoozing indicator to bottom right of board content
-function addSnoozingIndicator(content: string, numRows: number = 6, numCols: number = 22): string {
-  const lines = content.split('\n');
-  
-  // Ensure we have exactly numRows lines (board rows)
-  while (lines.length < numRows) {
-    lines.push("");
-  }
-  
-  const lastIdx = numRows - 1;
-  // Parse the last line into tokens (each token = 1 board position)
-  const lastLineTokens = parseLine(lines[lastIdx] || "");
-  
-  // Pad to numCols tokens total
-  while (lastLineTokens.length < numCols) {
-    lastLineTokens.push({ type: "char", value: " " });
-  }
-  
-  // Truncate if too long
-  const boardTokens = lastLineTokens.slice(0, numCols);
-  
-  // For note (15 cols), use shorter "ZZZ" indicator; for flagship use "SNOOZING"
-  const indicator = numCols >= 22 ? "SNOOZING" : "ZZZ";
-  const startPos = numCols - indicator.length;
-  for (let i = 0; i < indicator.length; i++) {
-    boardTokens[startPos + i] = { type: "char", value: indicator[i] };
-  }
-  
-  // Convert back to string
-  lines[lastIdx] = tokensToString(boardTokens);
-  
-  return lines.slice(0, numRows).join('\n');
-}
 
 export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
@@ -363,13 +285,19 @@ export function ActivePageDisplay() {
     const baseMessage = liveOutputMessage ?? previewData?.message ?? null;
     if (!baseMessage) return null;
     
-    // If silence mode is active, add the snoozing indicator
-    if (silenceStatus?.active) {
-      return addSnoozingIndicator(baseMessage, dims.rows, dims.cols);
+    // If silence mode is active in indicator mode, add the custom message
+    if (silenceStatus?.active && silenceStatus?.mode === "indicator") {
+      return addSnoozingIndicator(
+        baseMessage,
+        dims.rows,
+        dims.cols,
+        silenceStatus.indicator_text || "SNOOZING",
+        silenceStatus.indicator_position || "center",
+      );
     }
     
     return baseMessage;
-  }, [liveOutputMessage, previewData?.message, silenceStatus?.active, dims.rows, dims.cols]);
+  }, [liveOutputMessage, previewData?.message, silenceStatus?.active, silenceStatus?.mode, silenceStatus?.indicator_text, silenceStatus?.indicator_position, dims.rows, dims.cols]);
 
   return (
     <>
