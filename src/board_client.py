@@ -212,6 +212,7 @@ class BoardClient:
     ) -> Tuple[bool, bool]:
         """
         Executes a custom quiet transition: word-by-word diffing.
+        Updates a maximum of 6 characters per request, strictly within the bounds of a single word.
         Runs safely in a background thread to prevent blocking the web UI.
         """
         # Maintain a long delay to prevent the board from dropping payloads while spinning.
@@ -243,7 +244,7 @@ class BoardClient:
         self._last_text = None
         
         def background_transition():
-            logger.info("QuietLibrary background thread: Starting word-by-word transition.")
+            logger.info("QuietLibrary background thread: Starting chunked word-by-word transition.")
             request_headers = self.headers.copy()
             request_headers["Connection"] = "close"
             
@@ -254,42 +255,56 @@ class BoardClient:
                         if intermediate_grid[r][c] != target_grid[r][c]:
                             start_c = c
                             
-                            # Group letters into a word
+                            # Group letters into a word block
                             if target_grid[r][c] != 0:
                                 while c < num_cols and target_grid[r][c] != 0:
                                     c += 1
                                     
-                            # Group all trailing spaces attached to the word
+                            # Group all trailing spaces attached to the word block
                             while c < num_cols and target_grid[r][c] == 0:
                                 c += 1
                                 
-                            # Apply the block (word + spaces)
+                            # Identify exact character differences within this specific word block
+                            block_changes = []
                             for update_c in range(start_c, c):
-                                intermediate_grid[r][update_c] = target_grid[r][update_c]
+                                if intermediate_grid[r][update_c] != target_grid[r][update_c]:
+                                    block_changes.append(update_c)
+                            
+                            # Process changes within this word block in batches of up to 6
+                            batch_size = 6
+                            for i in range(0, len(block_changes), batch_size):
+                                batch = block_changes[i:i + batch_size]
                                 
-                            payload = intermediate_grid if self.use_cloud else {"characters": intermediate_grid}
-                            
-                            logger.info(f"QuietLibrary: Updating row {r}, cols {start_c} to {c - 1}")
-                            
-                            # Enforce delivery
-                            success = False
-                            while not success:
-                                try:
-                                    response = requests.post(
-                                        self.base_url, 
-                                        headers=request_headers, 
-                                        json=payload, 
-                                        timeout=10
-                                    )
-                                    response.raise_for_status()
-                                    response.close()
-                                    success = True
-                                except requests.exceptions.RequestException as e:
-                                    logger.warning(f"QuietLibrary: Request failed, retrying. ({e})")
-                                    time.sleep(2.0)
+                                # Apply the current batch to the intermediate grid
+                                for update_c in batch:
+                                    intermediate_grid[r][update_c] = target_grid[r][update_c]
                                     
-                            # Wait for physical flaps to finish moving
-                            time.sleep(delay_sec)
+                                if self.use_cloud:
+                                    payload = intermediate_grid
+                                else:
+                                    payload = {"characters": intermediate_grid}
+                                
+                                logger.info(f"QuietLibrary: Updating row {r}, {len(batch)} chars in word block ({i+1} to {min(i+batch_size, len(block_changes))} of {len(block_changes)})")
+                                
+                                # Enforce delivery
+                                success = False
+                                while not success:
+                                    try:
+                                        response = requests.post(
+                                            self.base_url, 
+                                            headers=request_headers, 
+                                            json=payload, 
+                                            timeout=10
+                                        )
+                                        response.raise_for_status()
+                                        response.close()
+                                        success = True
+                                    except requests.exceptions.RequestException as e:
+                                        logger.warning(f"QuietLibrary: Request failed, retrying. ({e})")
+                                        time.sleep(2.0)
+                                        
+                                # Wait for physical flaps to finish moving before sending the next batch or word
+                                time.sleep(delay_sec)
                         else:
                             c += 1
                 logger.info("QuietLibrary background transition completed successfully.")
@@ -301,6 +316,7 @@ class BoardClient:
         thread.start()
         
         return (True, True)
+
 
     def send_characters(
         self,
