@@ -35,7 +35,7 @@ interface TemplateEditorToolbarProps {
 
 export function TemplateEditorToolbar({
   editor,
-  _currentAlignment = 'left',
+  currentAlignment = 'left',
   currentWrapEnabled = false,
   onAlignmentChange,
   onWrapToggle,
@@ -409,14 +409,15 @@ export function TemplateEditorToolbar({
               type="button"
               onClick={onWrapToggle}
               className={cn(
-                "flex items-center justify-center p-1.5 rounded-md",
-                "hover:bg-muted/50 transition-colors",
+                "flex items-center justify-center p-1.5 rounded-md transition-colors",
                 "border border-transparent",
-                currentWrapEnabled && "bg-muted/70 border-border"
+                currentWrapEnabled
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted/50"
               )}
               aria-label={t("toggleWrap")}
             >
-              <WrapText className={cn("w-4 h-4", currentWrapEnabled && "text-primary")} />
+              <WrapText className="w-4 h-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
@@ -436,7 +437,12 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={() => handleAlignmentClick('left')}
-                className="px-2 py-1.5 transition-colors hover:bg-muted/50"
+                className={cn(
+                  "px-2 py-1.5 transition-colors",
+                  currentAlignment === 'left'
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted/50"
+                )}
                 aria-label={t("alignLeft")}
               >
                 <AlignLeft className="w-4 h-4" />
@@ -450,7 +456,12 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={() => handleAlignmentClick('center')}
-                className="px-2 py-1.5 border-x border-border transition-colors hover:bg-muted/50"
+                className={cn(
+                  "px-2 py-1.5 border-x border-border transition-colors",
+                  currentAlignment === 'center'
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted/50"
+                )}
                 aria-label={t("alignCenter")}
               >
                 <AlignCenter className="w-4 h-4" />
@@ -464,7 +475,12 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={() => handleAlignmentClick('right')}
-                className="px-2 py-1.5 transition-colors hover:bg-muted/50"
+                className={cn(
+                  "px-2 py-1.5 transition-colors",
+                  currentAlignment === 'right'
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted/50"
+                )}
                 aria-label={t("alignRight")}
               >
                 <AlignRight className="w-4 h-4" />
