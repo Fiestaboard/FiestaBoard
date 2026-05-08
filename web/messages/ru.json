@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "Введите шаблонный синтаксис, например {{weather.temp}} или {{red}} для цветных плиток",
     "plainEditorPlaceholder": "Введите текст шаблона, используя синтаксис {{variable}} для динамических данных",
     "lineCountWarning": "В шаблоне {lineCount} строк, но доска отображает только {maxLines}. Строки после {maxLines} будут проигнорированы.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "Предупреждение:",
     "previewLabel": "Предпросмотр",
     "boardColorLabel": "Цвет доски",

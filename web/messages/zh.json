@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "输入模板语法，例如 {{weather.temp}} 或 {{red}} 表示颜色色块",
     "plainEditorPlaceholder": "使用 {{variable}} 语法输入模板文本以获取动态数据",
     "lineCountWarning": "模板有 {lineCount} 行，但看板仅显示 {maxLines} 行。超出 {maxLines} 行的内容将被忽略。",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "警告：",
     "previewLabel": "预览",
     "boardColorLabel": "看板颜色",

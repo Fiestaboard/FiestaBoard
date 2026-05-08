@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "{{weather.temp}} のようなテンプレート構文や {{red}} のようなカラータイルを入力してください",
     "plainEditorPlaceholder": "動的データには {{variable}} 構文を使用してテンプレートテキストを入力してください",
     "lineCountWarning": "テンプレートは {lineCount} 行ありますが、ボードの表示は {maxLines} 行までです。{maxLines} 行を超える部分は無視されます。",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "警告:",
     "previewLabel": "プレビュー",
     "boardColorLabel": "ボードカラー",

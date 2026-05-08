@@ -287,6 +287,281 @@ class TestRenderLinesWrap:
 
 
 # ---------------------------------------------------------------------------
+# render_lines wrap-region behavior (multi-line wrap budget)
+#
+# These tests cover the "wrap region" model: the wrap budget for a wrap-enabled
+# line extends through subsequent lines that are (a) literally empty,
+# (b) themselves wrap=True, or (c) render to empty/whitespace. A non-empty
+# wrap=False line that renders to visible output still hard-stops the region
+# (preserving the existing test_wrap_respects_non_empty_boundary contract).
+# ---------------------------------------------------------------------------
+
+class TestRenderLinesWrapRegion:
+
+    def test_wrap_region_consecutive_wrap_lines_merge(self, engine):
+        """wrap=true on rows 0,1,2 each with non-empty content; row 3 is the
+        non-wrap boundary 'BOUNDARY'. Existing engine breaks at row 1's
+        non-empty content (empty_count=1). New engine treats wrap=True rows
+        as part of the region (empty_count=3) so a long row-0 value flows
+        across rows 0-2, overwriting their original content. Row 3 stays."""
+        context = {"test": {"val": "ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF HOTEL"}}
+        lines = ["{{test.val}}", "PLACEHOLDER1", "PLACEHOLDER2", "BOUNDARY", "", ""]
+        metadata = [
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        # Rows 0-2 must be word-bounded fragments from the value (no PLACEHOLDER
+        # leftovers because wrap clobbers wrap-region members).
+        value_tokens = context["test"]["val"].split()
+        for row_idx in range(3):
+            row_tokens = output[row_idx].split()
+            assert "PLACEHOLDER1" not in row_tokens and "PLACEHOLDER2" not in row_tokens, (
+                f"Row {row_idx} kept its placeholder; wrap region didn't merge: {output}"
+            )
+            for tok in row_tokens:
+                assert tok in value_tokens, (
+                    f"Row {row_idx} token {tok!r} is not a whole word from source: {output}"
+                )
+        # Wrap must have produced content on at least 2 rows (otherwise the
+        # value fit in one row and we proved nothing).
+        non_empty_in_region = sum(1 for r in output[:3] if r.strip())
+        assert non_empty_in_region >= 2, f"Wrap didn't expand into region: {output}"
+        # Row 3 boundary preserved.
+        assert "BOUNDARY" in output[3], f"BOUNDARY clobbered: {output[3]!r}"
+
+    def test_wrap_region_blocked_by_non_wrap_below_word_bounded(self, engine):
+        """Wrap line with non-wrap decoration directly below: budget=1, must word-bound."""
+        context = {"test": {"val": "A TOURIST BOAT CAPSIZES IN BANGKOK"}}
+        lines = ["{{test.val}}", "{63}{63}{63}{63}{63}", "", "", "", ""]
+        metadata = [
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        # Row 0 must be word-bounded (NOT mid-word "A TOURIST BOAT CAPSIZE")
+        # Row 1 must still contain the tile decoration
+        row0 = output[0].rstrip()
+        row0_tokens = row0.split()
+        value_tokens = context["test"]["val"].split()
+        for tok in row0_tokens:
+            assert tok in value_tokens, (
+                f"Row 0 token {tok!r} is mid-word truncation; expected whole-word boundary. "
+                f"Full row: {row0!r}"
+            )
+        # And row 1 should still have the tile codes (decoration not clobbered)
+        assert "{63}" in output[1], f"Row 1 decoration was clobbered: {output[1]!r}"
+
+    def test_wrap_region_hard_stops_at_non_wrap_in_middle(self, engine):
+        """wrap=true line, wrap=true non-empty line, wrap=false 'FIXED'.
+
+        Existing engine: row 1 is non-empty so empty_count=1, wrap fits in 1 row,
+        'PLACEHOLDER' on row 1 is preserved (wrap doesn't extend), FIXED preserved.
+        New engine: row 1 wrap=True extends region to 2; wrap clobbers PLACEHOLDER;
+        row 2 wrap=False FIXED hard-stops. PLACEHOLDER must be GONE from row 1."""
+        context = {"test": {"val": "ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF"}}
+        lines = ["{{test.val}}", "PLACEHOLDER", "FIXED", "", "", ""]
+        metadata = [
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        assert "FIXED" in output[2], f"FIXED was clobbered: {output}"
+        # PLACEHOLDER must be gone from row 1 (wrap extended into wrap=True row)
+        assert "PLACEHOLDER" not in output[1], (
+            f"PLACEHOLDER still on row 1; wrap region didn't extend: {output[1]!r}"
+        )
+        # Row 1 should contain wrap overflow.
+        value_tokens = context["test"]["val"].split()
+        row1_tokens = output[1].split()
+        assert any(tok in value_tokens for tok in row1_tokens), (
+            f"Row 1 should contain wrap overflow; got: {output[1]!r}"
+        )
+
+    def test_wrap_region_note_device(self, engine):
+        """Wrap region works on Note device (3 rows × 15 cols).
+
+        Row 1 has wrap=True AND non-empty content. New engine extends budget
+        and clobbers it; existing engine sees non-empty content and stops."""
+        context = {"test": {"val": "ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT"}}
+        lines = ["{{test.val}}", "PLACEHOLDER", ""]
+        metadata = [
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata, device_type="note")
+        output = result.split('\n')
+        assert len(output) == 3
+        for row in output:
+            assert len(row) <= 15, f"Row exceeds Note width: {row!r}"
+        assert "PLACEHOLDER" not in output[1], (
+            f"PLACEHOLDER survived wrap region on Note device: {output[1]!r}"
+        )
+        value_tokens = context["test"]["val"].split()
+        row1_tokens = output[1].split()
+        assert any(tok in value_tokens for tok in row1_tokens), (
+            f"Wrap did not expand on Note device: {output}"
+        )
+
+    def test_wrap_on_last_line(self, engine):
+        """Wrap on the final row with no rows below: single word-bounded line, no exception."""
+        context = {"test": {"val": "A LONG ENOUGH STRING TO OVERFLOW THE BOARD WIDTH"}}
+        lines = ["", "", "", "", "", "{{test.val}}"]
+        metadata = [
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": True},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        assert len(output) == 6
+        # Row 5 should be word-bounded
+        row5_tokens = output[5].split()
+        value_tokens = context["test"]["val"].split()
+        for tok in row5_tokens:
+            assert tok in value_tokens, (
+                f"Last-line wrap produced mid-word truncation: {output[5]!r}"
+            )
+
+    def test_wrap_region_empty_wrap_line_does_not_pull_content_up(self, engine):
+        """wrap=true on rows 0+1, content only on row 1: row 0 stays empty."""
+        context = {"test": {"val": "HELLO WORLD"}}
+        lines = ["", "{{test.val}}", "", "", "", ""]
+        metadata = [
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        # Row 0 stays blank (just padding), row 1 has the value
+        assert output[0].strip() == "", f"Row 0 should be empty: {output[0]!r}"
+        assert "HELLO" in output[1], f"Row 1 should contain value: {output[1]!r}"
+
+    def test_wrap_region_legacy_prefix_path(self, engine):
+        """{wrap} prefix on row 0 + {wrap}TEXT on row 1 (legacy path): region is 2 lines.
+
+        Row 1 has wrap prefix AND non-empty content. Existing engine sees row 1
+        as non-empty after _extract_alignment strips the {wrap} prefix, so
+        empty_count=1 and 'PLACEHOLDER' is preserved. New engine treats row 1
+        as a wrap-region member, so wrap clobbers PLACEHOLDER."""
+        context = {"test": {"val": "ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF HOTEL"}}
+        lines = ["{wrap}{{test.val}}", "{wrap}PLACEHOLDER", "FIXED", "", "", ""]
+        # No line_metadata: forces _extract_alignment to populate wraps[]
+        result = engine.render_lines(lines, context)
+        output = result.split('\n')
+        assert "FIXED" in output[2], f"FIXED clobbered: {output}"
+        assert "PLACEHOLDER" not in output[1], (
+            f"PLACEHOLDER survived wrap region (legacy path): {output[1]!r}"
+        )
+        value_tokens = context["test"]["val"].split()
+        row1_tokens = output[1].split()
+        assert any(tok in value_tokens for tok in row1_tokens), (
+            f"Legacy {{wrap}} on row 1 did not extend the region: {output[1]!r}"
+        )
+
+    def test_wrap_region_with_pipe_wrap_filter(self, engine):
+        """{{x|wrap}} on row 0 (variable-level wrap), wrap=true non-empty row 1, FIXED row 2.
+
+        Existing engine: row 1 non-empty → empty_count=1, PLACEHOLDER preserved.
+        New engine: row 1 wrap=True extends region, wrap clobbers PLACEHOLDER."""
+        context = {"test": {"val": "ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF HOTEL"}}
+        lines = ["{{test.val|wrap}}", "PLACEHOLDER", "FIXED", "", "", ""]
+        metadata = [
+            {"alignment": "left", "wrap": False},  # has_wrap from |wrap filter
+            {"alignment": "left", "wrap": True},   # extends region (non-empty content)
+            {"alignment": "left", "wrap": False},  # hard boundary
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        assert "FIXED" in output[2], f"FIXED clobbered: {output}"
+        assert "PLACEHOLDER" not in output[1], (
+            f"PLACEHOLDER survived |wrap region: {output[1]!r}"
+        )
+        value_tokens = context["test"]["val"].split()
+        row1_tokens = output[1].split()
+        assert any(tok in value_tokens for tok in row1_tokens), (
+            f"Variable-level wrap did not honor extended budget: {output[1]!r}"
+        )
+
+    def test_wrap_region_extends_through_rendered_empty_line(self, engine):
+        """Row 1 is {{plugin.maybe}} where maybe = '': budget includes row 1."""
+        context = {
+            "plugin": {"maybe": ""},
+            "test": {"val": "ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT"},
+        }
+        lines = ["{{test.val}}", "{{plugin.maybe}}", "", "", "", ""]
+        metadata = [
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": False},  # NOT a wrap line, but renders empty
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        # Wrap should have expanded into row 1 because plugin.maybe renders to ""
+        value_tokens = context["test"]["val"].split()
+        row1_tokens = output[1].split()
+        assert any(tok in value_tokens for tok in row1_tokens), (
+            f"Wrap did not flow into rendered-empty line: {output}"
+        )
+
+    def test_wrap_region_blocked_by_rendered_visible_line(self, engine):
+        """Row 1 is {{plugin.label}} where label = 'FOOTER': region stops at row 0."""
+        context = {
+            "plugin": {"label": "FOOTER"},
+            "test": {"val": "A TOURIST BOAT CAPSIZES IN BANGKOK"},
+        }
+        lines = ["{{test.val}}", "{{plugin.label}}", "", "", "", ""]
+        metadata = [
+            {"alignment": "left", "wrap": True},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+            {"alignment": "left", "wrap": False},
+        ]
+        result = engine.render_lines(lines, context, line_metadata=metadata)
+        output = result.split('\n')
+        # Row 1 should still show "FOOTER" (rendered-visible content blocks the region)
+        assert "FOOTER" in output[1], f"FOOTER was clobbered: {output[1]!r}"
+        # And row 0 must be word-bounded (budget=1 with word-wrapping)
+        row0_tokens = output[0].split()
+        value_tokens = context["test"]["val"].split()
+        for tok in row0_tokens:
+            assert tok in value_tokens, (
+                f"Row 0 token {tok!r} is mid-word truncation: {output[0]!r}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # render with context=None (line 146)
 # ---------------------------------------------------------------------------
 
