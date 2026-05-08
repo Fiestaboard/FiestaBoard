@@ -28,11 +28,11 @@ zeroconf>=0.148.0
 paho-mqtt>=2.1.0
 
 # iCalendar parsing (used by the calendar_sub plugin)
-icalendar>=7.0.3
-recurring-ical-events>=3.8.1
+icalendar>=7.1.0
+recurring-ical-events>=3.8.2
 
 # Timezone support (used by santa_tracker, visual_clock, stardate, calendar_sub plugins)
-pytz>=2024.0
+pytz>=2026.2
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
