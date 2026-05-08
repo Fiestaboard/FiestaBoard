@@ -1058,6 +1058,26 @@ export const handlers = [
     });
   }),
 
+  http.get(`${API_BASE}/system/update/status`, () => {
+    return HttpResponse.json({
+      updater_available: false,
+      auto_update_enabled: false,
+      auto_update_interval: "weekly",
+      profile: null,
+      sidecar_url: null,
+      last_check: null,
+      last_update: null,
+      last_update_status: null,
+      last_update_action: null,
+      last_update_error: null,
+      snapshots: [],
+    });
+  }),
+
+  http.post(`${API_BASE}/system/update/auto`, () => {
+    return HttpResponse.json({ enabled: false, interval: "weekly" });
+  }),
+
   http.post(`${API_BASE}/system/restart`, () => {
     return HttpResponse.json({ status: "queued", action: "restart" }, { status: 200 });
   }),
