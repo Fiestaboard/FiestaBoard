@@ -109,11 +109,30 @@ export function TemplateEditorToolbar({
 
     const checkClipboard = async () => {
       try {
+        if (!navigator.clipboard?.readText) {
+          setHasClipboardContent(false);
+          return;
+        }
+
+        if (navigator.permissions?.query) {
+          try {
+            const permissionStatus = await navigator.permissions.query({
+              name: 'clipboard-read' as PermissionName,
+            });
+            if (permissionStatus.state === 'denied') {
+              setHasClipboardContent(false);
+              return;
+            }
+          } catch {
+            // Permission API may be unsupported for clipboard-read in some browsers.
+          }
+        }
+
         const text = await navigator.clipboard.readText();
         setHasClipboardContent(text.length > 0);
       } catch {
-        // Can't read clipboard (permission denied or unavailable) — optimistically enable paste
-        setHasClipboardContent(true);
+        // Can't read clipboard (permission denied or unavailable) — keep paste disabled
+        setHasClipboardContent(false);
       }
     };
 
@@ -141,18 +160,37 @@ export function TemplateEditorToolbar({
     }
   };
 
-  const handleCut = useCallback(() => {
+  const handleCut = useCallback(async () => {
     if (editor && hasSelection) {
       editor.view.focus();
-      document.execCommand('cut');
+      const { from, to } = editor.state.selection;
+      const selectedText = editor.state.doc.textBetween(from, to, '\n');
+
+      try {
+        await navigator.clipboard.writeText(selectedText);
+        editor.chain().focus().deleteSelection().run();
+      } catch {
+        // Fallback for environments where Clipboard API write is unavailable/denied
+        document.execCommand('cut');
+      }
+
       setHasClipboardContent(true);
     }
   }, [editor, hasSelection]);
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback(async () => {
     if (editor && hasSelection) {
       editor.view.focus();
-      document.execCommand('copy');
+      const { from, to } = editor.state.selection;
+      const selectedText = editor.state.doc.textBetween(from, to, '\n');
+
+      try {
+        await navigator.clipboard.writeText(selectedText);
+      } catch {
+        // Fallback for environments where Clipboard API write is unavailable/denied
+        document.execCommand('copy');
+      }
+
       setHasClipboardContent(true);
     }
   }, [editor, hasSelection]);
@@ -367,7 +405,7 @@ export function TemplateEditorToolbar({
           >
             {(close) => (
               <FormattingPickerContent
-                formatting={templateVars.formatting}
+                formatting={templateVars?.formatting}
                 onInsert={(formatting) => {
                   handleInsert(formatting);
                   close();

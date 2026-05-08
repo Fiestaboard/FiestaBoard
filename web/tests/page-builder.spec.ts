@@ -155,7 +155,9 @@ test.describe("Page Builder", () => {
   });
 
   test("can delete a page from the editor", async ({ page }) => {
-    const pageId = await createPage("Delete From Editor");
+    const pageId = await createPage("Delete From Editor", [
+      "Delete test content",
+    ]);
 
     await page.goto(`/pages/edit/${pageId}`);
     await expect(page.getByText("Edit Page").first()).toBeVisible({
@@ -208,7 +210,7 @@ test.describe("Page Builder", () => {
 
     const res = await fetch(`${API_URL}/pages`);
     const data = await res.json();
-    expect(data.total).toBeLessThanOrEqual(1);
+    expect(data.total).toBe(0);
   });
 
   test("template variables autocomplete/picker works", async ({ page }) => {
@@ -229,7 +231,7 @@ test.describe("Page Builder", () => {
 
     if (hasVariablePicker) {
       const isEnabled = await variableBtn.isEnabled().catch(() => false);
-      if (!isEnabled) return;
+      expect(isEnabled).toBe(true);
       await variableBtn.click();
       // Should show variable options
       const variableOption = page
@@ -357,6 +359,15 @@ test.describe("Sync from Board", () => {
     await expect(
       page.getByText(/synced from/i).first(),
     ).toBeVisible({ timeout: 10_000 });
+
+    // Verify synced content is actually populated into template line fields.
+    const templateLines = page.locator("textarea, input[type='text']");
+    await expect(templateLines.nth(0)).toHaveValue("HELLO SYNC", {
+      timeout: 10_000,
+    });
+    await expect(templateLines.nth(1)).toHaveValue("LINE TWO", {
+      timeout: 10_000,
+    });
 
     await deletePage(sourcePageId);
   });

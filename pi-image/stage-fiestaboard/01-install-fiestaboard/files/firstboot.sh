@@ -22,8 +22,13 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 # Generate the shared bearer token if the placeholder is still there.
+# Format: 32 random bytes encoded as lowercase hexadecimal (64 chars, 256-bit entropy).
 if grep -q "$TOKEN_PLACEHOLDER" "$ENV_FILE"; then
     TOKEN="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    if ! printf '%s' "$TOKEN" | grep -Eq '^[0-9a-f]{64}$'; then
+        echo "firstboot: token generation failed sanity check (expected 64 lowercase hex chars)" >&2
+        exit 1
+    fi
     sed -i "s|${TOKEN_PLACEHOLDER}|${TOKEN}|" "$ENV_FILE"
     chmod 600 "$ENV_FILE"
 fi
@@ -52,6 +57,8 @@ if [ -f "$WIFI_CONFIG_FILE" ]; then
         # Strip leading/trailing whitespace and ignore comment lines.
         key="$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
         value="$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [[ -z "$key" && -z "$value" ]] && continue
+        [[ -z "$key" || "$key" =~ ^# ]] && continue
         case "$key" in
             SSID)     WIFI_SSID="$value" ;;
             PASSWORD) WIFI_PASSWORD="$value" ;;
@@ -61,7 +68,11 @@ if [ -f "$WIFI_CONFIG_FILE" ]; then
 
     # Remove the file immediately — credentials should not persist on the
     # readable FAT partition any longer than necessary.
-    rm -f "$WIFI_CONFIG_FILE"
+    if command -v shred >/dev/null 2>&1; then
+        shred -u "$WIFI_CONFIG_FILE" || true
+    else
+        rm -f "$WIFI_CONFIG_FILE"
+    fi
 
     if [ -n "$WIFI_SSID" ]; then
         # Default to US if the user didn't specify a country.  The radio

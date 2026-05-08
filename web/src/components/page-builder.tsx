@@ -145,7 +145,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     setLiveOutputEnabled(false);
     lastLiveSentPreview.current = null;
     toast.info(t("toastLiveOutputOff"));
-  }, []);
+  }, [t]);
 
   // Debounced state (for expensive operations)
   const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
