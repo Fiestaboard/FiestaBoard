@@ -309,12 +309,12 @@ test.describe("Sync from Board", () => {
     });
     await expect(syncBtn).toBeVisible({ timeout: 10_000 });
 
-    // Wait for the expected 404 from the sync API call, then verify the error toast.
+    // Wait for the sync API response, then verify the error toast.
+    // We match on URL only (not status) so a 200 produces an assertion
+    // failure rather than a cryptic timeout.
     const [response] = await Promise.all([
       page.waitForResponse(
-        (res) =>
-          res.url().includes("/api/pages/current-display") &&
-          res.status() === 404,
+        (res) => res.url().includes("/api/pages/current-display"),
         { timeout: 10_000 },
       ),
       syncBtn.click(),
