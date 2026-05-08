@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "Wpisz składnię szablonu, np. {{weather.temp}} lub {{red}} dla kafelków kolorów",
     "plainEditorPlaceholder": "Wpisz tekst szablonu, używając składni {{variable}} dla danych dynamicznych",
     "lineCountWarning": "Szablon ma {lineCount} linii, ale tablica wyświetla tylko {maxLines}. Linie powyżej {maxLines} zostaną zignorowane.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "Uwaga:",
     "previewLabel": "Podgląd",
     "boardColorLabel": "Kolor tablicy",

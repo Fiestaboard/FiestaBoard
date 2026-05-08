@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "Tapez une syntaxe de modèle comme {{weather.temp}} ou {{red}} pour des tuiles de couleur",
     "plainEditorPlaceholder": "Tapez votre texte de modèle en utilisant la syntaxe {{variable}} pour les données dynamiques",
     "lineCountWarning": "Le modèle contient {lineCount} lignes mais le tableau n'en affiche que {maxLines}. Les lignes au-delà de {maxLines} seront ignorées.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "Attention :",
     "previewLabel": "Aperçu",
     "boardColorLabel": "Couleur du tableau",

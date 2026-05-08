@@ -330,7 +330,15 @@ class TemplateEngine:
         # Process lines, handling |wrap specially
         rendered = [""] * num_rows
         skip_until = -1  # Track lines filled by wrap overflow
-        
+        # Cache rendered content per line so the wrap-budget probe and the
+        # main non-wrap branch don't render the same line twice.
+        rendered_cache: Dict[int, str] = {}
+
+        def _render_cached(idx: int) -> str:
+            if idx not in rendered_cache:
+                rendered_cache[idx] = self.render(contents[idx], context)
+            return rendered_cache[idx]
+
         for i in range(num_rows):
             if i <= skip_until:
                 continue
@@ -338,31 +346,41 @@ class TemplateEngine:
             alignment = alignments[i]
             wrap_enabled = wraps[i]
             content = contents[i]
-            
+
             has_wrap = wrap_enabled or '|wrap}}' in content or '|wrap|' in content
-            
+
             if has_wrap:
-                empty_count = 0
-                for j in range(i, num_rows):
-                    if j == i:
-                        empty_count = 1
-                    else:
-                        if contents[j].strip() == "":
-                            empty_count += 1
-                        else:
-                            break
-                
+                # Wrap region: count how many lines below this one are
+                # available for overflow. A line is "available" if it is
+                # literally empty, has wrap=True (explicit opt-in to the
+                # region), or renders to whitespace (e.g. {{plugin.var}}
+                # where var resolves to ""). A wrap=False line that renders
+                # to visible content hard-stops the region — this protects
+                # footers/decorations a user intentionally placed below.
+                empty_count = 1  # the wrap line itself
+                for j in range(i + 1, num_rows):
+                    if contents[j].strip() == "":
+                        empty_count += 1
+                        continue
+                    if wraps[j] or '|wrap}}' in contents[j] or '|wrap|' in contents[j]:
+                        empty_count += 1
+                        continue
+                    if _render_cached(j).strip() == "":
+                        empty_count += 1
+                        continue
+                    break
+
                 wrapped_lines = self._render_with_wrap(content, context, max_lines=empty_count, board_width=board_width)
-                
+
                 for k, wrapped_line in enumerate(wrapped_lines):
                     if i + k < num_rows:
                         processed = self._process_fill_space(wrapped_line, width=board_width)
                         rendered[i + k] = self._apply_alignment(processed, alignment, width=board_width)
-                
+
                 skip_until = i + len(wrapped_lines) - 1
             else:
-                rendered_line = self.render(content, context)
-                
+                rendered_line = _render_cached(i)
+
                 if '\n' in rendered_line:
                     split_lines = rendered_line.split('\n')
                     for line_idx, split_line in enumerate(split_lines):
@@ -375,7 +393,7 @@ class TemplateEngine:
                 else:
                     rendered_line = self._process_fill_space(rendered_line, width=board_width)
                     rendered[i] = self._apply_alignment(rendered_line, alignment, width=board_width)
-        
+
         return '\n'.join(rendered)
     
     def _render_with_wrap(self, template: str, context: Dict[str, Any], max_lines: int = 1, board_width: int = 22) -> List[str]:

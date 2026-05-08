@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "Vorlagensyntax eingeben, z. B. {{weather.temp}} oder {{red}} für Farbkacheln",
     "plainEditorPlaceholder": "Vorlagentext mit {{variable}}-Syntax für dynamische Daten eingeben",
     "lineCountWarning": "Die Vorlage hat {lineCount} Zeilen, aber das Board zeigt nur {maxLines} an. Zeilen über {maxLines} hinaus werden ignoriert.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "Warnung:",
     "previewLabel": "Vorschau",
     "boardColorLabel": "Boardfarbe",

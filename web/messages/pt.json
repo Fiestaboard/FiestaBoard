@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "Digite sintaxe de template como {{weather.temp}} ou {{red}} para blocos de cor",
     "plainEditorPlaceholder": "Digite o texto do template usando a sintaxe {{variable}} para dados dinâmicos",
     "lineCountWarning": "O template tem {lineCount} linhas, mas o painel exibe apenas {maxLines}. As linhas além de {maxLines} serão ignoradas.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "Aviso:",
     "previewLabel": "Pré-visualização",
     "boardColorLabel": "Cor do painel",

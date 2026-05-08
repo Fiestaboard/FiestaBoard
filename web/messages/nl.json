@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "Typ sjabloonsyntaxis zoals {{weather.temp}} of {{red}} voor kleurtegels",
     "plainEditorPlaceholder": "Typ je sjabloontekst met {{variable}}-syntaxis voor dynamische gegevens",
     "lineCountWarning": "Sjabloon heeft {lineCount} regels maar het bord toont slechts {maxLines}. Regels na {maxLines} worden genegeerd.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "Waarschuwing:",
     "previewLabel": "Voorbeeld",
     "boardColorLabel": "Bordkleur",

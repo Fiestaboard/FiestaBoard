@@ -502,6 +502,7 @@
     "richEditorPlaceholder": "{{weather.temp}} 같은 템플릿 구문이나 {{red}} 같은 색상 타일을 입력하세요",
     "plainEditorPlaceholder": "동적 데이터를 위해 {{variable}} 구문을 사용하여 템플릿 텍스트를 입력하세요",
     "lineCountWarning": "템플릿에 {lineCount}개의 줄이 있지만 보드는 {maxLines}줄만 표시합니다. {maxLines}줄 이후의 줄은 무시됩니다.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "경고:",
     "previewLabel": "미리보기",
     "boardColorLabel": "보드 색상",
