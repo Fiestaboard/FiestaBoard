@@ -81,7 +81,9 @@ test.describe("Schedule Management", () => {
     await expect(pageSelect).toBeVisible();
     await pageSelect.click();
     const option = page.getByRole("option", { name: "Schedule Form Test" });
-    await expect(option).toBeVisible({ timeout: 3_000 });
+    // Page picker loads its options asynchronously; use a more generous
+    // timeout so this isn't flaky on slower CI workers.
+    await expect(option).toBeVisible({ timeout: 10_000 });
     await option.click();
     await expect(pageSelect).toContainText("Schedule Form Test");
 

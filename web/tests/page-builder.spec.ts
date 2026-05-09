@@ -298,7 +298,13 @@ test.describe("Sync from Board", () => {
   });
 
   test("shows error when no active page is set", async ({ page }) => {
-    // Clear the active page so the API returns 404
+    // Clear the active page so the API returns 404.
+    //
+    // The background main loop in `src/main.py` will auto-promote the first
+    // available page to active when active_page is null and schedule mode
+    // is off. Delete all pages first so there is nothing to auto-promote,
+    // making the 404 deterministic instead of racing the next loop tick.
+    await deleteAllPages();
     await setActivePage(null);
 
     await page.goto("/pages/new");

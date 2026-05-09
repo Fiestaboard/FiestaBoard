@@ -227,6 +227,25 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
   const t = useTranslations("schemaForm");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
+  // Local text buffer so the user can freely edit the field (delete the
+  // existing value, paste a new one, type intermediate states like "-" or
+  // "1.") without each keystroke being parsed/validated and snapping the
+  // input back to a previous or default value. We only commit a parsed
+  // numeric value upstream when the input is in a valid intermediate state
+  // (or empty), and we finalize/validate on blur.
+  const [text, setText] = useState<string>(
+    value !== undefined && value !== null ? String(value) : ""
+  );
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Keep the local text in sync with external value changes (e.g. the
+  // "use my location" button) when the user is not actively editing.
+  useEffect(() => {
+    if (!isFocused) {
+      setText(value !== undefined && value !== null ? String(value) : "");
+    }
+  }, [value, isFocused]);
+
   // Helper function to get user-friendly error message
   const getErrorMessage = (error: GeolocationPositionError | null | undefined): string => {
     if (!error) {
@@ -337,13 +356,40 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
       <Input
         id={name}
         type="number"
-        value={value !== undefined && value !== null ? String(value) : ""}
+        value={text}
+        onFocus={() => setIsFocused(true)}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           const val = e.target.value;
+          setText(val);
+          // Don't commit intermediate / non-numeric states upstream while
+          // the user is typing. The displayed value (the local buffer)
+          // still reflects exactly what they typed; we just defer parsing
+          // until the value is unambiguously a number or empty.
           if (val === "") {
             onChange(undefined);
+            return;
+          }
+          const parsed = property.type === "integer" ? parseInt(val, 10) : parseFloat(val);
+          if (!Number.isNaN(parsed) && /^-?\d+(\.\d+)?$/.test(val)) {
+            onChange(parsed);
+          }
+        }}
+        onBlur={() => {
+          setIsFocused(false);
+          // Finalize on blur: empty -> undefined, otherwise parse and snap
+          // the displayed text to the canonical numeric form. Invalid
+          // partial input (e.g. just "-") is treated as cleared.
+          if (text === "") {
+            onChange(undefined);
+            return;
+          }
+          const parsed = property.type === "integer" ? parseInt(text, 10) : parseFloat(text);
+          if (Number.isNaN(parsed)) {
+            onChange(undefined);
+            setText("");
           } else {
-            onChange(property.type === "integer" ? parseInt(val, 10) : parseFloat(val));
+            onChange(parsed);
+            setText(String(parsed));
           }
         }}
         placeholder={property["ui:placeholder"] || property.description}
@@ -1346,7 +1392,7 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
             <FormField
               name={name}
               property={property}
-              value={values[name] !== undefined ? values[name] : property.default}
+              value={values[name]}
               onChange={(val) => handleFieldChange(name, val)}
               required={isRequired}
               disabled={fieldDisabled}
