@@ -27,6 +27,10 @@ import { TemplateEditorToolbar } from './components/TemplateEditorToolbar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from 'next-intl';
 
+/** Inline atom node types that this editor renders as click-targets. Excludes
+ *  hardBreak so a click resolving to a line break doesn't jump the caret past it. */
+const CUSTOM_INLINE_ATOMS = new Set(['variable', 'colorTile', 'fillSpace', 'formula', 'wrappedText']);
+
 /**
  * Serialize a TipTap slice to template string format
  * Used for clipboard operations (copy/paste/cut)
@@ -515,7 +519,13 @@ export function TipTapTemplateEditor({
           const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
           if (!coords) return false;
           const node = view.state.doc.nodeAt(coords.pos);
-          if (!node?.isAtom || !node.isInline) return false;
+          // hardBreak is also an inline atom in PM, but a click that resolves
+          // onto a hardBreak position is the user trying to put the caret near
+          // a line edge — letting the editor jump the caret *past* the break
+          // (Safari's posAtCoords lands on the break at line boundaries when
+          // adjacent ZWS text nodes are present) reads as the cursor "skipping
+          // ahead a character". Restrict this handler to our content atoms.
+          if (!node || !CUSTOM_INLINE_ATOMS.has(node.type.name)) return false;
 
           // Place collapsed cursor immediately after the atom.
           const after = coords.pos + node.nodeSize;
