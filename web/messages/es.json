@@ -321,7 +321,12 @@
     "toastUpdateAllPartialFail": "{count, plural, one {# plugin no se pudo actualizar} other {# plugins no se pudieron actualizar}}: {ids}",
     "toastUpdateAllFailed": "Error al actualizar todos: {error}",
     "toastInstalledFromGit": "{pluginId} instalado desde git",
-    "toastInstallFromGitFailed": "Error al instalar: {error}"
+    "toastInstallFromGitFailed": "Error al instalar: {error}",
+    "checkForUpdates": "Buscar actualizaciones",
+    "checking": "Comprobando…",
+    "toastUpdatesFound": "{count, plural, one {# actualización de plugin disponible} other {# actualizaciones de plugins disponibles}}",
+    "toastNoUpdates": "Todos los plugins están actualizados",
+    "toastCheckFailed": "No se pudo comprobar las actualizaciones: {error}"
   },
   "settings": {
     "title": "Configuración",
@@ -999,7 +1004,13 @@
     "autoUpdateLabel": "Actualizar plugins automáticamente",
     "autoUpdateDescription": "Cuando está activado, FiestaBoard actualizará silenciosamente todos los plugins instalados cuando haya una nueva versión disponible. Desactívalo para actualizar los plugins manualmente desde la página de Integraciones.",
     "savedToast": "Configuración de plugins guardada.",
-    "saveFailedToast": "No se pudo guardar la configuración de plugins: {error}"
+    "saveFailedToast": "No se pudo guardar la configuración de plugins: {error}",
+    "checkForUpdates": "Buscar actualizaciones",
+    "checking": "Comprobando…",
+    "checkDescription": "Comprueba manualmente si hay nuevas versiones de los plugins instalados.",
+    "toastUpdatesFound": "{count, plural, one {# actualización de plugin disponible} other {# actualizaciones de plugins disponibles}}",
+    "toastNoUpdates": "Todos los plugins están actualizados",
+    "toastCheckFailed": "No se pudo comprobar las actualizaciones: {error}"
   },
   "betaSettings": {
     "title": "Beta Features",
