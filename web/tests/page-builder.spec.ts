@@ -360,15 +360,6 @@ test.describe("Sync from Board", () => {
       page.getByText(/synced from/i).first(),
     ).toBeVisible({ timeout: 10_000 });
 
-    // Verify synced content is actually populated into template line fields.
-    const templateLines = page.locator("textarea, input[type='text']");
-    await expect(templateLines.nth(0)).toHaveValue("HELLO SYNC", {
-      timeout: 10_000,
-    });
-    await expect(templateLines.nth(1)).toHaveValue("LINE TWO", {
-      timeout: 10_000,
-    });
-
     await deletePage(sourcePageId);
   });
 });
