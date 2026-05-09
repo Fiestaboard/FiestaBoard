@@ -1651,6 +1651,7 @@ export default function IntegrationsPage() {
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [isUpdatingAll, setIsUpdatingAll] = useState(false);
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [gitDialogOpen, setGitDialogOpen] = useState(false);
   const [gitUrl, setGitUrl] = useState("");
@@ -1766,6 +1767,25 @@ export default function IntegrationsPage() {
       toast.error(t("toastUpdateFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleCheckForUpdates = async () => {
+    setIsCheckingForUpdates(true);
+    try {
+      const result = await api.triggerPluginUpdateCheck();
+      const count = result.updates_available.length;
+      if (count > 0) {
+        toast.success(t("toastUpdatesFound", { count }));
+      } else {
+        toast.success(t("toastNoUpdates"));
+      }
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
+    } catch (err) {
+      toast.error(t("toastCheckFailed", { error: err instanceof Error ? err.message : tCommon("error") }));
+    } finally {
+      setIsCheckingForUpdates(false);
     }
   };
 
@@ -1978,7 +1998,20 @@ export default function IntegrationsPage() {
         icon={Puzzle}
         title={t("title")}
         description={t("description")}
-      />
+      >
+        <div className="mt-3 flex justify-start sm:justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCheckForUpdates}
+            disabled={isCheckingForUpdates}
+            className="gap-2"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isCheckingForUpdates && "animate-spin")} />
+            {isCheckingForUpdates ? t("checking") : t("checkForUpdates")}
+          </Button>
+        </div>
+      </PageHeader>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
