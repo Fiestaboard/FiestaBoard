@@ -288,6 +288,56 @@ export function TipTapTemplateEditor({
           return true;
         }
 
+        // ArrowLeft / ArrowRight: jump over the invisible ZWS anchors that
+        // sandwich every atom node so the cursor doesn't appear to "pause"
+        // on a zero-width position. We take one step in the arrow direction,
+        // then keep skipping while the just-traversed character is ZWS — the
+        // first non-ZWS step is what makes visual progress, so we stop there.
+        // Word/line modifiers (alt/meta on macOS) are left to the browser.
+        if ((event.key === 'ArrowRight' || event.key === 'ArrowLeft') &&
+            !event.altKey && !event.ctrlKey && !event.metaKey) {
+          const { state } = view;
+          const { selection } = state;
+          if (!(selection instanceof TextSelection)) return false;
+
+          const head = selection.$head.pos;
+          const pStart = selection.$head.start();
+          const pEnd = selection.$head.end();
+
+          if (event.key === 'ArrowRight') {
+            if (head >= pEnd) return false;
+            let target = head + 1;
+            while (target < pEnd && state.doc.textBetween(target - 1, target, undefined, OBJ) === ZWS) {
+              target++;
+            }
+            // For non-shift arrow with no ZWS to skip, let the browser handle natively
+            // (preserves IME/composition behavior). For shift+arrow always dispatch —
+            // Safari mis-handles range extension across contenteditable=false atoms.
+            if (target === head + 1 && !event.shiftKey) return false;
+            event.preventDefault();
+            const newSel = event.shiftKey
+              ? TextSelection.create(state.doc, selection.$anchor.pos, target)
+              : TextSelection.create(state.doc, target);
+            view.dispatch(state.tr.setSelection(newSel).scrollIntoView());
+            return true;
+          }
+
+          if (event.key === 'ArrowLeft') {
+            if (head <= pStart) return false;
+            let target = head - 1;
+            while (target > pStart && state.doc.textBetween(target, target + 1, undefined, OBJ) === ZWS) {
+              target--;
+            }
+            if (target === head - 1 && !event.shiftKey) return false;
+            event.preventDefault();
+            const newSel = event.shiftKey
+              ? TextSelection.create(state.doc, selection.$anchor.pos, target)
+              : TextSelection.create(state.doc, target);
+            view.dispatch(state.tr.setSelection(newSel).scrollIntoView());
+            return true;
+          }
+        }
+
         const key = event.key.toLowerCase();
         const isMod = event.ctrlKey || event.metaKey;
         
@@ -450,6 +500,36 @@ export function TipTapTemplateEditor({
         dragstart: (_view, _event) => {
           // Don't prevent - we need the drag to start for drop to work
           return false;
+        },
+        // Click on an atom (variable, color tile, etc.): give visual feedback
+        // by adding the .selected-inline outline directly to the atom's DOM,
+        // and place a collapsed cursor right after the atom in PM state.
+        // We deliberately avoid dispatching a TextSelection that *spans* the
+        // atom — Safari mis-renders such ranges (the visual highlight bleeds
+        // from line-start through the atom). A collapsed cursor is rendered
+        // consistently across browsers, and the explicit class toggle gives
+        // the click feedback that user-select:all used to provide.
+        click: (view, event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest('button')) return false;
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          if (!coords) return false;
+          const node = view.state.doc.nodeAt(coords.pos);
+          if (!node?.isAtom || !node.isInline) return false;
+
+          // Place collapsed cursor immediately after the atom.
+          const after = coords.pos + node.nodeSize;
+          view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, after)));
+
+          // Visual highlight on the atom's DOM. onSelectionUpdate cleared
+          // .selected-inline above (since the new selection is empty), so
+          // it's safe to set it now.
+          const atomDom = view.nodeDOM(coords.pos);
+          if (atomDom instanceof HTMLElement) {
+            atomDom.classList.add('selected-inline');
+          }
+          event.preventDefault();
+          return true;
         },
       },
       handleDrop: (view, event, _slice, _moved) => {
@@ -1126,18 +1206,12 @@ export function TipTapTemplateEditor({
           content: none;
         }
         
-        /* Selection highlighting for inline atom nodes.
-           user-select: all makes the browser include the whole node in
-           range selections (shift+arrow, click-drag) so they highlight
-           with the native selection color just like regular text. */
-        .ProseMirror [data-node-view-wrapper] {
-          -webkit-user-select: all;
-          user-select: all;
-        }
-        
         /* Range-selection highlight for inline atom nodes (color tiles,
            variables, fill-space).  onSelectionUpdate adds this
-           class to any atom node DOM element inside the selection range. */
+           class to any atom node DOM element inside the selection range,
+           giving shift+arrow and click-drag a visible highlight without
+           needing user-select: all (which made Safari treat clicks on a
+           tag as selecting the entire line). */
         .ProseMirror .selected-inline {
           outline: 2px solid var(--primary);
           outline-offset: 1px;

@@ -286,15 +286,23 @@ export function parseLineContent(text: string): JSONContent[] {
     }
   }
 
-  // Post-process: insert ZWS between consecutive atom nodes so the cursor
-  // has a text position to render between them (e.g. {{red}}{{blue}}).
+  // Post-process: insert a ZWS text node immediately before AND after every
+  // atom inline node so the caret always has a text-offset anchor adjacent
+  // to the atom. Without this, ProseMirror's domFromPos lands the caret on
+  // a P-element offset between siblings, which Safari mis-renders: the
+  // visual caret falls in the wrong place, arrow keys appear stuck, and
+  // typed input is routed past the atom instead of inserted next to it.
+  // Adjacent text nodes with the same marks merge inside PM, so doubled
+  // ZWS (e.g. preceding text + atom-leading ZWS) collapse into one node.
   const result: JSONContent[] = [];
   for (const node of nodes) {
-    const prev = result[result.length - 1];
-    if (prev && ATOM_NODE_TYPES.has(prev.type!) && ATOM_NODE_TYPES.has(node.type!)) {
+    if (ATOM_NODE_TYPES.has(node.type!)) {
       result.push({ type: 'text', text: '\u200B' });
+      result.push(node);
+      result.push({ type: 'text', text: '\u200B' });
+    } else {
+      result.push(node);
     }
-    result.push(node);
   }
   return result;
 }
