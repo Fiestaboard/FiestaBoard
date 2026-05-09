@@ -25,7 +25,8 @@ export function parseLine(line: string): Token[] {
         }
 
         // Check if it's a color code (63-70)
-        if (/^\d+$/.test(content) && parseInt(content) >= 63 && parseInt(content) <= 70) {
+        const parsed = Number.parseInt(content, 10);
+        if (/^\d+$/.test(content) && parsed >= 63 && parsed <= 70) {
           tokens.push({ type: "color", code: content });
           i = closingBrace + 1;
           continue;
@@ -64,7 +65,7 @@ export function addSnoozingIndicator(
   numRows: number = 6,
   numCols: number = 22,
   indicatorText: string = "SNOOZING",
-  position: string = "center",
+  position: IndicatorPosition = "center",
 ): string {
   const lines = content.split("\n");
 

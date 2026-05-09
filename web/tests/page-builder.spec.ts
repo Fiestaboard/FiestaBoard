@@ -155,7 +155,9 @@ test.describe("Page Builder", () => {
   });
 
   test("can delete a page from the editor", async ({ page }) => {
-    const pageId = await createPage("Delete From Editor");
+    const pageId = await createPage("Delete From Editor", [
+      "Delete test content",
+    ]);
 
     await page.goto(`/pages/edit/${pageId}`);
     await expect(page.getByText("Edit Page").first()).toBeVisible({
