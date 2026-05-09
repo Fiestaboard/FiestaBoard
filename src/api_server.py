@@ -741,7 +741,12 @@ app = FastAPI(
     title="FiestaBoard Display API",
     description="REST API for controlling and monitoring the FiestaBoard Display Service",
     version=__version__,
-    lifespan=lifespan
+    lifespan=lifespan,
+    # The API is served behind nginx under the /api/* prefix (which nginx
+    # strips before proxying to FastAPI). Setting root_path tells Swagger UI
+    # / ReDoc to reference /api/openapi.json so the docs page at /api/docs
+    # can load its API definition through the proxy.
+    root_path="/api",
 )
 
 # Add CORS middleware
