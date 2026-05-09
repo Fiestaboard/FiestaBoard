@@ -5,8 +5,10 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Puzzle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Puzzle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 
 export function PluginSettingsCard() {
@@ -28,6 +30,23 @@ export function PluginSettingsCard() {
     },
     onError: (err: Error) => {
       toast.error(t("saveFailedToast", { error: err.message }));
+    },
+  });
+
+  const checkMutation = useMutation({
+    mutationFn: () => api.triggerPluginUpdateCheck(),
+    onSuccess: (result) => {
+      const count = result.updates_available.length;
+      if (count > 0) {
+        toast.success(t("toastUpdatesFound", { count }));
+      } else {
+        toast.success(t("toastNoUpdates"));
+      }
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
+    },
+    onError: (err: Error) => {
+      toast.error(t("toastCheckFailed", { error: err.message }));
     },
   });
 
@@ -56,7 +75,7 @@ export function PluginSettingsCard() {
         </CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         <div className="flex items-start justify-between gap-4 rounded-md border p-4">
           <div className="space-y-1">
             <span className="font-medium">{t("autoUpdateLabel")}</span>
@@ -70,6 +89,24 @@ export function PluginSettingsCard() {
             onCheckedChange={(checked) => mutation.mutate(checked)}
             aria-label={t("autoUpdateLabel")}
           />
+        </div>
+        <div className="flex items-start justify-between gap-4 rounded-md border p-4">
+          <div className="space-y-1">
+            <span className="font-medium">{t("checkForUpdates")}</span>
+            <p className="text-sm text-muted-foreground">
+              {t("checkDescription")}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => checkMutation.mutate()}
+            disabled={checkMutation.isPending}
+            className="gap-2 shrink-0"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", checkMutation.isPending && "animate-spin")} />
+            {checkMutation.isPending ? t("checking") : t("checkForUpdates")}
+          </Button>
         </div>
       </CardContent>
     </Card>

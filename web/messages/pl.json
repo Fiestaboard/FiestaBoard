@@ -321,7 +321,12 @@
     "toastUpdateAllPartialFail": "{count, plural, one {# plugin failed to update} other {# plugins failed to update}}: {ids}",
     "toastUpdateAllFailed": "Update all failed: {error}",
     "toastInstalledFromGit": "{pluginId} installed from git",
-    "toastInstallFromGitFailed": "Failed to install: {error}"
+    "toastInstallFromGitFailed": "Failed to install: {error}",
+    "checkForUpdates": "Check for updates",
+    "checking": "Checking…",
+    "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
+    "toastNoUpdates": "All plugins are up to date",
+    "toastCheckFailed": "Couldn't check for updates: {error}"
   },
   "settings": {
     "title": "Ustawienia",
@@ -502,6 +507,7 @@
     "richEditorPlaceholder": "Wpisz składnię szablonu, np. {{weather.temp}} lub {{red}} dla kafelków kolorów",
     "plainEditorPlaceholder": "Wpisz tekst szablonu, używając składni {{variable}} dla danych dynamicznych",
     "lineCountWarning": "Szablon ma {lineCount} linii, ale tablica wyświetla tylko {maxLines}. Linie powyżej {maxLines} zostaną zignorowane.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "Uwaga:",
     "previewLabel": "Podgląd",
     "boardColorLabel": "Kolor tablicy",
@@ -578,6 +584,11 @@
     "youAreRunning": "Używasz wersji v{currentVersion}.",
     "viewRelease": "Zobacz wydanie",
     "checkForUpdates": "Sprawdź aktualizacje",
+    "checkNow": "Sprawdź teraz",
+    "checkingForUpdates": "Sprawdzanie…",
+    "upToDateToast": "Masz najnowszą wersję — v{version}.",
+    "updateAvailableToast": "Dostępna aktualizacja: v{version}",
+    "checkFailedToast": "Nie udało się sprawdzić aktualizacji: {error}",
     "updateNow": "Update Now",
     "oneClickHint": "Want a one-click \"Update Now\" button here? Set <profile></profile> in your <envFile></envFile>, then run <command></command>.",
     "dialogTitle": "Update FiestaBoard?",
@@ -993,7 +1004,13 @@
     "autoUpdateLabel": "Auto-update plugins",
     "autoUpdateDescription": "When enabled, FiestaBoard will silently update all installed plugins whenever a new version is available. Disable to update plugins manually from the Integrations page.",
     "savedToast": "Plugin settings saved.",
-    "saveFailedToast": "Couldn't save plugin settings: {error}"
+    "saveFailedToast": "Couldn't save plugin settings: {error}",
+    "checkForUpdates": "Check for updates",
+    "checking": "Checking…",
+    "checkDescription": "Manually check installed plugins for new releases.",
+    "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
+    "toastNoUpdates": "All plugins are up to date",
+    "toastCheckFailed": "Couldn't check for updates: {error}"
   },
   "betaSettings": {
     "title": "Beta Features",

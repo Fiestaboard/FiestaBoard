@@ -321,7 +321,12 @@
     "toastUpdateAllPartialFail": "{count, plural, one {# plugin failed to update} other {# plugins failed to update}}: {ids}",
     "toastUpdateAllFailed": "Update all failed: {error}",
     "toastInstalledFromGit": "{pluginId} installed from git",
-    "toastInstallFromGitFailed": "Failed to install: {error}"
+    "toastInstallFromGitFailed": "Failed to install: {error}",
+    "checkForUpdates": "Check for updates",
+    "checking": "Checking…",
+    "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
+    "toastNoUpdates": "All plugins are up to date",
+    "toastCheckFailed": "Couldn't check for updates: {error}"
   },
   "settings": {
     "title": "设置",
@@ -502,6 +507,7 @@
     "richEditorPlaceholder": "输入模板语法，例如 {{weather.temp}} 或 {{red}} 表示颜色色块",
     "plainEditorPlaceholder": "使用 {{variable}} 语法输入模板文本以获取动态数据",
     "lineCountWarning": "模板有 {lineCount} 行，但看板仅显示 {maxLines} 行。超出 {maxLines} 行的内容将被忽略。",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "警告：",
     "previewLabel": "预览",
     "boardColorLabel": "看板颜色",
@@ -578,6 +584,11 @@
     "youAreRunning": "您当前运行的是 v{currentVersion}。",
     "viewRelease": "查看发布详情",
     "checkForUpdates": "检查更新",
+    "checkNow": "立即检查",
+    "checkingForUpdates": "检查中…",
+    "upToDateToast": "已是最新版本 — 正在运行 v{version}。",
+    "updateAvailableToast": "有可用更新：v{version}",
+    "checkFailedToast": "无法检查更新：{error}",
     "updateNow": "Update Now",
     "oneClickHint": "Want a one-click \"Update Now\" button here? Set <profile></profile> in your <envFile></envFile>, then run <command></command>.",
     "dialogTitle": "Update FiestaBoard?",
@@ -993,7 +1004,13 @@
     "autoUpdateLabel": "Auto-update plugins",
     "autoUpdateDescription": "When enabled, FiestaBoard will silently update all installed plugins whenever a new version is available. Disable to update plugins manually from the Integrations page.",
     "savedToast": "Plugin settings saved.",
-    "saveFailedToast": "Couldn't save plugin settings: {error}"
+    "saveFailedToast": "Couldn't save plugin settings: {error}",
+    "checkForUpdates": "Check for updates",
+    "checking": "Checking…",
+    "checkDescription": "Manually check installed plugins for new releases.",
+    "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
+    "toastNoUpdates": "All plugins are up to date",
+    "toastCheckFailed": "Couldn't check for updates: {error}"
   },
   "betaSettings": {
     "title": "Beta Features",

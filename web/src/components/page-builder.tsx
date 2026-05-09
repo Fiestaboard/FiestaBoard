@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -145,7 +145,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     setLiveOutputEnabled(false);
     lastLiveSentPreview.current = null;
     toast.info(t("toastLiveOutputOff"));
-  }, []);
+  }, [t]);
 
   // Debounced state (for expensive operations)
   const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
@@ -392,6 +392,44 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     }, 0);
     return () => clearTimeout(timer);
   }, [templateLines]);
+
+  /**
+   * Lines whose wrap budget is "stuck" at 1 row — wrap is enabled but no
+   * empty/wrap-enabled line follows, so long content can't flow downward.
+   * Mirrors the cheap server-side checks in render_lines (literal-empty +
+   * wrap-flag); skips the rendered-empty check, which would require running
+   * the template engine in the browser. Conservative client-side estimate.
+   */
+  const wrapBudgetWarnings = useMemo<number[]>(() => {
+    const warnings: number[] = [];
+    const previewRows = preview ? preview.split('\n') : [];
+    for (let i = 0; i < lineWrapEnabled.length; i++) {
+      if (!lineWrapEnabled[i]) continue;
+      // Skip wrap lines whose template content is empty — nothing to warn about.
+      const ownLine = (templateLines[i] || '').replace(/^\{wrap\}/, '').replace(/^\{(left|center|right)\}/i, '');
+      if (ownLine.trim() === '') continue;
+
+      let budget = 1;
+      for (let j = i + 1; j < templateLines.length; j++) {
+        const raw = templateLines[j] || '';
+        const stripped = raw.replace(/^\{wrap\}/, '').replace(/^\{(left|center|right)\}/i, '');
+        if (stripped.trim() === '') { budget++; continue; }
+        if (lineWrapEnabled[j] || raw.startsWith('{wrap}')) { budget++; continue; }
+        break;
+      }
+      if (budget !== 1) continue;
+
+      // Only warn if the rendered preview row at position i looks saturated:
+      // its trimmed length reaches the board width, suggesting the wrap
+      // engine had to truncate. This avoids false positives when the user's
+      // value happens to fit comfortably in one row.
+      const trimmed = (previewRows[i] || '').trimEnd();
+      if (trimmed.length >= dims.cols) {
+        warnings.push(i + 1); // 1-indexed for user-facing message
+      }
+    }
+    return warnings;
+  }, [lineWrapEnabled, templateLines, preview, dims.cols]);
 
   /**
    * Parse inline {wrap} and {left}/{center}/{right} prefixes from template
@@ -1064,6 +1102,17 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                   </span>
                 </div>
               )}
+
+              {/* Wrap budget warnings */}
+              {wrapBudgetWarnings.map((lineNumber) => (
+                <div
+                  key={`wrap-budget-${lineNumber}`}
+                  className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                >
+                  <span className="font-medium shrink-0">{t("warningLabel")}</span>
+                  <span>{t("wrapBudgetWarning", { lineNumber })}</span>
+                </div>
+              ))}
 
               {/* Live preview */}
               <div className="mt-4">

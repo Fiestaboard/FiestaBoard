@@ -321,7 +321,12 @@
     "toastUpdateAllPartialFail": "{count, plural, one {# plugin failed to update} other {# plugins failed to update}}: {ids}",
     "toastUpdateAllFailed": "Update all failed: {error}",
     "toastInstalledFromGit": "{pluginId} installed from git",
-    "toastInstallFromGitFailed": "Failed to install: {error}"
+    "toastInstallFromGitFailed": "Failed to install: {error}",
+    "checkForUpdates": "Check for updates",
+    "checking": "Checking…",
+    "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
+    "toastNoUpdates": "All plugins are up to date",
+    "toastCheckFailed": "Couldn't check for updates: {error}"
   },
   "settings": {
     "title": "설정",
@@ -502,6 +507,7 @@
     "richEditorPlaceholder": "{{weather.temp}} 같은 템플릿 구문이나 {{red}} 같은 색상 타일을 입력하세요",
     "plainEditorPlaceholder": "동적 데이터를 위해 {{variable}} 구문을 사용하여 템플릿 텍스트를 입력하세요",
     "lineCountWarning": "템플릿에 {lineCount}개의 줄이 있지만 보드는 {maxLines}줄만 표시합니다. {maxLines}줄 이후의 줄은 무시됩니다.",
+    "wrapBudgetWarning": "Line {lineNumber} has wrap enabled but only fits one row. Enable wrap on the line below or leave it empty so text can flow.",
     "warningLabel": "경고:",
     "previewLabel": "미리보기",
     "boardColorLabel": "보드 색상",
@@ -578,6 +584,11 @@
     "youAreRunning": "현재 v{currentVersion}을(를) 사용 중입니다.",
     "viewRelease": "릴리스 보기",
     "checkForUpdates": "업데이트 확인",
+    "checkNow": "지금 확인",
+    "checkingForUpdates": "확인 중…",
+    "upToDateToast": "최신 상태입니다 — v{version} 실행 중.",
+    "updateAvailableToast": "업데이트 사용 가능: v{version}",
+    "checkFailedToast": "업데이트를 확인할 수 없습니다: {error}",
     "updateNow": "Update Now",
     "oneClickHint": "Want a one-click \"Update Now\" button here? Set <profile></profile> in your <envFile></envFile>, then run <command></command>.",
     "dialogTitle": "Update FiestaBoard?",
@@ -993,7 +1004,13 @@
     "autoUpdateLabel": "Auto-update plugins",
     "autoUpdateDescription": "When enabled, FiestaBoard will silently update all installed plugins whenever a new version is available. Disable to update plugins manually from the Integrations page.",
     "savedToast": "Plugin settings saved.",
-    "saveFailedToast": "Couldn't save plugin settings: {error}"
+    "saveFailedToast": "Couldn't save plugin settings: {error}",
+    "checkForUpdates": "Check for updates",
+    "checking": "Checking…",
+    "checkDescription": "Manually check installed plugins for new releases.",
+    "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
+    "toastNoUpdates": "All plugins are up to date",
+    "toastCheckFailed": "Couldn't check for updates: {error}"
   },
   "betaSettings": {
     "title": "Beta Features",

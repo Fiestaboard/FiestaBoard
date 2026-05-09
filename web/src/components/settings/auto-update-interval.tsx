@@ -16,8 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarClock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CalendarClock, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 /**
  * Settings → System → "Check for updates" interval card.
@@ -74,6 +76,33 @@ export function AutoUpdateIntervalCard() {
     },
   });
 
+  // Manual "Check now" — bypasses the background scheduler so users can pull
+  // a fresh check the moment they hear about a new release. Auto-install
+  // behavior is unaffected; this only triggers the check.
+  const checkNowMutation = useMutation({
+    mutationFn: () => api.checkForUpdate(),
+    onSuccess: (result) => {
+      // Refresh both queries so the SystemUpdate banner and "Last checked"
+      // timestamp update immediately.
+      queryClient.setQueryData(["update-check"], result);
+      queryClient.invalidateQueries({ queryKey: ["update-check"] });
+      queryClient.invalidateQueries({ queryKey: ["update-status"] });
+
+      if (result.error) {
+        toast.error(t("checkFailedToast", { error: result.error }));
+      } else if (result.update_available && result.latest_version) {
+        toast.info(t("updateAvailableToast", { version: result.latest_version }));
+      } else {
+        toast.success(
+          t("upToDateToast", { version: result.current_version ?? "" })
+        );
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(t("checkFailedToast", { error: err.message }));
+    },
+  });
+
   // Hide the card entirely when the status query failed — the rest of the
   // System page already surfaces that error, and a half-broken selector is
   // worse than nothing.
@@ -121,6 +150,22 @@ export function AutoUpdateIntervalCard() {
           <span className="text-xs text-muted-foreground">
             Last checked: {formatLastCheck(status.last_check)}
           </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => checkNowMutation.mutate()}
+            disabled={checkNowMutation.isPending}
+            className="ml-auto"
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${
+                checkNowMutation.isPending ? "animate-spin" : ""
+              }`}
+            />
+            {checkNowMutation.isPending
+              ? t("checkingForUpdates")
+              : t("checkNow")}
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground">
           {INTERVAL_DESCRIPTIONS[current]}
