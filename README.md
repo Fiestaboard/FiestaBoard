@@ -340,4 +340,10 @@ FiestaBoard is free and open source. If you find it useful and want to support c
 <a href="https://www.buymeacoffee.com/fiestaboard" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ---
+
+## Disclaimer
+
+FiestaBoard is an independent, open-source project and is not affiliated with, sponsored by, or endorsed by Vestaboard, Inc. "Vestaboard" is a trademark of Vestaboard, Inc. FiestaBoard simply provides software that is compatible with Vestaboard hardware via their official APIs.
+
+
 Made with ❤️ in San Francisco.
