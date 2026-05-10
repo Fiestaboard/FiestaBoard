@@ -1014,20 +1014,21 @@ export interface SystemActionResponse {
 // API client with typed methods
 const DEFAULT_TIMEOUT_MS = 30000;
 
-async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const timeoutSignal = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
-  const signal = options?.signal
-    ? AbortSignal.any([options.signal, timeoutSignal])
+async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: number }): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options ?? {};
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const signal = fetchOptions.signal
+    ? AbortSignal.any([fetchOptions.signal, timeoutSignal])
     : timeoutSignal;
 
   let res: globalThis.Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
-      ...options,
+      ...fetchOptions,
       signal,
       headers: {
         "Content-Type": "application/json",
-        ...options?.headers,
+        ...fetchOptions.headers,
       },
     });
   } catch (err) {
@@ -1579,6 +1580,7 @@ export const api = {
   triggerPluginUpdateCheck: () =>
     fetchApi<PluginUpdateCheckResponse>("/plugins/updates/check", {
       method: "POST",
+      timeoutMs: 120000,
     }),
 
   applyAllPluginUpdates: () =>

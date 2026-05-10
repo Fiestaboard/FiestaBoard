@@ -1780,12 +1780,11 @@ export default function IntegrationsPage() {
       } else {
         toast.success(t("toastNoUpdates"));
       }
-      queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
     } catch (err) {
       toast.error(t("toastCheckFailed", { error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setIsCheckingForUpdates(false);
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
     }
   };
 

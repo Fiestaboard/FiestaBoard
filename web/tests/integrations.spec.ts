@@ -139,3 +139,103 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 3_000 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Check for Updates
+// ---------------------------------------------------------------------------
+
+test.describe("Check for Updates", () => {
+  test("shows the Check for Updates button on the Installed tab", async ({ page }) => {
+    await page.goto("/integrations");
+    await expect(
+      page.getByRole("heading", { name: /integrations/i })
+    ).toBeVisible({ timeout: 15_000 });
+
+    await expect(
+      page.getByRole("button", { name: /check for updates/i })
+    ).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("shows all-up-to-date toast when no updates are found", async ({ page }) => {
+    await page.route("**/api/plugins/updates/check", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ checked: 3, updates_available: [] }),
+      });
+    });
+
+    await page.goto("/integrations");
+    await expect(
+      page.getByRole("heading", { name: /integrations/i })
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: /check for updates/i }).click();
+
+    await expect(
+      page.getByText("All plugins are up to date")
+    ).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("shows update count toast when updates are found", async ({ page }) => {
+    await page.route("**/api/plugins/updates/check", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ checked: 2, updates_available: ["some_plugin"] }),
+      });
+    });
+
+    await page.goto("/integrations");
+    await expect(
+      page.getByRole("heading", { name: /integrations/i })
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: /check for updates/i }).click();
+
+    await expect(
+      page.getByText("1 plugin update available")
+    ).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("shows error toast and still refreshes plugin list when check fails", async ({ page }) => {
+    let pluginsRequestCount = 0;
+
+    await page.route("**/api/plugins/updates/check", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Internal Server Error" }),
+      });
+    });
+
+    // Count GET /api/plugins requests (excludes sub-paths like /plugins/updates)
+    await page.route(/\/api\/plugins(\?.*)?$/, async (route) => {
+      if (route.request().method() === "GET") {
+        pluginsRequestCount++;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/integrations");
+    await expect(
+      page.getByRole("heading", { name: /integrations/i })
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Wait for the initial plugin list load to complete
+    await page.waitForLoadState("networkidle").catch(() => {});
+    const countAfterLoad = pluginsRequestCount;
+
+    await page.getByRole("button", { name: /check for updates/i }).click();
+
+    // Error toast should appear
+    await expect(
+      page.getByText(/Couldn't check for updates/)
+    ).toBeVisible({ timeout: 5_000 });
+
+    // The finally block must trigger a plugin list refresh even on error
+    await expect
+      .poll(() => pluginsRequestCount, { timeout: 5_000 })
+      .toBeGreaterThan(countAfterLoad);
+  });
+});
