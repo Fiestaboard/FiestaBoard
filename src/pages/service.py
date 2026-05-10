@@ -245,28 +245,29 @@ class PageService:
     
     # Demo page operations
 
-    def get_demo_page(self, plugin_id: str) -> Optional[Page]:
+    def get_demo_page(self, plugin_id: str, device_type: Optional[str] = None) -> Optional[Page]:
         """Find the existing demo page for a plugin.
 
-        Returns the page tagged with ``demo_plugin_id == plugin_id``,
-        or None if no demo page exists for this plugin.
+        Returns the page tagged with ``demo_plugin_id == plugin_id``.
+        If *device_type* is provided, only pages matching that device type are returned.
         """
         for page in self.storage.list_all():
             if page.demo_plugin_id == plugin_id:
-                return page
+                if device_type is None or page.device_type == device_type:
+                    return page
         return None
 
     def create_demo_page(self, plugin_id: str, demo: DemoPageSchema) -> Tuple[Page, bool]:
         """Create (or recreate) the demo page for a plugin.
 
-        If a demo page already exists for *plugin_id* it is deleted first,
-        making the demo page a singleton per plugin.
+        The singleton constraint is per plugin + device type: creating a demo for
+        "flagship" does not delete an existing "note" demo, and vice versa.
 
         Returns:
             Tuple of (created_page, was_recreated)
         """
         recreated = False
-        existing = self.get_demo_page(plugin_id)
+        existing = self.get_demo_page(plugin_id, device_type=demo.device_type)
         if existing:
             self.storage.delete(existing.id)
             self._invalidate_cache(existing.id)

@@ -28,8 +28,8 @@ from src.pages.service import PageService
 
 class TestDemoPageSchema:
 
-    def test_parse_demo_from_manifest(self):
-        """Manifest with a demo section produces a DemoPageSchema."""
+    def test_parse_old_format_from_manifest(self):
+        """Old flat demo format is normalised to a dict keyed by device_type."""
         data = {
             "id": "test_plugin",
             "name": "Test",
@@ -51,36 +51,17 @@ class TestDemoPageSchema:
         }
         manifest = PluginManifest.from_dict(data)
         assert manifest.demo is not None
-        assert manifest.demo.name == "Test Demo"
-        assert manifest.demo.template == ["Line 1", "Line 2", "", "", "", ""]
-        assert manifest.demo.device_type == "flagship"
-        assert manifest.demo.duration_seconds == 600
-        assert len(manifest.demo.line_metadata) == 6
+        assert isinstance(manifest.demo, dict)
+        assert "flagship" in manifest.demo
+        schema = manifest.demo["flagship"]
+        assert schema.name == "Test Demo"
+        assert schema.template == ["Line 1", "Line 2", "", "", "", ""]
+        assert schema.device_type == "flagship"
+        assert schema.duration_seconds == 600
+        assert len(schema.line_metadata) == 6
 
-    def test_manifest_without_demo(self):
-        """Manifest without a demo section sets demo to None."""
-        data = {"id": "test_plugin", "name": "Test", "version": "1.0.0"}
-        manifest = PluginManifest.from_dict(data)
-        assert manifest.demo is None
-
-    def test_demo_defaults(self):
-        """Demo section with minimal fields uses correct defaults."""
-        data = {
-            "id": "test_plugin",
-            "name": "Test",
-            "version": "1.0.0",
-            "demo": {
-                "name": "Minimal Demo",
-                "template": ["Hello"],
-            },
-        }
-        manifest = PluginManifest.from_dict(data)
-        assert manifest.demo.device_type == "flagship"
-        assert manifest.demo.duration_seconds == 300
-        assert manifest.demo.line_metadata is None
-
-    def test_demo_note_device_type(self):
-        """Demo can target the 'note' device type."""
+    def test_parse_old_format_note_device_type(self):
+        """Old flat demo format with device_type=note is stored under 'note' key."""
         data = {
             "id": "test_plugin",
             "name": "Test",
@@ -92,7 +73,97 @@ class TestDemoPageSchema:
             },
         }
         manifest = PluginManifest.from_dict(data)
-        assert manifest.demo.device_type == "note"
+        assert "note" in manifest.demo
+        assert manifest.demo["note"].device_type == "note"
+
+    def test_parse_new_format_single_device(self):
+        """New keyed format with one device type parses correctly."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "flagship": {
+                    "name": "Flagship Demo",
+                    "template": ["L1", "L2", "", "", "", ""],
+                    "duration_seconds": 120,
+                }
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.demo is not None
+        assert "flagship" in manifest.demo
+        assert "note" not in manifest.demo
+        schema = manifest.demo["flagship"]
+        assert schema.name == "Flagship Demo"
+        assert schema.device_type == "flagship"
+        assert schema.duration_seconds == 120
+
+    def test_parse_new_format_both_devices(self):
+        """New keyed format with both device types parses both schemas."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "flagship": {
+                    "name": "Flagship Demo",
+                    "template": ["L1", "L2", "", "", "", ""],
+                },
+                "note": {
+                    "name": "Note Demo",
+                    "template": ["L1", "L2", "L3"],
+                },
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert "flagship" in manifest.demo
+        assert "note" in manifest.demo
+        assert manifest.demo["flagship"].name == "Flagship Demo"
+        assert manifest.demo["note"].name == "Note Demo"
+        assert manifest.demo["note"].device_type == "note"
+
+    def test_manifest_without_demo(self):
+        """Manifest without a demo section sets demo to None."""
+        data = {"id": "test_plugin", "name": "Test", "version": "1.0.0"}
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.demo is None
+
+    def test_demo_old_format_defaults(self):
+        """Old flat demo with minimal fields uses correct defaults."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "name": "Minimal Demo",
+                "template": ["Hello"],
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        schema = manifest.demo["flagship"]
+        assert schema.device_type == "flagship"
+        assert schema.duration_seconds == 300
+        assert schema.line_metadata is None
+
+    def test_demo_new_format_defaults(self):
+        """New keyed format with minimal fields uses correct defaults."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "note": {
+                    "name": "Note Demo",
+                    "template": ["L1", "L2", "L3"],
+                }
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        schema = manifest.demo["note"]
+        assert schema.device_type == "note"
+        assert schema.duration_seconds == 300
+        assert schema.line_metadata is None
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +237,62 @@ class TestDemoValidation:
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("demo" in e for e in errors)
+
+    def test_new_format_valid_both_devices(self):
+        """New keyed format with both device types passes validation."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "flagship": {"name": "Flagship", "template": ["L1"]},
+                "note": {"name": "Note", "template": ["L1", "L2", "L3"]},
+            },
+        }
+        is_valid, errors = validate_manifest(data)
+        assert is_valid, errors
+
+    def test_new_format_invalid_key(self):
+        """New keyed format with an unknown device type key fails validation."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "jumbo": {"name": "Demo", "template": ["L1"]},
+            },
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("jumbo" in e for e in errors)
+
+    def test_new_format_missing_name(self):
+        """New keyed format with a missing 'name' in an entry fails validation."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "flagship": {"template": ["L1"]},
+            },
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("flagship" in e and "name" in e for e in errors)
+
+    def test_new_format_missing_template(self):
+        """New keyed format with a missing 'template' in an entry fails validation."""
+        data = {
+            "id": "test_plugin",
+            "name": "Test",
+            "version": "1.0.0",
+            "demo": {
+                "note": {"name": "Demo"},
+            },
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert any("note" in e and "template" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +440,56 @@ class TestPageServiceDemo:
         assert service.get_demo_page("plugin_a").name == "Demo A"
         assert service.get_demo_page("plugin_b").name == "Demo B"
         assert service.get_demo_page("plugin_c") is None
+
+    def test_get_demo_page_filters_by_device_type(self, service):
+        """get_demo_page with device_type only returns matching pages."""
+        flagship_schema = self._demo_schema("Flagship Demo")
+        note_schema = DemoPageSchema(
+            name="Note Demo",
+            template=["L1", "L2", "L3"],
+            device_type="note",
+        )
+        service.create_demo_page("test_plugin", flagship_schema)
+        service.create_demo_page("test_plugin", note_schema)
+
+        flagship_page = service.get_demo_page("test_plugin", device_type="flagship")
+        note_page = service.get_demo_page("test_plugin", device_type="note")
+
+        assert flagship_page is not None
+        assert flagship_page.device_type == "flagship"
+        assert note_page is not None
+        assert note_page.device_type == "note"
+
+    def test_singleton_per_device_type(self, service):
+        """Recreating a flagship demo does not delete the note demo, and vice versa."""
+        flagship_schema = self._demo_schema("Flagship Demo")
+        note_schema = DemoPageSchema(
+            name="Note Demo",
+            template=["L1", "L2", "L3"],
+            device_type="note",
+        )
+        service.create_demo_page("test_plugin", flagship_schema)
+        service.create_demo_page("test_plugin", note_schema)
+
+        # Recreate flagship — note should survive
+        _, recreated = service.create_demo_page("test_plugin", self._demo_schema("Flagship Refreshed"))
+        assert recreated
+
+        assert service.get_demo_page("test_plugin", device_type="flagship").name == "Flagship Refreshed"
+        assert service.get_demo_page("test_plugin", device_type="note") is not None
+        assert service.get_demo_page("test_plugin", device_type="note").name == "Note Demo"
+
+    def test_get_demo_page_no_filter_returns_any(self, service):
+        """get_demo_page without device_type returns any demo page for the plugin."""
+        note_schema = DemoPageSchema(
+            name="Note Demo",
+            template=["L1", "L2", "L3"],
+            device_type="note",
+        )
+        service.create_demo_page("test_plugin", note_schema)
+        found = service.get_demo_page("test_plugin")
+        assert found is not None
+        assert found.demo_plugin_id == "test_plugin"
 
     def test_demo_page_persists_to_storage(self, temp_storage_file):
         storage1 = PageStorage(storage_file=temp_storage_file)

@@ -212,15 +212,14 @@ class TestSilenceModeDispatch:
              patch("src.main.Config", config), \
              patch.object(service, "_check_trigger_override", return_value=None):
             sent = service.check_and_send_active_page()
-
-        assert sent is True
-        # The board content should be the silence page, not the active page.
-        args, _ = service.vb_client.send_characters.call_args
-        board_array = args[0]
-        assert "GOOD NIGHT" in _decode_board_text(board_array)
-        # And further ticks must not send again.
-        service.check_and_send_active_page()
-        assert service.vb_client.send_characters.call_count == 1
+            assert sent is True
+            # The board content should be the silence page, not the active page.
+            args, _ = service.vb_client.send_characters.call_args
+            board_array = args[0]
+            assert "GOOD NIGHT" in _decode_board_text(board_array)
+            # And further ticks must not send again.
+            service.check_and_send_active_page()
+            assert service.vb_client.send_characters.call_count == 1
 
     def test_page_mode_falls_back_to_indicator_when_page_missing(self, service):
         active_page, page_service, settings, config = self._patch_common(

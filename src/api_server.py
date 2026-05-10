@@ -6390,12 +6390,13 @@ async def get_plugin(plugin_id: str):
     config_manager = get_config_manager()
     plugin_config = config_manager.get_plugin_config(plugin_id)
     
-    # Check for demo page
+    # Check for demo page (use flagship as the representative for backwards compat)
     has_demo = manifest.demo is not None
     demo_page_id = None
     if has_demo:
         page_service = get_page_service()
-        demo_page = page_service.get_demo_page(plugin_id)
+        demo_page = page_service.get_demo_page(plugin_id, device_type="flagship") \
+            or page_service.get_demo_page(plugin_id)
         if demo_page:
             demo_page_id = demo_page.id
 
@@ -6685,9 +6686,9 @@ async def get_plugin_variables(plugin_id: str):
 
 
 @app.get("/plugins/{plugin_id}/demo-page")
-async def get_plugin_demo_page(plugin_id: str):
+async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
     """
-    Check whether a demo page exists for this plugin.
+    Check whether a demo page exists for this plugin and device type.
 
     Returns ``exists: true`` and the page id when one is found.
     """
@@ -6702,22 +6703,24 @@ async def get_plugin_demo_page(plugin_id: str):
     if manifest.demo is None:
         return {"exists": False, "page_id": None, "has_demo_template": False}
 
+    has_demo_template = device_type in manifest.demo
     page_service = get_page_service()
-    demo_page = page_service.get_demo_page(plugin_id)
+    demo_page = page_service.get_demo_page(plugin_id, device_type=device_type)
     return {
         "exists": demo_page is not None,
         "page_id": demo_page.id if demo_page else None,
-        "has_demo_template": True,
+        "has_demo_template": has_demo_template,
     }
 
 
 @app.post("/plugins/{plugin_id}/demo-page")
-async def create_plugin_demo_page(plugin_id: str):
+async def create_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
     """
-    Create (or recreate) the demo page for a plugin.
+    Create (or recreate) the demo page for a plugin and device type.
 
-    The demo page is a singleton per plugin -- calling this endpoint when a
-    demo page already exists will delete the old one and create a fresh copy.
+    The demo page is a singleton per plugin + device type -- calling this endpoint
+    when a demo page already exists for that device type will delete the old one
+    and create a fresh copy.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
         raise HTTPException(status_code=503, detail="Plugin system is not available.")
@@ -6731,6 +6734,13 @@ async def create_plugin_demo_page(plugin_id: str):
         raise HTTPException(
             status_code=400,
             detail=f"Plugin '{plugin_id}' does not include a demo page template.",
+        )
+
+    demo_schema = manifest.demo.get(device_type)
+    if demo_schema is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin '{plugin_id}' has no demo template for device type '{device_type}'.",
         )
 
     # Check that required settings are configured
@@ -6751,7 +6761,7 @@ async def create_plugin_demo_page(plugin_id: str):
             )
 
     page_service = get_page_service()
-    page, recreated = page_service.create_demo_page(plugin_id, manifest.demo)
+    page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
 
     return {
         "status": "recreated" if recreated else "created",
