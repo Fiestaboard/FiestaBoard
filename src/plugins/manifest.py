@@ -345,7 +345,7 @@ class PluginManifest:
     fiestaboard_version: str = ""
     supports_triggers: bool = False
     screenshots: List[Screenshot] = field(default_factory=list)
-    demo: Optional[DemoPageSchema] = None
+    demo: Optional[Dict[str, DemoPageSchema]] = None  # keyed by device_type
     raw: Dict[str, Any] = field(default_factory=dict)
     
     @classmethod
@@ -440,16 +440,33 @@ class PluginManifest:
                 ))
 
         # --- parse demo page schema ---
-        demo: Optional[DemoPageSchema] = None
+        demo: Optional[Dict[str, DemoPageSchema]] = None
         demo_raw = data.get("demo")
-        if isinstance(demo_raw, dict) and "name" in demo_raw and "template" in demo_raw:
-            demo = DemoPageSchema(
-                name=demo_raw["name"],
-                template=demo_raw["template"],
-                device_type=demo_raw.get("device_type", "flagship"),
-                line_metadata=demo_raw.get("line_metadata"),
-                duration_seconds=demo_raw.get("duration_seconds", 300),
-            )
+        if isinstance(demo_raw, dict):
+            if "name" in demo_raw and "template" in demo_raw:
+                # Old flat format — normalise to keyed dict
+                schema = DemoPageSchema(
+                    name=demo_raw["name"],
+                    template=demo_raw["template"],
+                    device_type=demo_raw.get("device_type", "flagship"),
+                    line_metadata=demo_raw.get("line_metadata"),
+                    duration_seconds=demo_raw.get("duration_seconds", 300),
+                )
+                demo = {schema.device_type: schema}
+            else:
+                # New keyed format: {"flagship": {...}, "note": {...}}
+                demo = {}
+                for dt, entry in demo_raw.items():
+                    if isinstance(entry, dict) and "name" in entry and "template" in entry:
+                        demo[dt] = DemoPageSchema(
+                            name=entry["name"],
+                            template=entry["template"],
+                            device_type=dt,
+                            line_metadata=entry.get("line_metadata"),
+                            duration_seconds=entry.get("duration_seconds", 300),
+                        )
+                if not demo:
+                    demo = None
 
         return cls(
             id=data["id"],
@@ -620,7 +637,8 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
     if demo is not None:
         if not isinstance(demo, dict):
             errors.append("demo must be an object")
-        else:
+        elif "name" in demo or "template" in demo:
+            # Old flat format
             if "name" not in demo:
                 errors.append("demo missing required field: name")
             if "template" not in demo:
@@ -630,6 +648,21 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
             device_type = demo.get("device_type", "flagship")
             if device_type not in ("flagship", "note"):
                 errors.append(f"demo.device_type must be 'flagship' or 'note', got '{device_type}'")
+        else:
+            # New keyed format: keys are device types
+            for key, entry in demo.items():
+                if key not in ("flagship", "note"):
+                    errors.append(f"demo key must be 'flagship' or 'note', got '{key}'")
+                    continue
+                if not isinstance(entry, dict):
+                    errors.append(f"demo.{key} must be an object")
+                    continue
+                if "name" not in entry:
+                    errors.append(f"demo.{key} missing required field: name")
+                if "template" not in entry:
+                    errors.append(f"demo.{key} missing required field: template")
+                elif not isinstance(entry["template"], list):
+                    errors.append(f"demo.{key}.template must be an array of strings")
 
     return len(errors) == 0, errors
 
