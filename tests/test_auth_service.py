@@ -81,6 +81,19 @@ def test_change_password(svc):
     assert svc.authenticate("admin", "brandnewpassword")
 
 
+def test_change_password_invalidates_old_sessions(svc):
+    """Stolen cookies must stop working once the password is rotated."""
+    svc.create_initial_user("admin", "oldpassword")
+    old_token = svc.authenticate("admin", "oldpassword")
+    assert svc.verify_session(old_token) == "admin"
+    svc.change_password("admin", "oldpassword", "brandnewpassword")
+    # Old token is now rejected even though it hasn't expired yet.
+    assert svc.verify_session(old_token) is None
+    # A freshly-minted session from the new password works.
+    new_token = svc.authenticate("admin", "brandnewpassword")
+    assert svc.verify_session(new_token) == "admin"
+
+
 def test_change_password_wrong_current(svc):
     svc.create_initial_user("admin", "oldpassword")
     with pytest.raises(auth_service.InvalidCredentials):
@@ -136,9 +149,10 @@ def test_verify_session_expired(monkeypatch, svc):
     monkeypatch.setenv("FIESTABOARD_SESSION_TTL_SECONDS", "1")
     token = svc.authenticate("admin", "supersecret")
     assert svc.verify_session(token) == "admin"
-    # Simulate the clock moving forward past expiry.
-    real_time = time.time
-    monkeypatch.setattr(time, "time", lambda: real_time() + 5)
+    # Simulate the clock moving forward past expiry. _now_ms uses
+    # time.time_ns under the hood, so monkeypatch that.
+    real_ns = time.time_ns
+    monkeypatch.setattr(time, "time_ns", lambda: real_ns() + 5 * 1_000_000_000)
     assert svc.verify_session(token) is None
 
 

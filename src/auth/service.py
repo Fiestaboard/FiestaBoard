@@ -193,9 +193,17 @@ def _signing_key(auth_file: Path) -> bytes:
 
 @dataclass(frozen=True)
 class SessionToken:
+    """A session token payload.
+
+    ``issued_at`` and ``expires_at`` are **milliseconds** since the epoch
+    so that ``sessions_valid_after`` cutoffs can distinguish a session
+    minted just before a password change from one minted just after,
+    without resorting to a sleep.
+    """
+
     username: str
-    issued_at: int
-    expires_at: int
+    issued_at: int  # ms since epoch
+    expires_at: int  # ms since epoch
 
     def encode(self) -> str:
         # Embedded in the payload, not the header, so an attacker can't
@@ -205,6 +213,10 @@ class SessionToken:
             f"{_b64e(self.username.encode('utf-8'))}."
             f"{self.issued_at}.{self.expires_at}.{nonce}"
         )
+
+
+def _now_ms() -> int:
+    return time.time_ns() // 1_000_000
 
 
 # --- User store ------------------------------------------------------------
@@ -291,13 +303,20 @@ class AuthService:
         with self._lock:
             if self._data.get("users"):
                 raise AlreadySetup("A user already exists")
-            now = int(time.time())
+            now_s = int(time.time())
             self._data["users"] = [
                 {
                     "username": username,
                     "password_hash": hash_password(password),
-                    "created_at": now,
-                    "updated_at": now,
+                    "created_at": now_s,
+                    "updated_at": now_s,
+                    # Sessions whose ``issued_at`` (ms) is strictly less
+                    # than this watermark are rejected. Bumped on every
+                    # password change so a rotation also revokes any
+                    # stolen cookies. Milliseconds gives us enough
+                    # resolution to distinguish a token minted just
+                    # before vs. just after a same-second password change.
+                    "sessions_valid_after_ms": _now_ms(),
                 }
             ]
             self._save()
@@ -312,6 +331,11 @@ class AuthService:
                         raise InvalidCredentials("Current password is incorrect")
                     u["password_hash"] = hash_password(new)
                     u["updated_at"] = int(time.time())
+                    # Revoke every session minted strictly before now.
+                    # The caller mints a fresh session immediately after
+                    # this returns; that session's issued_at is sampled
+                    # *after* this cutoff so it passes.
+                    u["sessions_valid_after_ms"] = _now_ms()
                     self._save()
                     return
             raise InvalidCredentials("Unknown user")
@@ -328,11 +352,11 @@ class AuthService:
         ok = verify_password(password, stored or "")
         if not user or not ok:
             raise InvalidCredentials("Invalid username or password")
-        now = int(time.time())
+        now_ms = _now_ms()
         token = SessionToken(
             username=username,
-            issued_at=now,
-            expires_at=now + _session_ttl_seconds(),
+            issued_at=now_ms,
+            expires_at=now_ms + _session_ttl_seconds() * 1000,
         )
         return self._sign(token.encode())
 
@@ -350,15 +374,21 @@ class AuthService:
         try:
             user_b64, issued_s, expires_s, _nonce = payload.split(".")
             username = _b64d(user_b64).decode("utf-8")
-            issued_at = int(issued_s)
-            expires_at = int(expires_s)
+            issued_at_ms = int(issued_s)
+            expires_at_ms = int(expires_s)
         except (ValueError, UnicodeDecodeError):
             return None
-        now = int(time.time())
-        if now < issued_at or now >= expires_at:
+        now_ms = _now_ms()
+        if now_ms >= expires_at_ms:
             return None
-        # Ensure the user still exists (in case it was deleted/rotated).
-        if not self.get_user(username):
+        # Ensure the user still exists (in case it was deleted/rotated) and
+        # that the token wasn't minted before the user's last password
+        # rotation — stolen cookies are revoked when the password changes.
+        user = self.get_user(username)
+        if not user:
+            return None
+        cutoff = int(user.get("sessions_valid_after_ms", 0) or 0)
+        if issued_at_ms < cutoff:
             return None
         return username
 

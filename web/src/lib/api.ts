@@ -1100,11 +1100,14 @@ export interface SystemActionResponse {
 const DEFAULT_TIMEOUT_MS = 30000;
 
 /**
- * On 401/409-setup-required responses, send the user to /login.
+ * On 401 responses (and on 409 "setup required" responses when auth is
+ * enabled but no user exists yet), send the user to /login.
  *
  * Runs in the browser only and never on the login page itself (to avoid
  * a redirect loop while signing in). The current URL is preserved in the
  * `redirect` query param so we can bounce back after a successful login.
+ *
+ * Returns true if a redirect was initiated.
  */
 function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
   if (typeof window === "undefined") return false;

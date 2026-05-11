@@ -221,9 +221,9 @@ async def auth_change_password(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-    # Rotate the session so the old cookie is invalidated implicitly the next
-    # time the user signs in. (Stateless tokens means we can't revoke the old
-    # one server-side without per-session storage; that's a follow-up.)
+    # Mint a fresh session under the bumped sessions_valid_after watermark
+    # so the user stays signed in and any previously-issued cookies are
+    # implicitly revoked.
     new_token = svc.authenticate(username, payload.new_password)
     _set_session_cookie(response, request, new_token)
     return SimpleResponse(status="ok", username=username)
