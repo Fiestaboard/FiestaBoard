@@ -41,6 +41,7 @@ from .generator import (
 )
 from .prompt_builder import build_prompt
 from .protocols import Protocol, get_protocol
+from .template_validator import repair_template_lines
 
 logger = logging.getLogger(__name__)
 
@@ -706,7 +707,7 @@ class _FenceParser:
                 # contents.
                 self._fence_buffer += self._buffer[: close.start()]
                 self._buffer = self._buffer[close.end():]
-                events.append(self._finalize_fence())
+                events.extend(self._finalize_fence())
                 self._in_fence = False
                 self._fence_buffer = ""
                 # Loop back in case the buffer also contains another
@@ -784,41 +785,96 @@ class _FenceParser:
                 return marker[:size]
         return ""
 
-    def _finalize_fence(self) -> Dict[str, Any]:
+    def _finalize_fence(self) -> List[Dict[str, Any]]:
+        """Parse, validate, and repair a completed fenced block.
+
+        Returns a list of events: zero or one ``warning`` events for
+        each template repair we performed, plus exactly one terminal
+        event — either ``tool_call`` (on success) or ``warning`` (on
+        parse/validation failure).
+        """
         body = self._fence_buffer.strip()
         if not body:
-            return {
+            return [{
                 "event": "warning",
                 "data": {"message": "Empty fiestaboard tool block; ignored."},
-            }
+            }]
         try:
             parsed = json.loads(body)
         except json.JSONDecodeError as exc:
-            return {
+            return [{
                 "event": "warning",
                 "data": {
                     "message": (
                         f"Could not parse fiestaboard tool block: {exc.msg}"
                     )
                 },
-            }
+            }]
         try:
             tool = parse_tool_call(parsed)
         except ToolCallValidationError as exc:
-            return {
+            return [{
                 "event": "warning",
                 "data": {
                     "message": f"Invalid fiestaboard tool block: {exc}"
                 },
-            }
-        return {
+            }]
+
+        # Repair common ``{{filled:...}}`` mistakes in any template
+        # lines the tool call carries. We mutate the validated args
+        # in-place and emit a warning event per repair so the user
+        # (and, via the chat transcript, the model on the next turn)
+        # sees what was changed.
+        events: List[Dict[str, Any]] = []
+        for warning in _repair_tool_template_lines(tool):
+            events.append({"event": "warning", "data": {"message": warning}})
+        events.append({
             "event": "tool_call",
             "data": {
                 "id": secrets.token_urlsafe(8),
                 "op": tool.op,
                 "args": tool.args.model_dump(mode="json"),
             },
-        }
+        })
+        return events
+
+
+def _repair_tool_template_lines(tool: Any) -> List[str]:
+    """Repair template lines carried by a validated tool call.
+
+    Supports the two ops that ship template text: ``replace_page``
+    (full ``template`` list) and ``apply_patch`` (per-line
+    ``replace_line`` / ``insert_line`` edits). Other ops are
+    untouched.
+    """
+    op = getattr(tool, "op", None)
+    args = getattr(tool, "args", None)
+    if args is None:
+        return []
+    if op == "replace_page":
+        template = getattr(args, "template", None)
+        if not isinstance(template, list) or not template:
+            return []
+        repaired, warnings = repair_template_lines(template)
+        if warnings:
+            args.template = repaired
+        return warnings
+    if op == "apply_patch":
+        changes = getattr(args, "changes", None) or []
+        warnings: List[str] = []
+        for change in changes:
+            change_type = getattr(change, "type", None)
+            if change_type not in ("replace_line", "insert_line"):
+                continue
+            text = getattr(change, "text", None)
+            if not isinstance(text, str):
+                continue
+            repaired, change_warnings = repair_template_lines([text])
+            if change_warnings:
+                change.text = repaired[0]
+                warnings.extend(change_warnings)
+        return warnings
+    return []
 
 
 __all__ = [

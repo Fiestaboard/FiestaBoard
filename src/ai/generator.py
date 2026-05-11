@@ -26,6 +26,7 @@ from ..devices import DeviceType, get_dimensions
 from ..pages.models import Page, PageCreate
 from .prompt_builder import PromptContext, build_prompt
 from .protocols import Protocol, get_protocol
+from .template_validator import repair_template_lines
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +154,13 @@ def _validate_and_repair(
             "Model output is missing the required 'template' list."
         )
     template = [str(line) if line is not None else "" for line in template]
+
+    # Repair common ``{{filled:...}}`` mistakes before length/width
+    # checks so that, for example, ``{{filled:green.}}`` (which would
+    # otherwise be counted as 8 literal columns once it falls through
+    # to the text-pattern branch) is normalised to a real color fill.
+    template, repair_warnings = repair_template_lines(template)
+    warnings.extend(repair_warnings)
 
     # Pad/trim to exact device row count.
     if len(template) < dims.rows:
