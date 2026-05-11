@@ -5,6 +5,9 @@ python-dotenv>=1.2.2
 schedule>=1.2.2
 defusedxml>=0.7.1
 
+# Symmetric encryption for secrets at rest (see src/security/secrets.py)
+cryptography>=46.0.5
+
 # API Server dependencies
 fastapi>=0.125.0
 uvicorn[standard]>=0.34.0
