@@ -128,6 +128,7 @@ FiestaBoard has **26 built-in plugins** covering weather, finance, transit, spor
 | [Calendar Subscription](https://github.com/Fiestaboard/fiestaboard-plugin--calendar-sub) | Upcoming events from any .ics URL | No |
 | [Currency Exchange](https://github.com/Fiestaboard/fiestaboard-plugin--currency) | Live exchange rates (Frankfurter/ECB) | No |
 | [Dad Jokes](https://github.com/Fiestaboard/fiestaboard-plugin--dad-jokes) | Random dad jokes | No |
+| [Departures](https://github.com/wonkybutt/fiestaboard-plugin--departures) | Upcoming calendar events with Go/No-Go status indicators | No |
 | [Disney Park Queue Times](https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times) | Wait times for Disney rides | No |
 | [Earthquake Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--earthquake) | Recent USGS earthquake data | No |
 | [Element of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--element-of-day) | Periodic table element of the day | No |

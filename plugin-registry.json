@@ -76,6 +76,16 @@
       "category": "entertainment"
     },
     {
+      "id": "departures",
+      "name": "Departures",
+      "description": "Displays upcoming calendar events from an iCalendar feed in a departures-board style with configurable Go/No-Go status indicators.",
+      "repository": "https://github.com/wonkybutt/fiestaboard-plugin--departures",
+      "author": "wonkybutt",
+      "fiestaboard_version": ">=5.6.0",
+      "icon": "calendar-clock",
+      "category": "utility"
+    },
+    {
       "id": "disney_parks_times",
       "name": "Disney Parks Queue Times",
       "description": "Display wait times for Disney parks (Disneyland, California Adventure, Disney World, etc.) from Queue-Times.com",
