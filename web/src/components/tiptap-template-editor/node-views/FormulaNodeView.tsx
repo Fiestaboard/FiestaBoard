@@ -1,11 +1,11 @@
 /**
  * FormulaNodeView — React NodeView for Formula nodes.
  *
- * Renders as an amber badge pill showing Σ + truncated expression preview.
- * Clicking opens a floating FormulaEditorPanel anchored to the pill via a
- * portal into document.body (so it escapes the ProseMirror container).
+ * Renders as an amber badge pill showing ƒ + truncated expression preview.
+ * Clicking opens a centered modal FormulaEditorPanel via a portal into
+ * document.body (escapes the ProseMirror container).
  *
- * The panel does NOT close on outside click — only on Esc / Done / Cancel.
+ * The modal does NOT close on backdrop click — only on Esc / Done / Cancel.
  */
 "use client";
 
@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom';
 import { NodeViewWrapper } from '@tiptap/react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Sigma } from 'lucide-react';
+import { SquareFunction } from 'lucide-react';
 import { FormulaEditorPanel } from '../components/FormulaEditorPanel';
 import { useTranslations } from 'next-intl';
 
@@ -33,8 +33,6 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
   const t = useTranslations("formulaEditor");
   const { expression, autoOpen } = node.attrs;
   const [open, setOpen] = useState(false);
-  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
-  const pillRef = useRef<HTMLSpanElement>(null);
   // Capture autoOpen at mount time so the effect doesn't depend on the prop
   // (calling updateAttributes would trigger a ProseMirror transaction that can
   // remount this component, cancelling the RAF before it fires).
@@ -42,66 +40,21 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
 
   const preview =
     expression.length > 0
-      ? expression.length > 20 ? expression.slice(0, 20) + '\u2026' : expression
+      ? expression.length > 20 ? expression.slice(0, 20) + '…' : expression
       : t("newFormula");
 
-  /** Apply position from an already-retrieved DOMRect. */
-  const applyPanelStyleFromRect = useCallback((rect: DOMRect) => {
-    const PANEL_WIDTH = 392;
-    let left = rect.left;
-    let top = rect.bottom + 6;
-    if (left + PANEL_WIDTH > window.innerWidth - 8) {
-      left = Math.max(8, window.innerWidth - PANEL_WIDTH - 8);
-    }
-    const PANEL_APPROX_HEIGHT = 480;
-    if (top + PANEL_APPROX_HEIGHT > window.innerHeight - 8) {
-      top = Math.max(8, rect.top - PANEL_APPROX_HEIGHT - 6);
-    }
-    setPanelStyle({ position: 'fixed', top, left, zIndex: 1000 });
-  }, []);
-
-  /** Compute and apply position from the pill's current DOMRect.
-   *  Returns true if the rect was available and valid. */
-  const computePanelStyle = useCallback((): boolean => {
-    const rect = pillRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0) return false;
-    applyPanelStyleFromRect(rect);
-    return true;
-  }, [applyPanelStyleFromRect]);
-
-  // Auto-open on mount when freshly inserted (autoOpen attr).
-  // We do NOT call updateAttributes here — that fires a ProseMirror transaction
-  // which can remount this component and cancel the pending RAF.
-  // Instead we use a ref captured at mount time and retry frames until the pill
-  // has a valid DOMRect (width > 0), guarding against the "sometimes" timing race.
+  // Auto-open on mount when freshly inserted via the toolbar.
   useEffect(() => {
     if (!shouldAutoOpen.current) return;
-    let rafId: number;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 12; // ~200ms at 60fps
-
-    const tryOpen = () => {
-      attempts++;
-      if (computePanelStyle()) {
-        setOpen(true);
-      } else if (attempts < MAX_ATTEMPTS) {
-        rafId = requestAnimationFrame(tryOpen);
-      }
-      // If we exhaust retries, the insert silently no-ops rather than showing a broken panel.
-    };
-
-    rafId = requestAnimationFrame(tryOpen);
+    const rafId = requestAnimationFrame(() => setOpen(true));
     return () => cancelAnimationFrame(rafId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const openPanel = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Re-compute position every time in case the editor scrolled
-    computePanelStyle();
     setOpen(true);
-  }, [computePanelStyle]);
+  }, []);
 
   // Close on Escape — delete node if it was never given an expression
   useEffect(() => {
@@ -124,7 +77,6 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
 
   const handleCancel = () => {
     setOpen(false);
-    // If the user never set an expression, remove the placeholder node
     if (node.attrs.expression === '') deleteNode();
   };
 
@@ -141,14 +93,11 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            {/* @ts-expect-error — Badge ref forwarding with span ref */}
             <Badge
-              ref={pillRef}
               variant="formula"
               className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
               // Use onMouseDown instead of onClick — ProseMirror's drag-handle
               // intercepts mousedown on atom nodes before React's onClick fires.
-              // preventDefault stops PM from handling the event.
               onMouseDown={openPanel}
               role="button"
               tabIndex={0}
@@ -159,7 +108,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
                 }
               }}
             >
-              <Sigma className="w-2.5 h-2.5 flex-shrink-0" />
+              <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
               <span className="font-mono text-[11px] leading-none">{preview}</span>
             </Badge>
           </TooltipTrigger>
@@ -173,17 +122,21 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
       {open &&
         createPortal(
           <div
-            style={panelStyle}
-            className="rounded-lg border border-border bg-popover shadow-xl"
-            // Prevent clicks inside the panel from propagating to the editor
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <FormulaEditorPanel
-              mode="edit"
-              initialExpr={expression}
-              onConfirm={handleConfirm}
-              onCancel={handleCancel}
-            />
+            {/* Backdrop — intentionally has no click handler to prevent accidental close */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+            {/* Modal panel */}
+            <div className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]">
+              <FormulaEditorPanel
+                mode="edit"
+                initialExpr={expression}
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
+              />
+            </div>
           </div>,
           document.body
         )}

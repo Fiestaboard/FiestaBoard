@@ -306,3 +306,153 @@ def test_get_ai_context_includes_dimensions(client):
 def test_get_ai_context_rejects_invalid_device(client):
     res = client.get("/pages/ai/context?device_type=potato")
     assert res.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# /settings/ai/test
+# ---------------------------------------------------------------------------
+
+
+def test_test_ai_provider_400_when_no_providers_configured(client):
+    res = client.post("/settings/ai/test", json={})
+    assert res.status_code == 400
+    assert "no ai providers" in res.json()["detail"].lower()
+
+
+def test_test_ai_provider_uses_default_when_no_id(client, reset_config_singleton):
+    _seed_provider(reset_config_singleton)
+
+    async def fake_test(provider, model=None):
+        return {"ok": True, "message": "ok", "model_used": "test-model"}
+
+    with patch("src.ai.generator.test_provider", side_effect=fake_test):
+        res = client.post("/settings/ai/test", json={})
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+
+def test_test_ai_provider_uses_explicit_provider_id(client, reset_config_singleton):
+    cm = reset_config_singleton
+    cm.set_ai_providers(
+        {
+            "enabled": True,
+            "providers": [
+                {"id": "p1", "name": "A", "base_url": "https://a.test/v1", "api_key": "k1", "models": ["m1"]},
+                {"id": "p2", "name": "B", "base_url": "https://b.test/v1", "api_key": "k2", "models": ["m2"]},
+            ],
+            "default_provider_id": "p1",
+        }
+    )
+
+    received_provider: dict = {}
+
+    async def fake_test(provider, model=None):
+        received_provider.update(provider)
+        return {"ok": True, "message": "ok", "model_used": model or "m2"}
+
+    with patch("src.ai.generator.test_provider", side_effect=fake_test):
+        res = client.post("/settings/ai/test", json={"provider_id": "p2"})
+    assert res.status_code == 200
+    assert received_provider["id"] == "p2"
+
+
+def test_test_ai_provider_404_for_unknown_id(client, reset_config_singleton):
+    _seed_provider(reset_config_singleton)
+    res = client.post("/settings/ai/test", json={"provider_id": "does-not-exist"})
+    assert res.status_code == 404
+    assert "not found" in res.json()["detail"].lower()
+
+
+def test_test_ai_provider_with_draft_skips_stored_lookup(client, reset_config_singleton):
+    """Draft provider body is used directly without querying stored config."""
+    # No stored providers — the draft bypasses that check.
+    draft = {
+        "id": "draft-p",
+        "name": "Draft",
+        "base_url": "https://draft.test/v1",
+        "api_key": "draft-secret",
+        "models": ["draft-model"],
+    }
+
+    async def fake_test(provider, model=None):
+        assert provider["api_key"] == "draft-secret"
+        return {"ok": True, "message": "ok", "model_used": "draft-model"}
+
+    with patch("src.ai.generator.test_provider", side_effect=fake_test):
+        res = client.post("/settings/ai/test", json={"provider": draft})
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+
+def test_test_ai_provider_draft_resolves_masked_key(client, reset_config_singleton):
+    """When the draft sends api_key='***', the stored key is substituted."""
+    cm = reset_config_singleton
+    _seed_provider(cm)
+
+    received_key: list = []
+
+    async def fake_test(provider, model=None):
+        received_key.append(provider["api_key"])
+        return {"ok": True, "message": "ok", "model_used": "test-model"}
+
+    draft = {
+        "id": "p1",
+        "name": "Test",
+        "base_url": "https://example.test/v1",
+        "api_key": "***",  # mask — should resolve to the real key
+        "models": ["test-model"],
+    }
+    with patch("src.ai.generator.test_provider", side_effect=fake_test):
+        res = client.post("/settings/ai/test", json={"provider": draft})
+    assert res.status_code == 200
+    assert received_key[0] == "secret"
+
+
+# ---------------------------------------------------------------------------
+# /pages/ai/generate — additional parameter validation
+# ---------------------------------------------------------------------------
+
+
+def test_generate_page_passes_current_page_through(client, reset_config_singleton):
+    _seed_provider(reset_config_singleton)
+
+    received_current_page: list = []
+
+    async def fake_generate(**kwargs):
+        received_current_page.append(kwargs.get("current_page"))
+        return {
+            "page": {
+                "name": "ok",
+                "type": "template",
+                "device_type": "flagship",
+                "template": [""] * 6,
+                "line_metadata": [{"alignment": "left", "wrap": False}] * 6,
+                "duration_seconds": 60,
+            },
+            "model_used": "test-model",
+            "provider_id": "p1",
+            "warnings": [],
+            "usage": {},
+        }
+
+    with patch("src.ai.generator.generate_page", side_effect=fake_generate):
+        res = client.post(
+            "/pages/ai/generate",
+            json={
+                "prompt": "x",
+                "device_type": "flagship",
+                "current_page": {"name": "Old Page", "template": ["hi", "", "", "", "", ""]},
+            },
+        )
+    assert res.status_code == 200
+    assert received_current_page[0] == {"name": "Old Page", "template": ["hi", "", "", "", "", ""]}
+
+
+def test_generate_page_rejects_non_dict_current_page(client, reset_config_singleton):
+    _seed_provider(reset_config_singleton)
+    res = client.post(
+        "/pages/ai/generate",
+        json={"prompt": "x", "device_type": "flagship", "current_page": ["not", "a", "dict"]},
+    )
+    assert res.status_code == 400
+    assert "current_page" in res.json()["detail"]

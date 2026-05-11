@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { PageBuilder } from "@/components/page-builder";
-import { PageLayout } from "@/components/page-layout";
+
+import { PageEditorShell } from "@/components/page-editor-shell";
 
 interface EditPageClientProps {
   pageId: string;
@@ -10,23 +10,6 @@ interface EditPageClientProps {
 
 export function EditPageClient({ pageId }: EditPageClientProps) {
   const router = useRouter();
-
-  const handleClose = () => {
-    router.push("/pages");
-  };
-
-  const handleSave = () => {
-    router.push("/pages");
-  };
-
-  return (
-    <PageLayout>
-      <PageBuilder
-        pageId={pageId}
-        onClose={handleClose}
-        onSave={handleSave}
-      />
-    </PageLayout>
-  );
+  const back = () => router.push("/pages");
+  return <PageEditorShell pageId={pageId} onClose={back} onSave={back} />;
 }
-

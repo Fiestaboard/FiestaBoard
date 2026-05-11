@@ -11,6 +11,9 @@ import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { MainContent } from "@/components/main-content";
 import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
+import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
+import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
+import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -74,16 +77,21 @@ export default async function RootLayout({
           <Providers>
             <ThemeColorMeta />
             <ReduceMotionApplier />
-            <WizardProvider>
-              <NavigationSidebar />
-              <MainContent>
-                <PageFadeWrapper>
-                  {children}
-                </PageFadeWrapper>
-              </MainContent>
-              <Toaster />
-              <InstallPrompt />
-            </WizardProvider>
+            <PageEditorBridgeProvider>
+            <GlobalAiPanelProvider>
+              <WizardProvider>
+                <NavigationSidebar />
+                <GlobalAiChatDrawer />
+                <MainContent>
+                  <PageFadeWrapper>
+                    {children}
+                  </PageFadeWrapper>
+                </MainContent>
+                <Toaster />
+                <InstallPrompt />
+              </WizardProvider>
+            </GlobalAiPanelProvider>
+            </PageEditorBridgeProvider>
           </Providers>
         </NextIntlClientProvider>
       </body>

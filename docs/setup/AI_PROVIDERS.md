@@ -10,11 +10,40 @@ your own provider, your own API key, and your own model list.
 
 Two protocols are supported out of the box:
 
-- **OpenAI-compatible** chat-completions — works with OpenRouter,
-  OpenAI, Ollama, LM Studio, vLLM, llama.cpp, and most other local
-  servers.
+- **OpenAI-compatible** chat-completions — one-click presets for
+  OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together AI, and
+  Fireworks AI, plus local servers Ollama, LM Studio, llama.cpp, and
+  vLLM. Any other OpenAI-compatible endpoint works too.
 - **Anthropic Messages API** — direct access to `api.anthropic.com`
   using a Claude API key.
+
+## Choosing a provider
+
+We recommend **[OpenRouter](https://openrouter.ai)** for most users.
+A single API and key gives you access to hundreds of models from
+OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, and others, with
+pay-as-you-go billing and easy model switching from the FiestaBoard
+dropdown.
+
+> **Disclosure:** **FiestaBoard receives no referral fees,
+> kickbacks, or affiliate commissions from OpenRouter.** There's no
+> `?ref=` link in our docs and no partner agreement — we just like
+> the product. If you'd prefer a direct relationship with one
+> provider, any other preset works equally well.
+
+If you already pay for OpenAI, Anthropic, or another provider,
+prefer the matching preset and use your existing key. For
+fully-local inference, pick Ollama, LM Studio, llama.cpp, or vLLM
+(see the JSON-adherence caveat in the **Recommended models**
+section).
+
+## Quick setup with preset pills
+
+In **Settings → AI Providers**, the **Quick presets** row gives you
+one-click pills for every supported provider, grouped into **Cloud**
+and **Local**. Clicking a pill auto-fills the **Name**, **Base
+URL**, and **Protocol** for that provider — you only have to paste
+your API key and add the model ids you want.
 
 ## Configuration
 

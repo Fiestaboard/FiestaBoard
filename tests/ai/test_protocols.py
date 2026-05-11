@@ -334,6 +334,76 @@ async def test_generate_page_uses_anthropic_wire_format(monkeypatch):
     assert result["provider_id"] == "anth"
 
 
+def test_openai_parse_content_ignores_non_text_blocks():
+    """Image/tool_use blocks in an OpenAI content list must be skipped."""
+    proto = PROTOCOLS["openai"]
+    api_response = {
+        "choices": [
+            {
+                "message": {
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": "http://example.com/img.png"}},
+                        {"type": "text", "text": "hello"},
+                        {"type": "tool_use", "id": "call_1"},
+                        {"type": "text", "text": " world"},
+                    ]
+                }
+            }
+        ],
+    }
+    assert proto.parse_content(api_response) == "hello world"
+
+
+def test_openai_parse_usage_handles_missing_usage_key():
+    """Response without a 'usage' field should return None for all counts."""
+    proto = PROTOCOLS["openai"]
+    usage = proto.parse_usage({})
+    assert usage == {
+        "prompt_tokens": None,
+        "completion_tokens": None,
+        "total_tokens": None,
+    }
+
+
+def test_openai_parse_usage_handles_partial_usage():
+    """Partial usage (only some fields present) should return None for missing ones."""
+    proto = PROTOCOLS["openai"]
+    usage = proto.parse_usage({"usage": {"prompt_tokens": 5}})
+    assert usage["prompt_tokens"] == 5
+    assert usage["completion_tokens"] is None
+    assert usage["total_tokens"] is None
+
+
+def test_anthropic_body_does_not_include_response_format():
+    """Anthropic does not accept response_format — must be absent."""
+    proto = PROTOCOLS["anthropic"]
+    body = proto.build_body(
+        "claude-3-5-haiku-20241022",
+        [{"role": "user", "content": "hi"}],
+        0.5,
+        100,
+    )
+    assert "response_format" not in body
+
+
+def test_openai_headers_with_empty_extra_headers():
+    proto = PROTOCOLS["openai"]
+    headers = proto.build_headers("sk-test", {})
+    assert headers["Authorization"] == "Bearer sk-test"
+    assert "Content-Type" in headers
+
+
+def test_anthropic_parse_error_with_non_dict_error_field():
+    """Error field that is a plain string should return None (no crash)."""
+    proto = PROTOCOLS["anthropic"]
+    assert proto.parse_error({"error": "some plain string"}) is None
+
+
+def test_anthropic_parse_content_with_empty_content_list():
+    proto = PROTOCOLS["anthropic"]
+    assert proto.parse_content({"content": []}) == ""
+
+
 @pytest.mark.asyncio
 async def test_generate_page_still_uses_openai_format_by_default(monkeypatch):
     """No ``protocol`` field on the provider → OpenAI-compatible path."""

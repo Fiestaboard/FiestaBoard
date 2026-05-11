@@ -51,7 +51,6 @@ COLOR_CODES = {
     "purple": 68,  # alias
     "white": 69,
     "black": 70,
-    "filled": 71,
 }
 
 # Symbol name to character mapping
@@ -76,10 +75,11 @@ SYMBOL_CHARS = {
 # eliminates polynomial backtracking on inputs like ``{{{{{{...``.  Variable
 # expressions never contain ``{`` themselves.
 VAR_PATTERN = re.compile(r'\{\{([^}{]+)\}\}')  # {{source.field}} or {{source.field|filter}}
-COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}', re.IGNORECASE)
+COLOR_PATTERN = re.compile(r'\{\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|7[01])\}\}', re.IGNORECASE)
 SYMBOL_PATTERN = re.compile(r'\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}', re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r'\{\{fill_space\}\}', re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r'\{\{fill_space_repeat:(.+?)\}\}', re.IGNORECASE)
+FILLED_PATTERN = re.compile(r'\{\{filled:(.+?)\}\}', re.IGNORECASE)
 
 
 @dataclass
@@ -917,7 +917,12 @@ class TemplateEngine:
         if expr.lower() == 'fill_space':
             return '\x00FILL_SPACE\x00'  # Special marker to be processed later
         
-        # Handle fill_space_repeat:char/string variable
+        # Handle filled:char — user-facing alias for fill_space_repeat
+        if expr.lower().startswith('filled:'):
+            repeat_str = expr.split(':', 1)[1]
+            return f'\x00FILL_SPACE_REPEAT:{repeat_str}\x00'
+
+        # Handle fill_space_repeat:char/string variable (backward compat)
         if expr.lower().startswith('fill_space_repeat:'):
             repeat_str = expr.split(':', 1)[1] if ':' in expr else ' '
             return f'\x00FILL_SPACE_REPEAT:{repeat_str}\x00'  # Special marker with repeat pattern

@@ -94,3 +94,9 @@ docs-site/.cache-loader/
 /mobile-menu-*.png
 /menu-*-fixed.png
 /menu-*-dimmed.png
+/after-ai-click.png
+/chat-with-preview.png
+/disclosure-*.png
+
+# Playwright MCP session artifacts
+/.playwright-mcp/

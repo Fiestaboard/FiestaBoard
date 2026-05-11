@@ -529,6 +529,54 @@
   100% { background-position: 50% 150%; }
 }
 
+/* AI sparkle icon — big star gets the sweeping gradient, small elements pulse independently */
+@keyframes ai-sparkle-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes sparkle-small-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.55); }
+}
+
+/* Mask contains only the big central star — small elements rendered separately */
+.ai-sparkle-icon {
+  --sparkle-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z'%2F%3E%3C%2Fsvg%3E");
+  background: linear-gradient(135deg, #c97a72 0%, #c99662 40%, #9b7bb0 70%, #c97a72 100%);
+  background-size: 200% 100%;
+  animation: ai-sparkle-flow 6s ease-in-out infinite alternate;
+  -webkit-mask-image: var(--sparkle-mask);
+  mask-image: var(--sparkle-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+.dark .ai-sparkle-icon {
+  background: linear-gradient(135deg, #e09888 0%, #d4aa6a 40%, #b89cc8 70%, #e09888 100%);
+  background-size: 200% 100%;
+}
+.dark {
+  --ai-sg-c1: #e09888;
+  --ai-sg-c2: #d4aa6a;
+  --ai-sg-c3: #b89cc8;
+}
+
+/* Small sparkle elements — cross and circle pulse from their own centers */
+.sparkle-cross {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkle-small-pulse 2.4s ease-in-out infinite;
+}
+.sparkle-circ {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkle-small-pulse 2.4s ease-in-out infinite;
+  animation-delay: 0.9s;
+}
+
 /* Logo in light mode: deep warm brown Fiesta + black Board for contrast across gradient */
 .sidebar-gradient:not(.dark) .logo-on-gradient,
 .sidebar-gradient-horizontal:not(.dark) .logo-on-gradient {
@@ -660,15 +708,16 @@
 }
 
 /* Sidebar collapse/expand transition.
-   Sidebar animates width; main animates padding-left.
-   Both use the same 300ms easing so they move in sync and never collide. */
+   Sidebar animates width; main animates padding-left and padding-right.
+   All use the same 300ms easing so they move in sync and never collide. */
 .sidebar-transition {
   transition: width 300ms cubic-bezier(0.33, 1, 0.68, 1),
-    padding-left 300ms cubic-bezier(0.33, 1, 0.68, 1);
+    padding-left 300ms cubic-bezier(0.33, 1, 0.68, 1),
+    padding-right 300ms cubic-bezier(0.33, 1, 0.68, 1);
   contain: layout style;
 }
 .sidebar-transition.is-transitioning {
-  will-change: width, padding-left;
+  will-change: width, padding-left, padding-right;
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar-transition { transition: none; }

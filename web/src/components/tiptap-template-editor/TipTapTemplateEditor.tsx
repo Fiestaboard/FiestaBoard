@@ -141,6 +141,13 @@ export function TipTapTemplateEditor({
   const dragStateRef = useRef<{ from: number; to: number } | null>(null);
   // Track line count for validation display
   const [editorLineCount, setEditorLineCount] = useState(() => (value || '').split('\n').length);
+  // Actual rendered pixel height of each board line (for gutter alignment)
+  const [lineHeights, setLineHeights] = useState<number[]>(() =>
+    Array.from({ length: boardLines }, () => 24)
+  );
+  const measureScheduledRef = useRef(false);
+  // Ref so onUpdate/onCreate (closed over at mount) can call the latest scheduleMeasure
+  const scheduleMeasureRef = useRef<(() => void) | null>(null);
   
   const editor = useEditor({
     immediatelyRender: false,
@@ -668,6 +675,7 @@ export function TipTapTemplateEditor({
       if (onLineCountChange) {
         onLineCountChange(lineCount);
       }
+      scheduleMeasureRef.current?.();
     },
     onCreate: ({ editor }) => {
       const doc = editor.getJSON();
@@ -677,6 +685,7 @@ export function TipTapTemplateEditor({
       if (onLineCountChange) {
         onLineCountChange(lineCount);
       }
+      scheduleMeasureRef.current?.();
     },
     onFocus: () => {
       onFocus?.();
@@ -689,6 +698,71 @@ export function TipTapTemplateEditor({
       editorRef.current = editor;
     }
   }, [editor]);
+
+  // Measure actual pixel height of each board line so the gutter stays in sync
+  // even when a line's content wraps to multiple visual rows.
+  const measureLineHeights = useCallback(() => {
+    if (!editor || editor.isDestroyed) return;
+    try {
+      const { state, view } = editor;
+      if (!view.dom.isConnected) return;
+
+      const hardBreakPositions: number[] = [];
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === 'hardBreak') hardBreakPositions.push(pos);
+      });
+
+      const lineStartYs: number[] = [];
+      try {
+        lineStartYs.push(view.coordsAtPos(1).top);
+      } catch { return; }
+
+      for (const brPos of hardBreakPositions) {
+        try {
+          lineStartYs.push(view.coordsAtPos(brPos + 1).top);
+        } catch { return; }
+      }
+
+      const heights: number[] = [];
+      for (let i = 0; i < lineStartYs.length; i++) {
+        if (i + 1 < lineStartYs.length) {
+          heights.push(Math.max(Math.round(lineStartYs[i + 1] - lineStartYs[i]), 24));
+        } else {
+          const p = view.dom.querySelector('p');
+          const endY = p ? p.getBoundingClientRect().bottom : lineStartYs[i] + 24;
+          heights.push(Math.max(Math.round(endY - lineStartYs[i]), 24));
+        }
+      }
+
+      while (heights.length < boardLines) heights.push(24);
+      setLineHeights(heights);
+    } catch {
+      // ignore transient measurement errors
+    }
+  }, [editor, boardLines]);
+
+  const scheduleMeasure = useCallback(() => {
+    if (measureScheduledRef.current) return;
+    measureScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      measureScheduledRef.current = false;
+      measureLineHeights();
+    });
+  }, [measureLineHeights]);
+
+  // Keep the ref current so onUpdate/onCreate can call it
+  useEffect(() => {
+    scheduleMeasureRef.current = scheduleMeasure;
+  }, [scheduleMeasure]);
+
+  // Re-measure when the editor container is resized (e.g. window resize)
+  useEffect(() => {
+    if (!editor) return;
+    const obs = new ResizeObserver(scheduleMeasure);
+    obs.observe(editor.view.dom);
+    scheduleMeasure();
+    return () => obs.disconnect();
+  }, [editor, scheduleMeasure]);
 
   // Add DOM-level drop handler to ensure we catch drops
   useEffect(() => {
@@ -813,6 +887,7 @@ export function TipTapTemplateEditor({
     if (onLineCountChange) {
       onLineCountChange(lineCount);
     }
+    scheduleMeasureRef.current?.();
   }, [value, editor, boardLines]);
 
   // No need to enforce paragraph count - we use line breaks now
@@ -993,12 +1068,42 @@ export function TipTapTemplateEditor({
           "border bg-background relative rounded-md",
           showToolbar ? "rounded-t-none" : "",
           isOverLineLimit && "border-warning"
-        )} style={{ 
-          padding: '0.75rem', 
+        )} style={{
+          padding: '0.75rem',
           minHeight: `${boardLines * 1.5 + 1.5}rem`,
         }}>
-          <div className="relative" style={{ minHeight: `${boardLines * 1.5}rem` }}>
-            <EditorContent editor={editor} />
+          <div className="flex gap-2" style={{ minHeight: `${boardLines * 1.5}rem` }}>
+            {/* Line numbers gutter */}
+            <div
+              className="select-none shrink-0 text-right"
+              style={{
+                fontSize: '0.75rem',
+                lineHeight: '1.5rem',
+                minWidth: '1.25rem',
+              }}
+              aria-hidden="true"
+            >
+              {Array.from({ length: Math.max(editorLineCount, boardLines) }, (_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: `${lineHeights[i] ?? 24}px`,
+                    lineHeight: '1.5rem',
+                    color: i === currentLineIndex
+                      ? 'var(--foreground)'
+                      : 'var(--muted-foreground)',
+                    opacity: i === currentLineIndex ? 0.7 : 0.4,
+                  }}
+                >
+                  {i + 1}
+                </div>
+              ))}
+            </div>
+
+            {/* Editor content */}
+            <div className="relative flex-1 min-w-0">
+              <EditorContent editor={editor} />
+            </div>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
-description: "Use FiestaBoard's WYSIWYG page editor to create and design custom content for your split-flap display."
-keywords: [FiestaBoard page editor, WYSIWYG, display content, custom pages, split-flap editor, Vestaboard editor]
+description: "Use FiestaBoard's WYSIWYG page editor to create and design custom content for your split-flap display, with optional AI-assisted page drafting."
+keywords: [FiestaBoard page editor, WYSIWYG, display content, custom pages, split-flap editor, Vestaboard editor, Vestaboard AI, AI page generation, LLM page drafts]
 ---
 
 # Page Editor
@@ -81,6 +81,63 @@ formula language inside `{{= ... }}` blocks:
 
 See the [Template Formulas reference](/docs/reference/template-formulas) for
 the complete syntax, function list, and recipes.
+
+## AI Assistant (optional)
+
+FiestaBoard includes **FiestaBot**, an AI chat assistant that can draft
+and edit board pages through natural conversation. Click **AI Assistant**
+in the sidebar (the Sparkles icon) to open the panel.
+
+<ThemedScreenshot src="/img/guides/ai-chat-panel.png" alt="FiestaBot AI chat panel open alongside the page editor" />
+
+FiestaBoard ships **without any bundled LLM credentials**. You bring
+your own provider, your own API key, and your own model list. Two
+wire-format protocols are supported out of the box:
+
+- **OpenAI-compatible** chat completions — works with OpenRouter,
+  OpenAI, Groq, DeepSeek, Mistral, Together AI, Fireworks AI, Ollama,
+  LM Studio, vLLM, llama.cpp, and most other local servers.
+- **Anthropic Messages API** — direct Claude access via
+  `api.anthropic.com`.
+
+### How it works
+
+1. Click **AI Assistant** in the sidebar to open the FiestaBot panel.
+2. Type a description of what you want — for example, *"Build a weather
+   and transit page for my morning commute"* or *"Replace line 2 with
+   today's date"*.
+3. FiestaBot edits your page in the editor directly. You can see each
+   change applied in real time.
+4. Continue the conversation to refine the result, ask questions, or
+   request a completely different layout.
+5. Click **Save** when you're happy — FiestaBot never saves a page
+   without you confirming.
+
+When a page is open in the editor, FiestaBot automatically has context
+of what you're working on — no need to attach anything manually. The
+panel is also available from any other section of the app, where it can
+answer questions about plugins, variables, and FiestaBoard features.
+
+### What FiestaBot can do
+
+- **Create and edit pages** — draft full template layouts or make
+  targeted edits (change a line, add a variable, adjust alignment).
+- **Suggest variables** — recommend which plugin variables to use for
+  a given goal and explain what they do.
+- **Install plugins** — recommend and install a plugin from the registry
+  when it's needed for what you're building (requires your confirmation).
+- **Configure settings** — update display, polling, or silence schedule
+  settings on your behalf (requires your confirmation).
+- **Create and edit schedules and carousels** — build automation around
+  the pages you create (requires your confirmation).
+
+### Setup
+
+The **AI Assistant** item only appears in the sidebar after you've
+configured at least one provider in **Settings → AI Providers**. See the
+[AI Providers setup guide](/docs/setup/ai-providers) for the full
+walkthrough, recommended models, and a privacy note covering exactly
+what FiestaBoard sends to your provider.
 
 ## Working with Colors
 

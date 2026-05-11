@@ -19,6 +19,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 # Load environment variables from .env file
@@ -1063,8 +1064,11 @@ async def update_ai_settings(request: Request):
 async def test_ai_provider(request: Request):
     """Send a tiny smoke-test request to a configured provider.
 
-    Body: ``{provider_id?: str, model?: str}``. Uses the stored,
-    unmasked api_key for the named provider; never echoes it back.
+    Body: ``{provider_id?: str, model?: str, provider?: dict}``. When
+    ``provider`` is supplied, its fields override the persisted config so
+    unsaved drafts in the settings UI can be tested without saving first.
+    A masked ``api_key`` (``"***"``) is resolved to the stored key by
+    ``provider_id``. Otherwise the persisted provider is loaded by id.
     """
     try:
         body = await request.json()
@@ -1072,26 +1076,35 @@ async def test_ai_provider(request: Request):
         body = {}
     provider_id = body.get("provider_id") if isinstance(body, dict) else None
     model = body.get("model") if isinstance(body, dict) else None
+    draft = body.get("provider") if isinstance(body, dict) else None
 
     cm = get_config_manager()
-    block = cm.get_ai_providers()
-    if not block.get("providers"):
-        raise HTTPException(
-            status_code=400,
-            detail="No AI providers are configured.",
-        )
-    if provider_id:
-        provider = cm.get_ai_provider(provider_id)
-        if provider is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"AI provider {provider_id!r} not found.",
-            )
+
+    if isinstance(draft, dict):
+        provider = dict(draft)
+        if provider.get("api_key") == "***":
+            stored_id = provider.get("id") or provider_id
+            stored = cm.get_ai_provider(stored_id) if stored_id else None
+            provider["api_key"] = (stored or {}).get("api_key", "")
     else:
-        default_id = block.get("default_provider_id")
-        provider = (
-            cm.get_ai_provider(default_id) if default_id else None
-        ) or block["providers"][0]
+        block = cm.get_ai_providers()
+        if not block.get("providers"):
+            raise HTTPException(
+                status_code=400,
+                detail="No AI providers are configured.",
+            )
+        if provider_id:
+            provider = cm.get_ai_provider(provider_id)
+            if provider is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"AI provider {provider_id!r} not found.",
+                )
+        else:
+            default_id = block.get("default_provider_id")
+            provider = (
+                cm.get_ai_provider(default_id) if default_id else None
+            ) or block["providers"][0]
 
     from .ai.generator import test_provider as ai_test_provider
 
@@ -1196,6 +1209,159 @@ async def generate_ai_page(request: Request):
         )
 
     return result
+
+
+@app.post("/pages/ai/chat")
+async def chat_ai_page(request: Request):
+    """Stream a multi-turn AI chat for refining/building a page.
+
+    Body: ``{messages: [{role, content}], device_type, current_page?,
+    provider_id?, model?}``.
+
+    Returns a Server-Sent Events stream. Event types match what
+    :func:`src.ai.chat.stream_chat` yields:
+
+    - ``text``      — token-level prose deltas
+    - ``tool_call`` — a validated structured operation
+                       (see :mod:`src.ai.chat_ops`)
+    - ``warning``   — recoverable issue (e.g. malformed tool block)
+    - ``error``     — fatal issue, stream is about to close
+    - ``done``      — terminal frame with usage + model_used
+
+    Like ``/pages/ai/generate``, this never persists anything: the
+    editor applies tool calls locally and the user must click Save.
+
+    Note: we deliberately skip the per-second throttle here. Chat is
+    conversational — the user may send several messages back-to-back
+    (especially when iterating on a design), and a 429 mid-conversation
+    is jarring. The semaphore below caps concurrent streams instead,
+    which is the real protection against runaway clients.
+    """
+
+    try:
+        body = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object.")
+
+    messages = body.get("messages")
+    device_type = body.get("device_type", "flagship")
+    provider_id = body.get("provider_id")
+    model = body.get("model")
+    current_page = body.get("current_page")
+    available_pages = body.get("available_pages")
+    installed_plugins = body.get("installed_plugins")
+    available_schedules = body.get("available_schedules")
+    available_carousels = body.get("available_carousels")
+    registry_plugins = body.get("registry_plugins")
+
+    if not isinstance(messages, list) or not messages:
+        raise HTTPException(
+            status_code=400, detail="`messages` must be a non-empty array."
+        )
+    if device_type not in ("flagship", "note"):
+        raise HTTPException(
+            status_code=400, detail=f"Invalid device_type: {device_type!r}"
+        )
+    if current_page is not None and not isinstance(current_page, dict):
+        raise HTTPException(
+            status_code=400, detail="`current_page` must be an object."
+        )
+    if available_pages is not None and not isinstance(available_pages, list):
+        raise HTTPException(
+            status_code=400, detail="`available_pages` must be an array."
+        )
+    if installed_plugins is not None and not isinstance(installed_plugins, list):
+        raise HTTPException(
+            status_code=400, detail="`installed_plugins` must be an array."
+        )
+    if available_schedules is not None and not isinstance(available_schedules, list):
+        raise HTTPException(
+            status_code=400, detail="`available_schedules` must be an array."
+        )
+    if available_carousels is not None and not isinstance(available_carousels, list):
+        raise HTTPException(
+            status_code=400, detail="`available_carousels` must be an array."
+        )
+    if registry_plugins is not None and not isinstance(registry_plugins, list):
+        raise HTTPException(
+            status_code=400, detail="`registry_plugins` must be an array."
+        )
+
+    cm = get_config_manager()
+    providers_block = cm.get_ai_providers()
+    variables = _collect_ai_variables()
+    demos = _collect_plugin_demos()
+
+    from .ai.chat import stream_chat as ai_stream_chat
+
+    async def event_source():
+        """Render the normalized event stream as SSE bytes.
+
+        Holds the AI semaphore for the duration of the stream so a
+        client that drops mid-response still releases the slot via
+        ``finally`` when the generator is closed.
+        """
+        try:
+            await _AI_GENERATE_SEMAPHORE.acquire()
+        except Exception:
+            yield _format_sse_event(
+                "error", {"message": "Could not acquire AI lock."}
+            )
+            return
+        try:
+            try:
+                async for evt in ai_stream_chat(
+                    messages=messages,
+                    device_type=device_type,
+                    providers_block=providers_block,
+                    variables=variables,
+                    plugin_demos=demos,
+                    current_page=current_page,
+                    available_pages=available_pages,
+                    installed_plugins=installed_plugins,
+                    available_schedules=available_schedules,
+                    available_carousels=available_carousels,
+                    registry_plugins=registry_plugins,
+                    provider_id=provider_id,
+                    model=model,
+                ):
+                    yield _format_sse_event(evt["event"], evt["data"])
+            except Exception:
+                logger.exception("Unexpected error in /pages/ai/chat")
+                yield _format_sse_event(
+                    "error",
+                    {
+                        "message": (
+                            "Unexpected AI chat error. See server logs for "
+                            "details."
+                        )
+                    },
+                )
+        finally:
+            _AI_GENERATE_SEMAPHORE.release()
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",  # disable nginx buffering for SSE
+            "Connection": "keep-alive",
+        },
+    )
+
+
+def _format_sse_event(event: str, data: Dict[str, Any]) -> bytes:
+    """Serialize a single Server-Sent Event frame.
+
+    SSE requires ``event:``/``data:`` on separate lines and a blank
+    line as the frame terminator. JSON-encode ``data`` so multi-line
+    strings don't break the framing.
+    """
+    payload = json.dumps(data, ensure_ascii=False)
+    return f"event: {event}\ndata: {payload}\n\n".encode("utf-8")
 
 
 def _collect_ai_variables() -> Dict[str, Dict[str, Dict[str, Any]]]:

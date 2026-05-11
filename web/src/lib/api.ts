@@ -1752,7 +1752,11 @@ export const api = {
       body: JSON.stringify(updates),
     }),
 
-  testAiProvider: (params: { provider_id?: string; model?: string }) =>
+  testAiProvider: (params: {
+    provider_id?: string;
+    model?: string;
+    provider?: AIProvider;
+  }) =>
     fetchApi<AITestResult>("/settings/ai/test", {
       method: "POST",
       body: JSON.stringify(params),

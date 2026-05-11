@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 
 import pytest
 
+import httpx
+
 from src.ai.generator import (
     AIGenerationError,
     _extract_json_object,
@@ -238,6 +240,70 @@ def test_validate_and_repair_supplies_default_name():
     page, warnings = _validate_and_repair(raw, "flagship", {})
     assert page["name"]
     assert any("name" in w.lower() for w in warnings)
+
+
+def test_validate_and_repair_generates_default_line_metadata_when_missing():
+    """When `line_metadata` is absent the validator fills in defaults."""
+    raw = {
+        "name": "T",
+        "type": "template",
+        "device_type": "flagship",
+        "template": ["a", "b", "", "", "", ""],
+    }
+    page, _ = _validate_and_repair(raw, "flagship", {})
+    assert len(page["line_metadata"]) == 6
+    for meta in page["line_metadata"]:
+        assert meta["alignment"] == "left"
+        assert meta["wrap"] is False
+
+
+def test_validate_and_repair_coerces_string_duration_to_int():
+    """duration_seconds sent as a numeric string should be coerced."""
+    raw = {
+        "name": "T",
+        "type": "template",
+        "device_type": "flagship",
+        "template": ["x"] * 6,
+        "duration_seconds": "120",
+    }
+    page, _ = _validate_and_repair(raw, "flagship", {})
+    assert page["duration_seconds"] == 120
+
+
+def test_validate_and_repair_handles_none_in_template_list():
+    """None entries in the model's template list should become empty strings."""
+    raw = {
+        "name": "T",
+        "type": "template",
+        "device_type": "flagship",
+        "template": [None, "hello", None, "", "", ""],
+    }
+    page, _ = _validate_and_repair(raw, "flagship", {})
+    assert page["template"][0] == ""
+    assert page["template"][1] == "hello"
+    assert page["template"][2] == ""
+
+
+def test_validate_and_repair_defaults_invalid_duration():
+    """Non-numeric duration should fall back to 300 seconds."""
+    raw = {
+        "name": "T",
+        "type": "template",
+        "device_type": "flagship",
+        "template": ["x"] * 6,
+        "duration_seconds": "not-a-number",
+    }
+    page, _ = _validate_and_repair(raw, "flagship", {})
+    assert page["duration_seconds"] == 300
+
+
+def test_line_visible_width_empty_string():
+    assert _line_visible_width("") == 0
+
+
+def test_line_visible_width_only_variables():
+    # A line that is only variable refs should have zero literal width.
+    assert _line_visible_width("{{weather.temp}}{{date_time.time}}") == 0
 
 
 def test_find_unknown_variables_returns_only_unknown():
@@ -473,3 +539,99 @@ async def test_test_provider_returns_failure_on_error():
     )
     assert result["ok"] is False
     assert "boom" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_generate_page_raises_with_reason_on_refusal():
+    """Model returns a refusal JSON instead of a page; we surface the reason."""
+    refusal = {"refusal": True, "reason": "I only help with FiestaBoard board design."}
+
+    def responder(url, headers, body):
+        return _make_chat_response(json.dumps(refusal))
+
+    client = _MockAsyncClient(responder)
+    with pytest.raises(AIGenerationError, match="FiestaBoard board design"):
+        await generate_page(
+            user_prompt="give me a dinner recipe",
+            device_type="flagship",
+            providers_block=_PROVIDERS_BLOCK,
+            variables={},
+            client=client,
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_page_refusal_uses_fallback_message_when_reason_missing():
+    """Refusal without a reason string still raises a sensible AIGenerationError."""
+    refusal = {"refusal": True}
+
+    def responder(url, headers, body):
+        return _make_chat_response(json.dumps(refusal))
+
+    client = _MockAsyncClient(responder)
+    with pytest.raises(AIGenerationError, match="FiestaBoard"):
+        await generate_page(
+            user_prompt="write me an essay",
+            device_type="flagship",
+            providers_block=_PROVIDERS_BLOCK,
+            variables={},
+            client=client,
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_page_raises_on_network_error():
+    """A transport-level failure (connection refused, timeout) raises AIGenerationError."""
+    transport = httpx.MockTransport(
+        lambda req: (_ for _ in ()).throw(httpx.ConnectError("connection refused"))
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        with pytest.raises(AIGenerationError, match="Could not reach AI provider"):
+            await generate_page(
+                user_prompt="hello",
+                device_type="flagship",
+                providers_block=_PROVIDERS_BLOCK,
+                variables={},
+                client=client,
+            )
+
+
+@pytest.mark.asyncio
+async def test_generate_page_note_device_uses_correct_row_count():
+    """Note device should produce exactly 3 template lines."""
+    page_json = {
+        "name": "Short",
+        "type": "template",
+        "device_type": "note",
+        "template": ["hi", "", ""],
+        "line_metadata": [{"alignment": "left", "wrap": False}] * 3,
+        "duration_seconds": 60,
+    }
+    providers_block = {
+        "enabled": True,
+        "providers": [
+            {
+                "id": "p1",
+                "name": "Test",
+                "base_url": "https://example.test/v1",
+                "api_key": "secret",
+                "models": ["test-model"],
+                "default_model": "test-model",
+            }
+        ],
+        "default_provider_id": "p1",
+    }
+
+    def responder(url, headers, body):
+        return _make_chat_response(json.dumps(page_json))
+
+    client = _MockAsyncClient(responder)
+    result = await generate_page(
+        user_prompt="show a note",
+        device_type="note",
+        providers_block=providers_block,
+        variables={},
+        client=client,
+    )
+    assert len(result["page"]["template"]) == 3
+    assert result["page"]["device_type"] == "note"

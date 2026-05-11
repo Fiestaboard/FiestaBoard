@@ -138,9 +138,32 @@ def test_prompt_context_to_dict_is_serializable():
 def test_prompt_describes_character_set_and_color_tokens():
     ctx = build_prompt("x", "flagship")
     # Spot-check the rules sections so refactors don't silently drop them.
-    assert "{red}" in ctx.system_prompt
     assert "CHARACTER SET" in ctx.system_prompt
-    assert "{degree}" in ctx.system_prompt or "degree" in ctx.system_prompt
+    # Color tokens require DOUBLE braces — the engine's COLOR_PATTERN
+    # only matches `{{red}}`, not `{red}`. Make sure the prompt teaches
+    # the correct syntax so the model doesn't emit no-op single-brace
+    # color markers.
+    assert "{{red}}" in ctx.system_prompt
+    # And explicitly call out the trap.
+    assert "Single-brace" in ctx.system_prompt or "single-brace" in ctx.system_prompt
+
+
+def test_prompt_does_not_teach_fictional_degree_token():
+    # `{degree}` is NOT a real engine token — it falls through to the
+    # board literally. Earlier prompt versions hallucinated a
+    # device-specific render for it; make sure we don't regress.
+    # The prompt may *mention* `{degree}` in a negative-context warning
+    # ("there is NO `{degree}` token"), so we don't ban the substring
+    # outright. But:
+    #   1. Exemplars must not use it (the model copies from those).
+    #   2. The prompt must explicitly tell the model it does not exist.
+    ctx = build_prompt("x", "flagship")
+    assert "NO `{degree}`" in ctx.system_prompt
+    for ex in ctx.exemplars:
+        for line in ex.get("template", []):
+            assert "{degree}" not in line, (
+                f"exemplar {ex.get('name')!r} contains fictional {{degree}}"
+            )
 
 
 def test_prompt_pins_device_type_in_output_rules():
@@ -148,3 +171,182 @@ def test_prompt_pins_device_type_in_output_rules():
     assert '`device_type` must be "flagship"' in ctx_flag.system_prompt
     ctx_note = build_prompt("x", "note")
     assert '`device_type` must be "note"' in ctx_note.system_prompt
+
+
+def test_prompt_documents_expression_language():
+    ctx = build_prompt("x", "flagship")
+    sp = ctx.system_prompt
+    # Surface for inline formulas.
+    assert "{{= " in sp
+    assert "EXPRESSIONS" in sp
+    # A representative function from each category should be present so
+    # the model knows it has logic, math, text, conversion, and color
+    # primitives available.
+    for fn in ("IF(", "IFERROR(", "ROUND(", "UPPER(", "LEFT(", "TEXT(", "COLOR("):
+        assert fn in sp, f"expected built-in {fn} in system prompt"
+    # Operators worth calling out explicitly.
+    assert "AND" in sp and "OR" in sp
+
+
+def test_prompt_documents_full_token_set():
+    ctx = build_prompt("x", "flagship")
+    sp = ctx.system_prompt
+    # Color tokens — must be shown with DOUBLE braces because the
+    # engine's COLOR_PATTERN only matches that form.
+    for tok in ("{{red}}", "{{orange}}", "{{yellow}}", "{{green}}",
+                "{{blue}}", "{{violet}}", "{{purple}}", "{{white}}",
+                "{{black}}"):
+        assert tok in sp, f"missing color token {tok}"
+    assert "{{filled}}" not in sp, "standalone {{filled}} removed; use {{filled:X}} instead"
+    # Symbol tokens — single-brace, real engine tokens only.
+    for tok in ("{sun}", "{star}", "{cloud}", "{rain}", "{snow}",
+                "{storm}", "{fog}", "{partly}", "{heart}", "{check}",
+                "{x}"):
+        assert tok in sp, f"missing symbol token {tok}"
+
+
+def test_prompt_explains_line_metadata_alignment_and_wrap():
+    # The editor exposes per-line alignment + wrap as the canonical way
+    # to lay out a page. The prompt must teach both, including the
+    # restricted alignment vocabulary (no "justify").
+    ctx = build_prompt("x", "flagship")
+    sp = ctx.system_prompt
+    assert "alignment" in sp
+    assert '"left"' in sp and '"center"' in sp and '"right"' in sp
+    assert "justify" in sp  # negative mention only
+    assert "wrap" in sp
+
+
+def test_prompt_documents_array_indexing_and_color_suffix():
+    ctx = build_prompt("x", "flagship")
+    sp = ctx.system_prompt
+    assert "{{plugin_id.array.0.field}}" in sp
+    assert "_color" in sp
+    assert "{{filled:X}}" in sp or "filled:" in sp
+
+
+def test_prompt_scope_message_calls_out_current_instance():
+    # The variables block should make it clear to the model that the
+    # listed plugins are the ones enabled on THIS instance, not the
+    # universe of FiestaBoard plugins.
+    ctx = build_prompt("x", "flagship", variables={
+        "weather": {"temperature": {"description": "F", "example": "72"}},
+    })
+    assert "THIS instance" in ctx.system_prompt
+    assert "do not invent" in ctx.system_prompt.lower()
+
+
+def test_prompt_includes_available_pages_when_supplied():
+    pages = [
+        {"id": "abc123", "name": "Weather Overview"},
+        {"id": "def456", "name": "Now Playing"},
+    ]
+    ctx = build_prompt("x", "flagship", available_pages=pages)
+    assert "Weather Overview" in ctx.system_prompt
+    assert "abc123" in ctx.system_prompt
+    assert "Now Playing" in ctx.system_prompt
+    assert "AVAILABLE PAGES" in ctx.system_prompt
+
+
+def test_prompt_omits_available_pages_section_when_not_supplied():
+    ctx = build_prompt("x", "flagship")
+    assert "AVAILABLE PAGES" not in ctx.system_prompt
+
+
+def test_prompt_includes_installed_plugins_when_supplied():
+    plugins = [
+        {"id": "weather", "name": "Weather Plugin", "enabled": True},
+        {"id": "spotify", "name": "Spotify", "enabled": False},
+    ]
+    ctx = build_prompt("x", "flagship", installed_plugins=plugins)
+    assert "Weather Plugin" in ctx.system_prompt
+    assert "enabled" in ctx.system_prompt
+    assert "disabled" in ctx.system_prompt
+    assert "INSTALLED PLUGINS" in ctx.system_prompt
+
+
+def test_prompt_omits_installed_plugins_section_when_not_supplied():
+    ctx = build_prompt("x", "flagship")
+    assert "INSTALLED PLUGINS" not in ctx.system_prompt
+
+
+def test_prompt_available_pages_empty_list():
+    ctx = build_prompt("x", "flagship", available_pages=[])
+    assert "AVAILABLE PAGES" in ctx.system_prompt
+    assert "no pages yet" in ctx.system_prompt
+
+
+def test_prompt_installed_plugins_empty_list():
+    ctx = build_prompt("x", "flagship", installed_plugins=[])
+    assert "INSTALLED PLUGINS" in ctx.system_prompt
+    assert "no plugins installed" in ctx.system_prompt
+
+
+def test_prompt_includes_available_schedules_when_supplied():
+    schedules = [
+        {
+            "id": "sch-abc",
+            "page_id": "page-xyz",
+            "start_time": "07:00",
+            "end_time": "09:00",
+            "day_pattern": "weekdays",
+            "enabled": True,
+        },
+    ]
+    ctx = build_prompt("x", "flagship", available_schedules=schedules)
+    assert "AVAILABLE SCHEDULES" in ctx.system_prompt
+    assert "sch-abc" in ctx.system_prompt
+    assert "page-xyz" in ctx.system_prompt
+    assert "07:00" in ctx.system_prompt
+
+
+def test_prompt_omits_schedules_section_when_not_supplied():
+    ctx = build_prompt("x", "flagship")
+    assert "AVAILABLE SCHEDULES" not in ctx.system_prompt
+
+
+def test_prompt_available_schedules_empty_list():
+    ctx = build_prompt("x", "flagship", available_schedules=[])
+    assert "AVAILABLE SCHEDULES" in ctx.system_prompt
+    assert "no schedules yet" in ctx.system_prompt
+
+
+def test_prompt_includes_available_carousels_when_supplied():
+    carousels = [
+        {
+            "id": "carousel:abc",
+            "name": "Morning Rotation",
+            "page_ids": ["p1", "p2"],
+            "interval_seconds": 30,
+        },
+    ]
+    ctx = build_prompt("x", "flagship", available_carousels=carousels)
+    assert "AVAILABLE CAROUSELS" in ctx.system_prompt
+    assert "Morning Rotation" in ctx.system_prompt
+    assert "carousel:abc" in ctx.system_prompt
+
+
+def test_prompt_omits_carousels_section_when_not_supplied():
+    ctx = build_prompt("x", "flagship")
+    assert "AVAILABLE CAROUSELS" not in ctx.system_prompt
+
+
+def test_prompt_available_carousels_empty_list():
+    ctx = build_prompt("x", "flagship", available_carousels=[])
+    assert "AVAILABLE CAROUSELS" in ctx.system_prompt
+    assert "no carousels yet" in ctx.system_prompt
+
+
+def test_prompt_contains_scope_guardrails():
+    ctx = build_prompt("x", "flagship")
+    sp = ctx.system_prompt
+    # The model must know it's a FiestaBoard specialist.
+    assert "SCOPE" in sp
+    # Must mention what's in scope.
+    assert "Creating, editing" in sp or "board pages" in sp
+    # Must mention how to handle off-topic chat requests.
+    assert "CHAT" in sp and "off-topic" in sp.lower() or "unrelated" in sp.lower()
+    # Must describe the generate-mode refusal JSON shape so the model
+    # knows how to signal an off-topic request.
+    assert '"refusal"' in sp and '"reason"' in sp
+    assert "GENERATE" in sp

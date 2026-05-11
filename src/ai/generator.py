@@ -455,6 +455,9 @@ async def generate_page(
 
     text = _extract_message_content(api_response, protocol)
     raw = _extract_json_object(text)
+    if raw.get("refusal") is True:
+        reason = raw.get("reason") or "I can only help with FiestaBoard board design."
+        raise AIGenerationError(reason)
     page, warnings = _validate_and_repair(raw, device_type, variables or {})
 
     usage = protocol.parse_usage(api_response)

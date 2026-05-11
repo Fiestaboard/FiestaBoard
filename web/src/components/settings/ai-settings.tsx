@@ -17,6 +17,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,19 +39,39 @@ import {
   CheckCircle2,
   XCircle,
   KeyRound,
+  ChevronDown,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { AIProvider, AISettings } from "@/lib/api";
 
-const PROVIDER_PRESETS: {
+type ProviderPreset = {
   label: string;
   base_url: string;
   protocol: "openai" | "anthropic";
-}[] = [
-  { label: "OpenRouter", base_url: "https://openrouter.ai/api/v1", protocol: "openai" },
-  { label: "OpenAI", base_url: "https://api.openai.com/v1", protocol: "openai" },
-  { label: "Anthropic", base_url: "https://api.anthropic.com/v1", protocol: "anthropic" },
-  { label: "Local (Ollama / LM Studio)", base_url: "http://localhost:11434/v1", protocol: "openai" },
+  group: "cloud" | "local";
+};
+
+// BYO-key cloud providers and local servers that fully honor the
+// OpenAI chat-completions wire format (including `response_format:
+// json_object`, which the page generator relies on) or the native
+// Anthropic Messages API. Adding one here is the only step needed
+// — the backend protocol adapters in src/ai/protocols.py already
+// cover every entry below.
+const PROVIDER_PRESETS: ProviderPreset[] = [
+  // Cloud — meta-router + first-party APIs.
+  { label: "OpenRouter", base_url: "https://openrouter.ai/api/v1", protocol: "openai", group: "cloud" },
+  { label: "OpenAI", base_url: "https://api.openai.com/v1", protocol: "openai", group: "cloud" },
+  { label: "Anthropic", base_url: "https://api.anthropic.com/v1", protocol: "anthropic", group: "cloud" },
+  { label: "Groq", base_url: "https://api.groq.com/openai/v1", protocol: "openai", group: "cloud" },
+  { label: "DeepSeek", base_url: "https://api.deepseek.com/v1", protocol: "openai", group: "cloud" },
+  { label: "Mistral", base_url: "https://api.mistral.ai/v1", protocol: "openai", group: "cloud" },
+  { label: "Together AI", base_url: "https://api.together.xyz/v1", protocol: "openai", group: "cloud" },
+  { label: "Fireworks AI", base_url: "https://api.fireworks.ai/inference/v1", protocol: "openai", group: "cloud" },
+  // Local — common self-hosted servers.
+  { label: "Ollama", base_url: "http://localhost:11434/v1", protocol: "openai", group: "local" },
+  { label: "LM Studio", base_url: "http://localhost:1234/v1", protocol: "openai", group: "local" },
+  { label: "llama.cpp", base_url: "http://localhost:8080/v1", protocol: "openai", group: "local" },
+  { label: "vLLM", base_url: "http://localhost:8000/v1", protocol: "openai", group: "local" },
 ];
 
 function emptyProvider(): AIProvider {
@@ -65,6 +90,8 @@ function emptyProvider(): AIProvider {
 interface ProviderRowProps {
   provider: AIProvider;
   isDefault: boolean;
+  expanded: boolean;
+  onToggleExpanded: (open: boolean) => void;
   onChange: (next: AIProvider) => void;
   onRemove: () => void;
   onMakeDefault: () => void;
@@ -73,6 +100,8 @@ interface ProviderRowProps {
 function ProviderRow({
   provider,
   isDefault,
+  expanded,
+  onToggleExpanded,
   onChange,
   onRemove,
   onMakeDefault,
@@ -117,7 +146,10 @@ function ProviderRow({
     setTesting(true);
     setTestResult(null);
     try {
-      const result = await api.testAiProvider({ provider_id: provider.id });
+      const result = await api.testAiProvider({
+        provider_id: provider.id,
+        provider,
+      });
       setTestResult({ ok: result.ok, message: result.message });
     } catch (err) {
       setTestResult({
@@ -129,25 +161,41 @@ function ProviderRow({
     }
   };
 
+  const summaryName = provider.name.trim() || "Unnamed provider";
+  const modelCount = provider.models.length;
+
   return (
-    <div className="rounded-md border p-3 space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 space-y-1.5">
-          <Label htmlFor={`name-${provider.id}`} className="text-xs">
-            Name
-          </Label>
-          <Input
-            id={`name-${provider.id}`}
-            value={provider.name}
-            onChange={(e) => onChange({ ...provider, name: e.target.value })}
-            placeholder="OpenRouter"
-            className="h-8"
+    <Collapsible
+      open={expanded}
+      onOpenChange={onToggleExpanded}
+      className="rounded-md border"
+    >
+      <div className="flex items-center justify-between gap-2 p-2">
+        <CollapsibleTrigger className="flex flex-1 items-center gap-2 min-w-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
           />
-        </div>
-        <div className="flex items-center gap-1.5 pt-5">
-          {isDefault ? (
-            <Badge variant="default" className="h-6">Default</Badge>
-          ) : (
+          <span className="text-sm font-medium truncate">{summaryName}</span>
+          {isDefault && (
+            <Badge variant="default" className="h-5 text-[10px] shrink-0">
+              Default
+            </Badge>
+          )}
+          {provider.protocol === "anthropic" && (
+            <Badge variant="outline" className="h-5 text-[10px] shrink-0">
+              Anthropic
+            </Badge>
+          )}
+          <span className="text-[11px] text-muted-foreground shrink-0">
+            {modelCount === 0
+              ? "no models"
+              : `${modelCount} model${modelCount === 1 ? "" : "s"}`}
+          </span>
+        </CollapsibleTrigger>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!isDefault && (
             <Button
               type="button"
               size="sm"
@@ -177,6 +225,23 @@ function ProviderRow({
         </div>
       </div>
 
+      <CollapsibleContent>
+        <div className="space-y-3 border-t p-3">
+          <div className="space-y-1.5">
+            <Label htmlFor={`name-${provider.id}`} className="text-xs">
+              Name
+            </Label>
+            <Input
+              id={`name-${provider.id}`}
+              value={provider.name}
+              onChange={(e) =>
+                onChange({ ...provider, name: e.target.value })
+              }
+              placeholder="OpenRouter"
+              className="h-8"
+            />
+          </div>
+
       <div className="space-y-1.5">
         <Label htmlFor={`protocol-${provider.id}`} className="text-xs">
           Protocol
@@ -195,7 +260,8 @@ function ProviderRow({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="openai">
-              OpenAI-compatible (OpenAI, OpenRouter, Ollama, LM Studio)
+              OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek,
+              Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)
             </SelectItem>
             <SelectItem value="anthropic">
               Anthropic (Messages API)
@@ -217,25 +283,43 @@ function ProviderRow({
           placeholder="https://openrouter.ai/api/v1"
           className="h-8 font-mono text-xs"
         />
-        <div className="flex flex-wrap gap-1">
-          {PROVIDER_PRESETS.map((preset) => (
-            <Button
-              key={preset.label}
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-[11px]"
-              onClick={() =>
-                onChange({
-                  ...provider,
-                  base_url: preset.base_url,
-                  protocol: preset.protocol,
-                })
-              }
-            >
-              {preset.label}
-            </Button>
-          ))}
+        <div className="rounded-md border border-dashed bg-muted/30 p-2 space-y-1">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+            Quick presets
+          </div>
+          {(["cloud", "local"] as const).map((group) => {
+            const presets = PROVIDER_PRESETS.filter((p) => p.group === group);
+            return (
+              <div key={group} className="flex flex-wrap items-center gap-1">
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground pr-1 w-10">
+                  {group === "cloud" ? "Cloud" : "Local"}
+                </span>
+                {presets.map((preset) => (
+                  <Button
+                    key={preset.label}
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[11px]"
+                    onClick={() =>
+                      onChange({
+                        ...provider,
+                        base_url: preset.base_url,
+                        protocol: preset.protocol,
+                        // Only fill the name if the user hasn't typed one
+                        // — don't clobber a custom label on a re-click.
+                        name: provider.name.trim()
+                          ? provider.name
+                          : preset.label,
+                      })
+                    }
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -285,6 +369,7 @@ function ProviderRow({
                 addModel();
               }
             }}
+            onBlur={addModel}
             className="h-8 font-mono text-xs"
           />
           <Button
@@ -378,7 +463,9 @@ function ProviderRow({
           </div>
         )}
       </div>
-    </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -391,6 +478,21 @@ export function AiSettings() {
   });
 
   const [draft, setDraft] = useState<AISettings | null>(null);
+  // Per-row expansion. Empty by default — providers start collapsed and
+  // show only their summary line, matching the MQTT settings card.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const setRowExpanded = (id: string, open: boolean) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (open) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
 
   const current: AISettings = draft ??
     data ?? { enabled: false, providers: [], default_provider_id: null };
@@ -418,6 +520,9 @@ export function AiSettings() {
       providers,
       default_provider_id: current.default_provider_id || provider.id,
     });
+    // A freshly-added provider has nothing to summarize yet, so open it
+    // immediately for editing.
+    setRowExpanded(provider.id, true);
   };
 
   const removeProvider = (idx: number) => {
@@ -500,6 +605,8 @@ export function AiSettings() {
                 key={p.id}
                 provider={p}
                 isDefault={p.id === current.default_provider_id}
+                expanded={expandedIds.has(p.id)}
+                onToggleExpanded={(open) => setRowExpanded(p.id, open)}
                 onChange={(next) => updateProvider(idx, next)}
                 onRemove={() => removeProvider(idx)}
                 onMakeDefault={() => makeDefault(idx)}
