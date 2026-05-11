@@ -451,6 +451,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
               autoFocus={autoFocusSearch}
               type="text"
               placeholder={t("searchPlaceholder")}
+              aria-label={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 h-9"
