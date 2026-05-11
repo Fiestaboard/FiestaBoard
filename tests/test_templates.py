@@ -699,6 +699,51 @@ class TestNoteFillSpaceRepeat:
         assert blue_count == 9, f"Expected 9 blue tiles, got {blue_count}"
 
 
+class TestFilledSyntax:
+    """Tests for {{filled:X}} — the user-facing fill alias."""
+
+    @pytest.fixture
+    def engine(self):
+        return TemplateEngine()
+
+    def test_filled_with_dot_char(self, engine):
+        lines = ['AB{{filled:.}}CD', '', '', '', '', '']
+        meta = [{'alignment': 'left', 'wrap': False}] * 6
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='flagship')
+        first = result.split('\n')[0]
+        assert first == 'AB' + '.' * 18 + 'CD'
+
+    def test_filled_with_dash_char(self, engine):
+        lines = ['{{filled:-}}'] + [''] * 5
+        meta = [{'alignment': 'left', 'wrap': False}] * 6
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='flagship')
+        first = result.split('\n')[0]
+        assert first == '-' * 22
+
+    def test_filled_with_color_name(self, engine):
+        lines = ['{{filled:green}}'] + [''] * 5
+        meta = [{'alignment': 'left', 'wrap': False}] * 6
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='flagship')
+        first = result.split('\n')[0]
+        assert first.count('{66}') == 22
+
+    def test_filled_note_device(self, engine):
+        lines = ['X{{filled:red}}', '', '']
+        meta = [{'alignment': 'left', 'wrap': False}] * 3
+        result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='note')
+        first = result.split('\n')[0]
+        assert engine._count_tiles(first) == 15
+        assert first.count('{63}') == 14
+
+    def test_filled_case_insensitive(self, engine):
+        for template in ['{{filled:blue}}', '{{FILLED:BLUE}}', '{{Filled:Blue}}']:
+            lines = [template] + [''] * 5
+            meta = [{'alignment': 'left', 'wrap': False}] * 6
+            result = engine.render_lines(lines, context={}, line_metadata=meta, device_type='flagship')
+            first = result.split('\n')[0]
+            assert first.count('{67}') == 22, f"Failed for {template!r}"
+
+
 class TestTemplateEngineDefaults:
     """Tests for template engine default settings."""
 

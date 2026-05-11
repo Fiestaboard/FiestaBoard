@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { SidebarProvider } from "@/components/sidebar-context";
+import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 
 // Mock usePathname from next/navigation
 const mockPathname = vi.fn();
@@ -30,13 +31,15 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <ConfigOverridesProvider>
-          <ThemeProvider attribute="class" defaultTheme="light">
-            {children}
-          </ThemeProvider>
-        </ConfigOverridesProvider>
-      </SidebarProvider>
+      <GlobalAiPanelProvider>
+        <SidebarProvider>
+          <ConfigOverridesProvider>
+            <ThemeProvider attribute="class" defaultTheme="light">
+              {children}
+            </ThemeProvider>
+          </ConfigOverridesProvider>
+        </SidebarProvider>
+      </GlobalAiPanelProvider>
     </QueryClientProvider>
   );
 }

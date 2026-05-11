@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "next-intl";
@@ -30,41 +30,158 @@ export function PlainTextEditor({
 }: PlainTextEditorProps) {
   const t = useTranslations("plainTextEditor");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const mirrorRef = useRef<HTMLDivElement>(null);
   const effectivePlaceholder = placeholder ?? t("placeholder");
+  const [lineHeights, setLineHeights] = useState<number[]>([]);
+
+  const computeLineHeights = useCallback(() => {
+    const mirror = mirrorRef.current;
+    const textarea = textareaRef.current;
+    if (!mirror || !textarea) return;
+
+    // Match mirror width and font to the textarea so wrapping is identical
+    const style = window.getComputedStyle(textarea);
+    mirror.style.width = `${textarea.clientWidth}px`;
+    mirror.style.fontFamily = style.fontFamily;
+    mirror.style.fontSize = style.fontSize;
+    mirror.style.lineHeight = style.lineHeight;
+    mirror.style.paddingLeft = style.paddingLeft;
+    mirror.style.paddingRight = style.paddingRight;
+
+    const lines = value.split('\n');
+
+    // Reuse existing child divs; add or remove to match line count
+    while (mirror.children.length < lines.length) {
+      mirror.appendChild(document.createElement('div'));
+    }
+    while (mirror.children.length > lines.length) {
+      mirror.removeChild(mirror.lastChild!);
+    }
+
+    const heights: number[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const div = mirror.children[i] as HTMLDivElement;
+      // Use non-breaking space for empty lines so they render with full line height
+      div.textContent = lines[i] || ' ';
+      heights.push(div.offsetHeight);
+    }
+
+    setLineHeights(heights);
+
+    // Auto-resize textarea height
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.max(textarea.scrollHeight, boardLines * 24)}px`;
+  }, [value, boardLines]);
 
   useEffect(() => {
+    computeLineHeights();
+  }, [computeLineHeights]);
+
+  // Re-measure when the textarea is resized (e.g. window resize changes available width)
+  useEffect(() => {
     const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${Math.max(textarea.scrollHeight, boardLines * 24)}px`;
-    }
-  }, [value, boardLines]);
+    if (!textarea) return;
+    const observer = new ResizeObserver(computeLineHeights);
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, [computeLineHeights]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value);
   };
 
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
+  };
+
   const lineCount = value.split('\n').length;
   const isOverLimit = lineCount > boardLines;
 
+  const gutterNumbers = lineHeights.length === lineCount
+    ? lineHeights.map((h, i) => ({ height: h, label: i + 1 }))
+    : Array.from({ length: lineCount }, (_, i) => ({ height: 24, label: i + 1 }));
+
   return (
     <div className={cn("relative", className)}>
-      <Textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onFocus={onFocus}
-        placeholder={effectivePlaceholder}
-        className={cn(
-          "font-mono resize-none overflow-y-auto",
-          isOverLimit && "border-warning focus-visible:ring-warning"
-        )}
-        rows={boardLines}
+      {/* Hidden mirror div — measures actual wrapped height of each logical line */}
+      <div
+        ref={mirrorRef}
+        aria-hidden="true"
         style={{
-          minHeight: `${boardLines * 1.5}rem`,
-          lineHeight: '1.5rem',
+          position: 'absolute',
+          top: '-9999px',
+          left: '-9999px',
+          visibility: 'hidden',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       />
+
+      {/* Editor with line numbers */}
+      <div className={cn(
+        "flex rounded-md border overflow-hidden bg-background",
+        "focus-within:outline-none focus-within:ring-1 focus-within:ring-ring",
+        isOverLimit && "border-warning focus-within:ring-warning"
+      )}>
+        {/* Line numbers gutter */}
+        <div
+          ref={lineNumbersRef}
+          className="select-none overflow-hidden bg-muted/40 border-r shrink-0 text-right"
+          style={{
+            fontSize: '0.75rem',
+            lineHeight: '1.5rem',
+            color: 'var(--muted-foreground)',
+            opacity: 0.7,
+            paddingTop: '0.5rem',
+            paddingBottom: '0.5rem',
+            paddingLeft: '0.375rem',
+            paddingRight: '0.375rem',
+            minWidth: '2rem',
+          }}
+          aria-hidden="true"
+        >
+          {gutterNumbers.map(({ height, label }) => (
+            <div
+              key={label}
+              style={{
+                height: `${height}px`,
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-end',
+                paddingTop: '0.15rem',
+              }}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+
+        {/* Textarea — border handled by wrapper above */}
+        <Textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleChange}
+          onFocus={onFocus}
+          onScroll={handleScroll}
+          placeholder={effectivePlaceholder}
+          className={cn(
+            "font-mono resize-none overflow-y-auto flex-1",
+            "border-0 rounded-none shadow-none",
+            "focus-visible:ring-0 focus-visible:ring-offset-0",
+          )}
+          rows={boardLines}
+          style={{
+            minHeight: `${boardLines * 1.5}rem`,
+            lineHeight: '1.5rem',
+          }}
+        />
+      </div>
 
       {/* Line counter */}
       <div className={cn(

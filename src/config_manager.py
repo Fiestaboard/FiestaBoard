@@ -268,6 +268,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "date_format": "MM/DD/YYYY",  # "MM/DD/YYYY", "DD/MM/YYYY", or "YYYY-MM-DD"
         "welcome_message": "",     # Custom board greeting; empty = use default
     },
+    # AI provider configuration for the "Gen AI" page-generation feature.
+    # BYO-LLM: users supply their own OpenAI-compatible endpoint, key,
+    # and list of model identifiers. We never bundle a key. Keys are
+    # masked in API responses via SENSITIVE_FIELDS below.
+    "ai_providers": {
+        "enabled": False,
+        "providers": [],
+        "default_provider_id": None,
+    },
     # Plugin configurations
     # Each plugin's config is stored under plugins.<plugin_id>
     # Example: plugins.weather = {enabled: true, api_key: "...", ...}
@@ -902,6 +911,84 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Failed to update general settings: {e}")
             return False
+
+    def get_ai_providers(self) -> Dict[str, Any]:
+        """Get the AI providers configuration block.
+
+        Returns the full block (enabled flag, providers list, default id).
+        Caller is responsible for masking before returning to the API
+        (use ``get_ai_providers_masked``).
+        """
+        with self._file_lock:
+            return self._deep_copy(
+                self._config.get("ai_providers", {
+                    "enabled": False,
+                    "providers": [],
+                    "default_provider_id": None,
+                })
+            )
+
+    def get_ai_providers_masked(self) -> Dict[str, Any]:
+        """Get the AI providers config with each provider's api_key masked."""
+        return self._mask_sensitive(self.get_ai_providers())
+
+    def get_ai_provider(self, provider_id: str) -> Optional[Dict[str, Any]]:
+        """Return the unmasked provider dict for ``provider_id``, or None."""
+        block = self.get_ai_providers()
+        for provider in block.get("providers", []):
+            if isinstance(provider, dict) and provider.get("id") == provider_id:
+                return provider
+        return None
+
+    def set_ai_providers(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+        """Update the AI providers configuration block.
+
+        Accepts a partial dict with any of: ``enabled`` (bool),
+        ``providers`` (list of provider dicts), ``default_provider_id``.
+
+        For ``providers``, the list replaces the stored list, but for any
+        provider whose ``api_key`` field is the mask placeholder ``"***"``
+        we look up the existing provider with the same ``id`` and
+        preserve its real key (matching the behavior used elsewhere for
+        masked sensitive fields).
+
+        Returns the updated, masked config block.
+        """
+        with self._file_lock:
+            existing = self._config.setdefault(
+                "ai_providers",
+                {"enabled": False, "providers": [], "default_provider_id": None},
+            )
+            existing_by_id = {
+                p.get("id"): p
+                for p in existing.get("providers", [])
+                if isinstance(p, dict) and p.get("id")
+            }
+
+            if "enabled" in settings:
+                existing["enabled"] = bool(settings["enabled"])
+
+            if "default_provider_id" in settings:
+                value = settings["default_provider_id"]
+                existing["default_provider_id"] = value if value else None
+
+            if "providers" in settings and isinstance(settings["providers"], list):
+                cleaned: List[Dict[str, Any]] = []
+                for raw in settings["providers"]:
+                    if not isinstance(raw, dict):
+                        continue
+                    provider = self._deep_copy(raw)
+                    pid = provider.get("id")
+                    # Preserve api_key if the incoming value is the mask
+                    if provider.get("api_key") == "***" and pid in existing_by_id:
+                        provider["api_key"] = existing_by_id[pid].get("api_key", "")
+                    cleaned.append(provider)
+                existing["providers"] = cleaned
+
+            self._save_internal()
+
+        logger.info("AI providers settings updated")
+        return self.get_ai_providers_masked()
 
     def is_feature_enabled(self, feature_name: str) -> bool:
         """Check if a feature is enabled.

@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
@@ -42,6 +51,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineAlignment, LineMetadata } from "@/lib/api";
+import type {
+  CurrentPageSnapshot,
+  ToolCall,
+} from "@/lib/ai-chat-types";
+import { applyLineOpInPlace } from "@/lib/line-ops";
 import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
@@ -49,13 +63,35 @@ import { writeLiveOutputMessage, onLiveOutputMessageChange } from "@/lib/live-ou
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
-
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
   deviceType?: DeviceType; // Device type for new pages
+  skipDraft?: boolean; // If true, ignore and clear any saved draft
   onClose: () => void;
   onSave?: () => void;
 }
+
+/**
+ * Imperative API exposed to the editor host so the AI chat panel can
+ * read the page being edited and apply mutations the model returns.
+ */
+export interface PageBuilderHandle {
+  getCurrentPage: () => CurrentPageSnapshot | undefined;
+  getDeviceType: () => DeviceType;
+  applyToolCall: (call: ToolCall) => void;
+  undo: () => void;
+  canUndo: () => boolean;
+}
+
+interface PageSnapshot {
+  name: string;
+  deviceType: DeviceType;
+  templateLines: string[];
+  lineAlignments: LineAlignment[];
+  lineWrapEnabled: boolean[];
+}
+
+const UNDO_STACK_LIMIT = 5;
 
 // Draft storage key helper
 function getDraftKey(pageId?: string): string {
@@ -81,7 +117,10 @@ interface DraftData {
   timestamp: number;
 }
 
-export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", onClose, onSave }: PageBuilderProps) {
+export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(function PageBuilder(
+  { pageId, deviceType: deviceTypeProp = "flagship", skipDraft = false, onClose, onSave },
+  ref,
+) {
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
@@ -115,6 +154,142 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
   const [_pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
+
+  // Snapshot stack so the AI chat panel can offer a one-click Undo
+  // after the model applies a change. Bounded to keep the editor
+  // memory footprint small even on long sessions.
+  const undoStackRef = useRef<PageSnapshot[]>([]);
+  const [undoVersion, setUndoVersion] = useState(0);
+
+  // When the AI applies a tool call we bypass the human-typing debounce
+  // on the preview render so the board updates immediately. The
+  // preview effect checks this ref and resets it after one run.
+  const skipNextPreviewDebounceRef = useRef(false);
+
+  // Refs that mirror the editor form state so imperative handlers
+  // (called from the AI chat panel) can read it synchronously without
+  // closure staleness across React renders.
+  const nameRef = useRef(name);
+  const templateLinesRef = useRef(templateLines);
+  const lineAlignmentsRef = useRef(lineAlignments);
+  const lineWrapEnabledRef = useRef(lineWrapEnabled);
+  const deviceTypeRef = useRef(deviceType);
+  useEffect(() => { nameRef.current = name; }, [name]);
+  useEffect(() => { templateLinesRef.current = templateLines; }, [templateLines]);
+  useEffect(() => { lineAlignmentsRef.current = lineAlignments; }, [lineAlignments]);
+  useEffect(() => { lineWrapEnabledRef.current = lineWrapEnabled; }, [lineWrapEnabled]);
+  useEffect(() => { deviceTypeRef.current = deviceType; }, [deviceType]);
+
+  const pushUndoSnapshot = useCallback(() => {
+    const snap: PageSnapshot = {
+      name: nameRef.current,
+      deviceType: deviceTypeRef.current,
+      templateLines: templateLinesRef.current.slice(),
+      lineAlignments: lineAlignmentsRef.current.slice(),
+      lineWrapEnabled: lineWrapEnabledRef.current.slice(),
+    };
+    undoStackRef.current = [snap, ...undoStackRef.current].slice(0, UNDO_STACK_LIMIT);
+    setUndoVersion((v) => v + 1);
+  }, []);
+
+  const applySnapshot = useCallback((snap: PageSnapshot) => {
+    if (snap.deviceType !== deviceTypeRef.current) {
+      setDeviceType(snap.deviceType);
+    }
+    setName(snap.name);
+    setTemplateLines(snap.templateLines);
+    setLineAlignments(snap.lineAlignments);
+    setLineWrapEnabled(snap.lineWrapEnabled);
+    setDebouncedTemplateLines(snap.templateLines);
+    setDebouncedLineAlignments(snap.lineAlignments);
+    setDebouncedLineWrapEnabled(snap.lineWrapEnabled);
+  }, []);
+
+  /** Apply one structured AI tool call to the editor state. */
+  const applyToolCall = useCallback((call: ToolCall) => {
+    if (call.op === "suggest_variables") {
+      // Read-only — surfaced in the chat UI, no editor mutation.
+      return;
+    }
+    pushUndoSnapshot();
+    // Skip the 200ms preview debounce for the next render — the user
+    // expects an AI mutation to show on the board immediately, not
+    // after a typing-debounce window.
+    skipNextPreviewDebounceRef.current = true;
+    if (call.op === "replace_page") {
+      const { name: newName, template, line_metadata } = call.args;
+      setName(newName);
+      const lines = template;
+      const alignments = lines.map(
+        (_, i) => (line_metadata[i]?.alignment as LineAlignment) ?? "left",
+      );
+      const wraps = lines.map((_, i) => Boolean(line_metadata[i]?.wrap));
+      setTemplateLines(lines);
+      setLineAlignments(alignments);
+      setLineWrapEnabled(wraps);
+      setDebouncedTemplateLines(lines);
+      setDebouncedLineAlignments(alignments);
+      setDebouncedLineWrapEnabled(wraps);
+      toast.success("AI replaced the page — review and Save to keep it");
+      return;
+    }
+    // apply_patch
+    const lines = templateLinesRef.current.slice();
+    const alignments = lineAlignmentsRef.current.slice();
+    const wraps = lineWrapEnabledRef.current.slice();
+    for (const change of call.args.changes) {
+      applyLineOpInPlace(change, lines, alignments, wraps);
+    }
+    setTemplateLines(lines);
+    setLineAlignments(alignments);
+    setLineWrapEnabled(wraps);
+    setDebouncedTemplateLines(lines);
+    setDebouncedLineAlignments(alignments);
+    setDebouncedLineWrapEnabled(wraps);
+    if (call.args.rename) {
+      setName(call.args.rename);
+    }
+    toast.success(
+      `AI applied ${call.args.changes.length} change${call.args.changes.length === 1 ? "" : "s"}`,
+    );
+  }, [pushUndoSnapshot]);
+
+  const handleUndoAi = useCallback(() => {
+    const [head, ...rest] = undoStackRef.current;
+    if (!head) return;
+    undoStackRef.current = rest;
+    applySnapshot(head);
+    setUndoVersion((v) => v + 1);
+    toast.info("Undid last AI change");
+  }, [applySnapshot]);
+
+  const getCurrentPageSnapshot = useCallback((): CurrentPageSnapshot | undefined => {
+    const lines = templateLinesRef.current;
+    if (!nameRef.current && !lines.some((l) => l)) return undefined;
+    return {
+      name: nameRef.current,
+      template: lines,
+      line_metadata: lines.map((_, i) => ({
+        alignment: (lineAlignmentsRef.current[i] ?? "left") as LineMetadata["alignment"],
+        wrap: lineWrapEnabledRef.current[i] ?? false,
+      })),
+    };
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    (): PageBuilderHandle => ({
+      getCurrentPage: getCurrentPageSnapshot,
+      getDeviceType: () => deviceTypeRef.current,
+      applyToolCall,
+      undo: handleUndoAi,
+      canUndo: () => undoStackRef.current.length > 0,
+    }),
+    // undoVersion is intentionally a dep so the host re-reads canUndo()
+    // when the stack changes (the function returned by canUndo always
+    // sees the latest ref, but consumers may render gates off it).
+    [getCurrentPageSnapshot, applyToolCall, handleUndoAi, undoVersion],
+  );
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
     setEditorMode(mode);
@@ -293,40 +468,44 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       setDebouncedLineWrapEnabled(wrapStates);
       setDebouncedTemplateLines(contents);
     } else if (!pageId && !loadingPage) {
-      // Try to load draft for new page
       const draftKey = getDraftKey();
-      try {
-        const draftJson = localStorage.getItem(draftKey);
-        if (draftJson) {
-          const draft: DraftData = JSON.parse(draftJson);
-            // Only restore if draft is less than 7 days old
-            const draftAge = Date.now() - draft.timestamp;
-            const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-            
-            if (draftAge < maxAge) {
-              const restoredLines = draft.templateLines || ["", "", "", "", "", ""];
-              setName(draft.name || "");
-              setTemplateLines(restoredLines);
-              setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
-              setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
-              setDebouncedTemplateLines(restoredLines);
-              setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
-              setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
-              setDraftRestored(true);
-              
-              // Auto-dismiss the alert after 5 seconds
-              setTimeout(() => setDraftRestored(false), 5000);
-          } else {
-            // Draft too old, remove it
-            localStorage.removeItem(draftKey);
-          }
-        }
-      } catch {
-        // Invalid draft data, remove it
+      if (skipDraft) {
         localStorage.removeItem(draftKey);
+      } else {
+        // Try to load draft for new page
+        try {
+          const draftJson = localStorage.getItem(draftKey);
+          if (draftJson) {
+            const draft: DraftData = JSON.parse(draftJson);
+              // Only restore if draft is less than 7 days old
+              const draftAge = Date.now() - draft.timestamp;
+              const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+              if (draftAge < maxAge) {
+                const restoredLines = draft.templateLines || ["", "", "", "", "", ""];
+                setName(draft.name || "");
+                setTemplateLines(restoredLines);
+                setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
+                setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
+                setDebouncedTemplateLines(restoredLines);
+                setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
+                setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
+                setDraftRestored(true);
+
+                // Auto-dismiss the alert after 5 seconds
+                setTimeout(() => setDraftRestored(false), 5000);
+            } else {
+              // Draft too old, remove it
+              localStorage.removeItem(draftKey);
+            }
+          }
+        } catch {
+          // Invalid draft data, remove it
+          localStorage.removeItem(draftKey);
+        }
       }
     }
-  }, [existingPage, pageId, loadingPage]);
+  }, [existingPage, pageId, loadingPage, skipDraft]);
 
 
   useEffect(() => {
@@ -700,9 +879,13 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
     
     shouldIgnoreNextResponse.current = false;
 
+    // AI-driven mutations skip the typing-debounce window so the board
+    // updates as soon as the model finishes applying its patch.
+    const debounceMs = skipNextPreviewDebounceRef.current ? 0 : 200;
+    skipNextPreviewDebounceRef.current = false;
     const timeoutId = setTimeout(() => {
       const stillHasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
-      
+
       if (!stillHasContent) {
         setPreview(null);
         shouldIgnoreNextResponse.current = false;
@@ -712,13 +895,13 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
         }
         return;
       }
-      
+
       if (!previewMutation.isPending) {
         previewMutation.mutate();
       } else {
         needsRePreview.current = true;
       }
-    }, 200);
+    }, debounceMs);
 
     return () => {
       clearTimeout(timeoutId);
@@ -886,31 +1069,16 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                   {pageId ? t("editPage") : t("createPage")}
                 </CardTitle>
               </div>
-              <TooltipProvider>
+              {/* `skipDelayDuration={0}` disables Radix's "skip the
+               *  hover delay when moving between tooltips" behavior.
+               *  Without it, clicking the AI toggle and triggering a
+               *  layout shift could flash the next-nearest tooltip
+               *  (e.g. the rich-text toolbar's "Paste" tooltip) under
+               *  the cursor. Keeping the full delay gives the cursor
+               *  time to settle on the new layout before any new
+               *  tooltip pops. */}
+              <TooltipProvider skipDelayDuration={0}>
               <div className="flex items-center gap-1.5">
-                {/* Editor mode toggle */}
-                <div className="flex items-center border rounded-md" role="group" aria-label={t("editorModeAriaLabel")}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEditorModeChange("rich")}
-                    className={`h-7 px-2 text-[11px] rounded-r-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
-                    aria-label={t("richEditorAriaLabel")}
-                    aria-pressed={editorMode === "rich"}
-                  >
-                    {t("richEditor")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEditorModeChange("plain")}
-                    className={`h-7 px-2 text-[11px] rounded-l-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
-                    aria-label={t("plainTextAriaLabel")}
-                    aria-pressed={editorMode === "plain"}
-                  >
-                    {t("plainEditor")}
-                  </Button>
-                </div>
                 {/* Delete button - only show when editing */}
                 {pageId && (
                   <AlertDialog>
@@ -1002,6 +1170,31 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
 
             {/* Template line editors */}
             <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
+                <div className="flex items-center border rounded-md overflow-hidden" role="group" aria-label={t("editorModeAriaLabel")}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleEditorModeChange("rich")}
+                    className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                    aria-label={t("richEditorAriaLabel")}
+                    aria-pressed={editorMode === "rich"}
+                  >
+                    {t("richEditor")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleEditorModeChange("plain")}
+                    className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                    aria-label={t("plainTextAriaLabel")}
+                    aria-pressed={editorMode === "plain"}
+                  >
+                    {t("plainEditor")}
+                  </Button>
+                </div>
+              </div>
               {editorMode === "rich" ? (
                 <div>
                   {/* Template editor with device-specific dimensions */}
@@ -1143,7 +1336,7 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
                   </div>
                 </div>
                 <div className="flex justify-center">
-                  <BoardDisplay 
+                  <ScaledBoardDisplay
                     message={(() => {
                       // Use new loading pattern: keep previous message visible during loading/transition
                       // This allows tiles to cycle through characters (like real FiestaBoard)
@@ -1226,5 +1419,6 @@ export function PageBuilder({ pageId, deviceType: deviceTypeProp = "flagship", o
       </div>
     </>
   );
-}
+});
+PageBuilder.displayName = "PageBuilder";
 

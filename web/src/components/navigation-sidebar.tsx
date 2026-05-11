@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, HelpCircle, User } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, HelpCircle, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,6 +17,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useSidebar } from "@/components/sidebar-context";
+import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
+import { api, type AISettings } from "@/lib/api";
 
 interface NavItem {
   key: string;
@@ -45,6 +48,13 @@ export function NavigationSidebar() {
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
+  const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
+
+  const { data: aiSettings } = useQuery<AISettings>({
+    queryKey: ["ai-settings"],
+    queryFn: () => api.getAiSettings(),
+  });
+  const hasAiProviders = (aiSettings?.providers?.length ?? 0) > 0;
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -244,6 +254,21 @@ export function NavigationSidebar() {
       >
         <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {primaryItems.map(renderMobileNavItem)}
+          {hasAiProviders && (
+            <button
+              type="button"
+              onClick={() => { openAiPanel(); setMobileMenuOpen(false); }}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
+                aiPanelOpen
+                  ? "nav-active font-semibold"
+                  : "text-sidebar-foreground nav-active-hover",
+              )}
+            >
+              <Sparkles className="h-5 w-5" />
+              {t("aiAssistant")}
+            </button>
+          )}
         </nav>
         <div className="shrink-0 border-t border-sidebar-border mx-3" />
         <div className="shrink-0 px-3 py-3 text-sidebar-foreground">
@@ -323,6 +348,40 @@ export function NavigationSidebar() {
             <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto py-4 px-2">
               {primaryItems.map(renderDesktopNavItem)}
             </nav>
+
+            {hasAiProviders && (
+              <>
+                <div className="mx-2 border-t border-sidebar-border" />
+                <div className="shrink-0 px-2 py-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={openAiPanel}
+                        aria-label={t("aiAssistant")}
+                        className={cn(
+                          "flex w-full items-center gap-3 py-2 pl-[14px] pr-3 rounded-lg text-sm font-medium transition-colors",
+                          aiPanelOpen
+                            ? "nav-active font-semibold"
+                            : "text-sidebar-foreground nav-active-hover",
+                        )}
+                      >
+                        <Sparkles className="h-5 w-5 flex-shrink-0" />
+                        <span className={cn(
+                          "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                          collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+                        )}>{t("aiAssistant")}</span>
+                      </button>
+                    </TooltipTrigger>
+                    {collapsed && (
+                      <TooltipContent side="right" className="font-medium">
+                        {t("aiAssistant")}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </div>
+              </>
+            )}
 
             <div className="mx-2 border-t border-sidebar-border" />
 

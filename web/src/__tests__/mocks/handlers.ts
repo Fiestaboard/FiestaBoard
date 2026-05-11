@@ -1027,6 +1027,54 @@ export const handlers = [
     });
   }),
 
+  // AI provider settings endpoints (Gen AI feature). Default state:
+  // disabled, no providers — used by tests that don't override it.
+  http.get(`${API_BASE}/settings/ai`, () => {
+    return HttpResponse.json({
+      enabled: false,
+      providers: [],
+      default_provider_id: null,
+    });
+  }),
+
+  http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      enabled: false,
+      providers: [],
+      default_provider_id: null,
+      ...body,
+    });
+  }),
+
+  http.post(`${API_BASE}/settings/ai/test`, () => {
+    return HttpResponse.json({
+      ok: true,
+      message: "Connected. Model replied: ok",
+      model_used: "test-model",
+    });
+  }),
+
+  http.post(`${API_BASE}/pages/ai/generate`, () => {
+    return HttpResponse.json({
+      page: {
+        name: "AI Page",
+        type: "template",
+        device_type: "flagship",
+        template: ["", "Hello", "", "", "", ""],
+        line_metadata: Array.from({ length: 6 }, () => ({
+          alignment: "center",
+          wrap: false,
+        })),
+        duration_seconds: 60,
+      },
+      model_used: "test-model",
+      provider_id: "p1",
+      warnings: [],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+  }),
+
   // Config validation endpoint
   http.get(`${API_BASE}/config/validate`, () => {
     return HttpResponse.json({

@@ -58,6 +58,13 @@ const BOARD_CHARS = [
 // Extended characters that are not in BOARD_CHARS but can appear from device substitutions
 const EXTRA_CHARS: Record<string, boolean> = { '♥': true };
 
+function tokensEqual(a: Token, b: Token): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === "char" && b.type === "char") return a.value === b.value;
+  if (a.type === "color" && b.type === "color") return a.code === b.code;
+  return false;
+}
+
 // Backward compatibility alias
 const _FIESTABOARD_CHARS = BOARD_CHARS;
 
@@ -186,6 +193,121 @@ function ensureKeyframesInjected() {
   document.head.appendChild(style);
 }
 
+// ---------------------------------------------------------------------------
+// Static rendering path — used for non-animated previews (e.g. chat cards).
+// No useState / useEffect / useRef per tile, so React pays zero scheduling
+// cost for the ~132 tiles of a static board.
+// ---------------------------------------------------------------------------
+
+const StaticTile = memo(function StaticTile({
+  token,
+  size,
+  boardType,
+}: {
+  token: Token;
+  size: "sm" | "md" | "lg";
+  boardType: "black" | "white";
+}) {
+  const isWhiteBoard = boardType === "white";
+  const tileBg = isWhiteBoard
+    ? "var(--color-board-surface-light)"
+    : "var(--color-board-surface-dark)";
+  const textColor = isWhiteBoard
+    ? "var(--color-board-text-on-light)"
+    : "var(--color-board-text-on-dark)";
+
+  const sizeClass =
+    size === "sm"
+      ? "w-[14px] h-[18px]"
+      : size === "md"
+        ? "w-[14px] h-[20px] sm:w-[20px] sm:h-[28px] md:w-[24px] md:h-[34px] lg:w-[28px] lg:h-[40px]"
+        : "w-[18px] h-[26px] sm:w-[24px] sm:h-[34px] md:w-[28px] md:h-[40px] lg:w-[32px] lg:h-[46px]";
+
+  const textSizeClass =
+    size === "sm"
+      ? "text-[7px]"
+      : size === "md"
+        ? "text-[7px] sm:text-[10px] md:text-[13px] lg:text-[16px]"
+        : "text-[10px] sm:text-[13px] md:text-[16px] lg:text-[20px]";
+
+  const splitLine = (
+    <div
+      className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`}
+    />
+  );
+
+  if (token.type === "color") {
+    const bgColor = resolveColorCode(token.code, isWhiteBoard);
+    const inset =
+      size === "sm" ? "3px 1px 4px" : size === "md" ? "4px 2px 5px" : "5px 2px 6px";
+    return (
+      <div
+        className={`${sizeClass} relative rounded-[3px] overflow-hidden`}
+        style={{ backgroundColor: tileBg }}
+      >
+        <div
+          className="absolute rounded-[2px]"
+          style={{ inset, backgroundColor: bgColor }}
+        />
+        {splitLine}
+      </div>
+    );
+  }
+
+  const displayChar = EXTRA_CHARS[token.value]
+    ? token.value
+    : BOARD_CHARS[getCharIndex(token.value)];
+  const isBlank = displayChar === " ";
+
+  return (
+    <div
+      className={`${sizeClass} relative rounded-[3px] overflow-hidden flex items-center justify-center`}
+      style={{ backgroundColor: tileBg }}
+    >
+      {!isBlank && (
+        <span
+          className={`${textSizeClass} font-mono font-semibold select-none leading-none`}
+          style={{ color: token.value === "♥" ? "#eb4034" : textColor }}
+        >
+          {displayChar}
+        </span>
+      )}
+      {splitLine}
+    </div>
+  );
+});
+
+const StaticGridRow = memo(function StaticGridRow({
+  row,
+  rowIdx,
+  size,
+  gapClass,
+  boardType,
+}: {
+  row: Token[];
+  rowIdx: number;
+  size: "sm" | "md" | "lg";
+  gapClass: string;
+  boardType: "black" | "white";
+}) {
+  return (
+    <div className={`flex ${gapClass} justify-center`}>
+      {row.map((token, colIdx) => (
+        <StaticTile
+          key={`col-${rowIdx}-${colIdx}`}
+          token={token}
+          size={size}
+          boardType={boardType}
+        />
+      ))}
+    </div>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Animated rendering path (original)
+// ---------------------------------------------------------------------------
+
 // Memoized grid row component to prevent row-level re-renders
 const GridRow = memo(function GridRow({ 
   row, 
@@ -227,11 +349,7 @@ const GridRow = memo(function GridRow({
   
   // Deep compare tokens
   for (let i = 0; i < prevProps.row.length; i++) {
-    const prevToken = prevProps.row[i];
-    const nextToken = nextProps.row[i];
-    if (prevToken.type !== nextToken.type) return false;
-    if (prevToken.type === "char" && prevToken.value !== nextToken.value) return false;
-    if (prevToken.type === "color" && prevToken.code !== nextToken.code) return false;
+    if (!tokensEqual(prevProps.row[i], nextProps.row[i])) return false;
   }
   
   return true; // Rows are equal, don't re-render
@@ -833,11 +951,7 @@ const CharTile = memo(function CharTile({
     </>
   );
 }, (prevProps, nextProps) => {
-  // Only re-render if token, size, boardType, or isAnimating changes
-  return prevProps.token.type === nextProps.token.type &&
-         (prevProps.token.type === "char" 
-           ? prevProps.token.value === nextProps.token.value
-           : prevProps.token.code === nextProps.token.code) &&
+  return tokensEqual(prevProps.token, nextProps.token) &&
          prevProps.size === nextProps.size &&
          prevProps.boardType === nextProps.boardType &&
          prevProps.isAnimating === nextProps.isAnimating;
@@ -851,12 +965,15 @@ interface BoardDisplayProps {
   className?: string;
   boardType?: "black" | "white";
   deviceType?: DeviceType;
+  /** Skip animation infrastructure and render plain divs per tile. Much
+   *  cheaper for static previews that never animate. */
+  isStatic?: boolean;
 }
 
 // Backward compatibility alias
 interface _FiestaboardDisplayProps extends BoardDisplayProps {}
 
-export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = false, size = "md", className = "", boardType = "black", deviceType = "flagship" }: BoardDisplayProps) {
+export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = false, size = "md", className = "", boardType = "black", deviceType = "flagship", isStatic = false }: BoardDisplayProps) {
   const t = useTranslations("boardDisplay");
   // Get dimensions for the device type
   const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
@@ -941,33 +1058,44 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
               : 'linear-gradient(135deg, var(--color-board-surface-dark) 0%, var(--color-board-black) 100%)'
           }}
         >
-          <div 
+          <div
             className={`flex flex-col ${gapClasses[size]}`}
           >
-            {grid.map((row, rowIdx) => (
-              <GridRow 
-                key={`row-${rowIdx}`} 
-                row={row} 
-                rowIdx={rowIdx} 
-                size={size} 
-                gapClass={gapClasses[size]} 
-                boardType={boardType}
-                isAnimating={isLoading}
-              />
-            ))}
+            {grid.map((row, rowIdx) =>
+              isStatic ? (
+                <StaticGridRow
+                  key={`row-${rowIdx}`}
+                  row={row}
+                  rowIdx={rowIdx}
+                  size={size}
+                  gapClass={gapClasses[size]}
+                  boardType={boardType}
+                />
+              ) : (
+                <GridRow
+                  key={`row-${rowIdx}`}
+                  row={row}
+                  rowIdx={rowIdx}
+                  size={size}
+                  gapClass={gapClasses[size]}
+                  boardType={boardType}
+                  isAnimating={isLoading}
+                />
+              )
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Only re-render if message, isLoading, size, className, boardType, or deviceType changes
   return prevProps.message === nextProps.message &&
          prevProps.isLoading === nextProps.isLoading &&
          prevProps.size === nextProps.size &&
          prevProps.className === nextProps.className &&
          prevProps.boardType === nextProps.boardType &&
-         prevProps.deviceType === nextProps.deviceType;
+         prevProps.deviceType === nextProps.deviceType &&
+         prevProps.isStatic === nextProps.isStatic;
 });
 
 // Backward compatibility alias

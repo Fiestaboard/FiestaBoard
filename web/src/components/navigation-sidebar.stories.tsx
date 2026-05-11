@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { NavigationSidebar } from "./navigation-sidebar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { GlobalAiPanelProvider } from "./global-ai-panel-context";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,18 +29,20 @@ const meta = {
   tags: ["autodocs"],
   decorators: [
     (Story) => (
-      <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen">
-          <Story />
-          <div className="lg:pl-[268px] p-8">
-            <h1 className="text-3xl font-bold mb-4">Page Content</h1>
-            <p className="text-muted-foreground">
-              The sidebar shows on desktop (left side) and as a mobile menu on smaller screens.
-              Click the menu icon on mobile to see the navigation drawer.
-            </p>
+      <GlobalAiPanelProvider>
+        <QueryClientProvider client={queryClient}>
+          <div className="min-h-screen">
+            <Story />
+            <div className="lg:pl-[268px] p-8">
+              <h1 className="text-3xl font-bold mb-4">Page Content</h1>
+              <p className="text-muted-foreground">
+                The sidebar shows on desktop (left side) and as a mobile menu on smaller screens.
+                Click the menu icon on mobile to see the navigation drawer.
+              </p>
+            </div>
           </div>
-        </div>
-      </QueryClientProvider>
+        </QueryClientProvider>
+      </GlobalAiPanelProvider>
     ),
   ],
 } satisfies Meta<typeof NavigationSidebar>;

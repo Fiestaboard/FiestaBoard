@@ -195,6 +195,12 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and preview adapt to each device's dimensions automatically.
 
+### AI Page Drafts (Optional)
+
+Click the **Gen AI** button in the page editor, describe what you want ("commute home dashboard with weather and the next two Muni arrivals"), and an LLM drafts the page for you. You always review and click **Save** — nothing is auto-published to your board.
+
+**Bring your own provider.** FiestaBoard ships with no bundled LLM credentials and supports both **OpenAI-compatible** APIs (OpenRouter, OpenAI, Ollama, LM Studio, vLLM, llama.cpp) and the **Anthropic Messages API** (direct Claude access). See [docs/setup/AI_PROVIDERS.md](docs/setup/AI_PROVIDERS.md) for setup.
+
 ### More
 
 - **Configurable Update Interval** - Refresh every 10 seconds to every hour

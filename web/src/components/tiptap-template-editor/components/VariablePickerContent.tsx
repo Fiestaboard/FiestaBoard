@@ -22,6 +22,8 @@ interface VariablePickerContentProps {
   onInsert: (variable: string) => void;
   maxHeight?: string;
   autoFocusSearch?: boolean;
+  /** Extra classes applied to the root div — use to override min-width in constrained layouts */
+  className?: string;
 }
 
 function resolveIcon(iconName: string | undefined): LucideIcon | null {
@@ -319,7 +321,7 @@ function renderArraySection(
   );
 }
 
-export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocusSearch = true }: VariablePickerContentProps) {
+export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocusSearch = true, className }: VariablePickerContentProps) {
   const t = useTranslations("variablePicker");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -441,7 +443,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="w-full min-w-[min(340px,calc(100vw-24px))] flex flex-col">
+      <div className={`w-full min-w-[min(340px,calc(100vw-24px))] flex flex-col${className ? ` ${className}` : ""}`}>
         <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -449,6 +451,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
               autoFocus={autoFocusSearch}
               type="text"
               placeholder={t("searchPlaceholder")}
+              aria-label={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 h-9"

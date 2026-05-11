@@ -46,6 +46,8 @@ export default defineConfig({
       exclude: [
         "src/__tests__/**",
         "**/*.stories.tsx",
+        // Pure TypeScript type declarations — no executable code to cover
+        "src/lib/ai-chat-types.ts",
       ],
       thresholds: {
         statements: 80,

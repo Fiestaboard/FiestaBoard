@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
-description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. 26 plugins including weather, stocks, sports, transit, and more for your Vestaboard Flagship or Note."
-keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard open source, best software for Vestaboard, smart dashboard, live display, open source]
+description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. 26 plugins including weather, stocks, sports, transit, and optional AI-assisted page drafting for your Vestaboard Flagship or Note."
+keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard open source, best software for Vestaboard, smart dashboard, live display, open source, Vestaboard AI, AI page generation]
 ---
 
 # Welcome to FiestaBoard
@@ -28,7 +28,7 @@ There are **26 built-in plugins**, and many of them work without any API key at 
 1. **Install FiestaBoard** on any computer with Docker (your laptop, a Raspberry Pi, a home server)
 2. **Connect your board** by entering your board's API key in the web UI
 3. **Enable plugins** to pull in the data you care about (weather, stocks, transit, etc.)
-4. **Create pages** using the visual editor to design exactly what your board displays
+4. **Create pages** using the visual editor to design exactly what your board displays — or describe a page in natural language and let an LLM draft it for you with the optional [Gen AI page drafts](/docs/setup/ai-providers) feature (bring your own API key)
 5. **Set a schedule** so different pages show at different times of day (optional)
 
 Everything after the initial install is done through a web interface at **http://localhost:4420** - no config files to edit, no code to write.
@@ -97,6 +97,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Plugins Overview](/docs/plugins/overview)** | All 26 plugins and what they do |
 | **[Plugin Configuration](/docs/plugins/configuration)** | Enabling and configuring plugins |
 | **[Page Editor](/docs/features/page-editor)** | Creating and editing board content |
+| **[AI Page Drafts](/docs/setup/ai-providers)** | Optional: bring your own LLM to draft pages from a prompt |
 | **[Schedule Mode](/docs/features/schedule)** | Automating when pages display |
 | **[Silence Schedule](/docs/features/silence-schedule)** | Setting quiet hours for your board |
 | **[In-App Updates](/docs/features/updating)** | One-click updates from the Settings UI |

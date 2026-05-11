@@ -6,7 +6,7 @@
 
 import { Editor } from '@tiptap/react';
 import { useQuery } from '@tanstack/react-query';
-import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste, Download, Sigma } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste, Download, SquareFunction } from 'lucide-react';
 import { api } from '@/lib/api';
 import { insertTemplateContent } from '../utils/insertion';
 import { ToolbarDropdown } from './ToolbarDropdown';
@@ -71,7 +71,11 @@ export function TemplateEditorToolbar({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
-  const [hasClipboardContent, setHasClipboardContent] = useState(false);
+  // Optimistically enabled: we no longer call `navigator.clipboard.readText()`
+  // on mount (it triggers Safari's "Smart Paste" floating affordance near
+  // focused buttons). The actual read happens inside `handlePaste`, which
+  // is a real user-gesture handler and is gesture-allowed in every browser.
+  const [hasClipboardContent, setHasClipboardContent] = useState(true);
 
   useEffect(() => {
     if (!editor) {
@@ -101,7 +105,17 @@ export function TemplateEditorToolbar({
     };
   }, [editor]);
 
-  // Track clipboard content availability for paste button
+  // Track clipboard content availability for the Paste button.
+  //
+  // We deliberately do *not* call `navigator.clipboard.readText()` here:
+  // doing so on mount or on `window.focus` is the trigger that makes
+  // Safari attach its "Smart Paste" floating affordance to whichever
+  // button receives focus next (Rich toggle, AI toggle, etc.) — see
+  // /Users/jeffrey/.claude/plans/can-we-update-the-inherited-turtle.md
+  // for the analysis. The Paste button is optimistically enabled by
+  // default; the only place we actually read the clipboard is inside
+  // `handlePaste`, which runs from a real user gesture and so doesn't
+  // trip Safari's clipboard-aware-page heuristic.
   useEffect(() => {
     const handleClipboardWrite = () => {
       setHasClipboardContent(true);
@@ -136,15 +150,12 @@ export function TemplateEditorToolbar({
       }
     };
 
+
     document.addEventListener('copy', handleClipboardWrite);
     document.addEventListener('cut', handleClipboardWrite);
-    window.addEventListener('focus', checkClipboard);
-    checkClipboard();
-
     return () => {
       document.removeEventListener('copy', handleClipboardWrite);
       document.removeEventListener('cut', handleClipboardWrite);
-      window.removeEventListener('focus', checkClipboard);
     };
   }, []);
 
@@ -209,7 +220,10 @@ export function TemplateEditorToolbar({
   }, [editor]);
 
   return (
-    <TooltipProvider>
+    // `skipDelayDuration={0}` prevents tooltip-flash when clicking
+    // adjacent buttons (e.g. the editor card's AI toggle) shifts the
+    // layout and the cursor briefly hovers a different button.
+    <TooltipProvider skipDelayDuration={0}>
       <div
         className={cn(
           "flex items-center gap-1 p-2 border rounded-t-md bg-background",
@@ -432,7 +446,7 @@ export function TemplateEditorToolbar({
               )}
               aria-label={t("insertFormula")}
             >
-              <Sigma className="w-4 h-4" />
+              <SquareFunction className="w-4 h-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
