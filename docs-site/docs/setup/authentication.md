@@ -33,7 +33,7 @@ automatically.
 
 ## How it works
 
-- **Passwords** are hashed with `hashlib.scrypt` (N=32768, r=8, p=1) and
+- **Passwords** are hashed with `hashlib.scrypt` (N=2**15, r=8, p=1) and
   stored in `data/auth.json` (mode `0600`).
 - **Sessions** are stateless HMAC-signed tokens (`username.issued.expires.nonce.sig`).
   The signing key lives in `data/.session_key` (mode `0600`) and is
