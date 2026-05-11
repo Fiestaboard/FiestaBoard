@@ -861,7 +861,7 @@ def _repair_tool_template_lines(tool: Any) -> List[str]:
         return warnings
     if op == "apply_patch":
         changes = getattr(args, "changes", None) or []
-        warnings: List[str] = []
+        patch_warnings: List[str] = []
         for change in changes:
             change_type = getattr(change, "type", None)
             if change_type not in ("replace_line", "insert_line"):
@@ -872,8 +872,8 @@ def _repair_tool_template_lines(tool: Any) -> List[str]:
             repaired, change_warnings = repair_template_lines([text])
             if change_warnings:
                 change.text = repaired[0]
-                warnings.extend(change_warnings)
-        return warnings
+                patch_warnings.extend(change_warnings)
+        return patch_warnings
     return []
 
 
