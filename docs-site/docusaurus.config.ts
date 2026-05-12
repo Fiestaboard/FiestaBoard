@@ -5,6 +5,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
+  clientModules: ['./src/clientModules/versionSession.ts'],
+
   title: 'FiestaBoard',
   tagline: 'Turn your split-flap display into a living dashboard',
   favicon: 'img/favicon.ico',
