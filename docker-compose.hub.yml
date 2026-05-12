@@ -52,6 +52,17 @@ services:
       - FIESTAUPDATER_TOKEN=${FIESTAUPDATER_TOKEN}
       - FIESTAUPDATER_SERVICE=fiestaboard
       - FIESTAUPDATER_COMPOSE_FILE=/compose/docker-compose.yml
+      # Tell the sidecar what directory on the *host* the user ran
+      # `docker compose` from.  Without this, the sidecar runs
+      # `docker compose -f /compose/docker-compose.yml ...` and Compose
+      # resolves relative bind mounts (e.g. `./data:/app/data`) against
+      # `/compose/` *inside the sidecar* — the Docker daemon then receives
+      # `/compose/data` as a host path, which doesn't exist, and the
+      # recreated `fiestaboard` container fails to start.  Forwarding
+      # ${PWD} (expanded by the host shell at `docker compose up` time)
+      # lets the sidecar pass `--project-directory <host-path>` so the
+      # daemon sees the correct host directory.
+      - FIESTAUPDATER_PROJECT_DIR=${PWD}
       - COMPOSE_PROJECT_NAME=fiestaboard
     cap_add:
       - SYS_BOOT
@@ -61,12 +72,22 @@ services:
       # Read the same compose file the user deployed with so we update the
       # exact same service definition.
       - ./docker-compose.hub.yml:/compose/docker-compose.yml:ro
+      # Mount the host project directory at the SAME path inside the sidecar.
+      # The Compose CLI inside the sidecar needs to be able to read `.env`
+      # and walk paths that the daemon will eventually see — and because the
+      # daemon resolves bind sources against the *host* filesystem, the
+      # easiest way to keep both views consistent is to mount the host dir
+      # at its host path.  Read-only is sufficient: the sidecar never writes
+      # to the project directory (data writes happen inside the fiestaboard
+      # container through its own /app/data mount).
+      - ${PWD}:${PWD}:ro
       # The compose file references `env_file: .env` for the fiestaboard
       # service.  When the sidecar runs `docker compose -f /compose/...`,
       # Compose resolves `.env` relative to the compose file's directory.
       # Without this mount, every pull/up/restart fails with
       # "env file /compose/.env not found" and the in-app updater silently
-      # no-ops.
+      # no-ops.  (Retained for fiestaupdater images that don't yet honour
+      # FIESTAUPDATER_PROJECT_DIR.)
       - ./.env:/compose/.env:ro
     logging:
       driver: "json-file"

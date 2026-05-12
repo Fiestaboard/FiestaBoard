@@ -44,6 +44,35 @@ PORT="${FIESTAUPDATER_PORT:-8765}"
 COMPOSE_FILE="${FIESTAUPDATER_COMPOSE_FILE:-/compose/docker-compose.yml}"
 SERVICE="${FIESTAUPDATER_SERVICE:-fiestaboard}"
 
+# ---------------------------------------------------------------------------
+# Optional: explicit project directory for `docker compose`.
+#
+# Background: the sidecar bind-mounts the user's compose file at
+# /compose/docker-compose.yml.  Without --project-directory, Compose resolves
+# *relative* bind mounts (e.g. `./data:/app/data`) and `env_file: .env`
+# against the compose file's parent — `/compose/` *inside the sidecar*.  The
+# Docker daemon then receives `/compose/data` as a host path, which doesn't
+# exist on the host, and the recreated container fails to start.
+#
+# When the deploying compose file passes `FIESTAUPDATER_PROJECT_DIR` (the
+# host-side directory the user ran `docker compose` from), we forward it as
+# `--project-directory` so relative paths resolve against the *real* host
+# project directory.  Pi/absolute-path installs don't need this, so the var
+# is optional and validated to be an absolute path before being used.
+# ---------------------------------------------------------------------------
+PROJECT_DIR="${FIESTAUPDATER_PROJECT_DIR:-}"
+if [ -n "$PROJECT_DIR" ]; then
+    case "$PROJECT_DIR" in
+        /*) ;;  # absolute path → accepted, used by compose_project_dir_arg
+        *)
+            # Reject non-absolute values rather than letting compose resolve
+            # them against its own cwd (/) inside the sidecar.
+            echo "[fiestaupdater] WARNING: ignoring non-absolute FIESTAUPDATER_PROJECT_DIR=${PROJECT_DIR}" >&2
+            PROJECT_DIR=""
+            ;;
+    esac
+fi
+
 # Where we persist the result of the most recent /update or /rollback
 # attempt.  This file is read by GET /last-update (no auth) so the main
 # fiestaboard UI can show what version we are now on without needing
@@ -63,6 +92,19 @@ fi
 log() {
     # Stderr so it shows up in `docker logs`, prefixed for grep-ability.
     printf '[fiestaupdater] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2
+}
+
+# ---------------------------------------------------------------------------
+# Emit `--project-directory <dir>` as a shell-safe, quoted fragment when a
+# host project directory is configured, otherwise emit nothing.  We use this
+# to inject the flag into the `docker compose` invocations that run inside
+# `nohup bash -c "..."` workers, where passing an array is awkward.
+# `printf %q` guarantees the path is correctly quoted for re-evaluation.
+# ---------------------------------------------------------------------------
+compose_project_dir_arg() {
+    if [ -n "$PROJECT_DIR" ]; then
+        printf -- "--project-directory %q" "$PROJECT_DIR"
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -202,7 +244,7 @@ handle_restart() {
     nohup bash -c "
         set -eu
         echo '[fiestaupdater] restarting ${SERVICE}...'
-        docker compose -f '${COMPOSE_FILE}' restart '${SERVICE}'
+        docker compose $(compose_project_dir_arg) -f '${COMPOSE_FILE}' restart '${SERVICE}'
         echo '[fiestaupdater] restart complete'
     " >>"$logsink" 2>&1 &
     respond 202 Accepted "{\"status\":\"queued\",\"action\":\"restart\",\"service\":\"${SERVICE}\"}"
@@ -224,7 +266,7 @@ handle_shutdown() {
     fi
     nohup bash -c "
         echo '[fiestaupdater] stopping services before shutdown...'
-        docker compose -f '${COMPOSE_FILE}' stop || true
+        docker compose $(compose_project_dir_arg) -f '${COMPOSE_FILE}' stop || true
         echo '[fiestaupdater] initiating host poweroff...'
         poweroff -f
     " >>"$logsink" 2>&1 &
@@ -279,6 +321,7 @@ handle_update() {
     # bash -c argument: it keeps the script free of injection seams.
     export FU_SERVICE="$SERVICE"
     export FU_COMPOSE_FILE="$COMPOSE_FILE"
+    export FU_PROJECT_DIR="$PROJECT_DIR"
     export FU_BEFORE_DIGEST="$before"
     export FU_BEFORE_IMAGE="$before_image"
     export FU_STATE_FILE="$STATE_FILE"
@@ -292,8 +335,20 @@ handle_update() {
             printf "%s" "$1" >"$tmp" 2>/dev/null && mv -f "$tmp" "$FU_STATE_FILE" 2>/dev/null
         }
 
+        # Build the optional --project-directory args once.  When set, this
+        # makes Compose resolve relative bind mounts (e.g. `./data`) against
+        # the HOST project directory instead of /compose (where the compose
+        # file is mounted inside this sidecar).  Without this, Docker Hub
+        # installs that use `./data:/app/data` get a `/compose/data` host
+        # path sent to the daemon, and the recreated container fails.
+        if [ -n "${FU_PROJECT_DIR:-}" ]; then
+            set -- --project-directory "$FU_PROJECT_DIR"
+        else
+            set --
+        fi
+
         echo "[fiestaupdater] pulling latest image for ${FU_SERVICE}..."
-        if ! docker compose -f "$FU_COMPOSE_FILE" pull "$FU_SERVICE"; then
+        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" pull "$FU_SERVICE"; then
             completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
             _write_state "{\"status\":\"failed\",\"action\":\"update\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"error\":\"pull_failed\",\"completed_at\":\"${completed_at}\"}"
             echo "[fiestaupdater] pull failed; aborting without recreate"
@@ -301,7 +356,17 @@ handle_update() {
         fi
 
         echo "[fiestaupdater] recreating ${FU_SERVICE}..."
-        docker compose -f "$FU_COMPOSE_FILE" up -d --no-deps "$FU_SERVICE"
+        # IMPORTANT: capture the exit code of `up -d`.  Previously we wrote
+        # "status":"success" unconditionally, which masked container-start
+        # failures (e.g. invalid bind mount) and made the UI show a green
+        # check while the service was actually bricked.
+        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" up -d --no-deps "$FU_SERVICE"; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            after=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
+            echo "[fiestaupdater] recreate failed; service may not be running"
+            _write_state "{\"status\":\"failed\",\"action\":\"update\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"new_digest\":\"${after}\",\"error\":\"recreate_failed\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
         after=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
         completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         echo "[fiestaupdater] update succeeded; new digest=${after}"
@@ -374,6 +439,7 @@ handle_rollback() {
     fi
     export FU_SERVICE="$SERVICE"
     export FU_COMPOSE_FILE="$COMPOSE_FILE"
+    export FU_PROJECT_DIR="$PROJECT_DIR"
     export FU_TARGET_DIGEST="$digest"
     export FU_TARGET_IMAGE="$image"
     export FU_PREVIOUS_DIGEST="$current_digest"
@@ -388,6 +454,14 @@ handle_rollback() {
             printf "%s" "$1" >"$tmp" 2>/dev/null && mv -f "$tmp" "$FU_STATE_FILE" 2>/dev/null
         }
 
+        # See handle_update worker for rationale: forwards `--project-directory`
+        # so relative bind mounts in the compose file resolve against the host.
+        if [ -n "${FU_PROJECT_DIR:-}" ]; then
+            set -- --project-directory "$FU_PROJECT_DIR"
+        else
+            set --
+        fi
+
         echo "[fiestaupdater] rolling back ${FU_SERVICE} to ${FU_TARGET_DIGEST} (image=${FU_TARGET_IMAGE})"
         if ! docker tag "$FU_TARGET_DIGEST" "$FU_TARGET_IMAGE"; then
             completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -395,7 +469,13 @@ handle_rollback() {
             _write_state "{\"status\":\"rollback_failed\",\"action\":\"rollback\",\"service\":\"${FU_SERVICE}\",\"target_digest\":\"${FU_TARGET_DIGEST}\",\"target_image\":\"${FU_TARGET_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"error\":\"retag_failed\",\"completed_at\":\"${completed_at}\"}"
             exit 0
         fi
-        docker compose -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate "$FU_SERVICE"
+        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate "$FU_SERVICE"; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            rolled_to=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
+            echo "[fiestaupdater] rollback recreate failed; service may not be running"
+            _write_state "{\"status\":\"rollback_failed\",\"action\":\"rollback\",\"service\":\"${FU_SERVICE}\",\"target_digest\":\"${FU_TARGET_DIGEST}\",\"target_image\":\"${FU_TARGET_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"rolled_back_to\":\"${rolled_to}\",\"error\":\"recreate_failed\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
         rolled_to=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
         completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         echo "[fiestaupdater] rollback complete; service now on ${rolled_to}"
