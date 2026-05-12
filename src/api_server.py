@@ -651,7 +651,9 @@ async def lifespan(app: FastAPI):
                 try:
                     if PLUGIN_SYSTEM_AVAILABLE:
                         registry = get_plugin_registry()
-                        results = registry.check_for_updates()
+                        results = await _asyncio.get_event_loop().run_in_executor(
+                            None, registry.check_for_updates
+                        )
                         updates = [p for p, v in results.items() if v]
                         if updates:
                             auto_update = get_settings_service().get_plugin_settings().auto_update
@@ -1454,7 +1456,7 @@ def _check_dockerhub_for_latest() -> Optional[str]:
     """
     try:
         # Query Docker Hub tags endpoint
-        resp = requests.get(DOCKERHUB_TAGS_URL, timeout=10)
+        resp = requests.get(DOCKERHUB_TAGS_URL, timeout=4)
         resp.raise_for_status()
         data = resp.json()
         
@@ -1488,7 +1490,7 @@ def _check_github_releases_for_latest() -> Optional[str]:
         resp = requests.get(
             GITHUB_RELEASES_API,
             headers={"Accept": "application/vnd.github.v3+json"},
-            timeout=10,
+            timeout=4,
         )
         resp.raise_for_status()
         tag_name = resp.json().get("tag_name", "")
@@ -1511,32 +1513,61 @@ async def system_update_check():
     return await _perform_update_check()
 
 
+_UPDATE_CHECK_CACHE_TTL = 3600  # seconds
+
+
 async def _perform_update_check() -> "UpdateCheckResponse":
     """Run the actual update check against Docker Hub / GitHub Releases.
 
     Extracted from the HTTP handler so the background scheduler (auto-update
     interval) can reuse it without going through the network stack.  Records
     ``last_check`` in the system update state file on every successful query.
+
+    Server-side result cache (TTL: 1 hour) prevents repeated network calls when
+    the frontend refreshes quickly or the Pi has slow/no outbound internet.
+    Both source checks run in parallel to halve worst-case latency.
     """
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
 
+    # --- Server-side cache: return the stored result if it is still fresh ----
     try:
-        # Try Docker Hub first (checks actual container registry), fall back to GitHub Releases
-        # Run in a thread so the blocking HTTP call doesn't stall the event loop
-        latest_version = await asyncio.to_thread(_check_dockerhub_for_latest)
+        _cached_state = _system_update_state_load()
+        _cached_result = _cached_state.get("cached_result")
+        _last_check_raw = _cached_state.get("last_check")
+        if _cached_result and _last_check_raw:
+            _last_check_dt = datetime.fromisoformat(_last_check_raw)
+            if _last_check_dt.tzinfo is None:
+                _last_check_dt = _last_check_dt.replace(tzinfo=timezone.utc)
+            _age = (datetime.now(timezone.utc) - _last_check_dt).total_seconds()
+            if _age < _UPDATE_CHECK_CACHE_TTL:
+                logger.debug("system/update-check: returning cached result (age=%.0fs)", _age)
+                return UpdateCheckResponse(**_cached_result)
+    except Exception as _ce:
+        logger.debug("Could not read update-check cache (non-fatal): %s", _ce)
 
-        if not latest_version:
-            latest_version = await asyncio.to_thread(_check_github_releases_for_latest)
+    try:
+        # Run both source checks in parallel; prefer Docker Hub, fall back to GitHub.
+        dh_version, gh_version = await asyncio.gather(
+            asyncio.to_thread(_check_dockerhub_for_latest),
+            asyncio.to_thread(_check_github_releases_for_latest),
+        )
+        latest_version = dh_version or gh_version
 
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
-            # Record this check so the UI can show "last checked".  Best-effort.
             try:
                 _state = _system_update_state_load()
                 _state["last_check"] = datetime.now(timezone.utc).isoformat()
+                _state["cached_result"] = {
+                    "current_version": __version__,
+                    "latest_version": latest_version,
+                    "update_available": update_available,
+                    "package_url": GITHUB_PACKAGE_URL,
+                    "is_production": is_production,
+                }
                 _system_update_state_save(_state)
             except Exception as e:
-                logger.debug("Could not persist update-check timestamp (non-fatal): %s", e, exc_info=True)
+                logger.debug("Could not persist update-check result (non-fatal): %s", e, exc_info=True)
             return UpdateCheckResponse(
                 current_version=__version__,
                 latest_version=latest_version,
@@ -7451,8 +7482,8 @@ async def trigger_plugin_update_check():
     """
     Trigger an immediate update check for all external plugins.
 
-    This runs synchronously and may take a few seconds per plugin
-    (one ``git ls-remote`` per installed external plugin).
+    Runs ``git ls-remote`` against each external plugin's origin in a thread
+    pool so the event loop is not blocked.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
         raise HTTPException(
@@ -7460,7 +7491,8 @@ async def trigger_plugin_update_check():
         )
 
     registry = get_plugin_registry()
-    results = registry.check_for_updates()
+    loop = asyncio.get_event_loop()
+    results = await loop.run_in_executor(None, registry.check_for_updates)
     plugins_with_updates = [pid for pid, has_update in results.items() if has_update]
     return {
         "checked": len(results),
