@@ -504,7 +504,7 @@ jobs:
             releaseNotes += `\n## 🔗 Links\n\n`;
             releaseNotes += `- 📖 [Documentation](https://fiestaboard.app)\n`;
             releaseNotes += `- 🐳 [Docker Hub](https://hub.docker.com/r/fiestaboard/fiestaboard)\n`;
-            releaseNotes += `- 💬 [Discord](https://discord.gg/ujasGntNhQ)\n`;
+            releaseNotes += `- 💬 [Discord](https://discord.gg/JvN8y6ahaf)\n`;
             releaseNotes += `- 🐛 [Report an Issue](https://github.com/${context.repo.owner}/${context.repo.repo}/issues/new)\n`;
             
             // Create the release
