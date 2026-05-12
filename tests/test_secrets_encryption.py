@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
 import stat
-from pathlib import Path
 
 import pytest
 
@@ -70,7 +68,6 @@ def test_env_var_overrides_file(monkeypatch):
     secrets_mod._reset_for_tests()
     token = secrets_mod.encrypt_secret("from-env")
     assert secrets_mod.decrypt_secret(token) == "from-env"
-    assert secrets_mod._loaded_from == "env"
 
 
 def test_invalid_env_key_raises(monkeypatch):

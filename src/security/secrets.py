@@ -42,13 +42,10 @@ _ENV_VAR = "FIESTABOARD_SECRET_KEY"
 
 _cipher_lock = threading.Lock()
 _cipher: Optional[Fernet] = None
-_loaded_from: Optional[str] = None  # for logs/tests
 
 
 def _load_or_generate_key() -> bytes:
     """Return the raw Fernet key, generating one on disk if needed."""
-    global _loaded_from
-
     env_value = os.environ.get(_ENV_VAR, "").strip()
     if env_value:
         # Validate eagerly so misconfiguration surfaces at startup rather
@@ -60,7 +57,6 @@ def _load_or_generate_key() -> bytes:
                 f"{_ENV_VAR} is set but is not a valid Fernet key "
                 "(expected 32 url-safe base64 bytes)."
             ) from exc
-        _loaded_from = "env"
         return env_value.encode("utf-8")
 
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -75,7 +71,6 @@ def _load_or_generate_key() -> bytes:
                 "Delete it to regenerate (encrypted values will need to "
                 f"be re-entered) or set {_ENV_VAR}."
             ) from exc
-        _loaded_from = "file"
         return key
 
     # First run: generate, persist with restrictive perms.
@@ -105,7 +100,6 @@ def _load_or_generate_key() -> bytes:
         _KEY_PATH,
         _ENV_VAR,
     )
-    _loaded_from = "generated"
     return key
 
 
@@ -200,7 +194,6 @@ def rotate_key(new_key: bytes, *, values: Optional[list] = None) -> list:
 
 def _reset_for_tests() -> None:
     """Drop the cached cipher. **Tests only.**"""
-    global _cipher, _loaded_from
+    global _cipher
     with _cipher_lock:
         _cipher = None
-        _loaded_from = None

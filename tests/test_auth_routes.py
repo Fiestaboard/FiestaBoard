@@ -10,8 +10,6 @@ These exercise the API surface via FastAPI's TestClient and verify that:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from fastapi.testclient import TestClient
 
