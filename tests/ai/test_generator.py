@@ -231,6 +231,27 @@ def test_validate_and_repair_flags_unknown_variables():
     assert any("ghost.field" in w for w in warnings)
 
 
+def test_validate_and_repair_fixes_filled_color_with_trailing_period():
+    """The reported AI mistake: ``{{filled:green.}}`` gets normalised
+    to ``{{filled:green}}`` and a warning is surfaced."""
+    raw = {
+        "name": "T",
+        "type": "template",
+        "device_type": "flagship",
+        "template": [
+            "Title{{filled:green.}}99",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ],
+    }
+    page, warnings = _validate_and_repair(raw, "flagship", {})
+    assert page["template"][0] == "Title{{filled:green}}99"
+    assert any("green" in w and "trailing" in w.lower() for w in warnings)
+
+
 def test_validate_and_repair_supplies_default_name():
     raw = {
         "type": "template",

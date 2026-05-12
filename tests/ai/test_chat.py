@@ -425,6 +425,59 @@ def test_fence_parser_empty_block_warning():
     assert "empty" in warnings[0]["data"]["message"].lower()
 
 
+def test_fence_parser_repairs_replace_page_filled_color():
+    """The reported bug: ``{{filled:green.}}`` in a replace_page tool call
+    is repaired in-place and a warning event is emitted alongside the
+    tool_call."""
+    p = _FenceParser()
+    body = json.dumps(
+        {
+            "op": "replace_page",
+            "args": {
+                "name": "Test",
+                "template": [
+                    "Title{{filled:green.}}99",
+                    "OK",
+                ],
+            },
+        }
+    )
+    events = _events(p, f"```fiestaboard\n{body}\n```")
+    tools = [e for e in events if e["event"] == "tool_call"]
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(tools) == 1
+    assert tools[0]["data"]["args"]["template"][0] == "Title{{filled:green}}99"
+    assert len(warnings) == 1
+    assert "green" in warnings[0]["data"]["message"]
+
+
+def test_fence_parser_repairs_apply_patch_filled_color():
+    p = _FenceParser()
+    body = json.dumps(
+        {
+            "op": "apply_patch",
+            "args": {
+                "changes": [
+                    {
+                        "type": "replace_line",
+                        "index": 0,
+                        "text": "X{{filled:red.}}",
+                    },
+                    {"type": "delete_line", "index": 1},
+                ]
+            },
+        }
+    )
+    events = _events(p, f"```fiestaboard\n{body}\n```")
+    tools = [e for e in events if e["event"] == "tool_call"]
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(tools) == 1
+    changes = tools[0]["data"]["args"]["changes"]
+    assert changes[0]["text"] == "X{{filled:red}}"
+    assert changes[1]["type"] == "delete_line"
+    assert len(warnings) == 1
+
+
 # ---------------------------------------------------------------------------
 # stream_chat() end-to-end
 # ---------------------------------------------------------------------------
