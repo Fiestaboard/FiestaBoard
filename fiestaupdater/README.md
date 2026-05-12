@@ -43,6 +43,7 @@ This replaces our prior reliance on Watchtower, which was archived in December 2
 | `FIESTAUPDATER_COMPOSE_FILE`         | `/compose/docker-compose.yml`    | Compose file to act on (mount it in).    |
 | `FIESTAUPDATER_SERVICE`              | `fiestaboard`                    | The single service name we will update.  |
 | `FIESTAUPDATER_STATE_DIR`            | `/var/lib/fiestaupdater`         | Where `last-update.json` is persisted.   |
+| `FIESTAUPDATER_PROJECT_DIR`          | *(unset)*                        | Optional absolute **host** path. When set, forwarded to `docker compose --project-directory` so relative bind mounts (e.g. `./data:/app/data`) and `env_file: .env` resolve against the user's host project directory instead of `/compose/` inside the sidecar. Required for Docker Hub installs that use the relative-path `docker-compose.hub.yml`. Pi/absolute-path installs can leave it unset. |
 
 ## Required mounts
 

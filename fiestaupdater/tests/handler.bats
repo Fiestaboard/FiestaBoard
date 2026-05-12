@@ -141,6 +141,101 @@ status_of() {
     ! grep -q "rm -rf" "${SANDBOX}/docker.calls"
 }
 
+# ---- FIESTAUPDATER_PROJECT_DIR --------------------------------------------
+# Regression test for the Docker Hub install bug where relative bind mounts
+# in the compose file (e.g. `./data:/app/data`) were being resolved against
+# `/compose/` inside the sidecar instead of the host project directory.
+# When FIESTAUPDATER_PROJECT_DIR is set, every compose invocation must
+# forward it as `--project-directory <dir>` so Compose sees the right path.
+
+@test "POST /update forwards FIESTAUPDATER_PROJECT_DIR as --project-directory" {
+    export FIESTAUPDATER_PROJECT_DIR="/host/project"
+    req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    sleep 1
+    # Both the pull and the up calls must carry --project-directory.
+    grep -qE 'compose --project-directory /host/project -f .* pull fiestaboard' "${SANDBOX}/docker.calls"
+    grep -qE 'compose --project-directory /host/project -f .* up -d --no-deps fiestaboard' "${SANDBOX}/docker.calls"
+}
+
+@test "POST /restart forwards FIESTAUPDATER_PROJECT_DIR as --project-directory" {
+    export FIESTAUPDATER_PROJECT_DIR="/host/project"
+    req=$'POST /restart HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    sleep 1
+    grep -qE 'compose --project-directory /host/project -f .* restart fiestaboard' "${SANDBOX}/docker.calls"
+}
+
+@test "non-absolute FIESTAUPDATER_PROJECT_DIR is ignored" {
+    # A relative value would be resolved against the sidecar's cwd (/), which
+    # is never what the user wants.  Reject it and run compose without
+    # --project-directory rather than silently producing /<rel> on the host.
+    export FIESTAUPDATER_PROJECT_DIR="relative/path"
+    req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    sleep 1
+    # The fake docker was still invoked, but without --project-directory.
+    grep -q "pull fiestaboard" "${SANDBOX}/docker.calls"
+    ! grep -q "project-directory" "${SANDBOX}/docker.calls"
+}
+
+# ---- /update : failure surfacing ------------------------------------------
+# Regression test for the "update succeeded" misreporting bug: when
+# `docker compose up -d` fails (e.g. because a bind-mount source doesn't
+# exist on the host), the updater must persist a `failed` state instead
+# of writing `success`, so the UI can show the user that things are broken.
+
+@test "POST /update writes status=failed when compose up exits non-zero" {
+    # Replace the fake docker with one that succeeds for pull but fails for `up`.
+    cat >"${SANDBOX}/docker" <<'SH'
+#!/bin/sh
+echo "$@" >> "${SANDBOX}/docker.calls"
+case "$1" in
+    inspect)
+        case "$3" in
+            *Config.Image*) echo "fiestaboard/fiestaboard:latest" ;;
+            *Image*)        echo "sha256:abc123" ;;
+            *)              echo "" ;;
+        esac
+        ;;
+    compose)
+        # Walk argv looking for the verb after the flags.
+        shift
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --project-directory|-f) shift 2;;
+                pull) exit 0;;
+                up)   exit 1;;
+                *)    shift;;
+            esac
+        done
+        exit 0
+        ;;
+    *) exit 0 ;;
+esac
+SH
+    chmod +x "${SANDBOX}/docker"
+
+    req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    send "$req" >/dev/null
+    # Wait for the background worker to finish writing state.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        if [ -f "${SANDBOX}/state/last-update.json" ] && \
+           grep -q '"status":"failed"' "${SANDBOX}/state/last-update.json"; then
+            break
+        fi
+        sleep 1
+    done
+
+    [ -f "${SANDBOX}/state/last-update.json" ]
+    grep -q '"status":"failed"' "${SANDBOX}/state/last-update.json"
+    grep -q '"error":"recreate_failed"' "${SANDBOX}/state/last-update.json"
+    ! grep -q '"status":"success"' "${SANDBOX}/state/last-update.json"
+}
+
 # ---- unknown route ---------------------------------------------------------
 
 @test "GET /nonsense → 404" {
