@@ -27,6 +27,19 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def clear_update_check_cache():
+    """Prevent the server-side update-check cache from leaking between tests.
+
+    Each test that exercises _perform_update_check needs a clean slate so the
+    cached_result from a previous test doesn't short-circuit network calls that
+    the test has mocked.
+    """
+    with patch("src.api_server._system_update_state_load", return_value={}), \
+         patch("src.api_server._system_update_state_save"):
+        yield
+
+
 class TestUpdateCheck:
     """Tests for /system/update-check endpoint."""
 
@@ -175,8 +188,10 @@ class TestDockerHubCheck:
         assert result is None
 
     def test_update_check_uses_dockerhub_first(self, client):
-        """Test that update-check tries Docker Hub before falling back to GitHub Releases."""
+        """Test that Docker Hub is queried and its result takes priority over GitHub Releases.
 
+        Both sources are checked in parallel; Docker Hub's version wins when it succeeds.
+        """
         call_order = []
 
         tags_resp = Mock()
@@ -189,21 +204,25 @@ class TestDockerHubCheck:
         }
         tags_resp.raise_for_status = Mock()
 
+        github_resp = Mock()
+        github_resp.status_code = 200
+        github_resp.json.return_value = {"tag_name": "v1.0.0"}  # lower — should not win
+        github_resp.raise_for_status = Mock()
+
         def mock_get(url, **kwargs):
             call_order.append(url)
             if _host_is(url, "hub.docker.com"):
                 return tags_resp
-            # GitHub Releases should NOT be called
-            raise AssertionError("Should not reach GitHub Releases API")
+            return github_resp
 
         with patch("src.api_server.requests.get", side_effect=mock_get):
             response = client.get("/system/update-check")
 
         assert response.status_code == 200
         data = response.json()
+        # Docker Hub's version (99.0.0) wins over GitHub's (1.0.0)
         assert data["latest_version"] == "99.0.0"
         assert data["update_available"] is True
-        # Verify Docker Hub was called
         assert any(_host_is(url, "hub.docker.com") for url in call_order)
 
     def test_update_check_falls_back_to_github_releases(self, client):
