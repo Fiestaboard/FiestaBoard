@@ -72,15 +72,18 @@ services:
       # Read the same compose file the user deployed with so we update the
       # exact same service definition.
       - ./docker-compose.hub.yml:/compose/docker-compose.yml:ro
-      # Mount the host project directory at the SAME path inside the sidecar.
-      # The Compose CLI inside the sidecar needs to be able to read `.env`
-      # and walk paths that the daemon will eventually see — and because the
-      # daemon resolves bind sources against the *host* filesystem, the
-      # easiest way to keep both views consistent is to mount the host dir
-      # at its host path.  Read-only is sufficient: the sidecar never writes
-      # to the project directory (data writes happen inside the fiestaboard
-      # container through its own /app/data mount).
-      - ${PWD}:${PWD}:ro
+      # Make the host `.env` readable inside the sidecar at its HOST path so
+      # the Compose CLI (running inside the sidecar) can read it when we
+      # pass `--project-directory ${PWD}`. Compose resolves the service's
+      # `env_file: .env` against the project directory; if the file isn't
+      # visible at that absolute host path inside the sidecar, compose
+      # fails with "env file not found" and the update silently no-ops.
+      #
+      # We mount *only* the .env file (not the whole project directory) to
+      # keep the sidecar's view of the host filesystem minimal. The
+      # `./data` bind source is resolved by the Docker daemon against the
+      # host directly, so the sidecar never needs to see it.
+      - ${PWD}/.env:${PWD}/.env:ro
       # The compose file references `env_file: .env` for the fiestaboard
       # service.  When the sidecar runs `docker compose -f /compose/...`,
       # Compose resolves `.env` relative to the compose file's directory.
