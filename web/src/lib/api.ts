@@ -1162,6 +1162,19 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
   return res.json();
 }
 
+/**
+ * Shape of /auth/status. Exported so other UI surfaces (login page,
+ * profile page) can share the type instead of redeclaring it.
+ */
+export type AuthStatusResponse = {
+  enabled: boolean;
+  setup_required: boolean;
+  authenticated: boolean;
+  username: string | null;
+  mode: "enabled" | "disabled" | "undecided";
+  first_run: boolean;
+};
+
 export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
@@ -1894,15 +1907,7 @@ export const api = {
   // `detail` field. The helpers below are for the rest of the UI — e.g.
   // a "Sign out" button in the profile menu.
 
-  getAuthStatus: () =>
-    fetchApi<{
-      enabled: boolean;
-      setup_required: boolean;
-      authenticated: boolean;
-      username: string | null;
-      mode: "enabled" | "disabled" | "undecided";
-      first_run: boolean;
-    }>("/auth/status"),
+  getAuthStatus: () => fetchApi<AuthStatusResponse>("/auth/status"),
 
   logout: () =>
     fetchApi<{ status: string }>("/auth/logout", { method: "POST" }),

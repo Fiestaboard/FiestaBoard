@@ -91,17 +91,15 @@ def auth_mode() -> str:
     require auth, but the UI is allowed to show a first-run picker
     inviting the admin to either set up an account or opt out.
     """
-    raw = os.environ.get("FIESTABOARD_AUTH_ENABLED", "").strip().lower()
-    if raw in {"1", "true", "yes", "on"}:
-        return "enabled"
-    if raw in {"0", "false", "no", "off"}:
-        return "disabled"
+    env = _auth_env_override()
+    if env is not None:
+        return env
     # No env override — consult the persisted preference.
     try:
         svc = get_auth_service()
     except Exception:
         # If the auth store can't be loaded for some reason we still
-        # default to "enabled" so the install is never silently opened up.
+        # default to "undecided" so the install is never silently opened.
         return "undecided"
     pref = svc.get_auth_preference()
     if pref == "enabled":
@@ -109,6 +107,20 @@ def auth_mode() -> str:
     if pref == "disabled":
         return "disabled"
     return "undecided"
+
+
+def _auth_env_override() -> Optional[str]:
+    """Return ``"enabled"``/``"disabled"`` if the env var pins the mode, else ``None``.
+
+    Centralised so callers (e.g. ``/auth/preference``) can ask "is the
+    mode currently pinned by ops?" without duplicating the parsing logic.
+    """
+    raw = os.environ.get("FIESTABOARD_AUTH_ENABLED", "").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return "enabled"
+    if raw in {"0", "false", "no", "off"}:
+        return "disabled"
+    return None
 
 
 # --- Errors ----------------------------------------------------------------
@@ -402,10 +414,10 @@ class AuthService:
                     if not verify_password(password, u.get("password_hash", "")):
                         raise InvalidCredentials("Password is incorrect")
                     if new_username == current_username:
-                        # No-op rename — still bump the watermark to keep
-                        # the contract simple, but no need to error.
-                        u["sessions_valid_after_ms"] = _now_ms()
-                        self._save()
+                        # No-op rename — return without bumping the
+                        # session watermark or rewriting the file. There
+                        # is no security benefit to invalidating sessions
+                        # when nothing actually changed.
                         return new_username
                     # Ensure no collision with another user (forward-compat).
                     for other in users:

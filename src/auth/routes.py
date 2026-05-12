@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
 from typing import Optional
 
@@ -15,6 +14,7 @@ from .service import (
     InvalidCredentials,
     SESSION_COOKIE_NAME,
     SetupRequired,
+    _auth_env_override,
     auth_mode,
     get_auth_service,
 )
@@ -177,8 +177,8 @@ async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
       decision is "enabled" and disabling must go through a future
       password-gated endpoint to avoid drive-by lockouts.
     """
-    env_raw = os.environ.get("FIESTABOARD_AUTH_ENABLED", "").strip().lower()
-    if env_raw:
+    env_raw = _auth_env_override()
+    if env_raw is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Auth mode is pinned by FIESTABOARD_AUTH_ENABLED.",

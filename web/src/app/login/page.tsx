@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion, Loader2 } from "lucide-react";
+import type { AuthStatusResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,14 +31,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FiestaLogo } from "@/components/fiesta-logo";
 
-type AuthStatus = {
-  enabled: boolean;
-  setup_required: boolean;
-  authenticated: boolean;
-  username: string | null;
-  mode: "enabled" | "disabled" | "undecided";
-  first_run: boolean;
-};
+type AuthStatus = AuthStatusResponse;
 
 async function fetchAuthStatus(): Promise<AuthStatus> {
   const res = await fetch("/api/auth/status", {
