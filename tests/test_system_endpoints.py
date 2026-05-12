@@ -28,15 +28,17 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def clear_update_check_cache():
-    """Prevent the server-side update-check cache from leaking between tests.
+def _isolate_state_file(tmp_path):
+    """Give every test its own state file so cached update-check results cannot
+    leak between tests.
 
     Each test that exercises _perform_update_check needs a clean slate so the
     cached_result from a previous test doesn't short-circuit network calls that
-    the test has mocked.
+    the test has mocked.  Tests that need to verify file persistence (e.g.
+    TestSystemUpdateAutoToggle) use monkeypatch.setattr to redirect
+    SYSTEM_UPDATE_STATE_FILE to their own path, which overrides this fixture.
     """
-    with patch("src.api_server._system_update_state_load", return_value={}), \
-         patch("src.api_server._system_update_state_save"):
+    with patch("src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "update_state.json"):
         yield
 
 
