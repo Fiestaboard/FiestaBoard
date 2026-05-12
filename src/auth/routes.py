@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Optional
 
@@ -14,8 +15,8 @@ from .service import (
     InvalidCredentials,
     SESSION_COOKIE_NAME,
     SetupRequired,
+    auth_mode,
     get_auth_service,
-    is_auth_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,11 @@ class StatusResponse(BaseModel):
     setup_required: bool
     authenticated: bool
     username: Optional[str] = None
+    # Tri-state mode + ``first_run`` so the UI can show the opt-in /
+    # opt-out picker on a brand-new install. ``first_run`` is true iff
+    # the admin hasn't recorded a preference and the env var is unset.
+    mode: str = "disabled"
+    first_run: bool = False
 
 
 class LoginRequest(BaseModel):
@@ -46,6 +52,17 @@ class SetupRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=1, max_length=1024)
     new_password: str = Field(..., min_length=8, max_length=1024)
+
+
+class ChangeUsernameRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=1024)
+    new_username: str = Field(..., min_length=1, max_length=64)
+
+
+class PreferenceRequest(BaseModel):
+    # ``True`` -> persist "enabled" (admin must then call /setup).
+    # ``False`` -> persist "disabled" (auth becomes a no-op).
+    enabled: bool
 
 
 class SimpleResponse(BaseModel):
@@ -134,7 +151,8 @@ async def auth_status(request: Request) -> StatusResponse:
     Always public so the web UI can decide whether to redirect to /login.
     """
     svc = get_auth_service()
-    enabled = is_auth_enabled()
+    mode = auth_mode()
+    enabled = mode in ("enabled", "undecided")
     has_user = svc.has_user()
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     username = svc.verify_session(cookie) if cookie else None
@@ -143,7 +161,39 @@ async def auth_status(request: Request) -> StatusResponse:
         setup_required=enabled and not has_user,
         authenticated=bool(username),
         username=username,
+        mode=mode,
+        first_run=mode == "undecided" and not has_user,
     )
+
+
+@router.post("/preference", response_model=SimpleResponse)
+async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
+    """Record the admin's first-run auth on/off choice.
+
+    Only valid when:
+
+    * The env var ``FIESTABOARD_AUTH_ENABLED`` is unset (it always wins).
+    * No user has been provisioned yet — once an account exists the
+      decision is "enabled" and disabling must go through a future
+      password-gated endpoint to avoid drive-by lockouts.
+    """
+    env_raw = os.environ.get("FIESTABOARD_AUTH_ENABLED", "").strip().lower()
+    if env_raw:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Auth mode is pinned by FIESTABOARD_AUTH_ENABLED.",
+        )
+    svc = get_auth_service()
+    if svc.has_user():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "A user already exists. Sign in and use the account "
+                "settings to change preferences."
+            ),
+        )
+    svc.set_auth_preference("enabled" if payload.enabled else "disabled")
+    return SimpleResponse(status="ok")
 
 
 @router.post("/setup", response_model=SimpleResponse, status_code=201)
@@ -227,3 +277,33 @@ async def auth_change_password(
     new_token = svc.authenticate(username, payload.new_password)
     _set_session_cookie(response, request, new_token)
     return SimpleResponse(status="ok", username=username)
+
+
+@router.post("/change-username", response_model=SimpleResponse)
+async def auth_change_username(
+    payload: ChangeUsernameRequest, request: Request, response: Response
+) -> SimpleResponse:
+    """Rename the logged-in user, gated by their current password."""
+    svc = get_auth_service()
+    cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    username = svc.verify_session(cookie) if cookie else None
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+    try:
+        new_username = svc.change_username(
+            username, payload.current_password, payload.new_username
+        )
+    except InvalidCredentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Password is incorrect",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    # The username rename bumped ``sessions_valid_after_ms``, so the old
+    # cookie is now invalid. Issue a fresh session under the new name.
+    new_token = svc.authenticate(new_username, payload.current_password)
+    _set_session_cookie(response, request, new_token)
+    return SimpleResponse(status="ok", username=new_username)

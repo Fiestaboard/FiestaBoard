@@ -19,7 +19,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from .service import SESSION_COOKIE_NAME, get_auth_service, is_auth_enabled
+from .service import (
+    SESSION_COOKIE_NAME,
+    auth_mode,
+    get_auth_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +59,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self._extra_public = tuple(extra_public_paths)
 
     async def dispatch(self, request: Request, call_next):
-        if not is_auth_enabled():
+        mode = auth_mode()
+        if mode == "disabled":
             return await call_next(request)
 
         # Always allow CORS preflight.
@@ -73,9 +78,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # If no user has been provisioned, every protected endpoint should
         # nudge the client toward /auth/setup rather than silently 401ing.
+        # ``first_run`` distinguishes "we haven't asked the admin yet" from
+        # "the admin has explicitly enabled auth but not finished setup".
         if not svc.has_user():
             return JSONResponse(
-                {"detail": "Setup required", "setup_required": True},
+                {
+                    "detail": "Setup required",
+                    "setup_required": True,
+                    "first_run": mode == "undecided",
+                },
                 status_code=409,
             )
 

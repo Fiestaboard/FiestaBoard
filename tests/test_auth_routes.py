@@ -44,6 +44,14 @@ def enabled(monkeypatch):
 
 @pytest.fixture
 def disabled(monkeypatch):
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+    yield
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+
+
+@pytest.fixture
+def undecided(monkeypatch):
+    """No env override + no stored preference => first-run mode."""
     monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
 
 
@@ -57,6 +65,8 @@ def test_status_disabled_no_user(client, disabled):
     assert body["enabled"] is False
     assert body["setup_required"] is False
     assert body["authenticated"] is False
+    assert body["mode"] == "disabled"
+    assert body["first_run"] is False
 
 
 def test_status_enabled_setup_required(client, enabled):
@@ -66,6 +76,20 @@ def test_status_enabled_setup_required(client, enabled):
     assert body["enabled"] is True
     assert body["setup_required"] is True
     assert body["authenticated"] is False
+    assert body["mode"] == "enabled"
+    # first_run is reserved for the *undecided* case.
+    assert body["first_run"] is False
+
+
+def test_status_undecided_first_run(client, undecided):
+    """No env var + no stored preference + no user => first_run picker."""
+    r = client.get("/auth/status")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["enabled"] is True  # secure-by-default
+    assert body["setup_required"] is True
+    assert body["mode"] == "undecided"
+    assert body["first_run"] is True
 
 
 # --- /auth/setup -----------------------------------------------------------
@@ -230,3 +254,95 @@ def test_middleware_options_preflight_passes(client, enabled):
         },
     )
     assert r.status_code != 401
+
+
+def test_middleware_first_run_includes_marker(client, undecided):
+    """Undecided + no user => 409 with first_run=true so the UI shows the picker."""
+    r = client.get("/status")
+    assert r.status_code == 409
+    body = r.json()
+    assert body["setup_required"] is True
+    assert body["first_run"] is True
+
+
+# --- /auth/preference (first-run opt-in/opt-out) ---------------------------
+
+
+def test_preference_disable_short_circuits_auth(client, undecided):
+    """Opting out persists and turns the middleware into a no-op."""
+    r = client.post("/auth/preference", json={"enabled": False})
+    assert r.status_code == 200
+    # The decision is reflected in /auth/status without restart.
+    status_body = client.get("/auth/status").json()
+    assert status_body["mode"] == "disabled"
+    assert status_body["enabled"] is False
+    # Protected endpoints are now reachable without a session cookie.
+    r2 = client.get("/status")
+    assert r2.status_code != 401
+    assert r2.status_code != 409
+
+
+def test_preference_enable_persists_pending_setup(client, undecided):
+    """Opting in records the choice but still requires /auth/setup."""
+    r = client.post("/auth/preference", json={"enabled": True})
+    assert r.status_code == 200
+    status_body = client.get("/auth/status").json()
+    assert status_body["mode"] == "enabled"
+    assert status_body["first_run"] is False
+    assert status_body["setup_required"] is True
+
+
+def test_preference_rejected_when_env_var_set(client, enabled):
+    r = client.post("/auth/preference", json={"enabled": False})
+    assert r.status_code == 409
+
+
+def test_preference_rejected_after_setup(client, enabled):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    r = client.post("/auth/preference", json={"enabled": False})
+    assert r.status_code == 409
+
+
+# --- /auth/change-username -------------------------------------------------
+
+
+def test_change_username_flow(client, enabled):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    r = client.post(
+        "/auth/change-username",
+        json={"current_password": "supersecret", "new_username": "owner"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["username"] == "owner"
+    # The fresh cookie keeps the user signed in.
+    status_body = client.get("/auth/status").json()
+    assert status_body["authenticated"] is True
+    assert status_body["username"] == "owner"
+
+
+def test_change_username_requires_auth(client, enabled):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    client.cookies.clear()
+    r = client.post(
+        "/auth/change-username",
+        json={"current_password": "supersecret", "new_username": "owner"},
+    )
+    assert r.status_code == 401
+
+
+def test_change_username_wrong_password(client, enabled):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    r = client.post(
+        "/auth/change-username",
+        json={"current_password": "wrong", "new_username": "owner"},
+    )
+    assert r.status_code == 401
+
+
+def test_change_username_rejects_invalid(client, enabled):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    r = client.post(
+        "/auth/change-username",
+        json={"current_password": "supersecret", "new_username": "has space"},
+    )
+    assert r.status_code == 400

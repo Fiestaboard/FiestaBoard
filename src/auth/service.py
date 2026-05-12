@@ -65,13 +65,50 @@ def _session_ttl_seconds() -> int:
 
 
 def is_auth_enabled() -> bool:
-    """Return ``True`` iff ``FIESTABOARD_AUTH_ENABLED`` is truthy."""
-    return os.environ.get("FIESTABOARD_AUTH_ENABLED", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+    """Return ``True`` iff auth should be enforced for the next request.
+
+    Three-state policy:
+
+    * The env var ``FIESTABOARD_AUTH_ENABLED`` always wins. Truthy values
+      (``1``/``true``/``yes``/``on``) force-enable; explicit falsy values
+      (``0``/``false``/``no``/``off``) force-disable.
+    * Otherwise, fall back to the per-install preference recorded in
+      ``data/auth.json`` (set the first time the admin makes a choice).
+    * Otherwise (first run, no env var, no recorded choice) default to
+      *enabled* — secure-by-default. The middleware combines this with
+      "no user yet" to surface the first-run picker in the UI.
+    """
+    mode = auth_mode()
+    return mode in ("enabled", "undecided")
+
+
+def auth_mode() -> str:
+    """Resolve the tri-state auth mode.
+
+    Returns one of ``"enabled"``, ``"disabled"``, or ``"undecided"``.
+
+    ``undecided`` means *secure-by-default* — protected endpoints still
+    require auth, but the UI is allowed to show a first-run picker
+    inviting the admin to either set up an account or opt out.
+    """
+    raw = os.environ.get("FIESTABOARD_AUTH_ENABLED", "").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return "enabled"
+    if raw in {"0", "false", "no", "off"}:
+        return "disabled"
+    # No env override — consult the persisted preference.
+    try:
+        svc = get_auth_service()
+    except Exception:
+        # If the auth store can't be loaded for some reason we still
+        # default to "enabled" so the install is never silently opened up.
+        return "undecided"
+    pref = svc.get_auth_preference()
+    if pref == "enabled":
+        return "enabled"
+    if pref == "disabled":
+        return "disabled"
+    return "undecided"
 
 
 # --- Errors ----------------------------------------------------------------
@@ -254,6 +291,8 @@ class AuthService:
         # Defensive defaults so a hand-edited file doesn't crash us.
         self._data.setdefault("version", 1)
         self._data.setdefault("users", [])
+        # ``auth_pref`` records the admin's first-run choice
+        # (``"enabled"`` / ``"disabled"``). Absent => undecided.
 
     def _save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -291,6 +330,31 @@ class AuthService:
                     return dict(u)
         return None
 
+    def get_auth_preference(self) -> Optional[str]:
+        """Return the persisted auth preference, or ``None`` if unset.
+
+        Possible values: ``"enabled"``, ``"disabled"``, ``None``.
+        """
+        with self._lock:
+            pref = self._data.get("auth_pref")
+        if pref in ("enabled", "disabled"):
+            return pref
+        return None
+
+    def set_auth_preference(self, preference: Optional[str]) -> None:
+        """Persist the admin's auth on/off choice.
+
+        Pass ``None`` to clear the preference (rare, mostly for tests).
+        """
+        if preference not in (None, "enabled", "disabled"):
+            raise ValueError("preference must be 'enabled', 'disabled', or None")
+        with self._lock:
+            if preference is None:
+                self._data.pop("auth_pref", None)
+            else:
+                self._data["auth_pref"] = preference
+            self._save()
+
     # -- mutations ---------------------------------------------------------
 
     def create_initial_user(self, username: str, password: str) -> None:
@@ -319,7 +383,42 @@ class AuthService:
                     "sessions_valid_after_ms": _now_ms(),
                 }
             ]
+            # Creating an account is an explicit "I want auth on" decision —
+            # persist it so the install no longer counts as undecided.
+            self._data["auth_pref"] = "enabled"
             self._save()
+
+    def change_username(self, current_username: str, password: str, new_username: str) -> str:
+        """Rename the current user, gated by their password.
+
+        Returns the new username on success. Bumps the session watermark
+        so previously-issued cookies are revoked.
+        """
+        _validate_username(new_username)
+        with self._lock:
+            users = self._data.get("users", [])
+            for u in users:
+                if u.get("username") == current_username:
+                    if not verify_password(password, u.get("password_hash", "")):
+                        raise InvalidCredentials("Password is incorrect")
+                    if new_username == current_username:
+                        # No-op rename — still bump the watermark to keep
+                        # the contract simple, but no need to error.
+                        u["sessions_valid_after_ms"] = _now_ms()
+                        self._save()
+                        return new_username
+                    # Ensure no collision with another user (forward-compat).
+                    for other in users:
+                        if other is u:
+                            continue
+                        if other.get("username") == new_username:
+                            raise ValueError("Username is already taken")
+                    u["username"] = new_username
+                    u["updated_at"] = int(time.time())
+                    u["sessions_valid_after_ms"] = _now_ms()
+                    self._save()
+                    return new_username
+            raise InvalidCredentials("Unknown user")
 
     def change_password(self, username: str, old: str, new: str) -> None:
         _validate_password(new)
