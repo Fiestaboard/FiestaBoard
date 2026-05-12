@@ -505,6 +505,61 @@ def test_reload_plugin_returns_none_on_failure(registry, mock_loader, mock_plugi
     assert result is None
 
 
+def test_reload_plugin_preserves_config_when_new_version_fails_validation(
+    registry, mock_loader, mock_plugin, mock_manifest
+):
+    """Regression test for GitHub issue #733.
+
+    When a plugin update ships a stricter settings_schema, the stored user
+    config may fail the new validate_config.  For a DISABLED plugin, the only
+    code path that sets plugin.config is set_plugin_config — which silently
+    returns without applying the config when validation fails.  This leaves
+    plugin.config empty so the plugin produces no output when later enabled.
+
+    For an enabled plugin, enable_plugin() applies the config directly (no
+    validation) before set_plugin_config is called, which masks the problem.
+    The bug is most visible for disabled-but-configured plugins.
+
+    After the fix, reload_plugin falls back to raw config assignment so the
+    user's existing settings survive the update even if they no longer pass
+    the new validation.
+    """
+    stored_config = {"api_key": "user-key", "city": "New York"}
+    mock_plugin.validate_config.return_value = []
+    mock_plugin._validate_refresh_seconds.return_value = []
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        # Plugin is DISABLED but has stored config — the path where the bug bites.
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "test_plugin": {"enabled": False, **stored_config}
+        }
+        registry.initialize()
+
+    # Verify the stored config was applied during initialization.
+    assert mock_plugin.config.get("api_key") == "user-key"
+
+    # Simulate an updated plugin whose validate_config rejects the old config
+    # (e.g. a new required field was added that the stored config doesn't have).
+    new_plugin = MagicMock(spec=PluginBase)
+    new_plugin.plugin_id = "test_plugin"
+    new_plugin.validate_config.return_value = ["Missing required field: new_field"]
+    new_plugin._validate_refresh_seconds.return_value = []
+    new_plugin.config = {}
+
+    mock_loader.reload_plugin.return_value = new_plugin
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+
+    result = registry.reload_plugin("test_plugin")
+
+    assert result is new_plugin
+    # The stored config must survive even though the new plugin rejects it.
+    assert new_plugin.config.get("api_key") == "user-key", (
+        "plugin.config was empty after reload — stored config was silently discarded"
+    )
+    assert registry.get_plugin_config("test_plugin").get("api_key") == "user-key"
+
+
 # --- get_load_errors ---
 
 

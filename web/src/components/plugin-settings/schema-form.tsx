@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -1080,8 +1080,29 @@ interface ArrayFieldProps extends FieldProps {
 }
 
 function ArrayField({ name, property, value, onChange, disabled, itemSchema }: ArrayFieldProps) {
-  const items = Array.isArray(value) ? value : [];
-  
+  const t = useTranslations("schemaForm");
+  const rawItems = Array.isArray(value) ? value : [];
+
+  // Track items with stable IDs so React doesn't reuse component instances
+  // when items are added or removed — index-based keys cause Radix UI portal
+  // cleanup to call removeChild on a detached node.
+  const nextId = useRef(0);
+  const [keyed, setKeyed] = useState<{ id: number; value: unknown }[]>(() =>
+    rawItems.map((v) => ({ id: nextId.current++, value: v }))
+  );
+
+  // Keep keyed list in sync when the parent value changes from outside
+  // (e.g. initial load or external reset), but only when the item count changes
+  // so we don't thrash the IDs on every keystroke.
+  useEffect(() => {
+    if (rawItems.length !== keyed.length) {
+      setKeyed(rawItems.map((v) => ({ id: nextId.current++, value: v })));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawItems.length]);
+
+  const items = keyed.map((k) => k.value);
+
   const handleAdd = () => {
     let defaultValue: unknown;
     if (itemSchema.type === "object") {
@@ -1095,27 +1116,31 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
     } else {
       defaultValue = null;
     }
-    onChange([...items, defaultValue]);
+    const newEntry = { id: nextId.current++, value: defaultValue };
+    const next = [...keyed, newEntry];
+    setKeyed(next);
+    onChange(next.map((k) => k.value));
   };
 
   const handleRemove = (index: number) => {
-    const newItems = items.filter((_, i) => i !== index);
-    onChange(newItems);
+    const next = keyed.filter((_, i) => i !== index);
+    setKeyed(next);
+    onChange(next.map((k) => k.value));
   };
 
   const handleItemChange = (index: number, newValue: unknown) => {
-    const newItems = [...items];
-    newItems[index] = newValue;
-    onChange(newItems);
+    const next = keyed.map((k, i) => (i === index ? { ...k, value: newValue } : k));
+    setKeyed(next);
+    onChange(next.map((k) => k.value));
   };
 
-  const canAdd = !property.maxItems || items.length < property.maxItems;
-  const canRemove = !property.minItems || items.length > property.minItems;
+  const canAdd = !property.maxItems || keyed.length < property.maxItems;
+  const canRemove = !property.minItems || keyed.length > property.minItems;
 
   return (
     <div className="space-y-3">
-      {items.map((item, index) => (
-        <div key={index} className="flex gap-2">
+      {keyed.map(({ id, value: item }, index) => (
+        <div key={id} className="flex gap-2">
           <div className="flex-1">
             {itemSchema.type === "object" && itemSchema.properties ? (
               <div className="grid gap-3 p-3 border rounded-lg bg-muted/30">

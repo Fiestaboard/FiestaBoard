@@ -799,8 +799,20 @@ class PluginRegistry:
                 if was_enabled:
                     self.enable_plugin(plugin_id)
                 if config:
-                    self.set_plugin_config(plugin_id, config)
-                
+                    errors = self.set_plugin_config(plugin_id, config)
+                    if errors:
+                        # New version's validate_config rejected the old config
+                        # (e.g. a required field was added/renamed).  Apply the
+                        # config directly so the user's data isn't silently lost.
+                        # The user can re-save through the UI to normalise it.
+                        logger.warning(
+                            "Config validation failed after reload for '%s': %s"
+                            " — applying raw config to avoid data loss",
+                            plugin_id, errors,
+                        )
+                        self._configs[plugin_id] = config
+                        plugin.config = config
+
                 return plugin
         
         return None
