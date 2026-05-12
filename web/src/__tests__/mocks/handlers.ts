@@ -1284,5 +1284,23 @@ export const handlers = [
       },
     });
   }),
+
+  // Auth endpoints — default to "disabled" so the Account section is hidden
+  // in unrelated component tests. Per-test handlers in test_auth_*.tsx
+  // override this with server.use(...).
+  http.get(`${API_BASE}/auth/status`, () => {
+    return HttpResponse.json({
+      enabled: false,
+      setup_required: false,
+      authenticated: false,
+      username: null,
+      mode: "disabled",
+      first_run: false,
+    });
+  }),
+
+  http.post(`${API_BASE}/auth/logout`, () => {
+    return HttpResponse.json({ status: "ok" });
+  }),
 ];
 

@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { AboutCard } from "@/components/settings/about-card";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
+import { AccountSection } from "@/components/account-section";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interval";
@@ -129,6 +130,7 @@ export default function SettingsPage() {
         </div>
 
         <TabsContent value="general" className="mt-0 space-y-6">
+          <AccountSection />
           <InstanceNameCard />
           <AppearanceSettings />
           <LanguageSettingsCard />

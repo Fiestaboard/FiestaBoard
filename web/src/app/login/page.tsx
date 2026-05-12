@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, ShieldAlert, ShieldCheck, Loader2 } from "lucide-react";
+import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,8 @@ type AuthStatus = {
   setup_required: boolean;
   authenticated: boolean;
   username: string | null;
+  mode: "enabled" | "disabled" | "undecided";
+  first_run: boolean;
 };
 
 async function fetchAuthStatus(): Promise<AuthStatus> {
@@ -77,6 +79,11 @@ export default function LoginPage() {
 
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // ``firstRunChoice`` tracks the local UI state of the first-run picker:
+  // ``null`` = show the picker; ``"enable"`` = drop into the setup form;
+  // ``"skip"`` = POST /auth/preference {enabled:false} and bounce home.
+  const [firstRunChoice, setFirstRunChoice] = useState<"enable" | "skip" | null>(null);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -184,6 +191,25 @@ export default function LoginPage() {
     [username, password, confirmPassword, router, redirectTo],
   );
 
+  const handleSkipAuth = useCallback(async () => {
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      const res = await postJson("/auth/preference", { enabled: false });
+      if (res.ok) {
+        router.replace(redirectTo);
+        return;
+      }
+      setFormError(
+        res.detail || `Could not disable authentication (${res.status}).`,
+      );
+    } catch {
+      setFormError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [router, redirectTo]);
+
   // --- Render states --------------------------------------------------------
 
   if (statusError) {
@@ -220,6 +246,56 @@ export default function LoginPage() {
         title="Redirecting…"
       >
         <p className="text-sm text-muted-foreground">One moment…</p>
+      </CenteredCard>
+    );
+  }
+
+  // First-run picker: the env var is unset and the admin hasn't chosen
+  // yet. Offer to lock the install down or keep it open.
+  if (status.first_run && firstRunChoice === null) {
+    return (
+      <CenteredCard
+        icon={<ShieldQuestion className="h-6 w-6 text-brand" />}
+        title="Secure this FiestaBoard?"
+        description="FiestaBoard ships with login enabled by default. Pick one — you can change your mind later by setting FIESTABOARD_AUTH_ENABLED."
+      >
+        <div className="space-y-3">
+          <Button
+            type="button"
+            variant="brand"
+            className="w-full"
+            onClick={() => setFirstRunChoice("enable")}
+            disabled={submitting}
+          >
+            <ShieldCheck className="h-4 w-4" /> Enable login (recommended)
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleSkipAuth}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Disabling…
+              </>
+            ) : (
+              "Continue without login"
+            )}
+          </Button>
+          {formError && (
+            <Alert variant="destructive">
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Choose <strong>Enable login</strong> if this FiestaBoard is
+            reachable from the public internet. Choose{" "}
+            <strong>Continue without login</strong> for a private LAN-only
+            install.
+          </p>
+        </div>
       </CenteredCard>
     );
   }
