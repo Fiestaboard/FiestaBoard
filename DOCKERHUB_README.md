@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://fiestaboard.app">Documentation</a> &bull;
   <a href="https://github.com/Fiestaboard/FiestaBoard">GitHub</a> &bull;
-  <a href="https://discord.gg/ujasGntNhQ">Discord</a>
+  <a href="https://discord.gg/JvN8y6ahaf">Discord</a>
 </p>
 
 ---

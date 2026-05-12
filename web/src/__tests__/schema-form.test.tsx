@@ -21,6 +21,94 @@ import { SchemaForm, type JSONSchema } from "@/components/plugin-settings";
  *     blur, so transient editing states (empty, "-", "1.") don't get parsed
  *     into NaN/undefined and round-trip back as the previous value.
  */
+/**
+ * Regression tests for GitHub issues #739:
+ *
+ * The ArrayField component used `t("removeItem")` without calling
+ * `useTranslations` — `t` was undefined, so clicking "Add" to add a first
+ * item caused a ReferenceError (t is not a function) when the remove button
+ * tried to render.  This manifested as the settings dialog appearing to freeze
+ * with no new ticker input appearing.
+ *
+ * Secondary issue: ArrayField used array index as React key.  When items are
+ * removed, React reuses the wrong component instances, which can cause Radix
+ * UI portal cleanup to call removeChild on a detached node.
+ */
+describe("SchemaForm - array fields (issue #739)", () => {
+  const symbolsSchema: JSONSchema = {
+    type: "object",
+    properties: {
+      symbols: {
+        type: "array",
+        title: "Stock Symbols",
+        description: "Symbols to track",
+        maxItems: 5,
+        items: { type: "string" },
+        "ui:widget": "stock-symbol-picker",
+      },
+    },
+  };
+
+  function ArrayHarness({ initial }: { initial: Record<string, unknown> }) {
+    const [values, setValues] = useState<Record<string, unknown>>(initial);
+    return <SchemaForm schema={symbolsSchema} values={values} onChange={setValues} />;
+  }
+
+  it("renders add button without crashing when symbols list is empty", () => {
+    const { getByRole } = render(<ArrayHarness initial={{ symbols: [] }} />);
+    expect(getByRole("button", { name: /add stock symbols/i })).toBeInTheDocument();
+  });
+
+  it("adds a new item when the add button is clicked (no crash on first add)", async () => {
+    const user = userEvent.setup();
+    const { getByRole, getAllByRole } = render(<ArrayHarness initial={{ symbols: [] }} />);
+
+    await user.click(getByRole("button", { name: /add stock symbols/i }));
+
+    // A text input for the new symbol should appear
+    const inputs = getAllByRole("textbox");
+    expect(inputs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("removes the correct item and leaves the right values", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    function ControlledHarness() {
+      const [values, setValues] = useState<Record<string, unknown>>({
+        symbols: ["AAPL", "MSFT", "GOOGL"],
+      });
+      return (
+        <SchemaForm
+          schema={symbolsSchema}
+          values={values}
+          onChange={(next) => {
+            setValues(next);
+            onChange(next);
+          }}
+        />
+      );
+    }
+
+    render(<ControlledHarness />);
+
+    // Remove the middle item (MSFT)
+    const removeButtons = screen.getAllByRole("button", { name: "Remove item" });
+    expect(removeButtons).toHaveLength(3);
+    await user.click(removeButtons[1]);
+
+    const last = onChange.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(last?.symbols).toEqual(["AAPL", "GOOGL"]);
+  });
+
+  it("renders remove buttons for pre-populated items without crashing", () => {
+    const { getAllByRole } = render(
+      <ArrayHarness initial={{ symbols: ["AAPL", "MSFT"] }} />
+    );
+    expect(getAllByRole("button", { name: "Remove item" })).toHaveLength(2);
+  });
+});
+
 describe("SchemaForm - editing fields with schema defaults", () => {
   function Harness({
     schema,

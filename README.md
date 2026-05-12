@@ -11,14 +11,14 @@
   <a href="https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fiestaboard/FiestaBoard/ci.yml?label=CI" alt="CI"></a>
   <a href="https://hub.docker.com/r/fiestaboard/fiestaboard"><img src="https://img.shields.io/badge/docker-fiestaboard-blue?logo=docker" alt="Docker"></a>
   <a href="https://fiestaboard.app"><img src="https://img.shields.io/badge/docs-fiestaboard.app-orange" alt="Documentation"></a>
-  <a href="https://discord.gg/ujasGntNhQ"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://discord.gg/JvN8y6ahaf"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 **FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22x6) and Note (15x3).
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/ujasGntNhQ)**
+**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/JvN8y6ahaf)**
 
 ---
 
@@ -285,7 +285,7 @@ Then go to **http://localhost:4420** — the service starts automatically once t
 ### Still stuck?
 
 - Check the full [Troubleshooting Guide](https://fiestaboard.app/docs/troubleshooting)
-- Ask in [Discord](https://discord.gg/ujasGntNhQ)
+- Ask in [Discord](https://discord.gg/JvN8y6ahaf)
 - [Open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) on GitHub
 
 ---
@@ -332,7 +332,7 @@ FiestaBoard/
 
 ## Accessibility
 
-FiestaBoard aims to meet [WCAG 2.2 Level AAA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/ujasGntNhQ).
+FiestaBoard aims to meet [WCAG 2.2 Level AAA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/JvN8y6ahaf).
 
 ---
 
