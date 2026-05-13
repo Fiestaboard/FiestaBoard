@@ -332,3 +332,31 @@ class TestCustomIndicatorTextAndPosition:
 
         assert sent is False
         service.vb_client.send_characters.assert_not_called()
+
+
+class TestSendTriggerContent:
+    """Tests for _send_trigger_content."""
+
+    def test_device_type_passed_to_get_dimensions(self, service):
+        """Regression #748: get_dimensions must receive device_type, not be called bare."""
+        with patch("src.main.get_settings_service") as mock_settings_svc, \
+             patch("src.main.get_dimensions") as mock_get_dims, \
+             patch.object(service, "_silence_device_type", return_value="note"):
+            mock_settings_svc.return_value.get_transition_settings.return_value = Mock(
+                strategy=None, step_interval_ms=500, step_size=1
+            )
+            mock_get_dims.return_value = Mock(rows=3, cols=15)
+
+            service._send_trigger_content("HELLO")
+
+        mock_get_dims.assert_called_once_with("note")
+
+    def test_returns_false_when_no_client(self):
+        svc = DisplayService()
+        svc.vb_client = None
+        assert svc._send_trigger_content("HELLO") is False
+
+    def test_returns_false_when_content_unchanged(self, service):
+        service._last_active_page_content = "SAME"
+        assert service._send_trigger_content("SAME") is False
+        service.vb_client.send_characters.assert_not_called()

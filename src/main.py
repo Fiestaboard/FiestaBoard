@@ -507,7 +507,7 @@ class DisplayService:
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
 
-        dims = get_dimensions()
+        dims = get_dimensions(self._silence_device_type())
         board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = self.vb_client.send_characters(
