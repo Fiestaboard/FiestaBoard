@@ -468,12 +468,23 @@ def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
             capture_output=True, text=True, timeout=30,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
         )
+        if ls_result.returncode == 0 and ls_result.stdout.strip():
+            # Output format: "<sha>\trefs/heads/<branch>"
+            return ls_result.stdout.strip().split()[0]
+
+        # The local branch name (e.g. "master") does not exist on the remote
+        # (e.g. remote default is "main").  This happens because git init
+        # creates "master" by default but most plugin repos use "main".
+        # Fall back to the remote's advertised HEAD ref so updates are still
+        # detected correctly regardless of local/remote branch name mismatch.
+        ls_result = subprocess.run(
+            ["git", "ls-remote", remote_url, "HEAD"],
+            capture_output=True, text=True, timeout=30,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
         if ls_result.returncode != 0 or not ls_result.stdout.strip():
             return None
-
-        # Output format: "<sha>\trefs/heads/<branch>"
-        sha = ls_result.stdout.strip().split()[0]
-        return sha
+        return ls_result.stdout.strip().split()[0]
     except (subprocess.SubprocessError, IndexError, OSError):
         return None
 
