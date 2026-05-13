@@ -564,6 +564,36 @@ class TestGetRemoteHeadSha:
         sha = get_remote_head_sha(d)
         assert sha == "deadbeef"
 
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_falls_back_to_remote_head_on_branch_mismatch(self, mock_run, tmp_path):
+        """When local branch (e.g. 'master') doesn't exist on remote (e.g. 'main'),
+        fall back to querying remote HEAD so updates are still detected."""
+        d = tmp_path / "plugin"
+        d.mkdir()
+        (d / ".git").mkdir()
+
+        def side_effect(cmd, **kwargs):
+            m = mock.Mock()
+            if "remote" in cmd:
+                m.returncode = 0
+                m.stdout = "https://github.com/Org/repo\n"
+            elif "rev-parse" in cmd:
+                m.returncode = 0
+                m.stdout = "master\n"  # local branch is "master"
+            elif "ls-remote" in cmd and "--heads" in cmd:
+                # remote has no "master" branch
+                m.returncode = 0
+                m.stdout = ""
+            elif "ls-remote" in cmd:
+                # fallback: remote HEAD
+                m.returncode = 0
+                m.stdout = "deadbeef\tHEAD\n"
+            return m
+
+        mock_run.side_effect = side_effect
+        sha = get_remote_head_sha(d)
+        assert sha == "deadbeef"
+
 
 class TestCheckPluginUpdateAvailable:
     @mock.patch("src.plugins.sources.get_local_head_sha", return_value="abc")
