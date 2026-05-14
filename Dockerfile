@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir fastapi uvicorn[standard] supervisor
 
 # --- Stage 2: Build Next.js UI ---
-FROM node:25-alpine AS ui-builder
+FROM node:26-alpine AS ui-builder
 
 ARG VERSION=dev
 
