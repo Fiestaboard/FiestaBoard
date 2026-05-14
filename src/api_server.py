@@ -1513,37 +1513,15 @@ async def system_update_check():
     return await _perform_update_check()
 
 
-_UPDATE_CHECK_CACHE_TTL = 3600  # seconds
-
-
 async def _perform_update_check() -> "UpdateCheckResponse":
     """Run the actual update check against Docker Hub / GitHub Releases.
 
     Extracted from the HTTP handler so the background scheduler (auto-update
     interval) can reuse it without going through the network stack.  Records
     ``last_check`` in the system update state file on every successful query.
-
-    Server-side result cache (TTL: 1 hour) prevents repeated network calls when
-    the frontend refreshes quickly or the Pi has slow/no outbound internet.
     Both source checks run in parallel to halve worst-case latency.
     """
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-
-    # --- Server-side cache: return the stored result if it is still fresh ----
-    try:
-        _cached_state = _system_update_state_load()
-        _cached_result = _cached_state.get("cached_result")
-        _last_check_raw = _cached_state.get("last_check")
-        if _cached_result and _last_check_raw:
-            _last_check_dt = datetime.fromisoformat(_last_check_raw)
-            if _last_check_dt.tzinfo is None:
-                _last_check_dt = _last_check_dt.replace(tzinfo=timezone.utc)
-            _age = (datetime.now(timezone.utc) - _last_check_dt).total_seconds()
-            if _age < _UPDATE_CHECK_CACHE_TTL:
-                logger.debug("system/update-check: returning cached result (age=%.0fs)", _age)
-                return UpdateCheckResponse(**_cached_result)
-    except Exception as _ce:
-        logger.debug("Could not read update-check cache (non-fatal): %s", _ce)
 
     try:
         # Run both source checks in parallel; prefer Docker Hub, fall back to GitHub.
@@ -1558,13 +1536,6 @@ async def _perform_update_check() -> "UpdateCheckResponse":
             try:
                 _state = _system_update_state_load()
                 _state["last_check"] = datetime.now(timezone.utc).isoformat()
-                _state["cached_result"] = {
-                    "current_version": __version__,
-                    "latest_version": latest_version,
-                    "update_available": update_available,
-                    "package_url": GITHUB_PACKAGE_URL,
-                    "is_production": is_production,
-                }
                 _system_update_state_save(_state)
             except Exception as e:
                 logger.debug("Could not persist update-check result (non-fatal): %s", e, exc_info=True)
