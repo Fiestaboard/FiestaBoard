@@ -5,7 +5,6 @@ as well as external plugin directories (registry and custom git sources).
 """
 
 import importlib.util
-import json
 import logging
 import re
 import sys
@@ -28,25 +27,10 @@ DEFAULT_PLUGINS_DIR = "plugins"
 # FiestaBoard version compatibility helpers
 # ---------------------------------------------------------------------------
 
-_FIESTABOARD_VERSION: Optional[str] = None
-
-
 def _get_fiestaboard_version() -> str:
-    """Return the running FiestaBoard version from package.json."""
-    global _FIESTABOARD_VERSION
-    if _FIESTABOARD_VERSION is not None:
-        return _FIESTABOARD_VERSION
-
-    project_root = Path(__file__).parent.parent.parent
-    pkg_path = project_root / "package.json"
-    try:
-        with open(pkg_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _FIESTABOARD_VERSION = data.get("version", "0.0.0")
-    except Exception:
-        _FIESTABOARD_VERSION = "0.0.0"
-
-    return _FIESTABOARD_VERSION
+    """Return the running FiestaBoard version."""
+    from .. import __version__
+    return __version__
 
 
 def _parse_version(version_str: str) -> Tuple[int, int, int]:
