@@ -307,7 +307,7 @@ def _get_configured_timezone() -> str:
         from .config import Config
         return Config.GENERAL_TIMEZONE
     except Exception:
-        return "America/Los_Angeles"
+        return "UTC"
 
 
 def get_time_service() -> TimeService:

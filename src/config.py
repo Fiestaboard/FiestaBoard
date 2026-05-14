@@ -158,7 +158,7 @@ class Config:
     @classproperty
     def WEATHER_LOCATION(cls) -> str:
         """Weather location."""
-        return cls._get_feature("weather").get("location", "San Francisco, CA")
+        return cls._get_feature("weather").get("location", "")
     
     @classproperty
     def WEATHER_LOCATIONS(cls) -> List[Dict[str, str]]:
@@ -198,7 +198,7 @@ class Config:
     @classproperty
     def TIMEZONE(cls) -> str:
         """Timezone for datetime display."""
-        return cls._get_feature("date_time").get("timezone", "America/Los_Angeles")
+        return cls._get_feature("date_time").get("timezone", "")
     
     @classproperty
     def DATETIME_ENABLED(cls) -> bool:
@@ -210,7 +210,7 @@ class Config:
     @classproperty
     def GENERAL_TIMEZONE(cls) -> str:
         """General timezone configuration (used as default for all time displays)."""
-        return cls._get_general().get("timezone", "America/Los_Angeles")
+        return cls._get_general().get("timezone", "")
     
     @classproperty
     def REFRESH_INTERVAL_SECONDS(cls) -> int:

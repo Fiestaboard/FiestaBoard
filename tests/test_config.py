@@ -229,7 +229,7 @@ class TestWeatherConfig:
         assert Config.WEATHER_LOCATION == "Boston, MA"
 
     def test_weather_location_default(self, mock_config_manager):
-        assert Config.WEATHER_LOCATION == "San Francisco, CA"
+        assert Config.WEATHER_LOCATION == ""
 
     def test_weather_enabled(self, mock_config_manager):
         mock_config_manager._feature_configs["weather"] = {"enabled": True}
@@ -282,7 +282,7 @@ class TestDateTimeConfig:
         assert Config.TIMEZONE == "Europe/London"
 
     def test_timezone_default(self, mock_config_manager):
-        assert Config.TIMEZONE == "America/Los_Angeles"
+        assert Config.TIMEZONE == ""
 
     def test_datetime_enabled(self, mock_config_manager):
         mock_config_manager._feature_configs["date_time"] = {"enabled": False}
@@ -304,7 +304,7 @@ class TestGeneralConfig:
 
     def test_general_timezone_default(self, mock_config_manager):
         mock_config_manager.get_general.return_value = {}
-        assert Config.GENERAL_TIMEZONE == "America/Los_Angeles"
+        assert Config.GENERAL_TIMEZONE == ""
 
     def test_refresh_interval_seconds(self, mock_config_manager):
         assert Config.REFRESH_INTERVAL_SECONDS == 600
