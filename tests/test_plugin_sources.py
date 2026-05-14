@@ -234,7 +234,28 @@ class TestCloneOrUpdateRepo:
         calls = [c[0][0] for c in mock_run.call_args_list]
         assert "init" in calls[0]
         assert "fetch" in calls[1]
+        assert calls[1][-1] == "HEAD", "Fresh install without branch must fetch 'HEAD' explicitly"
         assert "reset" in calls[2]
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_clone_fresh_with_explicit_branch(self, mock_run, tmp_path):
+        """Fresh install with an explicit branch fetches that branch, not HEAD."""
+        plugin_dest = tmp_path / "my_plugin"
+
+        def _fake_run(cmd, **kwargs):
+            if "init" in cmd:
+                plugin_dest.mkdir(parents=True, exist_ok=True)
+                (plugin_dest / ".git").mkdir(exist_ok=True)
+            return mock.MagicMock()
+
+        mock_run.side_effect = _fake_run
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo", "my_plugin", branch="develop", external_dir=tmp_path
+        )
+        assert ok, f"expected ok but got err={err!r}"
+        fetch_cmd = mock_run.call_args_list[1][0][0]
+        assert "fetch" in fetch_cmd
+        assert fetch_cmd[-1] == "develop", "Explicit branch should be the final fetch argument"
 
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_fetch_reset_existing(self, mock_run, tmp_path):
@@ -251,6 +272,10 @@ class TestCloneOrUpdateRepo:
         reset_cmd = mock_run.call_args_list[1][0][0]
         assert "fetch" in fetch_cmd
         assert "--depth=1" in fetch_cmd
+        # Must fetch "HEAD" explicitly so repos with multiple branches (e.g.
+        # gh-pages) don't leave FETCH_HEAD pointing at a non-default branch,
+        # which would cause every subsequent update-check to see a SHA mismatch.
+        assert fetch_cmd[-1] == "HEAD", "Update path must fetch 'origin HEAD', not bare 'origin'"
         assert "reset" in reset_cmd
         assert "FETCH_HEAD" in reset_cmd
 

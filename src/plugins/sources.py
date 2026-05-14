@@ -295,8 +295,13 @@ def clone_or_update_repo(
     plugins loaded from disk.
 
     Shallow clones (``--depth 1``) are handled correctly: we use
-    ``git fetch --depth=1 origin`` + ``git reset --hard FETCH_HEAD`` instead
-    of ``git pull --ff-only``, which fails on shallow histories.
+    ``git fetch --depth=1 origin HEAD`` + ``git reset --hard FETCH_HEAD``
+    instead of ``git pull --ff-only``, which fails on shallow histories.
+    Fetching the explicit ``HEAD`` refspec is critical: a bare ``git fetch
+    origin`` fetches all branches and sets ``FETCH_HEAD`` to an arbitrary one
+    (often alphabetically first, e.g. ``gh-pages`` before ``main``), causing
+    the subsequent reset to land on the wrong commit.  The next update-check
+    would then always see a SHA mismatch and report a spurious update.
 
     For fresh installs, rather than ``git clone`` (which would require passing
     a user-provided URL as a subprocess argument and trigger
@@ -348,7 +353,7 @@ def clone_or_update_repo(
     if os.path.isdir(os.path.join(_candidate, ".git")):
         try:
             subprocess.run(
-                ["git", "fetch", "--depth=1", "origin"],
+                ["git", "fetch", "--depth=1", "origin", "HEAD"],
                 cwd=_candidate,
                 check=True, capture_output=True, text=True,
                 timeout=120, env=env,
@@ -395,6 +400,8 @@ def clone_or_update_repo(
         _fetch_cmd = ["git", "fetch", "--depth=1", "origin"]
         if branch:
             _fetch_cmd.append(branch)
+        else:
+            _fetch_cmd.append("HEAD")
         subprocess.run(
             _fetch_cmd,
             cwd=_candidate,
