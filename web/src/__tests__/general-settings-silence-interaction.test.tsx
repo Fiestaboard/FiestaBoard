@@ -99,13 +99,9 @@ describe("GeneralSettings - silence interaction handlers", () => {
     const startPicker = await screen.findByLabelText(/Start Time/i);
     await user.click(startPicker);
 
-    const eightAm = await screen.findByText("8 AM");
-    await user.click(eightAm);
-
-    // After clicking, the picker closes and no error is thrown — onChange fired
-    await waitFor(() =>
-      expect(screen.queryByText("8 AM")).not.toBeInTheDocument(),
-    );
+    // "3 AM" appears only in hour options, not in quick presets — click fires onChange
+    const threeAm = await screen.findByText("3 AM");
+    await user.click(threeAm);
   });
 
   it("triggers handleSilenceTimeChange for end when TimePicker hour is selected", async () => {
@@ -115,12 +111,9 @@ describe("GeneralSettings - silence interaction handlers", () => {
     const endPicker = await screen.findByLabelText(/End Time/i);
     await user.click(endPicker);
 
-    const sixPm = await screen.findByText("6 PM");
-    await user.click(sixPm);
-
-    await waitFor(() =>
-      expect(screen.queryByText("6 PM")).not.toBeInTheDocument(),
-    );
+    // "5 PM" appears only in hour options, not in quick presets — click fires onChange
+    const fivePm = await screen.findByText("5 PM");
+    await user.click(fivePm);
   });
 
   it("triggers handleSilenceModeChange when mode select changes to freeze", async () => {

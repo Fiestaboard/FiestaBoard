@@ -138,6 +138,8 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "45" } });
+    // Wait for React state to settle before blur so the handler sees the new value
+    await waitFor(() => expect(parseInt(input.value, 10)).toBe(45));
     fireEvent.blur(input);
 
     await waitFor(() => {
@@ -166,6 +168,7 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "90" } });
+    await waitFor(() => expect(parseInt(input.value, 10)).toBe(90));
     fireEvent.blur(input);
 
     await waitFor(() => {
@@ -194,6 +197,7 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "5" } });
+    await waitFor(() => expect(parseInt(input.value, 10)).toBe(5));
     fireEvent.blur(input);
 
     await waitFor(() => {
