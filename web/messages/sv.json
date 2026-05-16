@@ -459,7 +459,8 @@
     "toastSetActivePage": "Ställde in \"{pageName}\" som aktiv sida",
     "toastSetDefaultFailed": "Kunde inte ställa in standardsida",
     "toastSwitchSuccess": "Bytte till aktiv sida",
-    "toastSwitchFailed": "Kunde inte byta sida"
+    "toastSwitchFailed": "Kunde inte byta sida",
+    "updatedExternally": "Updated externally"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan inte nå appen. Kontrollera nätverket eller att FiestaBoard körs.",
@@ -762,7 +763,14 @@
     "positionTopRight": "Top right",
     "positionCenter": "Center",
     "positionBottomLeft": "Bottom left",
-    "positionBottomRight": "Bottom right"
+    "positionBottomRight": "Bottom right",
+    "boardReadIntervalLocalLabel": "Board State Refresh (Local)",
+    "boardReadIntervalLocalDescription": "How often to read the actual board state over the local network (seconds). Minimum 20.",
+    "boardReadIntervalCloudLabel": "Board State Refresh (Cloud)",
+    "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
+    "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
+    "toastBoardReadIntervalUpdated": "Board read interval updated",
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Växla tema"

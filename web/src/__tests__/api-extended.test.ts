@@ -714,7 +714,7 @@ describe("API Extended Tests", () => {
     });
 
     it("updatePollingSettings sends interval", async () => {
-      const result = await api.updatePollingSettings(600);
+      const result = await api.updatePollingSettings({ interval_seconds: 600 });
       expect(result.status).toBe("success");
       expect(result.settings.interval_seconds).toBe(600);
     });

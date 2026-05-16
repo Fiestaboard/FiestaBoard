@@ -459,7 +459,8 @@
     "toastSetActivePage": "\"{pageName}\"을(를) 활성 페이지로 설정했습니다",
     "toastSetDefaultFailed": "기본 페이지 설정에 실패했습니다",
     "toastSwitchSuccess": "활성 페이지로 전환되었습니다",
-    "toastSwitchFailed": "페이지 전환에 실패했습니다"
+    "toastSwitchFailed": "페이지 전환에 실패했습니다",
+    "updatedExternally": "Updated externally"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "앱에 연결할 수 없습니다. 네트워크 또는 FiestaBoard 실행 여부를 확인하세요.",
@@ -762,7 +763,14 @@
     "positionTopRight": "Top right",
     "positionCenter": "Center",
     "positionBottomLeft": "Bottom left",
-    "positionBottomRight": "Bottom right"
+    "positionBottomRight": "Bottom right",
+    "boardReadIntervalLocalLabel": "Board State Refresh (Local)",
+    "boardReadIntervalLocalDescription": "How often to read the actual board state over the local network (seconds). Minimum 20.",
+    "boardReadIntervalCloudLabel": "Board State Refresh (Cloud)",
+    "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
+    "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
+    "toastBoardReadIntervalUpdated": "Board read interval updated",
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
   },
   "themeToggle": {
     "toggleTheme": "테마 전환"
