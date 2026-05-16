@@ -460,10 +460,10 @@
     "toastSetDefaultFailed": "Не удалось установить страницу по умолчанию",
     "toastSwitchSuccess": "Переключено на активную страницу",
     "toastSwitchFailed": "Не удалось переключить страницу",
-    "updatedExternally": "Updated externally",
-    "resendToBoard": "Resend FiestaBoard page",
-    "toastResendSuccess": "Page resent to board",
-    "toastResendFailed": "Failed to resend page"
+    "updatedExternally": "Board was changed by another app",
+    "resendToBoard": "Restore",
+    "toastResendSuccess": "Board restored",
+    "toastResendFailed": "Failed to restore board"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Не удаётся подключиться к приложению. Проверьте сеть или запущен ли FiestaBoard.",
