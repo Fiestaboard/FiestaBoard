@@ -89,7 +89,7 @@ describe("Plugin Instance API", () => {
           })
         )
       );
-      await expect(api.createPluginInstance("weather", "sf")).rejects.toThrow("400");
+      await expect(api.createPluginInstance("weather", "sf")).rejects.toThrow("Label already exists");
     });
 
     it("throws when plugin system unavailable (503)", async () => {
@@ -140,7 +140,7 @@ describe("Plugin Instance API", () => {
           })
         )
       );
-      await expect(api.deletePluginInstance("weather", "sf")).rejects.toThrow("400");
+      await expect(api.deletePluginInstance("weather", "sf")).rejects.toThrow("Instance not found");
     });
 
     it("throws when plugin system unavailable (503)", async () => {

@@ -367,7 +367,9 @@ def clone_or_update_repo(
             logger.info("Updated existing plugin clone at %s", _candidate)
             return True, ""
         except subprocess.SubprocessError as exc:
-            return False, f"git fetch/reset failed: {exc}"
+            stderr = (getattr(exc, "stderr", None) or "").strip()
+            msg = f"git fetch/reset failed: {stderr}" if stderr else f"git fetch/reset failed: {exc}"
+            return False, msg
 
     # ── Fresh install — validate URL and optional branch ──────────────────────
     ok, err = _validate_git_url(repo_url)
@@ -418,7 +420,9 @@ def clone_or_update_repo(
         return True, ""
     except subprocess.SubprocessError as exc:
         shutil.rmtree(_candidate, ignore_errors=True)
-        return False, f"git clone failed: {exc}"
+        stderr = (getattr(exc, "stderr", None) or "").strip()
+        msg = f"git clone failed: {stderr}" if stderr else f"git clone failed: {exc}"
+        return False, msg
     except OSError as exc:
         shutil.rmtree(_candidate, ignore_errors=True)
         return False, f"git clone failed (I/O error): {exc}"

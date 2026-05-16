@@ -1083,7 +1083,16 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
     throw err;
   }
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    let detail = `API error: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.detail) {
+        detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+      }
+    } catch {
+      // ignore JSON parse errors; use status text fallback
+    }
+    throw new Error(detail);
   }
   return res.json();
 }

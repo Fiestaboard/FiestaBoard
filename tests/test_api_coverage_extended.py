@@ -585,6 +585,36 @@ class TestPluginManagement:
             resp = client.post("/plugins/install", json={"repository": "https://github.com/example/repo"})
         assert resp.status_code == 503
 
+    def test_install_plugin_arbitrary_branch_accepted(self, client):
+        mock_registry = Mock()
+        mock_registry.install_from_git.return_value = []
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry), \
+             patch("src.plugins.sources.repo_name_from_url", return_value="repo"), \
+             patch("src.plugins.sources.plugin_id_from_repo_name", return_value="repo"):
+            resp = client.post("/plugins/install", json={
+                "repository": "https://github.com/example/repo",
+                "branch": "release/2.0",
+            })
+        assert resp.status_code == 200
+
+    def test_install_plugin_invalid_branch_rejected(self, client):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+            resp = client.post("/plugins/install", json={
+                "repository": "https://github.com/example/repo",
+                "branch": "-bad-branch",
+            })
+        assert resp.status_code == 400
+
+    def test_install_plugin_error_detail_in_response(self, client):
+        mock_registry = Mock()
+        mock_registry.install_from_git.return_value = ["fatal: repository not found"]
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_plugin_registry", return_value=mock_registry):
+            resp = client.post("/plugins/install", json={"repository": "https://github.com/example/repo"})
+        assert resp.status_code == 400
+        assert "repository not found" in resp.json()["detail"]
+
 
 # ---------------------------------------------------------------------------
 # Generic Data Test Fetch (lines 4985-5055)
