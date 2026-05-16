@@ -7734,12 +7734,10 @@ async def generic_data_test_fetch(request: dict):
 
     host = urlparse(url).hostname or ""
     allowed_hosts = _get_generic_data_allowed_hosts()
-    if not allowed_hosts:
-        raise HTTPException(
-            status_code=400,
-            detail="No allowed hosts configured for generic-data test fetch",
-        )
-    if not _is_host_allowed(host, allowed_hosts):
+    # When GENERIC_DATA_ALLOWED_HOSTS is set, enforce the allowlist.
+    # When it is unset, _validate_request_url above already blocks SSRF
+    # (private IPs, loopback, .local) so we allow any public host.
+    if allowed_hosts and not _is_host_allowed(host, allowed_hosts):
         raise HTTPException(
             status_code=400,
             detail="URL host is not in the allowlist",

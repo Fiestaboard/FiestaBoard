@@ -568,3 +568,27 @@ class TestSSRFProtection:
              patch("requests.request", return_value=mock_resp):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
         assert resp.status_code == 200
+
+    def test_allows_public_domain_when_no_allowlist_configured(self, client, mock_cm):
+        """When GENERIC_DATA_ALLOWED_HOSTS is unset, any public host should be allowed."""
+        mock_resp = Mock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = b'{"ok": true}'
+        mock_resp.json.return_value = {"ok": True}
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=[]), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
+             patch("requests.request", return_value=mock_resp):
+            resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
+        assert resp.status_code == 200
+
+    def test_rejects_host_not_in_allowlist(self, client, mock_cm):
+        """When GENERIC_DATA_ALLOWED_HOSTS is set, hosts outside the list are rejected."""
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
+             patch("src.api_server.get_config_manager", return_value=mock_cm), \
+             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["myapi.com"]), \
+             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO):
+            resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
+        assert resp.status_code == 400
+        assert "allowlist" in resp.json()["detail"]
