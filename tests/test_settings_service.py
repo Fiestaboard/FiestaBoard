@@ -123,7 +123,10 @@ class TestPollingSettings:
 
     def test_to_dict(self):
         ps = PollingSettings(interval_seconds=15)
-        assert ps.to_dict() == {"interval_seconds": 15}
+        d = ps.to_dict()
+        assert d["interval_seconds"] == 15
+        assert d["board_read_interval_local"] == 30
+        assert d["board_read_interval_cloud"] == 180
 
 
 # ==================== BoardSettings ====================

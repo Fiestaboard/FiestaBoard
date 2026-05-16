@@ -459,7 +459,8 @@
     "toastSetActivePage": "Set \"{pageName}\" as active page",
     "toastSetDefaultFailed": "Failed to set default page",
     "toastSwitchSuccess": "Switched to active page",
-    "toastSwitchFailed": "Failed to switch page"
+    "toastSwitchFailed": "Failed to switch page",
+    "updatedExternally": "Updated externally"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Cannot reach the app. Check your network or that FiestaBoard is running.",
@@ -727,6 +728,13 @@
     "boardUpdateIntervalLabel": "Board Update Interval",
     "boardUpdateIntervalDescription": "How often the board checks for content updates (in seconds)",
     "requiresServiceRestart": "Requires service restart",
+    "boardReadIntervalLocalLabel": "Board State Refresh (Local)",
+    "boardReadIntervalLocalDescription": "How often to read the actual board state over the local network (seconds). Minimum 20.",
+    "boardReadIntervalCloudLabel": "Board State Refresh (Cloud)",
+    "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
+    "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
+    "toastBoardReadIntervalUpdated": "Board read interval updated",
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
     "silenceScheduleLabel": "Silence Schedule",
     "silenceScheduleDescription": "Prevent board updates during specified hours",
     "startTimeLabel": "Start Time",

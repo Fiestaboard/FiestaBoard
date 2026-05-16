@@ -37,6 +37,8 @@ export function GeneralSettings() {
   const [silenceIndicatorText, setSilenceIndicatorText] = useState<string>("SNOOZING");
   const [silenceIndicatorPosition, setSilenceIndicatorPosition] = useState<string>("center");
   const [pollingInterval, setPollingInterval] = useState(15);
+  const [boardReadIntervalLocal, setBoardReadIntervalLocal] = useState(30);
+  const [boardReadIntervalCloud, setBoardReadIntervalCloud] = useState(180);
 
   // Fetch all settings in one request
   const { data: allSettings, isLoading: isLoadingSettings } = useQuery({
@@ -92,6 +94,8 @@ export function GeneralSettings() {
   useEffect(() => {
     if (deferredPollingSettings) {
       setPollingInterval(deferredPollingSettings.interval_seconds);
+      setBoardReadIntervalLocal(deferredPollingSettings.board_read_interval_local ?? 30);
+      setBoardReadIntervalCloud(deferredPollingSettings.board_read_interval_cloud ?? 180);
     }
   }, [deferredPollingSettings]);
 
@@ -116,7 +120,8 @@ export function GeneralSettings() {
 
   // Update polling settings mutation
   const updatePollingMutation = useMutation({
-    mutationFn: (interval: number) => api.updatePollingSettings(interval),
+    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) =>
+      api.updatePollingSettings(updates),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
       if (data.requires_restart) {
@@ -133,12 +138,41 @@ export function GeneralSettings() {
     },
   });
 
+  // Update board read interval mutation (separate so it doesn't trigger restart toast)
+  const updateBoardReadIntervalMutation = useMutation({
+    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) =>
+      api.updatePollingSettings(updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
+      toast.success(t("toastBoardReadIntervalUpdated"));
+    },
+    onError: (error: Error) => {
+      toast.error(t("toastBoardReadIntervalFailed", { error: error.message }));
+    },
+  });
+
   const handlePollingIntervalChange = (value: string) => {
     const interval = parseInt(value, 10);
     if (!isNaN(interval) && interval >= 10) {
       setPollingInterval(interval);
       setHasChanges(true);
     }
+  };
+
+  const handlePollingIntervalBlur = () => {
+    updatePollingMutation.mutate({ interval_seconds: pollingInterval });
+  };
+
+  const handleBoardReadIntervalLocalBlur = () => {
+    const clamped = Math.max(20, boardReadIntervalLocal);
+    setBoardReadIntervalLocal(clamped);
+    updateBoardReadIntervalMutation.mutate({ board_read_interval_local: clamped });
+  };
+
+  const handleBoardReadIntervalCloudBlur = () => {
+    const clamped = Math.max(20, boardReadIntervalCloud);
+    setBoardReadIntervalCloud(clamped);
+    updateBoardReadIntervalMutation.mutate({ board_read_interval_cloud: clamped });
   };
 
   const handleSilenceToggle = (checked: boolean) => {
@@ -256,12 +290,74 @@ export function GeneralSettings() {
                     max={3600}
                     value={pollingInterval}
                     onChange={(e) => handlePollingIntervalChange(e.target.value)}
+                    onBlur={handlePollingIntervalBlur}
                     disabled={isSaving}
                     className="w-32"
                   />
                   <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">{t("requiresServiceRestart")}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Board State Read Intervals */}
+          <div className="py-5">
+            {isLoadingPolling ? (
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Local interval */}
+                <div>
+                  <Label htmlFor="board-read-local" className="text-sm font-medium">{t("boardReadIntervalLocalLabel")}</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-3">{t("boardReadIntervalLocalDescription")}</p>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="board-read-local"
+                      type="number"
+                      min={20}
+                      max={3600}
+                      value={boardReadIntervalLocal}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (!isNaN(v)) setBoardReadIntervalLocal(v);
+                      }}
+                      onBlur={handleBoardReadIntervalLocalBlur}
+                      disabled={updateBoardReadIntervalMutation.isPending}
+                      className="w-32"
+                    />
+                    <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
+                  </div>
+                </div>
+                {/* Cloud interval */}
+                <div>
+                  <Label htmlFor="board-read-cloud" className="text-sm font-medium">{t("boardReadIntervalCloudLabel")}</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-3">{t("boardReadIntervalCloudDescription")}</p>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="board-read-cloud"
+                      type="number"
+                      min={20}
+                      max={3600}
+                      value={boardReadIntervalCloud}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (!isNaN(v)) setBoardReadIntervalCloud(v);
+                      }}
+                      onBlur={handleBoardReadIntervalCloudBlur}
+                      disabled={updateBoardReadIntervalMutation.isPending}
+                      className="w-32"
+                    />
+                    <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
+                  </div>
+                  {boardReadIntervalCloud < 60 && (
+                    <p className="text-xs text-warning mt-2">{t("boardReadIntervalWarning")}</p>
+                  )}
+                </div>
               </div>
             )}
           </div>

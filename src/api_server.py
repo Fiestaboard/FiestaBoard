@@ -2604,26 +2604,40 @@ def _characters_to_message(characters: list) -> str:
 
 
 @app.get("/board/current-message")
-async def get_board_current_message():
-    """Read the message currently displayed on the physical board.
+async def get_board_current_message(force: bool = False):
+    """Return the current state of the physical board.
 
-    Calls the board API (Local or Cloud) to retrieve the live character grid
-    and converts it to the standard message string format used by the UI.
+    Normally serves from the cached result of the background poll thread
+    (updated every 30 s local / 3 min cloud) so callers don't hammer the
+    Vestaboard API.  Pass ?force=true to trigger a live read instead.
 
     Returns:
-        characters: Raw 2-D character code grid (list of lists of ints)
-        message:    Message string suitable for rendering in BoardDisplay
-        rows:       Number of rows in the grid
-        cols:       Number of columns in the grid
+        characters:          Actual 2-D grid currently on the board
+        message:             Formatted string suitable for BoardDisplay
+        rows / cols:         Grid dimensions
+        expected_characters: What FiestaBoard last sent (None until first send)
+        cached_at:           ISO timestamp of last poll, or null on live read
+        api_mode:            "local" or "cloud"
     """
     service = get_service()
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Board client not initialized")
 
-    characters = await asyncio.to_thread(service.vb_client.read_current_message)
+    api_mode = "cloud" if getattr(service.vb_client, "use_cloud", False) else "local"
+    expected_characters = service.vb_client._last_characters
 
-    if characters is None:
-        raise HTTPException(status_code=503, detail="Failed to read current board message")
+    if force or service._polled_characters is None:
+        # No cached data yet (startup) or caller wants a live read — hit the board directly
+        characters = await asyncio.to_thread(service.vb_client.read_current_message)
+        if characters is None:
+            raise HTTPException(status_code=503, detail="Failed to read current board message")
+        # Prime the cache so subsequent requests are fast
+        service._polled_characters = characters
+        service._polled_at = time.time()
+        cached_at = None
+    else:
+        characters = service._polled_characters
+        cached_at = datetime.fromtimestamp(service._polled_at, tz=timezone.utc).isoformat()
 
     message = _characters_to_message(characters)
     rows = len(characters)
@@ -2634,6 +2648,9 @@ async def get_board_current_message():
         "message": message,
         "rows": rows,
         "cols": cols,
+        "expected_characters": expected_characters,
+        "cached_at": cached_at,
+        "api_mode": api_mode,
     }
 
 
@@ -4844,33 +4861,38 @@ async def get_polling_settings():
     """Get current polling interval settings."""
     settings_service = get_settings_service()
     polling = settings_service.get_polling_settings()
-    return {
-        "interval_seconds": polling.interval_seconds
-    }
+    return polling.to_dict()
 
 
 @app.put("/settings/polling")
 async def update_polling_settings(request: dict):
     """
     Update polling interval settings.
-    
-    Body should include:
-    - interval_seconds: Polling interval in seconds (minimum 10)
-    
-    Note: Changing this setting requires restarting the service to take effect.
+
+    Accepted body fields:
+    - interval_seconds: How often FiestaBoard checks active page (min 10, requires restart)
+    - board_read_interval_local: How often to read board state in local mode (min 20)
+    - board_read_interval_cloud: How often to read board state in cloud mode (min 20)
     """
-    if "interval_seconds" not in request:
-        raise HTTPException(status_code=400, detail="interval_seconds parameter required")
-    
     settings_service = get_settings_service()
-    
+    requires_restart = False
+
     try:
-        interval_seconds = int(request["interval_seconds"])
-        polling = settings_service.set_polling_interval(interval_seconds)
+        if "interval_seconds" in request:
+            interval_seconds = int(request["interval_seconds"])
+            settings_service.set_polling_interval(interval_seconds)
+            requires_restart = True
+
+        if "board_read_interval_local" in request or "board_read_interval_cloud" in request:
+            local = int(request["board_read_interval_local"]) if "board_read_interval_local" in request else None
+            cloud = int(request["board_read_interval_cloud"]) if "board_read_interval_cloud" in request else None
+            settings_service.set_board_read_intervals(local_seconds=local, cloud_seconds=cloud)
+
+        polling = settings_service.get_polling_settings()
         return {
             "status": "success",
             "settings": polling.to_dict(),
-            "requires_restart": True
+            "requires_restart": requires_restart,
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -5229,9 +5251,7 @@ async def get_all_settings():
     return {
         "general": general,
         "silence_schedule": {"config": silence_feature},
-        "polling": {
-            "interval_seconds": polling.interval_seconds
-        },
+        "polling": polling.to_dict(),
         "transitions": {**transitions.to_dict(), "available_strategies": VALID_STRATEGIES},
         "output": output.to_dict(),
         "board": board.to_dict(),

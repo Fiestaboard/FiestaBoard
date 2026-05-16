@@ -75,21 +75,34 @@ class ActivePageSettings:
         return cls(page_id=data.get("page_id"))
 
 
+BOARD_READ_INTERVAL_MIN = 20  # Hard floor: no faster than once every 20 seconds
+
 @dataclass
 class PollingSettings:
     """Polling interval settings for board updates."""
     interval_seconds: int = 15  # Default to 15 seconds
-    
+    board_read_interval_local: int = 30   # How often to read board state in local mode
+    board_read_interval_cloud: int = 180  # How often to read board state in cloud mode (3 min)
+
     def to_dict(self) -> dict:
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "PollingSettings":
         interval = data.get("interval_seconds", 15)
-        # Ensure minimum of 10 seconds to avoid overloading
         if interval < 10:
             interval = 10
-        return cls(interval_seconds=interval)
+        read_local = data.get("board_read_interval_local", 30)
+        if read_local < BOARD_READ_INTERVAL_MIN:
+            read_local = BOARD_READ_INTERVAL_MIN
+        read_cloud = data.get("board_read_interval_cloud", 180)
+        if read_cloud < BOARD_READ_INTERVAL_MIN:
+            read_cloud = BOARD_READ_INTERVAL_MIN
+        return cls(
+            interval_seconds=interval,
+            board_read_interval_local=read_local,
+            board_read_interval_cloud=read_cloud,
+        )
 
 
 BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key"}
@@ -613,19 +626,44 @@ class SettingsService:
     
     def set_polling_interval(self, interval_seconds: int) -> PollingSettings:
         """Set the polling interval.
-        
+
         Args:
             interval_seconds: Polling interval in seconds (minimum 10)
-            
+
         Returns:
             Updated PollingSettings
         """
         if interval_seconds < 10:
             raise ValueError("Polling interval must be at least 10 seconds")
-        
+
         self._polling.interval_seconds = interval_seconds
         self._save_to_file()
         logger.info(f"Polling interval set to: {interval_seconds} seconds")
+        return self._polling
+
+    def set_board_read_intervals(
+        self,
+        local_seconds: int | None = None,
+        cloud_seconds: int | None = None,
+    ) -> PollingSettings:
+        """Set the board state read polling intervals.
+
+        Args:
+            local_seconds: Read interval for local-API boards (minimum 20)
+            cloud_seconds: Read interval for cloud-API boards (minimum 20)
+
+        Returns:
+            Updated PollingSettings
+        """
+        if local_seconds is not None:
+            if local_seconds < BOARD_READ_INTERVAL_MIN:
+                raise ValueError(f"Board read interval must be at least {BOARD_READ_INTERVAL_MIN} seconds")
+            self._polling.board_read_interval_local = local_seconds
+        if cloud_seconds is not None:
+            if cloud_seconds < BOARD_READ_INTERVAL_MIN:
+                raise ValueError(f"Board read interval must be at least {BOARD_READ_INTERVAL_MIN} seconds")
+            self._polling.board_read_interval_cloud = cloud_seconds
+        self._save_to_file()
         return self._polling
     
     def get_polling_settings(self) -> PollingSettings:

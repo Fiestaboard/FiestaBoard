@@ -1,9 +1,10 @@
 """Main application entry point for FiestaBoard Display Service."""
 
 import logging
+import threading
 import time
 import signal
-from typing import Optional
+from typing import List, Optional
 
 import schedule
 
@@ -36,12 +37,17 @@ class DisplayService:
         """Initialize the display service."""
         self.running = True
         self.vb_client: Optional[BoardClient] = None
-        
+
         # Active page polling state
         self._last_active_page_content: Optional[str] = None
         self._last_active_page_id: Optional[str] = None
         self._last_silence_mode_active: bool = False
         self._snoozing_message_sent: bool = False
+
+        # Board state polling (background thread reads actual board state)
+        self._polled_characters: Optional[List[List[int]]] = None
+        self._polled_at: Optional[float] = None
+        self._poll_thread: Optional[threading.Thread] = None
     
     def _build_board_clients(self):
         """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
@@ -79,6 +85,10 @@ class DisplayService:
         try:
             self._build_board_clients()
             if self.vb_client:
+                # Clear stale polled state from the old config; poll thread will
+                # populate it again on its next iteration using the new client.
+                self._polled_characters = None
+                self._polled_at = None
                 logger.info("Board client reinitialized successfully")
                 return True
             return False
@@ -86,15 +96,36 @@ class DisplayService:
             logger.error(f"Failed to reinitialize board client: {e}")
             return False
     
+    def _get_board_read_interval(self) -> int:
+        """Return the board-state read poll interval in seconds based on API mode."""
+        polling = get_settings_service().get_polling_settings()
+        use_cloud = getattr(self.vb_client, 'use_cloud', False) if self.vb_client else False
+        return polling.board_read_interval_cloud if use_cloud else polling.board_read_interval_local
+
+    def _board_poll_loop(self) -> None:
+        """Background thread: periodically read actual board state and cache it."""
+        while self.running:
+            interval = self._get_board_read_interval()
+            try:
+                if self.vb_client:
+                    chars = self.vb_client.read_current_message()
+                    if chars:
+                        self._polled_characters = chars
+                        self._polled_at = time.time()
+                        logger.debug("Board state poll succeeded")
+            except Exception as e:
+                logger.debug(f"Board state poll failed: {e}")
+            time.sleep(interval)
+
     def initialize(self) -> bool:
         """Initialize all components."""
         logger.info("Initializing FiestaBoard Display Service...")
-        
+
         # Validate configuration
         if not Config.validate():
             logger.error("Configuration validation failed")
             return False
-        
+
         # Initialize board client from settings.boards (first board) or Config
         try:
             self._build_board_clients()
@@ -109,11 +140,17 @@ class DisplayService:
         except Exception as e:
             logger.error(f"Failed to initialize board client: {e}")
             return False
-        
+
+        # Start background thread that reads the actual board state periodically
+        self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
+        self._poll_thread.start()
+        interval = self._get_board_read_interval()
+        logger.info(f"Board state poll started (interval={interval}s)")
+
         # Log configuration summary
         summary = Config.get_summary()
         logger.info(f"Configuration: {summary}")
-        
+
         return True
     
     @staticmethod
