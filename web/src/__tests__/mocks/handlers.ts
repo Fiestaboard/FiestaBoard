@@ -983,7 +983,7 @@ export const handlers = [
           end_time: "15:00+00:00",
         },
       },
-      polling: { interval_seconds: 300 },
+      polling: { interval_seconds: 300, board_read_interval_local: 30, board_read_interval_cloud: 180 },
       transitions: mockTransitionSettings,
       output: mockOutputSettings,
       board: {
