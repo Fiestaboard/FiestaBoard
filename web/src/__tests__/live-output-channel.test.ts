@@ -7,14 +7,14 @@ import {
 
 const STORAGE_KEY = "fiestaboard:liveOutputMessage";
 
-// CodeQL's StorageEvent extern only recognises the one-argument constructor, so
-// we build the event without the init dict and define key/newValue as own
-// properties that shadow the read-only prototype getters.
+// CodeQL's StorageEvent extern takes zero constructor arguments, so we dispatch
+// a plain Event and attach key/newValue as own properties. The handler in
+// live-output-channel.ts only reads those two fields, so the cast is safe.
 function fireStorageEvent(key: string | null, newValue: string | null): void {
-  const event = new StorageEvent("storage");
+  const event = new Event("storage");
   Object.defineProperty(event, "key", { value: key, configurable: true });
   Object.defineProperty(event, "newValue", { value: newValue, configurable: true });
-  window.dispatchEvent(event);
+  window.dispatchEvent(event as StorageEvent);
 }
 
 describe("live-output-channel", () => {
