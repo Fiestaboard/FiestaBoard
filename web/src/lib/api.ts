@@ -1083,7 +1083,7 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
     throw err;
   }
   if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`;
+    let detail = `API error: ${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
       if (body?.detail) {
