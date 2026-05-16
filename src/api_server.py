@@ -7741,7 +7741,25 @@ async def generic_data_test_fetch(request: dict):
 
     # Validate the URL: scheme must be http(s) and credentials are not allowed
     # (defence against SSRF/credential leaks).
-    _validate_request_url(url)
+    _SSRF_BLOCKED_DETAILS = {
+        "URL must not target internal network resources",
+        "URL host is not allowed",
+        "URL host resolves to a non-public IP",
+    }
+    try:
+        _validate_request_url(url)
+    except HTTPException as _url_exc:
+        if _url_exc.detail in _SSRF_BLOCKED_DETAILS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Test & Preview can't reach local or private network addresses "
+                    f"({urlparse(url).hostname}). This restriction only applies to the "
+                    "preview feature — your plugin will still fetch this URL normally "
+                    "when your page runs."
+                ),
+            )
+        raise
     # Re-derive url from a strict allowlist regex so the downstream HTTP call is not
     # tracked as tainted by static-analysis tools (py/full-ssrf).
     _safe_url_m = re.fullmatch(
@@ -7754,12 +7772,10 @@ async def generic_data_test_fetch(request: dict):
 
     host = urlparse(url).hostname or ""
     allowed_hosts = _get_generic_data_allowed_hosts()
-    if not allowed_hosts:
-        raise HTTPException(
-            status_code=400,
-            detail="No allowed hosts configured for generic-data test fetch",
-        )
-    if not _is_host_allowed(host, allowed_hosts):
+    # When GENERIC_DATA_ALLOWED_HOSTS is set, enforce the allowlist.
+    # When it is unset, _validate_request_url above already blocks SSRF
+    # (private IPs, loopback, .local) so we allow any public host.
+    if allowed_hosts and not _is_host_allowed(host, allowed_hosts):
         raise HTTPException(
             status_code=400,
             detail="URL host is not in the allowlist",
