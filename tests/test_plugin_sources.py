@@ -370,6 +370,40 @@ class TestCloneOrUpdateRepoPathSafety:
         assert err == ""
 
 
+class TestCloneOrUpdateRepoErrorMessages:
+    """Stderr from CalledProcessError should appear in the returned error string."""
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_fresh_clone_includes_stderr(self, mock_run, tmp_path):
+        exc = subprocess.CalledProcessError(128, ["git", "fetch"])
+        exc.stderr = "fatal: repository 'https://github.com/x/y' not found"
+        mock_run.side_effect = exc
+        ok, err = clone_or_update_repo("https://github.com/x/y", "my_plugin", external_dir=tmp_path)
+        assert not ok
+        assert "not found" in err
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_update_includes_stderr(self, mock_run, tmp_path):
+        dest = tmp_path / "my_plugin"
+        dest.mkdir()
+        (dest / ".git").mkdir()
+        exc = subprocess.CalledProcessError(128, ["git", "fetch"])
+        exc.stderr = "fatal: unable to access"
+        mock_run.side_effect = exc
+        ok, err = clone_or_update_repo("", "my_plugin", external_dir=tmp_path)
+        assert not ok
+        assert "unable to access" in err
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_empty_stderr_falls_back_to_exc_str(self, mock_run, tmp_path):
+        exc = subprocess.CalledProcessError(128, ["git", "fetch"])
+        exc.stderr = ""
+        mock_run.side_effect = exc
+        ok, err = clone_or_update_repo("https://github.com/x/y", "my_plugin", external_dir=tmp_path)
+        assert not ok
+        assert "clone" in err and "failed" in err
+
+
 # ── install helpers ──────────────────────────────────────────────────────────
 
 
