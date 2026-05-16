@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act } from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -197,7 +198,8 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "5" } });
-    await waitFor(() => expect(parseInt(input.value, 10)).toBe(5));
+    // Flush React pending state updates before blur so the handler reads the new value
+    await act(async () => {});
     fireEvent.blur(input);
 
     await waitFor(() => {
