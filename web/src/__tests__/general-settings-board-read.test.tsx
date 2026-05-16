@@ -139,8 +139,10 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "45" } });
-    // Wait for React state to settle before blur so the handler sees the new value
+    // Flush all pending React state updates (including deferred ones) before blur
+    // so the blur handler reads the updated value, not the initial default.
     await waitFor(() => expect(parseInt(input.value, 10)).toBe(45));
+    await act(async () => {});
     fireEvent.blur(input);
 
     await waitFor(() => {
