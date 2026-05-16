@@ -77,7 +77,7 @@ export function SystemUpdate() {
     <TooltipProvider>
       <Alert className="border-warning/50 bg-warning/10">
         <ArrowUpCircle className="h-4 w-4 text-warning" />
-        <AlertDescription className="flex items-center justify-between gap-4">
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium">{t("updateAvailable")}</span>
             <Badge variant="secondary" className="text-xs">
@@ -87,7 +87,7 @@ export function SystemUpdate() {
               {t("youAreRunning", { currentVersion: updateCheck.current_version })}
             </span>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
               <a
                 href={updateCheck.package_url}

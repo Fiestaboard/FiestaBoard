@@ -276,13 +276,7 @@ export function GeneralSettings() {
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={silenceEnabled}
-                    onCheckedChange={handleSilenceToggle}
-                    disabled={isSaving}
-                    id="silence-enabled"
-                  />
+                <div className="flex items-center justify-between gap-3">
                   <div>
                     <label htmlFor="silence-enabled" className="text-sm font-medium cursor-pointer">
                       {t("silenceScheduleLabel")}
@@ -291,10 +285,16 @@ export function GeneralSettings() {
                       {t("silenceScheduleDescription")}
                     </p>
                   </div>
+                  <Switch
+                    checked={silenceEnabled}
+                    onCheckedChange={handleSilenceToggle}
+                    disabled={isSaving}
+                    id="silence-enabled"
+                  />
                 </div>
 
                 {silenceEnabled && (
-                  <div className="mt-4 ml-[52px]">
+                  <div className="mt-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="silence-start" className="text-xs">{t("startTimeLabel")}</Label>
