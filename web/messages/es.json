@@ -460,10 +460,10 @@
     "toastSetDefaultFailed": "Error al establecer la página predeterminada",
     "toastSwitchSuccess": "Se cambió a la página activa",
     "toastSwitchFailed": "Error al cambiar la página",
-    "updatedExternally": "Updated externally",
-    "resendToBoard": "Resend FiestaBoard page",
-    "toastResendSuccess": "Page resent to board",
-    "toastResendFailed": "Failed to resend page"
+    "updatedExternally": "Board was changed by another app",
+    "resendToBoard": "Restore",
+    "toastResendSuccess": "Board restored",
+    "toastResendFailed": "Failed to restore board"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "No se puede conectar con la aplicación. Comprueba tu red o que FiestaBoard esté en ejecución.",

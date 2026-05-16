@@ -97,6 +97,8 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "30" } });
+    // Flush deferred React state so the warning renders before asserting.
+    await act(async () => {});
 
     await waitFor(() => {
       expect(

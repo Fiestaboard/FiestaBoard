@@ -460,10 +460,10 @@
     "toastSetDefaultFailed": "デフォルトページの設定に失敗しました",
     "toastSwitchSuccess": "アクティブページに切り替えました",
     "toastSwitchFailed": "ページの切り替えに失敗しました",
-    "updatedExternally": "Updated externally",
-    "resendToBoard": "Resend FiestaBoard page",
-    "toastResendSuccess": "Page resent to board",
-    "toastResendFailed": "Failed to resend page"
+    "updatedExternally": "Board was changed by another app",
+    "resendToBoard": "Restore",
+    "toastResendSuccess": "Board restored",
+    "toastResendFailed": "Failed to restore board"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "アプリに接続できません。ネットワークまたは FiestaBoard の起動を確認してください。",

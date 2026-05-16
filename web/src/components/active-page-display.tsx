@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, RefreshCw, UploadCloud } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, UploadCloud, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import type { SilenceStatus, Carousel } from "@/lib/api";
+import type { SilenceStatus, Carousel, BoardCurrentMessageResponse } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { readLiveOutputMessage, onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
@@ -132,7 +132,16 @@ export function ActivePageDisplay() {
     setIsSyncing(true);
     try {
       await api.forceRefresh();
-      await queryClient.invalidateQueries({ queryKey: ["board-current-message"] });
+      // Optimistically mark as in-sync so the alert disappears immediately.
+      // The backend schedules a ~3 s deferred board read after each send;
+      // we update the cache now and do a real refetch after 4 s to confirm.
+      queryClient.setQueryData(["board-current-message"], (old: BoardCurrentMessageResponse | undefined) => {
+        if (!old) return old;
+        return { ...old, characters: old.expected_characters ?? old.characters };
+      });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["board-current-message"] });
+      }, 4000);
       toast.success(t("toastResendSuccess"));
     } catch {
       toast.error(t("toastResendFailed"));
@@ -351,22 +360,6 @@ export function ActivePageDisplay() {
                 <span className="text-info">{t("silenceModeActive")}</span>
               </div>
             )}
-            {isOutOfSync && (
-              <Badge variant="outline" className="text-xs gap-1 border-warning/50 text-warning pr-1">
-                <RefreshCw className="h-3 w-3" />
-                {t("updatedExternally")}
-                <button
-                  type="button"
-                  onClick={handleResendToBoard}
-                  disabled={isSyncing}
-                  aria-label={t("resendToBoard")}
-                  title={t("resendToBoard")}
-                  className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  <UploadCloud className={`h-3 w-3 ${isSyncing ? "animate-pulse" : ""}`} aria-hidden="true" />
-                </button>
-              </Badge>
-            )}
           </div>
         </CardHeader>
 
@@ -384,6 +377,30 @@ export function ActivePageDisplay() {
                   {t("scheduleSettingsLink")}
                 </button>
                 .
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Out-of-sync warning: board was changed by another app */}
+          {isOutOfSync && !liveOutputMessage && (
+            <Alert variant="default" className="border-warning/50 bg-warning/10">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="flex items-center justify-between gap-3">
+                <span className="text-sm">{t("updatedExternally")}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleResendToBoard}
+                  disabled={isSyncing}
+                  className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
+                >
+                  {isSyncing ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <UploadCloud className="h-3 w-3" />
+                  )}
+                  {t("resendToBoard")}
+                </Button>
               </AlertDescription>
             </Alert>
           )}

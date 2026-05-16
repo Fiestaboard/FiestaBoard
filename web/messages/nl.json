@@ -460,10 +460,10 @@
     "toastSetDefaultFailed": "Standaardpagina instellen mislukt",
     "toastSwitchSuccess": "Gewisseld naar actieve pagina",
     "toastSwitchFailed": "Pagina wisselen mislukt",
-    "updatedExternally": "Updated externally",
-    "resendToBoard": "Resend FiestaBoard page",
-    "toastResendSuccess": "Page resent to board",
-    "toastResendFailed": "Failed to resend page"
+    "updatedExternally": "Board was changed by another app",
+    "resendToBoard": "Restore",
+    "toastResendSuccess": "Board restored",
+    "toastResendFailed": "Failed to restore board"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan de app niet bereiken. Controleer je netwerk of of FiestaBoard draait.",

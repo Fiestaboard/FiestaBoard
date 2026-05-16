@@ -460,10 +460,10 @@
     "toastSetDefaultFailed": "设置默认页面失败",
     "toastSwitchSuccess": "已切换到活跃页面",
     "toastSwitchFailed": "切换页面失败",
-    "updatedExternally": "Updated externally",
-    "resendToBoard": "Resend FiestaBoard page",
-    "toastResendSuccess": "Page resent to board",
-    "toastResendFailed": "Failed to resend page"
+    "updatedExternally": "Board was changed by another app",
+    "resendToBoard": "Restore",
+    "toastResendSuccess": "Board restored",
+    "toastResendFailed": "Failed to restore board"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "无法连接应用。请检查网络或 FiestaBoard 是否在运行。",

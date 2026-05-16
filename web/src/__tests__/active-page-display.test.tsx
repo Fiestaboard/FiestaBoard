@@ -201,6 +201,65 @@ describe("ActivePageDisplay", () => {
     });
   });
 
+  it("shows out-of-sync alert when board was changed externally", async () => {
+    const differentChars = Array.from({ length: 6 }, () => Array(22).fill(1));
+    const expectedChars = Array.from({ length: 6 }, () => Array(22).fill(2));
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: differentChars,
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: expectedChars,
+          cached_at: null,
+          api_mode: "local",
+        })
+      )
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Board was changed by another app")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
+    });
+  });
+
+  it("calls force-refresh and shows success toast when Restore is clicked", async () => {
+    const toastSpy = vi.spyOn((await import("sonner")).toast, "success");
+    const differentChars = Array.from({ length: 6 }, () => Array(22).fill(1));
+    const expectedChars = Array.from({ length: 6 }, () => Array(22).fill(2));
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: differentChars,
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: expectedChars,
+          cached_at: null,
+          api_mode: "local",
+        })
+      )
+    );
+
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /Restore/i }));
+
+    await waitFor(() => {
+      expect(toastSpy).toHaveBeenCalledWith("Board restored");
+    });
+
+    toastSpy.mockRestore();
+  });
+
   it("handles set active page error", async () => {
     const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
     server.use(
