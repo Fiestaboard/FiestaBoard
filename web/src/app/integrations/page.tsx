@@ -81,6 +81,7 @@ import {
   Film,
   Gamepad2,
   GitBranch,
+  Box,
   BookOpen,
   Coffee,
   ShoppingCart,
@@ -989,8 +990,8 @@ function PluginCard({
   const Icon = getPluginIcon(plugin.icon);
 
   const sourceType = plugin.source?.source_type;
-  // "external" is what the backend returns for registry installs cloned to external_plugins/
-  // "git" is what the backend returns for custom git URL installs
+  // "builtin" = ships with FiestaBoard, "external"/"registry" = from marketplace, "git" = user custom git URL
+  const isCore = sourceType === "builtin";
   const isMarketplace = sourceType === "registry" || sourceType === "external";
   const isGitExternal = sourceType === "git";
   const categoryLabel = CATEGORY_LABELS[plugin.category || "utility"] || plugin.category || "Utility";
@@ -1301,6 +1302,12 @@ function PluginCard({
             <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
               v{plugin.version}
             </Badge>
+            {isCore && (
+              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-orange-300 text-orange-600 dark:text-orange-400 dark:border-orange-700">
+                <Box className="h-2.5 w-2.5" />
+                Core
+              </Badge>
+            )}
             {isMarketplace && (
               <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700">
                 <Package className="h-2.5 w-2.5" />
