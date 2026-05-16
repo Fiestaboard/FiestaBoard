@@ -113,12 +113,8 @@ class CommandHandler:
     def _handle_refresh_display(self) -> None:
         from src.api_server import get_service
         service = get_service()
-        if service:
-            # Main DisplayService uses check_and_send_active_page for refresh
-            if hasattr(service, "fetch_and_display"):
-                service.fetch_and_display()
-            elif hasattr(service, "check_and_send_active_page"):
-                service.check_and_send_active_page()
+        if service and hasattr(service, "check_and_send_active_page"):
+            service.check_and_send_active_page()
         self._mark_display_updated()
         self._publish_event("display_updated", "page_refreshed")
 

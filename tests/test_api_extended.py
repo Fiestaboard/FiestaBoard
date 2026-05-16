@@ -1186,7 +1186,7 @@ class TestCacheEndpoints:
         assert response.status_code == 200
 
     def test_force_refresh_error(self, client, mock_service):
-        mock_service.fetch_and_display.side_effect = Exception("Refresh failed")
+        mock_service.check_and_send_active_page.side_effect = Exception("Refresh failed")
         response = client.post("/force-refresh")
         assert response.status_code == 500
 
@@ -1220,7 +1220,7 @@ class TestServiceLifecycle:
         assert response.status_code == 503
 
     def test_refresh_error(self, client, mock_service):
-        mock_service.fetch_and_display.side_effect = Exception("Display error")
+        mock_service.check_and_send_active_page.side_effect = Exception("Display error")
         response = client.post("/refresh")
         assert response.status_code == 500
 

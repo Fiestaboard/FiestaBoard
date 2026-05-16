@@ -34,7 +34,7 @@ def mock_service():
     service.running = True
     service.initialize.return_value = True
     service.reinitialize_board_client.return_value = None
-    service.fetch_and_display.return_value = None
+    service.check_and_send_active_page.return_value = None
     with patch("src.api_server.get_service", return_value=service):
         yield service
 
@@ -1081,20 +1081,20 @@ class TestForceRefresh:
         response = client.post("/force-refresh")
         assert response.status_code == 200
         mock_service.vb_client.clear_cache.assert_called_once()
-        mock_service.fetch_and_display.assert_called_once()
+        mock_service.check_and_send_active_page.assert_called_once()
 
     def test_force_refresh_no_vb_client(self, client):
         """Force refresh when vb_client is None still works."""
         service = Mock()
         service.vb_client = None
-        service.fetch_and_display.return_value = None
+        service.check_and_send_active_page.return_value = None
         with patch("src.api_server.get_service", return_value=service):
             response = client.post("/force-refresh")
             assert response.status_code == 200
 
     def test_force_refresh_exception(self, client, mock_service):
         """Exception during refresh → 500."""
-        mock_service.fetch_and_display.side_effect = RuntimeError("boom")
+        mock_service.check_and_send_active_page.side_effect = RuntimeError("boom")
         response = client.post("/force-refresh")
         assert response.status_code == 500
 
