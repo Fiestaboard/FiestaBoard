@@ -65,7 +65,13 @@ def mock_settings_service():
 
         polling = Mock()
         polling.interval_seconds = 60
-        polling.to_dict.return_value = {"interval_seconds": 60}
+        polling.board_read_interval_local = 30
+        polling.board_read_interval_cloud = 180
+        polling.to_dict.return_value = {
+            "interval_seconds": 60,
+            "board_read_interval_local": 30,
+            "board_read_interval_cloud": 180,
+        }
         ss.get_polling_settings.return_value = polling
 
         ss.get_active_page_id.return_value = "page1"
@@ -73,6 +79,7 @@ def mock_settings_service():
         ss.is_schedule_enabled.return_value = False
         ss.set_output_target.return_value = output
         ss.set_polling_interval.return_value = polling
+        ss.set_board_read_intervals.return_value = polling
         ss.set_board_type.return_value = board_settings
         ss.set_devices.return_value = board_settings
         ss.set_boards.return_value = board_settings
@@ -283,8 +290,13 @@ def mock_service():
         svc.vb_client.send_characters.return_value = (True, True)
         svc.vb_client.get_cache_status.return_value = {"has_cached_text": False}
         svc.vb_client.clear_cache.return_value = None
+        svc.vb_client.use_cloud = False
+        svc.vb_client._last_characters = None
         svc.running = True
         svc.initialize.return_value = True
+        # Board-state poll cache starts empty so tests hit the live-call fallback
+        svc._polled_characters = None
+        svc._polled_at = None
         mock_get.return_value = svc
         yield svc
 
@@ -497,19 +509,42 @@ class TestSettingsEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["interval_seconds"] == 60
+        assert data["board_read_interval_local"] == 30
+        assert data["board_read_interval_cloud"] == 180
 
-    def test_update_polling_settings(self, client, mock_settings_service):
+    def test_update_polling_interval_seconds(self, client, mock_settings_service):
         response = client.put("/settings/polling", json={"interval_seconds": 120})
         assert response.status_code == 200
         assert response.json()["requires_restart"] is True
 
-    def test_update_polling_missing_param(self, client, mock_settings_service):
+    def test_update_polling_board_read_local(self, client, mock_settings_service):
+        response = client.put("/settings/polling", json={"board_read_interval_local": 45})
+        assert response.status_code == 200
+        assert response.json()["requires_restart"] is False
+        mock_settings_service.set_board_read_intervals.assert_called_once_with(local_seconds=45, cloud_seconds=None)
+
+    def test_update_polling_board_read_cloud(self, client, mock_settings_service):
+        response = client.put("/settings/polling", json={"board_read_interval_cloud": 300})
+        assert response.status_code == 200
+        assert response.json()["requires_restart"] is False
+        mock_settings_service.set_board_read_intervals.assert_called_once_with(local_seconds=None, cloud_seconds=300)
+
+    def test_update_polling_empty_body_is_noop(self, client, mock_settings_service):
+        """Empty body is valid — returns current settings without modifying anything."""
         response = client.put("/settings/polling", json={})
-        assert response.status_code == 400
+        assert response.status_code == 200
+        assert response.json()["requires_restart"] is False
+        mock_settings_service.set_polling_interval.assert_not_called()
+        mock_settings_service.set_board_read_intervals.assert_not_called()
 
     def test_update_polling_invalid_value(self, client, mock_settings_service):
         mock_settings_service.set_polling_interval.side_effect = ValueError("Must be >= 10")
         response = client.put("/settings/polling", json={"interval_seconds": 1})
+        assert response.status_code == 400
+
+    def test_update_polling_board_read_invalid_value(self, client, mock_settings_service):
+        mock_settings_service.set_board_read_intervals.side_effect = ValueError("Must be >= 20")
+        response = client.put("/settings/polling", json={"board_read_interval_local": 5})
         assert response.status_code == 400
 
     def test_get_board_settings(self, client, mock_settings_service):
@@ -1242,12 +1277,13 @@ class TestBoardCurrentMessage:
         assert response.status_code == 503
 
     def test_read_failure(self, client, mock_service):
+        # _polled_characters is None → falls back to live call → returns None → 503
         mock_service.vb_client.read_current_message.return_value = None
         response = client.get("/board/current-message")
         assert response.status_code == 503
 
-    def test_success(self, client, mock_service):
-        # 6-row Flagship grid: first row spells "HELLO " then blanks
+    def test_success_live_call(self, client, mock_service):
+        """When no cached state, falls back to a live read and primes the cache."""
         grid = [[0] * 22 for _ in range(6)]
         grid[0][0:5] = [8, 5, 12, 12, 15]  # H E L L O
         mock_service.vb_client.read_current_message.return_value = grid
@@ -1258,6 +1294,57 @@ class TestBoardCurrentMessage:
         assert data["cols"] == 22
         assert data["characters"] == grid
         assert data["message"].startswith("HELLO")
+        assert data["cached_at"] is None  # live call → no cached_at
+        assert data["api_mode"] == "local"
+        assert data["expected_characters"] is None  # nothing sent yet
+
+    def test_success_cached(self, client, mock_service):
+        """When polled cache is populated, serves from it without calling read_current_message."""
+        import time
+        grid = [[0] * 22 for _ in range(6)]
+        grid[0][0:3] = [8, 9, 10]
+        mock_service._polled_characters = grid
+        mock_service._polled_at = time.time()
+        response = client.get("/board/current-message")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == grid
+        assert data["cached_at"] is not None
+        mock_service.vb_client.read_current_message.assert_not_called()
+
+    def test_force_bypasses_cache(self, client, mock_service):
+        """?force=true makes a live call even when cache is populated."""
+        import time
+        cached_grid = [[1] * 22 for _ in range(6)]
+        fresh_grid = [[2] * 22 for _ in range(6)]
+        mock_service._polled_characters = cached_grid
+        mock_service._polled_at = time.time()
+        mock_service.vb_client.read_current_message.return_value = fresh_grid
+        response = client.get("/board/current-message?force=true")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == fresh_grid
+        assert data["cached_at"] is None  # force call returns null cached_at
+        mock_service.vb_client.read_current_message.assert_called_once()
+
+    def test_expected_characters_included(self, client, mock_service):
+        """expected_characters reflects what FiestaBoard last sent."""
+        grid = [[0] * 22 for _ in range(6)]
+        expected = [[5] * 22 for _ in range(6)]
+        mock_service.vb_client.read_current_message.return_value = grid
+        mock_service.vb_client._last_characters = expected
+        response = client.get("/board/current-message")
+        assert response.status_code == 200
+        assert response.json()["expected_characters"] == expected
+
+    def test_cloud_api_mode(self, client, mock_service):
+        """api_mode reflects the board client's connection type."""
+        grid = [[0] * 22 for _ in range(6)]
+        mock_service.vb_client.read_current_message.return_value = grid
+        mock_service.vb_client.use_cloud = True
+        response = client.get("/board/current-message")
+        assert response.status_code == 200
+        assert response.json()["api_mode"] == "cloud"
 
     def test_color_tiles_in_message(self, client, mock_service):
         grid = [[0] * 22 for _ in range(6)]

@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useTransition, useRef, useDeferredValue, useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useActivePage, useSetActivePage, usePagePreview, usePages, useBoardSettings, getEffectiveBoardColor, getEffectiveDeviceType } from "@/hooks/use-board";
+import { useActivePage, useSetActivePage, usePages, useBoardSettings, getEffectiveBoardColor, getEffectiveDeviceType } from "@/hooks/use-board";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,21 +18,20 @@ import type { SilenceStatus, Carousel } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { readLiveOutputMessage, onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
-import { addSnoozingIndicator } from "@/lib/snoozing-indicator";
 
 
 export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
   const _tc = useTranslations("common");
   const router = useRouter();
-  
+
   // Sheet open state
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   // Pre-render state - start rendering grid in background after initial mount
   const [shouldPreRender, setShouldPreRender] = useState(false);
   // Show content after animation completes
   const [showSheetContent, setShowSheetContent] = useState(false);
-  
+
   // Start pre-rendering grid in background after component mounts
   useEffect(() => {
     // Use startTransition to make this low-priority
@@ -41,10 +40,10 @@ export function ActivePageDisplay() {
         setShouldPreRender(true);
       });
     }, 500); // Wait 500ms after mount to avoid blocking initial render
-    
+
     return () => clearTimeout(timer);
   }, []);
-  
+
   // Handle showing content after animation completes
   useEffect(() => {
     if (isSheetOpen) {
@@ -58,7 +57,7 @@ export function ActivePageDisplay() {
       setShowSheetContent(false);
     }
   }, [isSheetOpen]);
-  
+
   // Fetch schedule status and active page in a single request.
   // getActiveSchedule() returns both schedule_enabled and the active page_id
   // regardless of mode, eliminating the need for a separate heavyweight
@@ -68,21 +67,21 @@ export function ActivePageDisplay() {
     queryFn: () => api.getActiveSchedule(),
     refetchInterval: 60000, // Poll every minute for schedule changes
   });
-  
+
   const scheduleEnabled = activeScheduleData?.schedule_enabled || false;
-  
+
   // Fetch manual active page setting
-  const { 
-    data: activePageData, 
+  const {
+    data: activePageData,
     isLoading: isLoadingActivePage
   } = useActivePage();
-  
+
   // Fetch silence mode status to show snoozing indicator
   const { data: silenceStatus } = useQuery<SilenceStatus>({
     queryKey: ["silenceStatus"],
     queryFn: api.getSilenceStatus,
   });
-  
+
   // Fetch live board state so the Home display reflects what was last sent
   // via Live Output in the page editor. The query is seeded from localStorage
   // on mount so it works across browser tabs, and a `storage` event listener
@@ -130,18 +129,18 @@ export function ActivePageDisplay() {
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
-  // Fetch carousels for name resolution
+  // Fetch carousels for name resolution and badge display
   const { data: carouselsData } = useQuery({
     queryKey: ["carousels"],
     queryFn: api.getCarousels,
     staleTime: 5 * 60 * 1000,
   });
-  
+
   // Set active page mutation
   const setActivePageMutation = useSetActivePage();
-  
+
   // Get the active page ID based on mode
-  const activePageId = scheduleEnabled 
+  const activePageId = scheduleEnabled
     ? (activeScheduleData?.page_id || null)
     : (activePageData?.page_id || null);
 
@@ -149,49 +148,14 @@ export function ActivePageDisplay() {
     if (!activePageId || !isCarouselId(activePageId)) return null;
     return carouselsData?.carousels?.find((c: Carousel) => c.id === activePageId) || null;
   }, [activePageId, carouselsData]);
-  
+
   // Defer activePageId updates to reduce priority of non-urgent re-renders
   // This makes clicking feel more responsive
   const deferredActivePageId = useDeferredValue(activePageId);
-  
+
   // Fetch all pages for default page selection and sheet display
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
-  
-  // For carousels, determine which page to preview based on current time.
-  // Uses a timer so the preview cycles through pages at the carousel interval.
-  const computeCarouselPageId = useCallback((carousel: Carousel | null) => {
-    if (!carousel) return null;
-    const nowSec = Math.floor(Date.now() / 1000);
-    const idx = Math.floor(nowSec / carousel.interval_seconds) % carousel.page_ids.length;
-    return carousel.page_ids[idx];
-  }, []);
 
-  const [currentCarouselPageId, setCurrentCarouselPageId] = useState<string | null>(() =>
-    computeCarouselPageId(activeCarousel)
-  );
-
-  useEffect(() => {
-    setCurrentCarouselPageId(computeCarouselPageId(activeCarousel));
-    if (!activeCarousel) return;
-    const interval = setInterval(() => {
-      setCurrentCarouselPageId(computeCarouselPageId(activeCarousel));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [activeCarousel, computeCarouselPageId]);
-
-  // The actual page to preview: either the direct page or the carousel's current page.
-  // Guard against passing a raw carousel ID to the preview endpoint while carousels are loading.
-  const previewPageId = activeCarousel ? currentCarouselPageId : (isCarouselId(activePageId) ? null : activePageId);
-
-  // Fetch preview of active page (or carousel's current page)
-  const { 
-    data: previewData, 
-    isLoading: isLoadingPreview
-  } = usePagePreview(previewPageId, { 
-    enabled: !!previewPageId,
-    refetchInterval: activeCarousel ? activeCarousel.interval_seconds * 1000 : undefined,
-  });
-  
   // Default to first page if no active page is set (only in manual mode)
   const pages = useMemo(() => pagesData?.pages || [], [pagesData]);
   useEffect(() => {
@@ -209,12 +173,12 @@ export function ActivePageDisplay() {
       });
     }
   }, [scheduleEnabled, isLoadingActivePage, isLoadingPages, activePageId, pages, setActivePageMutation]);
-  
+
   // Use transition for non-urgent updates to improve perceived performance
   const [isPending, startTransition] = useTransition();
   const lastClickTimeRef = useRef<number>(0);
   const lastPageIdRef = useRef<string | null>(null);
-  
+
   // Handle page selection with debouncing and optimistic updates
   const handleSelectPage = useCallback((pageId: string) => {
     if (pageId === activePageId) {
@@ -222,7 +186,7 @@ export function ActivePageDisplay() {
       setIsSheetOpen(false);
       return;
     }
-    
+
     // Debounce rapid clicks (within 200ms) to prevent spam
     const now = Date.now();
     if (pageId === lastPageIdRef.current && now - lastClickTimeRef.current < 200) {
@@ -230,14 +194,14 @@ export function ActivePageDisplay() {
     }
     lastClickTimeRef.current = now;
     lastPageIdRef.current = pageId;
-    
+
     // Immediately update UI optimistically, then sync with server
     // Don't wrap in startTransition - we want this to feel instant
     setActivePageMutation.mutate(pageId, {
       onSuccess: (_result) => {
         // Close the sheet after successful selection
         setIsSheetOpen(false);
-        
+
         // Use startTransition for toast notifications (non-urgent)
         startTransition(() => {
           toast.success(t("toastSwitchSuccess"));
@@ -248,14 +212,11 @@ export function ActivePageDisplay() {
       }
     });
   }, [activePageId, setActivePageMutation]);
-  
-  // Get the active page for device type and name
+
+  // Get the active page for name resolution
   const activePage = useMemo(() => {
-    if (activeCarousel && currentCarouselPageId) {
-      return pages.find(p => p.id === currentCarouselPageId) || null;
-    }
     return pages.find(p => p.id === activePageId) || null;
-  }, [pages, activePageId, activeCarousel, currentCarouselPageId]);
+  }, [pages, activePageId]);
 
   // Get the active page name for display
   const activePageName = useMemo(() => {
@@ -267,37 +228,35 @@ export function ActivePageDisplay() {
     }
     return activePage?.name || "No page selected";
   }, [activePage, activePageId, scheduleEnabled, activeCarousel]);
-  
-  // Get active page device type, falling back to the board's configured device type
-  const activeDeviceType = (activePage?.device_type as "flagship" | "note") || getEffectiveDeviceType(boardSettings);
-  
-  // Device dimensions lookup
-  const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
-    flagship: { rows: 6, cols: 22 },
-    note: { rows: 3, cols: 15 },
-  };
-  const dims = DEVICE_DIMS[activeDeviceType] || DEVICE_DIMS.flagship;
-  
-  // Compute the display message with snoozing indicator if needed.
-  // Prefer the live output message (set by the page editor when Live Output is
-  // active) so that navigating Home during a live edit shows the correct content.
-  const displayMessage = useMemo(() => {
-    const baseMessage = liveOutputMessage ?? previewData?.message ?? null;
-    if (!baseMessage) return null;
-    
-    // If silence mode is active in indicator mode, add the custom message
-    if (silenceStatus?.active && silenceStatus?.mode === "indicator") {
-      return addSnoozingIndicator(
-        baseMessage,
-        dims.rows,
-        dims.cols,
-        silenceStatus.indicator_text || "SNOOZING",
-        silenceStatus.indicator_position || "center",
-      );
+
+  // Poll the actual board state from the backend cache (backend hits Vestaboard
+  // at the configured interval; we just read the cached result here).
+  const { data: boardState } = useQuery({
+    queryKey: ["board-current-message"],
+    queryFn: () => api.getBoardCurrentMessage(),
+    refetchInterval: 30_000,
+    staleTime: 25_000,
+  });
+
+  // Derive device type from board state dimensions, falling back to board settings
+  const activeDeviceType = useMemo((): "flagship" | "note" => {
+    if (boardState) {
+      if (boardState.rows === 3 && boardState.cols === 15) return "note";
+      return "flagship";
     }
-    
-    return baseMessage;
-  }, [liveOutputMessage, previewData?.message, silenceStatus?.active, silenceStatus?.mode, silenceStatus?.indicator_text, silenceStatus?.indicator_position, dims.rows, dims.cols]);
+    return getEffectiveDeviceType(boardSettings);
+  }, [boardState, boardSettings]);
+
+  // The display message: prefer live output (page editor override), then the
+  // actual board state. Falls back to null (BoardDisplay shows a skeleton).
+  const displayMessage = liveOutputMessage ?? boardState?.message ?? null;
+
+  // Out-of-sync: the board was updated externally if its current state differs
+  // from what FiestaBoard last sent.
+  const isOutOfSync = useMemo(() => {
+    if (!boardState?.expected_characters || !boardState?.characters) return false;
+    return JSON.stringify(boardState.characters) !== JSON.stringify(boardState.expected_characters);
+  }, [boardState]);
 
   return (
     <>
@@ -330,7 +289,7 @@ export function ActivePageDisplay() {
               )}
             </Button>
           </div>
-          
+
           {/* Active page name and status */}
           <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3 flex-wrap">
             <div className="flex items-center gap-1.5">
@@ -377,9 +336,15 @@ export function ActivePageDisplay() {
                 <span className="text-info">{t("silenceModeActive")}</span>
               </div>
             )}
+            {isOutOfSync && (
+              <Badge variant="outline" className="text-xs gap-1 border-warning/50 text-warning">
+                <RefreshCw className="h-3 w-3" />
+                {t("updatedExternally")}
+              </Badge>
+            )}
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {/* Schedule gap warning */}
           {scheduleEnabled && !activePageId && (
@@ -397,13 +362,13 @@ export function ActivePageDisplay() {
               </AlertDescription>
             </Alert>
           )}
-          
+
           {/* Board Frame — contain: layout style paint isolates the tile grid from
               any layout changes in ancestor elements (e.g. sidebar padding snap). */}
           <div className="flex justify-center overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
-            <BoardDisplay 
-              message={displayMessage} 
-              isLoading={isLoadingPreview || (!!activePageId && !previewData)}
+            <BoardDisplay
+              message={displayMessage}
+              isLoading={!boardState && !liveOutputMessage}
               size="md"
               boardType={getEffectiveBoardColor(boardSettings)}
               deviceType={activeDeviceType}
@@ -434,7 +399,7 @@ export function ActivePageDisplay() {
               {t("selectPageDescription")}
             </SheetDescription>
           </SheetHeader>
-          
+
           <div className="mt-6">
             {!showSheetContent ? (
               // Show lightweight skeleton during animation for smooth 60fps
@@ -463,4 +428,3 @@ export function ActivePageDisplay() {
     </>
   );
 }
-

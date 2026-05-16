@@ -506,6 +506,18 @@ export const handlers = [
     return HttpResponse.json(mockCurrentDisplay);
   }),
 
+  http.get(`${API_BASE}/board/current-message`, () => {
+    return HttpResponse.json({
+      characters: [],
+      message: "",
+      rows: 6,
+      cols: 22,
+      expected_characters: null,
+      cached_at: null,
+      api_mode: "local",
+    });
+  }),
+
   http.get(`${API_BASE}/pages/:id`, ({ params }) => {
     const { id } = params;
     if (id === "page-1") {
@@ -971,7 +983,7 @@ export const handlers = [
           end_time: "15:00+00:00",
         },
       },
-      polling: { interval_seconds: 300 },
+      polling: { interval_seconds: 300, board_read_interval_local: 30, board_read_interval_cloud: 180 },
       transitions: mockTransitionSettings,
       output: mockOutputSettings,
       board: {

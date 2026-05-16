@@ -33,6 +33,9 @@ export interface BoardCurrentMessageResponse {
   message: string;
   rows: number;
   cols: number;
+  expected_characters: number[][] | null;
+  cached_at: string | null;
+  api_mode: "local" | "cloud";
 }
 
 export interface ActionResponse {
@@ -456,6 +459,8 @@ export interface SilenceStatus {
 
 export interface PollingSettings {
   interval_seconds: number;
+  board_read_interval_local: number;
+  board_read_interval_cloud: number;
 }
 
 export interface BoardInstance {
@@ -1436,11 +1441,11 @@ export const api = {
 
   // Polling settings
   getPollingSettings: () => fetchApi<PollingSettings>("/settings/polling"),
-  updatePollingSettings: (interval_seconds: number) =>
+  updatePollingSettings: (updates: Partial<PollingSettings>) =>
     fetchApi<{ status: string; settings: PollingSettings; requires_restart: boolean }>("/settings/polling", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ interval_seconds }),
+      body: JSON.stringify(updates),
     }),
 
   // Board settings

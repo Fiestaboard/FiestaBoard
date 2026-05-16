@@ -459,7 +459,8 @@
     "toastSetActivePage": "Ustawiono \"{pageName}\" jako aktywną stronę",
     "toastSetDefaultFailed": "Nie udało się ustawić domyślnej strony",
     "toastSwitchSuccess": "Przełączono na aktywną stronę",
-    "toastSwitchFailed": "Nie udało się przełączyć strony"
+    "toastSwitchFailed": "Nie udało się przełączyć strony",
+    "updatedExternally": "Updated externally"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Nie można połączyć się z aplikacją. Sprawdź sieć lub czy FiestaBoard jest uruchomiony.",
@@ -762,7 +763,14 @@
     "positionTopRight": "Top right",
     "positionCenter": "Center",
     "positionBottomLeft": "Bottom left",
-    "positionBottomRight": "Bottom right"
+    "positionBottomRight": "Bottom right",
+    "boardReadIntervalLocalLabel": "Board State Refresh (Local)",
+    "boardReadIntervalLocalDescription": "How often to read the actual board state over the local network (seconds). Minimum 20.",
+    "boardReadIntervalCloudLabel": "Board State Refresh (Cloud)",
+    "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
+    "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
+    "toastBoardReadIntervalUpdated": "Board read interval updated",
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
   },
   "themeToggle": {
     "toggleTheme": "Przełącz motyw"
