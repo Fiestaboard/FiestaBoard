@@ -2549,7 +2549,7 @@ async def refresh_display():
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        service.fetch_and_display()
+        service.check_and_send_active_page()
         return {"status": "success", "message": "Display refreshed successfully"}
     except Exception as e:
         logger.error(f"Error refreshing display: {e}")
@@ -2687,6 +2687,7 @@ async def send_message(request: MessageRequest):
         )
         if success:
             if was_sent:
+                service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
             else:
                 return {"status": "success", "message": "Message unchanged, no update needed", "skipped": True}
@@ -4848,7 +4849,9 @@ async def set_active_page(request: dict):
             sent_to_board = was_sent
             if not success:
                 logger.warning(f"Failed to send active page to board: {page_id}")
-    
+            elif was_sent:
+                service.request_board_refresh()
+
     return {
         "status": "success",
         "page_id": page_id,
@@ -5978,7 +5981,9 @@ async def send_page(page_id: str, target: Optional[str] = None):
             sent_to_board = was_sent
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to send to board")
-    
+            if was_sent:
+                service.request_board_refresh()
+
     return {
         "status": "success",
         "page_id": page_id,
@@ -6609,12 +6614,12 @@ async def force_refresh():
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
-    # Clear cache to force send
+    # Clear cache to force send even if content unchanged
     if service.vb_client:
         service.vb_client.clear_cache()
-    
+
     try:
-        service.fetch_and_display()
+        service.check_and_send_active_page()
         return {"status": "success", "message": "Display force-refreshed successfully"}
     except Exception as e:
         logger.error(f"Error force-refreshing display: {e}")

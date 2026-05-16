@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, RefreshCw } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, RefreshCw, UploadCloud } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,8 @@ export function ActivePageDisplay() {
   const [shouldPreRender, setShouldPreRender] = useState(false);
   // Show content after animation completes
   const [showSheetContent, setShowSheetContent] = useState(false);
+  // Resend-to-board loading state
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Start pre-rendering grid in background after component mounts
   useEffect(() => {
@@ -125,6 +127,19 @@ export function ActivePageDisplay() {
     });
     toast.success("Live Mode turned off");
   }, [queryClient]);
+
+  const handleResendToBoard = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await api.forceRefresh();
+      await queryClient.invalidateQueries({ queryKey: ["board-current-message"] });
+      toast.success(t("toastResendSuccess"));
+    } catch {
+      toast.error(t("toastResendFailed"));
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [queryClient, t]);
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -337,9 +352,19 @@ export function ActivePageDisplay() {
               </div>
             )}
             {isOutOfSync && (
-              <Badge variant="outline" className="text-xs gap-1 border-warning/50 text-warning">
+              <Badge variant="outline" className="text-xs gap-1 border-warning/50 text-warning pr-1">
                 <RefreshCw className="h-3 w-3" />
                 {t("updatedExternally")}
+                <button
+                  type="button"
+                  onClick={handleResendToBoard}
+                  disabled={isSyncing}
+                  aria-label={t("resendToBoard")}
+                  title={t("resendToBoard")}
+                  className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <UploadCloud className={`h-3 w-3 ${isSyncing ? "animate-pulse" : ""}`} aria-hidden="true" />
+                </button>
               </Badge>
             )}
           </div>

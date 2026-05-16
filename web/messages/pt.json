@@ -460,7 +460,10 @@
     "toastSetDefaultFailed": "Falha ao definir página padrão",
     "toastSwitchSuccess": "Página ativa alterada",
     "toastSwitchFailed": "Falha ao trocar de página",
-    "updatedExternally": "Updated externally"
+    "updatedExternally": "Updated externally",
+    "resendToBoard": "Resend FiestaBoard page",
+    "toastResendSuccess": "Page resent to board",
+    "toastResendFailed": "Failed to resend page"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Não é possível alcançar o aplicativo. Verifique sua rede ou se o FiestaBoard está em execução.",

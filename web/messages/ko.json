@@ -460,7 +460,10 @@
     "toastSetDefaultFailed": "기본 페이지 설정에 실패했습니다",
     "toastSwitchSuccess": "활성 페이지로 전환되었습니다",
     "toastSwitchFailed": "페이지 전환에 실패했습니다",
-    "updatedExternally": "Updated externally"
+    "updatedExternally": "Updated externally",
+    "resendToBoard": "Resend FiestaBoard page",
+    "toastResendSuccess": "Page resent to board",
+    "toastResendFailed": "Failed to resend page"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "앱에 연결할 수 없습니다. 네트워크 또는 FiestaBoard 실행 여부를 확인하세요.",
