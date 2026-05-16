@@ -460,7 +460,10 @@
     "toastSetDefaultFailed": "Kunde inte ställa in standardsida",
     "toastSwitchSuccess": "Bytte till aktiv sida",
     "toastSwitchFailed": "Kunde inte byta sida",
-    "updatedExternally": "Updated externally"
+    "updatedExternally": "Updated externally",
+    "resendToBoard": "Resend FiestaBoard page",
+    "toastResendSuccess": "Page resent to board",
+    "toastResendFailed": "Failed to resend page"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan inte nå appen. Kontrollera nätverket eller att FiestaBoard körs.",

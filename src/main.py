@@ -48,6 +48,7 @@ class DisplayService:
         self._polled_characters: Optional[List[List[int]]] = None
         self._polled_at: Optional[float] = None
         self._poll_thread: Optional[threading.Thread] = None
+        self._pending_refresh_timer: Optional[threading.Timer] = None
     
     def _build_board_clients(self):
         """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
@@ -116,6 +117,29 @@ class DisplayService:
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
             time.sleep(interval)
+
+    def request_board_refresh(self, delay_seconds: float = 3.0) -> None:
+        """Schedule a one-shot board-state read shortly after a page is sent.
+
+        Cancels any pending refresh so rapid sends don't stack up timers.
+        """
+        if self._pending_refresh_timer is not None and self._pending_refresh_timer.is_alive():
+            self._pending_refresh_timer.cancel()
+
+        def _do_refresh() -> None:
+            if self.vb_client:
+                try:
+                    chars = self.vb_client.read_current_message()
+                    if chars:
+                        self._polled_characters = chars
+                        self._polled_at = time.time()
+                        logger.debug("Post-send board state refresh completed")
+                except Exception as e:
+                    logger.debug(f"Post-send board state refresh failed: {e}")
+
+        self._pending_refresh_timer = threading.Timer(delay_seconds, _do_refresh)
+        self._pending_refresh_timer.daemon = True
+        self._pending_refresh_timer.start()
 
     def initialize(self) -> bool:
         """Initialize all components."""
@@ -338,6 +362,7 @@ class DisplayService:
 
                 if was_sent:
                     logger.info(f"Active page sent to board: {active_page_id}")
+                    self.request_board_refresh()
                 else:
                     logger.debug("Active page unchanged at board level")
                 return was_sent

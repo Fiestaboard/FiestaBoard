@@ -460,7 +460,10 @@
     "toastSetDefaultFailed": "Varsayılan sayfa ayarlanamadı",
     "toastSwitchSuccess": "Aktif sayfaya geçildi",
     "toastSwitchFailed": "Sayfa değiştirilemedi",
-    "updatedExternally": "Updated externally"
+    "updatedExternally": "Updated externally",
+    "resendToBoard": "Resend FiestaBoard page",
+    "toastResendSuccess": "Page resent to board",
+    "toastResendFailed": "Failed to resend page"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Uygulamaya ulaşılamıyor. Ağınızı veya FiestaBoard'un çalışıp çalışmadığını kontrol edin.",
