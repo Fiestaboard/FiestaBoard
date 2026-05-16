@@ -298,12 +298,11 @@ test.describe("Sync from Board", () => {
   });
 
   test("shows error when no active page is set", async ({ page }) => {
-    // Clear the active page so the API returns 404.
-    //
-    // The background main loop in `src/main.py` will auto-promote the first
-    // available page to active when active_page is null and schedule mode
-    // is off. Delete all pages first so there is nothing to auto-promote,
-    // making the 404 deterministic instead of racing the next loop tick.
+    // Delete all pages and clear the active page. The backend auto-creates a
+    // default welcome page when the last page is deleted, so we cannot reach
+    // a truly empty state. Instead we clear active_page_id again immediately
+    // before clicking sync to collapse the window where the main loop (polling
+    // every ~15 s) could auto-promote the default page back to active.
     await deleteAllPages();
     await setActivePage(null);
 
@@ -316,6 +315,10 @@ test.describe("Sync from Board", () => {
       name: "Sync from current board display",
     });
     await expect(syncBtn).toBeVisible({ timeout: 10_000 });
+
+    // Re-arm null active page immediately before clicking to prevent the main
+    // loop from auto-promoting the default page during the page-load wait above.
+    await setActivePage(null);
 
     // Wait for the sync API response, then verify the error toast.
     // We match on URL only (not status) so a 200 produces an assertion
