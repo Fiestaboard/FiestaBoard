@@ -506,6 +506,18 @@ export const handlers = [
     return HttpResponse.json(mockCurrentDisplay);
   }),
 
+  http.get(`${API_BASE}/board/current-message`, () => {
+    return HttpResponse.json({
+      characters: [],
+      message: "",
+      rows: 6,
+      cols: 22,
+      expected_characters: null,
+      cached_at: null,
+      api_mode: "local",
+    });
+  }),
+
   http.get(`${API_BASE}/pages/:id`, ({ params }) => {
     const { id } = params;
     if (id === "page-1") {
