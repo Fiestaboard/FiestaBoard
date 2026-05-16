@@ -7,6 +7,16 @@ import {
 
 const STORAGE_KEY = "fiestaboard:liveOutputMessage";
 
+// CodeQL's StorageEvent extern only recognises the one-argument constructor, so
+// we build the event without the init dict and define key/newValue as own
+// properties that shadow the read-only prototype getters.
+function fireStorageEvent(key: string | null, newValue: string | null): void {
+  const event = new StorageEvent("storage");
+  Object.defineProperty(event, "key", { value: key, configurable: true });
+  Object.defineProperty(event, "newValue", { value: newValue, configurable: true });
+  window.dispatchEvent(event);
+}
+
 describe("live-output-channel", () => {
   afterEach(() => {
     localStorage.clear();
@@ -62,9 +72,7 @@ describe("live-output-channel", () => {
     it("does not call callback for unrelated storage keys", () => {
       const callback = vi.fn();
       const unsubscribe = onLiveOutputMessageChange(callback);
-      window.dispatchEvent(
-        new StorageEvent("storage", { key: "other-key", newValue: "whatever" }),
-      );
+      fireStorageEvent("other-key", "whatever");
       expect(callback).not.toHaveBeenCalled();
       unsubscribe();
     });
@@ -72,9 +80,7 @@ describe("live-output-channel", () => {
     it("calls callback with null when newValue is null", () => {
       const callback = vi.fn();
       const unsubscribe = onLiveOutputMessageChange(callback);
-      window.dispatchEvent(
-        new StorageEvent("storage", { key: STORAGE_KEY, newValue: null }),
-      );
+      fireStorageEvent(STORAGE_KEY, null);
       expect(callback).toHaveBeenCalledWith(null);
       unsubscribe();
     });
@@ -82,12 +88,7 @@ describe("live-output-channel", () => {
     it("calls callback with parsed string when newValue is valid JSON", () => {
       const callback = vi.fn();
       const unsubscribe = onLiveOutputMessageChange(callback);
-      window.dispatchEvent(
-        new StorageEvent("storage", {
-          key: STORAGE_KEY,
-          newValue: JSON.stringify("from other tab"),
-        }),
-      );
+      fireStorageEvent(STORAGE_KEY, JSON.stringify("from other tab"));
       expect(callback).toHaveBeenCalledWith("from other tab");
       unsubscribe();
     });
@@ -95,9 +96,7 @@ describe("live-output-channel", () => {
     it("calls callback with null when newValue is invalid JSON", () => {
       const callback = vi.fn();
       const unsubscribe = onLiveOutputMessageChange(callback);
-      window.dispatchEvent(
-        new StorageEvent("storage", { key: STORAGE_KEY, newValue: "not-valid-json{{" }),
-      );
+      fireStorageEvent(STORAGE_KEY, "not-valid-json{{");
       expect(callback).toHaveBeenCalledWith(null);
       unsubscribe();
     });
@@ -106,9 +105,7 @@ describe("live-output-channel", () => {
       const callback = vi.fn();
       const unsubscribe = onLiveOutputMessageChange(callback);
       unsubscribe();
-      window.dispatchEvent(
-        new StorageEvent("storage", { key: STORAGE_KEY, newValue: null }),
-      );
+      fireStorageEvent(STORAGE_KEY, null);
       expect(callback).not.toHaveBeenCalled();
     });
   });
