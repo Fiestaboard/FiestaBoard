@@ -7721,7 +7721,25 @@ async def generic_data_test_fetch(request: dict):
 
     # Validate the URL: scheme must be http(s) and credentials are not allowed
     # (defence against SSRF/credential leaks).
-    _validate_request_url(url)
+    _SSRF_BLOCKED_DETAILS = {
+        "URL must not target internal network resources",
+        "URL host is not allowed",
+        "URL host resolves to a non-public IP",
+    }
+    try:
+        _validate_request_url(url)
+    except HTTPException as _url_exc:
+        if _url_exc.detail in _SSRF_BLOCKED_DETAILS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Test & Preview can't reach local or private network addresses "
+                    f"({urlparse(url).hostname}). This restriction only applies to the "
+                    "preview feature — your plugin will still fetch this URL normally "
+                    "when your page runs."
+                ),
+            )
+        raise
     # Re-derive url from a strict allowlist regex so the downstream HTTP call is not
     # tracked as tainted by static-analysis tools (py/full-ssrf).
     _safe_url_m = re.fullmatch(

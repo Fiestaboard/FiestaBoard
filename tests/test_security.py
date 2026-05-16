@@ -491,6 +491,10 @@ class TestSSRFProtection:
     def test_rejects_dot_local_domain(self, client, mock_cm):
         resp = self._post(client, "http://mydevice.local/api", mock_cm)
         assert resp.status_code == 400
+        detail = resp.json()["detail"]
+        assert "Test & Preview" in detail
+        assert "mydevice.local" in detail
+        assert "plugin will still fetch" in detail
 
     # --- Blocked: loopback IP ---
 
