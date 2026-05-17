@@ -7355,6 +7355,53 @@ async def delete_plugin_instance(plugin_id: str, instance_label: str):
     }
 
 
+@app.post("/plugins/{plugin_id}/receive")
+async def receive_plugin_payload(plugin_id: str, request: Request):
+    """
+    Push a JSON payload to a plugin.
+
+    Allows external systems (CI pipelines, automations, etc.) to push data to
+    plugins that support incoming webhooks.  The plugin's ``receive_payload``
+    method is called with the parsed body, the raw request headers, and the
+    raw body bytes (for HMAC verification).
+
+    Returns 404 when the plugin is not found, 400 when it is not enabled or
+    the body is not valid JSON, 403 when the plugin rejects the request due to
+    a signature mismatch, and 405 when the plugin does not support receive.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+
+    registry = get_plugin_registry()
+    plugin = registry.get_plugin(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+    if not registry.is_enabled(plugin_id):
+        raise HTTPException(status_code=400, detail=f"Plugin not enabled: {plugin_id}")
+
+    raw_body = await request.body()
+    try:
+        body = json.loads(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Request body must be valid JSON")
+
+    headers = dict(request.headers)
+
+    try:
+        plugin.receive_payload(body, headers, raw_body=raw_body)
+    except NotImplementedError:
+        raise HTTPException(
+            status_code=405,
+            detail=f"Plugin '{plugin_id}' does not support receive",
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return {"status": "ok"}
+
+
 # ── External Plugin Management ──────────────────────────────────────────────
 
 

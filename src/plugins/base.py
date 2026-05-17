@@ -456,6 +456,16 @@ class PluginBase(ABC):
         """
         return bool(self._manifest.get("supports_triggers", False))
 
+    def receive_payload(self, payload: Dict[str, Any], headers: Dict[str, str], raw_body: bytes = b"") -> None:
+        """Handle an incoming webhook payload pushed to this plugin.
+
+        Override this in plugins that accept push data from external systems.
+        Raise ``PermissionError`` for signature validation failures (→ HTTP 403),
+        ``ValueError`` for bad request data (→ HTTP 400).
+        The default implementation raises ``NotImplementedError`` (→ HTTP 405).
+        """
+        raise NotImplementedError(f"Plugin {self.plugin_id} does not support receive")
+
     def check_triggers(self) -> List["TriggerResult"]:
         """Check whether any event-based triggers should fire.
 
