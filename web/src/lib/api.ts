@@ -571,8 +571,7 @@ export interface TemporaryOverrideStatus {
 export interface SetTemporaryOverrideRequest {
   page_id: string;
   duration_minutes: number;
-  revert_mode?: "schedule" | "blank" | "page";
-  revert_page_id?: string | null;
+  revert_mode: "schedule";
 }
 
 export interface ActiveScheduleResponse {

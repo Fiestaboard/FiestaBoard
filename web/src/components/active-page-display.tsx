@@ -538,8 +538,6 @@ export function ActivePageDisplay() {
         onOpenChange={setForceSetDialogOpen}
         pageId={forceSetPageId}
         pageName={pages.find((p) => p.id === forceSetPageId)?.name ?? ""}
-        scheduleEnabled={scheduleEnabled}
-        pages={pages}
       />
 
       {/* Schedule mode choice dialog — shown before page selector when schedule is active */}

@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import type { Page, SetTemporaryOverrideRequest } from "@/lib/api";
+import type { SetTemporaryOverrideRequest } from "@/lib/api";
 
 const DURATION_PRESETS = [
   { label: "5 min", minutes: 5 },
@@ -26,15 +26,11 @@ const DURATION_PRESETS = [
   { label: "1 hr", minutes: 60 },
 ] as const;
 
-type RevertMode = "schedule" | "blank" | "page";
-
 interface ForceSetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pageId: string | null;
   pageName: string;
-  scheduleEnabled: boolean;
-  pages: Page[];
 }
 
 export function ForceSetDialog({
@@ -42,8 +38,6 @@ export function ForceSetDialog({
   onOpenChange,
   pageId,
   pageName,
-  scheduleEnabled,
-  pages,
 }: ForceSetDialogProps) {
   const t = useTranslations("forceSetDialog");
   const queryClient = useQueryClient();
@@ -51,22 +45,14 @@ export function ForceSetDialog({
   const [durationMinutes, setDurationMinutes] = useState<number>(5);
   const [customMinutes, setCustomMinutes] = useState<string>("");
   const [isCustom, setIsCustom] = useState(false);
-  const [revertMode, setRevertMode] = useState<RevertMode>(
-    scheduleEnabled ? "schedule" : "blank"
-  );
-  const [revertPageId, setRevertPageId] = useState<string>("");
 
-  // Reset to sensible defaults each time the dialog opens so state from a
-  // prior session doesn't bleed through.
   useEffect(() => {
     if (open) {
       setDurationMinutes(5);
       setCustomMinutes("");
       setIsCustom(false);
-      setRevertMode(scheduleEnabled ? "schedule" : "blank");
-      setRevertPageId("");
     }
-  }, [open, scheduleEnabled]);
+  }, [open]);
 
   const effectiveDuration = isCustom
     ? Math.max(1, Math.min(480, parseInt(customMinutes, 10) || 1))
@@ -78,12 +64,8 @@ export function ForceSetDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });
-      // Clear display cache so board shows override page on next poll
       api.forceRefresh().catch(() => {});
-      const mins = effectiveDuration;
-      toast.success(
-        t("toastSuccess", { minutes: mins, pageName })
-      );
+      toast.success(t("toastSuccess", { minutes: effectiveDuration, pageName }));
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -96,20 +78,16 @@ export function ForceSetDialog({
     const req: SetTemporaryOverrideRequest = {
       page_id: pageId,
       duration_minutes: effectiveDuration,
-      revert_mode: revertMode,
-      revert_page_id: revertMode === "page" ? revertPageId || undefined : undefined,
+      revert_mode: "schedule",
     };
     setOverrideMutation.mutate(req);
-  }, [pageId, effectiveDuration, revertMode, revertPageId, setOverrideMutation]);
+  }, [pageId, effectiveDuration, setOverrideMutation]);
 
   const isValid =
     pageId !== null &&
     effectiveDuration >= 1 &&
     effectiveDuration <= 480 &&
-    (!isCustom || (customMinutes !== "" && !isNaN(parseInt(customMinutes, 10)))) &&
-    (revertMode !== "page" || revertPageId !== "");
-
-  const otherPages = pages.filter((p) => p.id !== pageId);
+    (!isCustom || (customMinutes !== "" && !isNaN(parseInt(customMinutes, 10))));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,8 +102,7 @@ export function ForceSetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
-          {/* Duration selection */}
+        <div className="py-2">
           <div className="space-y-2">
             <Label className="text-sm font-medium">{t("showFor")}</Label>
             <div className="flex flex-wrap gap-2">
@@ -175,64 +152,6 @@ export function ForceSetDialog({
                 </span>
               </div>
             )}
-          </div>
-
-          {/* Revert mode */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">{t("afterTimer")}</Label>
-            <div className="space-y-2">
-              {scheduleEnabled && (
-                <label className="flex cursor-pointer items-center gap-2.5">
-                  <input
-                    type="radio"
-                    name="revert"
-                    value="schedule"
-                    checked={revertMode === "schedule"}
-                    onChange={() => setRevertMode("schedule")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  <span className="text-sm">{t("revertSchedule")}</span>
-                </label>
-              )}
-              <label className="flex cursor-pointer items-center gap-2.5">
-                <input
-                  type="radio"
-                  name="revert"
-                  value="blank"
-                  checked={revertMode === "blank"}
-                  onChange={() => setRevertMode("blank")}
-                  className="h-4 w-4 accent-primary"
-                />
-                <span className="text-sm">{t("revertBlank")}</span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2.5">
-                <input
-                  type="radio"
-                  name="revert"
-                  value="page"
-                  checked={revertMode === "page"}
-                  onChange={() => setRevertMode("page")}
-                  className="h-4 w-4 accent-primary"
-                />
-                <span className="text-sm">{t("revertPage")}</span>
-              </label>
-              {revertMode === "page" && (
-                <div className="ml-6">
-                  <select
-                    value={revertPageId}
-                    onChange={(e) => setRevertPageId(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="">{t("selectPage")}</option>
-                    {otherPages.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
