@@ -241,14 +241,13 @@ class DisplayService:
             # --- Temporary override check (user-initiated, time-limited; below triggers) ---
             active_page_id = None
             if not silence_mode_active:
-                override = settings_service.get_temporary_override()
+                override = settings_service.consume_temporary_override()
                 if override is not None:
                     if not override.is_expired():
                         active_page_id = override.page_id
                         logger.debug(f"Temporary override active: using page {active_page_id}")
                     else:
                         # Override just expired — apply revert before resuming normal flow
-                        settings_service.clear_temporary_override()
                         logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
                         if override.revert_mode == "blank":
                             return self._send_blank_board()

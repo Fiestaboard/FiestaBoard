@@ -294,3 +294,45 @@ class TestSettingsServiceOverride:
         # Reload — expired override should be discarded
         svc2 = SettingsService(settings_file=str(tmp_settings_file))
         assert svc2.get_temporary_override() is None
+
+    def test_consume_returns_live_override(self, tmp_settings_file):
+        svc = SettingsService(settings_file=str(tmp_settings_file))
+        expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+        svc.set_temporary_override(
+            TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule")
+        )
+        result = svc.consume_temporary_override()
+        assert result is not None
+        assert result.page_id == "p1"
+        assert not result.is_expired()
+        # Live override is not cleared
+        assert svc._temporary_override is not None
+
+    def test_consume_returns_expired_override_and_clears_it(self, tmp_settings_file):
+        svc = SettingsService(settings_file=str(tmp_settings_file))
+        past = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+        svc._temporary_override = TemporaryOverride(
+            page_id="p1", expires_at=past, revert_mode="blank"
+        )
+        result = svc.consume_temporary_override()
+        # Returns the expired object so caller can apply revert logic
+        assert result is not None
+        assert result.page_id == "p1"
+        assert result.is_expired()
+        # Storage was cleared
+        assert svc._temporary_override is None
+
+    def test_second_override_replaces_first(self, tmp_settings_file):
+        svc = SettingsService(settings_file=str(tmp_settings_file))
+        t1 = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+        t2 = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+        svc.set_temporary_override(
+            TemporaryOverride(page_id="first-page", expires_at=t1, revert_mode="schedule")
+        )
+        svc.set_temporary_override(
+            TemporaryOverride(page_id="second-page", expires_at=t2, revert_mode="blank")
+        )
+        result = svc.get_temporary_override()
+        assert result is not None
+        assert result.page_id == "second-page"
+        assert result.revert_mode == "blank"

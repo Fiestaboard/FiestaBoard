@@ -1058,6 +1058,22 @@ class SettingsService:
             return None
         return self._temporary_override
 
+    def consume_temporary_override(self) -> Optional[TemporaryOverride]:
+        """Return the current temporary override (live or expired) and clear it if expired.
+
+        Used by the display loop so it can detect a just-expired override and
+        apply revert-mode side-effects (blank board, set active page, etc.).
+        Unlike get_temporary_override(), this returns the expired object instead
+        of None so the caller can inspect revert_mode before it's gone.
+        """
+        raw = self._temporary_override
+        if raw is None:
+            return None
+        if raw.is_expired():
+            self._temporary_override = None
+            self._save_to_file()
+        return raw
+
     def set_temporary_override(self, override: TemporaryOverride) -> TemporaryOverride:
         """Persist a new temporary override, replacing any existing one."""
         self._temporary_override = override
