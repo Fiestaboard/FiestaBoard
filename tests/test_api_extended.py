@@ -751,6 +751,45 @@ class TestPluginEndpoints:
         data = response.json()
         assert data["plugin_system_enabled"] is False
 
+    def test_receive_plugin_payload(self, client, mock_plugin_registry):
+        response = client.post("/plugins/weather/receive", json={"message": "hello"})
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+        mock_plugin_registry.get_plugin.return_value.receive_payload.assert_called_once()
+
+    def test_receive_plugin_payload_not_found(self, client, mock_plugin_registry):
+        mock_plugin_registry.get_plugin.return_value = None
+        response = client.post("/plugins/nonexistent/receive", json={"message": "hello"})
+        assert response.status_code == 404
+
+    def test_receive_plugin_payload_not_enabled(self, client, mock_plugin_registry):
+        mock_plugin_registry.is_enabled.return_value = False
+        response = client.post("/plugins/weather/receive", json={"message": "hello"})
+        assert response.status_code == 400
+
+    def test_receive_plugin_payload_invalid_json(self, client, mock_plugin_registry):
+        response = client.post(
+            "/plugins/weather/receive",
+            content=b"not json",
+            headers={"Content-Type": "application/json"},
+        )
+        assert response.status_code == 400
+
+    def test_receive_plugin_payload_not_supported(self, client, mock_plugin_registry):
+        mock_plugin_registry.get_plugin.return_value.receive_payload.side_effect = NotImplementedError
+        response = client.post("/plugins/weather/receive", json={"message": "hello"})
+        assert response.status_code == 405
+
+    def test_receive_plugin_payload_bad_signature(self, client, mock_plugin_registry):
+        mock_plugin_registry.get_plugin.return_value.receive_payload.side_effect = PermissionError("Invalid signature")
+        response = client.post("/plugins/weather/receive", json={"message": "hello"})
+        assert response.status_code == 403
+
+    def test_receive_plugin_payload_system_unavailable(self, client):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+            response = client.post("/plugins/weather/receive", json={"message": "hello"})
+        assert response.status_code == 503
+
 # ============================================================
 # Template Endpoints
 # ============================================================
