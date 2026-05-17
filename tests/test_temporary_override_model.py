@@ -1,8 +1,6 @@
 """Unit tests for the TemporaryOverride dataclass."""
 from datetime import datetime, timezone, timedelta
 
-import pytest
-
 from src.settings.service import TemporaryOverride
 
 

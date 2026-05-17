@@ -3,10 +3,7 @@
 Uses FastAPI TestClient and mocks the SettingsService + PageService singletons
 so no real filesystem or board connection is needed.
 """
-import json
-import tempfile
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
