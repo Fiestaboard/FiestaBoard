@@ -238,8 +238,27 @@ class DisplayService:
                 if trigger_content is not None:
                     return self._send_trigger_content(trigger_content)
 
-            # Determine active page based on schedule mode
-            if settings_service.is_schedule_enabled():
+            # --- Temporary override check (user-initiated, time-limited; below triggers) ---
+            active_page_id = None
+            if not silence_mode_active:
+                override = settings_service.get_temporary_override()
+                if override is not None:
+                    if not override.is_expired():
+                        active_page_id = override.page_id
+                        logger.debug(f"Temporary override active: using page {active_page_id}")
+                    else:
+                        # Override just expired — apply revert before resuming normal flow
+                        settings_service.clear_temporary_override()
+                        logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
+                        if override.revert_mode == "blank":
+                            return self._send_blank_board()
+                        elif override.revert_mode == "page" and override.revert_page_id:
+                            settings_service.set_active_page_id(override.revert_page_id)
+                        # "schedule" (and fallback): clear content cache so next tick rerenders
+                        self._last_active_page_content = None
+
+            # Determine active page based on schedule mode (skipped when override is active)
+            if active_page_id is None and settings_service.is_schedule_enabled():
                 # Schedule mode: Use schedule service to determine page
                 # Use TimeService to get current time in configured timezone
                 from .time_service import get_time_service
@@ -247,16 +266,16 @@ class DisplayService:
                 now = time_service.get_current_time()
                 current_time = now.time()
                 current_day = now.strftime("%A").lower()  # monday, tuesday, etc.
-                
+
                 # Pass the first board's ID so schedules scoped to that board are found
                 board_id = self._get_first_board_id()
                 active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
-                
+
                 if active_page_id:
                     logger.debug(f"Schedule mode: Active page determined by schedule: {active_page_id}")
                 else:
                     logger.debug(f"Schedule mode: No matching schedule for {current_day} {current_time.strftime('%H:%M')}")
-            else:
+            elif active_page_id is None:
                 # Manual mode: Use manual active page setting
                 active_page_id = settings_service.get_active_page_id()
                 logger.debug(f"Manual mode: Using manual active page: {active_page_id}")
@@ -373,6 +392,40 @@ class DisplayService:
         except Exception as e:
             logger.error(f"Error checking active page: {e}")
             return False
+
+    # ------------------------------------------------------------------ #
+    # Temporary override helpers
+    # ------------------------------------------------------------------ #
+
+    def _send_blank_board(self) -> bool:
+        """Send a fully blank board when a temporary override expires with revert_mode='blank'."""
+        if not self.vb_client:
+            logger.warning("Board client not initialized")
+            return False
+
+        device_type = self._silence_device_type()
+        dims = get_dimensions(device_type)
+        board_array = [[BoardChars.SPACE] * dims.cols for _ in range(dims.rows)]
+
+        settings_service = get_settings_service()
+        system_transition = settings_service.get_transition_settings()
+
+        success, was_sent = self.vb_client.send_characters(
+            board_array,
+            strategy=system_transition.strategy,
+            step_interval_ms=system_transition.step_interval_ms,
+            step_size=system_transition.step_size,
+        )
+
+        if success:
+            self._last_active_page_content = None
+            self._last_active_page_id = None
+            logger.info("Temporary override expired (blank) - board cleared")
+            if was_sent:
+                self.request_board_refresh()
+        else:
+            logger.error("Failed to send blank board after temporary override expiry")
+        return success
 
     # ------------------------------------------------------------------ #
     # Silence-mode helpers

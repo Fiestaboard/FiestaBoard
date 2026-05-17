@@ -964,6 +964,14 @@ export const handlers = [
       page_id: "page-1",
       source: "manual",
       schedule_enabled: false,
+      temporary_override: {
+        active: false,
+        page_id: null,
+        expires_at: null,
+        remaining_seconds: null,
+        revert_mode: null,
+        revert_page_id: null,
+      },
       ...(url.searchParams.get("board_id") && { board_id: url.searchParams.get("board_id") }),
     });
   }),

@@ -67,6 +67,8 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "45" } });
+    // Flush deferred React state updates so the controlled input reflects the new value.
+    await act(async () => {});
 
     await waitFor(() => {
       expect(parseInt(input.value, 10)).toBe(45);
@@ -82,6 +84,8 @@ describe("GeneralSettings — board read intervals", () => {
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "90" } });
+    // Flush deferred React state updates so the controlled input reflects the new value.
+    await act(async () => {});
 
     await waitFor(() => {
       expect(parseInt(input.value, 10)).toBe(90);
