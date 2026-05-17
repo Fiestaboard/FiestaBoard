@@ -180,6 +180,7 @@ describe("GeneralSettings — board read intervals", () => {
     );
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
+    await waitFor(() => expect(parseInt(input.value, 10)).toBe(180));
     fireEvent.change(input, { target: { value: "90" } });
     // Flush all pending React state updates (including deferred ones) before blur
     // so the blur handler reads the updated value, not the initial default.
