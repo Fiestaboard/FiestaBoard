@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -55,6 +55,18 @@ export function ForceSetDialog({
     scheduleEnabled ? "schedule" : "blank"
   );
   const [revertPageId, setRevertPageId] = useState<string>("");
+
+  // Reset to sensible defaults each time the dialog opens so state from a
+  // prior session doesn't bleed through.
+  useEffect(() => {
+    if (open) {
+      setDurationMinutes(5);
+      setCustomMinutes("");
+      setIsCustom(false);
+      setRevertMode(scheduleEnabled ? "schedule" : "blank");
+      setRevertPageId("");
+    }
+  }, [open, scheduleEnabled]);
 
   const effectiveDuration = isCustom
     ? Math.max(1, Math.min(480, parseInt(customMinutes, 10) || 1))
