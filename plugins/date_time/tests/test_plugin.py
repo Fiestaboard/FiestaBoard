@@ -6,7 +6,9 @@ import json
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from plugins.date_time import DateTimePlugin
+import pytest
+
+from plugins.date_time import DateTimePlugin, _time_to_english
 
 
 class TestDateTimePlugin:
@@ -342,8 +344,8 @@ class TestDateTimeManifestMetadata:
         for group_id, group_def in groups.items():
             assert "label" in group_def, f"Group '{group_id}' missing label"
 
-    def test_all_18_variables_present(self):
-        """All 18 date_time variables are declared in the manifest."""
+    def test_all_19_variables_present(self):
+        """All 19 date_time variables are declared in the manifest."""
         manifest_path = Path(__file__).parent.parent / "manifest.json"
         with open(manifest_path) as f:
             manifest = json.load(f)
@@ -353,7 +355,88 @@ class TestDateTimeManifestMetadata:
             "time", "date", "datetime", "day", "day_of_week", "month",
             "year", "hour", "minute", "timezone_abbr", "time_12h", "time_24h",
             "date_us", "date_us_short", "month_number", "month_number_padded",
-            "month_abbr", "timezone",
+            "month_abbr", "timezone", "time_english",
         ]
         for var in expected:
             assert var in simple, f"Expected variable '{var}' not in manifest"
+
+
+class TestTimeToEnglish:
+    """Unit tests for _time_to_english()."""
+
+    def test_midnight(self):
+        assert _time_to_english(0, 0) == "IT'S MIDNIGHT."
+
+    def test_noon(self):
+        assert _time_to_english(12, 0) == "IT'S NOON."
+
+    def test_on_the_hour_morning(self):
+        assert _time_to_english(9, 0) == "IT'S NINE O'CLOCK IN THE MORNING."
+
+    def test_on_the_hour_afternoon(self):
+        assert _time_to_english(13, 0) == "IT'S ONE O'CLOCK IN THE AFTERNOON."
+
+    def test_on_the_hour_evening(self):
+        assert _time_to_english(19, 0) == "IT'S SEVEN O'CLOCK IN THE EVENING."
+
+    def test_on_the_hour_night(self):
+        assert _time_to_english(22, 0) == "IT'S TEN O'CLOCK AT NIGHT."
+
+    def test_quarter_past(self):
+        assert _time_to_english(12, 15) == "IT'S A QUARTER PAST TWELVE IN THE AFTERNOON."
+
+    def test_half_past(self):
+        assert _time_to_english(8, 30) == "IT'S HALF PAST EIGHT IN THE MORNING."
+
+    def test_quarter_to(self):
+        assert _time_to_english(12, 45) == "IT'S A QUARTER TO ONE IN THE AFTERNOON."
+
+    def test_exact_minutes_past(self):
+        assert _time_to_english(14, 23) == "IT'S TWENTY-THREE PAST TWO IN THE AFTERNOON."
+
+    def test_exact_minutes_to(self):
+        assert _time_to_english(14, 47) == "IT'S THIRTEEN TO THREE IN THE AFTERNOON."
+
+    def test_one_past(self):
+        assert _time_to_english(10, 1) == "IT'S ONE PAST TEN IN THE MORNING."
+
+    def test_one_to(self):
+        assert _time_to_english(10, 59) == "IT'S ONE TO ELEVEN IN THE MORNING."
+
+    def test_twenty_past(self):
+        assert _time_to_english(6, 20) == "IT'S TWENTY PAST SIX IN THE MORNING."
+
+    def test_period_boundaries(self):
+        assert "IN THE MORNING" in _time_to_english(5, 0)
+        assert "IN THE MORNING" in _time_to_english(11, 30)
+        assert "IN THE AFTERNOON" in _time_to_english(12, 1)
+        assert "IN THE AFTERNOON" in _time_to_english(17, 59)
+        assert "IN THE EVENING" in _time_to_english(18, 0)
+        assert "IN THE EVENING" in _time_to_english(20, 59)
+        assert "AT NIGHT" in _time_to_english(21, 0)
+        assert "AT NIGHT" in _time_to_english(23, 59)
+        assert "AT NIGHT" in _time_to_english(0, 1)
+        assert "AT NIGHT" in _time_to_english(4, 59)
+
+    def test_twelve_oclock_night(self):
+        # 12:30 AM — half past twelve at night
+        assert _time_to_english(0, 30) == "IT'S HALF PAST TWELVE AT NIGHT."
+
+    def test_time_english_in_fetch_data(self, sample_manifest, sample_config):
+        """time_english is present in fetch_data output."""
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+        result = plugin.fetch_data()
+        assert result.available is True
+        assert "time_english" in result.data
+        assert result.data["time_english"].startswith("IT'S ")
+
+    @pytest.fixture
+    def sample_manifest(self):
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            return json.load(f)
+
+    @pytest.fixture
+    def sample_config(self):
+        return {"timezone": "America/Los_Angeles", "enabled": True}
