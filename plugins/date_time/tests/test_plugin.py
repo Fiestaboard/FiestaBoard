@@ -435,7 +435,6 @@ class TestTimeToEnglish:
     def sample_manifest(self):
         manifest_path = Path(__file__).parent.parent / "manifest.json"
         with open(manifest_path) as f:
-            import json
             return json.load(f)
 
     @pytest.fixture
