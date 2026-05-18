@@ -463,7 +463,30 @@
     "updatedExternally": "Board was changed by another app",
     "resendToBoard": "Restore",
     "toastResendSuccess": "Board restored",
-    "toastResendFailed": "Failed to restore board"
+    "toastResendFailed": "Failed to restore board",
+    "overrideBadge": "Override: {minutes}m remaining",
+    "overrideBadgeLessThan1m": "Override: <1m remaining",
+    "cancelOverride": "Cancel override",
+    "toastOverrideCancelled": "Override cancelled",
+    "changeModeTitle": "Change Page",
+    "changeModeDescription": "Schedule mode is active. How would you like to change the page?",
+    "changeModeOverrideTitle": "Override temporarily",
+    "changeModeOverrideDescription": "Show a page for a set duration, then resume your schedule.",
+    "changeModeDisableTitle": "Turn off schedule mode",
+    "changeModeDisableDescription": "Disable the schedule and control the board manually.",
+    "changeModeDisableSuccess": "Schedule mode disabled"
+  },
+  "forceSetDialog": {
+    "title": "Force Set Board",
+    "description": "Show \"{pageName}\" temporarily, then revert automatically.",
+    "showFor": "Show for",
+    "custom": "Custom",
+    "minutes": "minutes",
+    "cancel": "Cancel",
+    "confirm": "Force Set",
+    "setting": "Setting…",
+    "toastSuccess": "Showing \"{pageName}\" for {minutes} min",
+    "toastError": "Failed to set override"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Impossibile raggiungere l'app. Controlla la rete o che FiestaBoard sia in esecuzione.",

@@ -559,6 +559,21 @@ export interface ScheduleValidationResult {
   gaps: Gap[];
 }
 
+export interface TemporaryOverrideStatus {
+  active: boolean;
+  page_id: string | null;
+  expires_at: string | null;
+  remaining_seconds: number | null;
+  revert_mode: "schedule" | "blank" | "page" | null;
+  revert_page_id: string | null;
+}
+
+export interface SetTemporaryOverrideRequest {
+  page_id: string;
+  duration_minutes: number;
+  revert_mode: "schedule";
+}
+
 export interface ActiveScheduleResponse {
   page_id: string | null;
   source: "schedule" | "manual" | "none";
@@ -566,6 +581,7 @@ export interface ActiveScheduleResponse {
   current_time?: string;
   current_day?: string;
   default_page_id?: string | null;
+  temporary_override?: TemporaryOverrideStatus;
 }
 
 export interface ScheduleEnabledResponse {
@@ -1150,6 +1166,19 @@ export const api = {
     fetchApi<SetActivePageResponse>("/settings/active-page", {
       method: "PUT",
       body: JSON.stringify({ page_id: pageId }),
+    }),
+
+  // Temporary override endpoints
+  getTemporaryOverride: () =>
+    fetchApi<TemporaryOverrideStatus>("/settings/temporary-override"),
+  setTemporaryOverride: (request: SetTemporaryOverrideRequest) =>
+    fetchApi<TemporaryOverrideStatus>("/settings/temporary-override", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+  clearTemporaryOverride: () =>
+    fetchApi<{ status: string; revert_mode: string | null }>("/settings/temporary-override", {
+      method: "DELETE",
     }),
 
   // Pages endpoints

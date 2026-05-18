@@ -61,9 +61,13 @@ describe("GeneralSettings — board read intervals", () => {
   it("onChange updates local interval when value is a valid number", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-local")).toBeInTheDocument(),
-    );
+    // Wait for the input AND for useDeferredValue to settle on the API value (30)
+    // before firing the change, so a late deferred update can't overwrite it.
+    await waitFor(() => {
+      const el = document.getElementById("board-read-local") as HTMLInputElement;
+      expect(el).toBeInTheDocument();
+      expect(parseInt(el.value, 10)).toBe(30);
+    });
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "45" } });
@@ -76,9 +80,13 @@ describe("GeneralSettings — board read intervals", () => {
   it("onChange updates cloud interval when value is a valid number", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-cloud")).toBeInTheDocument(),
-    );
+    // Wait for the input AND for useDeferredValue to settle on the API value (180)
+    // before firing the change, so a late deferred update can't overwrite it.
+    await waitFor(() => {
+      const el = document.getElementById("board-read-cloud") as HTMLInputElement;
+      expect(el).toBeInTheDocument();
+      expect(parseInt(el.value, 10)).toBe(180);
+    });
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "90" } });
@@ -172,6 +180,7 @@ describe("GeneralSettings — board read intervals", () => {
     );
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
+    await waitFor(() => expect(parseInt(input.value, 10)).toBe(180));
     fireEvent.change(input, { target: { value: "90" } });
     // Flush all pending React state updates (including deferred ones) before blur
     // so the blur handler reads the updated value, not the initial default.

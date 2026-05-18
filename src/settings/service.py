@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, asdict, field
+from datetime import datetime, timezone
 from typing import Optional, Literal, List
 from pathlib import Path
 
@@ -182,6 +183,65 @@ class BoardSettings:
         return cls(board_type=board_type, boards=boards)
 
 
+VALID_REVERT_MODES = ["schedule", "blank", "page"]
+TEMPORARY_OVERRIDE_DURATION_MIN = 1
+TEMPORARY_OVERRIDE_DURATION_MAX = 480
+
+
+@dataclass
+class TemporaryOverride:
+    """A user-initiated, time-limited page override.
+
+    While active, the specified page is shown instead of the scheduled or
+    manual page. When it expires the revert_mode determines what happens next:
+      - "schedule": clear override, schedule resumes naturally
+      - "blank": clear override, board is blanked
+      - "page": clear override, active page is set to revert_page_id
+    """
+    page_id: str
+    expires_at: str          # ISO 8601 UTC timestamp (e.g. "2026-05-16T21:30:00+00:00")
+    revert_mode: str         # "schedule" | "blank" | "page"
+    revert_page_id: Optional[str] = None
+
+    def is_expired(self) -> bool:
+        """Return True when the override's expiry timestamp has passed."""
+        try:
+            expiry = datetime.fromisoformat(self.expires_at)
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+            return datetime.now(timezone.utc) >= expiry
+        except (ValueError, TypeError):
+            return True
+
+    def remaining_seconds(self) -> float:
+        """Return the number of seconds remaining before expiry (0 if expired)."""
+        try:
+            expiry = datetime.fromisoformat(self.expires_at)
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+            delta = (expiry - datetime.now(timezone.utc)).total_seconds()
+            return max(0.0, delta)
+        except (ValueError, TypeError):
+            return 0.0
+
+    def to_dict(self) -> dict:
+        return {
+            "page_id": self.page_id,
+            "expires_at": self.expires_at,
+            "revert_mode": self.revert_mode,
+            "revert_page_id": self.revert_page_id,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "TemporaryOverride":
+        return cls(
+            page_id=data["page_id"],
+            expires_at=data["expires_at"],
+            revert_mode=data.get("revert_mode", "schedule"),
+            revert_page_id=data.get("revert_page_id"),
+        )
+
+
 @dataclass
 class ScheduleSettings:
     """Schedule system settings."""
@@ -341,6 +401,7 @@ class SettingsService:
         self._location = self._load_location_settings()
         self._beta = self._load_beta_settings()
         self._plugins = self._load_plugin_settings()
+        self._temporary_override: Optional[TemporaryOverride] = self._load_temporary_override()
         
         if getattr(self, "_needs_migration_save", False):
             self._save_to_file()
@@ -373,6 +434,7 @@ class SettingsService:
                 "location": self._location.to_dict(),
                 "beta": self._beta.to_dict(),
                 "plugins": self._plugins.to_dict(),
+                "temporary_override": self._temporary_override.to_dict() if self._temporary_override else None,
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -515,6 +577,20 @@ class SettingsService:
         if "plugins" in file_data:
             return PluginSettings.from_dict(file_data["plugins"])
         return PluginSettings()
+
+    def _load_temporary_override(self) -> Optional["TemporaryOverride"]:
+        """Load temporary override from file, returning None if absent or expired."""
+        file_data = self._load_from_file()
+        raw = file_data.get("temporary_override")
+        if not raw:
+            return None
+        try:
+            override = TemporaryOverride.from_dict(raw)
+            if override.is_expired():
+                return None
+            return override
+        except (KeyError, ValueError):
+            return None
 
     # Transition settings
     def get_transition_settings(self) -> TransitionSettings:
@@ -966,6 +1042,56 @@ class SettingsService:
         self._save_to_file()
         logger.info(f"Plugin settings updated: {self._plugins}")
         return self._plugins
+
+    # Temporary override
+    def get_temporary_override(self) -> Optional[TemporaryOverride]:
+        """Return the active temporary override, or None if absent or expired.
+
+        Auto-clears the stored override when it has expired so subsequent
+        reads don't need to check expiry themselves.
+        """
+        if self._temporary_override is None:
+            return None
+        if self._temporary_override.is_expired():
+            self._temporary_override = None
+            self._save_to_file()
+            return None
+        return self._temporary_override
+
+    def consume_temporary_override(self) -> Optional[TemporaryOverride]:
+        """Return the current temporary override (live or expired) and clear it if expired.
+
+        Used by the display loop so it can detect a just-expired override and
+        apply revert-mode side-effects (blank board, set active page, etc.).
+        Unlike get_temporary_override(), this returns the expired object instead
+        of None so the caller can inspect revert_mode before it's gone.
+        """
+        raw = self._temporary_override
+        if raw is None:
+            return None
+        if raw.is_expired():
+            self._temporary_override = None
+            self._save_to_file()
+        return raw
+
+    def set_temporary_override(self, override: TemporaryOverride) -> TemporaryOverride:
+        """Persist a new temporary override, replacing any existing one."""
+        self._temporary_override = override
+        self._save_to_file()
+        logger.info(
+            "Temporary override set: page=%s expires=%s revert=%s",
+            override.page_id,
+            override.expires_at,
+            override.revert_mode,
+        )
+        return override
+
+    def clear_temporary_override(self) -> None:
+        """Remove the temporary override without applying any revert logic."""
+        if self._temporary_override is not None:
+            logger.info("Temporary override cleared")
+        self._temporary_override = None
+        self._save_to_file()
 
 
 # Singleton instance

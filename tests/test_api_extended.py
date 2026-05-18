@@ -77,6 +77,7 @@ def mock_settings_service():
         ss.get_active_page_id.return_value = "page1"
         ss.should_send_to_board.return_value = False
         ss.is_schedule_enabled.return_value = False
+        ss.get_temporary_override.return_value = None
         ss.set_output_target.return_value = output
         ss.set_polling_interval.return_value = polling
         ss.set_board_read_intervals.return_value = polling

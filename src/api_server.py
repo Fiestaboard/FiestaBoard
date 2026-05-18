@@ -4859,6 +4859,121 @@ async def set_active_page(request: dict):
     }
 
 
+@app.get("/settings/temporary-override")
+async def get_temporary_override():
+    """Get the current temporary override status."""
+    settings_service = get_settings_service()
+    override = settings_service.get_temporary_override()
+    return {
+        "active": override is not None,
+        "page_id": override.page_id if override else None,
+        "expires_at": override.expires_at if override else None,
+        "remaining_seconds": round(override.remaining_seconds(), 1) if override else None,
+        "revert_mode": override.revert_mode if override else None,
+        "revert_page_id": override.revert_page_id if override else None,
+    }
+
+
+@app.post("/settings/temporary-override")
+async def set_temporary_override(request: dict):
+    """
+    Activate a temporary page override for a set duration.
+
+    Body:
+      - page_id (str, required): Page to show during the override
+      - duration_minutes (int, required): How long to show it (1–480)
+      - revert_mode (str, optional): "schedule" | "blank" | "page" (default: "schedule")
+      - revert_page_id (str, optional): Required when revert_mode is "page"
+    """
+    from .settings.service import TemporaryOverride, VALID_REVERT_MODES
+    from .settings.service import TEMPORARY_OVERRIDE_DURATION_MIN, TEMPORARY_OVERRIDE_DURATION_MAX
+    from datetime import datetime, timezone, timedelta
+
+    settings_service = get_settings_service()
+    page_service = get_page_service()
+
+    page_id = request.get("page_id")
+    if not page_id:
+        raise HTTPException(status_code=422, detail="page_id is required")
+
+    # Validate the page exists (carousels are also valid)
+    if not is_carousel_id(page_id):
+        if not page_service.get_page(page_id):
+            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+    else:
+        carousel_service = get_carousel_service()
+        if not carousel_service.get_carousel(page_id):
+            raise HTTPException(status_code=404, detail=f"Carousel not found: {page_id}")
+
+    duration_minutes = request.get("duration_minutes")
+    if duration_minutes is None:
+        raise HTTPException(status_code=422, detail="duration_minutes is required")
+    try:
+        duration_minutes = int(duration_minutes)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="duration_minutes must be an integer")
+    if not (TEMPORARY_OVERRIDE_DURATION_MIN <= duration_minutes <= TEMPORARY_OVERRIDE_DURATION_MAX):
+        raise HTTPException(
+            status_code=422,
+            detail=f"duration_minutes must be between {TEMPORARY_OVERRIDE_DURATION_MIN} and {TEMPORARY_OVERRIDE_DURATION_MAX}",
+        )
+
+    revert_mode = request.get("revert_mode", "schedule")
+    if revert_mode not in VALID_REVERT_MODES:
+        raise HTTPException(status_code=422, detail=f"revert_mode must be one of {VALID_REVERT_MODES}")
+
+    revert_page_id = request.get("revert_page_id")
+    if revert_mode == "page":
+        if not revert_page_id:
+            raise HTTPException(status_code=422, detail="revert_page_id is required when revert_mode is 'page'")
+        if not is_carousel_id(revert_page_id):
+            if not page_service.get_page(revert_page_id):
+                raise HTTPException(status_code=404, detail=f"Revert page not found: {revert_page_id}")
+
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=duration_minutes)).isoformat()
+    override = TemporaryOverride(
+        page_id=page_id,
+        expires_at=expires_at,
+        revert_mode=revert_mode,
+        revert_page_id=revert_page_id,
+    )
+    settings_service.set_temporary_override(override)
+
+    # Clear the display cache so the next poll sends the override page immediately
+    svc = get_service()
+    if svc:
+        svc._last_active_page_content = None
+
+    return {
+        "active": True,
+        "page_id": override.page_id,
+        "expires_at": override.expires_at,
+        "remaining_seconds": round(override.remaining_seconds(), 1),
+        "revert_mode": override.revert_mode,
+        "revert_page_id": override.revert_page_id,
+    }
+
+
+@app.delete("/settings/temporary-override")
+async def clear_temporary_override():
+    """Cancel the active temporary override and trigger an immediate board refresh."""
+    settings_service = get_settings_service()
+    override = settings_service.get_temporary_override()
+    revert_mode = override.revert_mode if override else None
+    settings_service.clear_temporary_override()
+
+    # Apply revert side-effects server-side (same logic as expiry in the display loop)
+    if override and override.revert_mode == "page" and override.revert_page_id:
+        settings_service.set_active_page_id(override.revert_page_id)
+
+    # Force an immediate re-render so the board shows the reverted state
+    svc = get_service()
+    if svc:
+        svc._last_active_page_content = None
+
+    return {"status": "cleared", "revert_mode": revert_mode}
+
+
 @app.get("/settings/polling")
 async def get_polling_settings():
     """Get current polling interval settings."""
@@ -6094,11 +6209,25 @@ async def get_active_schedule(board_id: Optional[str] = None):
     """Get the currently active page based on schedule (optional query: board_id=)."""
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
+
+    # Include temporary override status so the frontend can show the countdown badge
+    # without a separate API call.
+    override = settings_service.get_temporary_override()
+    temporary_override_payload = {
+        "active": override is not None,
+        "page_id": override.page_id if override else None,
+        "expires_at": override.expires_at if override else None,
+        "remaining_seconds": round(override.remaining_seconds(), 1) if override else None,
+        "revert_mode": override.revert_mode if override else None,
+        "revert_page_id": override.revert_page_id if override else None,
+    }
+
     if not settings_service.is_schedule_enabled(board_id=board_id):
         return {
             "page_id": settings_service.get_active_page_id(),
             "source": "manual",
             "schedule_enabled": False,
+            "temporary_override": temporary_override_payload,
         }
     from .time_service import get_time_service
     time_service = get_time_service()
@@ -6113,6 +6242,7 @@ async def get_active_schedule(board_id: Optional[str] = None):
         "current_time": now.strftime("%H:%M"),
         "current_day": current_day,
         "default_page_id": schedule_service.get_default_page(board_id=board_id),
+        "temporary_override": temporary_override_payload,
     }
 
 

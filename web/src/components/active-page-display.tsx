@@ -7,16 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, UploadCloud, Loader2 } from "lucide-react";
+import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, RefreshCw, UploadCloud, Loader2, Timer, CalendarOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BoardDisplay } from "@/components/board-display";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type { SilenceStatus, Carousel, BoardCurrentMessageResponse } from "@/lib/api";
 import { api, isCarouselId } from "@/lib/api";
 import { PageGridSelector } from "@/components/page-grid-selector";
+import { ForceSetDialog } from "@/components/force-set-dialog";
 import { readLiveOutputMessage, onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 
@@ -33,6 +35,13 @@ export function ActivePageDisplay() {
   const [showSheetContent, setShowSheetContent] = useState(false);
   // Resend-to-board loading state
   const [isSyncing, setIsSyncing] = useState(false);
+  // Force-set dialog state
+  const [forceSetDialogOpen, setForceSetDialogOpen] = useState(false);
+  const [forceSetPageId, setForceSetPageId] = useState<string | null>(null);
+  // Schedule mode choice dialog (shown before page selector when schedule is active)
+  const [changeModeOpen, setChangeModeOpen] = useState(false);
+  // When true, the page selector treats selection as manual (after disabling schedule)
+  const [openSheetAsManual, setOpenSheetAsManual] = useState(false);
 
   // Start pre-rendering grid in background after component mounts
   useEffect(() => {
@@ -71,6 +80,13 @@ export function ActivePageDisplay() {
   });
 
   const scheduleEnabled = activeScheduleData?.schedule_enabled || false;
+
+  // Derive temporary override info from the active-schedule response (no extra API call)
+  const temporaryOverride = activeScheduleData?.temporary_override ?? null;
+  const overrideActive = temporaryOverride?.active === true;
+  const overrideRemainingMinutes = overrideActive && temporaryOverride?.remaining_seconds
+    ? Math.floor(temporaryOverride.remaining_seconds / 60)
+    : 0;
 
   // Fetch manual active page setting
   const {
@@ -127,6 +143,32 @@ export function ActivePageDisplay() {
     });
     toast.success("Live Mode turned off");
   }, [queryClient]);
+
+  const clearOverrideMutation = useMutation({
+    mutationFn: () => api.clearTemporaryOverride(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
+      api.forceRefresh().catch(() => {});
+      toast.success(t("toastOverrideCancelled"));
+    },
+    onError: () => {
+      toast.error("Failed to cancel override");
+    },
+  });
+
+  const disableScheduleMutation = useMutation({
+    mutationFn: () => api.setScheduleEnabled(false),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
+      toast.success(t("changeModeDisableSuccess"));
+      setChangeModeOpen(false);
+      setOpenSheetAsManual(true);
+      setIsSheetOpen(true);
+    },
+    onError: () => {
+      toast.error("Failed to disable schedule mode");
+    },
+  });
 
   const handleResendToBoard = useCallback(async () => {
     setIsSyncing(true);
@@ -205,8 +247,8 @@ export function ActivePageDisplay() {
 
   // Handle page selection with debouncing and optimistic updates
   const handleSelectPage = useCallback((pageId: string) => {
-    if (pageId === activePageId) {
-      // Close sheet if re-selecting same page
+    if (pageId === activePageId && !scheduleEnabled && !overrideActive) {
+      // Close sheet if re-selecting same page in manual mode with no override
       setIsSheetOpen(false);
       return;
     }
@@ -219,14 +261,20 @@ export function ActivePageDisplay() {
     lastClickTimeRef.current = now;
     lastPageIdRef.current = pageId;
 
-    // Immediately update UI optimistically, then sync with server
-    // Don't wrap in startTransition - we want this to feel instant
+    if ((scheduleEnabled || overrideActive) && !openSheetAsManual) {
+      // In schedule mode (or while an override is already active), show the
+      // Force Set dialog so the user can pick a duration and revert mode.
+      setForceSetPageId(pageId);
+      setForceSetDialogOpen(true);
+      setIsSheetOpen(false);
+      return;
+    }
+
+    // Manual mode (or after the user chose to disable schedule): switch immediately.
+    setOpenSheetAsManual(false);
     setActivePageMutation.mutate(pageId, {
       onSuccess: (_result) => {
-        // Close the sheet after successful selection
         setIsSheetOpen(false);
-
-        // Use startTransition for toast notifications (non-urgent)
         startTransition(() => {
           toast.success(t("toastSwitchSuccess"));
         });
@@ -235,7 +283,7 @@ export function ActivePageDisplay() {
         toast.error(t("toastSwitchFailed"));
       }
     });
-  }, [activePageId, setActivePageMutation]);
+  }, [activePageId, scheduleEnabled, overrideActive, openSheetAsManual, setActivePageMutation]);
 
   // Get the active page for name resolution
   const activePage = useMemo(() => {
@@ -288,30 +336,26 @@ export function ActivePageDisplay() {
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">{t("title")}</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (scheduleEnabled) {
-                  router.push("/schedule");
-                } else {
-                  setIsSheetOpen(true);
-                }
-              }}
-              className="gap-2"
-            >
-              {scheduleEnabled ? (
-                <>
-                  <Calendar className="h-4 w-4" />
-                  {t("viewSchedule")}
-                </>
-              ) : (
-                <>
-                  <ArrowLeftRight className="h-4 w-4" />
-                  {t("changePage")}
-                </>
+            <div className="flex items-center gap-2">
+              {scheduleEnabled && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/schedule")}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  {t("viewSchedule")} →
+                </button>
               )}
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => scheduleEnabled ? setChangeModeOpen(true) : setIsSheetOpen(true)}
+                className="gap-2"
+              >
+                <ArrowLeftRight className="h-4 w-4" />
+                {t("changePage")}
+              </Button>
+            </div>
           </div>
 
           {/* Active page name and status */}
@@ -336,15 +380,35 @@ export function ActivePageDisplay() {
                   <X className="h-3 w-3" aria-hidden="true" />
                 </button>
               </Badge>
+            ) : overrideActive ? (
+              <Badge
+                variant="outline"
+                className="text-xs gap-1 border-primary/50 text-primary pr-1"
+              >
+                <Timer className="h-3 w-3" aria-hidden="true" />
+                {overrideRemainingMinutes > 0
+                  ? t("overrideBadge", { minutes: overrideRemainingMinutes })
+                  : t("overrideBadgeLessThan1m")}
+                <button
+                  type="button"
+                  onClick={() => clearOverrideMutation.mutate()}
+                  aria-label={t("cancelOverride")}
+                  title={t("cancelOverride")}
+                  disabled={clearOverrideMutation.isPending}
+                  className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              </Badge>
             ) : (
               <Badge variant={scheduleEnabled ? "default" : "secondary"} className="text-xs">
                 {scheduleEnabled ? (
                   <>
                     <Calendar className="h-3 w-3 mr-1" />
-                    Schedule Mode
+                    {t("scheduleMode")}
                   </>
                 ) : (
-                  "Manual Mode"
+                  t("manualMode")
                 )}
               </Badge>
             )}
@@ -433,7 +497,7 @@ export function ActivePageDisplay() {
       )}
 
       {/* Page Selector Sheet - grid is already cached so opens instantly */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet open={isSheetOpen} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setOpenSheetAsManual(false); }}>
         <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t("selectPageTitle")}</SheetTitle>
@@ -467,6 +531,66 @@ export function ActivePageDisplay() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Force Set dialog — opened when user picks a page while in schedule mode */}
+      <ForceSetDialog
+        open={forceSetDialogOpen}
+        onOpenChange={setForceSetDialogOpen}
+        pageId={forceSetPageId}
+        pageName={pages.find((p) => p.id === forceSetPageId)?.name ?? ""}
+      />
+
+      {/* Schedule mode choice dialog — shown before page selector when schedule is active */}
+      <Dialog open={changeModeOpen} onOpenChange={setChangeModeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("changeModeTitle")}</DialogTitle>
+            <DialogDescription>{t("changeModeDescription")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-2">
+            {/* Override temporarily */}
+            <button
+              type="button"
+              onClick={() => { setChangeModeOpen(false); setIsSheetOpen(true); }}
+              className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                <Timer className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold text-sm text-foreground">{t("changeModeOverrideTitle")}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("changeModeOverrideDescription")}</div>
+              </div>
+            </button>
+
+            {/* Turn off schedule */}
+            <button
+              type="button"
+              onClick={() => disableScheduleMutation.mutate()}
+              disabled={disableScheduleMutation.isPending}
+              className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-muted/80 transition-colors">
+                {disableScheduleMutation.isPending
+                  ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  : <CalendarOff className="h-5 w-5 text-muted-foreground" />
+                }
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold text-sm text-foreground">{t("changeModeDisableTitle")}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("changeModeDisableDescription")}</div>
+              </div>
+            </button>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setChangeModeOpen(false)}>
+              {_tc("cancel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
