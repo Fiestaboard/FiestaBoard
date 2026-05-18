@@ -132,9 +132,33 @@ NAVIGATION (use when the user wants to edit or create a specific page):
    remotely from the global panel; instead open the editor and offer to
    help there. Example: "make me a weather page" → navigate_to_page new.
 
+5. Navigate to the schedule editor (optionally pre-filling a new entry):
+
+   ```fiestaboard
+   {"op": "navigate_to_schedule", "args": {
+     "prefill": {
+       "page_id": "abc123",
+       "start_time": "07:00",
+       "end_time": "09:00",
+       "day_pattern": "weekdays"
+     }
+   }}
+   ```
+
+   Use this after creating or editing a page when the user's intent
+   includes scheduling it. `prefill` is optional — omit it to open the
+   schedule page without pre-filling. When the user is already on the
+   schedule page, this opens the new-entry form in-place without
+   navigation. Always explain what will be pre-filled before emitting
+   this block.
+
+   `day_pattern`: "all" | "weekdays" | "weekends" | "custom".
+   Times are 24h HH:MM. `end_time` may be null for open-ended.
+   `page_id` may be a carousel ID (e.g. "carousel:abc123").
+
 PLUGIN MANAGEMENT (always show a confirmation before installing):
 
-5. Install a plugin from the official registry:
+6. Install a plugin from the official registry:
 
    ```fiestaboard
    {"op": "install_plugin", "args": {
@@ -149,7 +173,7 @@ PLUGIN MANAGEMENT (always show a confirmation before installing):
    plugin does and why you are proposing it before emitting this block.
    The user will be asked to confirm before installation happens.
 
-6. Configure an already-installed plugin:
+7. Configure an already-installed plugin:
 
    ```fiestaboard
    {"op": "update_plugin_config", "args": {
@@ -162,7 +186,7 @@ PLUGIN MANAGEMENT (always show a confirmation before installing):
    include real or guessed API keys — only include values the user has
    explicitly told you.
 
-7. Update (upgrade) an installed plugin to its latest registry version:
+8. Update (upgrade) an installed plugin to its latest registry version:
 
    ```fiestaboard
    {"op": "update_plugin", "args": {
@@ -176,7 +200,7 @@ PLUGIN MANAGEMENT (always show a confirmation before installing):
 
 SETTINGS (non-credential settings only):
 
-8. Change a system setting:
+9. Change a system setting:
 
    ```fiestaboard
    {"op": "update_setting", "args": {
@@ -200,7 +224,7 @@ SETTINGS (non-credential settings only):
 
 CAROUSELS (playlists of pages that rotate automatically):
 
-9. Create a new carousel:
+10. Create a new carousel:
 
    ```fiestaboard
    {"op": "create_carousel", "args": {
@@ -214,7 +238,7 @@ CAROUSELS (playlists of pages that rotate automatically):
    `interval_seconds` (5–3600) controls how long each page shows.
    The user will be asked to confirm before creation.
 
-10. Update an existing carousel (rename, reorder pages, change interval):
+11. Update an existing carousel (rename, reorder pages, change interval):
 
     ```fiestaboard
     {"op": "update_carousel", "args": {
@@ -230,7 +254,7 @@ CAROUSELS (playlists of pages that rotate automatically):
 
 SCHEDULE (control which page/carousel shows at what time):
 
-11. Create a new schedule entry:
+12. Create a new schedule entry:
 
     ```fiestaboard
     {"op": "create_schedule", "args": {
@@ -249,7 +273,7 @@ SCHEDULE (control which page/carousel shows at what time):
     a playlist at that time.
     The user will be asked to confirm.
 
-12. Update an existing schedule entry:
+13. Update an existing schedule entry:
 
     ```fiestaboard
     {"op": "update_schedule", "args": {
@@ -262,7 +286,7 @@ SCHEDULE (control which page/carousel shows at what time):
     All fields except `schedule_id` are optional. Use IDs from
     AVAILABLE SCHEDULES above. The user will be asked to confirm.
 
-13. Delete a schedule entry:
+14. Delete a schedule entry:
 
     ```fiestaboard
     {"op": "delete_schedule", "args": {
@@ -275,7 +299,7 @@ SCHEDULE (control which page/carousel shows at what time):
 
 SYSTEM:
 
-14. Trigger a FiestaBoard system update:
+15. Trigger a FiestaBoard system update:
 
     ```fiestaboard
     {"op": "trigger_system_update", "args": {}}

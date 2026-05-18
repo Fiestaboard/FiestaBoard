@@ -132,6 +132,16 @@ export interface DeleteScheduleArgs {
   schedule_id: string;
 }
 
+export interface NavigateToScheduleArgs {
+  prefill?: {
+    page_id?: string;
+    start_time?: string;
+    end_time?: string | null;
+    day_pattern?: DayPattern;
+    custom_days?: string[];
+  };
+}
+
 export interface UpdatePluginArgs {
   plugin_id: string;
 }
@@ -141,6 +151,7 @@ export type ToolCall =
   | { id: string; op: "apply_patch"; args: ApplyPatchArgs }
   | { id: string; op: "suggest_variables"; args: SuggestVariablesArgs }
   | { id: string; op: "navigate_to_page"; args: NavigateToPageArgs }
+  | { id: string; op: "navigate_to_schedule"; args: NavigateToScheduleArgs }
   | { id: string; op: "install_plugin"; args: InstallPluginArgs }
   | { id: string; op: "update_plugin_config"; args: UpdatePluginConfigArgs }
   | { id: string; op: "update_setting"; args: UpdateSettingArgs }

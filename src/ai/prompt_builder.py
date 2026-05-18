@@ -433,16 +433,13 @@ def build_prompt(
         "    `{{fill_space}}` expands to fill the rest of the line; use\n"
         "      for left/right alignment: `Left{{fill_space}}Right`.\n"
         "    `{{filled:X}}` fills remaining space with X repeated:\n"
-        "      - character: `{{filled:.}}` -> `Title.....99`\n"
+        "      - character: `{{filled:-}}` -> `Title-----99`\n"
         "      - color name: `{{filled:green}}` fills with green tiles\n"
-        "      e.g. `Title{{filled:.}}99` or `{{filled:red}}`.\n"
+        "      e.g. `Title{{filled:-}}99` or `{{filled:red}}`.\n"
         "      Do NOT write `{{filled.}}` or `{{filled:{color}}}` —\n"
         "      always use a colon: `{{filled:X}}`.\n"
-        "      CRITICAL: when X is a color name, use ONLY the bare color\n"
-        "      name — no trailing period or other characters. Write\n"
-        "      `{{filled:blue}}` NOT `{{filled:blue.}}`. A trailing dot\n"
-        "      is NOT punctuation — it makes the color lookup fail and\n"
-        "      outputs the literal text \"blue.\" repeated across the row.\n"
+        "      When X is a color name, write ONLY the bare name with no\n"
+        "      extra characters: `{{filled:blue}}` not `{{filled:blue.}}`.\n"
     )
 
     expression_syntax = (

@@ -10,6 +10,7 @@ import { AiChatPanel } from "@/components/ai-chat-panel";
 import { AiActionConfirmation } from "@/components/ai-action-confirmation";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
+import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { api, type AISettings } from "@/lib/api";
 import type {
   ChatTurnContext,
@@ -30,6 +31,7 @@ export function GlobalAiChatDrawer() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { getEditorSnapshot, applyEditorOp, hasEditor, canEditorUndo, editorUndo } = usePageEditorBridge();
+  const { hasScheduleEditor, openScheduleForm } = useScheduleEditorBridge();
 
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
@@ -131,6 +133,22 @@ export function GlobalAiChatDrawer() {
           break;
         }
 
+        case "navigate_to_schedule": {
+          const { prefill } = call.args;
+          if (hasScheduleEditor) {
+            openScheduleForm(prefill ?? undefined);
+          } else {
+            const params = new URLSearchParams();
+            if (prefill?.page_id) params.set("prefill_page_id", prefill.page_id);
+            if (prefill?.start_time) params.set("prefill_start", prefill.start_time);
+            if (prefill?.end_time) params.set("prefill_end", prefill.end_time);
+            if (prefill?.day_pattern) params.set("prefill_days", prefill.day_pattern);
+            const qs = params.size ? `?${params.toString()}` : "";
+            router.push(`/schedule${qs}`);
+          }
+          break;
+        }
+
         case "replace_page":
         case "apply_patch":
         case "suggest_variables":
@@ -158,7 +176,7 @@ export function GlobalAiChatDrawer() {
           break;
       }
     },
-    [router, close, hasEditor, applyEditorOp],
+    [router, close, hasEditor, applyEditorOp, hasScheduleEditor, openScheduleForm],
   );
 
   const handleInstallPlugin = useCallback(

@@ -348,6 +348,25 @@ class UpdatePluginOp(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# navigate_to_schedule — open the schedule editor, optionally pre-filling a
+# new entry form.
+# ---------------------------------------------------------------------------
+
+
+class NavigateToScheduleArgs(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    prefill: Optional[Dict[str, Any]] = Field(default=None)
+
+
+class NavigateToScheduleOp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    op: Literal["navigate_to_schedule"]
+    args: NavigateToScheduleArgs
+
+
+# ---------------------------------------------------------------------------
 # trigger_system_update — trigger a FiestaBoard system update.
 # ---------------------------------------------------------------------------
 
@@ -373,6 +392,7 @@ ToolCall = Union[
     ApplyPatchOp,
     SuggestVariablesOp,
     NavigateToPageOp,
+    NavigateToScheduleOp,
     InstallPluginOp,
     UpdatePluginConfigOp,
     UpdateSettingOp,
@@ -391,6 +411,7 @@ _OP_REGISTRY = {
     "apply_patch": ApplyPatchOp,
     "suggest_variables": SuggestVariablesOp,
     "navigate_to_page": NavigateToPageOp,
+    "navigate_to_schedule": NavigateToScheduleOp,
     "install_plugin": InstallPluginOp,
     "update_plugin_config": UpdatePluginConfigOp,
     "update_setting": UpdateSettingOp,
