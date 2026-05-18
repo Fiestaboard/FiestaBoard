@@ -117,6 +117,105 @@ export function GlobalAiChatDrawer() {
     };
   }, [pagesData, pluginsData, schedulesData, carouselsData, registryData, getEditorSnapshot]);
 
+  const handleCreateSchedule = useCallback(
+    async (args: CreateScheduleArgs) => {
+      const created = await api.createSchedule({
+        page_id: args.page_id,
+        start_time: args.start_time,
+        end_time: args.end_time ?? null,
+        day_pattern: args.day_pattern,
+        custom_days: args.custom_days ?? undefined,
+        enabled: args.enabled,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      toast.success("Schedule created.", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void (async () => {
+              await api.deleteSchedule(created.id);
+              await queryClient.invalidateQueries({ queryKey: ["schedules"] });
+            })();
+          },
+        },
+        duration: 8000,
+      });
+    },
+    [queryClient],
+  );
+
+  const handleUpdateSchedule = useCallback(
+    async (args: UpdateScheduleArgs) => {
+      const { schedule_id, ...update } = args;
+      const oldSchedule = schedulesData?.schedules?.find((s) => s.id === schedule_id);
+      await api.updateSchedule(schedule_id, {
+        ...(update.page_id != null && { page_id: update.page_id }),
+        ...(update.start_time != null && { start_time: update.start_time }),
+        ...("end_time" in update && { end_time: update.end_time ?? null }),
+        ...(update.day_pattern != null && { day_pattern: update.day_pattern }),
+        ...(update.custom_days != null && { custom_days: update.custom_days }),
+        ...(update.enabled != null && { enabled: update.enabled }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      toast.success("Schedule updated.", {
+        action: oldSchedule
+          ? {
+              label: "Undo",
+              onClick: () => {
+                void (async () => {
+                  await api.updateSchedule(schedule_id, {
+                    page_id: oldSchedule.page_id,
+                    start_time: oldSchedule.start_time,
+                    end_time: oldSchedule.end_time ?? null,
+                    day_pattern: oldSchedule.day_pattern,
+                    custom_days: oldSchedule.custom_days,
+                    enabled: oldSchedule.enabled,
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["schedules"] });
+                })();
+              },
+            }
+          : undefined,
+        duration: 8000,
+      });
+    },
+    [queryClient, schedulesData],
+  );
+
+  const handleDeleteSchedule = useCallback(
+    async (args: DeleteScheduleArgs) => {
+      const schedule = schedulesData?.schedules?.find((s) => s.id === args.schedule_id);
+      await api.deleteSchedule(args.schedule_id);
+      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      toast.success("Schedule deleted.", {
+        action: schedule
+          ? {
+              label: "Undo",
+              onClick: () => {
+                void (async () => {
+                  await api.createSchedule({
+                    page_id: schedule.page_id,
+                    start_time: schedule.start_time,
+                    end_time: schedule.end_time ?? null,
+                    day_pattern: schedule.day_pattern,
+                    custom_days: schedule.custom_days,
+                    enabled: schedule.enabled,
+                    start_type: schedule.start_type,
+                    start_sun_offset: schedule.start_sun_offset,
+                    end_type: schedule.end_type,
+                    end_sun_offset: schedule.end_sun_offset,
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["schedules"] });
+                })();
+              },
+            }
+          : undefined,
+        duration: 8000,
+      });
+    },
+    [queryClient, schedulesData],
+  );
+
   const handleToolCall = useCallback(
     (call: ToolCall): void => {
       switch (call.op) {
@@ -158,15 +257,24 @@ export function GlobalAiChatDrawer() {
           }
           break;
 
+        case "create_schedule":
+          void handleCreateSchedule(call.args as CreateScheduleArgs);
+          break;
+
+        case "update_schedule":
+          void handleUpdateSchedule(call.args as UpdateScheduleArgs);
+          break;
+
+        case "delete_schedule":
+          void handleDeleteSchedule(call.args as DeleteScheduleArgs);
+          break;
+
         case "install_plugin":
         case "update_plugin_config":
         case "update_plugin":
         case "update_setting":
         case "create_carousel":
         case "update_carousel":
-        case "create_schedule":
-        case "update_schedule":
-        case "delete_schedule":
         case "trigger_system_update":
           // Handled declaratively via AiActionConfirmation in the chat
           // thread (see renderToolCallSupplement).
@@ -176,7 +284,7 @@ export function GlobalAiChatDrawer() {
           break;
       }
     },
-    [router, close, hasEditor, applyEditorOp, hasScheduleEditor, openScheduleForm],
+    [router, close, hasEditor, applyEditorOp, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule],
   );
 
   const handleInstallPlugin = useCallback(
@@ -288,48 +396,6 @@ export function GlobalAiChatDrawer() {
     [queryClient],
   );
 
-  const handleCreateSchedule = useCallback(
-    async (args: CreateScheduleArgs) => {
-      await api.createSchedule({
-        page_id: args.page_id,
-        start_time: args.start_time,
-        end_time: args.end_time ?? null,
-        day_pattern: args.day_pattern,
-        custom_days: args.custom_days ?? undefined,
-        enabled: args.enabled,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule created.");
-    },
-    [queryClient],
-  );
-
-  const handleUpdateSchedule = useCallback(
-    async (args: UpdateScheduleArgs) => {
-      const { schedule_id, ...update } = args;
-      await api.updateSchedule(schedule_id, {
-        ...(update.page_id != null && { page_id: update.page_id }),
-        ...(update.start_time != null && { start_time: update.start_time }),
-        ...("end_time" in update && { end_time: update.end_time ?? null }),
-        ...(update.day_pattern != null && { day_pattern: update.day_pattern }),
-        ...(update.custom_days != null && { custom_days: update.custom_days }),
-        ...(update.enabled != null && { enabled: update.enabled }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule updated.");
-    },
-    [queryClient],
-  );
-
-  const handleDeleteSchedule = useCallback(
-    async (args: DeleteScheduleArgs) => {
-      await api.deleteSchedule(args.schedule_id);
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule deleted.");
-    },
-    [queryClient],
-  );
-
   const handleTriggerSystemUpdate = useCallback(async () => {
     await api.applyUpdate();
     toast.success("System update started. The board will restart shortly.");
@@ -394,32 +460,8 @@ export function GlobalAiChatDrawer() {
           />
         );
       }
-      if (call.op === "create_schedule") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={() => handleCreateSchedule(call.args as CreateScheduleArgs)}
-            onDeny={() => {}}
-          />
-        );
-      }
-      if (call.op === "update_schedule") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={() => handleUpdateSchedule(call.args as UpdateScheduleArgs)}
-            onDeny={() => {}}
-          />
-        );
-      }
-      if (call.op === "delete_schedule") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={() => handleDeleteSchedule(call.args as DeleteScheduleArgs)}
-            onDeny={() => {}}
-          />
-        );
+      if (call.op === "create_schedule" || call.op === "update_schedule" || call.op === "delete_schedule") {
+        return null;
       }
       if (call.op === "trigger_system_update") {
         return (
@@ -439,9 +481,6 @@ export function GlobalAiChatDrawer() {
       handleUpdateSetting,
       handleCreateCarousel,
       handleUpdateCarousel,
-      handleCreateSchedule,
-      handleUpdateSchedule,
-      handleDeleteSchedule,
       handleTriggerSystemUpdate,
     ],
   );
