@@ -1,7 +1,7 @@
 {
   "id": "date_time",
   "name": "Date & Time",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Display current date and time in configurable formats",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
@@ -158,6 +158,12 @@
         "group": "formatting",
         "max_length": 8,
         "example": "3/21/25"
+      },
+      "time_english": {
+        "description": "Current time as a spoken English expression",
+        "group": "formatting",
+        "max_length": 50,
+        "example": "IT'S A QUARTER PAST ONE IN THE AFTERNOON."
       }
     }
   },

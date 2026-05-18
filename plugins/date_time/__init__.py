@@ -12,6 +12,59 @@ from src.plugins.base import PluginBase, PluginResult
 
 logger = logging.getLogger(__name__)
 
+_HOUR_WORDS = {
+    1: "ONE", 2: "TWO", 3: "THREE", 4: "FOUR", 5: "FIVE", 6: "SIX",
+    7: "SEVEN", 8: "EIGHT", 9: "NINE", 10: "TEN", 11: "ELEVEN", 12: "TWELVE",
+}
+
+_ONES = [
+    "", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT",
+    "NINE", "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN",
+    "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN",
+]
+_TENS = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY"]
+
+
+def _minute_word(n: int) -> str:
+    """Convert a minute count (1–29) to English words, with A QUARTER for 15."""
+    if n == 15:
+        return "A QUARTER"
+    if n < 20:
+        return _ONES[n]
+    tens = _TENS[n // 10]
+    ones = _ONES[n % 10]
+    return f"{tens}-{ones}" if ones else tens
+
+
+def _time_to_english(hour: int, minute: int) -> str:
+    """Convert hour (0–23) and minute (0–59) to a spoken English expression."""
+    if hour == 0 and minute == 0:
+        return "IT'S MIDNIGHT."
+    if hour == 12 and minute == 0:
+        return "IT'S NOON."
+
+    if 5 <= hour <= 11:
+        period = "IN THE MORNING"
+    elif 12 <= hour <= 17:
+        period = "IN THE AFTERNOON"
+    elif 18 <= hour <= 20:
+        period = "IN THE EVENING"
+    else:
+        period = "AT NIGHT"
+
+    h12 = hour % 12 or 12
+
+    if minute == 0:
+        return f"IT'S {_HOUR_WORDS[h12]} O'CLOCK {period}."
+    elif minute == 30:
+        return f"IT'S HALF PAST {_HOUR_WORDS[h12]} {period}."
+    elif minute < 30:
+        return f"IT'S {_minute_word(minute)} PAST {_HOUR_WORDS[h12]} {period}."
+    else:
+        minutes_to = 60 - minute
+        next_h12 = h12 % 12 + 1
+        return f"IT'S {_minute_word(minutes_to)} TO {_HOUR_WORDS[next_h12]} {period}."
+
 
 class DateTimePlugin(PluginBase):
     """Date and time data plugin.
@@ -77,6 +130,9 @@ class DateTimePlugin(PluginBase):
                 
                 # Additional timezone info
                 "timezone": timezone_str,  # Full timezone name from config
+
+                # Spoken English time expression
+                "time_english": _time_to_english(now.hour, now.minute),
             }
             
             return PluginResult(
