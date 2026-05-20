@@ -212,6 +212,21 @@ class TestCreateInstance:
         assert "test_plugin:b" in registry_with_plugin._plugins
         assert "test_plugin:c" in registry_with_plugin._plugins
 
+    def test_create_instance_normalizes_mixed_case_label(self, registry_with_plugin):
+        """Mixed-case labels are stored lowercase so the template engine's
+        case-insensitive variable lookup matches the compound key (#774)."""
+        errors = registry_with_plugin.create_instance("test_plugin", "FijiAustralia")
+        assert errors == []
+        assert "test_plugin:fijiaustralia" in registry_with_plugin._plugins
+        assert "test_plugin:FijiAustralia" not in registry_with_plugin._plugins
+
+    def test_create_instance_duplicate_differs_only_in_case(self, registry_with_plugin):
+        """Two labels that differ only in case should collide (both normalize)."""
+        assert registry_with_plugin.create_instance("test_plugin", "Wedding") == []
+        errors = registry_with_plugin.create_instance("test_plugin", "WEDDING")
+        assert len(errors) == 1
+        assert "already exists" in errors[0]
+
 
 # ── delete_instance ─────────────────────────────────────────────────────────
 
@@ -441,6 +456,60 @@ class TestRestoreInstances:
         stored_configs = {"unknown_plugin:inst1": {"enabled": True}}
         registry_with_plugin._restore_instances(stored_configs)
         assert "unknown_plugin:inst1" not in registry_with_plugin._plugins
+
+    def test_restore_migrates_mixed_case_key_to_lowercase(self, registry_with_plugin, mock_loader):
+        """Pre-existing mixed-case instance keys are migrated to lowercase on
+        restore so subsequent template renders resolve correctly (#774).
+
+        The on-disk config is rewritten under the lowercase key and the old
+        mixed-case entry is removed so we don't carry a stale duplicate.
+        """
+        stored_configs = {
+            "test_plugin:FijiAustralia": {"enabled": True, "setting": "v"},
+        }
+        new_plugin = MagicMock(spec=PluginBase)
+        new_plugin.validate_config.return_value = []
+        new_plugin._validate_refresh_seconds.return_value = []
+        new_plugin.enabled = False
+        new_plugin.config = {}
+        mock_loader.create_instance.return_value = new_plugin
+
+        mock_config_manager = MagicMock()
+        with patch("src.config_manager.get_config_manager", return_value=mock_config_manager):
+            registry_with_plugin._restore_instances(stored_configs)
+
+        # Instance is registered under the lowercase compound key
+        assert "test_plugin:fijiaustralia" in registry_with_plugin._plugins
+        assert "test_plugin:FijiAustralia" not in registry_with_plugin._plugins
+        assert registry_with_plugin._enabled["test_plugin:fijiaustralia"] is True
+        assert registry_with_plugin._configs["test_plugin:fijiaustralia"]["setting"] == "v"
+
+        # On-disk config is migrated: new key written, old key deleted
+        mock_config_manager.set_plugin_config.assert_called_with(
+            "test_plugin:fijiaustralia", {"enabled": True, "setting": "v"}
+        )
+        mock_config_manager.delete_plugin_config.assert_called_with(
+            "test_plugin:FijiAustralia"
+        )
+
+    def test_restore_lowercase_key_does_not_trigger_migration(self, registry_with_plugin, mock_loader):
+        """Already-lowercase keys should not re-save or delete config."""
+        stored_configs = {
+            "test_plugin:wedding": {"enabled": True},
+        }
+        new_plugin = MagicMock(spec=PluginBase)
+        new_plugin.validate_config.return_value = []
+        new_plugin._validate_refresh_seconds.return_value = []
+        new_plugin.enabled = False
+        new_plugin.config = {}
+        mock_loader.create_instance.return_value = new_plugin
+
+        mock_config_manager = MagicMock()
+        with patch("src.config_manager.get_config_manager", return_value=mock_config_manager):
+            registry_with_plugin._restore_instances(stored_configs)
+
+        mock_config_manager.set_plugin_config.assert_not_called()
+        mock_config_manager.delete_plugin_config.assert_not_called()
 
 
 # ── edge cases ──────────────────────────────────────────────────────────────
