@@ -116,16 +116,23 @@ class PluginRegistry:
         Args:
             plugin_id: Base plugin ID (must already be loaded).
             instance_label: Short alphanumeric label for the instance.
+                Normalized to lowercase so compound keys match the
+                lowercase plugin-id convention used by the template
+                engine's case-insensitive variable lookup.
 
         Returns:
             List of error messages (empty on success).
         """
-        # Validate label
+        # Validate label, then normalize to lowercase.  Plugin IDs are required
+        # to be lowercase (see manifest validation); instance labels follow the
+        # same rule so that `{{plugin:label.field}}` template references — which
+        # are resolved case-insensitively by the engine — match the stored key.
         if not _INSTANCE_LABEL_RE.match(instance_label):
             return [
                 f"Invalid instance label '{instance_label}': must be 1-40 "
                 "alphanumeric characters, underscores, or hyphens."
             ]
+        instance_label = instance_label.lower()
 
         # Base plugin must exist
         if plugin_id not in self._plugins:
@@ -279,6 +286,10 @@ class PluginRegistry:
         Scans *stored_configs* for compound keys (containing the instance
         separator ``:``) and creates the corresponding plugin instances
         with their stored configuration and enabled state.
+
+        Compound keys with a mixed-case instance label (created before
+        labels were normalized to lowercase) are migrated to the lowercase
+        form on disk so subsequent template renders resolve correctly.
         """
         restored = 0
         for config_key, config in stored_configs.items():
@@ -297,8 +308,10 @@ class PluginRegistry:
                 )
                 continue
 
+            normalized_key = self.make_instance_key(base_id, label.lower())
+
             # Skip if already registered (shouldn't happen, but be safe)
-            if config_key in self._plugins:
+            if normalized_key in self._plugins:
                 continue
 
             errors = self.create_instance(base_id, label)
@@ -310,22 +323,40 @@ class PluginRegistry:
 
             # Apply stored config via the proper pipeline so any future
             # side-effects (e.g. validation hooks) are consistently triggered.
-            config_errors = self.set_plugin_config(config_key, config)
+            config_errors = self.set_plugin_config(normalized_key, config)
             if config_errors:
                 logger.warning(
                     "Instance '%s' config failed validation on restore: %s — "
                     "applying raw config to avoid data loss",
-                    config_key, config_errors,
+                    normalized_key, config_errors,
                 )
                 # Fall back to direct assignment so we don't silently discard config
-                self._configs[config_key] = config
-                self._plugins[config_key].config = config
+                self._configs[normalized_key] = config
+                self._plugins[normalized_key].config = config
 
             # Enable via the proper pipeline so any future side-effects are
             # consistently triggered.
             is_enabled = config.get("enabled", False)
             if is_enabled:
-                self.enable_plugin(config_key)
+                self.enable_plugin(normalized_key)
+
+            # If the on-disk key was mixed-case, migrate it to lowercase so
+            # subsequent restarts don't carry a stale duplicate.
+            if config_key != normalized_key:
+                try:
+                    from ..config_manager import get_config_manager
+                    config_manager = get_config_manager()
+                    config_manager.set_plugin_config(normalized_key, config)
+                    config_manager.delete_plugin_config(config_key)
+                    logger.info(
+                        "Migrated instance key '%s' -> '%s' (lowercase normalization)",
+                        config_key, normalized_key,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to migrate instance key '%s' to '%s'",
+                        config_key, normalized_key,
+                    )
 
             restored += 1
 
