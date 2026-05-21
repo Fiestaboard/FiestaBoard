@@ -371,6 +371,15 @@ handle_update() {
         completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         echo "[fiestaupdater] update succeeded; new digest=${after}"
         _write_state "{\"status\":\"success\",\"action\":\"update\",\"service\":\"${FU_SERVICE}\",\"previous_digest\":\"${FU_BEFORE_DIGEST}\",\"previous_image\":\"${FU_BEFORE_IMAGE}\",\"new_digest\":\"${after}\",\"completed_at\":\"${completed_at}\"}"
+        # Remove dangling images left behind by this and previous updates, but
+        # keep the image we just replaced so /rollback can still retag it.
+        echo "[fiestaupdater] pruning old images (keeping rollback target ${FU_BEFORE_DIGEST})..."
+        for img_id in $(docker image ls -q --filter "dangling=true" 2>/dev/null); do
+            full_id=$(docker inspect --format "{{.Id}}" "$img_id" 2>/dev/null || echo "")
+            if [ -n "$full_id" ] && [ "$full_id" != "$FU_BEFORE_DIGEST" ]; then
+                docker image rm "$img_id" 2>/dev/null || true
+            fi
+        done
     ' >>"$logsink" 2>&1 &
 
     respond 202 Accepted "{\"status\":\"queued\",\"action\":\"update\",\"service\":\"${SERVICE}\",\"previous_digest\":\"${before}\",\"previous_image\":\"${before_image}\"}"
