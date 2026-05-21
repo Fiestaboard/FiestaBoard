@@ -408,3 +408,58 @@ SH
     grep -q '"status":"in_progress"' "${SANDBOX}/state/last-update.json"
     grep -q '"previous_digest":"sha256:abc123"' "${SANDBOX}/state/last-update.json"
 }
+
+# ---- /update : image pruning ------------------------------------------------
+
+@test "successful update prunes stale dangling images but keeps rollback target" {
+    # Replace the mock docker with one that exposes two dangling images:
+    #   staleimg   → full ID sha256:stale... (older generation, safe to remove)
+    #   rollbackimg → full ID sha256:abc123  (the pre-update image, must be kept)
+    # FU_BEFORE_DIGEST is set from `docker inspect --format '{{.Image}}' fiestaboard`
+    # which the mock returns as sha256:abc123, so rollbackimg must be spared.
+    cat >"${SANDBOX}/docker" <<'SH'
+#!/bin/sh
+echo "$@" >> "${SANDBOX}/docker.calls"
+case "$1" in
+    inspect)
+        case "$3" in
+            *Config.Image*) echo "fiestaboard/fiestaboard:latest" ;;
+            *Id*)
+                case "$4" in
+                    staleimg)    echo "sha256:stalestalestalestaledead000000000000000000000000000000000000000" ;;
+                    rollbackimg) echo "sha256:abc123" ;;
+                    *)           echo "" ;;
+                esac
+                ;;
+            *Image*) echo "sha256:abc123" ;;
+            *)       echo "" ;;
+        esac
+        ;;
+    image)
+        case "$2" in
+            ls) printf 'staleimg\nrollbackimg\n' ;;
+            rm) exit 0 ;;
+        esac
+        ;;
+    compose|tag) exit 0 ;;
+    *) exit 0 ;;
+esac
+SH
+    chmod +x "${SANDBOX}/docker"
+
+    req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    send "$req" >/dev/null
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        if [ -f "${SANDBOX}/state/last-update.json" ] && \
+           grep -q '"status":"success"' "${SANDBOX}/state/last-update.json"; then
+            break
+        fi
+        sleep 1
+    done
+
+    grep -q '"status":"success"' "${SANDBOX}/state/last-update.json"
+    # Stale image (not the rollback target) must be removed.
+    grep -q 'image rm staleimg' "${SANDBOX}/docker.calls"
+    # Rollback target must NOT be removed.
+    ! grep -q 'image rm rollbackimg' "${SANDBOX}/docker.calls"
+}
