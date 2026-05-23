@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -140,6 +140,7 @@ export default function SchedulePage() {
   }, [register, unregister]);
 
   // Handle URL params set by the AI drawer when navigating from outside.
+  const router = useRouter();
   const searchParams = useSearchParams();
   const urlParamsHandled = useRef(false);
   useEffect(() => {
@@ -147,18 +148,26 @@ export default function SchedulePage() {
     const pageId = searchParams.get("prefill_page_id");
     const startTime = searchParams.get("prefill_start");
     const endTime = searchParams.get("prefill_end");
-    const dayPattern = searchParams.get("prefill_days") as DayPattern | null;
+    const rawDayPattern = searchParams.get("prefill_days");
+    const dayPattern: DayPattern | undefined =
+      rawDayPattern === "all" ||
+      rawDayPattern === "weekdays" ||
+      rawDayPattern === "weekends" ||
+      rawDayPattern === "custom"
+        ? rawDayPattern
+        : undefined;
     if (pageId || startTime) {
       urlParamsHandled.current = true;
       setPrefillData({
         pageId: pageId ?? undefined,
         startTime: startTime ?? undefined,
         endTime: endTime ?? undefined,
-        dayPattern: dayPattern ?? undefined,
+        dayPattern,
       });
       setShowForm(true);
+      router.replace("/schedule", { scroll: false });
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Fetch schedules (scoped by board when multi-board)
   const { data: schedulesData, isLoading } = useQuery({

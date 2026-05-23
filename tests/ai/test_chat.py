@@ -132,6 +132,35 @@ def test_parse_tool_call_navigate_to_page_new():
     assert tool.args.page_id == "new"
 
 
+def test_parse_tool_call_navigate_to_schedule_no_prefill():
+    payload = {"op": "navigate_to_schedule", "args": {}}
+    tool = parse_tool_call(payload)
+    assert tool.op == "navigate_to_schedule"
+    assert tool.args.prefill is None
+
+
+def test_parse_tool_call_navigate_to_schedule_with_prefill():
+    payload = {
+        "op": "navigate_to_schedule",
+        "args": {
+            "prefill": {
+                "page_id": "abc123",
+                "start_time": "07:00",
+                "end_time": "09:00",
+                "day_pattern": "weekdays",
+            }
+        },
+    }
+    tool = parse_tool_call(payload)
+    assert tool.op == "navigate_to_schedule"
+    assert tool.args.prefill == {
+        "page_id": "abc123",
+        "start_time": "07:00",
+        "end_time": "09:00",
+        "day_pattern": "weekdays",
+    }
+
+
 def test_parse_tool_call_install_plugin():
     payload = {
         "op": "install_plugin",

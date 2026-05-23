@@ -258,15 +258,15 @@ export function GlobalAiChatDrawer() {
           break;
 
         case "create_schedule":
-          void handleCreateSchedule(call.args as CreateScheduleArgs);
+          void handleCreateSchedule(call.args);
           break;
 
         case "update_schedule":
-          void handleUpdateSchedule(call.args as UpdateScheduleArgs);
+          void handleUpdateSchedule(call.args);
           break;
 
         case "delete_schedule":
-          void handleDeleteSchedule(call.args as DeleteScheduleArgs);
+          void handleDeleteSchedule(call.args);
           break;
 
         case "install_plugin":
