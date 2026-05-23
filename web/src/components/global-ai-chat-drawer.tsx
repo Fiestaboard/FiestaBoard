@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { api, type AISettings } from "@/lib/api";
 import type {
+  ChainingMode,
   ChatTurnContext,
   CreateCarouselArgs,
   CreateScheduleArgs,
@@ -29,12 +30,96 @@ import type {
   UpdateSettingArgs,
 } from "@/lib/ai-chat-types";
 
+// ---------------------------------------------------------------------------
+// Helpers for building tool-result chain messages
+// ---------------------------------------------------------------------------
+
+function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string): string {
+  const status = success ? "Success" : `Failed: ${errorMsg ?? "unknown error"}`;
+  switch (call.op) {
+    case "install_plugin": {
+      const a = call.args as InstallPluginArgs;
+      return `[Tool result: install_plugin for "${a.plugin_id}" → ${status}.${success ? " Plugin installed and enabled. Continue with any remaining steps." : ""}]`;
+    }
+    case "update_plugin_config": {
+      const a = call.args as UpdatePluginConfigArgs;
+      return `[Tool result: update_plugin_config for "${a.plugin_id}" → ${status}.${success ? " Configuration saved. Continue with any remaining steps." : ""}]`;
+    }
+    case "update_plugin": {
+      const a = call.args as UpdatePluginArgs;
+      return `[Tool result: update_plugin for "${a.plugin_id}" → ${status}.]`;
+    }
+    case "enable_plugin": {
+      const a = call.args as EnablePluginArgs;
+      return `[Tool result: enable_plugin for "${a.plugin_id}" → ${status}.]`;
+    }
+    case "disable_plugin": {
+      const a = call.args as DisablePluginArgs;
+      return `[Tool result: disable_plugin for "${a.plugin_id}" → ${status}.]`;
+    }
+    case "uninstall_plugin": {
+      const a = call.args as UninstallPluginArgs;
+      return `[Tool result: uninstall_plugin for "${a.plugin_id}" → ${status}.]`;
+    }
+    case "update_setting": {
+      const a = call.args as UpdateSettingArgs;
+      return `[Tool result: update_setting (${a.category}) → ${status}.${success ? " Setting applied. Continue with any remaining steps." : ""}]`;
+    }
+    case "create_carousel": {
+      const a = call.args as CreateCarouselArgs;
+      return `[Tool result: create_carousel "${a.name}" → ${status}.${success ? " Carousel created. Continue with any remaining steps." : ""}]`;
+    }
+    case "update_carousel":
+      return `[Tool result: update_carousel → ${status}.]`;
+    case "create_schedule": {
+      const a = call.args as CreateScheduleArgs;
+      return `[Tool result: create_schedule at ${a.start_time} → ${status}.${success ? " Schedule created. Continue with any remaining steps." : ""}]`;
+    }
+    case "update_schedule":
+      return `[Tool result: update_schedule → ${status}.]`;
+    case "delete_schedule":
+      return `[Tool result: delete_schedule → ${status}.]`;
+    case "trigger_system_update":
+      return `[Tool result: trigger_system_update → ${status}.]`;
+    default:
+      return `[Tool result: ${(call as ToolCall).op} → ${status}.]`;
+  }
+}
+
+// How many autonomous steps can chain before pausing and asking the user.
+const AUTONOMOUS_STEP_LIMIT = 15;
+
 export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { getEditorSnapshot, applyEditorOp, hasEditor, canEditorUndo, editorUndo } = usePageEditorBridge();
   const { hasScheduleEditor, openScheduleForm } = useScheduleEditorBridge();
+
+  // ---------------------------------------------------------------------------
+  // AI chaining mode
+  // ---------------------------------------------------------------------------
+  const [chainingMode, setChainingMode] = useState<ChainingMode>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fiestaboard:ai-chaining-mode");
+      if (stored === "auto-continue" || stored === "autonomous") return stored;
+    }
+    return "manual";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("fiestaboard:ai-chaining-mode", chainingMode);
+  }, [chainingMode]);
+
+  // Slot ref: AiChatPanel writes its resume() fn here so this component can
+  // trigger re-streaming after tool execution without prop-drilling.
+  const resumeFnRef = useRef<((text: string) => void) | null>(null);
+
+  // Count autonomous steps so we can pause after the limit.
+  const autonomousStepsRef = useRef(0);
+  useEffect(() => {
+    autonomousStepsRef.current = 0;
+  }, [chainingMode]);
 
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
@@ -266,15 +351,15 @@ export function GlobalAiChatDrawer() {
           break;
 
         case "create_schedule":
-          void handleCreateSchedule(call.args);
+          void chainAfter(call, () => handleCreateSchedule(call.args))();
           break;
 
         case "update_schedule":
-          void handleUpdateSchedule(call.args);
+          void chainAfter(call, () => handleUpdateSchedule(call.args))();
           break;
 
         case "delete_schedule":
-          void handleDeleteSchedule(call.args);
+          void chainAfter(call, () => handleDeleteSchedule(call.args))();
           break;
 
         case "install_plugin":
@@ -283,6 +368,9 @@ export function GlobalAiChatDrawer() {
         case "update_setting":
         case "create_carousel":
         case "update_carousel":
+        case "enable_plugin":
+        case "disable_plugin":
+        case "uninstall_plugin":
         case "trigger_system_update":
           // Handled declaratively via AiActionConfirmation in the chat
           // thread (see renderToolCallSupplement).
@@ -292,7 +380,7 @@ export function GlobalAiChatDrawer() {
           break;
       }
     },
-    [router, close, hasEditor, applyEditorOp, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule],
+    [router, close, hasEditor, applyEditorOp, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule, chainAfter],
   );
 
   const handleInstallPlugin = useCallback(
@@ -436,17 +524,61 @@ export function GlobalAiChatDrawer() {
     toast.success("System update started. The board will restart shortly.");
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // Chaining: wrap each handler so that on completion (success or failure),
+  // a `[Tool result: ...]` message is injected and the AI re-streams if the
+  // current mode is auto-continue or autonomous.
+  // ---------------------------------------------------------------------------
+  const chainAfter = useCallback(
+    (call: ToolCall, handler: () => Promise<void>): (() => Promise<void>) =>
+      async () => {
+        try {
+          await handler();
+          if (chainingMode === "manual") return;
+          // Autonomous step-limit guard.
+          if (chainingMode === "autonomous") {
+            autonomousStepsRef.current += 1;
+            if (autonomousStepsRef.current >= AUTONOMOUS_STEP_LIMIT) {
+              autonomousStepsRef.current = 0;
+              setChainingMode("manual");
+              resumeFnRef.current?.(
+                `[Tool result: ${call.op} → Success. ` +
+                `Autonomous mode paused after ${AUTONOMOUS_STEP_LIMIT} steps. ` +
+                `Type 'continue' if you want to keep going.]`,
+              );
+              return;
+            }
+          }
+          resumeFnRef.current?.(buildToolResultText(call, true));
+        } catch (e) {
+          if (chainingMode !== "manual") {
+            resumeFnRef.current?.(buildToolResultText(call, false, String(e)));
+          }
+        }
+      },
+    [chainingMode],
+  );
+
   const renderToolCallSupplement = useCallback(
     (call: ToolCall) => {
       if (call.op === "navigate_to_page") return null;
+      if (call.op === "navigate_to_schedule") return null;
       if (call.op === "replace_page" || call.op === "apply_patch" || call.op === "suggest_variables") return null;
+
+      const isDestructive =
+        call.op === "delete_schedule" ||
+        call.op === "trigger_system_update" ||
+        call.op === "uninstall_plugin";
+
+      const autoAllow = chainingMode === "autonomous" && !isDestructive;
 
       if (call.op === "install_plugin") {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleInstallPlugin(call.args as InstallPluginArgs)}
+            onAllow={chainAfter(call, () => handleInstallPlugin(call.args as InstallPluginArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -454,8 +586,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleUpdatePluginConfig(call.args as UpdatePluginConfigArgs)}
+            onAllow={chainAfter(call, () => handleUpdatePluginConfig(call.args as UpdatePluginConfigArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -463,8 +596,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleUpdatePlugin(call.args as UpdatePluginArgs)}
+            onAllow={chainAfter(call, () => handleUpdatePlugin(call.args as UpdatePluginArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -472,8 +606,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleEnablePlugin(call.args as EnablePluginArgs)}
+            onAllow={chainAfter(call, () => handleEnablePlugin(call.args as EnablePluginArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -481,8 +616,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleDisablePlugin(call.args as DisablePluginArgs)}
+            onAllow={chainAfter(call, () => handleDisablePlugin(call.args as DisablePluginArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -490,8 +626,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleUninstallPlugin(call.args as UninstallPluginArgs)}
+            onAllow={chainAfter(call, () => handleUninstallPlugin(call.args as UninstallPluginArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -499,8 +636,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleUpdateSetting(call.args as UpdateSettingArgs)}
+            onAllow={chainAfter(call, () => handleUpdateSetting(call.args as UpdateSettingArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -508,8 +646,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleCreateCarousel(call.args as CreateCarouselArgs)}
+            onAllow={chainAfter(call, () => handleCreateCarousel(call.args as CreateCarouselArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -517,8 +656,9 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleUpdateCarousel(call.args as UpdateCarouselArgs)}
+            onAllow={chainAfter(call, () => handleUpdateCarousel(call.args as UpdateCarouselArgs))}
             onDeny={() => {}}
+            autoAllow={autoAllow}
           />
         );
       }
@@ -529,14 +669,17 @@ export function GlobalAiChatDrawer() {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={() => handleTriggerSystemUpdate()}
+            onAllow={chainAfter(call, () => handleTriggerSystemUpdate())}
             onDeny={() => {}}
+            autoAllow={autoAllow} // always false because isDestructive
           />
         );
       }
       return null;
     },
     [
+      chainingMode,
+      chainAfter,
       handleInstallPlugin,
       handleUpdatePluginConfig,
       handleUpdatePlugin,
@@ -570,6 +713,9 @@ export function GlobalAiChatDrawer() {
         renderToolCallSupplement={renderToolCallSupplement}
         canUndo={hasEditor && canEditorUndo()}
         onUndo={hasEditor ? editorUndo : undefined}
+        resumeFnRef={resumeFnRef}
+        chainingMode={chainingMode}
+        onChainingModeChange={setChainingMode}
       />
     </div>
   );

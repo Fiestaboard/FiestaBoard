@@ -39,6 +39,13 @@ export interface UseAiChatResult {
   status: "idle" | "streaming" | "error";
   error: string | null;
   send: (text: string) => void;
+  /**
+   * Inject an automated tool-result message and immediately re-stream.
+   * Used by the chaining mechanism after a tool call executes: the result
+   * text is prepended with `[Tool result: ...]` so the backend recognises
+   * it as an automated step continuation rather than a human turn.
+   */
+  resume: (toolResultText: string) => void;
   cancel: () => void;
   retryLast: () => void;
   reset: () => void;
@@ -185,6 +192,20 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     [runStream, messages],
   );
 
+  const resume = useCallback(
+    (toolResultText: string) => {
+      const resultMsg: ChatMessage = {
+        role: "user",
+        content: toolResultText,
+        isToolResult: true,
+      };
+      const next = [...messages, resultMsg];
+      setMessages(next);
+      void runStream(next);
+    },
+    [runStream, messages],
+  );
+
   const cancel = useCallback(() => {
     abortRef.current?.abort();
   }, []);
@@ -211,7 +232,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     setError(null);
   }, []);
 
-  return { messages, status, error, send, cancel, retryLast, reset };
+  return { messages, status, error, send, resume, cancel, retryLast, reset };
 }
 
 /**
