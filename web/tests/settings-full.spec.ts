@@ -129,7 +129,9 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Look for service status / control buttons
+    // Status badge lives in About (System tab) or System Controls (also System)
+    await page.getByRole("tab", { name: "System", exact: true }).click();
+
     const statusBadge = page
       .getByText(/running|stopped/i)
       .first();

@@ -335,3 +335,15 @@ export function suppressWizard(page: import("@playwright/test").Page) {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });
 }
+
+/**
+ * Open a tab on the redesigned Settings page. The page splits its content
+ * across tabs (General, Hardware, Behavior, Integrations, System, Advanced),
+ * so tests that look for tab-scoped content must click the right tab first.
+ */
+export async function openSettingsTab(
+  page: import("@playwright/test").Page,
+  tab: "General" | "Hardware" | "Behavior" | "Integrations" | "System" | "Advanced",
+) {
+  await page.getByRole("tab", { name: tab, exact: true }).click();
+}
