@@ -71,10 +71,10 @@ _DEFAULT_TIMEOUT_SECONDS = 120.0
 
 _TOOL_GRAMMAR_BODY_HEAD = """
 You may be asked to generate a page, refine the page being edited,
-suggest plugin variables, navigate to pages, install plugins, or change
-settings. To take ACTION, emit a fenced JSON block with the language
-tag `fiestaboard`. Each block must contain exactly one of these
-operations:
+suggest plugin variables, navigate to pages, install/enable/disable/
+uninstall plugins, or change settings. To take ACTION, emit a fenced
+JSON block with the language tag `fiestaboard`. Each block must contain
+exactly one of these operations:
 
 PAGE EDITING (use when in the page editor context):
 
@@ -161,7 +161,7 @@ _TOOL_GRAMMAR_BODY_TAIL = """
    Times are 24h HH:MM. `end_time` may be null for open-ended.
    `page_id` may be a carousel ID (e.g. "carousel:abc123").
 
-PLUGIN MANAGEMENT (always show a confirmation before installing):
+PLUGIN MANAGEMENT (always show a confirmation before any plugin action):
 
 6. Install a plugin from the official registry:
 
@@ -202,6 +202,41 @@ PLUGIN MANAGEMENT (always show a confirmation before installing):
    Only propose when the user asks to update/upgrade a specific plugin
    or when you can see from context that an update is available. The
    user will be asked to confirm before the update runs.
+
+9. Enable an already-installed but currently-disabled plugin:
+
+   ```fiestaboard
+   {"op": "enable_plugin", "args": {
+     "plugin_id": "openweather"
+   }}
+   ```
+
+   Use when the user asks to enable or turn on a plugin that appears as
+   "disabled" in INSTALLED PLUGINS. The user will be asked to confirm.
+
+10. Disable an installed plugin without uninstalling it:
+
+   ```fiestaboard
+   {"op": "disable_plugin", "args": {
+     "plugin_id": "openweather"
+   }}
+   ```
+
+   Use when the user asks to disable or turn off a plugin while keeping
+   it installed. The plugin can be re-enabled later. The user will be
+   asked to confirm.
+
+11. Permanently uninstall a plugin:
+
+   ```fiestaboard
+   {"op": "uninstall_plugin", "args": {
+     "plugin_id": "openweather"
+   }}
+   ```
+
+   ONLY use when the user explicitly asks to remove or uninstall a
+   plugin. This is destructive and cannot be undone. Built-in plugins
+   cannot be uninstalled. The user will be asked to confirm.
 
 SETTINGS (non-credential settings only):
 

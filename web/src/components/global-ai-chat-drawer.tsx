@@ -17,8 +17,11 @@ import type {
   CreateCarouselArgs,
   CreateScheduleArgs,
   DeleteScheduleArgs,
+  DisablePluginArgs,
+  EnablePluginArgs,
   InstallPluginArgs,
   ToolCall,
+  UninstallPluginArgs,
   UpdateCarouselArgs,
   UpdatePluginArgs,
   UpdatePluginConfigArgs,
@@ -84,6 +87,7 @@ export function GlobalAiChatDrawer() {
       id: p.id,
       name: p.name,
       enabled: p.enabled,
+      settings_schema: p.settings_schema,
     }));
     const schedules = schedulesData?.schedules?.map((s) => ({
       id: s.id,
@@ -324,6 +328,33 @@ export function GlobalAiChatDrawer() {
     [queryClient],
   );
 
+  const handleEnablePlugin = useCallback(
+    async (args: EnablePluginArgs) => {
+      await api.enablePlugin(args.plugin_id);
+      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      toast.success(`Plugin "${args.plugin_id}" enabled.`);
+    },
+    [queryClient],
+  );
+
+  const handleDisablePlugin = useCallback(
+    async (args: DisablePluginArgs) => {
+      await api.disablePlugin(args.plugin_id);
+      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      toast.success(`Plugin "${args.plugin_id}" disabled.`);
+    },
+    [queryClient],
+  );
+
+  const handleUninstallPlugin = useCallback(
+    async (args: UninstallPluginArgs) => {
+      await api.uninstallPlugin(args.plugin_id);
+      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      toast.success(`Plugin "${args.plugin_id}" uninstalled.`);
+    },
+    [queryClient],
+  );
+
   const handleUpdateSetting = useCallback(
     async (args: UpdateSettingArgs) => {
       switch (args.category) {
@@ -437,6 +468,33 @@ export function GlobalAiChatDrawer() {
           />
         );
       }
+      if (call.op === "enable_plugin") {
+        return (
+          <AiActionConfirmation
+            call={call}
+            onAllow={() => handleEnablePlugin(call.args as EnablePluginArgs)}
+            onDeny={() => {}}
+          />
+        );
+      }
+      if (call.op === "disable_plugin") {
+        return (
+          <AiActionConfirmation
+            call={call}
+            onAllow={() => handleDisablePlugin(call.args as DisablePluginArgs)}
+            onDeny={() => {}}
+          />
+        );
+      }
+      if (call.op === "uninstall_plugin") {
+        return (
+          <AiActionConfirmation
+            call={call}
+            onAllow={() => handleUninstallPlugin(call.args as UninstallPluginArgs)}
+            onDeny={() => {}}
+          />
+        );
+      }
       if (call.op === "update_setting") {
         return (
           <AiActionConfirmation
@@ -482,6 +540,9 @@ export function GlobalAiChatDrawer() {
       handleInstallPlugin,
       handleUpdatePluginConfig,
       handleUpdatePlugin,
+      handleEnablePlugin,
+      handleDisablePlugin,
+      handleUninstallPlugin,
       handleUpdateSetting,
       handleCreateCarousel,
       handleUpdateCarousel,

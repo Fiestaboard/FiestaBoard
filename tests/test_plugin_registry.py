@@ -52,6 +52,8 @@ def mock_manifest():
     manifest.icon = "puzzle"
     manifest.category = "utility"
     manifest.fiestaboard_version = ""
+    manifest.supports_triggers = False
+    manifest.settings_schema = {}
     manifest.variables = MagicMock()
     manifest.variables.auto_discover = False
     manifest.variables.get_all_variable_names.return_value = ["var1", "var2"]

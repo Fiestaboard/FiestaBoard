@@ -92,6 +92,10 @@ describe("GeneralSettings — board read intervals", () => {
       expect(el).toBeInTheDocument();
       expect(parseInt(el.value, 10)).toBe(180);
     });
+    // Flush all pending React state updates (including deferred ones) before
+    // interacting, so a late deferred update from the API can't overwrite the
+    // user's change.
+    await act(async () => {});
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "90" } });

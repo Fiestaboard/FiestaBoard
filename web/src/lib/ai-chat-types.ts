@@ -146,6 +146,18 @@ export interface UpdatePluginArgs {
   plugin_id: string;
 }
 
+export interface EnablePluginArgs {
+  plugin_id: string;
+}
+
+export interface DisablePluginArgs {
+  plugin_id: string;
+}
+
+export interface UninstallPluginArgs {
+  plugin_id: string;
+}
+
 export type ToolCall =
   | { id: string; op: "replace_page"; args: ReplacePageArgs }
   | { id: string; op: "apply_patch"; args: ApplyPatchArgs }
@@ -161,6 +173,9 @@ export type ToolCall =
   | { id: string; op: "update_schedule"; args: UpdateScheduleArgs }
   | { id: string; op: "delete_schedule"; args: DeleteScheduleArgs }
   | { id: string; op: "update_plugin"; args: UpdatePluginArgs }
+  | { id: string; op: "enable_plugin"; args: EnablePluginArgs }
+  | { id: string; op: "disable_plugin"; args: DisablePluginArgs }
+  | { id: string; op: "uninstall_plugin"; args: UninstallPluginArgs }
   | { id: string; op: "trigger_system_update"; args: Record<string, never> };
 
 /**
@@ -208,6 +223,7 @@ export interface InstalledPluginRef {
   id: string;
   name: string;
   enabled: boolean;
+  settings_schema?: Record<string, unknown>;
 }
 
 export interface RegistryPluginRef {
