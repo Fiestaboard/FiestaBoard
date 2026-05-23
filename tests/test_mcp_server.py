@@ -182,17 +182,18 @@ def mock_carousel_service():
 
 @pytest.fixture
 def mock_settings_service():
-    """Minimal mock settings service."""
+    """Minimal mock settings service.
+
+    Uses SimpleNamespace for return values so Python 3.14's stricter
+    MagicMock.__dict__ handling doesn't interfere.
+    """
+    from types import SimpleNamespace
     svc = MagicMock()
-    display = MagicMock()
-    display.__dict__ = {"brightness": 80, "refresh_rate": 30}
-    svc.get_display_settings.return_value = display
-    location = MagicMock()
-    location.__dict__ = {"latitude": 40.7128, "longitude": -74.0060, "timezone": "America/New_York"}
-    svc.get_location_settings.return_value = location
-    output = MagicMock()
-    output.__dict__ = {"target": "board"}
-    svc.get_output_settings.return_value = output
+    svc.get_display_settings.return_value = SimpleNamespace(brightness=80, refresh_rate=30)
+    svc.get_location_settings.return_value = SimpleNamespace(
+        latitude=40.7128, longitude=-74.0060, timezone="America/New_York"
+    )
+    svc.get_output_settings.return_value = SimpleNamespace(target="board")
     return svc
 
 
@@ -274,13 +275,12 @@ def test_tool_count(mcp):
 
 class TestListInstalledPlugins:
     def test_returns_json_array(self, mcp, mock_registry, mock_config_manager):
+        # The tool uses lazy imports (`from .plugins import get_plugin_registry`)
+        # so we patch the canonical module locations, not src.mcp_server.
         with (
-            patch("src.mcp_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.mcp_server.get_config_manager", return_value=mock_config_manager),
             patch("src.plugins.get_plugin_registry", return_value=mock_registry),
             patch("src.config_manager.get_config_manager", return_value=mock_config_manager),
         ):
-            # Call via the tool manager directly
             result = _call_tool(mcp, "list_installed_plugins")
         data = json.loads(result)
         assert isinstance(data, list)
@@ -288,8 +288,6 @@ class TestListInstalledPlugins:
 
     def test_includes_config(self, mcp, mock_registry, mock_config_manager):
         with (
-            patch("src.mcp_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.mcp_server.get_config_manager", return_value=mock_config_manager),
             patch("src.plugins.get_plugin_registry", return_value=mock_registry),
             patch("src.config_manager.get_config_manager", return_value=mock_config_manager),
         ):
