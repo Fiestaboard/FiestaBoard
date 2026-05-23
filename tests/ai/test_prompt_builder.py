@@ -1,6 +1,6 @@
 """Unit tests for src/ai/prompt_builder.py."""
 
-from src.ai.prompt_builder import build_prompt, PromptContext, _summarize_schema
+from src.ai.prompt_builder import build_prompt, _summarize_schema
 
 
 def test_flagship_prompt_includes_dimensions():
