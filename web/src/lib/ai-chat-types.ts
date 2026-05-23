@@ -132,6 +132,16 @@ export interface DeleteScheduleArgs {
   schedule_id: string;
 }
 
+export interface NavigateToScheduleArgs {
+  prefill?: {
+    page_id?: string;
+    start_time?: string;
+    end_time?: string | null;
+    day_pattern?: DayPattern;
+    custom_days?: string[];
+  };
+}
+
 export interface UpdatePluginArgs {
   plugin_id: string;
 }
@@ -141,6 +151,7 @@ export type ToolCall =
   | { id: string; op: "apply_patch"; args: ApplyPatchArgs }
   | { id: string; op: "suggest_variables"; args: SuggestVariablesArgs }
   | { id: string; op: "navigate_to_page"; args: NavigateToPageArgs }
+  | { id: string; op: "navigate_to_schedule"; args: NavigateToScheduleArgs }
   | { id: string; op: "install_plugin"; args: InstallPluginArgs }
   | { id: string; op: "update_plugin_config"; args: UpdatePluginConfigArgs }
   | { id: string; op: "update_setting"; args: UpdateSettingArgs }
@@ -232,8 +243,18 @@ export interface CarouselRef {
  * availableSchedules, and availableCarousels so the AI can propose
  * navigation, plugin installs, schedule/carousel management, etc.
  */
+/**
+ * Which chat surface the user is talking to. The inline page-editor
+ * panel ("editor") biases the AI toward in-place edits of the page
+ * being edited; the global drawer ("global") biases it toward navigation
+ * and configuration actions. The backend uses this to swap a single
+ * paragraph of the chat system prompt.
+ */
+export type ChatSurface = "editor" | "global";
+
 export interface ChatTurnContext {
   deviceType: DeviceType;
+  surface: ChatSurface;
   currentPage?: CurrentPageSnapshot;
   availablePages?: PageRef[];
   installedPlugins?: InstalledPluginRef[];
@@ -245,6 +266,7 @@ export interface ChatTurnContext {
 export interface ChatRequestBody {
   messages: { role: "user" | "assistant"; content: string }[];
   device_type: DeviceType;
+  surface?: ChatSurface;
   current_page?: CurrentPageSnapshot;
   available_pages?: PageRef[];
   installed_plugins?: InstalledPluginRef[];

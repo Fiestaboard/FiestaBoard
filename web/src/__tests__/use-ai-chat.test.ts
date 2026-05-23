@@ -19,7 +19,7 @@ vi.mock("@/lib/api-stream", () => ({
 
 function makeOpts(overrides: Partial<Parameters<typeof useAiChat>[0]> = {}) {
   return {
-    getTurnContext: () => ({ deviceType: "flagship" as const }),
+    getTurnContext: () => ({ deviceType: "flagship" as const, surface: "global" as const }),
     onToolCall: vi.fn(),
     ...overrides,
   };
@@ -168,7 +168,7 @@ describe("useAiChat", () => {
     const { result } = renderHook(() =>
       useAiChat(makeOpts({
         onToolCall,
-        getTurnContext: () => ({ deviceType: "flagship" as const, currentPage: baseSnapshot }),
+        getTurnContext: () => ({ deviceType: "flagship" as const, surface: "editor" as const, currentPage: baseSnapshot }),
       })),
     );
     act(() => { result.current.send("patch it"); });
@@ -196,7 +196,7 @@ describe("useAiChat", () => {
     const { result } = renderHook(() =>
       useAiChat(makeOpts({
         onToolCall,
-        getTurnContext: () => ({ deviceType: "flagship" as const, currentPage: baseSnapshot }),
+        getTurnContext: () => ({ deviceType: "flagship" as const, surface: "editor" as const, currentPage: baseSnapshot }),
       })),
     );
     act(() => { result.current.send("rename it"); });
@@ -218,7 +218,7 @@ describe("useAiChat", () => {
     const { result } = renderHook(() =>
       useAiChat(makeOpts({
         onToolCall,
-        getTurnContext: () => ({ deviceType: "flagship" as const }),
+        getTurnContext: () => ({ deviceType: "flagship" as const, surface: "global" as const }),
       })),
     );
     act(() => { result.current.send("patch"); });

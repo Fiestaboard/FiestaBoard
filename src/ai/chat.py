@@ -28,7 +28,7 @@ import json
 import logging
 import re
 import secrets
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 
 import httpx
 
@@ -43,6 +43,12 @@ from .prompt_builder import build_prompt
 from .protocols import Protocol, get_protocol
 from .template_validator import repair_template_lines
 
+# Where the chat is being invoked from. The page editor's inline chat
+# wants in-place edits (apply_patch / replace_page); the global drawer
+# usually wants navigation (navigate_to_page). The addendum is built
+# differently for each so the model picks the right op without guessing.
+ChatSurface = Literal["editor", "global"]
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,16 +62,19 @@ _DEFAULT_TIMEOUT_SECONDS = 120.0
 # ---------------------------------------------------------------------------
 
 
-_TOOL_GRAMMAR_ADDENDUM = """
+# Body of the chat tool-grammar addendum. Split into "head" (everything
+# before the navigation creation-bias paragraph) and "tail" (everything
+# after) so we can inject a surface-specific bias without f-string
+# escaping every JSON example. Both halves are plain literals — they
+# must not be passed to ``.format()`` or used as f-strings.
 
-CHAT MODE — TOOL GRAMMAR
 
-You are now in an interactive chat with the user. They may ask you to
-generate a page, refine the page they're currently editing, suggest
-plugin variables, navigate to pages, install plugins, or change settings.
-
-To take ACTION, emit a fenced JSON block with the language tag
-`fiestaboard`. Each block must contain exactly one of these operations:
+_TOOL_GRAMMAR_BODY_HEAD = """
+You may be asked to generate a page, refine the page being edited,
+suggest plugin variables, navigate to pages, install plugins, or change
+settings. To take ACTION, emit a fenced JSON block with the language
+tag `fiestaboard`. Each block must contain exactly one of these
+operations:
 
 PAGE EDITING (use when in the page editor context):
 
@@ -124,17 +133,37 @@ NAVIGATION (use when the user wants to edit or create a specific page):
 
    Use `"page_id": "new"` to open a blank new page. Only emit this when
    the user explicitly asks to edit or create a page.
+"""
 
-   IMPORTANT — "make" bias: when the user asks to CREATE, MAKE, DESIGN,
-   or BUILD any page, display, layout, or visual — default to opening the
-   page editor with `"page_id": "new"`. The page editor is the canvas
-   where users author content. Do NOT attempt to write template content
-   remotely from the global panel; instead open the editor and offer to
-   help there. Example: "make me a weather page" → navigate_to_page new.
+
+_TOOL_GRAMMAR_BODY_TAIL = """
+5. Navigate to the schedule editor (optionally pre-filling a new entry):
+
+   ```fiestaboard
+   {"op": "navigate_to_schedule", "args": {
+     "prefill": {
+       "page_id": "abc123",
+       "start_time": "07:00",
+       "end_time": "09:00",
+       "day_pattern": "weekdays"
+     }
+   }}
+   ```
+
+   Use this after creating or editing a page when the user's intent
+   includes scheduling it. `prefill` is optional — omit it to open the
+   schedule page without pre-filling. When the user is already on the
+   schedule page, this opens the new-entry form in-place without
+   navigation. Always explain what will be pre-filled before emitting
+   this block.
+
+   `day_pattern`: "all" | "weekdays" | "weekends" | "custom".
+   Times are 24h HH:MM. `end_time` may be null for open-ended.
+   `page_id` may be a carousel ID (e.g. "carousel:abc123").
 
 PLUGIN MANAGEMENT (always show a confirmation before installing):
 
-5. Install a plugin from the official registry:
+6. Install a plugin from the official registry:
 
    ```fiestaboard
    {"op": "install_plugin", "args": {
@@ -149,7 +178,7 @@ PLUGIN MANAGEMENT (always show a confirmation before installing):
    plugin does and why you are proposing it before emitting this block.
    The user will be asked to confirm before installation happens.
 
-6. Configure an already-installed plugin:
+7. Configure an already-installed plugin:
 
    ```fiestaboard
    {"op": "update_plugin_config", "args": {
@@ -162,7 +191,7 @@ PLUGIN MANAGEMENT (always show a confirmation before installing):
    include real or guessed API keys — only include values the user has
    explicitly told you.
 
-7. Update (upgrade) an installed plugin to its latest registry version:
+8. Update (upgrade) an installed plugin to its latest registry version:
 
    ```fiestaboard
    {"op": "update_plugin", "args": {
@@ -176,7 +205,7 @@ PLUGIN MANAGEMENT (always show a confirmation before installing):
 
 SETTINGS (non-credential settings only):
 
-8. Change a system setting:
+9. Change a system setting:
 
    ```fiestaboard
    {"op": "update_setting", "args": {
@@ -186,13 +215,20 @@ SETTINGS (non-credential settings only):
    ```
 
    Valid categories and their representative keys:
-   - "display": reduce_motion (bool)
-   - "transitions": transition_type (string), duration_ms (int)
-   - "output": target ("ui"|"board"|"both")
-   - "polling": interval_seconds (int)
-   - "location": latitude (float), longitude (float)
-   - "silence_schedule": enabled (bool), start_time (HH:MM), end_time (HH:MM)
-   - "active_page": page_id (string)
+   - "display": display preferences. `reduce_motion` (bool) disables
+     animated transitions.
+   - "transitions": how pages animate in. `transition_type` (string),
+     `duration_ms` (int).
+   - "output": where rendered pages are sent. `target` is "ui",
+     "board", or "both".
+   - "polling": how often plugins refresh their data.
+     `interval_seconds` (int).
+   - "location": default lat/long used by location-aware plugins.
+     `latitude` (float), `longitude` (float).
+   - "silence_schedule": a daily "do not disturb" window. `enabled`
+     (bool), `start_time`/`end_time` (HH:MM).
+   - "active_page": which page is currently displayed.
+     `page_id` (string).
 
    NEVER use this for AI provider settings, MQTT, or board API
    credentials — tell the user to configure those manually in Settings.
@@ -200,7 +236,7 @@ SETTINGS (non-credential settings only):
 
 CAROUSELS (playlists of pages that rotate automatically):
 
-9. Create a new carousel:
+10. Create a new carousel:
 
    ```fiestaboard
    {"op": "create_carousel", "args": {
@@ -214,7 +250,7 @@ CAROUSELS (playlists of pages that rotate automatically):
    `interval_seconds` (5–3600) controls how long each page shows.
    The user will be asked to confirm before creation.
 
-10. Update an existing carousel (rename, reorder pages, change interval):
+11. Update an existing carousel (rename, reorder pages, change interval):
 
     ```fiestaboard
     {"op": "update_carousel", "args": {
@@ -230,7 +266,7 @@ CAROUSELS (playlists of pages that rotate automatically):
 
 SCHEDULE (control which page/carousel shows at what time):
 
-11. Create a new schedule entry:
+12. Create a new schedule entry:
 
     ```fiestaboard
     {"op": "create_schedule", "args": {
@@ -249,7 +285,7 @@ SCHEDULE (control which page/carousel shows at what time):
     a playlist at that time.
     The user will be asked to confirm.
 
-12. Update an existing schedule entry:
+13. Update an existing schedule entry:
 
     ```fiestaboard
     {"op": "update_schedule", "args": {
@@ -262,7 +298,7 @@ SCHEDULE (control which page/carousel shows at what time):
     All fields except `schedule_id` are optional. Use IDs from
     AVAILABLE SCHEDULES above. The user will be asked to confirm.
 
-13. Delete a schedule entry:
+14. Delete a schedule entry:
 
     ```fiestaboard
     {"op": "delete_schedule", "args": {
@@ -275,7 +311,7 @@ SCHEDULE (control which page/carousel shows at what time):
 
 SYSTEM:
 
-14. Trigger a FiestaBoard system update:
+15. Trigger a FiestaBoard system update:
 
     ```fiestaboard
     {"op": "trigger_system_update", "args": {}}
@@ -305,6 +341,71 @@ RULES
 """
 
 
+_EDITOR_SURFACE_INTRO = (
+    "SURFACE — You are the inline chat panel inside the page editor.\n"
+    "The user is actively editing one page; that page (if any) is sent\n"
+    "above as `current_page`. Default to in-place edits of THAT page;\n"
+    "do not navigate away from it unless the user clearly asks to switch\n"
+    "to a different page.\n"
+)
+
+
+_GLOBAL_SURFACE_INTRO = (
+    "SURFACE — You are the global chat drawer, accessible from any view\n"
+    "in the app. There may be no page in focus. Prefer navigation and\n"
+    "configuration actions; only edit a page in-place when `current_page`\n"
+    "is present AND the user is clearly iterating on that exact page.\n"
+)
+
+
+_EDITOR_CREATION_BIAS = (
+    "   When the user asks to CREATE, MAKE, DESIGN, or BUILD a page from\n"
+    "   inside the editor, they almost always mean \"turn the page I'm\n"
+    "   editing into that\" — use `replace_page` (or `apply_patch` for an\n"
+    "   incremental change). Reserve `navigate_to_page` for explicit\n"
+    "   requests like \"open my weather page\" or \"start a new page\".\n"
+)
+
+
+_GLOBAL_CREATION_BIAS = (
+    "   IMPORTANT — \"make\" bias: when the user asks to CREATE, MAKE,\n"
+    "   DESIGN, or BUILD a page, display, layout, or visual, default to\n"
+    "   opening the page editor with `\"page_id\": \"new\"`. The page\n"
+    "   editor is the canvas where users author content; do not write\n"
+    "   template content remotely from the global drawer. Example:\n"
+    "   \"make me a weather page\" → navigate_to_page with page_id: \"new\".\n"
+)
+
+
+def _build_tool_grammar_addendum(surface: ChatSurface) -> str:
+    """Render the chat tool-grammar addendum for a specific surface.
+
+    The two surfaces are the inline chat panel inside the page editor
+    (``"editor"``) and the global drawer accessible from any view
+    (``"global"``). They share the same tool grammar but differ in one
+    important way: when the user asks to "make" or "build" something,
+    the editor wants in-place edits (``apply_patch`` / ``replace_page``)
+    on the page they are currently editing, while the global drawer
+    wants to navigate to the page editor first so the user can author
+    there. Folding this branch into the prompt — rather than relying on
+    the model to infer it from the presence of ``current_page`` —
+    reduces wrong-op selections.
+    """
+    if surface == "editor":
+        intro = _EDITOR_SURFACE_INTRO
+        bias = _EDITOR_CREATION_BIAS
+    else:
+        intro = _GLOBAL_SURFACE_INTRO
+        bias = _GLOBAL_CREATION_BIAS
+    return (
+        "\n\nCHAT MODE — TOOL GRAMMAR\n\n"
+        + intro
+        + _TOOL_GRAMMAR_BODY_HEAD
+        + bias
+        + _TOOL_GRAMMAR_BODY_TAIL
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public entry point.
 # ---------------------------------------------------------------------------
@@ -323,6 +424,7 @@ async def stream_chat(
     available_schedules: Optional[List[Dict[str, Any]]] = None,
     available_carousels: Optional[List[Dict[str, Any]]] = None,
     registry_plugins: Optional[List[Dict[str, Any]]] = None,
+    surface: ChatSurface = "global",
     provider_id: Optional[str] = None,
     model: Optional[str] = None,
     client: Optional[httpx.AsyncClient] = None,
@@ -403,6 +505,7 @@ async def stream_chat(
         available_schedules=available_schedules,
         available_carousels=available_carousels,
         registry_plugins=registry_plugins,
+        mode="chat",
     )
 
     # Compose the message list we'll actually send: extend the
@@ -412,7 +515,10 @@ async def stream_chat(
     base_messages = list(context.to_messages())
     base_messages[0] = {
         "role": "system",
-        "content": base_messages[0]["content"] + _TOOL_GRAMMAR_ADDENDUM,
+        "content": (
+            base_messages[0]["content"]
+            + _build_tool_grammar_addendum(surface)
+        ),
     }
     if history:
         # Keep history right after the system prompt so the model sees

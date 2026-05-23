@@ -19,6 +19,7 @@ interface ScheduleEntryFormProps {
   onSubmit: (data: ScheduleCreate | ScheduleUpdate) => Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
+  prefillPageId?: string;
   prefillStartTime?: string;
   prefillEndTime?: string;
   prefillDayPattern?: DayPattern;
@@ -49,6 +50,7 @@ export function ScheduleEntryForm({
   onSubmit,
   onCancel,
   onDelete,
+  prefillPageId,
   prefillStartTime,
   prefillEndTime,
   prefillDayPattern,
@@ -59,7 +61,7 @@ export function ScheduleEntryForm({
   const isEdit = Boolean(schedule);
   
   // Use schedule values if editing, prefill values if creating from calendar, or defaults
-  const [pageId, setPageId] = useState(schedule?.page_id || "");
+  const [pageId, setPageId] = useState(schedule?.page_id || prefillPageId || "");
   const [startTime, setStartTime] = useState(
     schedule?.start_time || prefillStartTime || "09:00"
   );

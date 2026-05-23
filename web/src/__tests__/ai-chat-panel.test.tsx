@@ -52,6 +52,7 @@ const noop = () => {};
 const defaultProps = {
   getTurnContext: () => ({
     deviceType: "flagship" as const,
+    surface: "global" as const,
     currentPage: undefined,
   }),
   onToolCall: noop,

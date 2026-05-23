@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +67,7 @@ import { PageToolbar } from "@/components/page-toolbar";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
 import { useCarousels } from "@/hooks/use-board";
 import { useTranslations } from "next-intl";
+import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 
 type ViewMode = "list" | "calendar";
 
@@ -106,13 +108,66 @@ export default function SchedulePage() {
     }
   }, [boards, selectedBoardId]);
 
-  // Pre-fill data when creating from calendar slot selection
+  // Pre-fill data when creating from calendar slot selection or AI navigation
   const [prefillData, setPrefillData] = useState<{
     startTime?: string;
     endTime?: string;
     dayPattern?: DayPattern;
     customDays?: string[];
+    pageId?: string;
   } | null>(null);
+
+  // Register with the schedule editor bridge so the AI drawer can open the
+  // form directly when the user is already on this page.
+  const { register, unregister } = useScheduleEditorBridge();
+
+  useEffect(() => {
+    register((prefill) => {
+      setPrefillData(
+        prefill
+          ? {
+              pageId: prefill.page_id,
+              startTime: prefill.start_time,
+              endTime: prefill.end_time ?? undefined,
+              dayPattern: prefill.day_pattern,
+              customDays: prefill.custom_days,
+            }
+          : null,
+      );
+      setShowForm(true);
+    });
+    return () => unregister();
+  }, [register, unregister]);
+
+  // Handle URL params set by the AI drawer when navigating from outside.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlParamsHandled = useRef(false);
+  useEffect(() => {
+    if (urlParamsHandled.current) return;
+    const pageId = searchParams.get("prefill_page_id");
+    const startTime = searchParams.get("prefill_start");
+    const endTime = searchParams.get("prefill_end");
+    const rawDayPattern = searchParams.get("prefill_days");
+    const dayPattern: DayPattern | undefined =
+      rawDayPattern === "all" ||
+      rawDayPattern === "weekdays" ||
+      rawDayPattern === "weekends" ||
+      rawDayPattern === "custom"
+        ? rawDayPattern
+        : undefined;
+    if (pageId || startTime) {
+      urlParamsHandled.current = true;
+      setPrefillData({
+        pageId: pageId ?? undefined,
+        startTime: startTime ?? undefined,
+        endTime: endTime ?? undefined,
+        dayPattern,
+      });
+      setShowForm(true);
+      router.replace("/schedule", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Fetch schedules (scoped by board when multi-board)
   const { data: schedulesData, isLoading } = useQuery({
@@ -576,6 +631,7 @@ export default function SchedulePage() {
                   handleCloseForm();
                   setDeleteScheduleId(id);
                 } : undefined}
+                prefillPageId={prefillData?.pageId}
                 prefillStartTime={prefillData?.startTime}
                 prefillEndTime={prefillData?.endTime}
                 prefillDayPattern={prefillData?.dayPattern}

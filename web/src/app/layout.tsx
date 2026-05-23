@@ -14,6 +14,7 @@ import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
+import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -77,6 +78,7 @@ export default async function RootLayout({
           <Providers>
             <ThemeColorMeta />
             <ReduceMotionApplier />
+            <ScheduleEditorBridgeProvider>
             <PageEditorBridgeProvider>
             <GlobalAiPanelProvider>
               <WizardProvider>
@@ -92,6 +94,7 @@ export default async function RootLayout({
               </WizardProvider>
             </GlobalAiPanelProvider>
             </PageEditorBridgeProvider>
+            </ScheduleEditorBridgeProvider>
           </Providers>
         </NextIntlClientProvider>
       </body>
