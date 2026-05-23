@@ -309,6 +309,42 @@ export function GlobalAiChatDrawer() {
     [queryClient, schedulesData],
   );
 
+  // ---------------------------------------------------------------------------
+  // Chaining: wrap each handler so that on completion (success or failure),
+  // a `[Tool result: ...]` message is injected and the AI re-streams if the
+  // current mode is auto-continue or autonomous.
+  // Declared before handleToolCall so the callback can reference it directly.
+  // ---------------------------------------------------------------------------
+  const chainAfter = useCallback(
+    (call: ToolCall, handler: () => Promise<void>): (() => Promise<void>) =>
+      async () => {
+        try {
+          await handler();
+          if (chainingMode === "manual") return;
+          // Autonomous step-limit guard.
+          if (chainingMode === "autonomous") {
+            autonomousStepsRef.current += 1;
+            if (autonomousStepsRef.current >= AUTONOMOUS_STEP_LIMIT) {
+              autonomousStepsRef.current = 0;
+              setChainingMode("manual");
+              resumeFnRef.current?.(
+                `[Tool result: ${call.op} → Success. ` +
+                `Autonomous mode paused after ${AUTONOMOUS_STEP_LIMIT} steps. ` +
+                `Type 'continue' if you want to keep going.]`,
+              );
+              return;
+            }
+          }
+          resumeFnRef.current?.(buildToolResultText(call, true));
+        } catch (e) {
+          if (chainingMode !== "manual") {
+            resumeFnRef.current?.(buildToolResultText(call, false, String(e)));
+          }
+        }
+      },
+    [chainingMode],
+  );
+
   const handleToolCall = useCallback(
     (call: ToolCall): void => {
       switch (call.op) {
@@ -523,41 +559,6 @@ export function GlobalAiChatDrawer() {
     await api.applyUpdate();
     toast.success("System update started. The board will restart shortly.");
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Chaining: wrap each handler so that on completion (success or failure),
-  // a `[Tool result: ...]` message is injected and the AI re-streams if the
-  // current mode is auto-continue or autonomous.
-  // ---------------------------------------------------------------------------
-  const chainAfter = useCallback(
-    (call: ToolCall, handler: () => Promise<void>): (() => Promise<void>) =>
-      async () => {
-        try {
-          await handler();
-          if (chainingMode === "manual") return;
-          // Autonomous step-limit guard.
-          if (chainingMode === "autonomous") {
-            autonomousStepsRef.current += 1;
-            if (autonomousStepsRef.current >= AUTONOMOUS_STEP_LIMIT) {
-              autonomousStepsRef.current = 0;
-              setChainingMode("manual");
-              resumeFnRef.current?.(
-                `[Tool result: ${call.op} → Success. ` +
-                `Autonomous mode paused after ${AUTONOMOUS_STEP_LIMIT} steps. ` +
-                `Type 'continue' if you want to keep going.]`,
-              );
-              return;
-            }
-          }
-          resumeFnRef.current?.(buildToolResultText(call, true));
-        } catch (e) {
-          if (chainingMode !== "manual") {
-            resumeFnRef.current?.(buildToolResultText(call, false, String(e)));
-          }
-        }
-      },
-    [chainingMode],
-  );
 
   const renderToolCallSupplement = useCallback(
     (call: ToolCall) => {

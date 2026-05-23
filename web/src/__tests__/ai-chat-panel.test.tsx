@@ -12,6 +12,7 @@ const API_BASE = "/api";
 // Mock the streaming hook so tests don't need a real SSE connection.
 // Each test controls status / messages via `mockHook`.
 const mockSend = vi.fn();
+const mockResume = vi.fn();
 const mockCancel = vi.fn();
 const mockReset = vi.fn();
 const mockRetryLast = vi.fn();
@@ -21,6 +22,7 @@ const defaultHookResult = {
   status: "idle" as const,
   error: null,
   send: mockSend,
+  resume: mockResume,
   cancel: mockCancel,
   retryLast: mockRetryLast,
   reset: mockReset,
@@ -282,5 +284,71 @@ describe("AiChatPanel", () => {
     expect(
       await screen.findByText(/provider timeout after 30s/i),
     ).toBeInTheDocument();
+  });
+
+  it("renders tool-result messages as compact pills, not user bubbles", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [CONFIGURED_PROVIDER],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    hookResult = {
+      ...defaultHookResult,
+      messages: [
+        {
+          role: "user",
+          content: "[Tool result: install_plugin for \"openweather\" → Success.]",
+          isToolResult: true,
+        },
+      ],
+    };
+
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    // The pill strips the "[Tool result: " prefix when displaying
+    expect(
+      await screen.findByText(/install_plugin for "openweather" → Success/),
+    ).toBeInTheDocument();
+  });
+
+  it("shows ChainingModePicker when onChainingModeChange is provided", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [CONFIGURED_PROVIDER],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    const onModeChange = vi.fn();
+    render(
+      <AiChatPanel
+        {...defaultProps}
+        chainingMode="manual"
+        onChainingModeChange={onModeChange}
+      />,
+      { wrapper: Wrapper },
+    );
+    // ChainingModePicker renders a button with the mode name
+    expect(await screen.findByTitle(/ai mode: manual/i)).toBeInTheDocument();
+  });
+
+  it("does not show ChainingModePicker when onChainingModeChange is absent", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [CONFIGURED_PROVIDER],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await screen.findByText("FiestaBot (Beta)");
+    expect(screen.queryByTitle(/ai mode:/i)).not.toBeInTheDocument();
   });
 });

@@ -667,18 +667,18 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             try:
                 display = svc.get_display_settings()
                 summary["display"] = display.__dict__ if hasattr(display, "__dict__") else str(display)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_settings_summary: could not fetch display settings: %s", exc)
             try:
                 location = svc.get_location_settings()
                 summary["location"] = location.__dict__ if hasattr(location, "__dict__") else str(location)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_settings_summary: could not fetch location settings: %s", exc)
             try:
                 output = svc.get_output_settings()
                 summary["output"] = output.__dict__ if hasattr(output, "__dict__") else str(output)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_settings_summary: could not fetch output settings: %s", exc)
             return json.dumps(summary, default=str)
         except Exception as exc:
             return json.dumps({"error": str(exc)})

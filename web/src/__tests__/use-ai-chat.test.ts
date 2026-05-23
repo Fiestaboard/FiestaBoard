@@ -213,6 +213,35 @@ describe("useAiChat", () => {
     expect(last.toolCalls![0].appliedSnapshot?.name).toBe("New Name");
   });
 
+  it("resume() injects a tool-result message with isToolResult=true and starts streaming", () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    act(() => { result.current.send("install weather"); });
+    // Stream ends
+    act(() => { resolveStream?.(); });
+    // Now chain via resume
+    act(() => {
+      result.current.resume("[Tool result: install_plugin for \"openweather\" → Success.]");
+    });
+    const msgs = result.current.messages;
+    const resultMsg = msgs.find((m) => m.isToolResult);
+    expect(resultMsg).toBeDefined();
+    expect(resultMsg?.role).toBe("user");
+    expect(resultMsg?.isToolResult).toBe(true);
+    expect(resultMsg?.content).toContain("Tool result");
+    // Should be streaming again
+    expect(result.current.status).toBe("streaming");
+  });
+
+  it("resume() without prior send also starts a stream", () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    act(() => {
+      result.current.resume("[Tool result: enable_plugin for \"stocks\" → Success.]");
+    });
+    expect(result.current.status).toBe("streaming");
+    const resultMsg = result.current.messages.find((m) => m.isToolResult);
+    expect(resultMsg?.isToolResult).toBe(true);
+  });
+
   it("apply_patch without a base snapshot yields no appliedSnapshot", async () => {
     const onToolCall = vi.fn();
     const { result } = renderHook(() =>
