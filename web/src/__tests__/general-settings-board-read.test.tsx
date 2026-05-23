@@ -157,14 +157,15 @@ describe("GeneralSettings — board read intervals", () => {
 
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-local")).toBeInTheDocument(),
-    );
+    // Wait for the deferred polling settings to fully load and sync to state
+    const input = await waitFor(() => {
+      const el = document.getElementById("board-read-local") as HTMLInputElement;
+      expect(el).toBeInTheDocument();
+      expect(el.value).toBe("30");
+      return el;
+    });
 
-    const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "45" } });
-    // Flush all pending React state updates (including deferred ones) before blur
-    // so the blur handler reads the updated value, not the initial default.
     await waitFor(() => expect(parseInt(input.value, 10)).toBe(45));
     await act(async () => {});
     fireEvent.blur(input);
