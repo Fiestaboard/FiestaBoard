@@ -1157,7 +1157,9 @@ export const handlers = [
   // Polling settings endpoints
   http.get(`${API_BASE}/settings/polling`, () => {
     return HttpResponse.json({
-      interval_seconds: 300
+      interval_seconds: 300,
+      board_read_interval_local: 30,
+      board_read_interval_cloud: 180
     });
   }),
 

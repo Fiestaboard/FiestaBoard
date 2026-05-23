@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Calendar,
   CheckCircle,
@@ -43,6 +43,12 @@ interface AiActionConfirmationProps {
   call: ToolCall & { op: ConfirmableOp };
   onAllow: () => Promise<void> | void;
   onDeny: () => void;
+  /**
+   * When true and the action is not destructive, trigger the action
+   * immediately on mount without requiring a user click. Used by
+   * Autonomous chaining mode.
+   */
+  autoAllow?: boolean;
 }
 
 function actionLabel(call: AiActionConfirmationProps["call"]): string {
@@ -177,6 +183,7 @@ export function AiActionConfirmation({
   call,
   onAllow,
   onDeny,
+  autoAllow = false,
 }: AiActionConfirmationProps) {
   const [state, setState] = useState<ActionState>("pending");
 
@@ -201,6 +208,16 @@ export function AiActionConfirmation({
     call.op === "delete_schedule" ||
     call.op === "trigger_system_update" ||
     call.op === "uninstall_plugin";
+
+  // Autonomous mode: auto-fire on mount for non-destructive ops.
+  const hasAutoFired = useRef(false);
+  useEffect(() => {
+    if (autoAllow && !isDestructive && !hasAutoFired.current) {
+      hasAutoFired.current = true;
+      void handleAllow();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Card className="p-3 text-sm border-border/60 bg-muted/30">

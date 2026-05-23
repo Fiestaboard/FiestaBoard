@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
+  CheckCircle2,
   ChevronRight,
   Eye,
   EyeOff,
@@ -40,6 +41,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { api, type AISettings } from "@/lib/api";
 import type {
+  ChainingMode,
   ChatMessage,
   ChatTurnContext,
   LineOp,
@@ -47,6 +49,7 @@ import type {
   ToolCallDisplay,
 } from "@/lib/ai-chat-types";
 import { useAiChat } from "@/lib/use-ai-chat";
+import { ChainingModePicker } from "@/components/chaining-mode-picker";
 
 export interface AiChatPanelProps {
   /** Per-turn editor context (device type + current page snapshot). */
@@ -64,6 +67,17 @@ export interface AiChatPanelProps {
    * install_plugin, update_setting, etc.
    */
   renderToolCallSupplement?: (call: ToolCall) => React.ReactNode;
+  /**
+   * Slot ref: parent writes into this ref so sibling components can
+   * call `resume(toolResultText)` after tool execution completes.
+   * The slot is populated from the `resume` function returned by
+   * `useAiChat`, so it always points at the latest closure.
+   */
+  resumeFnRef?: React.MutableRefObject<((text: string) => void) | null>;
+  /** Current AI chaining mode (controlled by parent). */
+  chainingMode?: ChainingMode;
+  /** Called when the user changes the chaining mode via the in-panel picker. */
+  onChainingModeChange?: (mode: ChainingMode) => void;
 }
 
 export function AiChatPanel({
@@ -73,6 +87,9 @@ export function AiChatPanel({
   onUndo = () => {},
   onClose,
   renderToolCallSupplement,
+  resumeFnRef,
+  chainingMode = "manual",
+  onChainingModeChange,
 }: AiChatPanelProps) {
   const [providerId, setProviderId] = useState<string>("");
   const [model, setModel] = useState<string>("");
@@ -100,13 +117,18 @@ export function AiChatPanel({
   const noModels = !!selectedProvider && !effectiveModel;
   const blocked = aiDisabled || noProviders || noModels;
 
-  const { messages, status, error, send, cancel, retryLast, reset } =
+  const { messages, status, error, send, resume, cancel, retryLast, reset } =
     useAiChat({
       getTurnContext,
       onToolCall,
       providerId: effectiveProviderId || undefined,
       model: effectiveModel || undefined,
     });
+
+  // Slot-ref pattern: keep the parent's ref pointed at the latest resume fn.
+  useEffect(() => {
+    if (resumeFnRef) resumeFnRef.current = resume;
+  }, [resumeFnRef, resume]);
 
   // Boards beyond the 3 most recent are collapsed by default.
   // Users can manually expand them; that choice is tracked here.
@@ -169,6 +191,12 @@ export function AiChatPanel({
             )}
           </div>
           <div className="flex items-center gap-1">
+            {onChainingModeChange && (
+              <ChainingModePicker
+                mode={chainingMode}
+                onChange={onChainingModeChange}
+              />
+            )}
             {messages.length > 0 && (
               <Button
                 type="button"
@@ -496,6 +524,20 @@ function MessageBubble({
   }, [isLastAssistant, message.content, message.toolCalls?.length]);
 
   if (message.role === "user") {
+    // Tool-result injection messages get a compact system pill, not a user bubble.
+    if (message.isToolResult) {
+      const displayText = message.content
+        .replace(/^\[Tool result:\s*/, "")
+        .replace(/\]$/, "");
+      return (
+        <div ref={ref} className="flex justify-center py-0.5">
+          <div className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground max-w-[85%]">
+            <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
+            <span className="truncate font-mono">{displayText}</span>
+          </div>
+        </div>
+      );
+    }
     return (
       <div ref={ref} className="flex justify-end">
         <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-brand-emphasis/15 px-3 py-2 text-sm">

@@ -76,6 +76,12 @@ uninstall plugins, or change settings. To take ACTION, emit a fenced
 JSON block with the language tag `fiestaboard`. Each block must contain
 exactly one of these operations:
 
+IMPORTANT — TOOL RESULT MESSAGES: When you see a user message starting
+with "[Tool result:", it is an automated result from a tool you
+previously executed — NOT a new human request. Read the result and
+decide whether to take another action or summarise what was
+accomplished. Do NOT re-explain what you did; just continue the task.
+
 PAGE EDITING (use when in the page editor context):
 
 1. Replace the entire page (use when the user asks for a brand-new page

@@ -761,6 +761,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount the MCP server at /mcp (accessible at /api/mcp via nginx).
+# Gracefully skipped if the mcp package is not installed.
+try:
+    from .mcp_server import mcp_server as _mcp_server_instance
+    if _mcp_server_instance is not None:
+        app.mount("/mcp", _mcp_server_instance.streamable_http_app())
+        logger.info("FiestaBoard MCP server mounted at /mcp (public: /api/mcp)")
+    else:
+        logger.warning("MCP server disabled — mcp package not installed or failed to initialise")
+except Exception as _mcp_mount_err:  # pragma: no cover
+    logger.warning("Failed to mount MCP server: %s", _mcp_mount_err)
+
 
 # Set up log buffer handler
 log_buffer_handler = LogBufferHandler()

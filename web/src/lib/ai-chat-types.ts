@@ -195,6 +195,8 @@ export type ToolCallDisplay = ToolCall & {
   deviceType?: DeviceType;
 };
 
+export type ChainingMode = "manual" | "auto-continue" | "autonomous";
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -206,6 +208,12 @@ export interface ChatMessage {
   warnings?: string[];
   // True while the assistant is still streaming this message.
   pending?: boolean;
+  /**
+   * When true this message is an automated tool-result injection (role: "user"
+   * under the hood) rather than something the human typed. The chat renderer
+   * displays it as a compact system pill instead of a full user bubble.
+   */
+  isToolResult?: boolean;
 }
 
 export interface CurrentPageSnapshot {

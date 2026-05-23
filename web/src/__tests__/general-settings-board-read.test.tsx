@@ -108,14 +108,19 @@ describe("GeneralSettings — board read intervals", () => {
   it("shows warning when cloud interval is below 60 seconds", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-cloud")).toBeInTheDocument(),
-    );
+    // Wait for the API value to load (180) before firing the change,
+    // then flush deferred updates so a late React re-render can't overwrite it.
+    await waitFor(() => {
+      const el = document.getElementById("board-read-cloud") as HTMLInputElement;
+      expect(el).toBeInTheDocument();
+      expect(parseInt(el.value, 10)).toBe(180);
+    });
+    // Flush all deferred React state BEFORE the change so the deferred update
+    // from the API doesn't run after our fireEvent and reset cloud back to 180.
+    await act(async () => {});
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "30" } });
-    // Flush deferred React state so the warning renders before asserting.
-    await act(async () => {});
 
     await waitFor(() => {
       expect(
@@ -152,14 +157,15 @@ describe("GeneralSettings — board read intervals", () => {
 
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-local")).toBeInTheDocument(),
-    );
+    // Wait for the deferred polling settings to fully load and sync to state
+    const input = await waitFor(() => {
+      const el = document.getElementById("board-read-local") as HTMLInputElement;
+      expect(el).toBeInTheDocument();
+      expect(el.value).toBe("30");
+      return el;
+    });
 
-    const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "45" } });
-    // Flush all pending React state updates (including deferred ones) before blur
-    // so the blur handler reads the updated value, not the initial default.
     await waitFor(() => expect(parseInt(input.value, 10)).toBe(45));
     await act(async () => {});
     fireEvent.blur(input);
