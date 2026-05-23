@@ -68,6 +68,11 @@ describe("GeneralSettings — board read intervals", () => {
       expect(el).toBeInTheDocument();
       expect(parseInt(el.value, 10)).toBe(30);
     });
+    // Flush all pending React state updates (including deferred ones) before
+    // interacting, so a late deferred update from the API can't overwrite the
+    // user's change. The default (30) matches the API value, so waitFor above
+    // may return before the deferred React Query update has settled.
+    await act(async () => {});
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "45" } });
