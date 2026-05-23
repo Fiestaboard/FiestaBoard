@@ -27,6 +27,13 @@ interface PageEditorBridgeContextValue {
   canEditorUndo: () => boolean;
   /** Trigger undo in the editor. */
   editorUndo: () => void;
+  /**
+   * Resolves once a page editor is mounted (either already, or after the next
+   * `register()` call). Resolves `true` on success and `false` on timeout so
+   * the chaining loop never stalls. Used by `navigate_to_page` to wait out the
+   * route transition before resuming the AI.
+   */
+  waitForEditor: (timeoutMs?: number) => Promise<boolean>;
   /** Called by the page editor to register itself. */
   register: (handlers: EditorHandlers) => void;
   /** Called by the page editor when it unmounts. */
@@ -41,10 +48,18 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
   // re-read canUndo() reactively after each change.
   const [mutationPulse, setMutationPulse] = useState(0);
   const handlersRef = useRef<EditorHandlers | null>(null);
+  // Pending waiters resolved when the next editor registers. The AI chaining
+  // loop uses these to wait out the route transition after navigate_to_page.
+  const pendingWaitersRef = useRef<Array<(ok: boolean) => void>>([]);
 
   const register = useCallback((handlers: EditorHandlers) => {
     handlersRef.current = handlers;
     setHasEditor(true);
+    if (pendingWaitersRef.current.length > 0) {
+      const waiters = pendingWaitersRef.current;
+      pendingWaitersRef.current = [];
+      for (const resolve of waiters) resolve(true);
+    }
   }, []);
 
   const unregister = useCallback(() => {
@@ -52,6 +67,30 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
     setHasEditor(false);
     setMutationPulse(0);
   }, []);
+
+  const waitForEditor = useCallback(
+    (timeoutMs: number = 3000): Promise<boolean> => {
+      if (handlersRef.current) return Promise.resolve(true);
+      return new Promise<boolean>((resolve) => {
+        let settled = false;
+        const onReady = (ok: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(ok);
+        };
+        const timer = setTimeout(() => {
+          // Remove this waiter so a late register() doesn't double-resolve.
+          pendingWaitersRef.current = pendingWaitersRef.current.filter(
+            (w) => w !== onReady,
+          );
+          onReady(false);
+        }, timeoutMs);
+        pendingWaitersRef.current.push(onReady);
+      });
+    },
+    [],
+  );
 
   const getEditorSnapshot = useCallback(
     () => handlersRef.current?.getSnapshot() ?? null,
@@ -85,6 +124,7 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
         applyEditorOp,
         canEditorUndo,
         editorUndo,
+        waitForEditor,
         register,
         unregister,
       }}
