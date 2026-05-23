@@ -314,6 +314,33 @@ def test_parse_tool_call_trigger_system_update():
     assert call.op == "trigger_system_update"
 
 
+def test_parse_tool_call_enable_plugin():
+    call = parse_tool_call({
+        "op": "enable_plugin",
+        "args": {"plugin_id": "openweather"},
+    })
+    assert call.op == "enable_plugin"
+    assert call.args.plugin_id == "openweather"
+
+
+def test_parse_tool_call_disable_plugin():
+    call = parse_tool_call({
+        "op": "disable_plugin",
+        "args": {"plugin_id": "stocks"},
+    })
+    assert call.op == "disable_plugin"
+    assert call.args.plugin_id == "stocks"
+
+
+def test_parse_tool_call_uninstall_plugin():
+    call = parse_tool_call({
+        "op": "uninstall_plugin",
+        "args": {"plugin_id": "old_plugin"},
+    })
+    assert call.op == "uninstall_plugin"
+    assert call.args.plugin_id == "old_plugin"
+
+
 def test_parse_tool_call_unknown_op():
     with pytest.raises(ToolCallValidationError, match="Unknown tool op"):
         parse_tool_call({"op": "drop_table", "args": {}})

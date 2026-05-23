@@ -835,6 +835,7 @@ export interface PluginInfo {
   update_available?: boolean;
   instance_label?: string | null;
   base_plugin_id?: string;
+  settings_schema?: Record<string, unknown>;
 }
 
 export interface PluginsListResponse {

@@ -272,14 +272,47 @@ def _format_available_pages(pages: List[Dict[str, Any]]) -> str:
     )
 
 
+def _summarize_schema(schema: Optional[Dict[str, Any]]) -> str:
+    """Render a one-line summary of plugin config fields for the AI.
+
+    Produces output like:
+        api_key*(string), location*(string), units(enum:metric|imperial), refresh_seconds(integer)
+
+    An asterisk (*) marks required fields. Enum options are listed up to
+    5 values so the AI knows valid choices without token bloat.
+    """
+    if not schema:
+        return ""
+    props = schema.get("properties", {})
+    required = set(schema.get("required", []))
+    if not props:
+        return ""
+    parts = []
+    for key, field in props.items():
+        if not isinstance(field, dict):
+            continue
+        ftype = field.get("type", "any")
+        enum_vals = field.get("enum")
+        req = "*" if key in required else ""
+        if enum_vals and isinstance(enum_vals, list):
+            opts = "|".join(str(v) for v in enum_vals[:5])
+            ellipsis = "…" if len(enum_vals) > 5 else ""
+            parts.append(f"{key}{req}(enum:{opts}{ellipsis})")
+        else:
+            parts.append(f"{key}{req}({ftype})")
+    return ", ".join(parts)
+
+
 def _format_installed_plugins(plugins: List[Dict[str, Any]]) -> str:
-    """Render a compact list of installed plugins and their status."""
+    """Render a compact list of installed plugins, their status, and config schema."""
     if not plugins:
         return "(no plugins installed)"
     lines = []
     for p in plugins:
         status = "enabled" if p.get("enabled") else "disabled"
-        lines.append(f'  - {p.get("id", "?")} ({p.get("name", "?")}) — {status}')
+        schema_line = _summarize_schema(p.get("settings_schema"))
+        schema_part = f"\n    config schema: {schema_line}" if schema_line else ""
+        lines.append(f'  - {p.get("id", "?")} ({p.get("name", "?")}) — {status}{schema_part}')
     return "\n".join(lines)
 
 

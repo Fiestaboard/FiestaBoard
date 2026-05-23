@@ -790,6 +790,7 @@ class PluginRegistry:
                 "supports_triggers": manifest.supports_triggers if manifest else False,
                 "instance_label": instance_label,
                 "base_plugin_id": base_id,
+                "settings_schema": manifest.settings_schema if manifest else {},
             }
             plugins.append(info)
         

@@ -205,6 +205,60 @@ class UpdatePluginConfigOp(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# enable_plugin — enable an already-installed but currently-disabled plugin.
+# ---------------------------------------------------------------------------
+
+
+class EnablePluginArgs(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    plugin_id: str = Field(..., min_length=1, max_length=100)
+
+
+class EnablePluginOp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    op: Literal["enable_plugin"]
+    args: EnablePluginArgs
+
+
+# ---------------------------------------------------------------------------
+# disable_plugin — disable an installed plugin without uninstalling it.
+# ---------------------------------------------------------------------------
+
+
+class DisablePluginArgs(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    plugin_id: str = Field(..., min_length=1, max_length=100)
+
+
+class DisablePluginOp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    op: Literal["disable_plugin"]
+    args: DisablePluginArgs
+
+
+# ---------------------------------------------------------------------------
+# uninstall_plugin — permanently remove an installed plugin.
+# ---------------------------------------------------------------------------
+
+
+class UninstallPluginArgs(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    plugin_id: str = Field(..., min_length=1, max_length=100)
+
+
+class UninstallPluginOp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    op: Literal["uninstall_plugin"]
+    args: UninstallPluginArgs
+
+
+# ---------------------------------------------------------------------------
 # update_setting — change a non-credential system setting.
 # Credential-bearing settings (AI providers, MQTT) are excluded.
 # ---------------------------------------------------------------------------
@@ -395,6 +449,9 @@ ToolCall = Union[
     NavigateToScheduleOp,
     InstallPluginOp,
     UpdatePluginConfigOp,
+    EnablePluginOp,
+    DisablePluginOp,
+    UninstallPluginOp,
     UpdateSettingOp,
     CreateCarouselOp,
     UpdateCarouselOp,
@@ -414,6 +471,9 @@ _OP_REGISTRY = {
     "navigate_to_schedule": NavigateToScheduleOp,
     "install_plugin": InstallPluginOp,
     "update_plugin_config": UpdatePluginConfigOp,
+    "enable_plugin": EnablePluginOp,
+    "disable_plugin": DisablePluginOp,
+    "uninstall_plugin": UninstallPluginOp,
     "update_setting": UpdateSettingOp,
     "create_carousel": CreateCarouselOp,
     "update_carousel": UpdateCarouselOp,

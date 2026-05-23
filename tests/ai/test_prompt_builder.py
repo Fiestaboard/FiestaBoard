@@ -1,6 +1,6 @@
 """Unit tests for src/ai/prompt_builder.py."""
 
-from src.ai.prompt_builder import build_prompt, PromptContext
+from src.ai.prompt_builder import build_prompt, PromptContext, _summarize_schema
 
 
 def test_flagship_prompt_includes_dimensions():
@@ -280,6 +280,106 @@ def test_prompt_installed_plugins_empty_list():
     ctx = build_prompt("x", "flagship", installed_plugins=[])
     assert "INSTALLED PLUGINS" in ctx.system_prompt
     assert "no plugins installed" in ctx.system_prompt
+
+
+def test_prompt_installed_plugins_includes_schema_when_provided():
+    plugins = [
+        {
+            "id": "weather",
+            "name": "Weather Plugin",
+            "enabled": True,
+            "settings_schema": {
+                "type": "object",
+                "properties": {
+                    "api_key": {"type": "string"},
+                    "units": {"type": "string", "enum": ["metric", "imperial"]},
+                },
+                "required": ["api_key"],
+            },
+        }
+    ]
+    ctx = build_prompt("x", "flagship", installed_plugins=plugins)
+    # Schema fields should appear in the prompt
+    assert "api_key" in ctx.system_prompt
+    assert "config schema" in ctx.system_prompt
+    # Required field marked with *
+    assert "api_key*" in ctx.system_prompt
+    # Enum values listed
+    assert "enum:metric|imperial" in ctx.system_prompt
+
+
+def test_prompt_installed_plugins_no_schema_omits_config_line():
+    plugins = [{"id": "simple", "name": "Simple", "enabled": True}]
+    ctx = build_prompt("x", "flagship", installed_plugins=plugins)
+    assert "simple" in ctx.system_prompt
+    # No config schema line when no settings_schema
+    assert "config schema" not in ctx.system_prompt
+
+
+# --- _summarize_schema unit tests ---
+
+def test_summarize_schema_empty_returns_empty():
+    assert _summarize_schema({}) == ""
+    assert _summarize_schema(None) == ""
+
+
+def test_summarize_schema_basic_types():
+    schema = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "count": {"type": "integer"},
+            "flag": {"type": "boolean"},
+        },
+    }
+    result = _summarize_schema(schema)
+    assert "name(string)" in result
+    assert "count(integer)" in result
+    assert "flag(boolean)" in result
+
+
+def test_summarize_schema_required_fields_marked():
+    schema = {
+        "type": "object",
+        "properties": {
+            "api_key": {"type": "string"},
+            "optional_val": {"type": "string"},
+        },
+        "required": ["api_key"],
+    }
+    result = _summarize_schema(schema)
+    assert "api_key*(string)" in result
+    assert "optional_val(string)" in result
+    assert "optional_val*(string)" not in result
+
+
+def test_summarize_schema_enum_values_listed():
+    schema = {
+        "type": "object",
+        "properties": {
+            "units": {"type": "string", "enum": ["metric", "imperial", "standard"]},
+        },
+    }
+    result = _summarize_schema(schema)
+    assert "enum:metric|imperial|standard" in result
+
+
+def test_summarize_schema_enum_truncated_at_five():
+    schema = {
+        "type": "object",
+        "properties": {
+            "choice": {"type": "string", "enum": ["a", "b", "c", "d", "e", "f"]},
+        },
+    }
+    result = _summarize_schema(schema)
+    # Only first 5 shown
+    assert "a|b|c|d|e" in result
+    assert "…" in result
+
+
+def test_summarize_schema_no_properties_returns_empty():
+    schema = {"type": "object", "properties": {}}
+    assert _summarize_schema(schema) == ""
 
 
 def test_prompt_includes_available_schedules_when_supplied():

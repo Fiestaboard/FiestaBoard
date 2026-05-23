@@ -6,9 +6,12 @@ import {
   CheckCircle,
   Download,
   ListVideo,
+  Power,
+  PowerOff,
   RefreshCw,
   Settings,
   Sliders,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,8 +20,11 @@ import type {
   CreateCarouselArgs,
   CreateScheduleArgs,
   DeleteScheduleArgs,
+  DisablePluginArgs,
+  EnablePluginArgs,
   InstallPluginArgs,
   ToolCall,
+  UninstallPluginArgs,
   UpdateCarouselArgs,
   UpdatePluginArgs,
   UpdatePluginConfigArgs,
@@ -47,6 +53,12 @@ function actionLabel(call: AiActionConfirmationProps["call"]): string {
       return `Configure plugin: ${(call.args as UpdatePluginConfigArgs).plugin_id}`;
     case "update_plugin":
       return `Update plugin: ${(call.args as UpdatePluginArgs).plugin_id}`;
+    case "enable_plugin":
+      return `Enable plugin: ${(call.args as EnablePluginArgs).plugin_id}`;
+    case "disable_plugin":
+      return `Disable plugin: ${(call.args as DisablePluginArgs).plugin_id}`;
+    case "uninstall_plugin":
+      return `Uninstall plugin: ${(call.args as UninstallPluginArgs).plugin_id}`;
     case "update_setting":
       return `Change setting: ${(call.args as UpdateSettingArgs).category}`;
     case "create_carousel":
@@ -78,6 +90,18 @@ function actionDescription(call: AiActionConfirmationProps["call"]): string {
     case "update_plugin": {
       const a = call.args as UpdatePluginArgs;
       return `Downloads and installs the latest registry version of "${a.plugin_id}".`;
+    }
+    case "enable_plugin": {
+      const a = call.args as EnablePluginArgs;
+      return `Enables "${a.plugin_id}" so it can provide data to your boards.`;
+    }
+    case "disable_plugin": {
+      const a = call.args as DisablePluginArgs;
+      return `Disables "${a.plugin_id}" without removing it. It can be re-enabled later.`;
+    }
+    case "uninstall_plugin": {
+      const a = call.args as UninstallPluginArgs;
+      return `Permanently removes "${a.plugin_id}". This cannot be undone.`;
     }
     case "update_setting": {
       const a = call.args as UpdateSettingArgs;
@@ -129,6 +153,12 @@ function ActionIcon({ op }: { op: ConfirmableOp }) {
       return <Sliders className={cls} />;
     case "update_plugin":
       return <RefreshCw className={cls} />;
+    case "enable_plugin":
+      return <Power className={cls} />;
+    case "disable_plugin":
+      return <PowerOff className={cls} />;
+    case "uninstall_plugin":
+      return <Trash2 className={cls} />;
     case "update_setting":
       return <Settings className={cls} />;
     case "create_carousel":
@@ -167,7 +197,10 @@ export function AiActionConfirmation({
 
   const isSettled = state === "done" || state === "denied";
 
-  const isDestructive = call.op === "delete_schedule" || call.op === "trigger_system_update";
+  const isDestructive =
+    call.op === "delete_schedule" ||
+    call.op === "trigger_system_update" ||
+    call.op === "uninstall_plugin";
 
   return (
     <Card className="p-3 text-sm border-border/60 bg-muted/30">
