@@ -335,7 +335,19 @@
     "advancedSection": "Дополнительно",
     "setupWizardTitle": "Мастер настройки",
     "setupWizardDescription": "Перезапустите мастер настройки для повторной настройки подключения доски и основных параметров.",
-    "runSetupWizard": "Запустить мастер настройки"
+    "runSetupWizard": "Запустить мастер настройки",
+    "sectionHardware": "Оборудование",
+    "sectionHardwareDescription": "Физическая настройка табло и подключение",
+    "sectionBehavior": "Поведение",
+    "sectionBehaviorDescription": "Как содержимое перемещается, обновляется и приостанавливается",
+    "sectionIntegrations": "Интеграции",
+    "sectionIntegrationsDescription": "ИИ, мессенджеры и плагины",
+    "sectionSystem": "Система",
+    "sectionSystemDescription": "Обновления, резервные копии и управление системой",
+    "sectionAdvanced": "Дополнительно",
+    "sectionAdvancedDescription": "Диагностика и экспериментальные функции",
+    "sectionGeneral": "Основные",
+    "sectionGeneralDescription": "Настройки, язык, специальные возможности"
   },
   "offline": {
     "youreOffline": "Вы не в сети",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Интервалы обновления",
+    "updateIntervalsDescription": "Как часто табло запрашивает новый контент и перечитывает свое текущее состояние"
   },
   "themeToggle": {
     "toggleTheme": "Переключить тему"

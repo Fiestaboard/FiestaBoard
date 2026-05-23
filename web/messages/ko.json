@@ -335,7 +335,19 @@
     "advancedSection": "고급",
     "setupWizardTitle": "설정 마법사",
     "setupWizardDescription": "보드 연결 및 기본 설정을 다시 구성하려면 설정 마법사를 다시 실행하세요.",
-    "runSetupWizard": "설정 마법사 실행"
+    "runSetupWizard": "설정 마법사 실행",
+    "sectionHardware": "하드웨어",
+    "sectionHardwareDescription": "보드의 물리적 구성 및 연결",
+    "sectionBehavior": "동작",
+    "sectionBehaviorDescription": "콘텐츠 이동, 새로 고침 및 일시 정지 방식",
+    "sectionIntegrations": "통합",
+    "sectionIntegrationsDescription": "AI, 메시징 및 플러그인 서비스",
+    "sectionSystem": "시스템",
+    "sectionSystemDescription": "업데이트, 백업 및 시스템 제어",
+    "sectionAdvanced": "고급",
+    "sectionAdvancedDescription": "진단 및 실험적 기능",
+    "sectionGeneral": "일반",
+    "sectionGeneralDescription": "환경설정, 언어, 접근성"
   },
   "offline": {
     "youreOffline": "오프라인 상태입니다",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "업데이트 간격",
+    "updateIntervalsDescription": "보드가 새 콘텐츠를 가져오고 현재 상태를 다시 읽는 빈도"
   },
   "themeToggle": {
     "toggleTheme": "테마 전환"

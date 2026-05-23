@@ -25,6 +25,7 @@ import {
   deleteAllPages,
   deleteAllSchedules,
   ensureTwoBoards,
+  openSettingsTab,
   resetToSingleBoard,
   API_URL,
   BOARD_HOST,
@@ -238,6 +239,8 @@ test.describe("Multi-Board — One Board Offline", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     // Both board cards should still render (offline one may show error badge).
     // Boards are rendered as Collapsible elements with data-testid="board-card".

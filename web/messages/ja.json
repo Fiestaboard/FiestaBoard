@@ -335,7 +335,19 @@
     "advancedSection": "詳細設定",
     "setupWizardTitle": "セットアップウィザード",
     "setupWizardDescription": "セットアップウィザードを再実行して、ボード接続と基本設定を再構成します。",
-    "runSetupWizard": "セットアップウィザードを実行"
+    "runSetupWizard": "セットアップウィザードを実行",
+    "sectionHardware": "ハードウェア",
+    "sectionHardwareDescription": "ボードの物理的な構成と接続",
+    "sectionBehavior": "動作",
+    "sectionBehaviorDescription": "コンテンツの動き・更新・一時停止の設定",
+    "sectionIntegrations": "連携",
+    "sectionIntegrationsDescription": "AI・メッセージング・プラグインサービス",
+    "sectionSystem": "システム",
+    "sectionSystemDescription": "アップデート、バックアップ、システム制御",
+    "sectionAdvanced": "詳細設定",
+    "sectionAdvancedDescription": "診断と実験的機能",
+    "sectionGeneral": "一般",
+    "sectionGeneralDescription": "環境設定、言語、アクセシビリティ"
   },
   "offline": {
     "youreOffline": "オフラインです",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "更新間隔",
+    "updateIntervalsDescription": "ボードが新しいコンテンツを取得し、現在の状態を再読み込みする頻度"
   },
   "themeToggle": {
     "toggleTheme": "テーマを切り替え"

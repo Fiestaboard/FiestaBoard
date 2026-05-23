@@ -335,7 +335,19 @@
     "advancedSection": "Avancerat",
     "setupWizardTitle": "Installationsguide",
     "setupWizardDescription": "Kör installationsguiden igen för att konfigurera om din tavlas anslutning och grundinställningar.",
-    "runSetupWizard": "Kör installationsguiden"
+    "runSetupWizard": "Kör installationsguiden",
+    "sectionHardware": "Hårdvara",
+    "sectionHardwareDescription": "Fysisk tavlekonfiguration och anslutning",
+    "sectionBehavior": "Beteende",
+    "sectionBehaviorDescription": "Hur innehåll rör sig, uppdateras och pausas",
+    "sectionIntegrations": "Integrationer",
+    "sectionIntegrationsDescription": "AI-, meddelande- och plugintjänster",
+    "sectionSystem": "System",
+    "sectionSystemDescription": "Uppdateringar, säkerhetskopior och systemkontroller",
+    "sectionAdvanced": "Avancerat",
+    "sectionAdvancedDescription": "Diagnostik och experimentella funktioner",
+    "sectionGeneral": "Allmänt",
+    "sectionGeneralDescription": "Inställningar, språk, tillgänglighet"
   },
   "offline": {
     "youreOffline": "Du är offline",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Uppdateringsintervall",
+    "updateIntervalsDescription": "Hur ofta tavlan söker efter nytt innehåll och läser om sitt aktuella tillstånd"
   },
   "themeToggle": {
     "toggleTheme": "Växla tema"

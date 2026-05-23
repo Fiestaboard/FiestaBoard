@@ -24,30 +24,48 @@ test.beforeEach(async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 test.describe("Settings Page", () => {
-  test("loads settings page with all sections visible", async ({ page }) => {
+  test("loads settings page with all tab sections visible", async ({ page }) => {
     await page.goto("/settings");
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true })
     ).toBeVisible({ timeout: 15_000 });
 
-    // Schedule & Automation section should be present (renamed from General Settings)
-    await expect(page.getByText("Schedule & Automation").first()).toBeVisible({
+    // Tab strip exposes all six sections
+    for (const section of [
+      "General",
+      "Hardware",
+      "Behavior",
+      "Integrations",
+      "System",
+      "Advanced",
+    ]) {
+      await expect(
+        page.getByRole("tab", { name: section, exact: true })
+      ).toBeVisible({ timeout: 5_000 });
+    }
+
+    // Behavior tab contains the Update Intervals and Silence Schedule cards
+    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    await expect(page.getByText("Update Intervals").first()).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page.getByText("Silence Schedule").first()).toBeVisible();
 
-    // Boards section
-    await expect(page.getByText("Boards").first()).toBeVisible();
+    // Hardware tab contains the Boards card
+    await page.getByRole("tab", { name: "Hardware", exact: true }).click();
+    await expect(page.getByText("Boards").first()).toBeVisible({ timeout: 5_000 });
 
-    // Debug Tools is a collapsible section — expand it by clicking the trigger
-    const debugToolsTrigger = page.getByText("Debug Tools").first();
-    await expect(debugToolsTrigger).toBeVisible({ timeout: 5_000 });
-    await debugToolsTrigger.click();
+    // Advanced tab contains Debug Tools
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    await expect(page.getByText("Debug Tools").first()).toBeVisible({
+      timeout: 5_000,
+    });
 
-    // After expanding, verify Debug Tools content is accessible
-    await expect(page.getByText("Debug Tools").first()).toBeVisible();
-
-    // Setup Wizard is a standalone card on the settings page
-    await expect(page.getByText("Setup Wizard").first()).toBeVisible();
+    // System tab contains the Setup Wizard card
+    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByText("Setup Wizard").first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("can navigate to integrations from settings", async ({ page }) => {

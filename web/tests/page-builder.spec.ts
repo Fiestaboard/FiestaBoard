@@ -13,6 +13,7 @@ import {
   deletePage,
   deleteAllPages,
   setActivePage,
+  waitForNoActiveDisplay,
   API_URL,
 } from "./helpers";
 
@@ -319,6 +320,11 @@ test.describe("Sync from Board", () => {
     // Re-arm null active page immediately before clicking to prevent the main
     // loop from auto-promoting the default page during the page-load wait above.
     await setActivePage(null);
+
+    // Block on confirmation that there is no active display server-side. This
+    // closes the race where the polling loop auto-promotes the Welcome page
+    // between the setActivePage(null) write and the click below.
+    await waitForNoActiveDisplay();
 
     // Wait for the sync API response, then verify the error toast.
     // We match on URL only (not status) so a 200 produces an assertion

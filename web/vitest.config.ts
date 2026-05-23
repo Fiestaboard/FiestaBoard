@@ -29,6 +29,8 @@ export default defineConfig({
         "src/components/service-controls.tsx",
         "src/components/config-display.tsx",
         "src/components/general-settings.tsx",
+        "src/components/settings/update-intervals.tsx",
+        "src/components/settings/silence-schedule.tsx",
         "src/components/silence-mode-status.tsx",
         "src/components/theme-toggle.tsx",
         "src/components/day-selector.tsx",

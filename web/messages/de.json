@@ -335,7 +335,19 @@
     "advancedSection": "Erweitert",
     "setupWizardTitle": "Einrichtungsassistent",
     "setupWizardDescription": "Führen Sie den Einrichtungsassistenten erneut aus, um Ihre Boardverbindung und Grundeinstellungen neu zu konfigurieren.",
-    "runSetupWizard": "Einrichtungsassistent starten"
+    "runSetupWizard": "Einrichtungsassistent starten",
+    "sectionHardware": "Hardware",
+    "sectionHardwareDescription": "Physische Board-Konfiguration und Verbindung",
+    "sectionBehavior": "Verhalten",
+    "sectionBehaviorDescription": "Wie Inhalte sich bewegen, aktualisieren und pausieren",
+    "sectionIntegrations": "Integrationen",
+    "sectionIntegrationsDescription": "KI-, Messaging- und Plugin-Dienste",
+    "sectionSystem": "System",
+    "sectionSystemDescription": "Updates, Sicherungen und Systemsteuerung",
+    "sectionAdvanced": "Erweitert",
+    "sectionAdvancedDescription": "Diagnose und experimentelle Funktionen",
+    "sectionGeneral": "Allgemein",
+    "sectionGeneralDescription": "Einstellungen, Sprache, Barrierefreiheit"
   },
   "offline": {
     "youreOffline": "Sie sind offline",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Aktualisierungsintervalle",
+    "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest"
   },
   "themeToggle": {
     "toggleTheme": "Design wechseln"

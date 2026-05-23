@@ -335,7 +335,19 @@
     "advancedSection": "Advanced",
     "setupWizardTitle": "Setup Wizard",
     "setupWizardDescription": "Re-run the setup wizard to reconfigure your board connection and basic settings.",
-    "runSetupWizard": "Run Setup Wizard"
+    "runSetupWizard": "Run Setup Wizard",
+    "sectionHardware": "Hardware",
+    "sectionHardwareDescription": "Physical board configuration and connection",
+    "sectionBehavior": "Behavior",
+    "sectionBehaviorDescription": "How content moves, refreshes, and pauses",
+    "sectionIntegrations": "Integrations",
+    "sectionIntegrationsDescription": "AI, messaging, and plugin services",
+    "sectionSystem": "System",
+    "sectionSystemDescription": "Updates, backups, and system controls",
+    "sectionAdvanced": "Advanced",
+    "sectionAdvancedDescription": "Diagnostics and experimental features",
+    "sectionGeneral": "General",
+    "sectionGeneralDescription": "Preferences, locale, accessibility"
   },
   "offline": {
     "youreOffline": "You're Offline",
@@ -747,6 +759,8 @@
   "generalSettings": {
     "title": "Schedule & Automation",
     "description": "Control when the board is active and how often it updates",
+    "updateIntervalsTitle": "Update Intervals",
+    "updateIntervalsDescription": "How often the board polls for new content and re-reads its current state",
     "timezoneLabel": "Timezone",
     "timezoneDescription": "All times in the application will be displayed in this timezone",
     "currentTime": "Current time: {time}",

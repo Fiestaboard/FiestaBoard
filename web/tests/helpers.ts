@@ -335,3 +335,57 @@ export function suppressWizard(page: import("@playwright/test").Page) {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });
 }
+
+/**
+ * Open a tab on the redesigned Settings page. The page splits its content
+ * across tabs (General, Hardware, Behavior, Integrations, System, Advanced),
+ * so tests that look for tab-scoped content must click the right tab first.
+ */
+export async function openSettingsTab(
+  page: import("@playwright/test").Page,
+  tab: "General" | "Hardware" | "Behavior" | "Integrations" | "System" | "Advanced",
+) {
+  await page.getByRole("tab", { name: tab, exact: true }).click();
+}
+
+/**
+ * Wait until the backend reports first-run mode (no board configured).
+ * `clearBoardConfig()` returns 200 as soon as the DELETE handler runs, but the
+ * validate endpoint that drives the setup wizard reads from a separate cache.
+ * Without this poll, navigating to `/` immediately after a clear can race and
+ * see a stale "configured" state — and the wizard won't render.
+ */
+export async function waitForFirstRun(timeoutMs = 10_000): Promise<void> {
+  const start = Date.now();
+  let lastStatus = 0;
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`${API_URL}/config/validate`);
+      lastStatus = res.status;
+      if (res.ok) {
+        const data = (await res.json()) as { is_first_run?: boolean };
+        if (data.is_first_run === true) return;
+      }
+    } catch {
+      // ignore; the API may still be coming up
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`waitForFirstRun: backend never reported is_first_run=true (last status ${lastStatus})`);
+}
+
+/**
+ * Wait until there is no active board display — i.e. GET /api/pages/current-display
+ * returns 404. `setActivePage(null)` flips the stored ID, but a polling loop on
+ * the backend can re-promote the auto-created "Welcome" page before the next
+ * client action lands. Polling here closes that window.
+ */
+export async function waitForNoActiveDisplay(timeoutMs = 5_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const res = await fetch(`${API_URL}/pages/current-display`);
+    if (res.status === 404) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error("waitForNoActiveDisplay: an active display kept getting promoted");
+}

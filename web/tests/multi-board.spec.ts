@@ -15,6 +15,8 @@ import {
   suppressWizard,
   deleteAllPages,
   resetToSingleBoard,
+  openSettingsTab,
+  waitForFirstRun,
   API_URL,
   BOARD_HOST,
 } from "./helpers";
@@ -42,6 +44,8 @@ test.describe("Settings – Board Card Display", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
+    await openSettingsTab(page, "Hardware");
+
     await expect(page.getByText("My Board").first()).toBeVisible({
       timeout: 10_000,
     });
@@ -55,6 +59,8 @@ test.describe("Settings – Board Card Display", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     await expect(page.getByText("Connected").first()).toBeVisible({
       timeout: 10_000,
@@ -76,6 +82,8 @@ test.describe("Settings – Board Card Display", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
+    await openSettingsTab(page, "Hardware");
+
     await expect(page.getByText("Not configured").first()).toBeVisible({
       timeout: 10_000,
     });
@@ -94,6 +102,8 @@ test.describe("Settings – Board Card Display", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     await expect(page.getByText("22×6").first()).toBeVisible({
       timeout: 10_000,
@@ -122,6 +132,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     // Click Add Board to reveal type picker
     await page.getByRole("button", { name: "Add Board" }).click();
@@ -156,6 +168,8 @@ test.describe("Settings – Board Instance CRUD", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
+    await openSettingsTab(page, "Hardware");
+
     await page.getByRole("button", { name: "Add Board" }).click();
     await expect(page.getByText("Select type:")).toBeVisible({
       timeout: 5_000,
@@ -182,6 +196,8 @@ test.describe("Settings – Board Instance CRUD", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
+    await openSettingsTab(page, "Hardware");
+
     // Click board card header to expand
     await page.getByText("My Board").first().click();
     const nameInput = page.getByPlaceholder("e.g. Kitchen Board, Office Note");
@@ -205,6 +221,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     // Expand board card
     await page.getByText("My Board").first().click();
@@ -234,6 +252,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     // Expand board card
     await page.getByText("My Board").first().click();
@@ -269,6 +289,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     // Expand board card
     await page.getByText("My Board").first().click();
@@ -306,6 +328,8 @@ test.describe("Settings – Board Instance CRUD", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
+    await openSettingsTab(page, "Hardware");
+
     const resBefore = await fetch(`${API_URL}/settings/board`);
     const dataBefore = await resBefore.json();
     expect(dataBefore.boards.length).toBe(2);
@@ -333,6 +357,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
@@ -385,6 +411,7 @@ test.describe("Settings – Board Instance CRUD", () => {
 test.describe("Setup Wizard – Board Configuration", () => {
   test.beforeEach(async () => {
     await clearBoardConfig();
+    await waitForFirstRun();
   });
 
   test.afterEach(async () => {
@@ -578,6 +605,8 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
 
     // Verify board card shows correct info
     await expect(page.getByText("My Board").first()).toBeVisible({
