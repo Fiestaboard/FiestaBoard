@@ -12,10 +12,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from ..devices import DeviceType, get_dimensions
 from ..templates.expressions import function_signatures
+
+
+# Which caller is building the prompt. The shared core (device limits,
+# character set, syntax, available variables, exemplars) is identical
+# for both; only the output contract and the off-topic refusal shape
+# differ — see ``_scope_rules`` and ``_output_rules`` below.
+PromptMode = Literal["generate", "chat"]
 
 
 # Hand-curated fallback exemplars. Used when no enabled plugin manifest
@@ -334,6 +341,7 @@ def build_prompt(
     available_schedules: Optional[List[Dict[str, Any]]] = None,
     available_carousels: Optional[List[Dict[str, Any]]] = None,
     registry_plugins: Optional[List[Dict[str, Any]]] = None,
+    mode: PromptMode = "generate",
 ) -> PromptContext:
     """Build the system + user messages for the LLM.
 
@@ -351,6 +359,14 @@ def build_prompt(
         current_page: Optional existing page (as a ``Page``-shaped
             dict) to send for refinement. The model is told the user is
             iterating on this page.
+        mode: ``"generate"`` (default) for ``POST /pages/ai/generate``
+            — instructs the model to emit a single JSON page object and,
+            on off-topic input, a ``{"refusal": ...}`` object.
+            ``"chat"`` for ``POST /pages/ai/chat`` — instructs the model
+            to reply in prose and use the tool grammar appended by
+            ``src.ai.chat`` for any structured actions. The two modes
+            share every other section (variables, examples, layout
+            rules) so the model sees consistent constraints.
 
     Returns:
         A ``PromptContext`` with the rendered system prompt and the
@@ -477,20 +493,39 @@ def build_prompt(
         "  you actually need a condition or computation.\n"
     )
 
-    output_rules = (
-        "OUTPUT\n"
-        "Return ONLY a single JSON object that matches this schema. Do\n"
-        "not include markdown, comments, or extra prose:\n"
-        + json.dumps(_OUTPUT_SCHEMA, indent=2)
-        + "\n\nRules:\n"
-        "- Only use variables that appear in the AVAILABLE VARIABLES\n"
-        "  section below. Do not invent plugin or field names.\n"
-        "- If the user requests something that requires a variable\n"
-        "  that does not exist, prefer plain static text or omit that\n"
-        "  detail.\n"
-        f"- `device_type` must be \"{device_type}\".\n"
-        "- `type` must be \"template\".\n"
-    )
+    if mode == "generate":
+        output_rules = (
+            "OUTPUT\n"
+            "Return ONLY a single JSON object that matches this schema. Do\n"
+            "not include markdown, comments, or extra prose:\n"
+            + json.dumps(_OUTPUT_SCHEMA, indent=2)
+            + "\n\nRules:\n"
+            "- Only use variables that appear in the AVAILABLE VARIABLES\n"
+            "  section above. Do not invent plugin or field names.\n"
+            "- If the user requests something that requires a variable\n"
+            "  that does not exist, prefer plain static text or omit that\n"
+            "  detail.\n"
+            f"- `device_type` must be \"{device_type}\".\n"
+            "- `type` must be \"template\".\n"
+        )
+    else:
+        # Chat mode appends its own tool-grammar addendum after this
+        # prompt; we only need to teach the model about the shared
+        # constraints (variables, character set, etc.) and a short
+        # conversational stance. Detailed action shapes live in
+        # ``src/ai/chat.py``'s ``_build_tool_grammar_addendum``.
+        output_rules = (
+            "CONVERSATIONAL STYLE\n"
+            "- Reply in plain prose. Do NOT emit a top-level JSON object\n"
+            "  as your entire response — the chat tool grammar (described\n"
+            "  below) is the only structured output channel.\n"
+            "- Keep replies short and direct. Aim for a sentence or two\n"
+            "  unless the user asks for detail; do not restate the prompt\n"
+            "  or summarize your own actions after every block.\n"
+            "- Only use variables listed in AVAILABLE VARIABLES above.\n"
+            "  Do not invent plugin or field names.\n"
+            f"- Pages you propose must target device_type \"{device_type}\".\n"
+        )
 
     exemplars_block = json.dumps(
         [
@@ -542,23 +577,33 @@ def build_prompt(
             + _format_registry_plugins(registry_plugins)
         )
 
-    scope_rules = (
+    scope_intro = (
         "SCOPE — WHAT YOU CAN HELP WITH\n"
         "You are a FiestaBoard specialist. Only assist with tasks that\n"
         "produce board output or FiestaBoard configuration:\n"
         "  - Creating, editing, or refining board pages and templates\n"
         "  - Explaining template variables, expressions, or plugin features\n"
         "  - Suggesting which plugins to install for a desired display\n"
+        "  - Managing schedules, carousels, and FiestaBoard settings\n"
         "  - Answering questions about FiestaBoard features and capabilities\n"
         "Do NOT help with unrelated topics (recipes, general coding help,\n"
         "essays, trivia, customer support for other products, etc.).\n"
-        "When the user asks something off-topic:\n"
-        "  - In CHAT mode: reply with a brief, friendly message explaining\n"
-        "    that you only help with FiestaBoard page design, and ask what\n"
-        "    they would like to show on their board.\n"
-        "  - In GENERATE mode: output ONLY this JSON object (no page):\n"
-        '    {"refusal": true, "reason": "<one sentence why + what you can help with>"}\n'
     )
+    if mode == "generate":
+        scope_rules = (
+            scope_intro
+            + "If the user's request is off-topic, output ONLY this JSON\n"
+            "object (no page, no prose):\n"
+            '  {"refusal": true, "reason": "<one sentence why + what you can help with>"}\n'
+        )
+    else:
+        scope_rules = (
+            scope_intro
+            + "If the user's request is off-topic, reply with a brief,\n"
+            "friendly message explaining that you only help with\n"
+            "FiestaBoard, and ask what they would like to show on their\n"
+            "board. Do not emit any tool block in that case.\n"
+        )
 
     system_prompt = (
         "You are FiestaBoard's page-generation assistant. You design\n"

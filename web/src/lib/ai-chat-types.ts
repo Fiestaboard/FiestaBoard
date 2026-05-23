@@ -243,8 +243,18 @@ export interface CarouselRef {
  * availableSchedules, and availableCarousels so the AI can propose
  * navigation, plugin installs, schedule/carousel management, etc.
  */
+/**
+ * Which chat surface the user is talking to. The inline page-editor
+ * panel ("editor") biases the AI toward in-place edits of the page
+ * being edited; the global drawer ("global") biases it toward navigation
+ * and configuration actions. The backend uses this to swap a single
+ * paragraph of the chat system prompt.
+ */
+export type ChatSurface = "editor" | "global";
+
 export interface ChatTurnContext {
   deviceType: DeviceType;
+  surface: ChatSurface;
   currentPage?: CurrentPageSnapshot;
   availablePages?: PageRef[];
   installedPlugins?: InstalledPluginRef[];
@@ -256,6 +266,7 @@ export interface ChatTurnContext {
 export interface ChatRequestBody {
   messages: { role: "user" | "assistant"; content: string }[];
   device_type: DeviceType;
+  surface?: ChatSurface;
   current_page?: CurrentPageSnapshot;
   available_pages?: PageRef[];
   installed_plugins?: InstalledPluginRef[];

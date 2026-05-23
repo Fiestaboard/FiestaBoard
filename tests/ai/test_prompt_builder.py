@@ -337,16 +337,37 @@ def test_prompt_available_carousels_empty_list():
     assert "no carousels yet" in ctx.system_prompt
 
 
-def test_prompt_contains_scope_guardrails():
-    ctx = build_prompt("x", "flagship")
+def test_prompt_contains_scope_guardrails_generate_mode():
+    ctx = build_prompt("x", "flagship", mode="generate")
     sp = ctx.system_prompt
     # The model must know it's a FiestaBoard specialist.
     assert "SCOPE" in sp
     # Must mention what's in scope.
     assert "Creating, editing" in sp or "board pages" in sp
-    # Must mention how to handle off-topic chat requests.
-    assert "CHAT" in sp and "off-topic" in sp.lower() or "unrelated" in sp.lower()
-    # Must describe the generate-mode refusal JSON shape so the model
-    # knows how to signal an off-topic request.
+    # Off-topic phrasing should appear somewhere in the scope block.
+    assert "off-topic" in sp.lower() or "unrelated" in sp.lower()
+    # In generate mode the refusal must be machine-readable JSON so the
+    # API layer can detect it.
     assert '"refusal"' in sp and '"reason"' in sp
-    assert "GENERATE" in sp
+    # The OUTPUT contract for /pages/ai/generate must say "Return ONLY"
+    # — without it weaker models pad the JSON with prose.
+    assert "Return ONLY" in sp
+
+
+def test_prompt_contains_scope_guardrails_chat_mode():
+    ctx = build_prompt("x", "flagship", mode="chat")
+    sp = ctx.system_prompt
+    # Same in-scope/out-of-scope framing.
+    assert "SCOPE" in sp
+    assert "Creating, editing" in sp or "board pages" in sp
+    assert "off-topic" in sp.lower() or "unrelated" in sp.lower()
+    # Chat mode must NOT instruct the model to emit the refusal JSON —
+    # it should reply in prose instead. The chat addendum (appended in
+    # src.ai.chat) is the only structured-output channel.
+    assert '"refusal"' not in sp
+    # No "Return ONLY a single JSON object" output rule in chat mode —
+    # that would contradict the conversational behavior the addendum
+    # asks for.
+    assert "Return ONLY" not in sp
+    # A short conversational-style section is included instead.
+    assert "CONVERSATIONAL STYLE" in sp

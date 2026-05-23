@@ -124,6 +124,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
           {
             messages: wireMessages,
             device_type: ctx.deviceType,
+            surface: ctx.surface,
             current_page: ctx.currentPage,
             available_pages: ctx.availablePages,
             installed_plugins: ctx.installedPlugins,

@@ -1257,6 +1257,16 @@ async def chat_ai_page(request: Request):
     available_schedules = body.get("available_schedules")
     available_carousels = body.get("available_carousels")
     registry_plugins = body.get("registry_plugins")
+    # Which chat panel is calling us — "editor" (inline panel inside the
+    # page editor) vs "global" (global drawer). Steers the AI's choice
+    # between in-place page edits and navigation. Defaults to "global"
+    # for old clients that don't send it.
+    surface = body.get("surface", "global")
+    if surface not in ("editor", "global"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid surface: {surface!r} (expected 'editor' or 'global').",
+        )
 
     if not isinstance(messages, list) or not messages:
         raise HTTPException(
@@ -1326,6 +1336,7 @@ async def chat_ai_page(request: Request):
                     available_schedules=available_schedules,
                     available_carousels=available_carousels,
                     registry_plugins=registry_plugins,
+                    surface=surface,
                     provider_id=provider_id,
                     model=model,
                 ):

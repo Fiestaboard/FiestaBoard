@@ -108,6 +108,10 @@ export function GlobalAiChatDrawer() {
     const editorSnapshot = getEditorSnapshot();
     return {
       deviceType: "flagship",
+      // "editor" when the user is actively editing a page (so the AI
+      // should bias toward in-place edits of that page); "global"
+      // otherwise (so the AI biases toward navigation / config).
+      surface: editorSnapshot ? "editor" : "global",
       currentPage: editorSnapshot ?? undefined,
       availablePages: pages,
       installedPlugins: plugins,
