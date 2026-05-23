@@ -98,7 +98,10 @@ class DateTimePlugin(PluginBase):
     def fetch_data(self) -> PluginResult:
         """Fetch current date and time data."""
         try:
-            timezone_str = self.config.get("timezone", "America/Los_Angeles")
+            timezone_str = self.config.get("timezone")
+            if not timezone_str:
+                from src.config import Config
+                timezone_str = Config.GENERAL_TIMEZONE or "America/Los_Angeles"
             tz = ZoneInfo(timezone_str)
             now = datetime.now(tz)
             
