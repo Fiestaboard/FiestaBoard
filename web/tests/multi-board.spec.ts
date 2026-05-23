@@ -16,6 +16,7 @@ import {
   deleteAllPages,
   resetToSingleBoard,
   openSettingsTab,
+  waitForFirstRun,
   API_URL,
   BOARD_HOST,
 } from "./helpers";
@@ -410,6 +411,7 @@ test.describe("Settings – Board Instance CRUD", () => {
 test.describe("Setup Wizard – Board Configuration", () => {
   test.beforeEach(async () => {
     await clearBoardConfig();
+    await waitForFirstRun();
   });
 
   test.afterEach(async () => {
