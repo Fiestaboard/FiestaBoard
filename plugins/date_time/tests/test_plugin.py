@@ -254,15 +254,28 @@ class TestDateTimePlugin:
         assert result.error is not None
     
     def test_fetch_data_default_timezone(self, sample_manifest):
-        """Test fetch_data uses default timezone when not configured."""
-        plugin = DateTimePlugin(sample_manifest)
-        plugin.config = {"enabled": True}  # No timezone in config
-        
-        result = plugin.fetch_data()
-        
+        """Test fetch_data falls back to LA when neither plugin nor general timezone is set."""
+        with patch('src.config.Config') as mock_config:
+            mock_config.GENERAL_TIMEZONE = ""
+            plugin = DateTimePlugin(sample_manifest)
+            plugin.config = {"enabled": True}  # No timezone in config
+            result = plugin.fetch_data()
+
         assert result.available is True
         assert result.data is not None
-        assert result.data["timezone"] == "America/Los_Angeles"  # Default
+        assert result.data["timezone"] == "America/Los_Angeles"  # Final fallback
+
+    def test_fetch_data_uses_general_timezone(self, sample_manifest):
+        """Test fetch_data falls back to general/profile timezone when plugin timezone is not set."""
+        with patch('src.config.Config') as mock_config:
+            mock_config.GENERAL_TIMEZONE = "America/Denver"
+            plugin = DateTimePlugin(sample_manifest)
+            plugin.config = {"enabled": True}  # No plugin-specific timezone
+            result = plugin.fetch_data()
+
+        assert result.available is True
+        assert result.data is not None
+        assert result.data["timezone"] == "America/Denver"
     
     @patch('plugins.date_time.datetime')
     def test_get_formatted_display(self, mock_datetime, sample_manifest, sample_config):
