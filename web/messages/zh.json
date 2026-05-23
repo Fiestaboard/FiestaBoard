@@ -335,7 +335,19 @@
     "advancedSection": "高级",
     "setupWizardTitle": "设置向导",
     "setupWizardDescription": "重新运行设置向导以重新配置看板连接和基本设置。",
-    "runSetupWizard": "运行设置向导"
+    "runSetupWizard": "运行设置向导",
+    "sectionHardware": "硬件",
+    "sectionHardwareDescription": "看板的物理配置和连接",
+    "sectionBehavior": "行为",
+    "sectionBehaviorDescription": "内容如何移动、刷新和暂停",
+    "sectionIntegrations": "集成",
+    "sectionIntegrationsDescription": "AI、消息和插件服务",
+    "sectionSystem": "系统",
+    "sectionSystemDescription": "更新、备份和系统控制",
+    "sectionAdvanced": "高级",
+    "sectionAdvancedDescription": "诊断和实验性功能",
+    "sectionGeneral": "通用",
+    "sectionGeneralDescription": "偏好设置、语言、辅助功能"
   },
   "offline": {
     "youreOffline": "您已离线",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "更新间隔",
+    "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率"
   },
   "themeToggle": {
     "toggleTheme": "切换主题"

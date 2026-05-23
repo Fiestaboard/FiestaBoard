@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, HelpCircle, Sparkles, User } from "lucide-react";
+import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, HelpCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -38,7 +38,6 @@ const primaryItems: NavItem[] = [
 const secondaryItems: NavItem[] = [
   { key: "helpDocs", href: "https://fiestaboard.app/docs/intro", icon: HelpCircle, external: true },
   { key: "settings", href: "/settings", icon: Settings },
-  { key: "userProfile", href: "/profile", icon: User },
 ];
 
 export function NavigationSidebar() {

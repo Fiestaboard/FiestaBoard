@@ -335,7 +335,19 @@
     "advancedSection": "Geavanceerd",
     "setupWizardTitle": "Installatiewizard",
     "setupWizardDescription": "Voer de installatiewizard opnieuw uit om je bordverbinding en basisinstellingen opnieuw te configureren.",
-    "runSetupWizard": "Installatiewizard starten"
+    "runSetupWizard": "Installatiewizard starten",
+    "sectionHardware": "Hardware",
+    "sectionHardwareDescription": "Fysieke bordconfiguratie en verbinding",
+    "sectionBehavior": "Gedrag",
+    "sectionBehaviorDescription": "Hoe inhoud beweegt, ververst en pauzeert",
+    "sectionIntegrations": "Integraties",
+    "sectionIntegrationsDescription": "AI-, messaging- en pluginservices",
+    "sectionSystem": "Systeem",
+    "sectionSystemDescription": "Updates, back-ups en systeembesturing",
+    "sectionAdvanced": "Geavanceerd",
+    "sectionAdvancedDescription": "Diagnostiek en experimentele functies",
+    "sectionGeneral": "Algemeen",
+    "sectionGeneralDescription": "Voorkeuren, taal, toegankelijkheid"
   },
   "offline": {
     "youreOffline": "Je bent offline",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Update-intervallen",
+    "updateIntervalsDescription": "Hoe vaak het bord nieuwe inhoud ophaalt en zijn huidige status opnieuw leest"
   },
   "themeToggle": {
     "toggleTheme": "Thema wisselen"

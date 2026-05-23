@@ -335,7 +335,19 @@
     "advancedSection": "Gelişmiş",
     "setupWizardTitle": "Kurulum Sihirbazı",
     "setupWizardDescription": "Pano bağlantınızı ve temel ayarlarınızı yeniden yapılandırmak için kurulum sihirbazını tekrar çalıştırın.",
-    "runSetupWizard": "Kurulum Sihirbazını Çalıştır"
+    "runSetupWizard": "Kurulum Sihirbazını Çalıştır",
+    "sectionHardware": "Donanım",
+    "sectionHardwareDescription": "Fiziksel pano yapılandırması ve bağlantısı",
+    "sectionBehavior": "Davranış",
+    "sectionBehaviorDescription": "İçeriğin nasıl hareket ettiği, yenilendiği ve duraklatıldığı",
+    "sectionIntegrations": "Entegrasyonlar",
+    "sectionIntegrationsDescription": "AI, mesajlaşma ve eklenti hizmetleri",
+    "sectionSystem": "Sistem",
+    "sectionSystemDescription": "Güncellemeler, yedeklemeler ve sistem denetimleri",
+    "sectionAdvanced": "Gelişmiş",
+    "sectionAdvancedDescription": "Tanılama ve deneysel özellikler",
+    "sectionGeneral": "Genel",
+    "sectionGeneralDescription": "Tercihler, dil, erişilebilirlik"
   },
   "offline": {
     "youreOffline": "Çevrimdışısınız",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Güncelleme Aralıkları",
+    "updateIntervalsDescription": "Panonun yeni içerik için ne sıklıkla sorgulama yaptığı ve mevcut durumunu yeniden okuduğu"
   },
   "themeToggle": {
     "toggleTheme": "Temayı değiştir"

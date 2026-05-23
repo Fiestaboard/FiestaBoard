@@ -153,7 +153,9 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Find silence schedule section
+    // Silence Schedule lives under the Behavior tab
+    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+
     const silenceSection = page.getByText(/silence/i).first();
     await expect(silenceSection).toBeVisible({ timeout: 10_000 });
 
@@ -179,6 +181,9 @@ test.describe("Settings – Full Coverage", () => {
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
+
+    // Silence toggle lives under the Behavior tab
+    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
 
     const silenceToggle = page.locator("#silence-enabled");
     await expect(silenceToggle).toBeVisible({ timeout: 10_000 });
@@ -238,7 +243,9 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Setup Wizard is a standalone card on the settings page
+    // Setup Wizard lives under the System tab
+    await page.getByRole("tab", { name: "System", exact: true }).click();
+
     const wizardBtn = page
       .getByRole("button", { name: /run setup wizard/i })
       .first()
@@ -253,7 +260,8 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Debug Tools is a collapsible — click its trigger to expand
+    // Debug Tools lives under the Advanced tab and is a collapsible
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     await page.getByText("Debug Tools").first().click();
 
     // Verify Debug Tools content is now visible
@@ -274,7 +282,8 @@ test.describe("Settings – Full Coverage", () => {
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Debug Tools is a collapsible — click its trigger to expand
+    // Debug Tools lives under the Advanced tab and is a collapsible
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     await page.getByText("Debug Tools").first().click();
 
     // Find "Clear Message Cache" button

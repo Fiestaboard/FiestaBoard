@@ -190,11 +190,10 @@ describe("NavigationSidebar primary/secondary sections", () => {
     expect(helpLinks.length).toBeGreaterThan(0);
   });
 
-  it("shows Profile in secondary navigation", () => {
+  it("does not show Profile in secondary navigation (folded into Settings)", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const profileLinks = screen.getAllByText("Profile");
-    expect(profileLinks.length).toBeGreaterThan(0);
+    expect(screen.queryByText("Profile")).not.toBeInTheDocument();
   });
 });
 

@@ -41,18 +41,17 @@ describe("GeneralSettings", () => {
   it("shows loading skeleton initially", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    // Title comes from the i18n "generalSettings.title" key
-    expect(screen.getByText("Schedule & Automation")).toBeInTheDocument();
+    // Card titles render immediately (outside the loading skeleton)
+    expect(screen.getAllByText("Update Intervals").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
   });
 
   it("renders general settings card", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Schedule & Automation")).toBeInTheDocument();
-      expect(
-        screen.getByText(/Control when the board is active/i)
-      ).toBeInTheDocument();
+      expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
     });
   });
 
@@ -68,7 +67,7 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Board Update Interval")).toBeInTheDocument();
+      expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
     });
   });
 
@@ -76,8 +75,8 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Silence Schedule")).toBeInTheDocument();
-      expect(screen.getByText(/Prevent board updates/i)).toBeInTheDocument();
+      expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Prevent board updates/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -130,7 +129,7 @@ describe("GeneralSettings", () => {
     await user.type(pollingInput, "60");
 
     await waitFor(() => {
-      expect(screen.getByText("Schedule & Automation")).toBeInTheDocument();
+      expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
     });
   });
 
@@ -158,8 +157,8 @@ describe("GeneralSettings", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Prevent board updates during specified hours/i)
-      ).toBeInTheDocument();
+        screen.getAllByText(/Prevent board updates during specified hours/i).length
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -167,8 +166,8 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Board Update Interval")).toBeInTheDocument();
-      expect(screen.getByText("Silence Schedule")).toBeInTheDocument();
+      expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
     }, { timeout: 2000 });
   });
 });

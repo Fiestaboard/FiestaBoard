@@ -335,7 +335,19 @@
     "advancedSection": "Zaawansowane",
     "setupWizardTitle": "Kreator konfiguracji",
     "setupWizardDescription": "Uruchom ponownie kreator konfiguracji, aby zmienić połączenie z tablicą i podstawowe ustawienia.",
-    "runSetupWizard": "Uruchom kreator konfiguracji"
+    "runSetupWizard": "Uruchom kreator konfiguracji",
+    "sectionHardware": "Sprzęt",
+    "sectionHardwareDescription": "Fizyczna konfiguracja tablicy i połączenie",
+    "sectionBehavior": "Zachowanie",
+    "sectionBehaviorDescription": "Jak treść się porusza, odświeża i wstrzymuje",
+    "sectionIntegrations": "Integracje",
+    "sectionIntegrationsDescription": "Usługi AI, komunikatory i wtyczki",
+    "sectionSystem": "System",
+    "sectionSystemDescription": "Aktualizacje, kopie zapasowe i sterowanie systemem",
+    "sectionAdvanced": "Zaawansowane",
+    "sectionAdvancedDescription": "Diagnostyka i funkcje eksperymentalne",
+    "sectionGeneral": "Ogólne",
+    "sectionGeneralDescription": "Preferencje, język, dostępność"
   },
   "offline": {
     "youreOffline": "Jesteś offline",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Interwały aktualizacji",
+    "updateIntervalsDescription": "Jak często tablica sprawdza nową treść i ponownie odczytuje swój aktualny stan"
   },
   "themeToggle": {
     "toggleTheme": "Przełącz motyw"

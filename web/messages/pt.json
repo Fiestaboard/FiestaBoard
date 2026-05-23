@@ -335,7 +335,19 @@
     "advancedSection": "Avançado",
     "setupWizardTitle": "Assistente de Configuração",
     "setupWizardDescription": "Execute novamente o assistente de configuração para reconfigurar a conexão do painel e as configurações básicas.",
-    "runSetupWizard": "Iniciar Assistente de Configuração"
+    "runSetupWizard": "Iniciar Assistente de Configuração",
+    "sectionHardware": "Hardware",
+    "sectionHardwareDescription": "Configuração física do quadro e conexão",
+    "sectionBehavior": "Comportamento",
+    "sectionBehaviorDescription": "Como o conteúdo se move, atualiza e pausa",
+    "sectionIntegrations": "Integrações",
+    "sectionIntegrationsDescription": "Serviços de IA, mensagens e plugins",
+    "sectionSystem": "Sistema",
+    "sectionSystemDescription": "Atualizações, backups e controles do sistema",
+    "sectionAdvanced": "Avançado",
+    "sectionAdvancedDescription": "Diagnósticos e recursos experimentais",
+    "sectionGeneral": "Geral",
+    "sectionGeneralDescription": "Preferências, idioma, acessibilidade"
   },
   "offline": {
     "youreOffline": "Você Está Offline",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Intervalos de atualização",
+    "updateIntervalsDescription": "Com que frequência o quadro busca novo conteúdo e relê seu estado atual"
   },
   "themeToggle": {
     "toggleTheme": "Alternar tema"

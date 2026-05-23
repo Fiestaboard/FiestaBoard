@@ -335,7 +335,19 @@
     "advancedSection": "Avanzate",
     "setupWizardTitle": "Procedura guidata",
     "setupWizardDescription": "Riesegui la procedura guidata per riconfigurare la connessione della bacheca e le impostazioni di base.",
-    "runSetupWizard": "Avvia procedura guidata"
+    "runSetupWizard": "Avvia procedura guidata",
+    "sectionHardware": "Hardware",
+    "sectionHardwareDescription": "Configurazione fisica e connessione della board",
+    "sectionBehavior": "Comportamento",
+    "sectionBehaviorDescription": "Come i contenuti si muovono, si aggiornano e si fermano",
+    "sectionIntegrations": "Integrazioni",
+    "sectionIntegrationsDescription": "Servizi IA, messaggistica e plugin",
+    "sectionSystem": "Sistema",
+    "sectionSystemDescription": "Aggiornamenti, backup e controlli di sistema",
+    "sectionAdvanced": "Avanzate",
+    "sectionAdvancedDescription": "Diagnostica e funzionalità sperimentali",
+    "sectionGeneral": "Generale",
+    "sectionGeneralDescription": "Preferenze, lingua, accessibilità"
   },
   "offline": {
     "youreOffline": "Sei offline",
@@ -796,7 +808,9 @@
     "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
-    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}"
+    "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
+    "updateIntervalsTitle": "Intervalli di aggiornamento",
+    "updateIntervalsDescription": "Con quale frequenza la board recupera nuovi contenuti e rilegge il proprio stato"
   },
   "themeToggle": {
     "toggleTheme": "Cambia tema"
