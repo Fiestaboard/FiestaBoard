@@ -158,6 +158,18 @@ export interface UninstallPluginArgs {
   plugin_id: string;
 }
 
+export type TaskStatus = "pending" | "in_progress" | "done" | "failed";
+
+export interface TaskItem {
+  id: string;
+  label: string;
+  status: TaskStatus;
+}
+
+export interface UpdateTaskListArgs {
+  tasks: TaskItem[];
+}
+
 export type ToolCall =
   | { id: string; op: "replace_page"; args: ReplacePageArgs }
   | { id: string; op: "apply_patch"; args: ApplyPatchArgs }
@@ -176,7 +188,8 @@ export type ToolCall =
   | { id: string; op: "enable_plugin"; args: EnablePluginArgs }
   | { id: string; op: "disable_plugin"; args: DisablePluginArgs }
   | { id: string; op: "uninstall_plugin"; args: UninstallPluginArgs }
-  | { id: string; op: "trigger_system_update"; args: Record<string, never> };
+  | { id: string; op: "trigger_system_update"; args: Record<string, never> }
+  | { id: string; op: "update_task_list"; args: UpdateTaskListArgs };
 
 /**
  * Tool call as displayed in the chat thread. Adds an optional
