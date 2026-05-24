@@ -1,0 +1,109 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import Image from "next/image";
+import { FiestaLogo } from "@/components/fiesta-logo";
+import { Loader2, WifiOff } from "lucide-react";
+
+/** How long to wait before showing the splash (avoids a flash for fast startups). */
+const SHOW_SPLASH_DELAY_MS = 600;
+
+/** After this long without a connection, switch from "waiting" to the error state. */
+const ERROR_TIMEOUT_MS = 30_000;
+
+/**
+ * Gates the main UI behind an API availability check on boot.
+ *
+ * - If the API responds within SHOW_SPLASH_DELAY_MS → no splash ever shown.
+ * - If the API is still unavailable after SHOW_SPLASH_DELAY_MS → "Waiting to start…" screen.
+ * - If still unavailable after ERROR_TIMEOUT_MS → error screen with a refresh button.
+ * - Once the API responds for the first time → the gate is removed permanently for this session.
+ *   A brief connection hiccup during normal use never re-shows the splash.
+ */
+export function BootGate({ children }: { children: React.ReactNode }) {
+  const [hasConnected, setHasConnected] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+
+  const { data } = useQuery({
+    queryKey: ["boot-health"],
+    queryFn: api.getStatus,
+    refetchInterval: hasConnected ? false : 2000,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    enabled: !hasConnected,
+  });
+
+  // Mark connected on first successful response.
+  useEffect(() => {
+    if (data) setHasConnected(true);
+  }, [data]);
+
+  // Delay showing the splash so fast startups never flash it.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(true);
+    }, SHOW_SPLASH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Switch to error state after the timeout elapses.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+    }, ERROR_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // API is up — show the real app.
+  if (hasConnected) return <>{children}</>;
+
+  // Still within the no-flash delay window — render nothing.
+  if (!showSplash) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-6 text-center px-6 max-w-sm">
+        {/* Branding */}
+        <div className="flex items-center gap-3">
+          <Image
+            src="/icons/favicon-32x32.png"
+            alt="FiestaBoard"
+            width={36}
+            height={36}
+            className="flex-shrink-0"
+          />
+          <FiestaLogo className="text-2xl" />
+        </div>
+
+        {timedOut ? (
+          /* ── Error state ── */
+          <>
+            <WifiOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+            <div className="space-y-1.5">
+              <p className="text-base font-semibold">Couldn&apos;t connect to FiestaBoard</p>
+              <p className="text-sm text-muted-foreground">
+                Check that the app is running and try refreshing the page.
+              </p>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Refresh page
+            </button>
+          </>
+        ) : (
+          /* ── Waiting state ── */
+          <>
+            <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" strokeWidth={1.5} />
+            <p className="text-sm text-muted-foreground">Waiting to start…</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

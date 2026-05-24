@@ -79,6 +79,11 @@ export interface PageBuilderHandle {
   getCurrentPage: () => CurrentPageSnapshot | undefined;
   getDeviceType: () => DeviceType;
   applyToolCall: (call: ToolCall) => void;
+  /**
+   * Persist the current editor content to the API without closing.
+   * Used by the AI chaining layer to auto-save before navigating away.
+   */
+  save: () => Promise<{ id: string } | null>;
   undo: () => void;
   canUndo: () => boolean;
 }
@@ -230,7 +235,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedTemplateLines(lines);
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wraps);
-      toast.success("AI replaced the page — review and Save to keep it");
+      toast.success("AI replaced the page");
       return;
     }
     // apply_patch
@@ -282,13 +287,48 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       getCurrentPage: getCurrentPageSnapshot,
       getDeviceType: () => deviceTypeRef.current,
       applyToolCall,
+      save: async () => {
+        try {
+          const { cleanedLines, metadata } = processLinesWithPrefixes(
+            templateLinesRef.current,
+            lineAlignmentsRef.current,
+            lineWrapEnabledRef.current,
+          );
+          let result: { page: { id: string } };
+          if (pageId) {
+            result = await api.updatePage(pageId, {
+              name: nameRef.current,
+              template: cleanedLines,
+              line_metadata: metadata,
+            });
+          } else {
+            result = await api.createPage({
+              name: nameRef.current,
+              type: "template" as PageType,
+              device_type: deviceTypeRef.current,
+              template: cleanedLines,
+              line_metadata: metadata,
+            });
+          }
+          // Invalidate the pages list and this page's preview, but don't close.
+          queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.pagePreview(result.page.id),
+            refetchType: "active",
+          });
+          return { id: result.page.id };
+        } catch {
+          return null;
+        }
+      },
       undo: handleUndoAi,
       canUndo: () => undoStackRef.current.length > 0,
     }),
     // undoVersion is intentionally a dep so the host re-reads canUndo()
     // when the stack changes (the function returned by canUndo always
     // sees the latest ref, but consumers may render gates off it).
-    [getCurrentPageSnapshot, applyToolCall, handleUndoAi, undoVersion],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getCurrentPageSnapshot, applyToolCall, handleUndoAi, undoVersion, pageId, queryClient],
   );
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {

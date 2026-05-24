@@ -101,9 +101,6 @@ function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string
   }
 }
 
-// How many autonomous steps can chain before pausing and asking the user.
-const AUTONOMOUS_STEP_LIMIT = 15;
-
 export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
   const router = useRouter();
@@ -111,6 +108,7 @@ export function GlobalAiChatDrawer() {
   const {
     getEditorSnapshot,
     applyEditorOp,
+    saveEditor,
     hasEditor,
     canEditorUndo,
     editorUndo,
@@ -137,11 +135,6 @@ export function GlobalAiChatDrawer() {
   // trigger re-streaming after tool execution without prop-drilling.
   const resumeFnRef = useRef<((text: string) => void) | null>(null);
 
-  // Count autonomous steps so we can pause after the limit.
-  const autonomousStepsRef = useRef(0);
-  useEffect(() => {
-    autonomousStepsRef.current = 0;
-  }, [chainingMode]);
 
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
@@ -343,20 +336,6 @@ export function GlobalAiChatDrawer() {
         try {
           await handler();
           if (chainingMode === "manual") return;
-          // Autonomous step-limit guard.
-          if (chainingMode === "autonomous") {
-            autonomousStepsRef.current += 1;
-            if (autonomousStepsRef.current >= AUTONOMOUS_STEP_LIMIT) {
-              autonomousStepsRef.current = 0;
-              setChainingMode("manual");
-              resumeFnRef.current?.(
-                `[Tool result: ${call.op} → Success. ` +
-                `Autonomous mode paused after ${AUTONOMOUS_STEP_LIMIT} steps. ` +
-                `Type 'continue' if you want to keep going.]`,
-              );
-              return;
-            }
-          }
           resumeFnRef.current?.(buildToolResultText(call, true));
         } catch (e) {
           if (chainingMode !== "manual") {
@@ -372,6 +351,12 @@ export function GlobalAiChatDrawer() {
       switch (call.op) {
         case "navigate_to_page": {
           void chainAfter(call, async () => {
+            // Auto-save any in-progress page before navigating so AI-written
+            // content isn't lost when the editor unmounts (supports multi-page
+            // creation flows where the AI navigates away after replace_page).
+            if (hasEditor) {
+              await saveEditor().catch(() => {});
+            }
             const { page_id, device_type } = call.args;
             if (page_id === "new") {
               const params = new URLSearchParams();
@@ -425,6 +410,12 @@ export function GlobalAiChatDrawer() {
               throw new Error("no page editor mounted");
             }
             applyEditorOp(call);
+            // Auto-save after every AI page edit so the content is persisted
+            // immediately (supports chaining: the next navigate_to_page won't
+            // lose unsaved work, and the user doesn't need to click Save).
+            if (call.op !== "suggest_variables") {
+              await saveEditor().catch(() => {});
+            }
           })();
           break;
 
@@ -458,7 +449,7 @@ export function GlobalAiChatDrawer() {
           break;
       }
     },
-    [router, close, hasEditor, applyEditorOp, waitForEditor, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule, chainAfter],
+    [router, close, hasEditor, applyEditorOp, saveEditor, waitForEditor, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule, chainAfter],
   );
 
   const handleInstallPlugin = useCallback(
@@ -743,7 +734,8 @@ export function GlobalAiChatDrawer() {
   return (
     <div
       className={cn(
-        "fixed right-0 top-0 bottom-0 z-40 w-96 flex flex-col bg-background",
+        "fixed right-0 top-0 bottom-0 z-40 flex flex-col bg-background border-l",
+        "w-full sm:w-96",
         "transition-transform duration-300 ease-in-out sidebar-transition",
         isOpen ? "translate-x-0" : "translate-x-full",
       )}

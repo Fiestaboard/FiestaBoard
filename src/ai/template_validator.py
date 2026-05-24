@@ -68,6 +68,14 @@ _FILLED_WRONG_SEP_RE = re.compile(
 # ``{{filled:green }}`` is also normalised.
 _STRAY_TRAILING_CHARS = ".,;:!?\"' \t"
 
+# Bare color tile with trailing punctuation: ``{{green.}}``, ``{{red,}}``.
+# Captures (color_candidate, trailing_chars). We require at least one
+# trailing char so we don't accidentally match clean blocks.
+_BARE_COLOR_PUNCT_RE = re.compile(
+    r"\{\{\s*([a-zA-Z]+)([.,;:!?\"' \t]+)\s*\}\}",
+    re.IGNORECASE,
+)
+
 
 def _looks_like_color_with_trailing_punct(arg: str) -> Tuple[bool, str, str]:
     """If ``arg`` is a color name plus stray trailing punctuation, split it.
@@ -180,6 +188,23 @@ def _repair_line(line: str, idx: int) -> Tuple[str, List[str]]:
         return match.group(0)
 
     line = _FILLED_RE.sub(_fix_arg, line)
+
+    # ---- 3. ``{{green.}}`` etc. — bare color tile with trailing punctuation.
+    # The engine looks up the block content directly as a color name, so any
+    # trailing character causes a silent render failure.
+    def _fix_bare_color(match: "re.Match[str]") -> str:
+        candidate = match.group(1)
+        trailing = match.group(2)
+        if candidate.lower() in _COLOR_NAMES:
+            warnings.append(
+                f"Line {line_no}: stripped trailing {trailing!r} from "
+                f"`{{{{{candidate}{trailing}}}}}` — bare color tiles must be "
+                f"`{{{{{candidate}}}}}` with no extra characters."
+            )
+            return "{{" + candidate + "}}"
+        return match.group(0)  # not a color name — leave unchanged
+
+    line = _BARE_COLOR_PUNCT_RE.sub(_fix_bare_color, line)
 
     return line, warnings
 

@@ -15,6 +15,7 @@ import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
+import { BootGate } from "@/components/boot-gate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -78,23 +79,25 @@ export default async function RootLayout({
           <Providers>
             <ThemeColorMeta />
             <ReduceMotionApplier />
-            <ScheduleEditorBridgeProvider>
-            <PageEditorBridgeProvider>
-            <GlobalAiPanelProvider>
-              <WizardProvider>
-                <NavigationSidebar />
-                <GlobalAiChatDrawer />
-                <MainContent>
-                  <PageFadeWrapper>
-                    {children}
-                  </PageFadeWrapper>
-                </MainContent>
-                <Toaster />
-                <InstallPrompt />
-              </WizardProvider>
-            </GlobalAiPanelProvider>
-            </PageEditorBridgeProvider>
-            </ScheduleEditorBridgeProvider>
+            <BootGate>
+              <ScheduleEditorBridgeProvider>
+              <PageEditorBridgeProvider>
+              <GlobalAiPanelProvider>
+                <WizardProvider>
+                  <NavigationSidebar />
+                  <GlobalAiChatDrawer />
+                  <MainContent>
+                    <PageFadeWrapper>
+                      {children}
+                    </PageFadeWrapper>
+                  </MainContent>
+                  <Toaster />
+                  <InstallPrompt />
+                </WizardProvider>
+              </GlobalAiPanelProvider>
+              </PageEditorBridgeProvider>
+              </ScheduleEditorBridgeProvider>
+            </BootGate>
           </Providers>
         </NextIntlClientProvider>
       </body>

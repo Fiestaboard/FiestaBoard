@@ -9,7 +9,6 @@ import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd,
 import { cn } from "@/lib/utils";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ServiceStatus } from "@/components/service-status";
 import { VersionDisplay } from "@/components/version-display";
 import { Button } from "@/components/ui/button";
 import { ViewTransitionLink } from "@/components/view-transition-link";
@@ -217,9 +216,6 @@ export function NavigationSidebar() {
             />
             <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
           </div>
-          <div className="ml-3">
-            <ServiceStatus />
-          </div>
         </div>
       </header>
 
@@ -319,26 +315,18 @@ export function NavigationSidebar() {
 
           <div className="flex h-full flex-col overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between overflow-hidden px-4 py-4">
-              <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
-                <Image
-                  src="/icons/favicon-32x32.png"
-                  alt="FiestaBoard"
-                  width={32}
-                  height={32}
-                  className="flex-shrink-0"
-                />
-                <FiestaLogo className={cn(
-                  "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
-                  collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-                )} />
-              </div>
-              <div className={cn(
-                "overflow-hidden flex-shrink-0 transition-opacity duration-100",
-                collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px] delay-150",
-              )}>
-                <ServiceStatus />
-              </div>
+            <div className="flex items-center gap-2 overflow-hidden px-4 py-4">
+              <Image
+                src="/icons/favicon-32x32.png"
+                alt="FiestaBoard"
+                width={32}
+                height={32}
+                className="flex-shrink-0"
+              />
+              <FiestaLogo className={cn(
+                "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+              )} />
             </div>
 
             <div className="mx-2 border-t border-sidebar-border" />
