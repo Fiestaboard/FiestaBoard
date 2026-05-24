@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   CheckCircle2,
   ChevronRight,
+  Circle,
   Eye,
   EyeOff,
   Loader2,
@@ -16,6 +17,7 @@ import {
   Trash2,
   Undo2,
   X,
+  XCircle,
 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -45,6 +47,8 @@ import type {
   ChatMessage,
   ChatTurnContext,
   LineOp,
+  TaskItem,
+  TaskStatus,
   ToolCall,
   ToolCallDisplay,
 } from "@/lib/ai-chat-types";
@@ -78,6 +82,10 @@ export interface AiChatPanelProps {
   chainingMode?: ChainingMode;
   /** Called when the user changes the chaining mode via the in-panel picker. */
   onChainingModeChange?: (mode: ChainingMode) => void;
+  /** Running task list emitted by the AI for multi-step sequences. */
+  taskList?: TaskItem[];
+  /** Called when the user clears the conversation so the parent can reset task state. */
+  onConversationReset?: () => void;
 }
 
 export function AiChatPanel({
@@ -90,6 +98,8 @@ export function AiChatPanel({
   resumeFnRef,
   chainingMode = "manual",
   onChainingModeChange,
+  taskList,
+  onConversationReset,
 }: AiChatPanelProps) {
   const [providerId, setProviderId] = useState<string>("");
   const [model, setModel] = useState<string>("");
@@ -129,6 +139,12 @@ export function AiChatPanel({
   useEffect(() => {
     if (resumeFnRef) resumeFnRef.current = resume;
   }, [resumeFnRef, resume]);
+
+  // Wrap reset to also notify parent (so it can clear the task list etc.)
+  const handleReset = useCallback(() => {
+    reset();
+    onConversationReset?.();
+  }, [reset, onConversationReset]);
 
   // Boards beyond the 3 most recent are collapsed by default.
   // Users can manually expand them; that choice is tracked here.
@@ -198,7 +214,7 @@ export function AiChatPanel({
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7"
-                onClick={reset}
+                onClick={handleReset}
                 title="Clear conversation"
                 aria-label="Clear conversation"
               >
@@ -219,9 +235,14 @@ export function AiChatPanel({
           </div>
         </div>
 
+        {/* Task list panel — shown when the AI has an active task list */}
+        {(taskList?.length ?? 0) > 0 && (
+          <TaskListPanel tasks={taskList!} />
+        )}
+
         {/* Messages — scrollable middle section */}
         <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">
-          <div className="space-y-3 px-4 py-4">
+          <div className="min-w-0 max-w-full overflow-x-hidden space-y-3 px-4 py-4">
             {messages.length === 0 && (
               <EmptyState blocked={blocked} aiDisabled={aiDisabled} />
             )}
@@ -336,6 +357,72 @@ export function AiChatPanel({
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+function TaskStatusIcon({ status }: { status: TaskStatus }) {
+  switch (status) {
+    case "done":
+      return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />;
+    case "failed":
+      return <XCircle className="h-3 w-3 shrink-0 text-destructive" />;
+    case "in_progress":
+      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-brand-emphasis" />;
+    case "pending":
+      return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" />;
+  }
+}
+
+function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
+  const allDone =
+    tasks.length > 0 &&
+    tasks.every((t) => t.status === "done" || t.status === "failed");
+  const doneCount = tasks.filter((t) => t.status === "done").length;
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (allDone) {
+      const timer = setTimeout(() => setVisible(false), 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setVisible(true);
+    }
+  }, [allDone]);
+
+  if (!visible) return null;
+
+  const pct = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
+
+  return (
+    <div className="border-b px-4 py-2 bg-muted/30 flex-shrink-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Tasks ({doneCount}/{tasks.length})
+        </span>
+        <div className="h-1 w-20 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full bg-brand-emphasis transition-all duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+      <ul className="space-y-0.5 max-h-28 overflow-y-auto">
+        {tasks.map((task) => (
+          <li key={task.id} className="flex items-center gap-1.5 text-[11px]">
+            <TaskStatusIcon status={task.status} />
+            <span
+              className={cn(
+                "truncate",
+                task.status === "done" ? "text-muted-foreground line-through" : "",
+                task.status === "failed" ? "text-destructive" : "",
+              )}
+            >
+              {task.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function GradientSparkles({ className }: { className?: string }) {
   return (
@@ -558,18 +645,22 @@ function MessageBubble({
           <ChatMarkdown>{message.content}</ChatMarkdown>
         </div>
       )}
-      {message.toolCalls?.map((call) => (
-        <div key={call.id} className="space-y-1.5">
-          <ToolCallCard
-            call={call}
-            showUndo={isLastAssistant && canUndo}
-            onUndo={onUndo}
-            boardVisible={isBoardVisible(call.id)}
-            onToggleBoard={() => onToggleBoard(call.id)}
-          />
-          {renderToolCallSupplement?.(call)}
-        </div>
-      ))}
+      {message.toolCalls
+        // update_task_list is a status-only op shown in the task panel above —
+        // suppress it from the chat thread to avoid redundant cards.
+        ?.filter((call) => call.op !== "update_task_list")
+        .map((call) => (
+          <div key={call.id} className="space-y-1.5">
+            <ToolCallCard
+              call={call}
+              showUndo={isLastAssistant && canUndo}
+              onUndo={onUndo}
+              boardVisible={isBoardVisible(call.id)}
+              onToggleBoard={() => onToggleBoard(call.id)}
+            />
+            {renderToolCallSupplement?.(call)}
+          </div>
+        ))}
       {message.warnings && message.warnings.length > 0 && (
         <div className="space-y-1">
           {message.warnings.map((w, i) => (
@@ -687,6 +778,8 @@ function labelFor(call: ToolCall): string {
       return "Delete schedule";
     case "trigger_system_update":
       return "System update";
+    case "update_task_list":
+      return "Task list update";
   }
 }
 

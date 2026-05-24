@@ -21,6 +21,7 @@ import type {
   DisablePluginArgs,
   EnablePluginArgs,
   InstallPluginArgs,
+  TaskItem,
   ToolCall,
   UninstallPluginArgs,
   UpdateCarouselArgs,
@@ -135,6 +136,8 @@ export function GlobalAiChatDrawer() {
   // trigger re-streaming after tool execution without prop-drilling.
   const resumeFnRef = useRef<((text: string) => void) | null>(null);
 
+  // Task list state — updated by update_task_list ops from the AI.
+  const [taskList, setTaskList] = useState<TaskItem[]>([]);
 
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
@@ -391,6 +394,11 @@ export function GlobalAiChatDrawer() {
           })();
           break;
         }
+
+        case "update_task_list":
+          // Status-only op — update the task panel, do NOT chain or call resume.
+          setTaskList(call.args.tasks);
+          break;
 
         case "replace_page":
         case "apply_patch":
@@ -751,6 +759,8 @@ export function GlobalAiChatDrawer() {
         resumeFnRef={resumeFnRef}
         chainingMode={chainingMode}
         onChainingModeChange={setChainingMode}
+        taskList={taskList}
+        onConversationReset={() => setTaskList([])}
       />
     </div>
   );

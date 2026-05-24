@@ -363,13 +363,38 @@ SYSTEM:
     will restart briefly during the update. The user will be asked to
     confirm before it runs.
 
+TASK TRACKING (for multi-step sequences of 3 or more actions):
+
+16. Announce and update a running todo list across sequential steps:
+
+    ```fiestaboard
+    {"op": "update_task_list", "args": {
+      "tasks": [
+        {"id": "1", "label": "Create morning page", "status": "done"},
+        {"id": "2", "label": "Schedule 07:00-09:00", "status": "in_progress"},
+        {"id": "3", "label": "Schedule 09:00-12:00", "status": "pending"}
+      ]
+    }}
+    ```
+
+    Use this when performing 3 or more sequential steps:
+    - Emit at the BEGINNING of your plan with all tasks as "pending"
+    - Re-emit BEFORE each step: mark the current task "in_progress", completed
+      tasks "done", remaining tasks "pending"
+    - Use "failed" if a step fails; leave the rest "pending"
+    - Keep `id` values stable across updates (same id = same task)
+    - `update_task_list` does NOT count toward the one-block-per-response
+      limit — you may emit it in the SAME response as one action block
+
 RULES
 - Only emit ops the user actually asked for. If they ask a question or
   want an explanation, just answer in prose — do not emit a tool block.
 - Prefer `apply_patch` over `replace_page` when the user is iterating
   on an existing page. `replace_page` is destructive.
-- You may emit at most one tool block per response. Put any explanation
-  text before or after the block.
+- You may emit at most one ACTION tool block per response. `update_task_list`
+  is a status-only block and does not count as an action — you may emit it
+  in the same response alongside one action block. Put any explanation text
+  before or after the block(s).
 - If you emit a tool block, it must be valid JSON parseable on its own.
   Do not put comments inside the block.
 - Always explain what you are about to do before emitting any block that
