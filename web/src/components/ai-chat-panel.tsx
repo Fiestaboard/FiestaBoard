@@ -173,14 +173,9 @@ export function AiChatPanel({
     }
   };
 
-  // Outer wrapper hugs the chat-side edge: full vertical breathing
-  // room, **no left padding** so the Card's left border doubles as
-  // the resize handle, and a generous right inset to balance the
-  // visual weight of the global navigation sidebar on the far-left
-  // edge of the page.
   return (
-    <div className="flex h-full min-h-0 w-full flex-col pl-0 pr-3 sm:pr-4 md:pr-6 py-4 sm:py-6 md:py-8 lg:py-3">
-      <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden rounded-none border-0 py-0 shadow-none">
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
@@ -225,8 +220,8 @@ export function AiChatPanel({
         </div>
 
         {/* Messages — scrollable middle section */}
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="min-w-0 max-w-full overflow-x-hidden space-y-3 px-4 py-4">
+        <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">
+          <div className="space-y-3 px-4 py-4">
             {messages.length === 0 && (
               <EmptyState blocked={blocked} aiDisabled={aiDisabled} />
             )}
@@ -605,7 +600,7 @@ function ToolCallCard({
   const deviceType = call.deviceType ?? "flagship";
   const hasBoard = !!call.appliedSnapshot;
   return (
-    <div className="space-y-2 rounded-lg border bg-muted/40 p-2.5">
+    <div className="space-y-2 overflow-hidden rounded-lg border bg-muted/40 p-2.5">
       <div className="flex items-center justify-between gap-2">
         <Badge variant="secondary" className="font-mono text-[10px]">
           {labelFor(call)}

@@ -12,6 +12,8 @@ import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
 interface EditorHandlers {
   getSnapshot: () => CurrentPageSnapshot | null;
   applyOp: (call: ToolCall) => void;
+  /** Persist the current editor state to the API without closing. */
+  save: () => Promise<{ id: string } | null>;
   getCanUndo: () => boolean;
   undo: () => void;
 }
@@ -23,6 +25,12 @@ interface PageEditorBridgeContextValue {
   getEditorSnapshot: () => CurrentPageSnapshot | null;
   /** Apply a page-editing op to the mounted editor. */
   applyEditorOp: (call: ToolCall) => void;
+  /**
+   * Persist the current editor content to the API without closing the editor.
+   * Used by the AI chaining layer to save before navigating away.
+   * Resolves with `{ id }` on success, `null` on failure or no editor.
+   */
+  saveEditor: () => Promise<{ id: string } | null>;
   /** Whether the editor can undo its last AI change. */
   canEditorUndo: () => boolean;
   /** Trigger undo in the editor. */
@@ -102,6 +110,11 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
     setMutationPulse((p) => p + 1);
   }, []);
 
+  const saveEditor = useCallback(
+    () => handlersRef.current?.save() ?? Promise.resolve(null),
+    [],
+  );
+
   // mutationPulse is listed as a dep so callers re-read this after
   // each AI mutation.
   const canEditorUndo = useCallback(
@@ -122,6 +135,7 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
         hasEditor,
         getEditorSnapshot,
         applyEditorOp,
+        saveEditor,
         canEditorUndo,
         editorUndo,
         waitForEditor,

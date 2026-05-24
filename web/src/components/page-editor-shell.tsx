@@ -56,10 +56,15 @@ export function PageEditorShell({
     builderRef.current?.undo();
   }, []);
 
+  const save = useCallback(
+    () => builderRef.current?.save() ?? Promise.resolve(null),
+    [],
+  );
+
   useEffect(() => {
-    register({ getSnapshot, applyOp, getCanUndo, undo });
+    register({ getSnapshot, applyOp, save, getCanUndo, undo });
     return () => unregister();
-  }, [register, unregister, getSnapshot, applyOp, getCanUndo, undo]);
+  }, [register, unregister, getSnapshot, applyOp, save, getCanUndo, undo]);
 
   return (
     <div className="flex flex-1 min-h-0 w-full overflow-hidden bg-background">
