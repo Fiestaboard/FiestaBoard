@@ -437,6 +437,36 @@ class TriggerSystemUpdateOp(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# update_task_list — frontend-only task tracker (no API call).
+# The model emits this to announce and update a running todo list so the
+# user can see progress across multi-step autonomous sessions.
+# ---------------------------------------------------------------------------
+
+TaskStatus = Literal["pending", "in_progress", "done", "failed"]
+
+
+class TaskItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(..., min_length=1, max_length=50)
+    label: str = Field(..., min_length=1, max_length=200)
+    status: TaskStatus = "pending"
+
+
+class UpdateTaskListArgs(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    tasks: List[TaskItem] = Field(default_factory=list)
+
+
+class UpdateTaskListOp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    op: Literal["update_task_list"]
+    args: UpdateTaskListArgs
+
+
+# ---------------------------------------------------------------------------
 # Discriminated union + helper.
 # ---------------------------------------------------------------------------
 
@@ -460,6 +490,7 @@ ToolCall = Union[
     DeleteScheduleOp,
     UpdatePluginOp,
     TriggerSystemUpdateOp,
+    UpdateTaskListOp,
 ]
 
 
@@ -482,6 +513,7 @@ _OP_REGISTRY = {
     "delete_schedule": DeleteScheduleOp,
     "update_plugin": UpdatePluginOp,
     "trigger_system_update": TriggerSystemUpdateOp,
+    "update_task_list": UpdateTaskListOp,
 }
 
 
