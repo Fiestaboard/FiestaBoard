@@ -81,19 +81,39 @@ function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string
       return `[Tool result: delete_schedule → ${status}.]`;
     case "trigger_system_update":
       return `[Tool result: trigger_system_update → ${status}.]`;
+    case "navigate_to_page": {
+      if (!success) return `[Tool result: navigate_to_page → ${status}.]`;
+      const isNew = call.args.page_id === "new";
+      return `[Tool result: navigate_to_page → Success. ${isNew
+        ? "Blank page editor is now mounted. Surface is 'editor' — use replace_page to ship the template you described, then continue with any remaining steps (schedules, integrations, etc.)."
+        : "Page editor is now mounted. Use apply_patch for incremental edits or replace_page to rewrite, then continue with any remaining steps."}]`;
+    }
+    case "navigate_to_schedule":
+      return `[Tool result: navigate_to_schedule → ${status}.${success ? " Schedule form is open. Continue with create_schedule (or update_schedule) to commit the change." : ""}]`;
+    case "replace_page":
+      return `[Tool result: replace_page → ${status}.${success ? " Page template applied. Continue with any remaining steps." : " Hint: emit navigate_to_page with page_id=\"new\" first if no editor is mounted."}]`;
+    case "apply_patch":
+      return `[Tool result: apply_patch → ${status}.${success ? " Patch applied. Continue with any remaining steps." : " Hint: emit navigate_to_page first if no editor is mounted."}]`;
+    case "suggest_variables":
+      return `[Tool result: suggest_variables → ${status}.${success ? " Suggestions surfaced. Continue with any remaining steps." : ""}]`;
     default:
       return `[Tool result: ${(call as ToolCall).op} → ${status}.]`;
   }
 }
 
-// How many autonomous steps can chain before pausing and asking the user.
-const AUTONOMOUS_STEP_LIMIT = 15;
-
 export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { getEditorSnapshot, applyEditorOp, hasEditor, canEditorUndo, editorUndo } = usePageEditorBridge();
+  const {
+    getEditorSnapshot,
+    applyEditorOp,
+    saveEditor,
+    hasEditor,
+    canEditorUndo,
+    editorUndo,
+    waitForEditor,
+  } = usePageEditorBridge();
   const { hasScheduleEditor, openScheduleForm } = useScheduleEditorBridge();
 
   // ---------------------------------------------------------------------------
@@ -115,11 +135,6 @@ export function GlobalAiChatDrawer() {
   // trigger re-streaming after tool execution without prop-drilling.
   const resumeFnRef = useRef<((text: string) => void) | null>(null);
 
-  // Count autonomous steps so we can pause after the limit.
-  const autonomousStepsRef = useRef(0);
-  useEffect(() => {
-    autonomousStepsRef.current = 0;
-  }, [chainingMode]);
 
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
@@ -321,20 +336,6 @@ export function GlobalAiChatDrawer() {
         try {
           await handler();
           if (chainingMode === "manual") return;
-          // Autonomous step-limit guard.
-          if (chainingMode === "autonomous") {
-            autonomousStepsRef.current += 1;
-            if (autonomousStepsRef.current >= AUTONOMOUS_STEP_LIMIT) {
-              autonomousStepsRef.current = 0;
-              setChainingMode("manual");
-              resumeFnRef.current?.(
-                `[Tool result: ${call.op} → Success. ` +
-                `Autonomous mode paused after ${AUTONOMOUS_STEP_LIMIT} steps. ` +
-                `Type 'continue' if you want to keep going.]`,
-              );
-              return;
-            }
-          }
           resumeFnRef.current?.(buildToolResultText(call, true));
         } catch (e) {
           if (chainingMode !== "manual") {
@@ -349,41 +350,73 @@ export function GlobalAiChatDrawer() {
     (call: ToolCall): void => {
       switch (call.op) {
         case "navigate_to_page": {
-          const { page_id, device_type } = call.args;
-          if (page_id === "new") {
-            const params = new URLSearchParams();
-            if (device_type) params.set("device", device_type);
-            params.set("fresh", "1");
-            router.push(`/pages/new?${params.toString()}`);
-          } else {
-            router.push(`/pages/edit/${page_id}`);
-          }
+          void chainAfter(call, async () => {
+            // Auto-save any in-progress page before navigating so AI-written
+            // content isn't lost when the editor unmounts (supports multi-page
+            // creation flows where the AI navigates away after replace_page).
+            if (hasEditor) {
+              await saveEditor().catch(() => {});
+            }
+            const { page_id, device_type } = call.args;
+            if (page_id === "new") {
+              const params = new URLSearchParams();
+              if (device_type) params.set("device", device_type);
+              params.set("fresh", "1");
+              router.push(`/pages/new?${params.toString()}`);
+            } else {
+              router.push(`/pages/edit/${page_id}`);
+            }
+            // Wait out the route transition so the destination editor is
+            // mounted before the chain resumes; otherwise a follow-up
+            // replace_page would race the mount and silently no-op.
+            await waitForEditor();
+          })();
           break;
         }
 
         case "navigate_to_schedule": {
-          const { prefill } = call.args;
-          if (hasScheduleEditor) {
-            openScheduleForm(prefill ?? undefined);
-          } else {
-            const params = new URLSearchParams();
-            if (prefill?.page_id) params.set("prefill_page_id", prefill.page_id);
-            if (prefill?.start_time) params.set("prefill_start", prefill.start_time);
-            if (prefill?.end_time) params.set("prefill_end", prefill.end_time);
-            if (prefill?.day_pattern) params.set("prefill_days", prefill.day_pattern);
-            const qs = params.size ? `?${params.toString()}` : "";
-            router.push(`/schedule${qs}`);
-          }
+          void chainAfter(call, async () => {
+            const { prefill } = call.args;
+            if (hasScheduleEditor) {
+              openScheduleForm(prefill ?? undefined);
+            } else {
+              const params = new URLSearchParams();
+              if (prefill?.page_id) params.set("prefill_page_id", prefill.page_id);
+              if (prefill?.start_time) params.set("prefill_start", prefill.start_time);
+              if (prefill?.end_time) params.set("prefill_end", prefill.end_time);
+              if (prefill?.day_pattern) params.set("prefill_days", prefill.day_pattern);
+              const qs = params.size ? `?${params.toString()}` : "";
+              router.push(`/schedule${qs}`);
+            }
+          })();
           break;
         }
 
         case "replace_page":
         case "apply_patch":
         case "suggest_variables":
-          // Delegate to the page editor if one is mounted.
-          if (hasEditor) {
+          void chainAfter(call, async () => {
+            // Wait on the live handlersRef rather than the closure-captured
+            // `hasEditor` state. When the model emits navigate_to_page and
+            // replace_page in the same stream turn, both handlers share the
+            // pre-navigation closure (hasEditor === false). waitForEditor
+            // resolves as soon as the new editor registers, regardless of
+            // when the React state catches up.
+            const ready = await waitForEditor();
+            if (!ready) {
+              // Surface the missing editor so the AI can recover (e.g. by
+              // first emitting navigate_to_page) instead of the call being
+              // silently dropped.
+              throw new Error("no page editor mounted");
+            }
             applyEditorOp(call);
-          }
+            // Auto-save after every AI page edit so the content is persisted
+            // immediately (supports chaining: the next navigate_to_page won't
+            // lose unsaved work, and the user doesn't need to click Save).
+            if (call.op !== "suggest_variables") {
+              await saveEditor().catch(() => {});
+            }
+          })();
           break;
 
         case "create_schedule":
@@ -416,7 +449,7 @@ export function GlobalAiChatDrawer() {
           break;
       }
     },
-    [router, close, hasEditor, applyEditorOp, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule, chainAfter],
+    [router, close, hasEditor, applyEditorOp, saveEditor, waitForEditor, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule, chainAfter],
   );
 
   const handleInstallPlugin = useCallback(
