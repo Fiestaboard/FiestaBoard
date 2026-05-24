@@ -734,8 +734,7 @@ export function GlobalAiChatDrawer() {
   return (
     <div
       className={cn(
-        "fixed right-0 top-0 bottom-0 z-40 flex flex-col bg-background border-l",
-        "w-full sm:w-96",
+        "fixed right-0 top-0 bottom-0 z-40 w-96 flex flex-col bg-background overflow-hidden",
         "transition-transform duration-300 ease-in-out sidebar-transition",
         isOpen ? "translate-x-0" : "translate-x-full",
       )}

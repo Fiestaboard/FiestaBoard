@@ -526,9 +526,9 @@ function MessageBubble({
         .replace(/\]$/, "");
       return (
         <div ref={ref} className="flex justify-center py-0.5">
-          <div className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground max-w-[85%]">
+          <div className="flex items-center gap-1.5 overflow-hidden rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground max-w-[85%]">
             <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
-            <span className="truncate font-mono">{displayText}</span>
+            <span className="min-w-0 truncate font-mono">{displayText}</span>
           </div>
         </div>
       );

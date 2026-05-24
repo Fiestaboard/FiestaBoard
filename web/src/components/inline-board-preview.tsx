@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { BoardDisplay } from "@/components/board-display";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { api, type DeviceType } from "@/lib/api";
 import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
 
@@ -81,7 +81,7 @@ export function InlineBoardPreview({
   // mount, so no flip animation runs.
   return (
     <div className={className}>
-      <BoardDisplay
+      <ScaledBoardDisplay
         message={isLoading ? null : (data?.rendered ?? "")}
         deviceType={deviceType}
         size={size}
