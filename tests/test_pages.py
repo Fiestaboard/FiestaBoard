@@ -1303,21 +1303,21 @@ class TestPageShare:
             decode_page(bad)
 
     def test_decode_missing_version_raises(self):
-        import base64, json
+        import base64
         from src.pages.share import decode_page
         payload = base64.urlsafe_b64encode(json.dumps({"page": {}}).encode()).decode().rstrip("=")
         with pytest.raises(ValueError, match="Invalid share string"):
             decode_page(payload)
 
     def test_decode_future_version_raises(self):
-        import base64, json
+        import base64
         from src.pages.share import decode_page
         payload = base64.urlsafe_b64encode(json.dumps({"v": 999, "page": {}}).encode()).decode().rstrip("=")
         with pytest.raises(ValueError, match="requires FiestaBoard"):
             decode_page(payload)
 
     def test_decode_version_zero_raises(self):
-        import base64, json
+        import base64
         from src.pages.share import decode_page
         payload = base64.urlsafe_b64encode(json.dumps({"v": 0, "page": {}}).encode()).decode().rstrip("=")
         with pytest.raises(ValueError):
@@ -1403,7 +1403,7 @@ class TestPageShareAPIEndpoints:
             id="brand-new-id", name="Test Page", type="template",
             device_type="flagship", template=["Hello", "World", "", "", "", ""],
         )
-        response = client.post("/pages/import", json={"share_string": share_string})
+        client.post("/pages/import", json={"share_string": share_string})
         # The PageCreate passed to create_page must not carry the original id
         call_args = mock_page_service.create_page.call_args[0][0]
         assert not hasattr(call_args, "id") or getattr(call_args, "id", None) is None
@@ -1427,9 +1427,9 @@ class TestPageShareAPIEndpoints:
         assert response.status_code == 422
 
     def test_import_future_version_share_string(self, client, mock_page_service):
-        import base64, json as json_mod
+        import base64
         payload = base64.urlsafe_b64encode(
-            json_mod.dumps({"v": 999, "page": {"name": "x"}}).encode()
+            json.dumps({"v": 999, "page": {"name": "x"}}).encode()
         ).decode().rstrip("=")
         response = client.post("/pages/import", json={"share_string": payload})
         assert response.status_code == 422
