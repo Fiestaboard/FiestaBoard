@@ -68,7 +68,7 @@ export default async function RootLayout({
       >
         <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
           <defs>
-            <linearGradient id="page-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id="page-icon-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="24" y2="24">
               <stop offset="0%" stopColor="var(--fiesta-red)" />
               <stop offset="50%" stopColor="var(--fiesta-orange)" />
               <stop offset="100%" stopColor="var(--fiesta-purple)" />
