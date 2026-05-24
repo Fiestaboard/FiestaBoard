@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "Nie utworzono jeszcze żadnych stron.",
     "noPagesDescription": "Utwórz pierwszą stronę do wyświetlenia na tablicy.",
-    "createFirstPage": "Utwórz pierwszą stronę"
+    "createFirstPage": "Utwórz pierwszą stronę",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "Karuzele",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "Podgląd na żywo wyłączony z powodu braku aktywności",
     "toastLiveSendFailed": "Nie udało się wysłać na tablicę",
     "toastSyncedFrom": "Synced from \"{name}\"",
-    "toastNoActiveDisplay": "No active display to sync from"
+    "toastNoActiveDisplay": "No active display to sync from",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "Twoje tablice",

@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "ページがまだありません",
     "noPagesDescription": "最初のページを作成してボードに表示しましょう。",
-    "createFirstPage": "最初のページを作成"
+    "createFirstPage": "最初のページを作成",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "カルーセル",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "無操作のためライブ出力をオフにしました",
     "toastLiveSendFailed": "ボードへの送信に失敗しました",
     "toastSyncedFrom": "Synced from \"{name}\"",
-    "toastNoActiveDisplay": "No active display to sync from"
+    "toastNoActiveDisplay": "No active display to sync from",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "ボード一覧",

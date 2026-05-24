@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "No pages created yet.",
     "noPagesDescription": "Create your first page to display on the board.",
-    "createFirstPage": "Create your first page"
+    "createFirstPage": "Create your first page",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "Carousels",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "Live output turned off due to inactivity",
     "toastLiveSendFailed": "Failed to send to board",
     "toastSyncedFrom": "Synced from \"{name}\"",
-    "toastNoActiveDisplay": "No active display to sync from"
+    "toastNoActiveDisplay": "No active display to sync from",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "Your Boards",

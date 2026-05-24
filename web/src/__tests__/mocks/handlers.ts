@@ -600,6 +600,39 @@ export const handlers = [
     });
   }),
 
+  http.get(`${API_BASE}/pages/:id/share`, ({ params }) => {
+    const { id } = params;
+    // Minimal valid share string for a template page (v1 envelope, base64url-encoded)
+    const envelope = { v: 1, page: { name: "Shared Page", type: "template", device_type: "flagship", template: ["Hello", "", "", "", "", ""], duration_seconds: 300 } };
+    const share_string = btoa(JSON.stringify(envelope)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    return HttpResponse.json({ share_string, page_id: id });
+  }),
+
+  http.post(`${API_BASE}/pages/import`, async ({ request }) => {
+    const body = await request.json() as { share_string: string };
+    if (!body.share_string || body.share_string === "invalid") {
+      return HttpResponse.json({ detail: "Invalid share string — could not decode." }, { status: 422 });
+    }
+    const newPage: Page = {
+      id: "imported-page-1",
+      name: "Shared Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["Hello", "", "", "", "", ""],
+      duration_seconds: 300,
+      created_at: new Date().toISOString(),
+    };
+    return HttpResponse.json({ status: "success", page: newPage });
+  }),
+
+  http.post(`${API_BASE}/pages/import/preview`, async ({ request }) => {
+    const body = await request.json() as { share_string: string };
+    if (!body.share_string || body.share_string === "invalid") {
+      return HttpResponse.json({ detail: "Invalid share string — could not decode." }, { status: 422 });
+    }
+    return HttpResponse.json({ name: "Shared Page", type: "template", device_type: "flagship", template: ["Hello", "", "", "", "", ""], duration_seconds: 300 });
+  }),
+
   http.post(`${API_BASE}/pages/:id/send`, ({ params }) => {
     const { id } = params;
     return HttpResponse.json({

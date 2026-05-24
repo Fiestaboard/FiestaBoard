@@ -33,6 +33,7 @@ from .displays.service import get_display_service, reset_display_service
 from .settings.service import get_settings_service, VALID_STRATEGIES, VALID_OUTPUT_TARGETS
 from .pages.service import get_page_service
 from .pages.models import PageCreate, PageUpdate
+from .pages.share import encode_page, decode_page
 from .schedules.service import get_schedule_service
 from .schedules.models import ScheduleCreate, ScheduleUpdate
 from .carousels.service import get_carousel_service
@@ -5898,6 +5899,47 @@ async def delete_page(page_id: str):
         response["new_active_page_id"] = result.new_active_page_id
     
     return response
+
+
+@app.get("/pages/{page_id}/share")
+async def get_page_share_string(page_id: str):
+    """Return a portable share string for an existing page."""
+    page_service = get_page_service()
+    page = page_service.get_page(page_id)
+    if not page:
+        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+    return {"share_string": encode_page(page)}
+
+
+class PageImportRequest(BaseModel):
+    share_string: str
+
+
+@app.post("/pages/import/preview")
+async def preview_page_import(body: PageImportRequest):
+    """Decode a share string and return the page data without persisting it."""
+    try:
+        page_data = decode_page(body.share_string)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return page_data
+
+
+@app.post("/pages/import")
+async def import_page(body: PageImportRequest):
+    """Create a new page from a share string."""
+    try:
+        page_data = decode_page(body.share_string)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    page_service = get_page_service()
+    try:
+        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page = page_service.create_page(page_create)
+        return {"status": "success", "page": page.model_dump()}
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @app.post("/pages/{page_id}/preview")

@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "Inga sidor skapade ännu.",
     "noPagesDescription": "Skapa din första sida att visa på tavlan.",
-    "createFirstPage": "Skapa din första sida"
+    "createFirstPage": "Skapa din första sida",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "Karuseller",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "Liveutmatning avstängd på grund av inaktivitet",
     "toastLiveSendFailed": "Kunde inte skicka till tavlan",
     "toastSyncedFrom": "Synced from \"{name}\"",
-    "toastNoActiveDisplay": "No active display to sync from"
+    "toastNoActiveDisplay": "No active display to sync from",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "Dina tavlor",

@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "Aucune page créée pour le moment.",
     "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
-    "createFirstPage": "Créer votre première page"
+    "createFirstPage": "Créer votre première page",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "Carrousels",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "Sortie en direct désactivée pour cause d'inactivité",
     "toastLiveSendFailed": "Échec de l'envoi vers le tableau",
     "toastSyncedFrom": "Synchronisé depuis « {name} »",
-    "toastNoActiveDisplay": "Aucun affichage actif à synchroniser"
+    "toastNoActiveDisplay": "Aucun affichage actif à synchroniser",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "Vos tableaux",

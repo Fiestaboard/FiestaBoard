@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "尚未创建任何页面。",
     "noPagesDescription": "创建您的第一个页面以在看板上显示。",
-    "createFirstPage": "创建您的第一个页面"
+    "createFirstPage": "创建您的第一个页面",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "轮播",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "由于不活跃，实时输出已关闭",
     "toastLiveSendFailed": "发送到看板失败",
     "toastSyncedFrom": "Synced from \"{name}\"",
-    "toastNoActiveDisplay": "No active display to sync from"
+    "toastNoActiveDisplay": "No active display to sync from",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "您的看板",
