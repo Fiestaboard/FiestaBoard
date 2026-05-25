@@ -1,0 +1,245 @@
+.heroBanner {
+  padding: 4rem 0 3rem;
+  text-align: center;
+  background: linear-gradient(135deg, var(--ifm-color-primary-darkest) 0%, var(--ifm-color-primary-dark) 100%);
+}
+
+.heroIcon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.heroTitle {
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.heroSubtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.2rem;
+  margin-bottom: 0.25rem;
+}
+
+.hersByline {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  font-style: italic;
+  margin: 0;
+}
+
+/* ── Grid ── */
+
+.picksSection {
+  padding: 4rem 0;
+}
+
+.picksGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2.5rem;
+  margin-top: 2.5rem;
+}
+
+@media (max-width: 996px) {
+  .picksGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Card ── */
+
+.pickCard {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ifm-card-background-color);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.pickCard:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* ── Preview image ── */
+
+.previewWell {
+  background: #111;
+  padding: 1.25rem;
+  aspect-ratio: 17 / 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Card body ── */
+
+.cardBody {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  flex: 1;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.cardDescription {
+  color: var(--ifm-color-emphasis-700);
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* ── Plugin pills ── */
+
+.pluginRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pluginLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.pluginPill {
+  font-size: 0.75rem;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-700);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
+/* ── Tags ── */
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag {
+  font-size: 0.7rem;
+  background: var(--ifm-color-primary-lightest);
+  color: var(--ifm-color-primary-darkest);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
+/* ── Import widget ── */
+
+.importWidget {
+  margin-top: auto;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.importWidgetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.importWidgetLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0;
+}
+
+.copyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 5px;
+  border: 1px solid var(--ifm-color-primary);
+  background: transparent;
+  color: var(--ifm-color-primary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.copyButton:hover {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.copyButtonDone {
+  border-color: var(--ifm-color-success);
+  color: var(--ifm-color-success);
+}
+
+.copyButtonDone:hover {
+  background: var(--ifm-color-success);
+  color: #fff;
+}
+
+.importStringBox {
+  padding: 0.6rem 0.75rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+  word-break: break-all;
+  line-height: 1.4;
+  background: var(--ifm-pre-background);
+  /* Show first ~80 chars then fade */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Docs CTA ── */
+
+.ctaSection {
+  padding: 3rem 0 4rem;
+  background: var(--ifm-color-emphasis-100);
+  text-align: center;
+}
+
+.ctaTitle {
+  margin-bottom: 0.5rem;
+}
+
+.ctaSubtitle {
+  color: var(--ifm-color-emphasis-700);
+  max-width: 560px;
+  margin: 0 auto 1.5rem;
+}
+
+.ctaButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
