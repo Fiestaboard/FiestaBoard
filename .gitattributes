@@ -1,0 +1,4 @@
+# Always keep the base branch version of package-lock.json on merge.
+# Prevents macOS-generated lockfiles from being merged into PRs and
+# breaking Linux CI due to platform-specific optional native bindings.
+web/package-lock.json merge=ours
