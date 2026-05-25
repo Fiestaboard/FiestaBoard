@@ -1226,3 +1226,212 @@ class TestPagesAPIEndpoints:
         assert data["page_name"] == "Resolved Page"
         assert data["template"] == ["Hello", "World", "", "", "", ""]
 
+
+class TestPageShare:
+    """Unit tests for src/pages/share.py encode/decode logic."""
+
+    def _make_template_page(self, **kwargs):
+        defaults = dict(
+            name="Morning Brief",
+            type="template",
+            device_type="flagship",
+            template=["{{date_time.time}}", "{{weather.temperature}}°", "", "", "", ""],
+            line_metadata=[
+                LineMetadata(alignment="center"),
+                LineMetadata(alignment="left"),
+                LineMetadata(),
+                LineMetadata(),
+                LineMetadata(),
+                LineMetadata(),
+            ],
+            duration_seconds=60,
+        )
+        defaults.update(kwargs)
+        return Page(**defaults)
+
+    def test_encode_returns_string(self):
+        from src.pages.share import encode_page
+        page = self._make_template_page()
+        s = encode_page(page)
+        assert isinstance(s, str)
+        assert len(s) > 0
+
+    def test_round_trip_template_page(self):
+        from src.pages.share import encode_page, decode_page
+        page = self._make_template_page()
+        s = encode_page(page)
+        decoded = decode_page(s)
+
+        assert decoded["name"] == page.name
+        assert decoded["type"] == page.type
+        assert decoded["device_type"] == page.device_type
+        assert decoded["template"] == page.template
+        assert decoded["duration_seconds"] == page.duration_seconds
+
+    def test_round_trip_single_page(self):
+        from src.pages.share import encode_page, decode_page
+        page = Page(name="Weather", type="single", device_type="flagship", display_type="weather")
+        decoded = decode_page(encode_page(page))
+        assert decoded["name"] == "Weather"
+        assert decoded["display_type"] == "weather"
+
+    def test_round_trip_note_page(self):
+        from src.pages.share import encode_page, decode_page
+        page = Page(name="Note", type="template", device_type="note", template=["a", "b", "c"])
+        decoded = decode_page(encode_page(page))
+        assert decoded["device_type"] == "note"
+
+    def test_excluded_fields_not_in_share_string(self):
+        from src.pages.share import encode_page, decode_page
+        page = self._make_template_page()
+        decoded = decode_page(encode_page(page))
+        assert "id" not in decoded
+        assert "created_at" not in decoded
+        assert "updated_at" not in decoded
+        assert "demo_plugin_id" not in decoded
+
+    def test_decode_malformed_base64_raises(self):
+        from src.pages.share import decode_page
+        with pytest.raises(ValueError, match="Invalid share string"):
+            decode_page("not-valid-base64!!!")
+
+    def test_decode_valid_base64_bad_json_raises(self):
+        import base64
+        from src.pages.share import decode_page
+        bad = base64.urlsafe_b64encode(b"not json at all").decode().rstrip("=")
+        with pytest.raises(ValueError, match="Invalid share string"):
+            decode_page(bad)
+
+    def test_decode_missing_version_raises(self):
+        import base64
+        from src.pages.share import decode_page
+        payload = base64.urlsafe_b64encode(json.dumps({"page": {}}).encode()).decode().rstrip("=")
+        with pytest.raises(ValueError, match="Invalid share string"):
+            decode_page(payload)
+
+    def test_decode_future_version_raises(self):
+        import base64
+        from src.pages.share import decode_page
+        payload = base64.urlsafe_b64encode(json.dumps({"v": 999, "page": {}}).encode()).decode().rstrip("=")
+        with pytest.raises(ValueError, match="requires FiestaBoard"):
+            decode_page(payload)
+
+    def test_decode_version_zero_raises(self):
+        import base64
+        from src.pages.share import decode_page
+        payload = base64.urlsafe_b64encode(json.dumps({"v": 0, "page": {}}).encode()).decode().rstrip("=")
+        with pytest.raises(ValueError):
+            decode_page(payload)
+
+    def test_share_string_url_safe(self):
+        from src.pages.share import encode_page
+        page = self._make_template_page()
+        s = encode_page(page)
+        # Must not contain +, /, or = (URL-unsafe characters)
+        assert "+" not in s
+        assert "/" not in s
+        assert "=" not in s
+
+
+class TestPageShareAPIEndpoints:
+    """Tests for GET /pages/{id}/share, POST /pages/import/preview, POST /pages/import."""
+
+    @pytest.fixture
+    def client(self):
+        from src.api_server import app
+        from fastapi.testclient import TestClient
+        return TestClient(app)
+
+    @pytest.fixture
+    def mock_page_service(self):
+        with patch('src.api_server.get_page_service') as mock:
+            mock_service = Mock()
+            mock.return_value = mock_service
+            yield mock_service
+
+    def _sample_page(self):
+        return Page(
+            id="abc-123",
+            name="Test Page",
+            type="template",
+            device_type="flagship",
+            template=["Hello", "World", "", "", "", ""],
+        )
+
+    def test_get_share_string(self, client, mock_page_service):
+        mock_page_service.get_page.return_value = self._sample_page()
+        response = client.get("/pages/abc-123/share")
+        assert response.status_code == 200
+        data = response.json()
+        assert "share_string" in data
+        assert isinstance(data["share_string"], str)
+        assert len(data["share_string"]) > 0
+
+    def test_get_share_string_not_found(self, client, mock_page_service):
+        mock_page_service.get_page.return_value = None
+        response = client.get("/pages/nonexistent/share")
+        assert response.status_code == 404
+
+    def test_get_share_string_content(self, client, mock_page_service):
+        """Share string decodes back to the original page's content fields."""
+        from src.pages.share import decode_page
+        mock_page_service.get_page.return_value = self._sample_page()
+        response = client.get("/pages/abc-123/share")
+        decoded = decode_page(response.json()["share_string"])
+        assert decoded["name"] == "Test Page"
+        assert decoded["template"] == ["Hello", "World", "", "", "", ""]
+
+    def test_import_page_success(self, client, mock_page_service):
+        from src.pages.share import encode_page
+        share_string = encode_page(self._sample_page())
+        mock_page_service.create_page.return_value = Page(
+            id="new-id", name="Test Page", type="template",
+            device_type="flagship", template=["Hello", "World", "", "", "", ""],
+        )
+        response = client.post("/pages/import", json={"share_string": share_string})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["page"]["name"] == "Test Page"
+        mock_page_service.create_page.assert_called_once()
+
+    def test_import_page_creates_new_id(self, client, mock_page_service):
+        """Import should always create a new page, never reuse the original id."""
+        from src.pages.share import encode_page
+        share_string = encode_page(self._sample_page())
+        mock_page_service.create_page.return_value = Page(
+            id="brand-new-id", name="Test Page", type="template",
+            device_type="flagship", template=["Hello", "World", "", "", "", ""],
+        )
+        client.post("/pages/import", json={"share_string": share_string})
+        # The PageCreate passed to create_page must not carry the original id
+        call_args = mock_page_service.create_page.call_args[0][0]
+        assert not hasattr(call_args, "id") or getattr(call_args, "id", None) is None
+
+    def test_import_page_invalid_share_string(self, client, mock_page_service):
+        response = client.post("/pages/import", json={"share_string": "this-is-not-valid"})
+        assert response.status_code == 422
+
+    def test_import_preview_success(self, client, mock_page_service):
+        from src.pages.share import encode_page
+        share_string = encode_page(self._sample_page())
+        response = client.post("/pages/import/preview", json={"share_string": share_string})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "Test Page"
+        assert data["type"] == "template"
+        mock_page_service.create_page.assert_not_called()
+
+    def test_import_preview_invalid_share_string(self, client, mock_page_service):
+        response = client.post("/pages/import/preview", json={"share_string": "garbage"})
+        assert response.status_code == 422
+
+    def test_import_future_version_share_string(self, client, mock_page_service):
+        import base64
+        payload = base64.urlsafe_b64encode(
+            json.dumps({"v": 999, "page": {"name": "x"}}).encode()
+        ).decode().rstrip("=")
+        response = client.post("/pages/import", json={"share_string": payload})
+        assert response.status_code == 422
+        assert "FiestaBoard" in response.json()["detail"]
+

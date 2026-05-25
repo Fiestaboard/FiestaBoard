@@ -1,19 +1,31 @@
 "use client";
 
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import { Plus, LayoutGrid, List, FileText } from "lucide-react";
+import { Plus, LayoutGrid, List, FileText, Download } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { ViewMode } from "@/components/page-grid-selector";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useBoardSettings } from "@/hooks/use-board";
 import type { DeviceType } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/use-board";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // Lazy load PageGridSelector so the header renders immediately
 const PageGridSelector = dynamic(
@@ -41,6 +53,61 @@ function getStoredViewMode(): ViewMode {
   return "grid";
 }
 
+export function ImportPageDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const t = useTranslations("pages");
+  const { push } = useViewTransition();
+  const queryClient = useQueryClient();
+  const [shareString, setShareString] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!open) setShareString("");
+  }, [open]);
+
+  const importMutation = useMutation({
+    mutationFn: () => api.importPage(shareString.trim()),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
+      toast.success(t("toastImported", { name: data.page.name }));
+      onOpenChange(false);
+      push(`/pages/edit/${data.page.id}`, { transitionType: "slide-up" });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("importDialogTitle")}</DialogTitle>
+          <DialogDescription>{t("importDialogDescription")}</DialogDescription>
+        </DialogHeader>
+        <textarea
+          ref={textareaRef}
+          value={shareString}
+          onChange={(e) => setShareString(e.target.value)}
+          placeholder={t("importDialogPlaceholder")}
+          className="w-full h-28 px-3 py-2 text-xs font-mono rounded-md border bg-background resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          spellCheck={false}
+          autoFocus
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("importDialogCancel")}</Button>
+          <Button
+            variant="secondary"
+            onClick={() => importMutation.mutate()}
+            disabled={!shareString.trim() || importMutation.isPending}
+          >
+            {importMutation.isPending ? t("importDialogImporting") : t("importDialogImport")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function PagesPage() {
   const { push } = useViewTransition();
   const t = useTranslations("pages");
@@ -49,6 +116,7 @@ export default function PagesPage() {
   const hasMultipleDevices = configuredDevices.length > 1;
   const [activeTab, setActiveTab] = useState<DeviceType>("flagship");
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Sync activeTab when configured devices change
   useEffect(() => {
@@ -101,15 +169,26 @@ export default function PagesPage() {
             </div>
           }
           right={
-            <Button
-              variant="brand"
-              size="sm"
-              onClick={handleCreateNew}
-              className="h-9 sm:h-8 px-3 text-xs btn-lift"
-            >
-              <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
-              {t("newPage")}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={handleCreateNew}
+                className="h-9 sm:h-8 px-3 text-xs btn-lift"
+              >
+                <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
+                {t("newPage")}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setImportOpen(true)}
+                className="h-9 sm:h-8 px-3 text-xs btn-lift"
+              >
+                <Download className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
+                {t("importPage")}
+              </Button>
+            </div>
           }
         />
 
@@ -157,6 +236,7 @@ export default function PagesPage() {
               />
             )}
         </div>
+      <ImportPageDialog open={importOpen} onOpenChange={setImportOpen} />
     </PageLayout>
   );
 }

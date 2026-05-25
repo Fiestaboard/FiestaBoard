@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "생성된 페이지가 없습니다.",
     "noPagesDescription": "보드에 표시할 첫 번째 페이지를 만들어 보세요.",
-    "createFirstPage": "첫 번째 페이지 만들기"
+    "createFirstPage": "첫 번째 페이지 만들기",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "캐러셀",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "비활성으로 인해 실시간 출력이 꺼졌습니다",
     "toastLiveSendFailed": "보드 전송에 실패했습니다",
     "toastSyncedFrom": "Synced from \"{name}\"",
-    "toastNoActiveDisplay": "No active display to sync from"
+    "toastNoActiveDisplay": "No active display to sync from",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "내 보드",

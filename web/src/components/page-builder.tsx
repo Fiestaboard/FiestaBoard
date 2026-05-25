@@ -38,6 +38,9 @@ import {
   Save,
   Trash2,
   Radio,
+  Upload,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -50,6 +53,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineAlignment, LineMetadata } from "@/lib/api";
 import type {
   CurrentPageSnapshot,
@@ -160,6 +170,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
 
+  // Snapshot of the page state as loaded from the server, used to detect unsaved changes.
+  const [savedSnapshot, setSavedSnapshot] = useState<{
+    name: string;
+    templateLines: string[];
+    lineAlignments: LineAlignment[];
+    lineWrapEnabled: boolean[];
+  } | null>(null);
+
+  // Export dialog
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportShareString, setExportShareString] = useState("");
+  const [exportCopied, setExportCopied] = useState(false);
+
   // Snapshot stack so the AI chat panel can offer a one-click Undo
   // after the model applies a change. Bounded to keep the editor
   // memory footprint small even on long sessions.
@@ -184,6 +207,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   useEffect(() => { lineAlignmentsRef.current = lineAlignments; }, [lineAlignments]);
   useEffect(() => { lineWrapEnabledRef.current = lineWrapEnabled; }, [lineWrapEnabled]);
   useEffect(() => { deviceTypeRef.current = deviceType; }, [deviceType]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!savedSnapshot) return true;
+    return (
+      name !== savedSnapshot.name ||
+      JSON.stringify(templateLines) !== JSON.stringify(savedSnapshot.templateLines) ||
+      JSON.stringify(lineAlignments) !== JSON.stringify(savedSnapshot.lineAlignments) ||
+      JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled)
+    );
+  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled]);
 
   const pushUndoSnapshot = useCallback(() => {
     const snap: PageSnapshot = {
@@ -507,6 +540,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
       setDebouncedTemplateLines(contents);
+      setSavedSnapshot({ name: pageName, templateLines: contents, lineAlignments: alignments, lineWrapEnabled: wrapStates });
     } else if (!pageId && !loadingPage) {
       const draftKey = getDraftKey();
       if (skipDraft) {
@@ -1179,6 +1213,36 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     <p>{t("savePageTooltip")}</p>
                   </TooltipContent>
                 </Tooltip>
+                {/* Export button — only on existing pages */}
+                {pageId && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 gap-1.5 px-3"
+                        disabled={hasUnsavedChanges}
+                        onClick={async () => {
+                          try {
+                            const res = await api.getPageShareString(pageId);
+                            setExportShareString(res.share_string);
+                            setExportCopied(false);
+                            setExportOpen(true);
+                          } catch {
+                            toast.error(t("exportFailed"));
+                          }
+                        }}
+                        aria-label={t("exportPageAriaLabel")}
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        <span className="text-xs">{t("exportPage")}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
               </TooltipProvider>
             </div>
@@ -1457,6 +1521,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         </Card>
 
       </div>
+
+      {/* Export dialog */}
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("exportDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("exportDialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="relative">
+            <textarea
+              readOnly
+              value={exportShareString}
+              className="w-full h-28 px-3 py-2 pr-10 text-xs font-mono rounded-md border bg-muted resize-none focus-visible:outline-none"
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(exportShareString);
+                setExportCopied(true);
+                setTimeout(() => setExportCopied(false), 2000);
+              }}
+              className="absolute top-2 right-2 p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={t("exportCopyAriaLabel")}
+            >
+              {exportCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 });

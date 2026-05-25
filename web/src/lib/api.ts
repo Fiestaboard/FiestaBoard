@@ -1209,6 +1209,13 @@ export const api = {
     const params = target ? `?target=${target}` : "";
     return fetchApi<PageSendResponse>(`/pages/${pageId}/send${params}`, { method: "POST" });
   },
+  getPageShareString: (pageId: string) =>
+    fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
+  importPage: (shareString: string) =>
+    fetchApi<{ status: string; page: Page }>("/pages/import", {
+      method: "POST",
+      body: JSON.stringify({ share_string: shareString }),
+    }),
 
   // Templates endpoints
   getTemplateVariables: () => fetchApi<TemplateVariables>("/templates/variables"),

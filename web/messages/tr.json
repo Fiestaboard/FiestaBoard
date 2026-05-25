@@ -88,7 +88,15 @@
     "noteTab": "Note",
     "noPagesTitle": "Henüz sayfa oluşturulmadı.",
     "noPagesDescription": "Panoda görüntülemek için ilk sayfanızı oluşturun.",
-    "createFirstPage": "İlk sayfanızı oluşturun"
+    "createFirstPage": "İlk sayfanızı oluşturun",
+    "importPage": "Import",
+    "importDialogTitle": "Import Page",
+    "importDialogDescription": "Paste a share string to add a page to your collection.",
+    "importDialogPlaceholder": "Paste share string here...",
+    "importDialogCancel": "Cancel",
+    "importDialogImport": "Import",
+    "importDialogImporting": "Importing...",
+    "toastImported": "\"{name}\" added to your pages"
   },
   "carousels": {
     "title": "Döngüler",
@@ -567,7 +575,15 @@
     "toastLiveOutputOff": "Hareketsizlik nedeniyle canlı çıktı kapatıldı",
     "toastLiveSendFailed": "Panoya gönderilemedi",
     "toastSyncedFrom": "Synced from \"{name}\"",
-    "toastNoActiveDisplay": "No active display to sync from"
+    "toastNoActiveDisplay": "No active display to sync from",
+    "exportPage": "Export",
+    "exportPageAriaLabel": "Export Page",
+    "exportPageTooltip": "Export page as a share string",
+    "exportDisabledTooltip": "Save your changes before exporting",
+    "exportFailed": "Failed to get share string",
+    "exportDialogTitle": "Export Page",
+    "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {
     "title": "Panolarınız",
