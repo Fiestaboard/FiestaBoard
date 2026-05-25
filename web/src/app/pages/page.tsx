@@ -118,7 +118,6 @@ export default function PagesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [importOpen, setImportOpen] = useState(false);
 
-  // Sync activeTab when configured devices change
   useEffect(() => {
     if (!configuredDevices.includes(activeTab)) {
       setActiveTab(configuredDevices[0] as DeviceType);

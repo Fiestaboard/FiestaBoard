@@ -600,6 +600,20 @@ export const handlers = [
     });
   }),
 
+  http.get(`${API_BASE}/staff-picks`, () => {
+    return HttpResponse.json([
+      { id: "weather-dashboard", name: "Weather Dashboard", description: "Full weather breakdown.", device_type: "flagship", tags: ["weather"], image: "/staff-picks/weather-dashboard.png", required_plugins: [{id:"weather",name:"Weather"},{id:"date_time",name:"Date & Time"}] },
+      { id: "pixel-phoenix", name: "Pixel Phoenix", description: "Generative AI pixel art.", device_type: "flagship", tags: ["art"], image: "/staff-picks/gen-ai-art.png", required_plugins: [{id:"generative_ai_art",name:"Generative AI Art"}] },
+      { id: "word-of-the-day", name: "Word of the Day", description: "Daily vocabulary word.", device_type: "flagship", tags: ["education"], image: "/staff-picks/word-of-the-day.png", required_plugins: [{id:"word_of_day",name:"Word of the Day"}] },
+    ]);
+  }),
+
+  http.get(`${API_BASE}/staff-picks/:pickId/share`, ({ params }) => {
+    const envelope = { v: 1, page: { name: "Weather Dashboard", type: "template", device_type: "flagship", template: ["Hello", "", "", "", "", ""], duration_seconds: 300 } };
+    const share_string = btoa(JSON.stringify(envelope)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    return HttpResponse.json({ share_string, pick_id: params.pickId });
+  }),
+
   http.get(`${API_BASE}/pages/:id/share`, ({ params }) => {
     const { id } = params;
     // Minimal valid share string for a template page (v1 envelope, base64url-encoded)

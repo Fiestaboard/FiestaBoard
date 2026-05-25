@@ -68,7 +68,8 @@
     "mobileNavigation": "モバイルナビゲーション",
     "mainNavigation": "メインナビゲーション",
     "primaryNavigation": "Primary navigation",
-    "secondaryNavigation": "Secondary navigation"
+    "secondaryNavigation": "Secondary navigation",
+    "picks": "Staff Picks"
   },
   "home": {
     "title": "ダッシュボード",
@@ -1301,5 +1302,19 @@
     "indexLabel": "Index: {index}",
     "configureHint": "Configure {arrayName} in Settings to see indexed variables here.",
     "configureExample": "Example:"
+  },
+  "picks": {
+    "title": "Staff Picks",
+    "description": "Curated templates from the FiestaBoard team",
+    "byline": "Hand-picked by the creators of FiestaBoard",
+    "import": "Import",
+    "importing": "Importing...",
+    "empty": "No picks available for this board type yet.",
+    "toastImported": "\"{name}\" added to your pages",
+    "flagshipTab": "Flagship",
+    "noteTab": "Note",
+    "requires": "Requires",
+    "pluginNotEnabled": "Enable the {name} plugin in Integrations to use this template",
+    "importWithMissingPlugins": "Some plugins aren't enabled yet: {plugins}. You can still import and enable them later."
   }
 }

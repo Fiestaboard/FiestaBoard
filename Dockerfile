@@ -83,6 +83,7 @@ COPY --from=python-builder /usr/local/bin /usr/local/bin
 COPY src/ ./src/
 COPY plugins/ ./plugins/
 COPY tests/ ./tests/
+COPY staff-picks/ ./staff-picks/
 # Curated community plugin list for Integrations → Marketplace (API reads /app/plugin-registry.json)
 COPY plugin-registry.json ./plugin-registry.json
 
