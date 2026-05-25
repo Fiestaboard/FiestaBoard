@@ -2,6 +2,7 @@ import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import { useColorMode } from '@docusaurus/theme-common';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 
@@ -9,11 +10,16 @@ import styles from './index.module.css';
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
+  const { colorMode } = useColorMode();
+  // Dark mode: deep gradient needs the light logo; light mode: pastel gradient needs the dark logo
+  const logoSrc = colorMode === 'dark'
+    ? '/img/branding/logo-lockup-dark.png'
+    : '/img/branding/logo-lockup-light.png';
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
         <img
-          src="/img/branding/logo-lockup-dark.png"
+          src={logoSrc}
           alt="FiestaBoard"
           className={styles.heroLockup}
         />
