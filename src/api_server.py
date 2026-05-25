@@ -5942,6 +5942,42 @@ async def import_page(body: PageImportRequest):
         raise HTTPException(status_code=422, detail=str(e))
 
 
+# ---------------------------------------------------------------------------
+# Staff Picks
+# ---------------------------------------------------------------------------
+
+_STAFF_PICKS_PATH = Path(__file__).parent.parent / "staff-picks" / "picks.json"
+
+
+def _load_staff_picks() -> list:
+    try:
+        with open(_STAFF_PICKS_PATH) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+@app.get("/staff-picks")
+async def list_staff_picks():
+    """Return all staff picks (without share strings)."""
+    picks = _load_staff_picks()
+    return [
+        {k: v for k, v in pick.items() if k != "share_string"}
+        for pick in picks
+    ]
+
+
+
+@app.get("/staff-picks/{pick_id}/share")
+async def get_staff_pick_share(pick_id: str):
+    """Return the share string for a specific staff pick."""
+    picks = _load_staff_picks()
+    pick = next((p for p in picks if p["id"] == pick_id), None)
+    if not pick:
+        raise HTTPException(status_code=404, detail=f"Staff pick not found: {pick_id}")
+    return {"share_string": pick["share_string"]}
+
+
 @app.post("/pages/{page_id}/preview")
 async def preview_page(
     page_id: str,

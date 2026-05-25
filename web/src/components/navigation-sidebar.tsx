@@ -35,6 +35,7 @@ const primaryItems: NavItem[] = [
 ];
 
 const secondaryItems: NavItem[] = [
+  { key: "picks", href: "/picks", icon: Sparkles },
   { key: "helpDocs", href: "https://fiestaboard.app/docs/intro", icon: HelpCircle, external: true },
   { key: "settings", href: "/settings", icon: Settings },
 ];

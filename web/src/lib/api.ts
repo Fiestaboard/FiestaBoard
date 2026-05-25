@@ -259,6 +259,21 @@ export interface PagesResponse {
   total: number;
 }
 
+export interface StaffPickPlugin {
+  id: string;
+  name: string;
+}
+
+export interface StaffPick {
+  id: string;
+  name: string;
+  description: string;
+  device_type: DeviceType;
+  tags: string[];
+  image: string | null;
+  required_plugins: StaffPickPlugin[];
+}
+
 export interface PagePreviewResponse {
   page_id: string;
   message: string;
@@ -1216,6 +1231,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ share_string: shareString }),
     }),
+  getStaffPicks: () => fetchApi<StaffPick[]>("/staff-picks"),
+  getStaffPickShareString: (pickId: string) =>
+    fetchApi<{ share_string: string }>(`/staff-picks/${pickId}/share`),
 
   // Templates endpoints
   getTemplateVariables: () => fetchApi<TemplateVariables>("/templates/variables"),
