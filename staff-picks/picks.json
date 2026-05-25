@@ -14,6 +14,19 @@
     "share_string": "eyJ2IjoxLCJwYWdlIjp7Im5hbWUiOiJXZWF0aGVyIERhc2hib2FyZCIsInR5cGUiOiJ0ZW1wbGF0ZSIsImRldmljZV90eXBlIjoiZmxhZ3NoaXAiLCJkaXNwbGF5X3R5cGUiOm51bGwsInJvd3MiOm51bGwsInRlbXBsYXRlIjpbInt7d2hpdGV9fXt7d2hpdGV9fXt7ZmlsbF9zcGFjZX19e3t3ZWF0aGVyLmxvY2F0aW9ucy4wLmxvY2F0aW9uX25hbWV9fXt7ZmlsbF9zcGFjZX19e3t3aGl0ZX19e3t3aGl0ZX19Iiwie3t3aGl0ZX19e3tmaWxsX3NwYWNlfX17e2RhdGVfdGltZS5kYXRlfX17e2ZpbGxfc3BhY2V9fXt7ZGF0ZV90aW1lLnRpbWV9fXt7ZmlsbF9zcGFjZX19e3t3aGl0ZX19IiwiTk9XICB7e3dlYXRoZXIubG9jYXRpb25zLjAudGVtcGVyYXR1cmV9fUYgUkFJTiB7e3dlYXRoZXIubG9jYXRpb25zLjAucHJlY2lwaXRhdGlvbl9jaGFuY2V9fSUiLCJMSUtFIHt7d2VhdGhlci5sb2NhdGlvbnMuMC5mZWVsc19saWtlfX1GIFdJTkQge3t3ZWF0aGVyLmxvY2F0aW9ucy4wLndpbmRfc3BlZWR9fSBNUEgiLCJISUdIIHt7d2VhdGhlci5sb2NhdGlvbnMuMC5oaWdoX3RlbXB9fUYgVVYgICB7e3dlYXRoZXIubG9jYXRpb25zLjAudXZfaW5kZXh9fXt7d2VhdGhlci51dl9pbmRleF9jb2xvcn19IiwiTE9XICB7e3dlYXRoZXIubG9jYXRpb25zLjAubG93X3RlbXB9fUYgU0VUICB7e3dlYXRoZXIubG9jYXRpb25zLjAuc3Vuc2V0fX0iXSwibGluZV9tZXRhZGF0YSI6W3siYWxpZ25tZW50IjoibGVmdCIsIndyYXAiOmZhbHNlfSx7ImFsaWdubWVudCI6ImxlZnQiLCJ3cmFwIjpmYWxzZX0seyJhbGlnbm1lbnQiOiJsZWZ0Iiwid3JhcCI6ZmFsc2V9LHsiYWxpZ25tZW50IjoibGVmdCIsIndyYXAiOmZhbHNlfSx7ImFsaWdubWVudCI6ImxlZnQiLCJ3cmFwIjpmYWxzZX0seyJhbGlnbm1lbnQiOiJsZWZ0Iiwid3JhcCI6ZmFsc2V9XSwiZHVyYXRpb25fc2Vjb25kcyI6MzAwLCJ0cmFuc2l0aW9uX3N0cmF0ZWd5IjpudWxsLCJ0cmFuc2l0aW9uX2ludGVydmFsX21zIjpudWxsLCJ0cmFuc2l0aW9uX3N0ZXBfc2l6ZSI6bnVsbH19"
   },
   {
+    "id": "pixel-phoenix",
+    "name": "Pixel Phoenix",
+    "description": "Generative AI pixel art — a new piece created on your board every day.",
+    "device_type": "flagship",
+    "tags": ["art"],
+    "image": "/staff-picks/gen-ai-art.png",
+    "required_plugins": [
+      {"id": "generative_ai_art", "name": "Generative AI Art"}
+    ],
+    "featured_at": "2026-05-24",
+    "share_string": "eyJ2IjoxLCJwYWdlIjp7Im5hbWUiOiJQaXhlbCBQaG9lbml4IiwidHlwZSI6InRlbXBsYXRlIiwiZGV2aWNlX3R5cGUiOiJmbGFnc2hpcCIsImRpc3BsYXlfdHlwZSI6bnVsbCwicm93cyI6bnVsbCwidGVtcGxhdGUiOlsie3tnZW5lcmF0aXZlX2FpX2FydC5hcnR9fSIsIiIsIiIsIiIsIiIsIiJdLCJsaW5lX21ldGFkYXRhIjpbeyJhbGlnbm1lbnQiOiJsZWZ0Iiwid3JhcCI6ZmFsc2V9LHsiYWxpZ25tZW50IjoibGVmdCIsIndyYXAiOmZhbHNlfSx7ImFsaWdubWVudCI6ImxlZnQiLCJ3cmFwIjpmYWxzZX0seyJhbGlnbm1lbnQiOiJsZWZ0Iiwid3JhcCI6ZmFsc2V9LHsiYWxpZ25tZW50IjoibGVmdCIsIndyYXAiOmZhbHNlfSx7ImFsaWdubWVudCI6ImxlZnQiLCJ3cmFwIjpmYWxzZX1dLCJkdXJhdGlvbl9zZWNvbmRzIjozMDAsInRyYW5zaXRpb25fc3RyYXRlZ3kiOm51bGwsInRyYW5zaXRpb25faW50ZXJ2YWxfbXMiOm51bGwsInRyYW5zaXRpb25fc3RlcF9zaXplIjpudWxsfX0"
+  },
+  {
     "id": "word-of-the-day",
     "name": "Word of the Day",
     "description": "Daily vocabulary word with its Spanish translation, part of speech, and definition.",

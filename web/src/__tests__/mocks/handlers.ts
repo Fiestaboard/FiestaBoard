@@ -602,8 +602,9 @@ export const handlers = [
 
   http.get(`${API_BASE}/staff-picks`, () => {
     return HttpResponse.json([
-      { id: "weather-dashboard", name: "Weather Dashboard", description: "Full weather breakdown.", device_type: "flagship", tags: ["weather"] },
-      { id: "word-of-the-day", name: "Word of the Day", description: "Daily vocabulary word.", device_type: "flagship", tags: ["entertainment"] },
+      { id: "weather-dashboard", name: "Weather Dashboard", description: "Full weather breakdown.", device_type: "flagship", tags: ["weather"], image: "/staff-picks/weather-dashboard.png", required_plugins: [{id:"weather",name:"Weather"},{id:"date_time",name:"Date & Time"}] },
+      { id: "pixel-phoenix", name: "Pixel Phoenix", description: "Generative AI pixel art.", device_type: "flagship", tags: ["art"], image: "/staff-picks/gen-ai-art.png", required_plugins: [{id:"generative_ai_art",name:"Generative AI Art"}] },
+      { id: "word-of-the-day", name: "Word of the Day", description: "Daily vocabulary word.", device_type: "flagship", tags: ["education"], image: "/staff-picks/word-of-the-day.png", required_plugins: [{id:"word_of_day",name:"Word of the Day"}] },
     ]);
   }),
 
