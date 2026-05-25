@@ -58,19 +58,70 @@
   --ifm-link-hover-color: var(--ifm-color-primary-light);
 }
 
-/* Hero section styling */
+/* Hero section: animated Fiesta gradient — mirrors the app sidebar palette */
+@keyframes fiesta-hero-gradient-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 33.33% 50%; }
+}
+
+/* Light mode: soft pastel coral → peach → lavender, dark text */
 .hero--primary {
-  background: linear-gradient(135deg, #b35900 0%, var(--fiesta-hero-gradient-end) 100%);
-  color: #fff;
+  background: repeating-linear-gradient(
+    135deg,
+    #c98a82 0,
+    #c9a070 33.33%,
+    #9b7bb0 66.66%,
+    #c98a82 100%
+  );
+  background-size: 400% 100%;
+  background-position: 0% 50%;
+  animation: fiesta-hero-gradient-flow 117s linear infinite;
+  color: #000;
 }
 
 .hero--primary .hero__title,
 .hero--primary .hero__subtitle {
+  color: #000;
+}
+
+/* Dark mode: deep Fiesta red → burnt orange → deep purple, white text */
+[data-theme='dark'] .hero--primary {
+  background: repeating-linear-gradient(
+    135deg,
+    #7a2a24 0,
+    #6d5014 33.33%,
+    #4e3070 66.66%,
+    #7a2a24 100%
+  );
+  background-size: 400% 100%;
+  background-position: 0% 50%;
+  animation: fiesta-hero-gradient-flow 117s linear infinite;
   color: #fff;
 }
 
-[data-theme='dark'] .hero--primary {
-  background: linear-gradient(135deg, #8b2d00 0%, #b35900 50%, var(--fiesta-hero-gradient-end) 100%);
+[data-theme='dark'] .hero--primary .hero__title,
+[data-theme='dark'] .hero--primary .hero__subtitle {
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero--primary,
+  [data-theme='dark'] .hero--primary {
+    animation: none;
+    background-position: 25% 50%;
+  }
+}
+
+/* Hero outline button: adapts color to match gradient mode */
+:root {
+  --hero-outline-btn-color: #000;
+  --hero-outline-btn-hover-bg: #000;
+  --hero-outline-btn-hover-text: #fff;
+}
+[data-theme='dark'] {
+  --hero-outline-btn-color: #fff;
+  --hero-outline-btn-hover-bg: #fff;
+  --hero-outline-btn-hover-text: #1a1a1a;
 }
 
 /* Align logo with nav: anchor image to bottom so text baseline matches nav links;

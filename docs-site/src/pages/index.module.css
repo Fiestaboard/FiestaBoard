@@ -26,7 +26,6 @@
   max-width: 700px;
   margin: 1rem auto;
   font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.95);
 }
 
 .heroDescriptionShort {
@@ -46,7 +45,6 @@
     display: block;
     margin: 0.5rem auto;
     font-size: 1.1rem;
-    color: rgba(255, 255, 255, 0.95);
   }
 }
 
@@ -60,12 +58,12 @@
 }
 
 .githubButton {
-  color: #fff;
-  border-color: #fff;
+  color: var(--hero-outline-btn-color);
+  border-color: var(--hero-outline-btn-color);
 }
 
 .githubButton:hover {
-  color: #1a1a1a;
-  background-color: #fff;
-  border-color: #fff;
+  color: var(--hero-outline-btn-hover-text);
+  background-color: var(--hero-outline-btn-hover-bg);
+  border-color: var(--hero-outline-btn-hover-bg);
 }
