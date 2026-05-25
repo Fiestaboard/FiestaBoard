@@ -232,6 +232,11 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/picks',
+          label: '✦ Staff Picks',
+          position: 'left',
+        },
+        {
           type: 'docsVersionDropdown',
           position: 'left',
         },
