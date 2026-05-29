@@ -356,7 +356,9 @@
     "sectionAdvanced": "Erweitert",
     "sectionAdvancedDescription": "Diagnose und experimentelle Funktionen",
     "sectionGeneral": "Allgemein",
-    "sectionGeneralDescription": "Einstellungen, Sprache, Barrierefreiheit"
+    "sectionGeneralDescription": "Einstellungen, Sprache, Barrierefreiheit",
+    "sectionAccount": "Konto",
+    "sectionAccountDescription": "Benutzername, Passwort und Abmelden"
   },
   "offline": {
     "youreOffline": "Sie sind offline",

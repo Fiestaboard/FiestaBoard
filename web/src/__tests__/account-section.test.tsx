@@ -80,7 +80,7 @@ describe("AccountSection", () => {
   it("shows the signed-in username when authenticated", async () => {
     mockAuthStatus(authStatusAuthenticated);
     render(<AccountSection />, { wrapper: TestWrapper });
-    await screen.findByText("Account");
+    await screen.findByText("Signed in");
     expect(screen.getByText("admin")).toBeInTheDocument();
   });
 
@@ -185,7 +185,7 @@ describe("AccountSection", () => {
     );
 
     render(<AccountSection />, { wrapper: TestWrapper });
-    await screen.findByText("Account");
+    await screen.findByText("Signed in");
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /Sign out/i }));

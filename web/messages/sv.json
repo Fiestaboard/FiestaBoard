@@ -356,7 +356,9 @@
     "sectionAdvanced": "Avancerat",
     "sectionAdvancedDescription": "Diagnostik och experimentella funktioner",
     "sectionGeneral": "Allmänt",
-    "sectionGeneralDescription": "Inställningar, språk, tillgänglighet"
+    "sectionGeneralDescription": "Inställningar, språk, tillgänglighet",
+    "sectionAccount": "Konto",
+    "sectionAccountDescription": "Användarnamn, lösenord och logga ut"
   },
   "offline": {
     "youreOffline": "Du är offline",

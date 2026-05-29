@@ -55,16 +55,16 @@ describe("LoginPage first-run picker", () => {
     );
     render(<LoginPage />);
 
-    await screen.findByText(/Secure this FiestaBoard\?/i);
+    await screen.findByText(/Protect this FiestaBoard\?/i);
     expect(
-      screen.getByRole("button", { name: /Enable login/i }),
+      screen.getByRole("button", { name: /Set up a username/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Continue without login/i }),
+      screen.getByRole("button", { name: /Skip — anyone on my network/i }),
     ).toBeInTheDocument();
   });
 
-  it("clicking 'Enable login' switches to the setup form", async () => {
+  it("clicking 'Set up a username & password' switches to the setup form", async () => {
     server.use(
       http.get("/api/auth/status", () =>
         HttpResponse.json(
@@ -74,14 +74,14 @@ describe("LoginPage first-run picker", () => {
     );
     render(<LoginPage />);
 
-    await screen.findByText(/Secure this FiestaBoard\?/i);
+    await screen.findByText(/Protect this FiestaBoard\?/i);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /Enable login/i }));
+    await user.click(screen.getByRole("button", { name: /Set up a username/i }));
 
     await screen.findByText(/Create administrator/i);
   });
 
-  it("clicking 'Continue without login' POSTs preference and redirects", async () => {
+  it("clicking 'Skip' POSTs preference and redirects", async () => {
     let body: { enabled?: boolean } | null = null;
     server.use(
       http.get("/api/auth/status", () =>
@@ -96,9 +96,9 @@ describe("LoginPage first-run picker", () => {
     );
     render(<LoginPage />);
 
-    await screen.findByText(/Secure this FiestaBoard\?/i);
+    await screen.findByText(/Protect this FiestaBoard\?/i);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /Continue without login/i }));
+    await user.click(screen.getByRole("button", { name: /Skip — anyone on my network/i }));
 
     await waitFor(() => {
       expect(body).toEqual({ enabled: false });
@@ -118,7 +118,7 @@ describe("LoginPage first-run picker", () => {
 
     await screen.findByText(/Sign in to FiestaBoard/i);
     expect(
-      screen.queryByText(/Secure this FiestaBoard\?/i),
+      screen.queryByText(/Protect this FiestaBoard\?/i),
     ).not.toBeInTheDocument();
   });
 });

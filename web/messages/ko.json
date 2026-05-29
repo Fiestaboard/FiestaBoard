@@ -356,7 +356,9 @@
     "sectionAdvanced": "고급",
     "sectionAdvancedDescription": "진단 및 실험적 기능",
     "sectionGeneral": "일반",
-    "sectionGeneralDescription": "환경설정, 언어, 접근성"
+    "sectionGeneralDescription": "환경설정, 언어, 접근성",
+    "sectionAccount": "계정",
+    "sectionAccountDescription": "사용자 이름, 비밀번호 및 로그아웃"
   },
   "offline": {
     "youreOffline": "오프라인 상태입니다",
