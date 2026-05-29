@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
 import Image from "next/image";
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { Loader2, WifiOff } from "lucide-react";
@@ -29,7 +28,14 @@ export function BootGate({ children }: { children: React.ReactNode }) {
 
   const { data } = useQuery({
     queryKey: ["boot-health"],
-    queryFn: api.getStatus,
+    // Use the unauthenticated /health endpoint so the boot splash
+    // clears even on a fresh install where /status would 409 with
+    // "setup required" until the admin creates the first account.
+    queryFn: async () => {
+      const res = await fetch("/api/health", { credentials: "include" });
+      if (!res.ok) throw new Error(`health: ${res.status}`);
+      return res.json();
+    },
     refetchInterval: hasConnected ? false : 2000,
     retry: false,
     staleTime: 0,
