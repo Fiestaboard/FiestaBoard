@@ -1,26 +1,15 @@
 "use client";
 
 /**
- * Account pill rendered in the sidebar footer when auth is on and the
- * user is signed in. Gives users an always-visible place to sign out
- * (otherwise the only sign-out lived inside Settings → General →
- * Account, which is impossible to find).
- *
- * Hides itself entirely when auth is disabled so local-only installs
- * see no extra chrome.
+ * Sign-out button in the sidebar footer. Shown only when auth is on
+ * and the user is signed in. Username and password management live in
+ * Settings → General → Account — this is just the always-visible
+ * escape hatch.
  */
 
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut, UserCircle2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { LogOut } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -45,8 +34,6 @@ export function SidebarAccount({ collapsed = false }: SidebarAccountProps) {
     return null;
   }
 
-  const username = authStatus.username ?? "";
-
   const handleSignOut = async () => {
     try {
       await api.logout();
@@ -58,49 +45,31 @@ export function SidebarAccount({ collapsed = false }: SidebarAccountProps) {
     router.replace("/login");
   };
 
-  const trigger = (
+  const button = (
     <button
       type="button"
-      aria-label={`Account menu for ${username}`}
+      onClick={handleSignOut}
+      aria-label="Sign out"
       className={cn(
-        "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+        "flex items-center gap-2 rounded-md py-1.5 text-sm",
         "text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        collapsed && "justify-center",
+        collapsed ? "w-9 h-9 justify-center" : "w-full px-3",
       )}
     >
-      <UserCircle2 className="h-4 w-4 flex-shrink-0" />
-      {!collapsed && (
-        <span className="truncate max-w-[140px] font-medium">{username}</span>
-      )}
+      <LogOut className="h-4 w-4 flex-shrink-0" />
+      {!collapsed && <span className="font-medium">Sign out</span>}
     </button>
   );
 
+  if (!collapsed) return button;
+
   return (
-    <DropdownMenu>
-      {collapsed ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
-            Signed in as {username}
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-      )}
-      <DropdownMenuContent align="end" side="top" className="w-56">
-        <DropdownMenuLabel className="flex items-center gap-2">
-          <UserCircle2 className="h-4 w-4 text-muted-foreground" />
-          <span className="truncate">{username}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={handleSignOut} className="cursor-pointer">
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="right" className="font-medium">
+        Sign out
+      </TooltipContent>
+    </Tooltip>
   );
 }
