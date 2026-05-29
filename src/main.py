@@ -594,7 +594,22 @@ class DisplayService:
             if active is None:
                 return None
 
-            # Build display content from the trigger
+            # If the plugin has a trigger_page_id configured, render that page
+            # with the trigger's data as template context instead of the hard-coded display.
+            plugin = registry.get_plugin(active.plugin_id)
+            if plugin:
+                trigger_page_id = plugin.config.get("trigger_page_id")
+                if trigger_page_id:
+                    from .pages.service import get_page_service
+                    page_service = get_page_service()
+                    page = page_service.get_page(trigger_page_id)
+                    if page and page.type == "template":
+                        context = {active.plugin_id: active.data} if active.data else None
+                        result = page_service.render_page(page, context=context)
+                        if result.available and result.formatted:
+                            return result.formatted
+
+            # Fall back to the plugin's built-in formatted display
             if active.formatted_lines:
                 return "\n".join(active.formatted_lines)
             if active.message:
