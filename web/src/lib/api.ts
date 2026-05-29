@@ -1991,6 +1991,35 @@ export const api = {
   },
 
   /**
+   * Record the first-run / "should we lock this down" preference.
+   * The backend refuses (409) when an admin user already exists or
+   * when FIESTABOARD_AUTH_ENABLED pins the mode. Used by the first-
+   * run picker on /login and by the "Turn on login" card in the
+   * Account tab after a user has previously disabled auth.
+   */
+  setAuthPreference: async (enabled: boolean) => {
+    const res = await fetch("/api/auth/preference", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) {
+      let detail: string | undefined;
+      try {
+        const data = await res.json();
+        if (data && typeof data.detail === "string") {
+          detail = data.detail;
+        }
+      } catch {
+        /* no JSON body */
+      }
+      throw new Error(detail || `Setting preference failed (${res.status})`);
+    }
+    return (await res.json()) as { status: string };
+  },
+
+  /**
    * Turn off auth enforcement and delete the admin user. Gated by the
    * current password server-side so a stolen cookie alone can't open
    * the install up. After this returns the install is wide open —

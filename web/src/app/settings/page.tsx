@@ -85,15 +85,22 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const { triggerWizard } = useWizard();
 
-  // The Account tab is only meaningful when auth is on — otherwise
-  // there's nothing to manage. Hide the tab entirely in that case.
+  // Account tab is visible when:
+  //   - auth is on AND the user is signed in (account management UI), or
+  //   - auth is currently disabled (nudge card encouraging them to turn
+  //     it back on)
+  // It's hidden when auth is on but the user isn't signed in (they
+  // shouldn't even be on this page in that case — middleware will
+  // bounce them to /login).
   const { data: authStatus } = useQuery({
     queryKey: ["auth-status"],
     queryFn: api.getAuthStatus,
     staleTime: 30_000,
     retry: false,
   });
-  const showAccount = !!authStatus?.enabled && !!authStatus.authenticated;
+  const showAccount =
+    (!!authStatus?.enabled && !!authStatus.authenticated) ||
+    authStatus?.mode === "disabled";
 
   const requested = searchParams.get("section");
   let activeSection: SectionId = isSectionId(requested)

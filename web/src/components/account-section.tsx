@@ -18,7 +18,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { KeyRound, LogOut, ShieldAlert, ShieldOff, UserCircle2, UserCog } from "lucide-react";
+import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -58,7 +58,20 @@ export function AccountSection() {
       </Card>
     );
   }
-  if (!authStatus || !authStatus.enabled || !authStatus.authenticated) {
+  if (!authStatus) {
+    return null;
+  }
+
+  // Auth is currently off — render a single "turn it on" card so the
+  // tab still has a reason to exist and the user has a discoverable
+  // path back to a locked-down install.
+  if (authStatus.mode === "disabled") {
+    return <EnableLoginCard />;
+  }
+
+  // Auth is on but the visitor isn't signed in — they shouldn't even
+  // be reaching this page; the middleware will route them to /login.
+  if (!authStatus.enabled || !authStatus.authenticated) {
     return null;
   }
 
@@ -419,5 +432,62 @@ function DisableAuthDialog({ username }: { username: string }) {
         </form>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+function EnableLoginCard() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [submitting, setSubmitting] = useState(false);
+
+  const onEnable = async () => {
+    setSubmitting(true);
+    try {
+      await api.setAuthPreference(true);
+      // /login now renders the setup form (mode flipped to "enabled",
+      // no user exists yet). Drop the cached status so the next render
+      // sees the new mode.
+      queryClient.removeQueries({ queryKey: ["auth-status"] });
+      router.push("/login");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not enable login"
+      );
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="border-brand/40">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldCheck className="h-4 w-4 text-brand" />
+          Turn on login
+        </CardTitle>
+        <CardDescription>
+          Login is currently <strong>off</strong>. Anyone who can reach this
+          FiestaBoard on the network can read your API keys, change your
+          board configuration, and modify any settings.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Strongly recommended if you share Wi-Fi with people you don&apos;t
+          fully trust (roommates, guests, smart-home devices), or if this
+          FiestaBoard is reachable from the internet. Your board keeps
+          displaying as normal either way — login only controls who can
+          sign in to change settings.
+        </p>
+        <Button
+          type="button"
+          variant="brand"
+          onClick={onEnable}
+          disabled={submitting}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          {submitting ? "Enabling…" : "Set up a username & password"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
