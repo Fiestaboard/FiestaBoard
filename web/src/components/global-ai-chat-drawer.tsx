@@ -184,6 +184,14 @@ export function GlobalAiChatDrawer() {
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, close]);
 
+  // Auto-close when AI is disabled so the drawer doesn't trap users who
+  // navigate to the AI panel and then toggle AI off in Settings (issue #806).
+  useEffect(() => {
+    if (isOpen && aiSettings && !aiSettings.enabled) {
+      close();
+    }
+  }, [isOpen, aiSettings, close]);
+
   const getTurnContext = useCallback((): ChatTurnContext => {
     const pages = pagesData?.pages?.map((p) => ({ id: p.id, name: p.name }));
     const plugins = pluginsData?.plugins?.map((p) => ({
