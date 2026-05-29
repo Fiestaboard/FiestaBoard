@@ -53,7 +53,7 @@ export function NavigationSidebar() {
     queryKey: ["ai-settings"],
     queryFn: () => api.getAiSettings(),
   });
-  const hasAiProviders = (aiSettings?.providers?.length ?? 0) > 0;
+  const hasAiProviders = (aiSettings?.enabled ?? false) && (aiSettings?.providers?.length ?? 0) > 0;
 
   useEffect(() => {
     setMobileMenuOpen(false);

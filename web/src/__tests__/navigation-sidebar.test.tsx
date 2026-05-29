@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
+import { http, HttpResponse } from "msw";
+import { server } from "./mocks/server";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
@@ -209,5 +211,85 @@ describe("NavigationSidebar carousels link", () => {
     const carouselsLink = carouselsLinks[0].closest("a");
     expect(carouselsLink).toBeInTheDocument();
     expect(carouselsLink).toHaveAttribute("href", "/carousels");
+  });
+});
+
+describe("NavigationSidebar AI Assistant visibility (issue #806)", () => {
+  const API_BASE = "/api";
+
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("hides AI Assistant button when AI is disabled, even with providers configured", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: false,
+          providers: [
+            {
+              id: "p1",
+              name: "OpenRouter",
+              base_url: "https://openrouter.ai/api/v1",
+              api_key: "sk-test",
+              models: ["openai/gpt-4o-mini"],
+              default_model: "openai/gpt-4o-mini",
+            },
+          ],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.queryByText("AI Assistant")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows AI Assistant button when AI is enabled with providers", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [
+            {
+              id: "p1",
+              name: "OpenRouter",
+              base_url: "https://openrouter.ai/api/v1",
+              api_key: "sk-test",
+              models: ["openai/gpt-4o-mini"],
+              default_model: "openai/gpt-4o-mini",
+            },
+          ],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getAllByText("AI Assistant").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("hides AI Assistant button when AI is enabled but no providers configured", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [],
+          default_provider_id: null,
+        }),
+      ),
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.queryByText("AI Assistant")).not.toBeInTheDocument();
+    });
   });
 });
