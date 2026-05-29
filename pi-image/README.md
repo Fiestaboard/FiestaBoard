@@ -11,7 +11,7 @@ A flashable Raspberry Pi OS image with FiestaBoard pre-installed and self-updati
 - FiestaBoard, pre-pulled and configured to start on boot
 - `fiestaupdater` sidecar enabled by default — Settings → Update Now works immediately
 - 1 GB swap file
-- mDNS hostname `fiestapi.local`
+- mDNS hostname `fiestapi.local` (with an hourly self-heal timer that reclaims the bare name if avahi has renamed itself to `fiestapi-2.local` after a past flash/conflict)
 - `FIESTABOARD_PROFILE=pi` env baked in (flips the in-app auto-update toggle to default ON, and seeds the instance name to "FiestaPi" on first boot)
 - First-boot script that generates a unique `FIESTAUPDATER_TOKEN`
 - Post-flash Wi-Fi provisioning: drop `fiestapi-wifi.txt` (with `SSID=`, `PASSWORD=`, optional `COUNTRY=`) on the boot partition — see [RASPBERRY_PI.md](../docs/setup/RASPBERRY_PI.md). The first-boot script sets the wireless regulatory country and unblocks rfkill before connecting, so Wi-Fi works even on a fresh image.
@@ -63,5 +63,8 @@ pi-image/
             ├── docker-compose.yml
             ├── env.template
             ├── fiestaboard.service
-            └── firstboot.sh
+            ├── fiestapi-heal-mdns.service
+            ├── fiestapi-heal-mdns.timer
+            ├── firstboot.sh
+            └── heal-mdns.sh
 ```
