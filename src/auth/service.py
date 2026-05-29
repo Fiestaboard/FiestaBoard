@@ -265,6 +265,7 @@ class SessionToken:
 
 
 def _now_ms() -> int:
+    """Wall-clock millisecond timestamp."""
     return time.time_ns() // 1_000_000
 
 
@@ -285,9 +286,31 @@ class AuthService:
 
     def __init__(self, auth_file: Optional[Path] = None) -> None:
         self._path = Path(auth_file) if auth_file else _default_auth_file()
-        self._lock = threading.Lock()
+        # RLock because _now_ms() is called from inside other methods
+        # that already hold the lock.
+        self._lock = threading.RLock()
+        # Tracks the last millisecond timestamp this instance has emitted
+        # so successive calls are strictly monotonic — critical for the
+        # session watermark, which relies on a token minted after a
+        # password rotation having ``issued_at > cutoff`` even when both
+        # fall in the same wall-clock millisecond.
+        self._last_ms = 0
         self._data: Dict[str, Any] = {"version": 1, "users": []}
         self._load()
+
+    def _monotonic_ms(self) -> int:
+        """Strictly-monotonic millisecond clock for token issuance.
+
+        Wraps the module-level :func:`_now_ms` but guarantees that every
+        call on this instance returns a value strictly greater than the
+        previous one — see ``self._last_ms`` for why this matters.
+        """
+        with self._lock:
+            t = _now_ms()
+            if t <= self._last_ms:
+                t = self._last_ms + 1
+            self._last_ms = t
+            return t
 
     # -- persistence -------------------------------------------------------
 
@@ -386,13 +409,13 @@ class AuthService:
                     "password_hash": hash_password(password),
                     "created_at": now_s,
                     "updated_at": now_s,
-                    # Sessions whose ``issued_at`` (ms) is strictly less
-                    # than this watermark are rejected. Bumped on every
-                    # password change so a rotation also revokes any
-                    # stolen cookies. Milliseconds gives us enough
-                    # resolution to distinguish a token minted just
-                    # before vs. just after a same-second password change.
-                    "sessions_valid_after_ms": _now_ms(),
+                    # Sessions whose ``issued_at`` is strictly less than
+                    # this watermark are rejected. Bumped on every
+                    # password/username change so a rotation also
+                    # revokes any stolen cookies. ``_monotonic_ms()``
+                    # guarantees the next call returns a higher value,
+                    # so a token minted right after this passes the check.
+                    "sessions_valid_after_ms": self._monotonic_ms(),
                 }
             ]
             # Creating an account is an explicit "I want auth on" decision —
@@ -427,7 +450,7 @@ class AuthService:
                             raise ValueError("Username is already taken")
                     u["username"] = new_username
                     u["updated_at"] = int(time.time())
-                    u["sessions_valid_after_ms"] = _now_ms()
+                    u["sessions_valid_after_ms"] = self._monotonic_ms()
                     self._save()
                     return new_username
             raise InvalidCredentials("Unknown user")
@@ -443,10 +466,10 @@ class AuthService:
                     u["password_hash"] = hash_password(new)
                     u["updated_at"] = int(time.time())
                     # Revoke every session minted strictly before now.
-                    # The caller mints a fresh session immediately after
-                    # this returns; that session's issued_at is sampled
-                    # *after* this cutoff so it passes.
-                    u["sessions_valid_after_ms"] = _now_ms()
+                    # ``_monotonic_ms()`` guarantees the next call returns
+                    # a higher value, so any session minted after this
+                    # returns satisfies ``issued_at >= cutoff``.
+                    u["sessions_valid_after_ms"] = self._monotonic_ms()
                     self._save()
                     return
             raise InvalidCredentials("Unknown user")
@@ -463,7 +486,7 @@ class AuthService:
         ok = verify_password(password, stored or "")
         if not user or not ok:
             raise InvalidCredentials("Invalid username or password")
-        now_ms = _now_ms()
+        now_ms = self._monotonic_ms()
         token = SessionToken(
             username=username,
             issued_at=now_ms,
