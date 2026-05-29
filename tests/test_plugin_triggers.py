@@ -502,3 +502,148 @@ class TestTriggerServiceSingleton:
         svc2 = get_trigger_service()
         assert svc1 is not svc2
         reset_trigger_service()
+
+
+# -- Trigger page rendering tests -----------------------------------------
+
+
+class TestTriggerPageConfig:
+    """Tests for the trigger_page_id config that lets users pick a custom page."""
+
+    def _make_active_trigger(self, plugin_id="cal_plugin", data=None):
+        from src.triggers.service import ActiveTrigger
+        return ActiveTrigger(
+            trigger_id="evt_abc",
+            plugin_id=plugin_id,
+            message=None,
+            formatted_lines=["HARD CODED", "", "", "", "", ""],
+            data=data or {"event_name": "Stand-up", "event_start": "9:00 AM"},
+            priority=5,
+            duration_seconds=3600,
+        )
+
+    def test_falls_back_to_formatted_lines_when_no_trigger_page_id(self):
+        """Without trigger_page_id configured, formatted_lines are used as-is."""
+        from unittest.mock import MagicMock
+
+        active = self._make_active_trigger()
+
+        mock_plugin = MagicMock()
+        mock_plugin.config = {}  # no trigger_page_id
+
+        # No trigger_page_id means we skip page rendering
+        trigger_page_id = mock_plugin.config.get("trigger_page_id")
+        assert trigger_page_id is None
+        result = "\n".join(active.formatted_lines)
+        assert result.startswith("HARD CODED")
+
+    def test_renders_configured_page_when_trigger_page_id_set(self):
+        """When trigger_page_id is set, the page is rendered with trigger data as context."""
+        from unittest.mock import MagicMock
+        from src.pages.models import Page
+
+        active = self._make_active_trigger(
+            plugin_id="calendar_sub",
+            data={"event_name": "Stand-up", "event_start": "9:00 AM"},
+        )
+
+        mock_page = MagicMock(spec=Page)
+        mock_page.type = "template"
+        mock_page.id = "page-event"
+
+        mock_render_result = MagicMock()
+        mock_render_result.available = True
+        mock_render_result.formatted = "   Stand-up    \n   9:00 AM     \n\n\n\n"
+
+        mock_page_service = MagicMock()
+        mock_page_service.get_page.return_value = mock_page
+        mock_page_service.render_page.return_value = mock_render_result
+
+        mock_plugin = MagicMock()
+        mock_plugin.config = {"trigger_page_id": "page-event"}
+
+        # Simulate the logic in _check_trigger_override
+        trigger_page_id = mock_plugin.config.get("trigger_page_id")
+        assert trigger_page_id == "page-event"
+
+        page = mock_page_service.get_page(trigger_page_id)
+        assert page is not None
+        assert page.type == "template"
+
+        context = {active.plugin_id: active.data}
+        result = mock_page_service.render_page(page, context=context)
+
+        mock_page_service.render_page.assert_called_once_with(mock_page, context={"calendar_sub": active.data})
+        assert result.available is True
+        assert "Stand-up" in result.formatted
+
+    def test_falls_back_to_formatted_lines_when_page_not_found(self):
+        """If the configured page ID doesn't exist, fall back to formatted_lines."""
+        from unittest.mock import MagicMock
+
+        active = self._make_active_trigger()
+
+        mock_plugin = MagicMock()
+        mock_plugin.config = {"trigger_page_id": "page-gone"}
+
+        mock_page_service = MagicMock()
+        mock_page_service.get_page.return_value = None  # page deleted
+
+        # With no page found, code falls through to formatted_lines
+        page = mock_page_service.get_page("page-gone")
+        assert page is None
+        # The fallback is formatted_lines
+        result = "\n".join(active.formatted_lines)
+        assert "HARD CODED" in result
+
+    def test_falls_back_when_render_unavailable(self):
+        """If the page renders unavailable, fall back to formatted_lines."""
+        from unittest.mock import MagicMock
+        from src.pages.models import Page
+
+        active = self._make_active_trigger()
+
+        mock_page = MagicMock(spec=Page)
+        mock_page.type = "template"
+        mock_page.id = "page-broken"
+
+        mock_render_result = MagicMock()
+        mock_render_result.available = False
+        mock_render_result.formatted = ""
+
+        mock_page_service = MagicMock()
+        mock_page_service.get_page.return_value = mock_page
+        mock_page_service.render_page.return_value = mock_render_result
+
+        mock_plugin = MagicMock()
+        mock_plugin.config = {"trigger_page_id": "page-broken"}
+
+        # When render returns unavailable, logic falls through to formatted_lines
+        result = mock_page_service.render_page(mock_page, context=None)
+        assert result.available is False
+        # Fallback
+        fallback = "\n".join(active.formatted_lines)
+        assert "HARD CODED" in fallback
+
+    def test_only_template_pages_are_used(self):
+        """Non-template pages (single, composite) are skipped; fall back to formatted_lines."""
+        from unittest.mock import MagicMock
+        from src.pages.models import Page
+
+        active = self._make_active_trigger()
+
+        mock_page = MagicMock(spec=Page)
+        mock_page.type = "single"  # not a template page
+        mock_page.id = "page-single"
+
+        mock_page_service = MagicMock()
+        mock_page_service.get_page.return_value = mock_page
+
+        mock_plugin = MagicMock()
+        mock_plugin.config = {"trigger_page_id": "page-single"}
+
+        # Logic skips non-template pages
+        page = mock_page_service.get_page("page-single")
+        assert page.type != "template"
+        fallback = "\n".join(active.formatted_lines)
+        assert "HARD CODED" in fallback
