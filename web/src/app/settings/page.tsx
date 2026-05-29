@@ -3,17 +3,21 @@
 import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   Cog,
   MonitorCog,
   Plug,
   Settings,
+  ShieldCheck,
   User,
   Wand2,
   Waves,
   Wrench,
 } from "lucide-react";
+
+import { api } from "@/lib/api";
 
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
@@ -46,6 +50,7 @@ import { useWizard } from "@/components/wizard-provider";
 
 type SectionId =
   | "general"
+  | "account"
   | "hardware"
   | "behavior"
   | "integrations"
@@ -54,6 +59,7 @@ type SectionId =
 
 const SECTION_IDS: readonly SectionId[] = [
   "general",
+  "account",
   "hardware",
   "behavior",
   "integrations",
@@ -79,9 +85,26 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const { triggerWizard } = useWizard();
 
-  const activeSection: SectionId = isSectionId(searchParams.get("section"))
-    ? (searchParams.get("section") as SectionId)
+  // The Account tab is only meaningful when auth is on — otherwise
+  // there's nothing to manage. Hide the tab entirely in that case.
+  const { data: authStatus } = useQuery({
+    queryKey: ["auth-status"],
+    queryFn: api.getAuthStatus,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const showAccount = !!authStatus?.enabled && !!authStatus.authenticated;
+
+  const requested = searchParams.get("section");
+  let activeSection: SectionId = isSectionId(requested)
+    ? requested
     : DEFAULT_SECTION;
+  // If the URL asks for a tab that isn't currently visible (e.g.
+  // ?section=account when auth is off), fall back to the default
+  // instead of rendering an empty tab body.
+  if (activeSection === "account" && !showAccount) {
+    activeSection = DEFAULT_SECTION;
+  }
 
   const handleSectionChange = useCallback(
     (id: string) => {
@@ -94,15 +117,19 @@ export default function SettingsPage() {
   );
 
   const sections = useMemo<SectionMeta[]>(
-    () => [
-      { id: "general", label: t("sectionGeneral"), icon: User },
-      { id: "hardware", label: t("sectionHardware"), icon: MonitorCog },
-      { id: "behavior", label: t("sectionBehavior"), icon: Waves },
-      { id: "integrations", label: t("sectionIntegrations"), icon: Plug },
-      { id: "system", label: t("sectionSystem"), icon: Cog },
-      { id: "advanced", label: t("sectionAdvanced"), icon: Wrench },
-    ],
-    [t]
+    () => {
+      const all: SectionMeta[] = [
+        { id: "general", label: t("sectionGeneral"), icon: User },
+        { id: "account", label: t("sectionAccount"), icon: ShieldCheck },
+        { id: "hardware", label: t("sectionHardware"), icon: MonitorCog },
+        { id: "behavior", label: t("sectionBehavior"), icon: Waves },
+        { id: "integrations", label: t("sectionIntegrations"), icon: Plug },
+        { id: "system", label: t("sectionSystem"), icon: Cog },
+        { id: "advanced", label: t("sectionAdvanced"), icon: Wrench },
+      ];
+      return showAccount ? all : all.filter((s) => s.id !== "account");
+    },
+    [t, showAccount]
   );
 
   return (
@@ -130,7 +157,6 @@ export default function SettingsPage() {
         </div>
 
         <TabsContent value="general" className="mt-0 space-y-6">
-          <AccountSection />
           <InstanceNameCard />
           <AppearanceSettings />
           <LanguageSettingsCard />
@@ -138,6 +164,12 @@ export default function SettingsPage() {
           <LocationSettingsCard />
           <AccessibilitySettings />
         </TabsContent>
+
+        {showAccount && (
+          <TabsContent value="account" className="mt-0 space-y-6">
+            <AccountSection />
+          </TabsContent>
+        )}
 
         <TabsContent value="hardware" className="mt-0 space-y-6">
           <DisplaySettings />
