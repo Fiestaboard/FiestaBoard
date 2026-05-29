@@ -9,10 +9,15 @@ mkdir -p "$INSTALL_DIR"
 install -m 0644 files/docker-compose.yml "${INSTALL_DIR}/docker-compose.yml"
 install -m 0644 files/env.template       "${INSTALL_DIR}/env.template"
 install -m 0755 files/firstboot.sh       "${INSTALL_DIR}/firstboot.sh"
+install -m 0755 files/heal-mdns.sh       "${INSTALL_DIR}/heal-mdns.sh"
 
-# systemd unit
+# systemd units
 install -m 0644 files/fiestaboard.service \
     "${ROOTFS_DIR}/etc/systemd/system/fiestaboard.service"
+install -m 0644 files/fiestapi-heal-mdns.service \
+    "${ROOTFS_DIR}/etc/systemd/system/fiestapi-heal-mdns.service"
+install -m 0644 files/fiestapi-heal-mdns.timer \
+    "${ROOTFS_DIR}/etc/systemd/system/fiestapi-heal-mdns.timer"
 
 on_chroot <<'EOF'
 # ── Docker installation ───────────────────────────────────────────────────
@@ -32,6 +37,10 @@ apt-get install -y --no-install-recommends \
 # Enable Docker and FiestaBoard to start on boot.
 systemctl enable docker
 systemctl enable fiestaboard.service
+
+# Periodic self-heal for the fiestapi.local mDNS hostname.  See heal-mdns.sh
+# for why this is needed (avahi never retries the bare name after a rename).
+systemctl enable fiestapi-heal-mdns.timer
 
 # Add the default user (uid 1000) to the docker group.
 FIRST_USER="$(getent passwd 1000 | cut -d: -f1)"

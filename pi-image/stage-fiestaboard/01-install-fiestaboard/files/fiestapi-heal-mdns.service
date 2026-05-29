@@ -1,0 +1,9 @@
+[Unit]
+Description=Reclaim fiestapi.local if avahi has renamed itself after a past mDNS conflict
+After=avahi-daemon.service network-online.target
+Wants=network-online.target
+Requires=avahi-daemon.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/fiestaboard/heal-mdns.sh

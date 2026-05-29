@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically heal fiestapi.local mDNS hostname
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+Persistent=true
+Unit=fiestapi-heal-mdns.service
+
+[Install]
+WantedBy=timers.target

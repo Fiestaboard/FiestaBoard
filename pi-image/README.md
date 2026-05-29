@@ -63,5 +63,8 @@ pi-image/
             ├── docker-compose.yml
             ├── env.template
             ├── fiestaboard.service
-            └── firstboot.sh
+            ├── fiestapi-heal-mdns.service
+            ├── fiestapi-heal-mdns.timer
+            ├── firstboot.sh
+            └── heal-mdns.sh
 ```
