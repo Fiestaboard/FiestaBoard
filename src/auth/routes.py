@@ -59,6 +59,10 @@ class ChangeUsernameRequest(BaseModel):
     new_username: str = Field(..., min_length=1, max_length=64)
 
 
+class DisableAuthRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=1024)
+
+
 class PreferenceRequest(BaseModel):
     # ``True`` -> persist "enabled" (admin must then call /setup).
     # ``False`` -> persist "disabled" (auth becomes a no-op).
@@ -307,3 +311,38 @@ async def auth_change_username(
     new_token = svc.authenticate(new_username, payload.current_password)
     _set_session_cookie(response, request, new_token)
     return SimpleResponse(status="ok", username=new_username)
+
+
+@router.post("/disable", response_model=SimpleResponse)
+async def auth_disable(
+    payload: DisableAuthRequest, request: Request, response: Response
+) -> SimpleResponse:
+    """Turn off auth enforcement after a password check.
+
+    Requires both a valid session cookie *and* the current password.
+    The cookie alone isn't enough — that would let a stolen-cookie
+    attacker silently open the install up. The user record is
+    deleted at the same time and the session cookie cleared.
+    """
+    if _auth_env_override() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Auth mode is pinned by FIESTABOARD_AUTH_ENABLED.",
+        )
+    svc = get_auth_service()
+    cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    username = svc.verify_session(cookie) if cookie else None
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+    try:
+        svc.disable_auth_for_user(username, payload.current_password)
+    except InvalidCredentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Password is incorrect",
+        )
+    _clear_session_cookie(response)
+    logger.info("Auth disabled by user '%s'", username)
+    return SimpleResponse(status="ok")

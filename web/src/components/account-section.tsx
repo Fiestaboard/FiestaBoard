@@ -1,22 +1,35 @@
 "use client";
 
 /**
- * Account settings card shown on the profile page when authentication is
- * enabled. Lets the signed-in admin:
+ * Account settings — rendered as a stack of sibling cards on the
+ * Account tab in Settings:
  *
- *   - change their username (gated by current password)
- *   - change their password
- *   - sign out
+ *   1. Signed in (identity readout)
+ *   2. Change username
+ *   3. Change password
+ *   4. Sign out
+ *   5. Disable login (password-gated, with warning modal)
  *
- * Hides itself entirely when auth is disabled so local-only installs see
- * no UI clutter related to a feature they aren't using.
+ * Hides itself entirely when auth is disabled or the user isn't
+ * signed in.
  */
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ShieldCheck, LogOut } from "lucide-react";
+import { KeyRound, LogOut, ShieldAlert, ShieldOff, UserCircle2, UserCog } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +48,6 @@ export function AccountSection() {
     retry: false,
   });
 
-  // Hide the section entirely when auth is off or the user isn't signed in.
   if (isLoading) {
     return (
       <Card data-testid="account-loading">
@@ -52,41 +64,100 @@ export function AccountSection() {
     return null;
   }
 
+  const username = authStatus.username ?? "—";
+
+  const handleSignOut = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Server cookie clear is best-effort.
+    }
+    queryClient.removeQueries({ queryKey: ["auth-status"] });
+    router.replace("/login");
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          Account
-        </CardTitle>
-        <CardDescription>
-          Signed in as{" "}
-          <span className="font-mono">{authStatus.username ?? "—"}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <ChangeUsernameForm currentUsername={authStatus.username ?? ""} />
-        <div className="border-t" />
-        <ChangePasswordForm />
-        <div className="border-t" />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={async () => {
-            try {
-              await api.logout();
-            } catch {
-              // Ignore — the server-side cookie clear is best-effort and
-              // we want the redirect to happen either way.
-            }
-            queryClient.removeQueries({ queryKey: ["auth-status"] });
-            router.replace("/login");
-          }}
-        >
-          <LogOut className="h-4 w-4" /> Sign out
-        </Button>
-      </CardContent>
-    </Card>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <UserCircle2 className="h-4 w-4 text-muted-foreground" />
+            Signed in
+          </CardTitle>
+          <CardDescription>
+            You&apos;re currently signed in as{" "}
+            <span className="font-mono text-foreground">{username}</span>.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <UserCog className="h-4 w-4 text-muted-foreground" />
+            Change username
+          </CardTitle>
+          <CardDescription>
+            Pick a new sign-in name. Requires your current password.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChangeUsernameForm currentUsername={username} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <KeyRound className="h-4 w-4 text-muted-foreground" />
+            Change password
+          </CardTitle>
+          <CardDescription>
+            Rotate your password. Any other sessions signed in with the old
+            password will be signed out.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <LogOut className="h-4 w-4 text-muted-foreground" />
+            Sign out
+          </CardTitle>
+          <CardDescription>
+            End your current session. You&apos;ll be sent back to the sign-in
+            page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button type="button" variant="outline" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4" /> Sign out
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldOff className="h-4 w-4 text-destructive" />
+            Disable login
+          </CardTitle>
+          <CardDescription>
+            Turn off authentication entirely. Anyone who can reach this
+            FiestaBoard on the network will be able to change settings and
+            read API keys. Not recommended unless this device is on a fully
+            trusted private network.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DisableAuthDialog username={username} />
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
@@ -115,8 +186,7 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
   const unchanged = newUsername.trim() === currentUsername;
 
   return (
-    <form className="space-y-3 max-w-sm" onSubmit={onSubmit} aria-label="Change username">
-      <h3 className="text-sm font-medium">Change username</h3>
+    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label="Change username">
       <div className="space-y-2">
         <Label htmlFor="account-username">New username</Label>
         <Input
@@ -181,8 +251,7 @@ function ChangePasswordForm() {
   };
 
   return (
-    <form className="space-y-3 max-w-sm" onSubmit={onSubmit} aria-label="Change password">
-      <h3 className="text-sm font-medium">Change password</h3>
+    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label="Change password">
       <div className="space-y-2">
         <Label htmlFor="account-current-password">Current password</Label>
         <Input
@@ -231,5 +300,116 @@ function ChangePasswordForm() {
         {submitting ? "Saving…" : "Save password"}
       </Button>
     </form>
+  );
+}
+
+function DisableAuthDialog({ username }: { username: string }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onConfirm = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!password) return;
+    setSubmitting(true);
+    try {
+      await api.disableAuth(password);
+      toast.success("Authentication disabled");
+      setPassword("");
+      setOpen(false);
+      // The install is now wide open — drop cached auth state and
+      // send the user home. /login no longer applies.
+      queryClient.removeQueries({ queryKey: ["auth-status"] });
+      router.replace("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to disable auth");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setPassword("");
+          setError(null);
+        }
+      }}
+    >
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="destructive">
+          <ShieldOff className="h-4 w-4" /> Disable login
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-destructive" />
+            Disable login for this FiestaBoard?
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3 text-sm">
+              <p>
+                Turning off login removes the{" "}
+                <span className="font-mono">{username}</span> account and
+                opens this FiestaBoard up to anyone who can reach it on the
+                network — they&apos;ll be able to read your API keys, change
+                your board configuration, and modify any settings.
+              </p>
+              <p>
+                Only do this if this device is on a fully trusted private
+                network (no roommates, no guests, no smart-home devices
+                you don&apos;t control). Strongly{" "}
+                <strong>not recommended</strong> if this FiestaBoard is
+                reachable from the internet.
+              </p>
+              <p>
+                Your board keeps displaying as normal either way — this
+                only controls who can sign in to change settings.
+              </p>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <form onSubmit={onConfirm} className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="disable-auth-password">
+              Confirm your current password to continue
+            </Label>
+            <Input
+              id="disable-auth-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+              required
+              autoFocus
+            />
+          </div>
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              disabled={submitting || !password}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {submitting ? "Disabling…" : "Yes, disable login"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </form>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

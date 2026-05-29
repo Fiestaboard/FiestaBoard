@@ -474,6 +474,31 @@ class AuthService:
                     return
             raise InvalidCredentials("Unknown user")
 
+    def disable_auth_for_user(self, username: str, password: str) -> None:
+        """Turn off auth enforcement after a password check.
+
+        Used by the in-app "Disable login" flow on the Account tab.
+        Gated by the current password so a stolen cookie alone can't
+        be used to silently open up the install. The stored user is
+        deleted at the same time — once auth is off there is no
+        notion of "the admin," and leaving a stale credential lying
+        around in ``data/auth.json`` would only invite confusion
+        when auth is later re-enabled.
+        """
+        with self._lock:
+            users = self._data.get("users", [])
+            for u in users:
+                if u.get("username") == username:
+                    if not verify_password(password, u.get("password_hash", "")):
+                        raise InvalidCredentials("Password is incorrect")
+                    self._data["users"] = [
+                        other for other in users if other is not u
+                    ]
+                    self._data["auth_pref"] = "disabled"
+                    self._save()
+                    return
+            raise InvalidCredentials("Unknown user")
+
     # -- auth flow ---------------------------------------------------------
 
     def authenticate(self, username: str, password: str) -> str:

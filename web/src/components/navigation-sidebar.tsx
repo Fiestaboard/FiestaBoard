@@ -276,13 +276,11 @@ export function NavigationSidebar() {
         <div className="shrink-0 px-3 py-3 text-sidebar-foreground">
           <nav aria-label={t("secondaryNavigation")} className="space-y-1">
             {secondaryItems.map(renderMobileNavItem)}
+            <SidebarAccount variant="mobile" />
           </nav>
-          <div className="mt-2 border-t border-sidebar-border/80 pt-3 space-y-2">
-            <SidebarAccount />
-            <div className="flex items-center justify-between gap-2 px-4">
-              <VersionDisplay />
-              <ThemeToggle />
-            </div>
+          <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/80 px-4 pt-3">
+            <VersionDisplay />
+            <ThemeToggle />
           </div>
         </div>
       </div>
@@ -385,21 +383,14 @@ export function NavigationSidebar() {
             <div className="shrink-0 px-2 pt-2 pb-3">
               <nav aria-label={t("secondaryNavigation")} className="space-y-1">
                 {secondaryItems.map(renderDesktopNavItem)}
+                <SidebarAccount collapsed={collapsed} />
               </nav>
-              <div className="mt-2 border-t border-sidebar-border/80 pt-2 space-y-1">
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/80 py-2 pl-[14px] pr-3">
                 <div className={cn(
-                  "px-2",
-                  collapsed && "flex justify-center px-0",
-                )}>
-                  <SidebarAccount collapsed={collapsed} />
-                </div>
-                <div className="flex items-center justify-between gap-2 py-1 pl-[14px] pr-3">
-                  <div className={cn(
-                    "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-100",
-                    collapsed ? "max-w-0 opacity-0" : "max-w-[min(200px,100%)] opacity-100 delay-150",
-                  )}><VersionDisplay /></div>
-                  <div className="flex-shrink-0"><ThemeToggle /></div>
-                </div>
+                  "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-100",
+                  collapsed ? "max-w-0 opacity-0" : "max-w-[min(200px,100%)] opacity-100 delay-150",
+                )}><VersionDisplay /></div>
+                <div className="flex-shrink-0"><ThemeToggle /></div>
               </div>
             </div>
           </div>

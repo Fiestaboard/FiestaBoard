@@ -1989,4 +1989,33 @@ export const api = {
     }
     return (await res.json()) as { status: string; username: string };
   },
+
+  /**
+   * Turn off auth enforcement and delete the admin user. Gated by the
+   * current password server-side so a stolen cookie alone can't open
+   * the install up. After this returns the install is wide open —
+   * the caller should redirect somewhere sensible (e.g. the home
+   * page) since /login no longer applies.
+   */
+  disableAuth: async (currentPassword: string) => {
+    const res = await fetch("/api/auth/disable", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_password: currentPassword }),
+    });
+    if (!res.ok) {
+      let detail: string | undefined;
+      try {
+        const data = await res.json();
+        if (data && typeof data.detail === "string") {
+          detail = data.detail;
+        }
+      } catch {
+        /* no JSON body */
+      }
+      throw new Error(detail || `Disable auth failed (${res.status})`);
+    }
+    return (await res.json()) as { status: string };
+  },
 };

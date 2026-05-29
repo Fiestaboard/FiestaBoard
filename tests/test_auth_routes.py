@@ -346,3 +346,53 @@ def test_change_username_rejects_invalid(client, enabled):
         json={"current_password": "supersecret", "new_username": "has space"},
     )
     assert r.status_code == 400
+
+
+# --- /auth/disable ---------------------------------------------------------
+
+
+def test_disable_auth_happy_path(client, enabled, monkeypatch):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    # Clear the env-var pin so set_auth_preference("disabled") actually
+    # takes effect for the next /auth/status call.
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+    r = client.post(
+        "/auth/disable", json={"current_password": "supersecret"}
+    )
+    assert r.status_code == 200, r.text
+    # The session cookie was cleared and the user record removed.
+    status_body = client.get("/auth/status").json()
+    assert status_body["enabled"] is False
+    assert status_body["authenticated"] is False
+    assert status_body["setup_required"] is False
+    assert status_body["mode"] == "disabled"
+
+
+def test_disable_auth_requires_password(client, enabled, monkeypatch):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    # Clear the env pin so the env-pinned 409 doesn't shadow the
+    # actual code path under test.
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+    r = client.post("/auth/disable", json={"current_password": "wrong"})
+    assert r.status_code == 401
+    # Still signed in and auth still enforced (pref is "enabled" after setup).
+    assert client.get("/auth/status").json()["authenticated"] is True
+
+
+def test_disable_auth_requires_auth(client, enabled, monkeypatch):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+    client.cookies.clear()
+    r = client.post("/auth/disable", json={"current_password": "supersecret"})
+    assert r.status_code == 401
+
+
+def test_disable_auth_blocked_when_env_pinned(client, enabled):
+    """The env var always wins — UI can't override an ops-pinned mode."""
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    # `enabled` fixture sets FIESTABOARD_AUTH_ENABLED=true and leaves it set.
+    r = client.post(
+        "/auth/disable", json={"current_password": "supersecret"}
+    )
+    assert r.status_code == 409
+    assert "FIESTABOARD_AUTH_ENABLED" in r.json()["detail"]
