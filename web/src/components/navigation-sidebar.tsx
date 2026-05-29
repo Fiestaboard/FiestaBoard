@@ -77,6 +77,11 @@ export function NavigationSidebar() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  // Hide the sidebar on auth screens — the user isn't navigating
+  // anywhere until they sign in / finish setup, and chrome around
+  // the login form makes a fresh install look broken.
+  if (pathname.startsWith("/login")) return null;
+
   const isActive = (item: NavItem) => {
     if (item.external) return false;
     return item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
