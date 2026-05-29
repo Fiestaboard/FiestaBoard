@@ -251,8 +251,8 @@ export default function LoginPage() {
     return (
       <CenteredCard
         icon={<ShieldQuestion className="h-6 w-6 text-brand" />}
-        title="Secure this FiestaBoard?"
-        description="FiestaBoard ships with login enabled by default. Pick one — you can change your mind later by setting FIESTABOARD_AUTH_ENABLED."
+        title="Protect this FiestaBoard?"
+        description="A username and password keep your API keys, board configuration, and other settings from being read or changed by anyone else who can reach this device on your network."
       >
         <div className="space-y-3">
           <Button
@@ -262,7 +262,7 @@ export default function LoginPage() {
             onClick={() => setFirstRunChoice("enable")}
             disabled={submitting}
           >
-            <ShieldCheck className="h-4 w-4" /> Enable login (recommended)
+            <ShieldCheck className="h-4 w-4" /> Set up a username & password (recommended)
           </Button>
           <Button
             type="button"
@@ -276,7 +276,7 @@ export default function LoginPage() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Disabling…
               </>
             ) : (
-              "Continue without login"
+              "Skip — anyone on my network can access this"
             )}
           </Button>
           {formError && (
@@ -285,10 +285,11 @@ export default function LoginPage() {
             </Alert>
           )}
           <p className="text-xs text-muted-foreground">
-            Choose <strong>Enable login</strong> if this FiestaBoard is
-            reachable from the public internet. Choose{" "}
-            <strong>Continue without login</strong> for a private LAN-only
-            install.
+            Strongly recommended if you share Wi-Fi with people you don&apos;t
+            fully trust (roommates, guests, smart-home devices), or if this
+            FiestaBoard is reachable from the internet. Your board keeps
+            displaying as normal either way — this only controls who can sign
+            in to change settings.
           </p>
         </div>
       </CenteredCard>
@@ -463,8 +464,16 @@ function CenteredCard({
         </CardHeader>
         <CardContent>{children}</CardContent>
         <CardFooter className="text-xs text-muted-foreground">
-          FiestaBoard authentication is opt-in. Disable it by unsetting{" "}
-          <code className="mx-1">FIESTABOARD_AUTH_ENABLED</code> on the host.
+          You can change this later — see the{" "}
+          <a
+            href="https://fiestaboard.app/docs/setup/authentication"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-foreground"
+          >
+            authentication docs
+          </a>
+          .
         </CardFooter>
       </Card>
     </div>
