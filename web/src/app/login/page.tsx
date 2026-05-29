@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion, Loader2 } from "lucide-react";
 import type { AuthStatusResponse } from "@/lib/api";
@@ -442,8 +443,15 @@ function CenteredCard({
 }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div className="mb-6">
-        <FiestaLogo />
+      <div className="mb-6 flex items-center gap-3">
+        <Image
+          src="/icons/favicon-32x32.png"
+          alt="FiestaBoard"
+          width={36}
+          height={36}
+          className="flex-shrink-0"
+        />
+        <FiestaLogo className="text-2xl" />
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
