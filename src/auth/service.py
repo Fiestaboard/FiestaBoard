@@ -227,7 +227,12 @@ def _signing_key(auth_file: Path) -> bytes:
     """
     key_path = auth_file.parent / ".session_key"
     if key_path.exists():
-        return key_path.read_bytes().strip()
+        # Read raw bytes — do NOT strip() here. secrets.token_bytes(32)
+        # can include leading/trailing whitespace bytes (\t \n \r space),
+        # and silently stripping them shortens the key, breaks the HMAC,
+        # and makes every previously-issued session fail verification —
+        # a flaky test that bites roughly 1 in 5-10 fresh keys.
+        return key_path.read_bytes()
     auth_file.parent.mkdir(parents=True, exist_ok=True)
     key = secrets.token_bytes(32)
     fd = os.open(

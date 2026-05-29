@@ -148,6 +148,32 @@ describe("AccountSection", () => {
     });
   });
 
+  it("rejects new passwords shorter than 8 chars without calling the API", async () => {
+    mockAuthStatus(authStatusAuthenticated);
+    let called = false;
+    server.use(
+      http.post("/api/auth/change-password", () => {
+        called = true;
+        return HttpResponse.json({ status: "ok", username: "admin" });
+      }),
+    );
+
+    render(<AccountSection />, { wrapper: TestWrapper });
+    await screen.findByText("Change password");
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByLabelText(/Current password/i, { selector: "#account-current-password" }),
+      "supersecret",
+    );
+    await user.type(screen.getByLabelText(/^New password/i), "short");
+    await user.type(screen.getByLabelText(/Confirm new password/i), "short");
+    await user.click(screen.getByRole("button", { name: /Save password/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/at least 8/i);
+    expect(called).toBe(false);
+  });
+
   it("rejects mismatched confirm without calling the API", async () => {
     mockAuthStatus(authStatusAuthenticated);
     let called = false;
@@ -194,5 +220,96 @@ describe("AccountSection", () => {
       expect(logoutCalled).toBe(true);
     });
     expect(replaceMock).toHaveBeenCalledWith("/login");
+  });
+
+  it("renders the 'Turn on login' nudge when auth is disabled", async () => {
+    mockAuthStatus(authStatusDisabled);
+    render(<AccountSection />, { wrapper: TestWrapper });
+    await screen.findByText("Turn on login");
+    expect(
+      screen.getByRole("button", { name: /Set up a username/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("'Turn on login' button POSTs preference and routes to /login", async () => {
+    mockAuthStatus(authStatusDisabled);
+    let body: { enabled?: boolean } | null = null;
+    const pushMock = vi.fn();
+    // Re-mock useRouter for this test to capture push().
+    const navMock = await import("next/navigation");
+    vi.spyOn(navMock, "useRouter").mockReturnValue({
+      push: pushMock,
+      replace: replaceMock,
+      refresh: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      prefetch: vi.fn(),
+    } as never);
+    server.use(
+      http.post("/api/auth/preference", async ({ request }) => {
+        body = (await request.json()) as { enabled?: boolean };
+        return HttpResponse.json({ status: "ok" });
+      }),
+    );
+
+    render(<AccountSection />, { wrapper: TestWrapper });
+    await screen.findByText("Turn on login");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Set up a username/i }));
+
+    await waitFor(() => {
+      expect(body).toEqual({ enabled: true });
+    });
+    expect(pushMock).toHaveBeenCalledWith("/login");
+  });
+
+  it("opens the Disable login confirmation when the button is clicked", async () => {
+    mockAuthStatus(authStatusAuthenticated);
+    render(<AccountSection />, { wrapper: TestWrapper });
+    // Wait until the section finishes loading.
+    await screen.findByRole("button", { name: /^Disable login$/i });
+
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /^Disable login$/i }),
+    );
+
+    // Modal opens and asks for current password.
+    await screen.findByText(/Disable login for this FiestaBoard\?/i);
+    expect(
+      screen.getByLabelText(/Confirm your current password/i),
+    ).toBeInTheDocument();
+  });
+
+  it("'Disable login' POSTs the current password and clears auth", async () => {
+    mockAuthStatus(authStatusAuthenticated);
+    let body: { current_password?: string } | null = null;
+    server.use(
+      http.post("/api/auth/disable", async ({ request }) => {
+        body = (await request.json()) as { current_password?: string };
+        return HttpResponse.json({ status: "ok" });
+      }),
+    );
+
+    render(<AccountSection />, { wrapper: TestWrapper });
+    await screen.findByRole("button", { name: /^Disable login$/i });
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /^Disable login$/i }),
+    );
+    await screen.findByText(/Disable login for this FiestaBoard\?/i);
+
+    await user.type(
+      screen.getByLabelText(/Confirm your current password/i),
+      "supersecret",
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Yes, disable login/i }),
+    );
+
+    await waitFor(() => {
+      expect(body).toEqual({ current_password: "supersecret" });
+    });
+    expect(replaceMock).toHaveBeenCalledWith("/");
   });
 });
