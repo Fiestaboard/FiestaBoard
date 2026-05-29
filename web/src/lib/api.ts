@@ -1100,7 +1100,10 @@ export interface SystemActionResponse {
 const DEFAULT_TIMEOUT_MS = 30000;
 
 /**
- * On 401 responses, send the user to /login.
+ * On 401 (not authenticated) or 409 setup-required responses, send the
+ * user to /login. The login page handles both cases: an unsigned-in
+ * user sees the sign-in form; a fresh install with no admin yet sees
+ * the first-run picker / setup form.
  *
  * Runs in the browser only and never on the login page itself (to avoid
  * a redirect loop while signing in). The current URL is preserved in the
@@ -1111,7 +1114,26 @@ const DEFAULT_TIMEOUT_MS = 30000;
 function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
   if (typeof window === "undefined") return false;
   if (window.location.pathname.startsWith("/login")) return false;
-  if (res.status === 401) {
+  if (res.status === 401 || res.status === 409) {
+    // For 409 only redirect when the body actually says setup_required —
+    // other 409s (e.g. "already set up") should bubble up as errors.
+    if (res.status === 409) {
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) return false;
+      // Peek at the body without consuming it for the caller.
+      const cloned = res.clone();
+      cloned.json().then((body) => {
+        if (body?.setup_required) {
+          const target = encodeURIComponent(
+            window.location.pathname + window.location.search,
+          );
+          window.location.assign(`/login?redirect=${target}`);
+        }
+      }).catch(() => {
+        // Not JSON or malformed — leave the caller to surface the error.
+      });
+      return false;
+    }
     const target = encodeURIComponent(
       window.location.pathname + window.location.search,
     );
