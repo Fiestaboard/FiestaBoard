@@ -21,8 +21,6 @@ import { toast } from "sonner";
 import { KeyRound, LogOut, ShieldAlert, ShieldOff, UserCircle2, UserCog } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -399,14 +397,24 @@ function DisableAuthDialog({ username }: { username: string }) {
             </p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            {/* Plain buttons rather than AlertDialogCancel /
+                AlertDialogAction so the Radix primitives don't
+                pre-close the dialog and shadow the form submit. */}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
               type="submit"
+              variant="destructive"
               disabled={submitting || !password}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {submitting ? "Disabling…" : "Yes, disable login"}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </form>
       </AlertDialogContent>

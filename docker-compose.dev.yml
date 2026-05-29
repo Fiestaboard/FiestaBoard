@@ -13,6 +13,14 @@ services:
     environment:
       - PRODUCTION=false
       - WATCHPACK_POLLING=true
+      # Default a fresh dev install to talk to the bundled mock
+      # Vestaboard instead of leaving the host blank (which strands
+      # Active Display on a permanent spinner). These BOARD_* vars
+      # only apply when no value is already set in data/config.json,
+      # so anyone with an existing config keeps their real board.
+      - BOARD_API_MODE=local
+      - BOARD_HOST=fiestaboard-mock-board
+      - BOARD_LOCAL_API_KEY=mock-dev-key
     volumes:
       - ./data:/app/data
       - ./src:/app/src
