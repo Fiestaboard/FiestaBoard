@@ -1,7 +1,5 @@
 # tests/conftest.py
 
-import os
-
 import pytest
 from unittest.mock import Mock
 

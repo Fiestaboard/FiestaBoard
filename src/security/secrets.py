@@ -90,6 +90,9 @@ def _load_or_generate_key() -> bytes:
         try:
             _KEY_PATH.unlink(missing_ok=True)
         except OSError:
+            # If even the cleanup unlink fails, there's nothing
+            # useful to do — the original write failure (re-raised
+            # below) is the actionable error.
             pass
         raise
 

@@ -348,6 +348,9 @@ class AuthService:
             try:
                 tmp.unlink(missing_ok=True)
             except OSError:
+                # Cleanup of a cleanup failure — nothing useful we can
+                # do; the original exception below is the one that
+                # matters and we don't want to mask it.
                 pass
             raise
 
