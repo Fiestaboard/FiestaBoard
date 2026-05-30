@@ -12,9 +12,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getEffectiveBoardColor, useBoardSettings, useCarousels, usePages } from "@/hooks/use-board";
-import type { Carousel, Page, PagePreviewResponse } from "@/lib/api";
-import { api, isCarouselId } from "@/lib/api";
+import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
+import type { Collection, Page, PagePreviewResponse } from "@/lib/api";
+import { api, isCollectionId } from "@/lib/api";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -327,10 +327,10 @@ const MAX_STACK_CARDS = 5;
 const STACK_OFFSET_X = 18;
 const STACK_OFFSET_Y = 10;
 
-// Carousel button component with cascading stack of board previews
-const CarouselButton = memo(
-  function CarouselButton({
-    carousel,
+// Collection button component with cascading stack of board previews
+const CollectionButton = memo(
+  function CollectionButton({
+    collection,
     pages,
     previews,
     loadingPreviews,
@@ -340,13 +340,13 @@ const CarouselButton = memo(
     showActiveIndicator = true,
     boardType = "black",
   }: {
-    carousel: Carousel;
+    collection: Collection;
     pages: Page[];
     previews: Record<string, PagePreviewResponse>;
     loadingPreviews: boolean;
     isActive: boolean;
     isPending: boolean;
-    onSelect: (carouselId: string) => void;
+    onSelect: (collectionId: string) => void;
     showActiveIndicator?: boolean;
     boardType?: "black" | "white" | null;
   }) {
@@ -355,9 +355,9 @@ const CarouselButton = memo(
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        if (!isPending) onSelect(carousel.id);
+        if (!isPending) onSelect(collection.id);
       },
-      [carousel.id, isPending, onSelect],
+      [collection.id, isPending, onSelect],
     );
 
     const buttonClassName = isActive
@@ -372,7 +372,7 @@ const CarouselButton = memo(
       ? "text-sm font-medium truncate text-foreground"
       : "text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
 
-    const stackPages = carousel.page_ids.slice(0, MAX_STACK_CARDS).map((pid) => {
+    const stackPages = collection.page_ids.slice(0, MAX_STACK_CARDS).map((pid) => {
       const page = pages.find((p) => p.id === pid);
       return { pageId: pid, page, preview: previews[pid] || null };
     });
@@ -382,9 +382,9 @@ const CarouselButton = memo(
       <button onClick={handleClick} disabled={isPending} className={buttonClassName} type="button">
         <div className="flex items-center gap-2.5 min-w-0">
           <GalleryHorizontalEnd className={iconClassName} />
-          <span className={nameClassName}>{carousel.name}</span>
+          <span className={nameClassName}>{collection.name}</span>
           <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
-            {tCommon("pageCount", { count: carousel.page_ids.length })}
+            {tCommon("pageCount", { count: collection.page_ids.length })}
           </Badge>
         </div>
 
@@ -435,14 +435,14 @@ const CarouselButton = memo(
   },
   (prevProps, nextProps) => {
     return (
-      prevProps.carousel.id === nextProps.carousel.id &&
+      prevProps.collection.id === nextProps.collection.id &&
       prevProps.isActive === nextProps.isActive &&
       prevProps.isPending === nextProps.isPending &&
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
       prevProps.boardType === nextProps.boardType &&
       prevProps.previews === nextProps.previews &&
       prevProps.loadingPreviews === nextProps.loadingPreviews &&
-      prevProps.carousel.updated_at === nextProps.carousel.updated_at
+      prevProps.collection.updated_at === nextProps.collection.updated_at
     );
   },
 );
@@ -464,8 +464,8 @@ export interface PageGridSelectorProps {
   deviceTypeFilter?: "flagship" | "note";
   /** View mode: "grid" shows previews, "list" shows compact list */
   viewMode?: ViewMode;
-  /** Whether to include carousels in the grid */
-  showCarousels?: boolean;
+  /** Whether to include collections in the grid */
+  showCollections?: boolean;
 }
 
 export function PageGridSelector({
@@ -476,16 +476,16 @@ export function PageGridSelector({
   label,
   deviceTypeFilter,
   viewMode = "grid",
-  showCarousels = true,
+  showCollections = true,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
   const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
   // Fetch all pages
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
 
-  // Fetch carousels
-  const { data: carouselsData } = useCarousels();
-  const carousels = useMemo(() => carouselsData?.carousels || [], [carouselsData]);
+  // Fetch collections
+  const { data: collectionsData } = useCollections();
+  const collections = useMemo(() => collectionsData?.collections || [], [collectionsData]);
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -646,8 +646,8 @@ export function PageGridSelector({
     );
   }
 
-  const showCarouselItems = showCarousels && carousels.length > 0;
-  const defaultTab = activePageId && isCarouselId(activePageId) ? "carousels" : "pages";
+  const showCollectionItems = showCollections && collections.length > 0;
+  const defaultTab = activePageId && isCollectionId(activePageId) ? "collections" : "pages";
 
   const pagesContent =
     viewMode === "list" ? (
@@ -680,16 +680,16 @@ export function PageGridSelector({
       </div>
     );
 
-  const carouselsGrid = (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("carouselsAriaLabel")}>
-      {carousels.map((carousel) => (
-        <CarouselButton
-          key={carousel.id}
-          carousel={carousel}
+  const collectionsGrid = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("collectionsAriaLabel")}>
+      {collections.map((collection) => (
+        <CollectionButton
+          key={collection.id}
+          collection={collection}
           pages={allPages}
           previews={previews}
           loadingPreviews={loadingPreviews}
-          isActive={carousel.id === activePageId}
+          isActive={collection.id === activePageId}
           isPending={isPending}
           onSelect={onSelectPage}
           showActiveIndicator={showActiveIndicator}
@@ -699,7 +699,7 @@ export function PageGridSelector({
     </div>
   );
 
-  if (!showCarouselItems) {
+  if (!showCollectionItems) {
     return (
       <div>
         {effectiveLabel && <p className="text-xs font-medium text-muted-foreground mb-3">{effectiveLabel}</p>}
@@ -716,13 +716,13 @@ export function PageGridSelector({
             <LayoutTemplate className="h-4 w-4" />
             {t("pagesTab", { count: pages.length })}
           </TabsTrigger>
-          <TabsTrigger value="carousels" className="flex-1 gap-1.5">
+          <TabsTrigger value="collections" className="flex-1 gap-1.5">
             <GalleryHorizontalEnd className="h-4 w-4" />
-            {t("carouselsTab", { count: carousels.length })}
+            {t("collectionsTab", { count: collections.length })}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pages">{pagesContent}</TabsContent>
-        <TabsContent value="carousels">{carouselsGrid}</TabsContent>
+        <TabsContent value="collections">{collectionsGrid}</TabsContent>
       </Tabs>
     </div>
   );

@@ -88,8 +88,8 @@ async function createPage(name: string, template: string[]): Promise<string> {
   return data.page.id;
 }
 
-async function createCarousel(name: string, pageIds: string[], intervalSeconds = 30): Promise<string> {
-  const res = await fetch(`${API_URL}/carousels`, {
+async function createCollection(name: string, pageIds: string[], intervalSeconds = 30): Promise<string> {
+  const res = await fetch(`${API_URL}/collections`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -98,17 +98,17 @@ async function createCarousel(name: string, pageIds: string[], intervalSeconds =
       interval_seconds: intervalSeconds,
     }),
   });
-  if (!res.ok) throw new Error(`createCarousel failed: ${res.status}`);
+  if (!res.ok) throw new Error(`createCollection failed: ${res.status}`);
   const data = await res.json();
-  return data.carousel.id;
+  return data.collection.id;
 }
 
-async function deleteAllCarousels() {
-  const res = await fetch(`${API_URL}/carousels`);
+async function deleteAllCollections() {
+  const res = await fetch(`${API_URL}/collections`);
   if (!res.ok) return;
   const data = await res.json();
-  for (const c of data.carousels ?? []) {
-    await fetch(`${API_URL}/carousels/${c.id}`, { method: "DELETE" });
+  for (const c of data.collections ?? []) {
+    await fetch(`${API_URL}/collections/${c.id}`, { method: "DELETE" });
   }
 }
 
@@ -297,7 +297,7 @@ async function fullReset() {
   await configureBoard();
   await resetToSingleBoard();
   await deleteAllSchedules();
-  await deleteAllCarousels();
+  await deleteAllCollections();
   await deleteAllPages();
   await disableAllPlugins();
 }
@@ -865,10 +865,10 @@ test.describe("Web UI Full-Page Screenshots", () => {
 
     const pages = await createDemoPages();
 
-    const carouselId = await createCarousel("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
+    const collectionId = await createCollection("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
 
     await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
-    await createSchedule(`carousel:${carouselId}`, "09:00", "17:00", "weekdays");
+    await createSchedule(`collection:${collectionId}`, "09:00", "17:00", "weekdays");
     await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
     await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
     await createSchedule(pages.transitHub, "12:00", "17:00", "weekends");
@@ -883,7 +883,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
 
     await setScheduleEnabled(false);
     await deleteAllSchedules();
-    await deleteAllCarousels();
+    await deleteAllCollections();
     await deleteAllPages();
   });
 
@@ -933,7 +933,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
 
     await setScheduleEnabled(false);
     await deleteAllSchedules();
-    await deleteAllCarousels();
+    await deleteAllCollections();
     await deleteAllPages();
   });
 });
@@ -1185,10 +1185,10 @@ test.describe("Getting Started Workflow Screenshots", () => {
 
     const pages = await createDemoPages();
 
-    const carouselId = await createCarousel("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
+    const collectionId = await createCollection("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
 
     await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
-    await createSchedule(`carousel:${carouselId}`, "09:00", "17:00", "weekdays");
+    await createSchedule(`collection:${collectionId}`, "09:00", "17:00", "weekdays");
     await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
     await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
     await createSchedule(pages.transitHub, "12:00", "17:00", "weekends");
@@ -1202,7 +1202,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
 
     await setScheduleEnabled(false);
     await deleteAllSchedules();
-    await deleteAllCarousels();
+    await deleteAllCollections();
     await deleteAllPages();
   });
 

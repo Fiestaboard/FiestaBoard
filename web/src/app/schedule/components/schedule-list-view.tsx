@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import type { Carousel, Page, ScheduleEntry } from "@/lib/api";
-import { isCarouselId } from "@/lib/api";
+import type { Collection, Page, ScheduleEntry } from "@/lib/api";
+import { isCollectionId } from "@/lib/api";
 
 interface ScheduleListViewProps {
   schedules: ScheduleEntry[];
   pages: Page[];
-  carousels?: Carousel[];
+  collections?: Collection[];
   onEdit: (schedule: ScheduleEntry) => void;
   onDelete: (id: string) => void;
   onToggleEnabled?: (schedule: ScheduleEntry, enabled: boolean) => void;
@@ -99,7 +99,7 @@ function useFormatters() {
 export function ScheduleListView({
   schedules,
   pages,
-  carousels = [],
+  collections = [],
   onEdit,
   onDelete,
   onToggleEnabled,
@@ -109,9 +109,9 @@ export function ScheduleListView({
   const { formatDays, formatTimeDisplay } = useFormatters();
 
   const getPageName = (pageId: string): string => {
-    if (isCarouselId(pageId)) {
-      const carousel = carousels.find((c) => c.id === pageId);
-      return carousel?.name || pageId;
+    if (isCollectionId(pageId)) {
+      const collection = collections.find((c) => c.id === pageId);
+      return collection?.name || pageId;
     }
     return pages.find((p) => p.id === pageId)?.name || pageId;
   };
@@ -137,7 +137,7 @@ export function ScheduleListView({
                 <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      {isCarouselId(schedule.page_id) && (
+                      {isCollectionId(schedule.page_id) && (
                         <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       )}
                       <span className="font-medium">{pageName}</span>

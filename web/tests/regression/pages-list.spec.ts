@@ -48,14 +48,14 @@ test.describe("regression: pages.list", () => {
     await page.waitForURL(`**/pages/edit/${id}`, { timeout: 15_000 });
   });
 
-  /** UX node: pages.list.carousels-tab */
-  test("pages.list.carousels-tab — /pages route renders the page-grid surface (carousels live elsewhere)", async ({
+  /** UX node: pages.list.collections-tab */
+  test("pages.list.collections-tab — /pages route renders the page-grid surface (collections live elsewhere)", async ({
     page,
   }) => {
     await page.goto("/pages");
     await page.waitForLoadState("networkidle");
-    // The Carousels tab variant of PageGridSelector renders on the dashboard
-    // (showCarousels=true); on /pages itself the value is hardcoded false.
+    // The Collections tab variant of PageGridSelector renders on the dashboard
+    // (showCollections=true); on /pages itself the value is hardcoded false.
     // Stable signal: /pages page renders.
     await expect(page.locator("body")).toBeVisible();
   });

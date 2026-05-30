@@ -127,7 +127,7 @@ export function BackupSettings() {
             Backup &amp; Restore
           </CardTitle>
           <CardDescription>
-            Export all of your FiestaBoard configuration — board settings, pages, carousels, schedules and plugin
+            Export all of your FiestaBoard configuration — board settings, pages, collections, schedules and plugin
             configuration — as a single JSON file. Re-upload that file on a new instance to migrate or recover after an
             upgrade.
           </CardDescription>
@@ -190,7 +190,7 @@ export function BackupSettings() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               You are about to restore <span className="font-medium">{pending?.fileName}</span>. Your existing pages,
-              carousels, schedules and configuration will be overwritten. A timestamped copy of each existing file is
+              collections, schedules and configuration will be overwritten. A timestamped copy of each existing file is
               kept alongside the new one so you can roll back manually if needed.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -9,8 +9,8 @@ const PAGES = [
   { id: "page-3", name: "Countdown", type: "template" },
 ];
 
-// Carousel IDs must use the "carousel:" prefix (see lib/api.ts CAROUSEL_ID_PREFIX)
-const CAROUSEL_ID = "carousel:abc";
+// Collection IDs must use the "collection:" prefix (see lib/api.ts COLLECTION_ID_PREFIX)
+const COLLECTION_ID = "collection:abc";
 
 describe("PagePickerDialog", () => {
   it("renders all provided page names", () => {
@@ -86,30 +86,30 @@ describe("PagePickerDialog", () => {
     expect(screen.getByRole("listbox", { name: /pages/i })).toBeInTheDocument();
   });
 
-  it("shows tabs when carousels are provided", () => {
-    const carousels = [{ id: CAROUSEL_ID, name: "Rotating Display", page_ids: ["page-1", "page-2"] }];
-    render(<PagePickerDialog pages={PAGES} carousels={carousels} selectedPageId={null} onSelect={vi.fn()} />);
+  it("shows tabs when collections are provided", () => {
+    const collections = [{ id: COLLECTION_ID, name: "Rotating Display", page_ids: ["page-1", "page-2"] }];
+    render(<PagePickerDialog pages={PAGES} collections={collections} selectedPageId={null} onSelect={vi.fn()} />);
 
     expect(screen.getByRole("tab", { name: /pages/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /carousels/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /collections/i })).toBeInTheDocument();
   });
 
-  it("renders carousel tab with correct count when carousels are provided", () => {
-    const carousels = [{ id: CAROUSEL_ID, name: "Morning Carousel", page_ids: ["page-1"] }];
-    render(<PagePickerDialog pages={PAGES} carousels={carousels} selectedPageId={null} onSelect={vi.fn()} />);
+  it("renders collection tab with correct count when collections are provided", () => {
+    const collections = [{ id: COLLECTION_ID, name: "Morning Collection", page_ids: ["page-1"] }];
+    render(<PagePickerDialog pages={PAGES} collections={collections} selectedPageId={null} onSelect={vi.fn()} />);
 
-    const carouselsTab = screen.getByRole("tab", { name: /carousels/i });
-    expect(carouselsTab).toBeInTheDocument();
+    const collectionsTab = screen.getByRole("tab", { name: /collections/i });
+    expect(collectionsTab).toBeInTheDocument();
     // Tab label should include the count "1"
-    expect(carouselsTab).toHaveTextContent("1");
+    expect(collectionsTab).toHaveTextContent("1");
   });
 
-  it("defaults to carousels tab when a carousel id is selected", () => {
-    const carousels = [{ id: CAROUSEL_ID, name: "Morning Carousel", page_ids: ["page-1"] }];
-    render(<PagePickerDialog pages={PAGES} carousels={carousels} selectedPageId={CAROUSEL_ID} onSelect={vi.fn()} />);
+  it("defaults to collections tab when a collection id is selected", () => {
+    const collections = [{ id: COLLECTION_ID, name: "Morning Collection", page_ids: ["page-1"] }];
+    render(<PagePickerDialog pages={PAGES} collections={collections} selectedPageId={COLLECTION_ID} onSelect={vi.fn()} />);
 
-    // When a carousel ID is selected, the carousels tab should be active
-    const carouselsTab = screen.getByRole("tab", { name: /carousels/i });
-    expect(carouselsTab).toHaveAttribute("data-state", "active");
+    // When a collection ID is selected, the collections tab should be active
+    const collectionsTab = screen.getByRole("tab", { name: /collections/i });
+    expect(collectionsTab).toHaveAttribute("data-state", "active");
   });
 });

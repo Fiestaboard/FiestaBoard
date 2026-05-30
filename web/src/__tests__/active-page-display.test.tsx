@@ -176,15 +176,17 @@ describe("ActivePageDisplay", () => {
     });
   });
 
-  it("shows Carousel badge when active page is a carousel", async () => {
+  it("shows Collection badge when active page is a collection", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: "carousel:test-carousel-id" })),
-      http.get(`${API_BASE}/carousels`, () =>
+      http.get(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({ page_id: "collection:test-collection-id" }),
+      ),
+      http.get(`${API_BASE}/collections`, () =>
         HttpResponse.json({
-          carousels: [
+          collections: [
             {
-              id: "carousel:test-carousel-id",
-              name: "Test Carousel",
+              id: "collection:test-collection-id",
+              name: "Test Collection",
               page_ids: ["page-1"],
               interval_seconds: 30,
               created_at: "2025-01-01T00:00:00Z",
@@ -198,8 +200,8 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Test Carousel")).toBeInTheDocument();
-      expect(screen.getByText("Carousel")).toBeInTheDocument();
+      expect(screen.getByText("Test Collection")).toBeInTheDocument();
+      expect(screen.getByText("Collection")).toBeInTheDocument();
     });
   });
 

@@ -304,13 +304,13 @@ export async function deletePage(id: string): Promise<void> {
   if (!res.ok) throw new Error(`deletePage failed: ${res.status}`);
 }
 
-/** Create a carousel via the API and return its full record. */
-export async function createCarousel(
+/** Create a collection via the API and return its full record. */
+export async function createCollection(
   name: string,
   pageIds: string[],
   intervalSeconds = 30,
 ): Promise<{ id: string; name: string; page_ids: string[]; interval_seconds: number }> {
-  const res = await fetch(`${API_URL}/carousels`, {
+  const res = await fetch(`${API_URL}/collections`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
@@ -320,19 +320,19 @@ export async function createCarousel(
     }),
   });
   if (!res.ok) {
-    throw new Error(`createCarousel failed: ${res.status} ${await res.text()}`);
+    throw new Error(`createCollection failed: ${res.status} ${await res.text()}`);
   }
   const data = await res.json();
-  return data.carousel;
+  return data.collection;
 }
 
-/** Delete every carousel via the API. */
-export async function deleteAllCarousels(): Promise<void> {
-  const res = await fetch(`${API_URL}/carousels`, { headers: authHeaders() });
+/** Delete every collection via the API. */
+export async function deleteAllCollections(): Promise<void> {
+  const res = await fetch(`${API_URL}/collections`, { headers: authHeaders() });
   if (!res.ok) return;
   const data = await res.json();
-  for (const c of data.carousels || []) {
-    await fetch(`${API_URL}/carousels/${c.id}`, {
+  for (const c of data.collections || []) {
+    await fetch(`${API_URL}/collections/${c.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });

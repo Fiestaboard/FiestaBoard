@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import type { Carousel } from "@/lib/api";
+import type { Collection } from "@/lib/api";
 
 import { PagePickerDialog } from "./page-picker-dialog";
 
@@ -118,47 +118,51 @@ export const Interactive = () => {
   );
 };
 
-const mockCarousels: Carousel[] = [
+const mockCollections: Collection[] = [
   {
-    id: "carousel:abc-123",
+    id: "collection:abc-123",
     name: "Morning Rotation",
     page_ids: ["page-1", "page-2", "page-3"],
-    interval_seconds: 30,
+    selection_mode: "time",
+    time: { interval_seconds: 30 },
+    variable: null,
     created_at: "2024-02-01T00:00:00Z",
   },
   {
-    id: "carousel:def-456",
+    id: "collection:def-456",
     name: "Evening Loop",
     page_ids: ["page-3", "page-4"],
-    interval_seconds: 60,
+    selection_mode: "time",
+    time: { interval_seconds: 60 },
+    variable: null,
     created_at: "2024-02-02T00:00:00Z",
   },
 ];
 
-export const WithCarousels: Story = {
+export const WithCollections: Story = {
   args: {
     pages: mockPages,
-    carousels: mockCarousels,
+    collections: mockCollections,
     selectedPageId: "page-1",
     onSelect: (pageId: string | null) => console.log("Selected:", pageId),
     allowNone: false,
   },
 };
 
-export const WithSelectedCarousel: Story = {
+export const WithSelectedCollection: Story = {
   args: {
     pages: mockPages,
-    carousels: mockCarousels,
-    selectedPageId: "carousel:abc-123",
+    collections: mockCollections,
+    selectedPageId: "collection:abc-123",
     onSelect: (pageId: string | null) => console.log("Selected:", pageId),
     allowNone: false,
   },
 };
 
-export const WithCarouselsAndNone: Story = {
+export const WithCollectionsAndNone: Story = {
   args: {
     pages: mockPages,
-    carousels: mockCarousels,
+    collections: mockCollections,
     selectedPageId: null,
     onSelect: (pageId: string | null) => console.log("Selected:", pageId),
     allowNone: true,

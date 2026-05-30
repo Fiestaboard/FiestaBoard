@@ -44,8 +44,8 @@ import {
   usePages,
   useSetActivePage,
 } from "@/hooks/use-board";
-import type { BoardCurrentMessageResponse, Carousel, SilenceStatus } from "@/lib/api";
-import { api, isCarouselId } from "@/lib/api";
+import type { BoardCurrentMessageResponse, Collection, SilenceStatus } from "@/lib/api";
+import { api, isCollectionId } from "@/lib/api";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 export function ActivePageDisplay() {
@@ -217,10 +217,10 @@ export function ActivePageDisplay() {
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
-  // Fetch carousels for name resolution and badge display
-  const { data: carouselsData } = useQuery({
-    queryKey: ["carousels"],
-    queryFn: api.getCarousels,
+  // Fetch collections for name resolution and badge display
+  const { data: collectionsData } = useQuery({
+    queryKey: ["collections"],
+    queryFn: api.getCollections,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -230,10 +230,10 @@ export function ActivePageDisplay() {
   // Get the active page ID based on mode
   const activePageId = scheduleEnabled ? activeScheduleData?.page_id || null : activePageData?.page_id || null;
 
-  const activeCarousel = useMemo(() => {
-    if (!activePageId || !isCarouselId(activePageId)) return null;
-    return carouselsData?.carousels?.find((c: Carousel) => c.id === activePageId) || null;
-  }, [activePageId, carouselsData]);
+  const activeCollection = useMemo(() => {
+    if (!activePageId || !isCollectionId(activePageId)) return null;
+    return collectionsData?.collections?.find((c: Collection) => c.id === activePageId) || null;
+  }, [activePageId, collectionsData]);
 
   // Defer activePageId updates to reduce priority of non-urgent re-renders
   // This makes clicking feel more responsive
@@ -318,11 +318,11 @@ export function ActivePageDisplay() {
     if (!activePageId && scheduleEnabled) {
       return t("scheduleGapNoDefault");
     }
-    if (activeCarousel) {
-      return activeCarousel.name;
+    if (activeCollection) {
+      return activeCollection.name;
     }
     return activePage?.name || "No page selected";
-  }, [activePage, activePageId, scheduleEnabled, activeCarousel]);
+  }, [activePage, activePageId, scheduleEnabled, activeCollection]);
 
   // Poll the actual board state from the backend cache (backend hits Vestaboard
   // at the configured interval; we just read the cached result here).
@@ -432,10 +432,10 @@ export function ActivePageDisplay() {
                 )}
               </Badge>
             )}
-            {activeCarousel && (
+            {activeCollection && (
               <Badge variant="outline" className="text-xs gap-1">
                 <GalleryHorizontalEnd className="h-3 w-3" />
-                {t("carouselBadge")}
+                {t("collectionBadge")}
               </Badge>
             )}
             {silenceStatus?.active && (

@@ -44,7 +44,7 @@ interface NavItem {
 const primaryItems: NavItem[] = [
   { key: "home", href: "/", icon: Home },
   { key: "pages", href: "/pages", icon: FileText },
-  { key: "carousels", href: "/carousels", icon: GalleryHorizontalEnd },
+  { key: "collections", href: "/collections", icon: GalleryHorizontalEnd },
   { key: "schedule", href: "/schedule", icon: Calendar },
   { key: "integrations", href: "/integrations", icon: Puzzle },
 ];

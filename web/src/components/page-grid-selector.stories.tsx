@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import type { Carousel, CarouselsResponse, Page, PagePreviewBatchResponse, PagesResponse } from "@/lib/api";
+import type { Collection, CollectionsResponse, Page, PagePreviewBatchResponse, PagesResponse } from "@/lib/api";
 
 import { PageGridSelector } from "./page-grid-selector";
 
@@ -87,24 +87,28 @@ const mockPreviews: PagePreviewBatchResponse = {
   },
 };
 
-const mockCarousels: Carousel[] = [
+const mockCollections: Collection[] = [
   {
-    id: "carousel:abc-123",
+    id: "collection:abc-123",
     name: "Morning Rotation",
     page_ids: ["page-1", "page-2", "page-3"],
-    interval_seconds: 30,
+    selection_mode: "time",
+    time: { interval_seconds: 30 },
+    variable: null,
     created_at: "2024-02-01T00:00:00Z",
   },
   {
-    id: "carousel:def-456",
+    id: "collection:def-456",
     name: "Evening Loop",
     page_ids: ["page-3", "page-4"],
-    interval_seconds: 60,
+    selection_mode: "time",
+    time: { interval_seconds: 60 },
+    variable: null,
     created_at: "2024-02-02T00:00:00Z",
   },
 ];
 
-const createQueryClient = (pages: Page[], activePageId?: string, carousels?: Carousel[]) => {
+const createQueryClient = (pages: Page[], activePageId?: string, collections?: Collection[]) => {
   const client = new QueryClient({
     defaultOptions: {
       queries: {
@@ -120,8 +124,8 @@ const createQueryClient = (pages: Page[], activePageId?: string, carousels?: Car
     board_color: "black",
     devices: ["flagship"],
   });
-  if (carousels) {
-    client.setQueryData(["carousels"], { carousels, total: carousels.length } as CarouselsResponse);
+  if (collections) {
+    client.setQueryData(["collections"], { collections, total: collections.length } as CollectionsResponse);
   }
 
   return client;
@@ -252,17 +256,17 @@ export const ManyPages = () => {
   );
 };
 
-export const WithCarousels: Story = {
+export const WithCollections: Story = {
   args: {
     activePageId: "page-1",
     onSelectPage: (pageId: string) => console.log("Selected:", pageId),
     showActiveIndicator: true,
-    showCarousels: true,
+    showCollections: true,
     label: "SELECT PAGE",
   },
   decorators: [
     (Story, context) => (
-      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCarousels)}>
+      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}>
         <div className="max-w-4xl">
           <Story />
         </div>
@@ -271,17 +275,17 @@ export const WithCarousels: Story = {
   ],
 };
 
-export const WithActiveCarousel: Story = {
+export const WithActiveCollection: Story = {
   args: {
-    activePageId: "carousel:abc-123",
+    activePageId: "collection:abc-123",
     onSelectPage: (pageId: string) => console.log("Selected:", pageId),
     showActiveIndicator: true,
-    showCarousels: true,
+    showCollections: true,
     label: "SELECT PAGE",
   },
   decorators: [
     (Story, context) => (
-      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCarousels)}>
+      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}>
         <div className="max-w-4xl">
           <Story />
         </div>
@@ -290,16 +294,16 @@ export const WithActiveCarousel: Story = {
   ],
 };
 
-export const CarouselsHidden: Story = {
+export const CollectionsHidden: Story = {
   args: {
     activePageId: "page-1",
     onSelectPage: (pageId: string) => console.log("Selected:", pageId),
-    showCarousels: false,
+    showCollections: false,
     label: "PAGES ONLY",
   },
   decorators: [
     (Story, context) => (
-      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCarousels)}>
+      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}>
         <div className="max-w-4xl">
           <Story />
         </div>

@@ -62,7 +62,7 @@ const ZOOM_STORAGE_KEY = "schedule-calendar-zoom";
 interface ScheduleCalendarViewProps {
   schedules: ScheduleEntry[];
   pages: Page[];
-  carousels?: Carousel[];
+  collections?: Collection[];
   overlaps?: Overlap[];
   onEventClick: (schedule: ScheduleEntry) => void;
   onSlotSelect: (start: Date, end: Date) => void;
@@ -72,7 +72,7 @@ interface ScheduleCalendarViewProps {
 export function ScheduleCalendarView({
   schedules,
   pages,
-  carousels = [],
+  collections = [],
   overlaps = [],
   onEventClick,
   onSlotSelect,
@@ -155,8 +155,8 @@ export function ScheduleCalendarView({
 
   // Transform schedules to calendar events
   const events = useMemo(
-    () => schedulesToCalendarEvents(schedules, weekStart, pages, carousels, sunTimesMap),
-    [schedules, weekStart, pages, carousels, sunTimesMap],
+    () => schedulesToCalendarEvents(schedules, weekStart, pages, collections, sunTimesMap),
+    [schedules, weekStart, pages, collections, sunTimesMap],
   );
 
   // Get IDs of schedules that have overlaps

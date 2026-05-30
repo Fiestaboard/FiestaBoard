@@ -1039,10 +1039,10 @@ export const handlers = [
     });
   }),
 
-  // Carousel endpoints
-  http.get(`${API_BASE}/carousels`, () => {
+  // Collection endpoints
+  http.get(`${API_BASE}/collections`, () => {
     return HttpResponse.json({
-      carousels: [],
+      collections: [],
       total: 0,
     });
   }),

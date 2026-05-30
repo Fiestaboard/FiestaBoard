@@ -65,11 +65,11 @@ import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCarousels } from "@/hooks/use-board";
+import { useCollections } from "@/hooks/use-board";
 import {
   api,
   type DayPattern,
-  isCarouselId,
+  isCollectionId,
   type ScheduleCreate,
   type ScheduleEntry,
   type ScheduleUpdate,
@@ -188,8 +188,8 @@ export default function SchedulePage() {
     queryFn: api.getPages,
   });
 
-  // Fetch carousels for form
-  const { data: carouselsData } = useCarousels();
+  // Fetch collections for form
+  const { data: collectionsData } = useCollections();
 
   // Fetch location settings (needed for sunrise/sunset schedule resolution)
   const { data: locationData } = useQuery({
@@ -374,9 +374,9 @@ export default function SchedulePage() {
   );
 
   const getPageName = (pageId: string): string => {
-    if (isCarouselId(pageId)) {
-      const carousel = carouselsData?.carousels?.find((c) => c.id === pageId);
-      return carousel ? `${carousel.name} ${t("carouselSuffix")}` : pageId;
+    if (isCollectionId(pageId)) {
+      const collection = collectionsData?.collections?.find((c) => c.id === pageId);
+      return collection ? `${collection.name} ${t("collectionSuffix")}` : pageId;
     }
     return pagesData?.pages.find((p) => p.id === pageId)?.name || pageId;
   };
@@ -540,9 +540,9 @@ export default function SchedulePage() {
                       {page.name}
                     </SelectItem>
                   ))}
-                  {carouselsData?.carousels?.map((carousel) => (
-                    <SelectItem key={carousel.id} value={carousel.id}>
-                      {carousel.name} {t("carouselSuffix")}
+                  {collectionsData?.collections?.map((collection) => (
+                    <SelectItem key={collection.id} value={collection.id}>
+                      {collection.name} {t("collectionSuffix")}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -651,7 +651,7 @@ export default function SchedulePage() {
         <ScheduleListView
           schedules={schedules}
           pages={pages}
-          carousels={carouselsData?.carousels}
+          collections={collectionsData?.collections}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onToggleEnabled={handleToggleEnabled}
@@ -669,7 +669,7 @@ export default function SchedulePage() {
             <ScheduleCalendarView
               schedules={schedules}
               pages={pages}
-              carousels={carouselsData?.carousels}
+              collections={collectionsData?.collections}
               overlaps={validation?.overlaps}
               onEventClick={handleEventClick}
               onSlotSelect={handleSlotSelect}
@@ -697,7 +697,7 @@ export default function SchedulePage() {
             <ScheduleEntryForm
               schedule={editingSchedule || undefined}
               pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
-              carousels={carouselsData?.carousels}
+              collections={collectionsData?.collections}
               onSubmit={handleSubmit}
               onCancel={handleCloseForm}
               onDelete={

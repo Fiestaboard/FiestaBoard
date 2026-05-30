@@ -16,7 +16,7 @@ export interface EmptyStateProps {
 }
 
 /**
- * Consistent empty state for lists and grids (e.g. no pages, no carousels).
+ * Consistent empty state for lists and grids (e.g. no pages, no collections).
  * Use with an icon, title, optional description, optional CTA, and optional illustration.
  */
 export function EmptyState({ icon: Icon, title, description, action, illustration, className }: EmptyStateProps) {

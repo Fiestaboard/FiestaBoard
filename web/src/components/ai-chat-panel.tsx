@@ -686,10 +686,10 @@ function labelFor(call: ToolCall): string {
       return `Update: ${call.args.plugin_id}`;
     case "update_setting":
       return `Setting: ${call.args.category}`;
-    case "create_carousel":
-      return `Create carousel: "${call.args.name}"`;
-    case "update_carousel":
-      return "Update carousel";
+    case "create_collection":
+      return `Create collection: "${call.args.name}"`;
+    case "update_collection":
+      return "Update collection";
     case "create_schedule":
       return `Schedule: ${call.args.start_time}${call.args.end_time ? `–${call.args.end_time}` : "+"}`;
     case "update_schedule":
