@@ -50,18 +50,34 @@ _SALT_BYTES = 16
 # want a tighter window without a code change.
 _DEFAULT_SESSION_TTL_SECONDS = 7 * 24 * 3600
 
+# When the user ticks "Keep me logged in" the session is persisted for longer
+# (30 days by default). Also env-overridable for ops who want a different
+# window. This is the upper bound on a remembered cookie's lifetime.
+_DEFAULT_REMEMBER_ME_TTL_SECONDS = 30 * 24 * 3600
 
-def _session_ttl_seconds() -> int:
-    raw = os.environ.get("FIESTABOARD_SESSION_TTL_SECONDS", "").strip()
+
+def _ttl_from_env(var_name: str, default: int) -> int:
+    """Read a positive-int TTL (seconds) from *var_name*, else *default*."""
+    raw = os.environ.get(var_name, "").strip()
     if not raw:
-        return _DEFAULT_SESSION_TTL_SECONDS
+        return default
     try:
         v = int(raw)
         if v <= 0:
-            return _DEFAULT_SESSION_TTL_SECONDS
+            return default
         return v
     except ValueError:
-        return _DEFAULT_SESSION_TTL_SECONDS
+        return default
+
+
+def _session_ttl_seconds() -> int:
+    return _ttl_from_env("FIESTABOARD_SESSION_TTL_SECONDS", _DEFAULT_SESSION_TTL_SECONDS)
+
+
+def _remember_me_ttl_seconds() -> int:
+    return _ttl_from_env(
+        "FIESTABOARD_REMEMBER_ME_TTL_SECONDS", _DEFAULT_REMEMBER_ME_TTL_SECONDS
+    )
 
 
 def is_auth_enabled() -> bool:
@@ -509,8 +525,14 @@ class AuthService:
 
     # -- auth flow ---------------------------------------------------------
 
-    def authenticate(self, username: str, password: str) -> str:
-        """Verify *username*/*password* and return a signed session token."""
+    def authenticate(
+        self, username: str, password: str, *, remember: bool = False
+    ) -> str:
+        """Verify *username*/*password* and return a signed session token.
+
+        When *remember* is true the token is minted with the longer
+        "Keep me logged in" TTL; otherwise it uses the default session TTL.
+        """
         if not self.has_user():
             raise SetupRequired("No user has been provisioned")
         user = self.get_user(username)
@@ -520,10 +542,11 @@ class AuthService:
         if not user or not ok:
             raise InvalidCredentials("Invalid username or password")
         now_ms = self._monotonic_ms()
+        ttl_seconds = _remember_me_ttl_seconds() if remember else _session_ttl_seconds()
         token = SessionToken(
             username=username,
             issued_at=now_ms,
-            expires_at=now_ms + _session_ttl_seconds() * 1000,
+            expires_at=now_ms + ttl_seconds * 1000,
         )
         return self._sign(token.encode())
 

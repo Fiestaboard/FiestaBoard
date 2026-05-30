@@ -155,6 +155,55 @@ def test_login_brute_force_lockout(client, enabled):
     assert r.status_code == 429
 
 
+def _session_set_cookie(response) -> str:
+    """Return the ``Set-Cookie`` header for the session cookie."""
+    for header in response.headers.get_list("set-cookie"):
+        if header.startswith(f"{auth_service.SESSION_COOKIE_NAME}="):
+            return header
+    raise AssertionError("No session Set-Cookie header found")
+
+
+def test_login_remember_me_sets_persistent_cookie(client, enabled):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    client.cookies.clear()
+    r = client.post(
+        "/auth/login",
+        json={"username": "admin", "password": "supersecret", "remember_me": True},
+    )
+    assert r.status_code == 200
+    cookie = _session_set_cookie(r)
+    # 30-day default remember-me window.
+    assert "Max-Age=2592000" in cookie
+
+
+def test_login_without_remember_me_sets_session_cookie(client, enabled):
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    client.cookies.clear()
+    r = client.post(
+        "/auth/login",
+        json={"username": "admin", "password": "supersecret", "remember_me": False},
+    )
+    assert r.status_code == 200
+    cookie = _session_set_cookie(r)
+    # A session cookie carries neither Max-Age nor Expires.
+    assert "Max-Age" not in cookie
+    assert "expires" not in cookie.lower()
+
+
+def test_login_remember_me_defaults_to_session_cookie(client, enabled):
+    """Omitting the field behaves like remember_me=False for API clients."""
+    client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
+    client.cookies.clear()
+    r = client.post(
+        "/auth/login", json={"username": "admin", "password": "supersecret"}
+    )
+    assert r.status_code == 200
+    cookie = _session_set_cookie(r)
+    assert "Max-Age" not in cookie
+    # And the cookie still authenticates subsequent requests.
+    assert client.get("/auth/status").json()["authenticated"] is True
+
+
 # --- /auth/logout ----------------------------------------------------------
 
 
