@@ -338,17 +338,26 @@ def _format_available_schedules(schedules: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _format_available_carousels(carousels: list[dict[str, Any]]) -> str:
-    """Render a compact list of carousels the AI can reference."""
-    if not carousels:
-        return "(no carousels yet)"
+def _format_available_collections(collections: list[dict[str, Any]]) -> str:
+    """Render a compact list of collections the AI can reference."""
+    if not collections:
+        return "(no collections yet)"
     lines = []
-    for c in carousels:
+    for c in collections:
         name = c.get("name", "Untitled")
         cid = c.get("id", "?")
         pages = c.get("page_ids", [])
-        interval = c.get("interval_seconds", 30)
-        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {interval}s interval')
+        mode = c.get("selection_mode", "time")
+        if mode == "time":
+            interval = (c.get("time") or {}).get("interval_seconds", 30)
+            tail = f"time mode, {interval}s interval"
+        else:
+            poll = (c.get("variable") or {}).get("poll_seconds", 10)
+            n_rules = len((c.get("variable") or {}).get("rules", []))
+            tail = f"variable mode, {n_rules} rule(s), polls every {poll}s"
+        lines.append(
+            f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}'
+        )
     return "\n".join(lines)
 
 
@@ -361,7 +370,7 @@ def build_prompt(
     available_pages: list[dict[str, Any]] | None = None,
     installed_plugins: list[dict[str, Any]] | None = None,
     available_schedules: list[dict[str, Any]] | None = None,
-    available_carousels: list[dict[str, Any]] | None = None,
+    available_collections: list[dict[str, Any]] | None = None,
     registry_plugins: list[dict[str, Any]] | None = None,
     mode: PromptMode = "generate",
 ) -> PromptContext:
@@ -576,11 +585,11 @@ def build_prompt(
             + _format_available_schedules(available_schedules)
         )
 
-    carousels_section = ""
-    if available_carousels is not None:
-        carousels_section = (
-            "\n\nAVAILABLE CAROUSELS (existing carousels; use IDs to update):\n"
-            + _format_available_carousels(available_carousels)
+    collections_section = ""
+    if available_collections is not None:
+        collections_section = (
+            "\n\nAVAILABLE COLLECTIONS (existing collections; use IDs to update):\n"
+            + _format_available_collections(available_collections)
         )
 
     registry_section = ""
@@ -597,7 +606,7 @@ def build_prompt(
         "  - Creating, editing, or refining board pages and templates\n"
         "  - Explaining template variables, expressions, or plugin features\n"
         "  - Suggesting which plugins to install for a desired display\n"
-        "  - Managing schedules, carousels, and FiestaBoard settings\n"
+        "  - Managing schedules, collections, and FiestaBoard settings\n"
         "  - Answering questions about FiestaBoard features and capabilities\n"
         "Do NOT help with unrelated topics (recipes, general coding help,\n"
         "essays, trivia, customer support for other products, etc.).\n"
@@ -641,7 +650,7 @@ def build_prompt(
         + pages_section
         + plugins_section
         + schedules_section
-        + carousels_section
+        + collections_section
         + registry_section
     )
 

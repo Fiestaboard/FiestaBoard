@@ -147,7 +147,7 @@ def _build_mcp_server() -> Any:
             "  • Manage plugins/integrations (weather, stocks, transit, etc.)\n"
             "  • Create and edit display pages using template variables from plugins\n"
             "  • Schedule which page shows at which time of day\n"
-            "  • Create carousels that rotate through multiple pages\n\n"
+            "  • Create collections that group pages and decide which one shows\n\n"
             "TYPICAL WORKFLOW\n"
             "  1. list_installed_plugins() — see what's installed & enabled\n"
             "  2. list_pages() — see current pages\n"
@@ -188,7 +188,7 @@ def _build_mcp_server() -> Any:
             "  • NEVER guess API keys, tokens, or credentials. If a plugin needs\n"
             "    one, ask the user to provide it before calling configure_plugin().\n"
             "  • Destructive tools (uninstall_plugin, delete_page, delete_schedule,\n"
-            "    delete_carousel) cannot be undone — confirm intent with the user\n"
+            "    delete_collection) cannot be undone — confirm intent with the user\n"
             "    before calling them unless they explicitly requested the deletion.\n"
             "  • Sensitive config values are MASKED as '***' when read back; that\n"
             "    is intentional — do not try to 'restore' or re-send the mask.\n\n"
@@ -199,7 +199,7 @@ def _build_mcp_server() -> Any:
             '    context. Use "" (empty string) for breathing room and as\n'
             "    overflow space for |wrap.\n\n"
             "Available user-invokable PROMPTS: setup_fiestaboard,\n"
-            "create_display_page, schedule_my_day, build_a_carousel,\n"
+            "create_display_page, schedule_my_day, build_a_collection,\n"
             "troubleshoot_display."
         ),
     )
@@ -438,7 +438,7 @@ def _build_mcp_server() -> Any:
         - name: display name
         - type: 'template' (dynamic content), 'single', or 'composite'
         - device_type: 'flagship' or 'note'
-        - duration_seconds: how long to show the page in carousels
+        - duration_seconds: how long to show the page in time-mode collections
         """
         try:
             from .pages.service import get_page_service
@@ -491,7 +491,7 @@ def _build_mcp_server() -> Any:
                             the number of rows for the device_type
                             (6 for flagship, 3 for note).
             device_type: 'flagship' (default) or 'note'.
-            duration_seconds: How long to show this page in a carousel (default: 300).
+            duration_seconds: How long to show this page in a time-mode collection (default: 300).
 
         Example template_lines for a weather page:
             ["{{white}}{{= UPPER(weather.city)}}", "{{yellow}}{{weather.temperature}}°F",
@@ -531,7 +531,7 @@ def _build_mcp_server() -> Any:
             page_id: The page identifier (from list_pages()).
             name: New display name (optional).
             template_lines: New template content (optional). Replaces all lines.
-            duration_seconds: New carousel duration in seconds (optional).
+            duration_seconds: New time-mode duration in seconds (optional).
         """
         try:
             from .pages.models import PageUpdate
@@ -650,8 +650,8 @@ def _build_mcp_server() -> Any:
         """Create a new schedule entry to show a specific page at a specific time.
 
         Args:
-            page_id: Which page (or carousel) to display. Use IDs from list_pages()
-                     or list_carousels().
+            page_id: Which page (or collection) to display. Use IDs from list_pages()
+                     or list_collections().
             start_time: When to start showing this page in HH:MM format (24h), e.g. "07:00".
             day_pattern: When this applies — 'all' (every day), 'weekdays', 'weekends',
                          or 'custom'. Default: 'all'.
@@ -736,107 +736,182 @@ def _build_mcp_server() -> Any:
             return _err(f"Error deleting schedule '{schedule_id}': {exc}")
 
     # -----------------------------------------------------------------------
-    # Carousel tools
+    # Collection tools
     # -----------------------------------------------------------------------
 
     @mcp.tool()
-    def list_carousels() -> list[dict[str, Any]] | dict[str, Any]:
-        """List all carousels (playlists that rotate between multiple pages).
+    def list_collections() -> list[dict[str, Any]] | dict[str, Any]:
+        """List all collections (ordered page groups with a selection mode).
 
         Returns a list with:
-        - id: use this for update_carousel(), delete_carousel(), or as page_id in schedules
-        - name, page_ids, interval_seconds
+        - id: use for update_collection(), delete_collection(), or as page_id in schedules
+        - name, page_ids
+        - selection_mode: "time" (rotate on interval) or "variable" (pick by rule)
+        - time / variable: mode-specific config block
         """
         try:
-            from .carousels.service import get_carousel_service
+            from .collections.service import get_collection_service
 
-            svc = get_carousel_service()
-            return _serialize(svc.list_carousels())
+            svc = get_collection_service()
+            return _serialize(svc.list_collections())
         except Exception as exc:
             return _err(str(exc))
 
     @mcp.tool()
-    def create_carousel(
+    def create_collection(
         name: str,
         page_ids: list[str],
+        selection_mode: str = "time",
         interval_seconds: int = 30,
+        rules: list[dict[str, str]] | None = None,
+        default_page_id: str | None = None,
+        poll_seconds: int = 10,
     ) -> dict[str, Any]:
-        """Create a carousel that rotates through multiple pages.
+        """Create a collection that decides which page to show.
 
-        The carousel ID can be used as the page_id in create_schedule() to
-        schedule the whole playlist at a specific time of day.
+        The collection ID can be used as the page_id in create_schedule() to
+        schedule the whole group at a specific time of day.
 
         Args:
-            name: Display name for the carousel.
-            page_ids: Ordered list of page IDs to rotate through.
-            interval_seconds: How long to show each page (default: 30). Range: 5–3600.
+            name: Display name for the collection.
+            page_ids: Ordered list of page IDs that belong to the collection.
+            selection_mode: "time" (default) rotates pages on a fixed interval;
+                "variable" picks a page by evaluating expression rules against
+                live plugin data.
+            interval_seconds: For time mode — how long to show each page
+                (default 30). Range: 5–3600.
+            rules: For variable mode — ordered list of
+                {"expression": ..., "page_id": ...} entries. First truthy
+                expression wins.
+            default_page_id: For variable mode — fallback page when no rule
+                matches. Must be in page_ids.
+            poll_seconds: For variable mode — how often to re-evaluate rules
+                (default 10). Range: 2–600.
         """
         try:
-            from .carousels.models import CarouselCreate
-            from .carousels.service import get_carousel_service
+            from .collections.models import (
+                CollectionCreate,
+                TimeModeConfig,
+                VariableModeConfig,
+                VariableRule,
+            )
+            from .collections.service import get_collection_service
 
-            svc = get_carousel_service()
-            data = CarouselCreate(
+            svc = get_collection_service()
+
+            time_cfg = TimeModeConfig(interval_seconds=interval_seconds)
+            variable_cfg: VariableModeConfig | None = None
+            if selection_mode == "variable":
+                if not default_page_id:
+                    return _err("variable mode requires default_page_id")
+                variable_cfg = VariableModeConfig(
+                    rules=[VariableRule(**r) for r in (rules or [])],
+                    default_page_id=default_page_id,
+                    poll_seconds=poll_seconds,
+                )
+
+            data = CollectionCreate(
                 name=name,
                 page_ids=page_ids,
-                interval_seconds=interval_seconds,
+                selection_mode=selection_mode,  # type: ignore[arg-type]
+                time=time_cfg,
+                variable=variable_cfg,
             )
-            carousel = svc.create_carousel(data)
+            collection = svc.create_collection(data)
             return _ok(
-                f"Carousel '{name}' created with {len(page_ids)} pages.",
-                carousel_id=carousel.id,
-                name=carousel.name,
+                f"Collection '{name}' created with {len(page_ids)} pages "
+                f"in {selection_mode} mode.",
+                collection_id=collection.id,
+                name=collection.name,
             )
         except Exception as exc:
-            return _err(f"Error creating carousel: {exc}")
+            return _err(f"Error creating collection: {exc}")
 
     @mcp.tool()
-    def update_carousel(
-        carousel_id: str,
+    def update_collection(
+        collection_id: str,
         name: str | None = None,
         page_ids: list[str] | None = None,
+        selection_mode: str | None = None,
         interval_seconds: int | None = None,
+        rules: list[dict[str, str]] | None = None,
+        default_page_id: str | None = None,
+        poll_seconds: int | None = None,
     ) -> dict[str, Any]:
-        """Update an existing carousel's name, page list, or rotation interval.
+        """Update an existing collection's name, page list, or selection config.
+
+        Pass only the fields you want to change. To switch modes, send the new
+        selection_mode together with its config (interval_seconds for time,
+        or rules + default_page_id for variable).
 
         Args:
-            carousel_id: The carousel identifier (from list_carousels()).
+            collection_id: The collection identifier (from list_collections()).
             name: New name (optional).
             page_ids: New ordered list of page IDs (optional). Replaces entire list.
-            interval_seconds: New rotation interval in seconds (optional).
+            selection_mode: New mode ("time" or "variable").
+            interval_seconds: New rotation interval (time mode).
+            rules: New rule list (variable mode).
+            default_page_id: New fallback page (variable mode).
+            poll_seconds: New re-evaluation cadence (variable mode).
         """
         try:
-            from .carousels.models import CarouselUpdate
-            from .carousels.service import get_carousel_service
+            from .collections.models import (
+                CollectionUpdate,
+                TimeModeConfig,
+                VariableModeConfig,
+                VariableRule,
+            )
+            from .collections.service import get_collection_service
 
-            svc = get_carousel_service()
-            data = CarouselUpdate(
+            svc = get_collection_service()
+
+            time_cfg: TimeModeConfig | None = (
+                TimeModeConfig(interval_seconds=interval_seconds)
+                if interval_seconds is not None
+                else None
+            )
+            variable_cfg: VariableModeConfig | None = None
+            if rules is not None or default_page_id is not None or poll_seconds is not None:
+                if not default_page_id:
+                    return _err("variable mode update requires default_page_id")
+                variable_cfg = VariableModeConfig(
+                    rules=[VariableRule(**r) for r in (rules or [])],
+                    default_page_id=default_page_id,
+                    poll_seconds=poll_seconds if poll_seconds is not None else 10,
+                )
+
+            data = CollectionUpdate(
                 name=name,
                 page_ids=page_ids,
-                interval_seconds=interval_seconds,
+                selection_mode=selection_mode,  # type: ignore[arg-type]
+                time=time_cfg,
+                variable=variable_cfg,
             )
-            carousel = svc.update_carousel(carousel_id, data)
-            if carousel is None:
-                return _err(f"Carousel '{carousel_id}' not found.")
-            return _ok(f"Carousel '{carousel_id}' updated.", carousel_id=carousel.id)
+            collection = svc.update_collection(collection_id, data)
+            if collection is None:
+                return _err(f"Collection '{collection_id}' not found.")
+            return _ok(f"Collection '{collection_id}' updated.", collection_id=collection.id)
         except Exception as exc:
-            return _err(f"Error updating carousel '{carousel_id}': {exc}")
+            return _err(f"Error updating collection '{collection_id}': {exc}")
 
     @mcp.tool()
-    def delete_carousel(carousel_id: str) -> dict[str, Any]:
-        """Delete a carousel permanently.
+    def delete_collection(collection_id: str) -> dict[str, Any]:
+        """Delete a collection permanently.
 
         Args:
-            carousel_id: The carousel identifier (from list_carousels()).
+            collection_id: The collection identifier (from list_collections()).
         """
         try:
-            from .carousels.service import get_carousel_service
+            from .collections.service import get_collection_service
 
-            svc = get_carousel_service()
-            svc.delete_carousel(carousel_id)
-            return _ok(f"Carousel '{carousel_id}' deleted successfully.", carousel_id=carousel_id)
+            svc = get_collection_service()
+            svc.delete_collection(collection_id)
+            return _ok(
+                f"Collection '{collection_id}' deleted successfully.",
+                collection_id=collection_id,
+            )
         except Exception as exc:
-            return _err(f"Error deleting carousel '{carousel_id}': {exc}")
+            return _err(f"Error deleting collection '{collection_id}': {exc}")
 
     # -----------------------------------------------------------------------
     # System tools
@@ -902,7 +977,7 @@ def _build_mcp_server() -> Any:
         This immediately changes what's visible on the board.
 
         Args:
-            page_id: The page or carousel ID to display (from list_pages() or list_carousels()).
+            page_id: The page or collection ID to display (from list_pages() or list_collections()).
         """
         try:
             from .config_manager import get_config_manager
@@ -1028,19 +1103,27 @@ def _build_mcp_server() -> Any:
         except Exception as exc:
             return f"Error: {exc}"
 
-    @mcp.resource("fiestaboard://carousels")
-    def get_carousels_resource() -> str:
-        """Live list of all carousels (page playlists)."""
+    @mcp.resource("fiestaboard://collections")
+    def get_collections_resource() -> str:
+        """Live list of all collections (page playlists)."""
         try:
-            from .carousels.service import get_carousel_service
+            from .collections.service import get_collection_service
 
-            svc = get_carousel_service()
-            carousels = svc.list_carousels()
-            lines = [f"# Carousels ({len(carousels)} total)\n"]
-            for c in carousels:
+            svc = get_collection_service()
+            collections = svc.list_collections()
+            lines = [f"# Collections ({len(collections)} total)\n"]
+            for c in collections:
                 page_count = len(getattr(c, "page_ids", []) or [])
-                interval = getattr(c, "interval_seconds", "?")
-                lines.append(f"- **{c.name}** (`{c.id}`) — {page_count} pages, {interval}s per page")
+                mode = getattr(c, "selection_mode", "time")
+                if mode == "time":
+                    interval = getattr(getattr(c, "time", None), "interval_seconds", "?")
+                    tail = f"time mode, {interval}s per page"
+                else:
+                    poll = getattr(getattr(c, "variable", None), "poll_seconds", "?")
+                    tail = f"variable mode, polls every {poll}s"
+                lines.append(
+                    f"- **{c.name}** (`{c.id}`) — {page_count} pages, {tail}"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"
@@ -1060,7 +1143,7 @@ def _build_mcp_server() -> Any:
             "4. Suggest and install appropriate plugins\n"
             "5. Guide me through configuring each plugin with the right API keys / settings\n"
             "6. Create pages using the plugin variables\n"
-            "7. Optionally set up a schedule or carousel\n\n"
+            "7. Optionally set up a schedule or collection\n\n"
             "Be conversational and explain what each step does."
         )
 
@@ -1084,7 +1167,7 @@ def _build_mcp_server() -> Any:
         """Build a time-of-day schedule that rotates pages through the day."""
         return (
             "Help me set up a daily display schedule on FiestaBoard. Please:\n"
-            "1. Call list_pages() and list_carousels() so we know what content exists\n"
+            "1. Call list_pages() and list_collections() so we know what content exists\n"
             "2. Ask me about the rhythm of my day — morning routine, work hours,\n"
             "   evening, overnight — and what I'd want to see at each\n"
             "3. If a useful page is missing, offer to create it before scheduling\n"
@@ -1100,22 +1183,22 @@ def _build_mcp_server() -> Any:
         )
 
     @mcp.prompt()
-    def build_a_carousel() -> str:
-        """Build a carousel (playlist) that rotates between multiple pages."""
+    def build_a_collection() -> str:
+        """Build a collection (playlist) that rotates between multiple pages."""
         return (
-            "Help me build a FiestaBoard carousel — a playlist that cycles through\n"
+            "Help me build a FiestaBoard collection — a playlist that cycles through\n"
             "several pages on a timer. Please:\n"
             "1. Call list_pages() and show me the candidates with their device_type\n"
             "2. Ask which pages I want in the rotation and in what order\n"
-            "   (all pages in one carousel must share the same device_type)\n"
+            "   (all pages in one collection must share the same device_type)\n"
             "3. Ask how long each page should stay up — typical values are\n"
             "   15–60 seconds; the allowed range is 5–3600\n"
-            "4. Call create_carousel() with the ordered page_ids\n"
+            "4. Call create_collection() with the ordered page_ids\n"
             "5. Offer to either:\n"
-            "     a) set the carousel as the active page now via set_active_page(),\n"
+            "     a) set the collection as the active page now via set_active_page(),\n"
             "        OR\n"
             "     b) schedule it for specific time slots via create_schedule()\n"
-            "        (a carousel id can be used anywhere a page id is accepted)\n"
+            "        (a collection id can be used anywhere a page id is accepted)\n"
             "6. Confirm what's now showing and what's scheduled."
         )
 

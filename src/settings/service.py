@@ -428,6 +428,11 @@ class SettingsService:
         else:
             self.settings_file = Path(settings_file)
 
+        # One-shot rewrite of any legacy ``carousel:<uuid>`` references in the
+        # settings file to the new ``collection:<uuid>`` prefix. Runs before
+        # any subsystem reads, so every _load_* sees the migrated values.
+        self._migrate_legacy_carousel_refs()
+
         # Load initial settings from env/file
         self._transition = self._load_transition_settings()
         self._output = self._load_output_settings()
@@ -447,6 +452,61 @@ class SettingsService:
             self._needs_migration_save = False
 
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
+
+    def _migrate_legacy_carousel_refs(self) -> None:
+        """Rewrite ``carousel:<uuid>`` references in settings.json once.
+
+        Touches ``active_page.page_id`` and ``temporary_override.page_id`` /
+        ``temporary_override.revert_page_id``. Writes the file back only if
+        at least one reference changed. No-op when the file does not exist
+        or contains no legacy references.
+        """
+        if not self.settings_file.exists():
+            return
+
+        legacy_prefix = "carousel:"
+        new_prefix = "collection:"
+
+        def _rewrite(value):
+            if isinstance(value, str) and value.startswith(legacy_prefix):
+                return new_prefix + value[len(legacy_prefix):], True
+            return value, False
+
+        try:
+            with open(self.settings_file) as f:  # noqa: PTH123
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(f"Could not pre-read settings for migration: {e}")
+            return
+
+        changed = 0
+
+        active = data.get("active_page")
+        if isinstance(active, dict):
+            new_ref, did = _rewrite(active.get("page_id"))
+            if did:
+                active["page_id"] = new_ref
+                changed += 1
+
+        override = data.get("temporary_override")
+        if isinstance(override, dict):
+            for key in ("page_id", "revert_page_id"):
+                new_ref, did = _rewrite(override.get(key))
+                if did:
+                    override[key] = new_ref
+                    changed += 1
+
+        if not changed:
+            return
+
+        try:
+            with open(self.settings_file, "w") as f:  # noqa: PTH123
+                json.dump(data, f, indent=2)
+            logger.info(
+                f"Migrated {changed} carousel: -> collection: reference(s) in settings.json"
+            )
+        except OSError as e:
+            logger.warning(f"Could not write migrated settings: {e}")
 
     def _load_from_file(self) -> dict:
         """Load settings from JSON file."""

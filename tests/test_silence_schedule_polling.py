@@ -31,7 +31,7 @@ def service_factory():
             "settings": patch("src.main.get_settings_service"),
             "page": patch("src.main.get_page_service"),
             "schedule": patch("src.main.get_schedule_service"),
-            "carousel": patch("src.main.get_carousel_service"),
+            "collection": patch("src.main.get_collection_service"),
             "trigger": patch("src.main.get_trigger_service"),
         }
         mocks = {name: p.start() for name, p in patches.items()}

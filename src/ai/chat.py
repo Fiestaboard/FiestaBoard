@@ -167,7 +167,7 @@ _TOOL_GRAMMAR_BODY_TAIL = """
 
    `day_pattern`: "all" | "weekdays" | "weekends" | "custom".
    Times are 24h HH:MM. `end_time` may be null for open-ended.
-   `page_id` may be a carousel ID (e.g. "carousel:abc123").
+   `page_id` may be a collection ID (e.g. "collection:abc123").
 
 PLUGIN MANAGEMENT (always show a confirmation before any plugin action):
 
@@ -277,37 +277,38 @@ SETTINGS (non-credential settings only):
    credentials — tell the user to configure those manually in Settings.
    The user will be asked to confirm before changes are applied.
 
-CAROUSELS (playlists of pages that rotate automatically):
+COLLECTIONS (ordered page groups with a selection mode):
 
-10. Create a new carousel:
+10. Create a new collection (time-based rotation):
 
    ```fiestaboard
-   {"op": "create_carousel", "args": {
+   {"op": "create_collection", "args": {
      "name": "Morning Rotation",
      "page_ids": ["abc123", "def456"],
      "interval_seconds": 30
    }}
    ```
 
-   `page_ids` is the ordered list of page IDs to rotate through.
+   `page_ids` is the ordered list of page IDs that belong to the
+   collection. By default, the collection rotates time-sliced through them;
    `interval_seconds` (5–3600) controls how long each page shows.
    The user will be asked to confirm before creation.
 
-11. Update an existing carousel (rename, reorder pages, change interval):
+11. Update an existing collection (rename, reorder pages, change interval):
 
     ```fiestaboard
-    {"op": "update_carousel", "args": {
-      "carousel_id": "carousel:abc123",
+    {"op": "update_collection", "args": {
+      "collection_id": "collection:abc123",
       "page_ids": ["def456", "abc123"],
       "interval_seconds": 45
     }}
     ```
 
-    All fields except `carousel_id` are optional — only include what
-    should change. Use the carousel IDs from AVAILABLE CAROUSELS above.
-    The user will be asked to confirm before changes are applied.
+    All fields except `collection_id` are optional — only include what
+    should change. Use the collection IDs from AVAILABLE COLLECTIONS
+    above. The user will be asked to confirm before changes are applied.
 
-SCHEDULE (control which page/carousel shows at what time):
+SCHEDULE (control which page/collection shows at what time):
 
 12. Create a new schedule entry:
 
@@ -324,8 +325,8 @@ SCHEDULE (control which page/carousel shows at what time):
     until replaced by another schedule or midnight).
     `day_pattern`: "all" | "weekdays" | "weekends" | "custom".
     When "custom", include `custom_days`: ["monday", "wednesday", ...].
-    `page_id` may be a carousel ID (e.g. "carousel:abc123") to rotate
-    a playlist at that time.
+    `page_id` may be a collection ID (e.g. "collection:abc123") to rotate
+    a group of pages at that time.
     The user will be asked to confirm.
 
 13. Update an existing schedule entry:
@@ -484,7 +485,7 @@ async def stream_chat(
     available_pages: list[dict[str, Any]] | None = None,
     installed_plugins: list[dict[str, Any]] | None = None,
     available_schedules: list[dict[str, Any]] | None = None,
-    available_carousels: list[dict[str, Any]] | None = None,
+    available_collections: list[dict[str, Any]] | None = None,
     registry_plugins: list[dict[str, Any]] | None = None,
     surface: ChatSurface = "global",
     provider_id: str | None = None,
@@ -565,7 +566,7 @@ async def stream_chat(
         available_pages=available_pages,
         installed_plugins=installed_plugins,
         available_schedules=available_schedules,
-        available_carousels=available_carousels,
+        available_collections=available_collections,
         registry_plugins=registry_plugins,
         mode="chat",
     )

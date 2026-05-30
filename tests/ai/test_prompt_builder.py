@@ -432,30 +432,31 @@ def test_prompt_available_schedules_empty_list():
     assert "no schedules yet" in ctx.system_prompt
 
 
-def test_prompt_includes_available_carousels_when_supplied():
-    carousels = [
+def test_prompt_includes_available_collections_when_supplied():
+    collections = [
         {
-            "id": "carousel:abc",
+            "id": "collection:abc",
             "name": "Morning Rotation",
             "page_ids": ["p1", "p2"],
-            "interval_seconds": 30,
+            "selection_mode": "time",
+            "time": {"interval_seconds": 30},
         },
     ]
-    ctx = build_prompt("x", "flagship", available_carousels=carousels)
-    assert "AVAILABLE CAROUSELS" in ctx.system_prompt
+    ctx = build_prompt("x", "flagship", available_collections=collections)
+    assert "AVAILABLE COLLECTIONS" in ctx.system_prompt
     assert "Morning Rotation" in ctx.system_prompt
-    assert "carousel:abc" in ctx.system_prompt
+    assert "collection:abc" in ctx.system_prompt
 
 
-def test_prompt_omits_carousels_section_when_not_supplied():
+def test_prompt_omits_collections_section_when_not_supplied():
     ctx = build_prompt("x", "flagship")
-    assert "AVAILABLE CAROUSELS" not in ctx.system_prompt
+    assert "AVAILABLE COLLECTIONS" not in ctx.system_prompt
 
 
-def test_prompt_available_carousels_empty_list():
-    ctx = build_prompt("x", "flagship", available_carousels=[])
-    assert "AVAILABLE CAROUSELS" in ctx.system_prompt
-    assert "no carousels yet" in ctx.system_prompt
+def test_prompt_available_collections_empty_list():
+    ctx = build_prompt("x", "flagship", available_collections=[])
+    assert "AVAILABLE COLLECTIONS" in ctx.system_prompt
+    assert "no collections yet" in ctx.system_prompt
 
 
 def test_prompt_contains_scope_guardrails_generate_mode():

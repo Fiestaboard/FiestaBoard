@@ -211,10 +211,10 @@ def test_parse_tool_call_update_setting_invalid_category():
         parse_tool_call({"op": "update_setting", "args": {"category": "mqtt", "values": {}}})
 
 
-def test_parse_tool_call_create_carousel():
+def test_parse_tool_call_create_collection():
     call = parse_tool_call(
         {
-            "op": "create_carousel",
+            "op": "create_collection",
             "args": {
                 "name": "Morning",
                 "page_ids": ["abc", "def"],
@@ -222,24 +222,24 @@ def test_parse_tool_call_create_carousel():
             },
         }
     )
-    assert call.op == "create_carousel"
+    assert call.op == "create_collection"
     assert call.args.name == "Morning"
     assert call.args.page_ids == ["abc", "def"]
     assert call.args.interval_seconds == 45
 
 
-def test_parse_tool_call_update_carousel():
+def test_parse_tool_call_update_collection():
     call = parse_tool_call(
         {
-            "op": "update_carousel",
+            "op": "update_collection",
             "args": {
-                "carousel_id": "carousel:abc",
+                "collection_id": "collection:abc",
                 "page_ids": ["x", "y"],
             },
         }
     )
-    assert call.op == "update_carousel"
-    assert call.args.carousel_id == "carousel:abc"
+    assert call.op == "update_collection"
+    assert call.args.collection_id == "collection:abc"
     assert call.args.page_ids == ["x", "y"]
     assert call.args.name is None
 

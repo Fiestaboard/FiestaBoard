@@ -18,7 +18,7 @@ from src.schedules.models import (
     _valid_mmdd,
 )
 from src.schedules.service import ScheduleService
-from src.schedules.storage import ScheduleStorage
+from src.schedules.storage import CURRENT_SCHEMA_VERSION, ScheduleStorage
 
 
 @pytest.fixture
@@ -384,9 +384,9 @@ class TestStorageMigration:
         entry = next(iter(storage._schedules.values()))
         assert entry.recurrence_type == "weekly"
 
-        # Resaved file should now carry schema_version = 1
+        # Resaved file should now carry the current schema_version
         resaved = json.loads(legacy_path.read_text())
-        assert resaved["schema_version"] == 1
+        assert resaved["schema_version"] == CURRENT_SCHEMA_VERSION
 
         # And the v0 backup was created
         backup = legacy_path.with_suffix(".json.v0_backup")

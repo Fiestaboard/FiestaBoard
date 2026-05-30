@@ -288,39 +288,40 @@ class UpdateSettingOp(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# create_carousel / update_carousel — manage page carousels.
+# create_collection / update_collection — manage page collections.
 # ---------------------------------------------------------------------------
 
 
-class CreateCarouselArgs(BaseModel):
+class CreateCollectionArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     name: str = Field(..., min_length=1, max_length=100)
     page_ids: list[str] = Field(default_factory=list)
+    # Time-mode interval; ignored when selection_mode == "variable".
     interval_seconds: int = Field(30, ge=5, le=3600)
 
 
-class CreateCarouselOp(BaseModel):
+class CreateCollectionOp(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    op: Literal["create_carousel"]
-    args: CreateCarouselArgs
+    op: Literal["create_collection"]
+    args: CreateCollectionArgs
 
 
-class UpdateCarouselArgs(BaseModel):
+class UpdateCollectionArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    carousel_id: str = Field(..., description="ID of the carousel to update.")
+    collection_id: str = Field(..., description="ID of the collection to update.")
     name: str | None = Field(default=None, min_length=1, max_length=100)
     page_ids: list[str] | None = None
     interval_seconds: int | None = Field(default=None, ge=5, le=3600)
 
 
-class UpdateCarouselOp(BaseModel):
+class UpdateCollectionOp(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    op: Literal["update_carousel"]
-    args: UpdateCarouselArgs
+    op: Literal["update_collection"]
+    args: UpdateCollectionArgs
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +336,7 @@ _VALID_CUSTOM_DAYS = {"monday", "tuesday", "wednesday", "thursday", "friday", "s
 class CreateScheduleArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    page_id: str = Field(..., description="Page or carousel ID to show.")
+    page_id: str = Field(..., description="Page or collection ID to show.")
     start_time: str = Field(..., description="24h HH:MM start time.")
     end_time: str | None = Field(default=None, description="24h HH:MM end time, or null for open-ended.")
     day_pattern: DayPattern = "all"
@@ -482,8 +483,8 @@ ToolCall = Union[  # noqa: UP007 — pydantic discriminated-union requires typin
     DisablePluginOp,
     UninstallPluginOp,
     UpdateSettingOp,
-    CreateCarouselOp,
-    UpdateCarouselOp,
+    CreateCollectionOp,
+    UpdateCollectionOp,
     CreateScheduleOp,
     UpdateScheduleOp,
     DeleteScheduleOp,
@@ -505,8 +506,8 @@ _OP_REGISTRY = {
     "disable_plugin": DisablePluginOp,
     "uninstall_plugin": UninstallPluginOp,
     "update_setting": UpdateSettingOp,
-    "create_carousel": CreateCarouselOp,
-    "update_carousel": UpdateCarouselOp,
+    "create_collection": CreateCollectionOp,
+    "update_collection": UpdateCollectionOp,
     "create_schedule": CreateScheduleOp,
     "update_schedule": UpdateScheduleOp,
     "delete_schedule": DeleteScheduleOp,

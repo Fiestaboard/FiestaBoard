@@ -126,11 +126,11 @@ def mock_page_service():
 
 
 @pytest.fixture
-def mock_carousel_service():
-    """Mock the carousel service."""
-    with patch("src.api_server.get_carousel_service") as mock_get:
+def mock_collection_service():
+    """Mock the collection service."""
+    with patch("src.api_server.get_collection_service") as mock_get:
         cs = Mock()
-        cs.get_carousel.return_value = None
+        cs.get_collection.return_value = None
         cs.resolve_page_id.return_value = None
         mock_get.return_value = cs
         yield cs
@@ -762,7 +762,7 @@ class TestSetActivePage:
     """Tests for PUT /settings/active-page."""
 
     def test_set_active_page_with_board_send(
-        self, client, mock_settings_service, mock_page_service, mock_service, mock_carousel_service
+        self, client, mock_settings_service, mock_page_service, mock_service, mock_collection_service
     ):
         """Setting an active page also sends to board when enabled."""
         mock_settings_service.should_send_to_board.return_value = True
@@ -776,28 +776,28 @@ class TestSetActivePage:
             assert response.status_code == 200
             assert response.json()["sent_to_board"] is True
 
-    def test_set_active_page_carousel(
-        self, client, mock_settings_service, mock_page_service, mock_service, mock_carousel_service
+    def test_set_active_page_collection(
+        self, client, mock_settings_service, mock_page_service, mock_service, mock_collection_service
     ):
-        """Setting a carousel ID as active page."""
-        mock_carousel_service.get_carousel.return_value = Mock()
-        mock_carousel_service.resolve_page_id.return_value = "resolved_page"
-        with patch("src.api_server.is_carousel_id", return_value=True):
-            response = client.put("/settings/active-page", json={"page_id": "carousel:abc"})
+        """Setting a collection ID as active page."""
+        mock_collection_service.get_collection.return_value = Mock()
+        mock_collection_service.resolve_page_id.return_value = "resolved_page"
+        with patch("src.api_server.is_collection_id", return_value=True):
+            response = client.put("/settings/active-page", json={"page_id": "collection:abc"})
             assert response.status_code == 200
-            mock_carousel_service.get_carousel.assert_called_once()
+            mock_collection_service.get_collection.assert_called_once()
 
-    def test_set_active_page_carousel_not_found(
-        self, client, mock_settings_service, mock_page_service, mock_service, mock_carousel_service
+    def test_set_active_page_collection_not_found(
+        self, client, mock_settings_service, mock_page_service, mock_service, mock_collection_service
     ):
-        """Carousel not found → 404."""
-        mock_carousel_service.get_carousel.return_value = None
-        with patch("src.api_server.is_carousel_id", return_value=True):
-            response = client.put("/settings/active-page", json={"page_id": "carousel:nope"})
+        """Collection not found → 404."""
+        mock_collection_service.get_collection.return_value = None
+        with patch("src.api_server.is_collection_id", return_value=True):
+            response = client.put("/settings/active-page", json={"page_id": "collection:nope"})
             assert response.status_code == 404
 
     def test_set_active_page_send_fails(
-        self, client, mock_settings_service, mock_page_service, mock_service, mock_carousel_service
+        self, client, mock_settings_service, mock_page_service, mock_service, mock_collection_service
     ):
         """Board send failure still returns success but sent_to_board is False."""
         mock_settings_service.should_send_to_board.return_value = True

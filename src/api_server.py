@@ -32,8 +32,8 @@ from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 from .board_client import board_client_from_board_dict  # noqa: E402
-from .carousels.models import CarouselCreate, CarouselUpdate, is_carousel_id  # noqa: E402
-from .carousels.service import get_carousel_service  # noqa: E402
+from .collections.models import CollectionCreate, CollectionUpdate, is_collection_id  # noqa: E402
+from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
 from .config_manager import get_config_manager  # noqa: E402
 from .devices import get_dimensions  # noqa: E402
@@ -1363,7 +1363,7 @@ async def chat_ai_page(request: Request):
     available_pages = body.get("available_pages")
     installed_plugins = body.get("installed_plugins")
     available_schedules = body.get("available_schedules")
-    available_carousels = body.get("available_carousels")
+    available_collections = body.get("available_collections")
     registry_plugins = body.get("registry_plugins")
     # Which chat panel is calling us — "editor" (inline panel inside the
     # page editor) vs "global" (global drawer). Steers the AI's choice
@@ -1400,9 +1400,9 @@ async def chat_ai_page(request: Request):
         raise HTTPException(
             status_code=400, detail="`available_schedules` must be an array."
         )
-    if available_carousels is not None and not isinstance(available_carousels, list):
+    if available_collections is not None and not isinstance(available_collections, list):
         raise HTTPException(
-            status_code=400, detail="`available_carousels` must be an array."
+            status_code=400, detail="`available_collections` must be an array."
         )
     if registry_plugins is not None and not isinstance(registry_plugins, list):
         raise HTTPException(
@@ -1442,7 +1442,7 @@ async def chat_ai_page(request: Request):
                     available_pages=available_pages,
                     installed_plugins=installed_plugins,
                     available_schedules=available_schedules,
-                    available_carousels=available_carousels,
+                    available_collections=available_collections,
                     registry_plugins=registry_plugins,
                     surface=surface,
                     provider_id=provider_id,
@@ -5069,17 +5069,17 @@ async def set_active_page(request: dict):
     service = get_service()
 
     page_id = request.get("page_id")
-    carousel_service = get_carousel_service()
+    collection_service = get_collection_service()
 
-    # Validate page or carousel exists if not clearing
+    # Validate page or collection exists if not clearing
     page = None
     render_page_id = page_id
     if page_id is not None:
-        if is_carousel_id(page_id):
-            carousel = carousel_service.get_carousel(page_id)
-            if not carousel:
-                raise HTTPException(status_code=404, detail=f"Carousel not found: {page_id}")
-            render_page_id = carousel_service.resolve_page_id(page_id)
+        if is_collection_id(page_id):
+            collection = collection_service.get_collection(page_id)
+            if not collection:
+                raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
+            render_page_id = collection_service.resolve_page_id(page_id)
             if render_page_id:
                 page = page_service.get_page(render_page_id)
         else:
@@ -5095,7 +5095,7 @@ async def set_active_page(request: dict):
         from .triggers.service import get_trigger_service
         get_trigger_service().dismiss_active_for_user_override()
 
-    # Set the active page (stores the carousel ID or page ID as-is)
+    # Set the active page (stores the collection ID or page ID as-is)
     settings_service.set_active_page_id(page_id)
 
     # Immediately send to board if a page is set
@@ -5171,14 +5171,14 @@ async def set_temporary_override(request: dict):
     if not page_id:
         raise HTTPException(status_code=422, detail="page_id is required")
 
-    # Validate the page exists (carousels are also valid)
-    if not is_carousel_id(page_id):
+    # Validate the page exists (collections are also valid)
+    if not is_collection_id(page_id):
         if not page_service.get_page(page_id):
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
     else:
-        carousel_service = get_carousel_service()
-        if not carousel_service.get_carousel(page_id):
-            raise HTTPException(status_code=404, detail=f"Carousel not found: {page_id}")
+        collection_service = get_collection_service()
+        if not collection_service.get_collection(page_id):
+            raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
 
     duration_minutes = request.get("duration_minutes")
     if duration_minutes is None:
@@ -5201,7 +5201,7 @@ async def set_temporary_override(request: dict):
     if revert_mode == "page":
         if not revert_page_id:
             raise HTTPException(status_code=422, detail="revert_page_id is required when revert_mode is 'page'")
-        if not is_carousel_id(revert_page_id):
+        if not is_collection_id(revert_page_id):
             if not page_service.get_page(revert_page_id):
                 raise HTTPException(status_code=404, detail=f"Revert page not found: {revert_page_id}")
 
@@ -5999,7 +5999,7 @@ async def list_pages():
 async def get_current_display():
     """Get the template content of the currently active board display.
 
-    Resolves carousels and schedule mode to find the actual page being shown.
+    Resolves collections and schedule mode to find the actual page being shown.
     For template pages, returns the raw template and line metadata so the
     caller can use it as a starting point for a new page.  For other page
     types, returns the rendered output lines.
@@ -6008,7 +6008,7 @@ async def get_current_display():
     """
     settings_service = get_settings_service()
     page_service = get_page_service()
-    carousel_service = get_carousel_service()
+    collection_service = get_collection_service()
 
     # Determine the active page ID (schedule-aware)
     if settings_service.is_schedule_enabled():
@@ -6025,11 +6025,11 @@ async def get_current_display():
     if not active_page_id:
         raise HTTPException(status_code=404, detail="No active page set")
 
-    # Resolve carousel to underlying page
-    if is_carousel_id(active_page_id):
-        resolved = carousel_service.resolve_page_id(active_page_id)
+    # Resolve collection to underlying page
+    if is_collection_id(active_page_id):
+        resolved = collection_service.resolve_page_id(active_page_id)
         if not resolved:
-            raise HTTPException(status_code=404, detail="Carousel could not be resolved")
+            raise HTTPException(status_code=404, detail="Collection could not be resolved")
         active_page_id = resolved
 
     page = page_service.get_page(active_page_id)
@@ -6618,10 +6618,10 @@ async def set_default_page(request: dict):
     page_id = request["page_id"]
     board_id = request.get("board_id")
     if page_id is not None:
-        if is_carousel_id(page_id):
-            carousel_service = get_carousel_service()
-            if not carousel_service.get_carousel(page_id):
-                raise HTTPException(status_code=404, detail=f"Carousel not found: {page_id}")
+        if is_collection_id(page_id):
+            collection_service = get_collection_service()
+            if not collection_service.get_collection(page_id):
+                raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
         else:
             page_service = get_page_service()
             if not page_service.get_page(page_id):
@@ -6722,75 +6722,125 @@ async def delete_schedule(schedule_id: str):
 
 
 # =============================================================================
-# Carousel Endpoints
+# Collection Endpoints
 # =============================================================================
 
-@app.get("/carousels")
-async def list_carousels():
-    """List all carousels."""
-    carousel_service = get_carousel_service()
-    carousels = carousel_service.list_carousels()
+def _validate_collection_payload(
+    data,
+    page_service,
+    *,
+    require_pages: bool = True,
+) -> None:
+    """Shared validation for create / update.
+
+    Confirms every page_id (membership and rule targets) resolves to a real
+    page, and statically validates variable-mode rule expressions against the
+    known plugin sources before we let them hit storage.
+    """
+    page_ids = getattr(data, "page_ids", None)
+    if page_ids is None and require_pages:
+        return  # let Pydantic surface the missing field
+    if page_ids is not None:
+        for pid in page_ids:
+            if not page_service.get_page(pid):
+                raise HTTPException(
+                    status_code=400, detail=f"Page not found: {pid}"
+                )
+
+    variable = getattr(data, "variable", None)
+    if variable is None:
+        return
+
+    if page_ids is not None:
+        if variable.default_page_id not in page_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="default_page_id must be one of page_ids",
+            )
+        for idx, rule in enumerate(variable.rules):
+            if rule.page_id not in page_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Variable rule {idx} page_id not in page_ids",
+                )
+
+    from .templates.expressions import validate_expression
+    template_engine = get_template_engine()
+    known_sources = template_engine._get_all_known_sources()
+    for idx, rule in enumerate(variable.rules):
+        issues = validate_expression(rule.expression, known_sources=known_sources)
+        if issues:
+            first = issues[0]
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Variable rule {idx} expression invalid: "
+                    f"{first.code} {first.message}"
+                ),
+            )
+
+
+@app.get("/collections")
+async def list_collections():
+    """List all collections."""
+    collection_service = get_collection_service()
+    collections = collection_service.list_collections()
     return {
-        "carousels": [c.model_dump() for c in carousels],
-        "total": len(carousels),
+        "collections": [c.model_dump() for c in collections],
+        "total": len(collections),
     }
 
 
-@app.post("/carousels")
-async def create_carousel(data: CarouselCreate):
-    """Create a new carousel."""
-    carousel_service = get_carousel_service()
+@app.post("/collections")
+async def create_collection(data: CollectionCreate):
+    """Create a new collection."""
+    collection_service = get_collection_service()
     page_service = get_page_service()
 
-    for pid in data.page_ids:
-        if not page_service.get_page(pid):
-            raise HTTPException(status_code=400, detail=f"Page not found: {pid}")
+    _validate_collection_payload(data, page_service)
 
     try:
-        carousel = carousel_service.create_carousel(data)
-        return {"status": "success", "carousel": carousel.model_dump()}
+        collection = collection_service.create_collection(data)
+        return {"status": "success", "collection": collection.model_dump()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@app.get("/carousels/{carousel_id}")
-async def get_carousel(carousel_id: str):
-    """Get a carousel by ID."""
-    carousel_service = get_carousel_service()
-    carousel = carousel_service.get_carousel(carousel_id)
-    if not carousel:
-        raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
-    return carousel.model_dump()
+@app.get("/collections/{collection_id}")
+async def get_collection(collection_id: str):
+    """Get a collection by ID."""
+    collection_service = get_collection_service()
+    collection = collection_service.get_collection(collection_id)
+    if not collection:
+        raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
+    return collection.model_dump()
 
 
-@app.put("/carousels/{carousel_id}")
-async def update_carousel(carousel_id: str, data: CarouselUpdate):
-    """Update an existing carousel."""
-    carousel_service = get_carousel_service()
+@app.put("/collections/{collection_id}")
+async def update_collection(collection_id: str, data: CollectionUpdate):
+    """Update an existing collection."""
+    collection_service = get_collection_service()
     page_service = get_page_service()
 
-    if data.page_ids is not None:
-        for pid in data.page_ids:
-            if not page_service.get_page(pid):
-                raise HTTPException(status_code=400, detail=f"Page not found: {pid}")
+    _validate_collection_payload(data, page_service, require_pages=False)
 
     try:
-        carousel = carousel_service.update_carousel(carousel_id, data)
-        if not carousel:
-            raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
-        return {"status": "success", "carousel": carousel.model_dump()}
+        collection = collection_service.update_collection(collection_id, data)
+        if not collection:
+            raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
+        return {"status": "success", "collection": collection.model_dump()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@app.delete("/carousels/{carousel_id}")
-async def delete_carousel(carousel_id: str):
-    """Delete a carousel."""
-    carousel_service = get_carousel_service()
-    deleted = carousel_service.delete_carousel(carousel_id)
+@app.delete("/collections/{collection_id}")
+async def delete_collection(collection_id: str):
+    """Delete a collection."""
+    collection_service = get_collection_service()
+    deleted = collection_service.delete_collection(collection_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
-    return {"status": "success", "message": f"Carousel {carousel_id} deleted"}
+        raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
+    return {"status": "success", "message": f"Collection {collection_id} deleted"}
 
 
 # =============================================================================
@@ -8370,7 +8420,7 @@ async def generic_data_test_fetch(request: dict):
 @app.get("/backup/export")
 async def export_backup():
     """Download a JSON file containing all user data (config, settings,
-    pages, carousels, schedules, and metadata for installed external
+    pages, collections, schedules, and metadata for installed external
     plugins).
 
     The file can be re-uploaded to ``/backup/import`` on a new instance
