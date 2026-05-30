@@ -224,6 +224,31 @@ jobs:
             ${{ steps.out.outputs.img }}
             ${{ steps.checksum.outputs.sha256 }}
 
+      - name: Clear "image pending" banner from release notes
+        if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        # release.yml inserts a "Raspberry Pi image is building" banner wrapped
+        # in <!-- pi-image-pending-start --> / <!-- pi-image-pending-end -->
+        # markers when the release is first created. Now that the .img.xz is
+        # attached, strip that block so users don't see a stale "pending" notice
+        # next to a release that already has the asset.
+        #
+        # No-ops cleanly when the banner is missing (weekly cron builds, tag
+        # builds against older releases, re-runs after a prior success).
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.target_release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BODY=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
+          NEW_BODY=$(BODY="$BODY" python3 -c 'import os, re, sys; sys.stdout.write(re.sub(r"<!-- pi-image-pending-start -->.*?<!-- pi-image-pending-end -->\n*", "", os.environ["BODY"], flags=re.DOTALL))')
+          if [ "$BODY" = "$NEW_BODY" ]; then
+            echo "No pending banner found on release $TAG — nothing to clear."
+            exit 0
+          fi
+          printf '%s' "$NEW_BODY" > /tmp/release-body.md
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/release-body.md
+          echo "Cleared pending banner from release $TAG."
+
       - name: Update latest-version file in docs (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
         env:

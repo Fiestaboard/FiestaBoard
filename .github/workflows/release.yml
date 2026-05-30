@@ -456,7 +456,22 @@ jobs:
 
             // Build final release notes
             let releaseNotes = '';
-            
+
+            // Pi image is built by a separate workflow (build-fiestapi.yml) that
+            // runs after this release is published and takes ~45-60 min. Mark the
+            // release with a banner so users know the .img.xz is on its way; the
+            // Pi workflow strips this block once the image has been attached.
+            // Markers are HTML comments so the regex-strip in build-fiestapi.yml
+            // can find this exact span no matter how the body is edited later.
+            const piPendingBanner =
+              `<!-- pi-image-pending-start -->\n` +
+              `> 🍓 **Raspberry Pi image is building** — the \`FiestaPi-${version}-arm64.img.xz\` ` +
+              `asset will appear in the **Assets** section below once the build completes ` +
+              `(~45-60 min). ` +
+              `[Watch progress](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/build-fiestapi.yml)\n` +
+              `<!-- pi-image-pending-end -->\n\n`;
+            releaseNotes += piPendingBanner;
+
             if (aiSummary) {
               releaseNotes += `## Summary\n\n${aiSummary}\n\n`;
             }
