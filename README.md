@@ -30,7 +30,7 @@ If you have (or are willing to buy) a Raspberry Pi 3B or newer, this is by far t
 
 1. A **Raspberry Pi** (3B / 3B+ / Zero 2 W / 4 / 5) with a microSD card and 5 V power supply
 2. **[Raspberry Pi Imager](https://www.raspberrypi.com/software/)** — a free official tool from the Raspberry Pi Foundation that flashes SD cards (works on Mac, Windows, Linux)
-3. The latest **FiestaPi image** from our [Releases page](https://github.com/Fiestaboard/FiestaBoard/releases/latest) (`fiestapi-<version>-arm64.img.xz`)
+3. The latest **FiestaPi image** from our [Releases page](https://github.com/Fiestaboard/FiestaBoard/releases/latest) (`FiestaPi-<version>-arm64.img.xz`)
 
 **The 4-step flow:**
 

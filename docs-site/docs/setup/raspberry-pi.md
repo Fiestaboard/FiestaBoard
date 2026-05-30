@@ -26,7 +26,7 @@ FiestaPi is a pre-built Raspberry Pi OS image with FiestaBoard, Docker, and the 
 
 👉 **[Download the latest FiestaPi image](https://github.com/Fiestaboard/FiestaBoard/releases/latest)**
 
-On the Releases page, grab the file named `fiestapi-<version>-arm64.img.xz`.
+On the Releases page, grab the file named `FiestaPi-<version>-arm64.img.xz`.
 
 :::tip Not sure which file to pick?
 Download the `.img.xz` file. It's compressed — Raspberry Pi Imager handles decompression automatically.
@@ -54,8 +54,8 @@ The **Customisation** step in the Imager sidebar is only used during the flash �
 
 Alternative tools: [Balena Etcher](https://etcher.balena.io/) works too. On Linux/macOS with `dd`:
 ```bash
-xz -d fiestapi-<version>-arm64.img.xz
-sudo dd if=fiestapi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=progress
+xz -d FiestaPi-<version>-arm64.img.xz
+sudo dd if=FiestaPi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=progress
 ```
 
 ### Adding Wi-Fi credentials without Raspberry Pi Imager

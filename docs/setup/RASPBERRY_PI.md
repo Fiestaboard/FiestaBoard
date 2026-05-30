@@ -12,7 +12,7 @@ The easiest way to run FiestaBoard is to flash a Raspberry Pi with our pre-built
 
 ## 1. Download the image
 
-Grab the latest `fiestapi-<version>-arm64.img.xz` from the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page.
+Grab the latest `FiestaPi-<version>-arm64.img.xz` from the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page.
 
 ## 2. Flash the SD card
 
@@ -32,8 +32,8 @@ The simplest tool is [Raspberry Pi Imager](https://www.raspberrypi.com/software/
 Other tools that work: [Balena Etcher](https://etcher.balena.io/), or `dd` on Linux/macOS:
 
 ```bash
-xz -d fiestapi-<version>-arm64.img.xz
-sudo dd if=fiestapi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=progress
+xz -d FiestaPi-<version>-arm64.img.xz
+sudo dd if=FiestaPi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=progress
 ```
 
 ### Adding Wi-Fi credentials after flashing

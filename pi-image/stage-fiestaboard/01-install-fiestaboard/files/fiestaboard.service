@@ -3,15 +3,32 @@ Description=FiestaBoard
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
+# First-boot image pulls can race containerd snapshot extraction
+# ("lease does not exist: not found") when compose pulls multiple
+# images in parallel on slow SD-card I/O. Retry up to 10 times in
+# 10 min so the install self-recovers instead of stranding the user
+# with port 4420 closed.
+StartLimitIntervalSec=600
+StartLimitBurst=10
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/fiestaboard
+# Serialize image pulls. Parallel layer extraction on slow SD cards
+# triggers the containerd lease race above; one-at-a-time is reliable.
+Environment=COMPOSE_PARALLEL_LIMIT=1
 ExecStartPre=/opt/fiestaboard/firstboot.sh
+# Explicit pull step before `up -d` so transient pull failures are
+# visible in the journal and counted against the retry budget. The
+# `-` prefix tolerates offline boots (we still try `up` with whatever
+# images are cached locally).
+ExecStartPre=-/usr/bin/docker compose pull
 ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
 TimeoutStartSec=900
+Restart=on-failure
+RestartSec=30s
 
 [Install]
 WantedBy=multi-user.target

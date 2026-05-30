@@ -29,7 +29,7 @@ If you have (or are willing to buy) a Raspberry Pi, this is by far the easiest r
 
 1. **Get a Raspberry Pi** (3B or newer — the Pi 4, Pi 5, and the inexpensive [Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) all work), plus a microSD card (8 GB minimum, 16 GB+ recommended) and a 5 V power supply.
 2. **Download Raspberry Pi Imager** — a free, official tool from the Raspberry Pi Foundation that flashes images to SD cards. Available for Mac, Windows, and Linux at [raspberrypi.com/software](https://www.raspberrypi.com/software/).
-3. **Download the FiestaPi image** from our [GitHub Releases page](https://github.com/Fiestaboard/FiestaBoard/releases/latest) — grab the file named `fiestapi-<version>-arm64.img.xz`.
+3. **Download the FiestaPi image** from our [GitHub Releases page](https://github.com/Fiestaboard/FiestaBoard/releases/latest) — grab the file named `FiestaPi-<version>-arm64.img.xz`.
 4. **Flash the SD card** with Raspberry Pi Imager:
    - Choose Device → your Pi model
    - Choose OS → scroll to the bottom → **Use custom** → pick the `.img.xz` file you downloaded

@@ -44,7 +44,7 @@ Built by `.github/workflows/build-fiestapi.yml` on three triggers:
   gh run watch
   ```
 
-Output is uploaded as a workflow artifact (`fiestapi-<version>-arm64`) and, for tag builds, attached to the GitHub Release as `fiestapi-<version>-arm64.img.xz`.
+Output is uploaded as a workflow artifact (`FiestaPi-<version>-arm64`) and, for tag builds, attached to the GitHub Release as `FiestaPi-<version>-arm64.img.xz`.
 
 ## Layout
 

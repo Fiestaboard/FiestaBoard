@@ -118,7 +118,7 @@ jobs:
             fi
           else
             # Weekly builds labelled by year-week so the filename is
-            # meaningful (e.g. fiestapi-2026-W18-arm64.img.xz).
+            # meaningful (e.g. FiestaPi-2026-W18-arm64.img.xz).
             VERSION="$(date -u +%Y-W%V)"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -145,17 +145,24 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Locate output
+      - name: Locate and rename output
         id: out
         run: |
           # build-docker.sh runs as root, so pi-gen/deploy and its contents
           # are root-owned. Reclaim ownership so subsequent steps (checksum,
           # artifact upload, release attach) can read/write without sudo.
           sudo chown -R "$USER:$USER" pi-gen/deploy
-          IMG=$(find pi-gen/deploy -name '*.img.xz' | head -n1)
-          test -n "$IMG"
-          echo "img=$IMG" >> "$GITHUB_OUTPUT"
-          echo "Found image: $IMG"
+          SRC=$(find pi-gen/deploy -name '*.img.xz' | head -n1)
+          test -n "$SRC"
+          # Rename to a stable, user-facing format. pi-gen's default
+          # `image_<date>-fiestapi-lite.img.xz` is ugly and doesn't carry
+          # the FiestaBoard version, so the docs have always lied. Land on
+          # `FiestaPi-<version>-arm64.img.xz` so the release asset matches
+          # what we tell users to download.
+          DEST="pi-gen/deploy/FiestaPi-${{ steps.version.outputs.version }}-arm64.img.xz"
+          mv "$SRC" "$DEST"
+          echo "img=$DEST" >> "$GITHUB_OUTPUT"
+          echo "Renamed: $SRC -> $DEST"
 
       - name: Generate SHA-256 checksum
         id: checksum
@@ -169,15 +176,20 @@ jobs:
       - name: Upload as workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: fiestapi-${{ steps.version.outputs.version }}-arm64
+          name: FiestaPi-${{ steps.version.outputs.version }}-arm64
           path: ${{ steps.out.outputs.img }}
           # 30 days — weekly builds rotate frequently; grab the latest.
           retention-days: 30
 
       - name: Resolve target app release tag
-        # Every build path attaches to an existing app release:
+        # Skip on workflow_dispatch from non-default branches: a manual
+        # build from a feature branch should produce a verifiable artifact
+        # for testing, not pollute a published release page. Dispatch on
+        # main remains attached (maintainer hot-patch path).
+        if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        # Every release-attaching build path resolves an existing app release:
         #   - Tag builds (refs/tags/vN.0.0) → attach to that tag's release.
-        #   - Weekly cron / manual dispatch → attach to the latest published
+        #   - Weekly cron / dispatch-on-main → attach to the latest published
         #     non-prerelease app release (e.g. v5.1.1).
         # This keeps each app version's release page as the single source
         # of truth for both the code release and its FiestaPi .img.xz.
@@ -200,6 +212,7 @@ jobs:
           echo "Will attach FiestaPi image to release: $TAG"
 
       - name: Attach FiestaPi image to app release
+        if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
         # Upload the .img.xz and .sha256 to the resolved release.
         # softprops/action-gh-release@v3 replaces same-named assets in
         # place, so re-running overwrites cleanly. Body is intentionally
