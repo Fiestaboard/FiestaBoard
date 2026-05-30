@@ -6,13 +6,49 @@ timezone for direct use in schedule evaluation.
 """
 
 import logging
-from datetime import timedelta, date
+from datetime import datetime, timedelta, date
 from typing import Optional, Tuple
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from astral import LocationInfo
 from astral.sun import sun
 
 logger = logging.getLogger(__name__)
+
+
+def get_effective_timezone() -> str:
+    """Return the IANA timezone to use for sun-time resolution.
+
+    Prefers the general (project-wide) timezone used by ``time_service`` so
+    that "what time is it now" and "when is sunset" stay in the same frame.
+    Falls back to the date_time plugin's timezone, then to UTC.
+
+    Without this preference order, a user who configured only the general
+    timezone (or whose date_time plugin TZ is a non-DST equivalent like
+    ``MST``/``America/Phoenix``/``Etc/GMT+7``) sees sunset-based schedules
+    fire ~1 hour early during DST because the sunset is computed without
+    DST while "now" is computed with DST.
+    """
+    try:
+        from ..config import Config
+        return Config.GENERAL_TIMEZONE or Config.TIMEZONE or "UTC"
+    except Exception:
+        logger.debug("Could not read timezone from Config, using UTC", exc_info=True)
+        return "UTC"
+
+
+def get_today_in_timezone(timezone_str: str) -> date:
+    """Return today's date in the given IANA timezone.
+
+    Using the configured timezone (rather than the server's local date) avoids
+    a one-day skew when the server clock runs in a different zone than the
+    user's location.
+    """
+    try:
+        tz = ZoneInfo(timezone_str)
+    except (ZoneInfoNotFoundError, ValueError):
+        tz = ZoneInfo("UTC")
+    return datetime.now(tz).date()
 
 # Sun event types that can be used in schedule start/end
 SUN_EVENT_TYPES = ("sunrise", "sunset")
@@ -37,9 +73,13 @@ def get_sun_times(
         objects, or None if calculation fails (e.g. polar day/night).
     """
     try:
-        import pytz
+        try:
+            tz = ZoneInfo(timezone_str)
+        except (ZoneInfoNotFoundError, ValueError):
+            logger.warning("Unknown configured timezone, falling back to UTC")
+            tz = ZoneInfo("UTC")
+            timezone_str = "UTC"
 
-        tz = pytz.timezone(timezone_str)
         location = LocationInfo(
             name="Board",
             region="",
