@@ -118,7 +118,7 @@ jobs:
             fi
           else
             # Weekly builds labelled by year-week so the filename is
-            # meaningful (e.g. fiestapi-2026-W18-arm64.img.xz).
+            # meaningful (e.g. FiestaPi-2026-W18-arm64.img.xz).
             VERSION="$(date -u +%Y-W%V)"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -145,17 +145,24 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Locate output
+      - name: Locate and rename output
         id: out
         run: |
           # build-docker.sh runs as root, so pi-gen/deploy and its contents
           # are root-owned. Reclaim ownership so subsequent steps (checksum,
           # artifact upload, release attach) can read/write without sudo.
           sudo chown -R "$USER:$USER" pi-gen/deploy
-          IMG=$(find pi-gen/deploy -name '*.img.xz' | head -n1)
-          test -n "$IMG"
-          echo "img=$IMG" >> "$GITHUB_OUTPUT"
-          echo "Found image: $IMG"
+          SRC=$(find pi-gen/deploy -name '*.img.xz' | head -n1)
+          test -n "$SRC"
+          # Rename to a stable, user-facing format. pi-gen's default
+          # `image_<date>-fiestapi-lite.img.xz` is ugly and doesn't carry
+          # the FiestaBoard version, so the docs have always lied. Land on
+          # `FiestaPi-<version>-arm64.img.xz` so the release asset matches
+          # what we tell users to download.
+          DEST="pi-gen/deploy/FiestaPi-${{ steps.version.outputs.version }}-arm64.img.xz"
+          mv "$SRC" "$DEST"
+          echo "img=$DEST" >> "$GITHUB_OUTPUT"
+          echo "Renamed: $SRC -> $DEST"
 
       - name: Generate SHA-256 checksum
         id: checksum
@@ -169,7 +176,7 @@ jobs:
       - name: Upload as workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: fiestapi-${{ steps.version.outputs.version }}-arm64
+          name: FiestaPi-${{ steps.version.outputs.version }}-arm64
           path: ${{ steps.out.outputs.img }}
           # 30 days — weekly builds rotate frequently; grab the latest.
           retention-days: 30
