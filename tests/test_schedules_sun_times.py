@@ -5,6 +5,7 @@ from datetime import date, time
 from unittest.mock import patch, MagicMock
 
 from src.schedules.sun_times import (
+    get_effective_timezone,
     get_sun_times,
     resolve_sun_time,
     resolve_schedule_sun_times,
@@ -413,3 +414,51 @@ class TestStorageSunFields:
         assert entry.start_sun_offset == 0
         assert entry.end_type == "fixed"
         assert entry.end_sun_offset == 0
+
+
+# ---- Effective timezone selection (regression for issue #814) ----
+
+class TestEffectiveTimezone:
+    """Sun-time resolution must share the timezone used by time_service.
+
+    Without this, a user with general timezone set to a DST-aware zone (e.g.
+    America/Denver) but the date_time plugin TZ unset or set to a non-DST
+    equivalent (e.g. MST, America/Phoenix) sees sunset schedules fire ~1 hour
+    early in DST, because "now" applies DST while "sunset" does not.
+    """
+
+    @patch("src.config.Config")
+    def test_prefers_general_timezone_over_plugin_timezone(self, mock_config):
+        mock_config.GENERAL_TIMEZONE = "America/Denver"
+        mock_config.TIMEZONE = "America/Phoenix"
+        assert get_effective_timezone() == "America/Denver"
+
+    @patch("src.config.Config")
+    def test_falls_back_to_plugin_timezone_when_general_empty(self, mock_config):
+        mock_config.GENERAL_TIMEZONE = ""
+        mock_config.TIMEZONE = "America/Denver"
+        assert get_effective_timezone() == "America/Denver"
+
+    @patch("src.config.Config")
+    def test_falls_back_to_utc_when_both_empty(self, mock_config):
+        mock_config.GENERAL_TIMEZONE = ""
+        mock_config.TIMEZONE = ""
+        assert get_effective_timezone() == "UTC"
+
+    def test_dst_aware_sunset_differs_from_non_dst(self):
+        """Sanity check that demonstrates the original bug: Lakewood, CO sunset
+        on a DST day comes out 1 hour later in America/Denver than in MST."""
+        denver = resolve_sun_time(
+            "sunset", 0, 39.7047, -105.0814,
+            date(2026, 5, 30), "America/Denver",
+        )
+        mst = resolve_sun_time(
+            "sunset", 0, 39.7047, -105.0814,
+            date(2026, 5, 30), "MST",
+        )
+        assert denver is not None and mst is not None
+        denver_mins = int(denver[:2]) * 60 + int(denver[3:])
+        mst_mins = int(mst[:2]) * 60 + int(mst[3:])
+        # Denver sunset should be ~60 minutes later than the non-DST MST value
+        # (allow a couple of minutes of slack for astral precision)
+        assert 58 <= (denver_mins - mst_mins) <= 62

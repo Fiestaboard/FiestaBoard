@@ -19,7 +19,11 @@ from .models import (
     DEFAULT_BOARD_ID,
 )
 from .storage import ScheduleStorage
-from .sun_times import resolve_schedule_sun_times
+from .sun_times import (
+    get_effective_timezone,
+    get_today_in_timezone,
+    resolve_schedule_sun_times,
+)
 from ..settings.service import get_settings_service
 
 logger = logging.getLogger(__name__)
@@ -141,9 +145,11 @@ class ScheduleService:
         schedules = [s for s in self.list_schedules(board_id=bid) if s.enabled]
         time_str = current_time.strftime("%H:%M")
 
-        # Pre-fetch location once for sun-time resolution
+        # Pre-fetch location once for sun-time resolution. "today" is computed
+        # in the configured timezone so that schedules anchored to sunset don't
+        # skew when the server clock runs in a different zone than the user.
         location = self._get_location()
-        today = date.today()
+        today = get_today_in_timezone(location[2])
 
         matches = []
         for schedule in schedules:
@@ -171,13 +177,7 @@ class ScheduleService:
         """
         settings = get_settings_service()
         loc = settings.get_location_settings()
-        timezone_str = "UTC"
-        try:
-            from ..config import Config
-            timezone_str = Config.TIMEZONE or "UTC"
-        except Exception:
-            logger.debug("Could not get timezone from config, using UTC")
-        return (loc.latitude, loc.longitude, timezone_str)
+        return (loc.latitude, loc.longitude, get_effective_timezone())
 
     def _resolve_effective_times(
         self,

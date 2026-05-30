@@ -5177,9 +5177,12 @@ async def get_location_sun_times(date: Optional[str] = None):
     Returns sunrise and sunset as HH:MM strings, or null values if location is not
     configured or sun times cannot be computed (e.g. polar day/night).
     """
-    from .schedules.sun_times import get_sun_times
+    from .schedules.sun_times import (
+        get_effective_timezone,
+        get_sun_times,
+        get_today_in_timezone,
+    )
     from datetime import date as date_cls
-    import pytz
 
     settings_service = get_settings_service()
     location = settings_service.get_location_settings()
@@ -5187,12 +5190,7 @@ async def get_location_sun_times(date: Optional[str] = None):
     if location.latitude is None or location.longitude is None:
         return {"sunrise": None, "sunset": None, "location_configured": False}
 
-    timezone_str = "UTC"
-    try:
-        from .config import Config
-        timezone_str = Config.TIMEZONE or "UTC"
-    except Exception:
-        logger.debug("Could not get timezone from config, using UTC")
+    timezone_str = get_effective_timezone()
 
     if date:
         try:
@@ -5201,8 +5199,7 @@ async def get_location_sun_times(date: Optional[str] = None):
             from fastapi import HTTPException
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     else:
-        tz = pytz.timezone(timezone_str)
-        target_date = datetime.now(tz).date()
+        target_date = get_today_in_timezone(timezone_str)
 
     times = get_sun_times(location.latitude, location.longitude, target_date, timezone_str)
     if times is None:
@@ -5225,7 +5222,7 @@ async def get_location_sun_times_week(week_start: str):
 
     Returns a map of date strings to { sunrise, sunset } HH:MM values.
     """
-    from .schedules.sun_times import get_sun_times
+    from .schedules.sun_times import get_effective_timezone, get_sun_times
     from datetime import date as date_cls, timedelta
 
     settings_service = get_settings_service()
@@ -5234,12 +5231,7 @@ async def get_location_sun_times_week(week_start: str):
     if location.latitude is None or location.longitude is None:
         return {"location_configured": False, "dates": {}}
 
-    timezone_str = "UTC"
-    try:
-        from .config import Config
-        timezone_str = Config.TIMEZONE or "UTC"
-    except Exception:
-        logger.debug("Could not get timezone from config, using UTC")
+    timezone_str = get_effective_timezone()
 
     try:
         start = date_cls.fromisoformat(week_start)
@@ -6244,17 +6236,15 @@ def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
         schedule_dict["resolved_end_time"] = schedule_dict.get("end_time")
         return schedule_dict
 
-    from datetime import date as date_type
-    from .schedules.sun_times import resolve_schedule_sun_times
+    from .schedules.sun_times import (
+        get_effective_timezone,
+        get_today_in_timezone,
+        resolve_schedule_sun_times,
+    )
 
     settings = get_settings_service()
     loc = settings.get_location_settings()
-    timezone_str = "UTC"
-    try:
-        from .config import Config
-        timezone_str = Config.TIMEZONE or "UTC"
-    except Exception:
-        logger.debug("Could not get timezone from config, using UTC")
+    timezone_str = get_effective_timezone()
 
     resolved_start, resolved_end = resolve_schedule_sun_times(
         start_type=start_type,
@@ -6265,7 +6255,7 @@ def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
         end_time_fallback=schedule_dict.get("end_time"),
         latitude=loc.latitude,
         longitude=loc.longitude,
-        target_date=date_type.today(),
+        target_date=get_today_in_timezone(timezone_str),
         timezone_str=timezone_str,
     )
     schedule_dict["resolved_start_time"] = resolved_start
