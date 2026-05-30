@@ -111,4 +111,23 @@ if [ -f "$WIFI_CONFIG_FILE" ]; then
     fi
 fi
 
+# ── Wait for actual connectivity ──────────────────────────────────────────
+# The systemd unit no longer waits for network-online.target so that this
+# script can own bringing the network up on WiFi-only first boots. Block
+# here until NetworkManager reports at least one connection is fully online
+# (DHCP + DNS, not just associated) or 60 s elapses. If we time out we still
+# proceed — fiestaboard.service has Restart=on-failure and will retry the
+# pull once the link comes up.
+if command -v nm-online >/dev/null 2>&1; then
+    # Run nm-online standalone (not in a pipe) so its exit code is the one
+    # we branch on — piping to logger would mask it and the || would only
+    # ever fire on logger's exit, which is effectively never.
+    if nm-online --timeout=60 >/dev/null 2>&1; then
+        logger -t fiestapi-firstboot "nm-online: connectivity confirmed"
+    else
+        logger -t fiestapi-firstboot \
+            "nm-online timed out after 60s; proceeding without confirmed connectivity"
+    fi
+fi
+
 exit 0
