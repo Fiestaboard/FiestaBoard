@@ -14,6 +14,7 @@ import {
   User,
   Wand2,
   Waves,
+  Wifi,
   Wrench,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ import { InstanceNameCard } from "@/components/settings/instance-name";
 import { LanguageSettingsCard } from "@/components/settings/language-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
+import { NetworkSettings } from "@/components/settings/network-settings";
 import { PluginSettingsCard } from "@/components/settings/plugin-settings";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { SystemControls } from "@/components/settings/system-controls";
@@ -52,6 +54,7 @@ type SectionId =
   | "general"
   | "account"
   | "hardware"
+  | "network"
   | "behavior"
   | "integrations"
   | "system"
@@ -61,6 +64,7 @@ const SECTION_IDS: readonly SectionId[] = [
   "general",
   "account",
   "hardware",
+  "network",
   "behavior",
   "integrations",
   "system",
@@ -102,6 +106,18 @@ export default function SettingsPage() {
     (!!authStatus?.enabled && !!authStatus.authenticated) ||
     authStatus?.mode === "disabled";
 
+  // The Network tab is gated on the backend capability probe — it only
+  // appears on the FiestaPi (or any deployment where the API container
+  // has nmcli + a D-Bus mount). On vanilla Docker installs this returns
+  // available: false and we never render the tab.
+  const { data: wifiCapability } = useQuery({
+    queryKey: ["wifi-capability"],
+    queryFn: api.getWifiCapability,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const showNetwork = !!wifiCapability?.available;
+
   const requested = searchParams.get("section");
   let activeSection: SectionId = isSectionId(requested)
     ? requested
@@ -110,6 +126,9 @@ export default function SettingsPage() {
   // ?section=account when auth is off), fall back to the default
   // instead of rendering an empty tab body.
   if (activeSection === "account" && !showAccount) {
+    activeSection = DEFAULT_SECTION;
+  }
+  if (activeSection === "network" && !showNetwork) {
     activeSection = DEFAULT_SECTION;
   }
 
@@ -129,14 +148,19 @@ export default function SettingsPage() {
         { id: "general", label: t("sectionGeneral"), icon: User },
         { id: "account", label: t("sectionAccount"), icon: ShieldCheck },
         { id: "hardware", label: t("sectionHardware"), icon: MonitorCog },
+        { id: "network", label: t("sectionNetwork"), icon: Wifi },
         { id: "behavior", label: t("sectionBehavior"), icon: Waves },
         { id: "integrations", label: t("sectionIntegrations"), icon: Plug },
         { id: "system", label: t("sectionSystem"), icon: Cog },
         { id: "advanced", label: t("sectionAdvanced"), icon: Wrench },
       ];
-      return showAccount ? all : all.filter((s) => s.id !== "account");
+      return all.filter((s) => {
+        if (s.id === "account") return showAccount;
+        if (s.id === "network") return showNetwork;
+        return true;
+      });
     },
-    [t, showAccount]
+    [t, showAccount, showNetwork]
   );
 
   return (
@@ -181,6 +205,12 @@ export default function SettingsPage() {
         <TabsContent value="hardware" className="mt-0 space-y-6">
           <DisplaySettings />
         </TabsContent>
+
+        {showNetwork && (
+          <TabsContent value="network" className="mt-0 space-y-6">
+            <NetworkSettings />
+          </TabsContent>
+        )}
 
         <TabsContent value="behavior" className="mt-0 space-y-6">
           <TransitionSettings />

@@ -64,10 +64,15 @@ WORKDIR /app
 # Install Node.js, nginx, wget, git, and gosu (for entrypoint privilege dropping)
 # git is required for the external plugin install/update system (git clone, git pull)
 ARG TARGETARCH
+# network-manager (provides nmcli + nm-online) is used by the FiestaPi
+# WiFi-management endpoints. Harmless on non-Pi deployments — the binaries
+# only do anything when the container is granted CAP_NET_ADMIN and the
+# host D-Bus socket is bind-mounted (see pi-image/.../docker-compose.yml).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     gosu \
+    network-manager \
     nginx \
     openssl \
     wget \

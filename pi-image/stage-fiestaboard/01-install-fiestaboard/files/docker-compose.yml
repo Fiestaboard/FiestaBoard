@@ -11,9 +11,18 @@ services:
     pull_policy: always
     ports:
       - "4420:3000"
+    # Allow the WiFi-management endpoints (Settings → Network) to drive
+    # the host NetworkManager. NET_ADMIN + the bind-mounted D-Bus socket
+    # are the minimum needed for `nmcli` inside the container to talk to
+    # NM on the host. Polkit on the host authorises the call based on the
+    # container appuser's UID (1000), which matches the default `fiesta`
+    # user in the netdev group.
+    cap_add:
+      - NET_ADMIN
     volumes:
       - /opt/fiestaboard/data:/app/data
       - /opt/fiestaboard/external_plugins:/app/external_plugins
+      - /var/run/dbus:/var/run/dbus
     logging:
       driver: "json-file"
       options:
