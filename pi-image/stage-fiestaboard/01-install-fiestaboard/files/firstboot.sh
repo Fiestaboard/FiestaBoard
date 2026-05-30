@@ -93,17 +93,44 @@ if [ -f "$WIFI_CONFIG_FILE" ]; then
         if command -v rfkill >/dev/null 2>&1; then
             rfkill unblock wifi 2>&1 | logger -t fiestapi-firstboot || true
         fi
+        # Make sure the WiFi radio is on at the NM layer too. rfkill unblock
+        # clears the hard/soft kill switch but NM keeps its own enabled flag.
+        nmcli radio wifi on 2>&1 | logger -t fiestapi-firstboot || true
         logger -t fiestapi-firstboot \
             "WiFi country set to ${WIFI_COUNTRY}; rfkill unblocked"
 
+        # Force a rescan with the new regulatory domain. The first scan
+        # right after rfkill unblock + country change often returns nothing,
+        # so retry a few times before attempting to associate.
+        for _ in 1 2 3 4 5; do
+            if nmcli device wifi rescan 2>/dev/null; then
+                break
+            fi
+            sleep 2
+        done
+        # Give the scan results time to populate before we try to connect.
+        sleep 3
+
+        # Use `connection add` + `up` instead of `device wifi connect` so we
+        # create a persistent profile with autoconnect=yes. `device wifi
+        # connect` depends on the SSID being in the current scan cache and
+        # silently fails if the scan hasn't populated yet; a stored profile
+        # lets NM keep retrying on its own and survives reboots cleanly.
         if [ -n "$WIFI_PASSWORD" ]; then
-            nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" \
+            nmcli connection add type wifi ifname wlan0 \
+                con-name "$WIFI_SSID" ssid "$WIFI_SSID" \
+                wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$WIFI_PASSWORD" \
+                connection.autoconnect yes \
                 2>&1 | logger -t fiestapi-firstboot || true
         else
             # Open network (no password).
-            nmcli device wifi connect "$WIFI_SSID" \
+            nmcli connection add type wifi ifname wlan0 \
+                con-name "$WIFI_SSID" ssid "$WIFI_SSID" \
+                connection.autoconnect yes \
                 2>&1 | logger -t fiestapi-firstboot || true
         fi
+        nmcli connection up "$WIFI_SSID" \
+            2>&1 | logger -t fiestapi-firstboot || true
         logger -t fiestapi-firstboot "WiFi configured for SSID: ${WIFI_SSID}"
     else
         logger -t fiestapi-firstboot \
@@ -122,11 +149,11 @@ if command -v nm-online >/dev/null 2>&1; then
     # Run nm-online standalone (not in a pipe) so its exit code is the one
     # we branch on — piping to logger would mask it and the || would only
     # ever fire on logger's exit, which is effectively never.
-    if nm-online --timeout=60 >/dev/null 2>&1; then
+    if nm-online --timeout=120 >/dev/null 2>&1; then
         logger -t fiestapi-firstboot "nm-online: connectivity confirmed"
     else
         logger -t fiestapi-firstboot \
-            "nm-online timed out after 60s; proceeding without confirmed connectivity"
+            "nm-online timed out after 120s; proceeding without confirmed connectivity"
     fi
 fi
 
