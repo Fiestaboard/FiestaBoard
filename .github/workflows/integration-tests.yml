@@ -99,6 +99,7 @@ jobs:
             -e BOARD_HOST=host.docker.internal \
             -e BOARD_LOCAL_API_KEY=test_key \
             -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=false \
             fiestaboard:integration
           echo "Waiting for app on port 4420..."
           for i in $(seq 1 30); do
@@ -145,6 +146,7 @@ jobs:
 
             docker run -d --name fiestaboard-int-$i \
               -e PRODUCTION=false \
+              -e FIESTABOARD_AUTH_ENABLED=false \
               fiestaboard:integration
           done
 

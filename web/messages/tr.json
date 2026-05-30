@@ -356,7 +356,9 @@
     "sectionAdvanced": "Gelişmiş",
     "sectionAdvancedDescription": "Tanılama ve deneysel özellikler",
     "sectionGeneral": "Genel",
-    "sectionGeneralDescription": "Tercihler, dil, erişilebilirlik"
+    "sectionGeneralDescription": "Tercihler, dil, erişilebilirlik",
+    "sectionAccount": "Hesap",
+    "sectionAccountDescription": "Kullanıcı adı, şifre ve çıkış"
   },
   "offline": {
     "youreOffline": "Çevrimdışısınız",

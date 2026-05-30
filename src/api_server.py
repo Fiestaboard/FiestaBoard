@@ -43,6 +43,9 @@ from .templates.expressions import function_signatures
 from .text_to_board import text_to_board_array
 from .devices import get_dimensions
 from .board_client import board_client_from_board_dict
+from .auth import is_auth_enabled
+from .auth.middleware import AuthMiddleware
+from .auth.routes import router as auth_router
 
 logger = logging.getLogger(__name__)
 
@@ -773,6 +776,19 @@ try:
         logger.warning("MCP server disabled — mcp package not installed or failed to initialise")
 except Exception as _mcp_mount_err:  # pragma: no cover
     logger.warning("Failed to mount MCP server: %s", _mcp_mount_err)
+
+# Optional authentication layer (opt-in via FIESTABOARD_AUTH_ENABLED env var).
+# Mounted unconditionally so /auth/* endpoints are always reachable; the
+# middleware itself short-circuits when auth is disabled so existing
+# local-only installs are unaffected.
+app.add_middleware(AuthMiddleware)
+app.include_router(auth_router)
+if is_auth_enabled():
+    logger.info("Authentication is ENABLED (FIESTABOARD_AUTH_ENABLED=true)")
+else:
+    logger.info(
+        "Authentication is disabled (set FIESTABOARD_AUTH_ENABLED=true to require login)"
+    )
 
 
 # Set up log buffer handler

@@ -356,7 +356,9 @@
     "sectionAdvanced": "詳細設定",
     "sectionAdvancedDescription": "診断と実験的機能",
     "sectionGeneral": "一般",
-    "sectionGeneralDescription": "環境設定、言語、アクセシビリティ"
+    "sectionGeneralDescription": "環境設定、言語、アクセシビリティ",
+    "sectionAccount": "アカウント",
+    "sectionAccountDescription": "ユーザー名、パスワード、サインアウト"
   },
   "offline": {
     "youreOffline": "オフラインです",

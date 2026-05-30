@@ -356,7 +356,9 @@
     "sectionAdvanced": "Дополнительно",
     "sectionAdvancedDescription": "Диагностика и экспериментальные функции",
     "sectionGeneral": "Основные",
-    "sectionGeneralDescription": "Настройки, язык, специальные возможности"
+    "sectionGeneralDescription": "Настройки, язык, специальные возможности",
+    "sectionAccount": "Учётная запись",
+    "sectionAccountDescription": "Имя пользователя, пароль и выход"
   },
   "offline": {
     "youreOffline": "Вы не в сети",

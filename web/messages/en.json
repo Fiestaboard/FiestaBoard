@@ -356,7 +356,9 @@
     "sectionAdvanced": "Advanced",
     "sectionAdvancedDescription": "Diagnostics and experimental features",
     "sectionGeneral": "General",
-    "sectionGeneralDescription": "Preferences, locale, accessibility"
+    "sectionGeneralDescription": "Preferences, locale, accessibility",
+    "sectionAccount": "Account",
+    "sectionAccountDescription": "Username, password, and sign out"
   },
   "offline": {
     "youreOffline": "You're Offline",

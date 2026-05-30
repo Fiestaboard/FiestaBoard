@@ -15,6 +15,7 @@ import { ViewTransitionLink } from "@/components/view-transition-link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { FiestaLogo } from "@/components/fiesta-logo";
+import { SidebarAccount } from "@/components/sidebar-account";
 import { useSidebar } from "@/components/sidebar-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { api, type AISettings } from "@/lib/api";
@@ -76,6 +77,11 @@ export function NavigationSidebar() {
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  // Hide the sidebar on auth screens — the user isn't navigating
+  // anywhere until they sign in / finish setup, and chrome around
+  // the login form makes a fresh install look broken.
+  if (pathname.startsWith("/login")) return null;
 
   const isActive = (item: NavItem) => {
     if (item.external) return false;
@@ -270,6 +276,7 @@ export function NavigationSidebar() {
         <div className="shrink-0 px-3 py-3 text-sidebar-foreground">
           <nav aria-label={t("secondaryNavigation")} className="space-y-1">
             {secondaryItems.map(renderMobileNavItem)}
+            <SidebarAccount variant="mobile" />
           </nav>
           <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/80 px-4 pt-3">
             <VersionDisplay />
@@ -376,6 +383,7 @@ export function NavigationSidebar() {
             <div className="shrink-0 px-2 pt-2 pb-3">
               <nav aria-label={t("secondaryNavigation")} className="space-y-1">
                 {secondaryItems.map(renderDesktopNavItem)}
+                <SidebarAccount collapsed={collapsed} />
               </nav>
               <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/80 py-2 pl-[14px] pr-3">
                 <div className={cn(

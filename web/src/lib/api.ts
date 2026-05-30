@@ -1099,6 +1099,50 @@ export interface SystemActionResponse {
 // API client with typed methods
 const DEFAULT_TIMEOUT_MS = 30000;
 
+/**
+ * On 401 (not authenticated) or 409 setup-required responses, send the
+ * user to /login. The login page handles both cases: an unsigned-in
+ * user sees the sign-in form; a fresh install with no admin yet sees
+ * the first-run picker / setup form.
+ *
+ * Runs in the browser only and never on the login page itself (to avoid
+ * a redirect loop while signing in). The current URL is preserved in the
+ * `redirect` query param so we can bounce back after a successful login.
+ *
+ * Returns true if a redirect was initiated.
+ */
+function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.location.pathname.startsWith("/login")) return false;
+  if (res.status === 401 || res.status === 409) {
+    // For 409 only redirect when the body actually says setup_required —
+    // other 409s (e.g. "already set up") should bubble up as errors.
+    if (res.status === 409) {
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) return false;
+      // Peek at the body without consuming it for the caller.
+      const cloned = res.clone();
+      cloned.json().then((body) => {
+        if (body?.setup_required) {
+          const target = encodeURIComponent(
+            window.location.pathname + window.location.search,
+          );
+          window.location.assign(`/login?redirect=${target}`);
+        }
+      }).catch(() => {
+        // Not JSON or malformed — leave the caller to surface the error.
+      });
+      return false;
+    }
+    const target = encodeURIComponent(
+      window.location.pathname + window.location.search,
+    );
+    window.location.assign(`/login?redirect=${target}`);
+    return true;
+  }
+  return false;
+}
+
 async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options ?? {};
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
@@ -1111,6 +1155,11 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
     res = await fetch(`${API_BASE}${path}`, {
       ...fetchOptions,
       signal,
+      // Send the session cookie on every API call so auth-protected
+      // endpoints work when FIESTABOARD_AUTH_ENABLED is on. Same-origin
+      // requests already include cookies by default, but be explicit so
+      // future cross-origin deployments behave the same way.
+      credentials: fetchOptions.credentials ?? "include",
       headers: {
         "Content-Type": "application/json",
         ...fetchOptions.headers,
@@ -1120,6 +1169,7 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
     throw err;
   }
   if (!res.ok) {
+    redirectToLoginIfNeeded(res);
     let detail = `API error: ${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
@@ -1133,6 +1183,19 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
   }
   return res.json();
 }
+
+/**
+ * Shape of /auth/status. Exported so other UI surfaces (login page,
+ * profile page) can share the type instead of redeclaring it.
+ */
+export type AuthStatusResponse = {
+  enabled: boolean;
+  setup_required: boolean;
+  authenticated: boolean;
+  username: string | null;
+  mode: "enabled" | "disabled" | "undecided";
+  first_run: boolean;
+};
 
 export const api = {
   // Queries (read-only)
@@ -1858,5 +1921,130 @@ export const api = {
       throw new Error(detail);
     }
     return (await res.json()) as AIGenerateResult;
+  },
+
+  // --- Auth -----------------------------------------------------------
+  // The login/setup forms talk to /api/auth/* directly (see
+  // web/src/app/login/page.tsx) because they need access to the response
+  // `detail` field. The helpers below are for the rest of the UI — e.g.
+  // a "Sign out" button in the profile menu.
+
+  getAuthStatus: () => fetchApi<AuthStatusResponse>("/auth/status"),
+
+  logout: () =>
+    fetchApi<{ status: string }>("/auth/logout", { method: "POST" }),
+
+  /**
+   * Change the signed-in user's password. Uses a bespoke fetch (rather than
+   * fetchApi) so the caller can surface FastAPI's ``detail`` body — e.g.
+   * "Current password is incorrect".
+   */
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const res = await fetch("/api/auth/change-password", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+    if (!res.ok) {
+      let detail: string | undefined;
+      try {
+        const data = await res.json();
+        if (data && typeof data.detail === "string") {
+          detail = data.detail;
+        }
+      } catch {
+        /* no JSON body */
+      }
+      throw new Error(detail || `Password change failed (${res.status})`);
+    }
+    return (await res.json()) as { status: string; username: string };
+  },
+
+  /** Rename the signed-in user. Same bespoke-fetch reasoning as changePassword. */
+  changeUsername: async (currentPassword: string, newUsername: string) => {
+    const res = await fetch("/api/auth/change-username", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_username: newUsername,
+      }),
+    });
+    if (!res.ok) {
+      let detail: string | undefined;
+      try {
+        const data = await res.json();
+        if (data && typeof data.detail === "string") {
+          detail = data.detail;
+        }
+      } catch {
+        /* no JSON body */
+      }
+      throw new Error(detail || `Username change failed (${res.status})`);
+    }
+    return (await res.json()) as { status: string; username: string };
+  },
+
+  /**
+   * Record the first-run / "should we lock this down" preference.
+   * The backend refuses (409) when an admin user already exists or
+   * when FIESTABOARD_AUTH_ENABLED pins the mode. Used by the first-
+   * run picker on /login and by the "Turn on login" card in the
+   * Account tab after a user has previously disabled auth.
+   */
+  setAuthPreference: async (enabled: boolean) => {
+    const res = await fetch("/api/auth/preference", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) {
+      let detail: string | undefined;
+      try {
+        const data = await res.json();
+        if (data && typeof data.detail === "string") {
+          detail = data.detail;
+        }
+      } catch {
+        /* no JSON body */
+      }
+      throw new Error(detail || `Setting preference failed (${res.status})`);
+    }
+    return (await res.json()) as { status: string };
+  },
+
+  /**
+   * Turn off auth enforcement and delete the admin user. Gated by the
+   * current password server-side so a stolen cookie alone can't open
+   * the install up. After this returns the install is wide open —
+   * the caller should redirect somewhere sensible (e.g. the home
+   * page) since /login no longer applies.
+   */
+  disableAuth: async (currentPassword: string) => {
+    const res = await fetch("/api/auth/disable", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_password: currentPassword }),
+    });
+    if (!res.ok) {
+      let detail: string | undefined;
+      try {
+        const data = await res.json();
+        if (data && typeof data.detail === "string") {
+          detail = data.detail;
+        }
+      } catch {
+        /* no JSON body */
+      }
+      throw new Error(detail || `Disable auth failed (${res.status})`);
+    }
+    return (await res.json()) as { status: string };
   },
 };

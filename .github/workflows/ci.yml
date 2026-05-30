@@ -392,6 +392,7 @@ jobs:
 
             docker run -d --name fiestaboard-$i \
               -e PRODUCTION=false \
+              -e FIESTABOARD_AUTH_ENABLED=false \
               fiestaboard:e2e
           done
 

@@ -3,6 +3,27 @@
 import pytest
 from unittest.mock import Mock
 
+
+@pytest.fixture(autouse=True)
+def _disable_auth_for_tests(request, monkeypatch):
+    """Disable auth enforcement by default in the test suite.
+
+    The auth middleware is *secure-by-default* — when no admin user
+    exists and no env override is set it returns 409 setup-required on
+    every protected endpoint. That's correct production behavior but
+    would break every API-level test that pre-dates the auth feature.
+
+    Auth-specific tests opt out by depending on their own `enabled` /
+    `disabled` / `undecided` fixtures, which override the env after
+    this one runs.
+    """
+    # Skip for the auth-specific suites that manage the env themselves.
+    test_file = str(request.node.fspath)
+    if "test_auth_" in test_file or "test_secrets_encryption" in test_file:
+        return
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+
+
 # Shared fixtures for test helpers
 @pytest.fixture
 def mock_board_client():

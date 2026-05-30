@@ -356,7 +356,9 @@
     "sectionAdvanced": "Geavanceerd",
     "sectionAdvancedDescription": "Diagnostiek en experimentele functies",
     "sectionGeneral": "Algemeen",
-    "sectionGeneralDescription": "Voorkeuren, taal, toegankelijkheid"
+    "sectionGeneralDescription": "Voorkeuren, taal, toegankelijkheid",
+    "sectionAccount": "Account",
+    "sectionAccountDescription": "Gebruikersnaam, wachtwoord en uitloggen"
   },
   "offline": {
     "youreOffline": "Je bent offline",

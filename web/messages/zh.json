@@ -356,7 +356,9 @@
     "sectionAdvanced": "高级",
     "sectionAdvancedDescription": "诊断和实验性功能",
     "sectionGeneral": "通用",
-    "sectionGeneralDescription": "偏好设置、语言、辅助功能"
+    "sectionGeneralDescription": "偏好设置、语言、辅助功能",
+    "sectionAccount": "账户",
+    "sectionAccountDescription": "用户名、密码和退出登录"
   },
   "offline": {
     "youreOffline": "您已离线",

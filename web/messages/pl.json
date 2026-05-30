@@ -356,7 +356,9 @@
     "sectionAdvanced": "Zaawansowane",
     "sectionAdvancedDescription": "Diagnostyka i funkcje eksperymentalne",
     "sectionGeneral": "Ogólne",
-    "sectionGeneralDescription": "Preferencje, język, dostępność"
+    "sectionGeneralDescription": "Preferencje, język, dostępność",
+    "sectionAccount": "Konto",
+    "sectionAccountDescription": "Nazwa użytkownika, hasło i wylogowanie"
   },
   "offline": {
     "youreOffline": "Jesteś offline",
