@@ -76,7 +76,7 @@ def get_sun_times(
         try:
             tz = ZoneInfo(timezone_str)
         except (ZoneInfoNotFoundError, ValueError):
-            logger.warning(f"Unknown timezone '{timezone_str}', falling back to UTC")
+            logger.warning("Unknown configured timezone, falling back to UTC")
             tz = ZoneInfo("UTC")
             timezone_str = "UTC"
 
