@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion, Loader2 } from "lucide-react";
 import type { AuthStatusResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -83,6 +84,9 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  // "Keep me logged in" — defaults to checked (matches Home Assistant). When
+  // off, the server issues a session cookie that the browser drops on close.
+  const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -121,7 +125,11 @@ export default function LoginPage() {
       setFormError(null);
       setSubmitting(true);
       try {
-        const res = await postJson("/auth/login", { username, password });
+        const res = await postJson("/auth/login", {
+          username,
+          password,
+          remember_me: rememberMe,
+        });
         if (res.ok) {
           router.replace(redirectTo);
           return;
@@ -146,7 +154,7 @@ export default function LoginPage() {
         setSubmitting(false);
       }
     },
-    [username, password, router, redirectTo],
+    [username, password, rememberMe, router, redirectTo],
   );
 
   const handleSetup = useCallback(
@@ -404,6 +412,18 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="remember-me"
+            name="remember-me"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            disabled={submitting}
+          />
+          <Label htmlFor="remember-me" className="cursor-pointer">
+            Keep me logged in
+          </Label>
         </div>
         {formError && (
           <Alert variant="destructive">

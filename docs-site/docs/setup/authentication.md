@@ -31,8 +31,10 @@ a valid session cookie.
    username and password.
 
 3. **Sign in.** You'll be redirected to the dashboard with a session
-   cookie that lasts 7 days. Manage your account (rename, change
-   password, sign out) from the **Profile** page.
+   cookie. Tick **Keep me logged in** (on by default) to stay signed in
+   across browser restarts; clear it on a shared or public computer so the
+   session ends when you close the browser. Manage your account (rename,
+   change password, sign out) from the **Profile** page.
 
 To skip login entirely on a LAN install, click *Continue without login*
 on the first-run picker — the middleware will short-circuit on every
@@ -56,6 +58,13 @@ future request.
 - **Cookies** are `HttpOnly`, `SameSite=Lax`, and `Secure` when the request
   comes in over HTTPS (FiestaBoard trusts the `X-Forwarded-Proto` header
   set by its bundled nginx).
+- **"Keep me logged in"** controls how long the session survives:
+  - **Checked** → a *persistent* cookie with a `Max-Age` (30 days by
+    default) that outlives browser restarts.
+  - **Unchecked** → a *session* cookie (no `Max-Age`) that the browser
+    discards when it closes. The token's signed `expires_at` still caps
+    the server-side lifetime at the normal session TTL (7 days) so a
+    leaked cookie can't live indefinitely on a browser that never closes.
 - **Brute-force protection.** After 10 failed logins from the same client
   IP in 60 seconds the endpoint returns `429 Too Many Requests`.
 - **Stolen-cookie revocation.** Every password or username change bumps
@@ -67,7 +76,8 @@ future request.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `FIESTABOARD_AUTH_ENABLED` | _(unset, first-run picker)_ | `true`/`1`/`yes`/`on` force-enables, `false`/`0`/`no`/`off` force-disables. Unset = use stored preference; if none, show the first-run picker. |
-| `FIESTABOARD_SESSION_TTL_SECONDS` | `604800` (7d) | Session cookie lifetime in seconds. |
+| `FIESTABOARD_SESSION_TTL_SECONDS` | `604800` (7d) | Lifetime for a normal sign-in (without "Keep me logged in"), in seconds. Caps the session-cookie token. |
+| `FIESTABOARD_REMEMBER_ME_TTL_SECONDS` | `2592000` (30d) | Lifetime when "Keep me logged in" is checked, in seconds. Sets both the persistent cookie's `Max-Age` and the token expiry. |
 
 ## Public endpoints
 

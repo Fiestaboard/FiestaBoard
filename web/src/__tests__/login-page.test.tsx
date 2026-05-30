@@ -122,3 +122,82 @@ describe("LoginPage first-run picker", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("LoginPage 'Keep me logged in'", () => {
+  beforeEach(() => {
+    replaceMock.mockReset();
+  });
+
+  function mockSignInStatus() {
+    server.use(
+      http.get("/api/auth/status", () =>
+        HttpResponse.json(
+          makeStatus({ mode: "enabled", first_run: false, setup_required: false }),
+        ),
+      ),
+    );
+  }
+
+  /** Wire up the login route and capture its JSON body. */
+  function captureLoginBody(): () => Record<string, unknown> | null {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post("/api/auth/login", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ status: "ok", username: "admin" });
+      }),
+    );
+    return () => body;
+  }
+
+  it("shows the checkbox checked by default on the sign-in form", async () => {
+    mockSignInStatus();
+    render(<LoginPage />);
+
+    await screen.findByText(/Sign in to FiestaBoard/i);
+    const checkbox = screen.getByRole("checkbox", { name: /Keep me logged in/i });
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox).toBeChecked();
+  });
+
+  it("submits remember_me=true when the box is left checked", async () => {
+    mockSignInStatus();
+    const getBody = captureLoginBody();
+    render(<LoginPage />);
+
+    await screen.findByText(/Sign in to FiestaBoard/i);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/Username/i), "admin");
+    await user.type(screen.getByLabelText(/Password/i), "supersecret");
+    await user.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    await waitFor(() => {
+      expect(getBody()).toEqual({
+        username: "admin",
+        password: "supersecret",
+        remember_me: true,
+      });
+    });
+  });
+
+  it("submits remember_me=false when the box is unchecked", async () => {
+    mockSignInStatus();
+    const getBody = captureLoginBody();
+    render(<LoginPage />);
+
+    await screen.findByText(/Sign in to FiestaBoard/i);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("checkbox", { name: /Keep me logged in/i }));
+    await user.type(screen.getByLabelText(/Username/i), "admin");
+    await user.type(screen.getByLabelText(/Password/i), "supersecret");
+    await user.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    await waitFor(() => {
+      expect(getBody()).toEqual({
+        username: "admin",
+        password: "supersecret",
+        remember_me: false,
+      });
+    });
+  });
+});

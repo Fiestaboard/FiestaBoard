@@ -15,6 +15,7 @@ from .service import (
     SESSION_COOKIE_NAME,
     SetupRequired,
     _auth_env_override,
+    _remember_me_ttl_seconds,
     auth_mode,
     get_auth_service,
 )
@@ -42,6 +43,10 @@ class StatusResponse(BaseModel):
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=64)
     password: str = Field(..., min_length=1, max_length=1024)
+    # "Keep me logged in". When true the session is persisted across browser
+    # restarts (long-lived cookie); when false a session cookie is issued that
+    # the browser drops on close. Defaults to false for API clients.
+    remember_me: bool = False
 
 
 class SetupRequest(BaseModel):
@@ -90,7 +95,18 @@ def _is_secure_request(request: Request) -> bool:
     return request.url.scheme == "https"
 
 
-def _set_session_cookie(response: Response, request: Request, token: str) -> None:
+def _set_session_cookie(
+    response: Response, request: Request, token: str, *, persistent: bool = True
+) -> None:
+    """Write the session cookie.
+
+    When *persistent* is true the cookie gets a ``Max-Age`` (the "Keep me
+    logged in" window) so it survives browser restarts. When false we omit
+    ``Max-Age``/``Expires`` entirely, yielding a session cookie that the
+    browser discards when it closes. The token's own ``expires_at`` still caps
+    the server-side lifetime in either case.
+    """
+    max_age = _remember_me_ttl_seconds() if persistent else None
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
@@ -98,7 +114,7 @@ def _set_session_cookie(response: Response, request: Request, token: str) -> Non
         secure=_is_secure_request(request),
         samesite="lax",
         path="/",
-        max_age=7 * 24 * 3600,
+        max_age=max_age,
     )
 
 
@@ -217,8 +233,9 @@ async def auth_setup(payload: SetupRequest, request: Request, response: Response
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     # Log them in straight away so the UI can hand control to the dashboard.
-    token = svc.authenticate(payload.username, payload.password)
-    _set_session_cookie(response, request, token)
+    # New admins get a persistent session (matches the prior setup behavior).
+    token = svc.authenticate(payload.username, payload.password, remember=True)
+    _set_session_cookie(response, request, token, persistent=True)
     logger.info("Initial user '%s' created", payload.username)
     return SimpleResponse(status="ok", username=payload.username)
 
@@ -230,7 +247,9 @@ async def auth_login(payload: LoginRequest, request: Request, response: Response
     _check_lockout(ip)
     svc = get_auth_service()
     try:
-        token = svc.authenticate(payload.username, payload.password)
+        token = svc.authenticate(
+            payload.username, payload.password, remember=payload.remember_me
+        )
     except SetupRequired:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -243,7 +262,7 @@ async def auth_login(payload: LoginRequest, request: Request, response: Response
             detail="Invalid username or password",
         )
     _clear_failures(ip)
-    _set_session_cookie(response, request, token)
+    _set_session_cookie(response, request, token, persistent=payload.remember_me)
     return SimpleResponse(status="ok", username=payload.username)
 
 

@@ -155,6 +155,52 @@ def test_verify_session_expired(monkeypatch, svc):
     assert svc.verify_session(token) is None
 
 
+def _token_expires_at_ms(token: str) -> int:
+    """Pull the ``expires_at`` (ms) field out of a signed session token.
+
+    Token layout is ``<user_b64>.<issued>.<expires>.<nonce>.<signature>``.
+    """
+    payload, _sig = token.rsplit(".", 1)
+    _user_b64, _issued, expires_s, _nonce = payload.split(".")
+    return int(expires_s)
+
+
+def test_authenticate_remember_extends_ttl(svc):
+    """``remember=True`` mints a token with the longer remember-me TTL."""
+    svc.create_initial_user("admin", "supersecret")
+    short = svc.authenticate("admin", "supersecret", remember=False)
+    long = svc.authenticate("admin", "supersecret", remember=True)
+    # The remembered token outlives the plain session token by roughly the
+    # gap between the 7-day and 30-day defaults.
+    assert _token_expires_at_ms(long) - _token_expires_at_ms(short) > 20 * 24 * 3600 * 1000
+    # Both are still valid sessions for the user.
+    assert svc.verify_session(short) == "admin"
+    assert svc.verify_session(long) == "admin"
+
+
+def test_authenticate_default_uses_session_ttl(monkeypatch, svc):
+    """Default (no remember kwarg) uses the short session TTL window."""
+    svc.create_initial_user("admin", "supersecret")
+    monkeypatch.setenv("FIESTABOARD_SESSION_TTL_SECONDS", "60")
+    monkeypatch.setenv("FIESTABOARD_REMEMBER_ME_TTL_SECONDS", "600")
+    plain = svc.authenticate("admin", "supersecret")
+    remembered = svc.authenticate("admin", "supersecret", remember=True)
+    now_ms = auth_service._now_ms()
+    # Plain token expires ~60s out; remembered ~600s out.
+    assert _token_expires_at_ms(plain) - now_ms < 120 * 1000
+    assert _token_expires_at_ms(remembered) - now_ms > 300 * 1000
+
+
+def test_remember_me_ttl_env_override(monkeypatch):
+    monkeypatch.setenv("FIESTABOARD_REMEMBER_ME_TTL_SECONDS", "12345")
+    assert auth_service._remember_me_ttl_seconds() == 12345
+    # Invalid / non-positive values fall back to the default.
+    monkeypatch.setenv("FIESTABOARD_REMEMBER_ME_TTL_SECONDS", "0")
+    assert auth_service._remember_me_ttl_seconds() == auth_service._DEFAULT_REMEMBER_ME_TTL_SECONDS
+    monkeypatch.setenv("FIESTABOARD_REMEMBER_ME_TTL_SECONDS", "notanumber")
+    assert auth_service._remember_me_ttl_seconds() == auth_service._DEFAULT_REMEMBER_ME_TTL_SECONDS
+
+
 def test_persistence_across_instances(tmp_path):
     p = tmp_path / "auth.json"
     s1 = auth_service.AuthService(auth_file=p)
