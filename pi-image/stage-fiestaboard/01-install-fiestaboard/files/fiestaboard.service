@@ -1,8 +1,14 @@
 [Unit]
 Description=FiestaBoard
 Requires=docker.service
-After=docker.service network-online.target
-Wants=network-online.target
+# Intentionally NOT ordered after network-online.target. On WiFi-only
+# first boots provisioned via /boot/firmware/fiestapi-wifi.txt the
+# network isn't configured at all when systemd evaluates targets, so
+# NM-wait-online stalls for ~90 seconds before timing out and only
+# then does this unit start. We instead let firstboot.sh own bringing
+# the network up (it reads fiestapi-wifi.txt, calls nmcli, and waits
+# via nm-online) before docker compose pull runs.
+After=docker.service
 # First-boot image pulls can race containerd snapshot extraction
 # ("lease does not exist: not found") when compose pulls multiple
 # images in parallel on slow SD-card I/O. Retry up to 10 times in
