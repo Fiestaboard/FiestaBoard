@@ -331,6 +331,16 @@ class TestRootAndHealth:
         assert "package_version" in data
         assert "build_version" in data
         assert "is_dev" in data
+        assert "hardware_model" in data
+
+    def test_version_includes_detected_hardware_model(self, client):
+        with patch(
+            "src.api_server._detect_hardware_model",
+            return_value="Raspberry Pi 5 Model B Rev 1.0",
+        ):
+            response = client.get("/version")
+        assert response.status_code == 200
+        assert response.json()["hardware_model"] == "Raspberry Pi 5 Model B Rev 1.0"
 
     def test_status_success(self, client, mock_service, mock_settings_service):
         with patch("src.api_server._service_running", True):

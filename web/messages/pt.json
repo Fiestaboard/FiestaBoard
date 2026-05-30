@@ -960,6 +960,7 @@
     "aboutDescription": "Version and service information",
     "version": "Version",
     "buildVersion": "Build",
+    "hardware": "Hardware",
     "status": "Status",
     "statusRunning": "Running",
     "statusStopped": "Stopped",

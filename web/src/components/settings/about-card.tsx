@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Info, Package } from "lucide-react";
+import { Cpu, ExternalLink, Info, Package } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,6 +108,16 @@ export function AboutCard() {
               <dt className="text-muted-foreground">{t("buildVersion")}</dt>
               <dd className="font-mono text-xs text-muted-foreground tabular-nums">
                 {versionData.build_version}
+              </dd>
+            </div>
+          )}
+
+          {versionData?.hardware_model && (
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">{t("hardware")}</dt>
+              <dd className="flex items-center gap-2">
+                <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs">{versionData.hardware_model}</span>
               </dd>
             </div>
           )}

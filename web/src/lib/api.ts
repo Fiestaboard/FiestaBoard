@@ -1052,6 +1052,7 @@ export interface VersionResponse {
   package_version: string;
   build_version: string;
   is_dev: boolean;
+  hardware_model: string | null;
 }
 
 export interface UpdateCheckResponse {
