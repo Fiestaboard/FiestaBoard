@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { shouldShowWizard, clearWizardCompletion } from "@/lib/setup-detection";
 import { useTranslations } from "next-intl";
 
@@ -47,25 +48,43 @@ interface WizardProviderProps {
 
 export function WizardProvider({ children }: WizardProviderProps) {
   const t = useTranslations("wizardProvider");
+  const pathname = usePathname();
+  // ``/login`` owns its own UI (sign-in form, first-run auth picker) and the
+  // ``/config/validate`` request the wizard relies on is unauthenticated-401
+  // there. Treat the auth screen as a "wizard off" surface and re-check the
+  // moment the user leaves it — that's the transition where the first-run
+  // wizard should appear on a freshly provisioned device.
+  const isOnAuthScreen = pathname?.startsWith("/login") ?? false;
   const [isWizardActive, setIsWizardActive] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
 
-  // Check if wizard should be shown on mount
   useEffect(() => {
+    // Skip the check on /login — ``/config/validate`` would 401 there and
+    // the render branch below renders children directly, so there's nothing
+    // to gate. The effect re-runs (via the ``isOnAuthScreen`` dep) the
+    // moment the user navigates away from /login, which is the transition
+    // where the first-run wizard should appear on a freshly provisioned
+    // device.
+    if (isOnAuthScreen) return;
+
+    let cancelled = false;
     const checkWizard = async () => {
       try {
         const shouldShow = await shouldShowWizard();
-        setIsWizardActive(shouldShow);
+        if (!cancelled) setIsWizardActive(shouldShow);
       } catch (error) {
         console.error("Failed to check wizard status:", error);
-        setIsWizardActive(false);
+        if (!cancelled) setIsWizardActive(false);
       } finally {
-        setHasChecked(true);
+        if (!cancelled) setHasChecked(true);
       }
     };
 
     checkWizard();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnAuthScreen]);
 
   const triggerWizard = useCallback(() => {
     // Clear completion status to allow re-running
@@ -76,6 +95,17 @@ export function WizardProvider({ children }: WizardProviderProps) {
   const handleComplete = useCallback(() => {
     setIsWizardActive(false);
   }, []);
+
+  // On /login we never render the wizard: that page owns its own UI and the
+  // wizard's API probe isn't authorized there yet. Hand control back to the
+  // children (the login page) immediately — no loading screen, no wizard.
+  if (isOnAuthScreen) {
+    return (
+      <WizardContext.Provider value={{ isWizardActive: false, triggerWizard }}>
+        {children}
+      </WizardContext.Provider>
+    );
+  }
 
   // Show loading state while checking
   if (!hasChecked) {
