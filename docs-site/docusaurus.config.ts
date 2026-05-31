@@ -1,8 +1,16 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import versions from './versions.json';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+
+// PR-mode build: only compile the latest documented version. CI uses this on
+// PRs (DOCS_PR_MODE=1) so docs builds don't recompile 40 historical version
+// snapshots that haven't changed. The release-time deploy via docs.yml builds
+// the full set of versions normally.
+const isPRMode = process.env.DOCS_PR_MODE === '1';
+const onlyIncludeVersions = isPRMode && versions.length > 0 ? [versions[0]] : undefined;
 
 const config: Config = {
   clientModules: ['./src/clientModules/versionSession.ts'],
@@ -169,6 +177,7 @@ const config: Config = {
           editUrl:
             'https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/',
           includeCurrentVersion: false,
+          ...(onlyIncludeVersions ? {onlyIncludeVersions} : {}),
         },
         blog: false, // Disable blog for now - keep it simple
         theme: {
