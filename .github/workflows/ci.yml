@@ -877,17 +877,26 @@ jobs:
       run: npm ci
 
     - name: Cache Docusaurus build
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           docs-site/.docusaurus
           docs-site/node_modules/.cache
-        key: docusaurus-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs-site/docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
+        # PR-mode builds skip 40 historical version snapshots, so they
+        # have a different .docusaurus/ shape than full deploy builds.
+        # Keep their caches in separate namespaces to avoid each
+        # poisoning the other on restore.
+        key: docusaurus-pr-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs-site/docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
         restore-keys: |
-          docusaurus-${{ runner.os }}-
+          docusaurus-pr-${{ runner.os }}-
 
     - name: Build Docusaurus site
       working-directory: docs-site
+      env:
+        # Skip 40 historical versioned_docs snapshots on PR builds —
+        # only build the latest documented version. docs.yml (release
+        # deploy) does not set this and builds the full version matrix.
+        DOCS_PR_MODE: '1'
       run: npm run build
 
     - name: Write build summary
