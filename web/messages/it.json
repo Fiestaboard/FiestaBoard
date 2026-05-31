@@ -69,7 +69,8 @@
     "mainNavigation": "Navigazione principale",
     "primaryNavigation": "Navigazione principale",
     "secondaryNavigation": "Navigazione secondaria",
-    "picks": "Scelte del team"
+    "picks": "Scelte del team",
+    "skipToMainContent": "Vai al contenuto principale"
   },
   "home": {
     "title": "Dashboard",

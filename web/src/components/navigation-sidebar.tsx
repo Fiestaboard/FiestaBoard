@@ -216,7 +216,7 @@ export function NavigationSidebar() {
           <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
             <Image
               src="/icons/favicon-32x32.png"
-              alt="FiestaBoard"
+              alt=""
               width={32}
               height={32}
               className="flex-shrink-0"
@@ -326,7 +326,7 @@ export function NavigationSidebar() {
             <div className="flex items-center gap-2 overflow-hidden px-4 py-4">
               <Image
                 src="/icons/favicon-32x32.png"
-                alt="FiestaBoard"
+                alt=""
                 width={32}
                 height={32}
                 className="flex-shrink-0"

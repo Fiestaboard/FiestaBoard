@@ -69,7 +69,8 @@
     "mainNavigation": "Main navigation",
     "primaryNavigation": "Primary navigation",
     "secondaryNavigation": "Secondary navigation",
-    "picks": "Staff Picks"
+    "picks": "Staff Picks",
+    "skipToMainContent": "Skip to main content"
   },
   "home": {
     "title": "Dashboard",

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import type { DayPattern } from "@/lib/api";
+
+const PATTERNS: DayPattern[] = ["all", "weekdays", "weekends", "custom"];
 
 interface DaySelectorProps {
   value: DayPattern;
@@ -21,6 +23,33 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
   const t = useTranslations("daySelector");
   const dayLabels = t.raw("dayLabels") as Record<string, string>;
   const [selectedCustomDays, setSelectedCustomDays] = useState<string[]>(customDays);
+  const radioRefs = useRef<Record<DayPattern, HTMLButtonElement | null>>({
+    all: null,
+    weekdays: null,
+    weekends: null,
+    custom: null,
+  });
+
+  const handleRadioKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"].includes(e.key)) {
+      return;
+    }
+    e.preventDefault();
+    const currentIndex = PATTERNS.indexOf(value);
+    let nextIndex: number;
+    if (e.key === "Home") {
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      nextIndex = PATTERNS.length - 1;
+    } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % PATTERNS.length;
+    } else {
+      nextIndex = (currentIndex - 1 + PATTERNS.length) % PATTERNS.length;
+    }
+    const nextPattern = PATTERNS[nextIndex];
+    handlePatternChange(nextPattern);
+    radioRefs.current[nextPattern]?.focus();
+  };
 
   // Update selectedCustomDays when customDays prop changes
   useEffect(() => {
@@ -52,11 +81,18 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
       <legend className="text-sm font-medium leading-none">{t("daysLegend")}</legend>
       
       {/* Pattern Radio Buttons */}
-      <div className="flex flex-col gap-2" role="radiogroup" aria-label={t("dayPatternAriaLabel")}>
+      <div
+        className="flex flex-col gap-2"
+        role="radiogroup"
+        aria-label={t("dayPatternAriaLabel")}
+        onKeyDown={handleRadioKeyDown}
+      >
         <button
           type="button"
           role="radio"
           aria-checked={value === "all"}
+          tabIndex={value === "all" ? 0 : -1}
+          ref={(el) => { radioRefs.current.all = el; }}
           onClick={() => handlePatternChange("all")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
@@ -95,6 +131,8 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
           type="button"
           role="radio"
           aria-checked={value === "weekdays"}
+          tabIndex={value === "weekdays" ? 0 : -1}
+          ref={(el) => { radioRefs.current.weekdays = el; }}
           onClick={() => handlePatternChange("weekdays")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
@@ -133,6 +171,8 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
           type="button"
           role="radio"
           aria-checked={value === "weekends"}
+          tabIndex={value === "weekends" ? 0 : -1}
+          ref={(el) => { radioRefs.current.weekends = el; }}
           onClick={() => handlePatternChange("weekends")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
@@ -171,6 +211,8 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
           type="button"
           role="radio"
           aria-checked={value === "custom"}
+          tabIndex={value === "custom" ? 0 : -1}
+          ref={(el) => { radioRefs.current.custom = el; }}
           onClick={() => handlePatternChange("custom")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",

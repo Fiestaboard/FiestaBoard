@@ -6,8 +6,8 @@ import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -438,7 +438,11 @@ export default function SchedulePage() {
               {/* Board selector (multi-board only) */}
               {boards.length > 1 && (
                 <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
-                  <SelectTrigger data-testid="board-selector" className="h-8 w-[130px] text-xs">
+                  <SelectTrigger
+                    data-testid="board-selector"
+                    className="h-8 w-[130px] text-xs"
+                    aria-label={t("boardSelectorLabel")}
+                  >
                     <SelectValue placeholder={t("boardSelectorLabel")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -454,17 +458,34 @@ export default function SchedulePage() {
               {/* Schedule on/off toggle */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div data-testid="schedule-enabled-toggle" className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer" onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}>
+                  <button
+                    type="button"
+                    data-testid="schedule-enabled-toggle"
+                    role="switch"
+                    aria-checked={scheduleEnabled}
+                    aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+                    disabled={toggleSchedule.isPending}
+                    onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
+                    className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                  >
                     <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
                     <span className="text-xs font-medium">{scheduleEnabled ? tCommon("on") : tCommon("off")}</span>
-                    <Switch
-                      checked={scheduleEnabled}
-                      onCheckedChange={toggleSchedule.mutate}
-                      disabled={toggleSchedule.isPending}
-                      className="scale-75 pointer-events-none"
-                      tabIndex={-1}
-                    />
-                  </div>
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent transition-all",
+                        scheduleEnabled ? "bg-primary" : "bg-input/80 dark:bg-input/80",
+                        "scale-75",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform",
+                          scheduleEnabled ? "translate-x-[calc(100%-3px)]" : "translate-x-px",
+                        )}
+                      />
+                    </span>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
@@ -478,7 +499,11 @@ export default function SchedulePage() {
               >
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <SelectTrigger data-testid="gap-default-select" className="h-8 w-[150px] text-xs">
+                    <SelectTrigger
+                      data-testid="gap-default-select"
+                      className="h-8 w-[150px] text-xs"
+                      aria-label={t("gapDefaultTooltip")}
+                    >
                       <SelectValue placeholder={t("gapDefaultPlaceholder")} />
                     </SelectTrigger>
                   </TooltipTrigger>

@@ -69,7 +69,8 @@
     "mainNavigation": "メインナビゲーション",
     "primaryNavigation": "メインナビゲーション",
     "secondaryNavigation": "サブナビゲーション",
-    "picks": "スタッフのおすすめ"
+    "picks": "スタッフのおすすめ",
+    "skipToMainContent": "メインコンテンツへスキップ"
   },
   "home": {
     "title": "ダッシュボード",

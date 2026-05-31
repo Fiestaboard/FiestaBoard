@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -9,6 +9,7 @@ import { WizardProvider } from "@/components/wizard-provider";
 import { InstallPrompt } from "@/components/install-prompt";
 import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { MainContent } from "@/components/main-content";
+import { SkipToContent } from "@/components/skip-to-content";
 import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
@@ -27,6 +28,12 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "FiestaBoard Control",
@@ -56,7 +63,6 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -84,6 +90,7 @@ export default async function RootLayout({
               <PageEditorBridgeProvider>
               <GlobalAiPanelProvider>
                 <WizardProvider>
+                  <SkipToContent />
                   <NavigationSidebar />
                   <GlobalAiChatDrawer />
                   <MainContent>

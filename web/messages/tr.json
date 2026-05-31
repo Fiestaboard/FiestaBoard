@@ -69,7 +69,8 @@
     "mainNavigation": "Ana gezinme",
     "primaryNavigation": "Ana gezinme",
     "secondaryNavigation": "İkincil gezinme",
-    "picks": "Ekip Seçimleri"
+    "picks": "Ekip Seçimleri",
+    "skipToMainContent": "Ana içeriğe geç"
   },
   "home": {
     "title": "Gösterge Paneli",

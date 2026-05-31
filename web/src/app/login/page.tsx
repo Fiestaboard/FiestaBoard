@@ -467,7 +467,7 @@ function CenteredCard({
       <div className="mb-6 flex items-center gap-3">
         <Image
           src="/icons/favicon-32x32.png"
-          alt="FiestaBoard"
+          alt=""
           width={36}
           height={36}
           className="flex-shrink-0"
@@ -478,7 +478,7 @@ function CenteredCard({
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-2">
             {icon}
-            <CardTitle>{title}</CardTitle>
+            <CardTitle as="h1">{title}</CardTitle>
           </div>
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>

@@ -69,7 +69,8 @@
     "mainNavigation": "Hoofdnavigatie",
     "primaryNavigation": "Hoofdnavigatie",
     "secondaryNavigation": "Subnavigatie",
-    "picks": "Aanbevolen"
+    "picks": "Aanbevolen",
+    "skipToMainContent": "Naar hoofdinhoud"
   },
   "home": {
     "title": "Dashboard",

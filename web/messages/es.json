@@ -69,7 +69,8 @@
     "mainNavigation": "Navegación principal",
     "primaryNavigation": "Navegación principal",
     "secondaryNavigation": "Navegación secundaria",
-    "picks": "Selecciones del equipo"
+    "picks": "Selecciones del equipo",
+    "skipToMainContent": "Saltar al contenido principal"
   },
   "home": {
     "title": "Panel",
