@@ -124,8 +124,15 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             "  2. list_pages() — see current pages\n"
             "  3. get_template_variables() — see what variables plugins expose\n"
             "  4. install/configure plugins as needed\n"
-            "  5. create_page() with template_lines using {{plugin_id.variable_name}} syntax\n"
-            "  6. Optionally schedule pages with create_schedule()\n\n"
+            "  5. render_page_preview() — iterate on a template until it looks right\n"
+            "  6. create_page() with template_lines using {{plugin_id.variable_name}} syntax\n"
+            "  7. Optionally schedule pages with create_schedule()\n\n"
+            "DEBUGGING TOOLS\n"
+            "  • render_page_preview(template_lines, device_type) — see how a\n"
+            "    template will look WITHOUT creating a page. Use this to iterate.\n"
+            "  • get_plugin_data(plugin_id) — see the LIVE values a plugin is\n"
+            "    currently exposing. Use this when a page renders '???' or wrong\n"
+            "    values; it tells you whether the plugin or the template is at fault.\n\n"
             "DEVICE DIMENSIONS (template_lines length must match exactly)\n"
             "  • flagship: 22 columns × 6 rows\n"
             "  • note:     15 columns × 3 rows\n"
@@ -354,6 +361,35 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         except Exception as exc:
             return json.dumps({"error": str(exc)})
 
+    @mcp.tool()
+    def get_plugin_data(plugin_id: str) -> str:
+        """Fetch the CURRENT live values a plugin is exposing to template variables.
+
+        Use this when debugging a page that renders unexpectedly — e.g. a value
+        shows as '???' or the wrong number. The returned dict is exactly what
+        the template engine sees when substituting {{plugin_id.variable_name}}.
+
+        Args:
+            plugin_id: The plugin identifier (from list_installed_plugins()).
+
+        Returns a JSON object:
+            {"available": bool, "data": {...}, "error": "..."}
+        If the plugin is disabled or not configured, 'available' is false and
+        'error' explains why; no exception is raised. Cached values may be
+        returned if the plugin's refresh interval hasn't elapsed.
+        """
+        try:
+            from .plugins import get_plugin_registry
+            registry = get_plugin_registry()
+            result = registry.fetch_plugin_data(plugin_id)
+            return json.dumps({
+                "available": result.available,
+                "data": result.data,
+                "error": result.error,
+            }, default=str)
+        except Exception as exc:
+            return json.dumps({"error": str(exc)})
+
     # -----------------------------------------------------------------------
     # Page tools
     # -----------------------------------------------------------------------
@@ -501,6 +537,50 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             return f"Page '{page_id}' deleted successfully."
         except Exception as exc:
             return f"Error deleting page '{page_id}': {exc}"
+
+    @mcp.tool()
+    def render_page_preview(
+        template_lines: List[str],
+        device_type: str = "flagship",
+    ) -> str:
+        """Render a template to see how it will look BEFORE saving it as a page.
+
+        Use this to iterate on a design without creating (and then having to
+        delete) throwaway pages. Substitutes live plugin values into the
+        template just like the real renderer would, then returns the resulting
+        grid with newlines between rows.
+
+        Args:
+            template_lines: Template strings to render (one per row). Extra
+                            rows are dropped; missing rows are filled with blanks.
+            device_type: 'flagship' (22×6) or 'note' (15×3).
+
+        Returns a JSON object:
+            {
+              "rendered": "<grid string with \\n between rows>",
+              "device_type": "flagship",
+              "context_plugins": ["weather", "date_time", ...]
+            }
+        Unresolved variables render as "???" — that's a sign of a typo or a
+        plugin that's disabled/unconfigured. Lines longer than the board width
+        will appear truncated in the output, matching real-device behavior.
+        """
+        try:
+            from .templates.engine import get_template_engine
+            engine = get_template_engine()
+            context = engine._build_context()
+            rendered = engine.render_lines(
+                template_lines,
+                context=context,
+                device_type=device_type,
+            )
+            return json.dumps({
+                "rendered": rendered,
+                "device_type": device_type,
+                "context_plugins": sorted(context.keys()),
+            }, default=str)
+        except Exception as exc:
+            return json.dumps({"error": str(exc)})
 
     # -----------------------------------------------------------------------
     # Schedule tools
@@ -885,6 +965,44 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                     example = meta.get("example", "")
                     example_str = f" (e.g. `{example}`)" if example else ""
                     lines.append(f"- `{{{{{plugin_id}.{var_name}}}}}` — {desc}{example_str}")
+            return "\n".join(lines)
+        except Exception as exc:
+            return f"Error: {exc}"
+
+    @mcp.resource("fiestaboard://schedules")
+    def get_schedules_resource() -> str:
+        """Live list of all scheduled time slots."""
+        try:
+            from .schedules.service import get_schedule_service
+            svc = get_schedule_service()
+            schedules = svc.list_schedules()
+            lines = [f"# Schedules ({len(schedules)} total)\n"]
+            for s in schedules:
+                status = "✓ enabled" if getattr(s, "enabled", True) else "✗ disabled"
+                end = getattr(s, "end_time", None) or "open"
+                lines.append(
+                    f"- **{s.start_time}–{end}** on {s.day_pattern} "
+                    f"→ page `{s.page_id}` ({status}) [`{s.id}`]"
+                )
+            return "\n".join(lines)
+        except Exception as exc:
+            return f"Error: {exc}"
+
+    @mcp.resource("fiestaboard://carousels")
+    def get_carousels_resource() -> str:
+        """Live list of all carousels (page playlists)."""
+        try:
+            from .carousels.service import get_carousel_service
+            svc = get_carousel_service()
+            carousels = svc.list_carousels()
+            lines = [f"# Carousels ({len(carousels)} total)\n"]
+            for c in carousels:
+                page_count = len(getattr(c, "page_ids", []) or [])
+                interval = getattr(c, "interval_seconds", "?")
+                lines.append(
+                    f"- **{c.name}** (`{c.id}`) — {page_count} pages, "
+                    f"{interval}s per page"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"
