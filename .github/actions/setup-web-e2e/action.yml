@@ -1,0 +1,47 @@
+name: 'Setup web E2E'
+description: >-
+  Install npm deps and Playwright browsers for the web E2E jobs, with
+  npm + Playwright browser caching and parallel install. Use in any job
+  that runs Playwright against the FiestaBoard backend.
+
+inputs:
+  node-version:
+    description: 'Node.js version to install'
+    required: false
+    default: '20'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+        restore-keys: |
+          playwright-${{ runner.os }}-
+
+    - name: Install deps (parallel npm + Playwright)
+      shell: bash
+      run: |
+        # npm ci runs in the background while we install Playwright's
+        # system deps; both are I/O-bound so overlapping them saves ~30s.
+        (cd web && npm ci && echo "✅ npm ci complete") &
+        NPM_PID=$!
+
+        cd web
+        npx playwright install-deps chromium > /dev/null
+        echo "✅ Playwright system deps installed"
+
+        wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }
+
+        # No-op when the Playwright browser cache hit.
+        npx playwright install chromium
+        echo "✅ Playwright browsers installed"
