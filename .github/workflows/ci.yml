@@ -128,10 +128,17 @@ jobs:
     
     - name: Run platform tests with coverage
       run: |
-        # Exclude integration tests (network-dependent, run in a separate step)
-        coverage run --source=src --omit='src/utils/*,src/formatters/*,src/main.py,src/system/*,src/text_to_board.py,src/plugins/testing.py' -m pytest tests/ -v -m "not integration"
-        coverage xml
-        coverage report -m --fail-under=80
+        # Exclude integration tests (network-dependent, run in a separate step).
+        # `-n auto` runs tests across all available CPU cores via pytest-xdist.
+        # `--cov` config (source + omit) comes from pyproject.toml
+        # [tool.coverage.run] — pytest-cov handles the per-worker data
+        # collection and combine automatically.
+        pytest tests/ -v -m "not integration" -n auto \
+          --cov=src \
+          --cov-branch \
+          --cov-report=xml:coverage.xml \
+          --cov-report=term-missing \
+          --cov-fail-under=80
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
