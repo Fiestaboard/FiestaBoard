@@ -466,8 +466,8 @@ export function FormulaEditorPanel({
               {loadingFns && (
                 <p className="text-xs text-muted-foreground px-3 py-2">{t("loading") ?? "Loading…"}</p>
               )}
-              {/* max-h only on mobile — desktop lets the column scroll */}
-              <div className="overflow-y-auto max-h-[240px] sm:max-h-none px-2 pb-2 space-y-1">
+              {/* Parent column (desktop) or modal (mobile) scrolls — don't nest a scroll here. */}
+              <div className="px-2 pb-2 space-y-1">
                 {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((cat) => {
                   const isCollapsed = collapsedCategories.has(cat);
                   const fns = grouped[cat] ?? [];
@@ -547,8 +547,8 @@ export function FormulaEditorPanel({
         {/* ── RIGHT COLUMN (desktop) / TOP (mobile): Expression editor + action buttons ── */}
         <div className="order-1 sm:order-2 flex flex-col flex-1 min-w-0 sm:overflow-hidden">
 
-          {/* Scrollable expression area — grows to fill available height */}
-          <div className="flex-1 overflow-y-auto px-3 pt-3 pb-2.5 space-y-1.5 sm:flex sm:flex-col sm:overflow-hidden">
+          {/* Desktop: flex column fills, editor sizes within. Mobile: parent modal scrolls — no nested scroll. */}
+          <div className="px-3 pt-3 pb-2.5 space-y-1.5 sm:flex-1 sm:flex sm:flex-col sm:overflow-hidden">
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               {t("formulaExpression")}
             </label>
