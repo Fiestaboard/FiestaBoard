@@ -454,6 +454,35 @@ class TestGetTemplateVariables:
         assert "temperature" in data["openweather"]
 
 
+class TestGetPluginData:
+    def test_returns_live_values(self, mcp):
+        from src.plugins.base import PluginResult
+        mock_reg = MagicMock()
+        mock_reg.fetch_plugin_data.return_value = PluginResult(
+            available=True,
+            data={"temperature": "72°F", "condition": "Sunny"},
+        )
+        with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
+            result = _call_tool(mcp, "get_plugin_data", plugin_id="openweather")
+        data = json.loads(result)
+        assert data["available"] is True
+        assert data["data"]["temperature"] == "72°F"
+        assert data["error"] is None
+
+    def test_disabled_plugin_returns_error_field(self, mcp):
+        from src.plugins.base import PluginResult
+        mock_reg = MagicMock()
+        mock_reg.fetch_plugin_data.return_value = PluginResult(
+            available=False,
+            error="Plugin not enabled: openweather",
+        )
+        with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
+            result = _call_tool(mcp, "get_plugin_data", plugin_id="openweather")
+        data = json.loads(result)
+        assert data["available"] is False
+        assert "not enabled" in data["error"]
+
+
 # ---------------------------------------------------------------------------
 # Page tools
 # ---------------------------------------------------------------------------
@@ -599,6 +628,34 @@ class TestDeletePage:
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
             result = _call_tool(mcp, "delete_page", page_id="page-001")
         assert "Error" in result or "Page is in use" in result
+
+
+class TestRenderPagePreview:
+    def test_renders_plain_text(self, mcp):
+        result = _call_tool(
+            mcp,
+            "render_page_preview",
+            template_lines=["HELLO", "WORLD"],
+            device_type="flagship",
+        )
+        data = json.loads(result)
+        assert "rendered" in data
+        assert "HELLO" in data["rendered"]
+        assert "WORLD" in data["rendered"]
+        assert data["device_type"] == "flagship"
+        assert isinstance(data["context_plugins"], list)
+
+    def test_returns_error_json_on_bad_device_type(self, mcp):
+        # Bad device_type falls back to flagship in the engine, so this
+        # should still produce a valid 'rendered' field rather than crash.
+        result = _call_tool(
+            mcp,
+            "render_page_preview",
+            template_lines=["X"],
+            device_type="not-a-device",
+        )
+        data = json.loads(result)
+        assert "rendered" in data or "error" in data
 
 
 # ---------------------------------------------------------------------------
@@ -818,6 +875,19 @@ class TestMCPResources:
         assert "temperature" in result
         assert "openweather" in result
 
+    def test_schedules_resource(self, mcp, mock_schedule_service):
+        with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
+            result = _call_resource(mcp, "fiestaboard://schedules")
+        assert "sched-001" in result
+        assert "page-001" in result
+        assert "08:00" in result
+
+    def test_carousels_resource(self, mcp, mock_carousel_service):
+        with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
+            result = _call_resource(mcp, "fiestaboard://carousels")
+        assert "Daily" in result
+        assert "carousel-001" in result
+
 
 # ---------------------------------------------------------------------------
 # MCP Prompts
@@ -884,11 +954,13 @@ class TestToolErrorResilience:
         ("configure_plugin", {"plugin_id": "x", "config": {}}),
         ("update_plugin", {"plugin_id": "x"}),
         ("get_template_variables", {}),
+        ("get_plugin_data", {"plugin_id": "x"}),
         ("list_pages", {}),
         ("get_page", {"page_id": "x"}),
         ("create_page", {"name": "x", "template_lines": []}),
         ("update_page", {"page_id": "x"}),
         ("delete_page", {"page_id": "x"}),
+        ("render_page_preview", {"template_lines": ["{{x.y}}"]}),
         ("list_schedules", {}),
         ("create_schedule", {"page_id": "x", "start_time": "08:00"}),
         ("update_schedule", {"schedule_id": "x"}),
