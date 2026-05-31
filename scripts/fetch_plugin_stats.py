@@ -45,8 +45,8 @@ def main() -> None:
             try:
                 manifest_data = json.loads(base64.b64decode(manifest_raw["content"]).decode())
                 version = manifest_data.get("version")
-            except Exception:
-                pass
+            except (ValueError, KeyError, TypeError) as e:
+                print(f"  warning: could not parse manifest for {repo_name}: {e}", file=sys.stderr)
 
         plugins_out.append({
             "id": plugin["id"],
