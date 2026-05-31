@@ -364,6 +364,16 @@ test.describe("AI", () => {
   test.describe("Settings → Integrations UI", () => {
     test("AI Settings card renders inside the Integrations tab", async ({ page, request }) => {
       await configureMockProvider(request);
+      // The WizardProvider holds every non-/login page on a full-screen
+      // loader (then SetupWizard) while `/config/validate` reports
+      // `is_first_run: true`, so the Settings tabs never mount. A fresh
+      // CI container has no board configured — PUT a stub so the wizard
+      // gets out of the way.
+      const boardRes = await request.put(`${API_URL}/config/board`, {
+        data: { api_mode: "local", local_api_key: "ai-e2e-stub", host: "127.0.0.1" },
+      });
+      expect(boardRes.ok()).toBe(true);
+
       await page.goto("/settings");
       // Settings page splits into tabs (General / Hardware / Behavior /
       // Integrations / System / Advanced). AI Settings live in Integrations.

@@ -593,8 +593,34 @@ class SystemActionResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup and shutdown events."""
+    """Lifespan context manager for startup and shutdown events.
+
+    Also runs the MCP server's ``StreamableHTTPSessionManager`` for the
+    duration of the API. FastAPI's ``app.mount(...)`` does NOT propagate
+    a sub-app's lifespan, so without wiring this here the MCP session
+    manager's ``_task_group`` is never created and every request to
+    ``/api/mcp/*`` returns 404. The wrapping is best-effort: if the mcp
+    package failed to load or the session manager init throws, the rest
+    of the API still comes up — MCP just stays disabled.
+    """
     global _service_thread, _shutting_down, _service_running
+
+    # Resolve the MCP context manager (or fall back to a no-op) before we
+    # decide which branch to take. The mount at the bottom of this module
+    # already called ``streamable_http_app()`` (which lazily creates the
+    # session manager), so it's safe to access ``session_manager`` here.
+    _mcp_ctx = None
+    try:
+        from .mcp_server import mcp_server as _mcp_for_lifespan
+        if _mcp_for_lifespan is not None:
+            _mcp_ctx = _mcp_for_lifespan.session_manager.run()
+    except Exception as _mcp_exc:  # pragma: no cover — defensive
+        logger.warning(
+            "MCP session manager could not be wired into lifespan: %s",
+            _mcp_exc,
+        )
+        _mcp_ctx = None
+
     # --- Startup ---
     _shutting_down = False
     logger.info("API server starting up...")
@@ -712,7 +738,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not start system update checker: {e}")
 
-    yield
+    # Hold the MCP session manager open for the lifetime of the API, then
+    # let it tear down on shutdown. ``_mcp_ctx`` is None when the mcp
+    # package didn't load — fall through to a bare yield in that case so
+    # the rest of the API still serves requests.
+    if _mcp_ctx is not None:
+        async with _mcp_ctx:
+            logger.info("MCP session manager started")
+            yield
+    else:
+        yield
 
     # --- Shutdown ---
     if update_check_task is not None:
