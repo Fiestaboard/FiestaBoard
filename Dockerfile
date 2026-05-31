@@ -31,19 +31,25 @@ WORKDIR /app
 # Install build dependencies for native modules (lightningcss, swc)
 RUN apk add --no-cache python3 make g++
 
-# Copy package files for dependency installation
-COPY web/package.json ./
+# Copy package files for dependency installation. Lockfile is required
+# for `npm ci` reproducibility (matches what CI tests against).
+COPY web/package.json web/package-lock.json ./
 
-# Install ALL dependencies (needed for build)
+# Install ALL dependencies (needed for build). `npm ci` matches the
+# lockfile exactly — same versions CI installed and tested.
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --legacy-peer-deps --no-audit
+    npm ci --legacy-peer-deps --no-audit
 
 # Copy source files
 COPY web/ ./
 
-# Build the Next.js app with standalone output
+# Build the Next.js app with standalone output. The .next/cache mount
+# persists webpack/SWC's incremental compilation cache across builds on
+# the same buildkit instance (helps local devs; no-op in CI where each
+# job gets a fresh runner).
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 # --- Stage 3: Final unified runtime image ---
 FROM python:3.14-slim
