@@ -56,11 +56,22 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
     if not _MCP_AVAILABLE:
         return None
 
+    # FastMCP's default transport_security enables DNS-rebinding protection
+    # and only allows Host headers matching ``127.0.0.1:*``/``localhost:*``/
+    # ``[::1]:*``. FiestaBoard is reached over the LAN by IP, hostname, or
+    # ``fiestaboard.local`` — none of which match — so the default would
+    # 421 every legitimate request. We opt out and rely on the auth layer
+    # (``FIESTABOARD_AUTH_ENABLED``) for access control instead.
+    from mcp.server.transport_security import TransportSecuritySettings  # type: ignore[import-untyped]
+
     mcp = FastMCP(
         "FiestaBoard",
         stateless_http=True,
         json_response=True,
         streamable_http_path="/",
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+        ),
         instructions=(
             "FiestaBoard is a smart LED matrix display controller. You can:\n"
             "  • Manage plugins/integrations (weather, stocks, transit, etc.)\n"

@@ -20,6 +20,13 @@ const ciIgnore = ["**/generate-screenshots.spec.ts"];
 if (!process.env.RUN_VISUAL_REGRESSION) {
   ciIgnore.push("**/visual-regression.spec.ts");
 }
+// AI + MCP specs need the mock-llm container reachable and (for the AI
+// tests) write to the global /settings/ai config. They share a dedicated
+// CI job and are opted in via RUN_AI_TESTS to keep the main e2e matrix
+// free of cross-spec state contention.
+if (!process.env.RUN_AI_TESTS) {
+  ciIgnore.push("**/ai.spec.ts", "**/mcp.spec.ts");
+}
 // Auth specs need a container booted with FIESTABOARD_AUTH_ENABLED=true.
 // The main e2e job runs with auth disabled, so opt these in via env var
 // (mirrors the visual-regression pattern above) and let a dedicated job
