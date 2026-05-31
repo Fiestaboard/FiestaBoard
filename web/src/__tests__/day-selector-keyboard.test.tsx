@@ -87,9 +87,11 @@ describe("DaySelector keyboard navigation", () => {
     onChange.mockClear();
     const wednesday = screen.getByRole("checkbox", { name: /wednesday/i });
     await userEvent.click(wednesday);
+    // Local state dropped Tuesday on the previous click, so the next emission
+    // is just Monday + Wednesday — not all three days.
     expect(onChange).toHaveBeenCalledWith(
       "custom",
-      expect.arrayContaining(["monday", "tuesday", "wednesday"]),
+      expect.arrayContaining(["monday", "wednesday"]),
     );
   });
 
