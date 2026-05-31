@@ -80,9 +80,9 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
             <div className="text-sm text-muted-foreground">{t("loadingEntities")}</div>
           </div>
         ) : (
-          <div className="space-y-3 flex-1 overflow-y-auto">
+          <div className="space-y-3 flex-1 min-h-0 flex flex-col">
             {!selectedEntity ? (
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1 min-h-0 flex flex-col">
                 <Input
                   placeholder={t("searchPlaceholder")}
                   value={searchQuery}
@@ -90,7 +90,7 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                   autoFocus
                   className="h-9"
                 />
-                <ScrollArea className="h-[400px] border rounded-md">
+                <ScrollArea className="flex-1 min-h-[200px] border rounded-md">
                   <div className="p-1">
                     {filteredEntities.length === 0 ? (
                       <div className="text-sm text-muted-foreground text-center py-3">

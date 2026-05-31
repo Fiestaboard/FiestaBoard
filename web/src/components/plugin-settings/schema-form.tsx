@@ -982,7 +982,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
 
       {/* Response tree browser */}
       {previewData && (
-        <div className="border rounded-lg p-3 bg-muted/20 max-h-64 overflow-auto">
+        <div className="border rounded-lg p-3 bg-muted/20 sm:max-h-64 sm:overflow-auto">
           <div className="text-xs font-medium text-muted-foreground mb-2">
             {t("responseClickToAdd")}
           </div>
