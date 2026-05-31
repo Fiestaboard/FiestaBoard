@@ -136,6 +136,24 @@ jobs:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
 
+    - name: Write coverage summary
+      if: always()
+      run: |
+        if [ -f coverage.xml ]; then
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+        import xml.etree.ElementTree as ET
+        root = ET.parse('coverage.xml').getroot()
+        line = float(root.attrib.get('line-rate', '0')) * 100
+        branch = float(root.attrib.get('branch-rate', '0')) * 100
+        print('## Platform Tests')
+        print()
+        print('| Metric | Value |')
+        print('|---|---|')
+        print(f'| Line coverage | {line:.1f}% |')
+        print(f'| Branch coverage | {branch:.1f}% |')
+        PY
+        fi
+
     - name: Run plugin install integration tests
       run: |
         # Real git clone/pull/uninstall against live Fiestaboard plugin repos on GitHub.
@@ -215,7 +233,25 @@ jobs:
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
-    
+
+    - name: Write coverage summary
+      if: always() && steps.discover.outputs.has_plugins == 'true'
+      run: |
+        if [ -f coverage-plugins.xml ]; then
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+        import xml.etree.ElementTree as ET
+        root = ET.parse('coverage-plugins.xml').getroot()
+        line = float(root.attrib.get('line-rate', '0')) * 100
+        branch = float(root.attrib.get('branch-rate', '0')) * 100
+        print('## Plugin Tests')
+        print()
+        print('| Metric | Value |')
+        print('|---|---|')
+        print(f'| Line coverage | {line:.1f}% |')
+        print(f'| Branch coverage | {branch:.1f}% |')
+        PY
+        fi
+
     - name: Upload plugin coverage
       if: steps.discover.outputs.has_plugins == 'true'
       uses: codecov/codecov-action@v6
@@ -251,6 +287,31 @@ jobs:
     - name: Run UI tests with coverage
       working-directory: web
       run: npm run test:coverage
+
+    - name: Write coverage summary
+      if: always()
+      working-directory: web
+      run: |
+        if [ -f coverage/lcov.info ]; then
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+        # Parse lcov.info: sum LF (lines found) and LH (lines hit) across files.
+        lf = lh = brf = brh = 0
+        with open('coverage/lcov.info') as f:
+            for line in f:
+                if line.startswith('LF:'): lf += int(line[3:])
+                elif line.startswith('LH:'): lh += int(line[3:])
+                elif line.startswith('BRF:'): brf += int(line[4:])
+                elif line.startswith('BRH:'): brh += int(line[4:])
+        line_pct = (lh / lf * 100) if lf else 0
+        branch_pct = (brh / brf * 100) if brf else 0
+        print('## UI Tests')
+        print()
+        print('| Metric | Value |')
+        print('|---|---|')
+        print(f'| Line coverage | {line_pct:.1f}% |')
+        print(f'| Branch coverage | {branch_pct:.1f}% |')
+        PY
+        fi
 
     - name: Upload UI coverage
       uses: codecov/codecov-action@v6
@@ -828,6 +889,22 @@ jobs:
     - name: Build Docusaurus site
       working-directory: docs-site
       run: npm run build
+
+    - name: Write build summary
+      if: always()
+      run: |
+        if [ -d docs-site/build ]; then
+          SIZE=$(du -sh docs-site/build | cut -f1)
+          FILES=$(find docs-site/build -type f | wc -l | tr -d ' ')
+          {
+            echo "## Build Docs"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Build size | ${SIZE} |"
+            echo "| Files | ${FILES} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
 
   ci-success:
     name: CI Success
