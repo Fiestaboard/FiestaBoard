@@ -232,6 +232,11 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/stats',
+          label: 'Stats',
+          position: 'left',
+        },
+        {
           type: 'docsVersionDropdown',
           position: 'left',
         },
@@ -273,6 +278,10 @@ const config: Config = {
             {
               label: 'Plugin Directory',
               to: '/plugins',
+            },
+            {
+              label: 'Plugin Stats',
+              to: '/stats',
             },
           ],
         },

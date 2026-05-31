@@ -27,6 +27,13 @@ if (!process.env.RUN_VISUAL_REGRESSION) {
 if (!process.env.RUN_AI_TESTS) {
   ciIgnore.push("**/ai.spec.ts", "**/mcp.spec.ts");
 }
+// Auth specs need a container booted with FIESTABOARD_AUTH_ENABLED=true.
+// The main e2e job runs with auth disabled, so opt these in via env var
+// (mirrors the visual-regression pattern above) and let a dedicated job
+// flip the switch.
+if (!process.env.RUN_AUTH_TESTS) {
+  ciIgnore.push("**/auth.spec.ts");
+}
 
 export default defineConfig({
   testDir: "./tests",
