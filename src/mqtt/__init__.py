@@ -15,8 +15,8 @@ References:
     - paho-mqtt client: https://github.com/eclipse/paho.mqtt.python
 """
 
-from .config import MQTTConfig
 from .client import MQTTClient, get_mqtt_client, set_mqtt_client_instance
+from .config import MQTTConfig
 
 __all__ = [
     "MQTTConfig",

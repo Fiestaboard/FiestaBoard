@@ -15,14 +15,14 @@ Public submodules:
 """
 
 from .service import (
-    AuthService,
+    SESSION_COOKIE_NAME,
+    AlreadySetup,
     AuthError,
+    AuthService,
     InvalidCredentials,
     SetupRequired,
-    AlreadySetup,
     get_auth_service,
     is_auth_enabled,
-    SESSION_COOKIE_NAME,
 )
 
 __all__ = [

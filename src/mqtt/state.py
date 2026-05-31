@@ -2,8 +2,12 @@
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
@@ -14,17 +18,17 @@ class StatePublisher:
     def __init__(
         self,
         client: "MQTTClient",
-        get_display_running: Optional[Callable[[], bool]] = None,
-        get_current_message: Optional[Callable[[], str]] = None,
+        get_display_running: Callable[[], bool] | None = None,
+        get_current_message: Callable[[], str] | None = None,
     ):
         self._client = client
         self._get_display_running = get_display_running or (lambda: False)
         self._get_current_message = get_current_message or (lambda: "—")
         self._cache: dict[str, str] = {}
         self._last_display_update: str = ""
-        self._prev_silence_mode: Optional[bool] = None
-        self._prev_schedule_enabled: Optional[bool] = None
-        self._prev_display_running: Optional[bool] = None
+        self._prev_silence_mode: bool | None = None
+        self._prev_schedule_enabled: bool | None = None
+        self._prev_display_running: bool | None = None
 
     def gather_and_publish(self) -> None:
         """Read state from services and publish changed values."""
@@ -42,7 +46,7 @@ class StatePublisher:
                 self._client.publish_attributes(object_id, attrs_json)
                 self._cache[cache_key] = attrs_json
 
-    def publish_event(self, object_id: str, event_type: str, attributes: Optional[dict] = None) -> None:
+    def publish_event(self, object_id: str, event_type: str, attributes: dict | None = None) -> None:
         """Publish an event entity payload (JSON with event_type key)."""
         payload: dict = {"event_type": event_type}
         if attributes:
@@ -51,16 +55,16 @@ class StatePublisher:
 
     def mark_display_updated(self) -> None:
         """Record that the display was just updated (used for last_display_update sensor)."""
-        self._last_display_update = datetime.now(timezone.utc).isoformat()
+        self._last_display_update = datetime.now(UTC).isoformat()
 
     def _gather_state(self) -> dict[str, str]:
         """Build a dict of object_id -> state value."""
         out: dict[str, str] = {}
         try:
-            from src.settings.service import get_settings_service
-            from src.pages.service import get_page_service
-            from src.config import Config
             import src as src_pkg
+            from src.config import Config
+            from src.pages.service import get_page_service
+            from src.settings.service import get_settings_service
 
             settings = get_settings_service()
             page_service = get_page_service()
@@ -131,7 +135,7 @@ class StatePublisher:
 
     def _check_state_transitions(self, silence_active: bool, schedule_enabled: bool, display_running: bool) -> None:
         """Fire events when boolean state values transition."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         if self._prev_silence_mode is not None and self._prev_silence_mode != silence_active:
             event_type = "silence_mode_changed"
@@ -159,8 +163,8 @@ class StatePublisher:
         """Build a dict of object_id -> JSON-serializable attributes."""
         out: dict[str, dict] = {}
         try:
-            from src.settings.service import get_settings_service
             from src.pages.service import get_page_service
+            from src.settings.service import get_settings_service
 
             settings = get_settings_service()
             page_service = get_page_service()
@@ -183,8 +187,9 @@ class StatePublisher:
     def _get_uptime() -> str:
         """Get service uptime in seconds as a string."""
         try:
-            from src.api_server import _service_start_time
             import time
+
+            from src.api_server import _service_start_time
             if _service_start_time is not None:
                 return str(int(time.time() - _service_start_time))
         except Exception:
@@ -231,7 +236,3 @@ class StatePublisher:
         return "both"
 
 
-# Type hint
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from .client import MQTTClient

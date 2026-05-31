@@ -5,18 +5,18 @@ and validation (overlap and gap detection).
 """
 
 import logging
-from datetime import time, date
-from typing import List, Optional, Tuple
+from datetime import date, time
 
+from ..settings.service import get_settings_service
 from .models import (
-    ScheduleEntry,
+    DEFAULT_BOARD_ID,
+    VALID_DAYS,
+    Gap,
+    Overlap,
     ScheduleCreate,
+    ScheduleEntry,
     ScheduleUpdate,
     ScheduleValidationResult,
-    Overlap,
-    Gap,
-    VALID_DAYS,
-    DEFAULT_BOARD_ID,
 )
 from .storage import ScheduleStorage
 from .sun_times import (
@@ -24,32 +24,31 @@ from .sun_times import (
     get_today_in_timezone,
     resolve_schedule_sun_times,
 )
-from ..settings.service import get_settings_service
 
 logger = logging.getLogger(__name__)
 
 
 class ScheduleService:
     """Service for schedule operations.
-    
+
     Handles:
     - CRUD operations on schedules
     - Active page resolution based on current time/day
     - Overlap and gap detection for validation
     """
-    
-    def __init__(self, storage: Optional[ScheduleStorage] = None):
+
+    def __init__(self, storage: ScheduleStorage | None = None):
         """Initialize schedule service.
-        
+
         Args:
             storage: Schedule storage instance. Created if not provided.
         """
         self.storage = storage or ScheduleStorage()
         logger.info("ScheduleService initialized")
-    
+
     # CRUD operations
-    
-    def list_schedules(self, board_id: Optional[str] = None) -> List[ScheduleEntry]:
+
+    def list_schedules(self, board_id: str | None = None) -> list[ScheduleEntry]:
         """List schedules, optionally filtered by board_id."""
         if board_id == "*":
             return self.storage.list_all(board_id="*")
@@ -72,20 +71,20 @@ class ScheduleService:
                 schedules.sort(key=lambda s: s.created_at)
 
         return schedules
-    
-    def get_schedule(self, schedule_id: str) -> Optional[ScheduleEntry]:
+
+    def get_schedule(self, schedule_id: str) -> ScheduleEntry | None:
         """Get a schedule by ID."""
         return self.storage.get(schedule_id)
-    
+
     def create_schedule(self, data: ScheduleCreate) -> ScheduleEntry:
         """Create a new schedule.
-        
+
         Args:
             data: Schedule creation data
-            
+
         Returns:
             Created schedule
-            
+
         Raises:
             ValueError: If schedule configuration is invalid
         """
@@ -103,39 +102,39 @@ class ScheduleService:
             end_sun_offset=data.end_sun_offset,
         )
         return self.storage.create(schedule)
-    
-    def update_schedule(self, schedule_id: str, data: ScheduleUpdate) -> Optional[ScheduleEntry]:
+
+    def update_schedule(self, schedule_id: str, data: ScheduleUpdate) -> ScheduleEntry | None:
         """Update an existing schedule.
-        
+
         Args:
             schedule_id: Schedule ID
             data: Update data
-            
+
         Returns:
             Updated schedule or None if not found
         """
         updates = data.model_dump(exclude_unset=True)
         return self.storage.update(schedule_id, updates)
-    
+
     def delete_schedule(self, schedule_id: str) -> bool:
         """Delete a schedule.
-        
+
         Args:
             schedule_id: Schedule ID
-            
+
         Returns:
             True if deleted, False if not found
         """
         return self.storage.delete(schedule_id)
-    
+
     # Active page resolution
-    
+
     def get_active_page_id(
         self,
         current_time: time,
         current_day: str,
-        board_id: Optional[str] = None,
-    ) -> Optional[str]:
+        board_id: str | None = None,
+    ) -> str | None:
         """Determine which page should be displayed based on schedules for the given board.
 
         Sun-based schedules (start_type/end_type of "sunrise" or "sunset") have
@@ -169,7 +168,7 @@ class ScheduleService:
             logger.debug(f"No schedule match for {current_day} {time_str}, no default set")
         return default_page_id
 
-    def _get_location(self) -> Tuple[Optional[float], Optional[float], str]:
+    def _get_location(self) -> tuple[float | None, float | None, str]:
         """Get the configured location and timezone for sun time resolution.
 
         Returns:
@@ -183,7 +182,7 @@ class ScheduleService:
         self,
         schedule: ScheduleEntry,
         target_date: date,
-        location: Tuple[Optional[float], Optional[float], str],
+        location: tuple[float | None, float | None, str],
     ) -> ScheduleEntry:
         """Return a schedule with sun-based times resolved for the given date.
 
@@ -218,56 +217,56 @@ class ScheduleService:
 
     # Default page management
 
-    def get_default_page(self, board_id: Optional[str] = None) -> Optional[str]:
+    def get_default_page(self, board_id: str | None = None) -> str | None:
         """Get the default page ID for schedule gaps for the given board."""
         return self.storage.get_default_page_id(board_id=board_id)
 
-    def set_default_page(self, page_id: Optional[str], board_id: Optional[str] = None) -> None:
+    def set_default_page(self, page_id: str | None, board_id: str | None = None) -> None:
         """Set the default page ID for schedule gaps for the given board."""
         self.storage.set_default_page_id(page_id, board_id=board_id)
 
     # Validation
 
-    def validate_schedules(self, board_id: Optional[str] = None) -> ScheduleValidationResult:
+    def validate_schedules(self, board_id: str | None = None) -> ScheduleValidationResult:
         """Validate schedules for overlaps and gaps (optionally for one board)."""
         schedules = [s for s in self.list_schedules(board_id=board_id) if s.enabled]
-        
+
         overlaps = self._detect_overlaps(schedules)
         gaps = self._detect_gaps(schedules)
-        
+
         return ScheduleValidationResult(
             valid=len(overlaps) == 0,
             overlaps=overlaps,
             gaps=gaps
         )
-    
-    def _detect_overlaps(self, schedules: List[ScheduleEntry]) -> List[Overlap]:
+
+    def _detect_overlaps(self, schedules: list[ScheduleEntry]) -> list[Overlap]:
         """Detect overlapping schedules.
-        
+
         Two schedules overlap if they have:
         1. Overlapping day patterns
         2. Overlapping time ranges
-        
+
         Args:
             schedules: List of enabled schedules to check
-            
+
         Returns:
             List of overlaps found
         """
         overlaps = []
-        
+
         # Check each pair of schedules
         for i, schedule1 in enumerate(schedules):
             for schedule2 in schedules[i+1:]:
                 # Get days each schedule applies to
                 days1 = set(schedule1.get_days())
                 days2 = set(schedule2.get_days())
-                
+
                 # Check if days overlap
                 common_days = days1 & days2
                 if not common_days:
                     continue  # No day overlap
-                
+
                 # Check if times overlap
                 if self._times_overlap(
                     schedule1.start_time,
@@ -284,47 +283,47 @@ class ScheduleService:
                         f"{schedule1.start_time}-{end1_str} and "
                         f"{schedule2.start_time}-{end2_str}"
                     )
-                    
+
                     overlaps.append(Overlap(
                         schedule1_id=schedule1.id,
                         schedule2_id=schedule2.id,
                         conflict_description=conflict_desc
                     ))
-        
+
         return overlaps
-    
+
     def _times_overlap(
         self,
         start1: str,
-        end1: Optional[str],
+        end1: str | None,
         start2: str,
-        end2: Optional[str]
+        end2: str | None
     ) -> bool:
         """Check if two time ranges overlap.
-        
+
         Handles midnight rollover schedules where end_time < start_time,
         and open-ended schedules where end_time is None.
-        
+
         Args:
             start1: Start time of first range (HH:MM)
             end1: End time of first range (HH:MM, exclusive) or None (open-ended)
             start2: Start time of second range (HH:MM)
             end2: End time of second range (HH:MM, exclusive) or None (open-ended)
-            
+
         Returns:
             True if times overlap
         """
         TOTAL_MINUTES = 24 * 60  # 1440
         s1 = self._time_to_minutes(start1)
         s2 = self._time_to_minutes(start2)
-        
+
         # Treat None end_time as end-of-day (open-ended → runs to 23:59 = 1440)
         e1 = self._time_to_minutes(end1) if end1 is not None else TOTAL_MINUTES
         e2 = self._time_to_minutes(end2) if end2 is not None else TOTAL_MINUTES
-        
+
         wrap1 = end1 is not None and e1 <= s1  # Schedule 1 crosses midnight
         wrap2 = end2 is not None and e2 <= s2  # Schedule 2 crosses midnight
-        
+
         if not wrap1 and not wrap2:
             # Both normal ranges (or open-ended): standard overlap check
             return s1 < e2 and s2 < e1
@@ -341,29 +340,29 @@ class ScheduleService:
             # range2 is normal: covers [s2, e2)
             # Overlap if range2 intersects [s1, 1440) or [0, e1)
             return s2 < e1 or e2 > s1
-    
-    def _detect_gaps(self, schedules: List[ScheduleEntry]) -> List[Gap]:
+
+    def _detect_gaps(self, schedules: list[ScheduleEntry]) -> list[Gap]:
         """Detect gaps in schedule coverage.
-        
+
         For each day of the week, find time periods with no scheduled page.
         Only report gaps larger than 15 minutes (single time slot).
         Handles midnight rollover schedules and open-ended schedules
         (end_time=None treated as running to end-of-day).
-        
+
         Args:
             schedules: List of enabled schedules
-            
+
         Returns:
             List of gaps found
         """
         TOTAL_MINUTES = 24 * 60  # 1440 minutes in a day
         gaps = []
-        
+
         # Check each day of the week
         for day in VALID_DAYS:
             # Get all schedules for this day
             day_schedules = [s for s in schedules if s.applies_to_day(day)]
-            
+
             if not day_schedules:
                 # Entire day is a gap
                 gaps.append(Gap(
@@ -372,7 +371,7 @@ class ScheduleService:
                     days=[day]
                 ))
                 continue
-            
+
             # Build a coverage bitmap for the day (True = covered)
             covered = [False] * TOTAL_MINUTES
             for sched in day_schedules:
@@ -393,7 +392,7 @@ class ScheduleService:
                         # Normal: covers [s, e)
                         for m in range(s, e):
                             covered[m] = True
-            
+
             # Find uncovered ranges
             gap_start = None
             for m in range(TOTAL_MINUTES):
@@ -408,7 +407,7 @@ class ScheduleService:
                             days=[day]
                         ))
                     gap_start = None
-            
+
             # Handle gap at end of day
             if gap_start is not None:
                 gap_minutes = TOTAL_MINUTES - gap_start
@@ -418,22 +417,22 @@ class ScheduleService:
                         end_time="23:59",
                         days=[day]
                     ))
-        
+
         # Merge gaps across multiple days with same times
         return self._merge_gaps_by_time(gaps)
-    
-    def _merge_gaps_by_time(self, gaps: List[Gap]) -> List[Gap]:
+
+    def _merge_gaps_by_time(self, gaps: list[Gap]) -> list[Gap]:
         """Merge gaps with same start/end times across multiple days.
-        
+
         Args:
             gaps: List of gaps (one per day)
-            
+
         Returns:
             List of merged gaps
         """
         if not gaps:
             return []
-        
+
         # Group by time range
         time_groups = {}
         for gap in gaps:
@@ -441,7 +440,7 @@ class ScheduleService:
             if key not in time_groups:
                 time_groups[key] = []
             time_groups[key].extend(gap.days)
-        
+
         # Create merged gaps
         merged = []
         for (start_time, end_time), days in time_groups.items():
@@ -450,27 +449,27 @@ class ScheduleService:
                 end_time=end_time,
                 days=sorted(set(days))  # Remove duplicates and sort
             ))
-        
+
         return merged
-    
+
     def _time_to_minutes(self, time_str: str) -> int:
         """Convert HH:MM time string to minutes since midnight."""
         parts = time_str.split(":")
         return int(parts[0]) * 60 + int(parts[1])
-    
+
     def _minutes_to_time(self, minutes: int) -> str:
         """Convert minutes since midnight to HH:MM time string."""
         h = minutes // 60
         m = minutes % 60
         return f"{h:02d}:{m:02d}"
-    
+
     def _time_diff_minutes(self, start_time: str, end_time: str) -> int:
         """Calculate difference between two times in minutes."""
         return self._time_to_minutes(end_time) - self._time_to_minutes(start_time)
 
 
 # Singleton instance
-_schedule_service: Optional[ScheduleService] = None
+_schedule_service: ScheduleService | None = None
 
 
 def get_schedule_service() -> ScheduleService:

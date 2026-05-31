@@ -12,11 +12,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from ..devices import DeviceType, get_dimensions
 from ..templates.expressions import function_signatures
-
 
 # Which caller is building the prompt. The shared core (device limits,
 # character set, syntax, available variables, exemplars) is identical
@@ -29,7 +28,7 @@ PromptMode = Literal["generate", "chat"]
 # provides a ``demo`` block matching the requested device_type. Kept
 # small to keep the prompt cheap; the model only needs a couple of
 # examples to learn the JSON shape.
-_FALLBACK_EXEMPLARS: List[Dict[str, Any]] = [
+_FALLBACK_EXEMPLARS: list[dict[str, Any]] = [
     {
         "name": "Weather + time (flagship)",
         "device_type": "flagship",
@@ -141,14 +140,14 @@ class PromptContext:
     rows: int
     cols: int
     user_prompt: str
-    variables: Dict[str, Dict[str, Dict[str, Any]]] = field(default_factory=dict)
-    exemplars: List[Dict[str, Any]] = field(default_factory=list)
-    current_page: Optional[Dict[str, Any]] = None
+    variables: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
+    exemplars: list[dict[str, Any]] = field(default_factory=list)
+    current_page: dict[str, Any] | None = None
     system_prompt: str = ""
 
-    def to_messages(self) -> List[Dict[str, str]]:
+    def to_messages(self) -> list[dict[str, str]]:
         """Render as an OpenAI-compatible messages list."""
-        messages: List[Dict[str, str]] = [
+        messages: list[dict[str, str]] = [
             {"role": "system", "content": self.system_prompt},
         ]
         if self.current_page is not None:
@@ -165,7 +164,7 @@ class PromptContext:
         messages.append({"role": "user", "content": self.user_prompt})
         return messages
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializable copy used by the debug endpoint."""
         return {
             "device_type": self.device_type,
@@ -186,13 +185,13 @@ def _format_builtins() -> str:
     stays in sync if functions are added or renamed.
     """
     sigs = function_signatures()
-    by_cat: Dict[str, List[str]] = {}
-    for name, info in sigs.items():
+    by_cat: dict[str, list[str]] = {}
+    for _name, info in sigs.items():
         by_cat.setdefault(info["category"], []).append(
             f"  {info['signature']:<40} — {info['summary']}"
         )
     order = ["logic", "math", "text", "convert", "color"]
-    lines: List[str] = []
+    lines: list[str] = []
     for cat in order:
         rows = by_cat.get(cat)
         if not rows:
@@ -209,12 +208,12 @@ def _format_builtins() -> str:
 
 
 def _format_variables(
-    variables: Dict[str, Dict[str, Dict[str, Any]]],
+    variables: dict[str, dict[str, dict[str, Any]]],
 ) -> str:
     """Render the variable registry as a compact, model-friendly listing."""
     if not variables:
         return "(no variables available — only static text and color tokens may be used)"
-    lines: List[str] = []
+    lines: list[str] = []
     for plugin_id in sorted(variables.keys()):
         var_dict = variables[plugin_id]
         lines.append(f"\n[{plugin_id}]")
@@ -226,7 +225,7 @@ def _format_variables(
             parts = [f"  {{{{{plugin_id}.{var_name}}}}}"]
             if desc:
                 parts.append(f"— {desc}")
-            extras: List[str] = []
+            extras: list[str] = []
             if example:
                 extras.append(f"example: {example}")
             if max_len:
@@ -239,9 +238,9 @@ def _format_variables(
 
 def _select_exemplars(
     device_type: str,
-    plugin_demos: List[Dict[str, Any]],
+    plugin_demos: list[dict[str, Any]],
     max_examples: int = 3,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Pick a small set of example pages matching ``device_type``.
 
     Prefers plugin-supplied demos over the hand-curated fallback. Always
@@ -262,7 +261,7 @@ def _select_exemplars(
     return selected
 
 
-def _format_available_pages(pages: List[Dict[str, Any]]) -> str:
+def _format_available_pages(pages: list[dict[str, Any]]) -> str:
     """Render a compact list of pages the user can navigate to."""
     if not pages:
         return "(no pages yet)"
@@ -272,7 +271,7 @@ def _format_available_pages(pages: List[Dict[str, Any]]) -> str:
     )
 
 
-def _summarize_schema(schema: Optional[Dict[str, Any]]) -> str:
+def _summarize_schema(schema: dict[str, Any] | None) -> str:
     """Render a one-line summary of plugin config fields for the AI.
 
     Produces output like:
@@ -288,11 +287,11 @@ def _summarize_schema(schema: Optional[Dict[str, Any]]) -> str:
     if not props:
         return ""
     parts = []
-    for key, field in props.items():
-        if not isinstance(field, dict):
+    for key, field_def in props.items():
+        if not isinstance(field_def, dict):
             continue
-        ftype = field.get("type", "any")
-        enum_vals = field.get("enum")
+        ftype = field_def.get("type", "any")
+        enum_vals = field_def.get("enum")
         req = "*" if key in required else ""
         if enum_vals and isinstance(enum_vals, list):
             opts = "|".join(str(v) for v in enum_vals[:5])
@@ -303,7 +302,7 @@ def _summarize_schema(schema: Optional[Dict[str, Any]]) -> str:
     return ", ".join(parts)
 
 
-def _format_installed_plugins(plugins: List[Dict[str, Any]]) -> str:
+def _format_installed_plugins(plugins: list[dict[str, Any]]) -> str:
     """Render a compact list of installed plugins, their status, and config schema."""
     if not plugins:
         return "(no plugins installed)"
@@ -316,7 +315,7 @@ def _format_installed_plugins(plugins: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _format_registry_plugins(plugins: List[Dict[str, Any]]) -> str:
+def _format_registry_plugins(plugins: list[dict[str, Any]]) -> str:
     """Render the plugin registry so the AI knows what's available to install."""
     if not plugins:
         return "(registry is empty or unavailable)"
@@ -329,7 +328,7 @@ def _format_registry_plugins(plugins: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _format_available_schedules(schedules: List[Dict[str, Any]]) -> str:
+def _format_available_schedules(schedules: list[dict[str, Any]]) -> str:
     """Render a compact list of schedule entries the AI can reference."""
     if not schedules:
         return "(no schedules yet)"
@@ -347,7 +346,7 @@ def _format_available_schedules(schedules: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _format_available_carousels(carousels: List[Dict[str, Any]]) -> str:
+def _format_available_carousels(carousels: list[dict[str, Any]]) -> str:
     """Render a compact list of carousels the AI can reference."""
     if not carousels:
         return "(no carousels yet)"
@@ -366,14 +365,14 @@ def _format_available_carousels(carousels: List[Dict[str, Any]]) -> str:
 def build_prompt(
     user_prompt: str,
     device_type: DeviceType,
-    variables: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
-    plugin_demos: Optional[List[Dict[str, Any]]] = None,
-    current_page: Optional[Dict[str, Any]] = None,
-    available_pages: Optional[List[Dict[str, Any]]] = None,
-    installed_plugins: Optional[List[Dict[str, Any]]] = None,
-    available_schedules: Optional[List[Dict[str, Any]]] = None,
-    available_carousels: Optional[List[Dict[str, Any]]] = None,
-    registry_plugins: Optional[List[Dict[str, Any]]] = None,
+    variables: dict[str, dict[str, dict[str, Any]]] | None = None,
+    plugin_demos: list[dict[str, Any]] | None = None,
+    current_page: dict[str, Any] | None = None,
+    available_pages: list[dict[str, Any]] | None = None,
+    installed_plugins: list[dict[str, Any]] | None = None,
+    available_schedules: list[dict[str, Any]] | None = None,
+    available_carousels: list[dict[str, Any]] | None = None,
+    registry_plugins: list[dict[str, Any]] | None = None,
     mode: PromptMode = "generate",
 ) -> PromptContext:
     """Build the system + user messages for the LLM.

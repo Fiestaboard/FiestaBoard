@@ -5,25 +5,24 @@ Provides simple persistence for schedule configurations that survives restarts.
 
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-from datetime import datetime, timezone
 
-from .models import ScheduleEntry, DEFAULT_BOARD_ID
+from .models import DEFAULT_BOARD_ID, ScheduleEntry
 
 logger = logging.getLogger(__name__)
 
 
 class ScheduleStorage:
     """JSON file-based storage for schedule entries.
-    
+
     Stores schedules and default page configuration in a JSON file for
     simple persistence. Thread-safe for basic operations.
     """
-    
-    def __init__(self, storage_file: Optional[str] = None):
+
+    def __init__(self, storage_file: str | None = None):
         """Initialize schedule storage.
-        
+
         Args:
             storage_file: Path to JSON storage file. Defaults to data/schedules.json
         """
@@ -34,20 +33,20 @@ class ScheduleStorage:
             self.storage_file = data_dir / "schedules.json"
         else:
             self.storage_file = Path(storage_file)
-        
+
         # In-memory cache
-        self._schedules: Dict[str, ScheduleEntry] = {}
-        self._default_page_id: Optional[str] = None  # legacy single default
-        self._default_page_by_board: Dict[str, str] = {}  # board_id -> page_id
+        self._schedules: dict[str, ScheduleEntry] = {}
+        self._default_page_id: str | None = None  # legacy single default
+        self._default_page_by_board: dict[str, str] = {}  # board_id -> page_id
 
         # Load existing schedules
         self._load()
-        
+
         logger.info(
             f"ScheduleStorage initialized "
             f"(file: {self.storage_file}, schedules: {len(self._schedules)})"
         )
-    
+
     def _load(self) -> None:
         """Load schedules from storage file."""
         if not self.storage_file.exists():
@@ -57,7 +56,7 @@ class ScheduleStorage:
             return
 
         try:
-            with open(self.storage_file, 'r') as f:
+            with open(self.storage_file) as f:
                 data = json.load(f)
 
             self._schedules = {}
@@ -80,12 +79,12 @@ class ScheduleStorage:
 
             logger.info(f"Loaded {len(self._schedules)} schedules from storage")
 
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load schedules file: {e}")
             self._schedules = {}
             self._default_page_id = None
             self._default_page_by_board = {}
-    
+
     def _save(self) -> None:
         """Save schedules to storage file."""
         try:
@@ -94,26 +93,26 @@ class ScheduleStorage:
                 "default_page_id": self._default_page_id,
                 "default_page_by_board": self._default_page_by_board,
             }
-            
+
             # Convert datetime objects to ISO strings for JSON serialization
             for schedule_data in data["schedules"]:
                 if schedule_data.get("created_at"):
                     schedule_data["created_at"] = schedule_data["created_at"].isoformat()
                 if schedule_data.get("updated_at"):
                     schedule_data["updated_at"] = schedule_data["updated_at"].isoformat()
-            
+
             with open(self.storage_file, 'w') as f:
                 json.dump(data, f, indent=2)
-            
+
             logger.debug(f"Saved {len(self._schedules)} schedules to storage")
-            
-        except IOError as e:
+
+        except OSError as e:
             logger.error(f"Failed to save schedules file: {e}")
             raise
-    
-    def list_all(self, board_id: Optional[str] = None) -> List[ScheduleEntry]:
+
+    def list_all(self, board_id: str | None = None) -> list[ScheduleEntry]:
         """Get stored schedules, optionally filtered by board_id.
-        
+
         Args:
             board_id: Filter by board_id. None returns default board schedules.
                      Use explicit "*" to get ALL schedules across all boards (for cleanup/admin).
@@ -129,18 +128,18 @@ class ScheduleStorage:
             schedules = [s for s in self._schedules.values() if (s.board_id or DEFAULT_BOARD_ID) == (bid or DEFAULT_BOARD_ID)]
         schedules.sort(key=lambda s: s.created_at)
         return schedules
-    
-    def get(self, schedule_id: str) -> Optional[ScheduleEntry]:
+
+    def get(self, schedule_id: str) -> ScheduleEntry | None:
         """Get a schedule by ID.
-        
+
         Args:
             schedule_id: The schedule ID
-            
+
         Returns:
             ScheduleEntry if found, None otherwise
         """
         return self._schedules.get(schedule_id)
-    
+
     def create(self, schedule: ScheduleEntry) -> ScheduleEntry:
         """Create a new schedule entry."""
         if schedule.id in self._schedules:
@@ -154,22 +153,22 @@ class ScheduleStorage:
         self._save()
         logger.info(f"Created schedule: {schedule.id} (board_id={schedule.board_id})")
         return schedule
-    
-    def update(self, schedule_id: str, updates: dict) -> Optional[ScheduleEntry]:
+
+    def update(self, schedule_id: str, updates: dict) -> ScheduleEntry | None:
         """Update an existing schedule.
-        
+
         Args:
             schedule_id: The schedule ID
             updates: Dictionary of fields to update
-            
+
         Returns:
             Updated schedule if found, None otherwise
         """
         if schedule_id not in self._schedules:
             return None
-        
+
         schedule = self._schedules[schedule_id]
-        
+
         # Apply updates
         schedule_dict = schedule.model_dump()
         # Fields that are allowed to be set to None explicitly
@@ -178,65 +177,65 @@ class ScheduleStorage:
             if key in schedule_dict:
                 if value is not None or key in nullable_fields:
                     schedule_dict[key] = value
-        
+
         # Update timestamp
-        schedule_dict["updated_at"] = datetime.now(timezone.utc)
-        
+        schedule_dict["updated_at"] = datetime.now(UTC)
+
         # Recreate schedule with updates
         updated_schedule = ScheduleEntry(**schedule_dict)
-        
+
         # Validate
         errors = updated_schedule.validate_config()
         if errors:
             raise ValueError(f"Invalid schedule configuration: {errors}")
-        
+
         self._schedules[schedule_id] = updated_schedule
         self._save()
-        
+
         logger.info(f"Updated schedule: {schedule_id}")
         return updated_schedule
-    
+
     def delete(self, schedule_id: str) -> bool:
         """Delete a schedule.
-        
+
         Args:
             schedule_id: The schedule ID
-            
+
         Returns:
             True if deleted, False if not found
         """
         if schedule_id not in self._schedules:
             return False
-        
+
         del self._schedules[schedule_id]
         self._save()
-        
+
         logger.info(f"Deleted schedule: {schedule_id}")
         return True
-    
+
     def exists(self, schedule_id: str) -> bool:
         """Check if a schedule exists.
-        
+
         Args:
             schedule_id: The schedule ID
-            
+
         Returns:
             True if exists
         """
         return schedule_id in self._schedules
-    
+
     def count(self) -> int:
         """Get the number of stored schedules."""
         return len(self._schedules)
-    
-    def get_default_page_id(self, board_id: Optional[str] = None) -> Optional[str]:
+
+    def get_default_page_id(self, board_id: str | None = None) -> str | None:
         """Get the default page ID for schedule gaps for the given board."""
         bid = board_id or DEFAULT_BOARD_ID
         if bid in self._default_page_by_board:
             return self._default_page_by_board[bid] or None
         return self._default_page_id
 
-    def set_default_page_id(self, page_id: Optional[str], board_id: Optional[str] = None) -> None:
+    def set_default_page_id(self, page_id: str | None, board_id: str | None = None) -> None:
         """Set the default page ID for schedule gaps for the given board."""
         bid = board_id or DEFAULT_BOARD_ID
         if bid == DEFAULT_BOARD_ID:

@@ -23,9 +23,9 @@ import logging
 import os
 import shutil
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
 
 from src.network_diagnostics import check_internet_connectivity
 
@@ -75,10 +75,10 @@ class WiFiStatus:
     """Current WiFi state plus an internet-reachability probe."""
 
     connected: bool
-    ssid: Optional[str]
-    ip_address: Optional[str]
-    gateway: Optional[str]
-    signal: Optional[int]
+    ssid: str | None
+    ip_address: str | None
+    gateway: str | None
+    signal: int | None
     internet_reachable: bool
 
 
@@ -96,7 +96,7 @@ class WiFiCapability:
     """Feature probe: is WiFi management available on this deployment?"""
 
     available: bool
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 def _profile_is_pi() -> bool:
@@ -133,7 +133,7 @@ class WiFiService:
 
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
-        self._cached_capability: Optional[WiFiCapability] = None
+        self._cached_capability: WiFiCapability | None = None
 
     # ---- capability probe ------------------------------------------------
 
@@ -270,8 +270,8 @@ class WiFiService:
         active_out = self._run_nmcli(
             ["-t", "-f", "NAME,TYPE,DEVICE", "connection", "show", "--active"]
         )
-        active_ssid: Optional[str] = None
-        active_name: Optional[str] = None
+        active_ssid: str | None = None
+        active_name: str | None = None
         for line in active_out.splitlines():
             parts = self._parse_terse(line)
             if len(parts) >= 2 and parts[1] == "802-11-wireless":
@@ -279,9 +279,9 @@ class WiFiService:
                 active_ssid = parts[0]  # NM uses the SSID as the con-name by default
                 break
 
-        ip_address: Optional[str] = None
-        gateway: Optional[str] = None
-        signal: Optional[int] = None
+        ip_address: str | None = None
+        gateway: str | None = None
+        signal: int | None = None
 
         if active_name:
             try:
@@ -395,7 +395,7 @@ class WiFiService:
     async def connect(
         self,
         ssid: str,
-        password: Optional[str] = None,
+        password: str | None = None,
         hidden: bool = False,
     ) -> WiFiConnectResult:
         """Create/replace a persistent profile and bring it up.
@@ -489,7 +489,7 @@ class WiFiService:
                 self._run_nmcli,
                 ["-t", "-f", "NAME,TYPE", "connection", "show", "--active"],
             )
-            target: Optional[str] = None
+            target: str | None = None
             for line in active_out.splitlines():
                 parts = self._parse_terse(line)
                 if len(parts) >= 2 and parts[1] == "802-11-wireless":
@@ -512,7 +512,7 @@ class WiFiService:
 
 
 # Singleton — there's only one NetworkManager per host.
-_service: Optional[WiFiService] = None
+_service: WiFiService | None = None
 
 
 def get_wifi_service() -> WiFiService:

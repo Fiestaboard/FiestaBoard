@@ -13,15 +13,15 @@ Plugins can be loaded from three sources:
 """
 
 from .base import PluginBase, PluginResult, TriggerResult
-from .registry import PluginRegistry, get_plugin_registry, INSTANCE_SEPARATOR
 from .loader import PluginLoader
-from .manifest import PluginManifest, DemoPageSchema, validate_manifest
+from .manifest import DemoPageSchema, PluginManifest, validate_manifest
+from .registry import INSTANCE_SEPARATOR, PluginRegistry, get_plugin_registry
 from .sources import (
     PluginSource,
     RegistryEntry,
     load_registry,
-    validate_registry_repo_name,
     plugin_id_from_repo_name,
+    validate_registry_repo_name,
 )
 
 __all__ = [

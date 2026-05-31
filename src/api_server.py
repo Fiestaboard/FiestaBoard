@@ -1,52 +1,54 @@
 """REST API server for FiestaBoard Display Service."""
 
 import asyncio
+import json
 import logging
 import logging.handlers
+import os
+import re
 import threading
 import time
-import os
-import json
-import re
-import requests
-from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any, List
-from urllib.parse import urlparse
 from collections import deque
-from datetime import datetime, timezone
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
 
+import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Body, Response, Request
+from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-# Load environment variables from .env file
+# Load environment variables from .env file before importing modules that may
+# read them at import time. The intra-package imports below intentionally come
+# after this call; noqa: E402 suppresses ruff's import-order check.
 load_dotenv()
 
-from . import __version__
-from .main import DisplayService
-from .config import Config
-from .config_manager import get_config_manager
-from .displays.service import get_display_service, reset_display_service
-from .settings.service import get_settings_service, VALID_STRATEGIES, VALID_OUTPUT_TARGETS
-from .pages.service import get_page_service
-from .pages.models import PageCreate, PageUpdate
-from .pages.share import encode_page, decode_page
-from .schedules.service import get_schedule_service
-from .schedules.models import ScheduleCreate, ScheduleUpdate
-from .carousels.service import get_carousel_service
-from .carousels.models import CarouselCreate, CarouselUpdate, is_carousel_id
-from .templates.engine import get_template_engine, reset_template_engine
-from .templates.expressions import function_signatures
-from .text_to_board import text_to_board_array
-from .devices import get_dimensions
-from .board_client import board_client_from_board_dict
-from .auth import is_auth_enabled
-from .auth.middleware import AuthMiddleware
-from .auth.routes import router as auth_router
-from .network.wifi import WiFiError, get_wifi_service
+from . import __version__  # noqa: E402
+from .auth import is_auth_enabled  # noqa: E402
+from .auth.middleware import AuthMiddleware  # noqa: E402
+from .auth.routes import router as auth_router  # noqa: E402
+from .board_client import board_client_from_board_dict  # noqa: E402
+from .carousels.models import CarouselCreate, CarouselUpdate, is_carousel_id  # noqa: E402
+from .carousels.service import get_carousel_service  # noqa: E402
+from .config import Config  # noqa: E402
+from .config_manager import get_config_manager  # noqa: E402
+from .devices import get_dimensions  # noqa: E402
+from .displays.service import get_display_service, reset_display_service  # noqa: E402
+from .main import DisplayService  # noqa: E402
+from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
+from .pages.models import PageCreate, PageUpdate  # noqa: E402
+from .pages.service import get_page_service  # noqa: E402
+from .pages.share import decode_page, encode_page  # noqa: E402
+from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
+from .schedules.service import get_schedule_service  # noqa: E402
+from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
+from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402
+from .templates.expressions import function_signatures  # noqa: E402
+from .text_to_board import text_to_board_array  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +59,7 @@ LOG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per file
 LOG_BACKUP_COUNT = 5  # Keep 5 backup files (25MB total max)
 
 # Cache state for /muni/stops endpoint
-_muni_stops_cache: Optional[Dict[str, Any]] = None
+_muni_stops_cache: dict[str, Any] | None = None
 _muni_stops_cache_time: float = 0.0
 _muni_stops_cache_lock = threading.Lock()
 
@@ -74,16 +76,16 @@ def _validate_request_url(
     non-public destinations (loopback/private/link-local/etc.) to reduce SSRF
     risk. Raises :class:`HTTPException` (status 400) when the URL is rejected.
     """
-    from urllib.parse import urlparse
     import ipaddress
     import socket
+    from urllib.parse import urlparse
 
     if not isinstance(url, str) or not url:
         raise HTTPException(status_code=400, detail="URL is required")
     try:
         parsed = urlparse(url)
     except ValueError:
-        raise HTTPException(status_code=400, detail="URL could not be parsed")
+        raise HTTPException(status_code=400, detail="URL could not be parsed") from None
     allowed = []
     if allow_http:
         allowed.append("http")
@@ -146,15 +148,15 @@ def _validate_request_url(
         try:
             infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
         except socket.gaierror:
-            raise HTTPException(status_code=400, detail="URL host could not be resolved")
+            raise HTTPException(status_code=400, detail="URL host could not be resolved") from None
 
         for info in infos:
             resolved_ip = info[4][0]
             if _is_non_public_ip(resolved_ip):
-                raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
+                raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP") from None
 
 
-def _get_generic_data_allowed_hosts() -> List[str]:
+def _get_generic_data_allowed_hosts() -> list[str]:
     """Return normalized allowlisted hosts for generic-data test fetch.
 
     Reads comma-separated hostnames from ``GENERIC_DATA_ALLOWED_HOSTS``.
@@ -169,7 +171,7 @@ def _get_generic_data_allowed_hosts() -> List[str]:
     return hosts
 
 
-def _is_host_allowed(host: str, allowed_hosts: List[str]) -> bool:
+def _is_host_allowed(host: str, allowed_hosts: list[str]) -> bool:
     """Check whether host is exactly allowed or a subdomain of an allowed host."""
     h = (host or "").strip().lower().rstrip(".")
     for allowed in allowed_hosts:
@@ -182,7 +184,7 @@ def _is_host_allowed(host: str, allowed_hosts: List[str]) -> bool:
 _PLUGIN_ID_RE = re.compile(r"^[a-z0-9_]+$")
 
 
-def _sanitize_optional_plugin_id(plugin_id: Optional[str]) -> Optional[str]:
+def _sanitize_optional_plugin_id(plugin_id: str | None) -> str | None:
     """Validate optional plugin id from user input.
 
     Accepts ``None`` (meaning "derive from repo name"), otherwise enforces
@@ -269,7 +271,7 @@ def _validate_board_host_is_local_network(host: str) -> None:
     try:
         addrinfo = socket.getaddrinfo(host, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
     except socket.gaierror:
-        raise HTTPException(status_code=400, detail="host could not be resolved")
+        raise HTTPException(status_code=400, detail="host could not be resolved") from None
 
     resolved_ips = {
         ipaddress.IPv4Address(info[4][0])
@@ -287,22 +289,22 @@ def _validate_board_host_is_local_network(host: str) -> None:
 
 
 # Global service instance
-_service: Optional[DisplayService] = None
+_service: DisplayService | None = None
 _service_lock = threading.Lock()
-_service_thread: Optional[threading.Thread] = None
+_service_thread: threading.Thread | None = None
 _service_running = False
-_service_start_time: Optional[float] = None  # Track when service started
+_service_start_time: float | None = None  # Track when service started
 _shutting_down = False  # Set during app shutdown to suppress auto-restart
 
 # In-memory log buffer (last 500 log entries for quick access)
 _log_buffer: deque = deque(maxlen=500)
 _log_lock = threading.Lock()
 
-def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> Dict[str, Any]:
+def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> dict[str, Any]:
     """Create a structured log entry from a log record with UTC timestamp."""
     from .time_service import get_time_service
     time_service = get_time_service()
-    
+
     return {
         "timestamp": time_service.create_utc_timestamp(),
         "level": record.levelname,
@@ -313,7 +315,7 @@ def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> Dict
 
 class LogBufferHandler(logging.Handler):
     """Custom logging handler that stores logs in memory for API access."""
-    
+
     def emit(self, record):
         try:
             log_entry = _create_log_entry(record, self.format(record))
@@ -325,7 +327,7 @@ class LogBufferHandler(logging.Handler):
 
 class JSONFileHandler(logging.handlers.RotatingFileHandler):
     """Rotating file handler that writes logs as JSON lines."""
-    
+
     def emit(self, record):
         try:
             log_entry = _create_log_entry(record, self.format(record))
@@ -339,7 +341,7 @@ class JSONFileHandler(logging.handlers.RotatingFileHandler):
                 self.doRollover()
         except Exception:
             self.handleError(record)
-    
+
     def shouldRollover(self, record):
         """Check if we should rollover based on file size."""
         if self.stream is None:
@@ -356,7 +358,7 @@ def _setup_file_logging():
     try:
         # Create logs directory if it doesn't exist
         LOG_DIR.mkdir(parents=True, exist_ok=True)
-        
+
         # Create JSON file handler with rotation
         file_handler = JSONFileHandler(
             str(LOG_FILE),
@@ -366,7 +368,7 @@ def _setup_file_logging():
         )
         file_handler.setFormatter(logging.Formatter('%(message)s'))
         file_handler.setLevel(logging.INFO)
-        
+
         # Add to root logger
         logging.getLogger().addHandler(file_handler)
         logger.info(f"File logging initialized: {LOG_FILE}")
@@ -377,29 +379,29 @@ def _setup_file_logging():
 def _read_logs_from_files(
     limit: int = 100,
     offset: int = 0,
-    level: Optional[str] = None,
-    search: Optional[str] = None
-) -> tuple[List[Dict[str, Any]], int, bool]:
+    level: str | None = None,
+    search: str | None = None
+) -> tuple[list[dict[str, Any]], int, bool]:
     """
     Read logs from log files with filtering and pagination.
-    
+
     Returns: (logs, total_matching, has_more)
     """
     all_logs = []
-    
+
     # Read from current log file and backups
     log_files = [LOG_FILE]
     for i in range(1, LOG_BACKUP_COUNT + 1):
         backup_file = Path(f"{LOG_FILE}.{i}")
         if backup_file.exists():
             log_files.append(backup_file)
-    
+
     # Read all log entries from files (newest first)
     for log_file in log_files:
         if not log_file.exists():
             continue
         try:
-            with open(log_file, 'r', encoding='utf-8') as f:
+            with open(log_file, encoding='utf-8') as f:
                 lines = f.readlines()
                 for line in reversed(lines):
                     line = line.strip()
@@ -412,35 +414,35 @@ def _read_logs_from_files(
                         continue
         except Exception:
             continue
-    
+
     # Also include in-memory buffer (most recent)
     with _log_lock:
         memory_logs = list(_log_buffer)
-    
+
     # Merge: memory logs are most recent, then file logs
     # Deduplicate by timestamp + message
     seen = set()
     merged_logs = []
-    
+
     for log in reversed(memory_logs):
         key = (log.get('timestamp'), log.get('message'))
         if key not in seen:
             seen.add(key)
             merged_logs.append(log)
-    
+
     for log in all_logs:
         key = (log.get('timestamp'), log.get('message'))
         if key not in seen:
             seen.add(key)
             merged_logs.append(log)
-    
+
     # Apply filters
     filtered_logs = merged_logs
-    
+
     if level:
         level_upper = level.upper()
         filtered_logs = [log for log in filtered_logs if log.get('level') == level_upper]
-    
+
     if search:
         search_lower = search.lower()
         filtered_logs = [
@@ -448,15 +450,15 @@ def _read_logs_from_files(
             if search_lower in log.get('message', '').lower() or
                search_lower in log.get('logger', '').lower()
         ]
-    
+
     total_matching = len(filtered_logs)
-    
+
     # Apply pagination
     start = offset
     end = offset + limit
     paginated = filtered_logs[start:end]
     has_more = end < total_matching
-    
+
     return paginated, total_matching, has_more
 
 
@@ -469,7 +471,7 @@ class StatusResponse(BaseModel):
     """Response model for service status."""
     running: bool
     initialized: bool
-    config_summary: Dict[str, Any]
+    config_summary: dict[str, Any]
 
 
 class HealthResponse(BaseModel):
@@ -484,7 +486,7 @@ class VersionResponse(BaseModel):
     package_version: str
     build_version: str
     is_dev: bool
-    hardware_model: Optional[str] = None
+    hardware_model: str | None = None
 
 
 class UpdateCheckResponse(BaseModel):
@@ -523,7 +525,7 @@ class UpdateStatusResponse(BaseModel):
     # Most recent settings snapshots taken before each /system/update call.
     # Each entry includes ``previous_digest`` and ``previous_image`` so the
     # UI can offer "revert to the version that was running on <date>".
-    settings_snapshots: List[Dict[str, Any]] = []
+    settings_snapshots: list[dict[str, Any]] = []
 
 
 class UpdateApplyResponse(BaseModel):
@@ -535,7 +537,7 @@ class UpdateApplyResponse(BaseModel):
     # Metadata about the pre-update settings snapshot we just took.  None
     # when the snapshot could not be produced (still safe to update — the
     # user can still roll back the image alone via /system/update/rollback).
-    settings_snapshot: Optional[Dict[str, Any]] = None
+    settings_snapshot: dict[str, Any] | None = None
 
 
 class RollbackRequest(BaseModel):
@@ -554,7 +556,7 @@ class RollbackRequest(BaseModel):
     * ``restore_image`` — when False, only the settings are rolled back
       (image is left untouched).  Defaults to True.
     """
-    snapshot: Optional[str] = None
+    snapshot: str | None = None
     restore_settings: bool = True
     restore_image: bool = True
 
@@ -562,10 +564,10 @@ class RollbackRequest(BaseModel):
 class RollbackResponse(BaseModel):
     """Response model for the user-initiated rollback endpoint."""
     status: str  # "success" | "queued" | "partial"
-    snapshot: Optional[str] = None
-    image_rollback: Optional[Dict[str, Any]] = None  # {target_digest, target_image, queued} or None
-    settings_rollback: Optional[Dict[str, Any]] = None  # output of BackupService.import_from_json
-    warnings: List[str] = []
+    snapshot: str | None = None
+    image_rollback: dict[str, Any] | None = None  # {target_digest, target_image, queued} or None
+    settings_rollback: dict[str, Any] | None = None  # output of BackupService.import_from_json
+    warnings: list[str] = []
 
 
 class AutoUpdateRequest(BaseModel):
@@ -576,8 +578,8 @@ class AutoUpdateRequest(BaseModel):
     is mapped to the install's default interval and False is mapped to
     ``manual``.  At least one of the two must be provided.
     """
-    enabled: Optional[bool] = None
-    interval: Optional[str] = None
+    enabled: bool | None = None
+    interval: str | None = None
 
 
 class AutoUpdateResponse(BaseModel):
@@ -595,7 +597,7 @@ class SystemActionResponse(BaseModel):
 # ── WiFi / NetworkManager models ─────────────────────────────────────────────
 class WiFiCapabilityResponse(BaseModel):
     available: bool
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class WiFiNetworkModel(BaseModel):
@@ -612,16 +614,16 @@ class SavedNetworkModel(BaseModel):
 
 class WiFiStatusModel(BaseModel):
     connected: bool
-    ssid: Optional[str] = None
-    ip_address: Optional[str] = None
-    gateway: Optional[str] = None
-    signal: Optional[int] = None
+    ssid: str | None = None
+    ip_address: str | None = None
+    gateway: str | None = None
+    signal: int | None = None
     internet_reachable: bool
 
 
 class WiFiConnectRequest(BaseModel):
     ssid: str
-    password: Optional[str] = None
+    password: str | None = None
     hidden: bool = False
 
 
@@ -664,10 +666,10 @@ async def lifespan(app: FastAPI):
     # --- Startup ---
     _shutting_down = False
     logger.info("API server starting up...")
-    
+
     # Set up file-based logging
     _setup_file_logging()
-    
+
     # Initialize and auto-start the service
     service = get_service()
     if service:
@@ -678,7 +680,7 @@ async def lifespan(app: FastAPI):
             _service_thread = threading.Thread(target=run_service_background, daemon=True)
             _service_thread.start()
             time.sleep(0.5)  # Give it a moment to start
-            
+
             # Check if it actually started
             if _service_running:
                 logger.info("Background service auto-started successfully")
@@ -873,7 +875,7 @@ log_buffer_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(le
 logging.getLogger().addHandler(log_buffer_handler)
 
 
-def get_service() -> Optional[DisplayService]:
+def get_service() -> DisplayService | None:
     """Get or create the service instance."""
     global _service
     if _service is None:
@@ -964,7 +966,7 @@ def stop_display_service_sync() -> bool:
     return True
 
 
-@app.get("/", response_model=Dict[str, str])
+@app.get("/", response_model=dict[str, str])
 async def root():
     """Root endpoint with API information."""
     return {
@@ -1025,7 +1027,7 @@ async def mqtt_republish_discovery():
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def _apply_mqtt_config(mqtt_cfg) -> None:
@@ -1034,8 +1036,8 @@ def _apply_mqtt_config(mqtt_cfg) -> None:
     Safe to call at any time: stops the old client first when one is running.
     """
     from .mqtt import MQTTClient, get_mqtt_client, set_mqtt_client_instance
-    from .mqtt.state import StatePublisher
     from .mqtt.commands import CommandHandler
+    from .mqtt.state import StatePublisher
 
     old = get_mqtt_client()
     if old:
@@ -1160,7 +1162,7 @@ async def update_ai_settings(request: Request):
     try:
         body = await request.json()
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Body must be a JSON object.")
     cm = get_config_manager()
@@ -1260,7 +1262,7 @@ async def generate_ai_page(request: Request):
     try:
         body = await request.json()
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Body must be a JSON object.")
 
@@ -1286,7 +1288,8 @@ async def generate_ai_page(request: Request):
     variables = _collect_ai_variables()
     demos = _collect_plugin_demos()
 
-    from .ai.generator import generate_page as ai_generate_page, AIGenerationError
+    from .ai.generator import AIGenerationError
+    from .ai.generator import generate_page as ai_generate_page
 
     try:
         async with _AI_GENERATE_SEMAPHORE:
@@ -1303,7 +1306,7 @@ async def generate_ai_page(request: Request):
     except AIGenerationError as exc:
         # Predictable, user-visible failures: 400 with the message in
         # the body so the UI can render it as a warning.
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPException:
         raise
     except Exception:
@@ -1313,7 +1316,7 @@ async def generate_ai_page(request: Request):
             detail=(
                 "Unexpected AI generation error. See server logs for details."
             ),
-        )
+        ) from None
 
     return result
 
@@ -1348,7 +1351,7 @@ async def chat_ai_page(request: Request):
     try:
         body = await request.json()
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Body must be a JSON object.")
 
@@ -1471,7 +1474,7 @@ async def chat_ai_page(request: Request):
     )
 
 
-def _format_sse_event(event: str, data: Dict[str, Any]) -> bytes:
+def _format_sse_event(event: str, data: dict[str, Any]) -> bytes:
     """Serialize a single Server-Sent Event frame.
 
     SSE requires ``event:``/``data:`` on separate lines and a blank
@@ -1479,10 +1482,10 @@ def _format_sse_event(event: str, data: Dict[str, Any]) -> bytes:
     strings don't break the framing.
     """
     payload = json.dumps(data, ensure_ascii=False)
-    return f"event: {event}\ndata: {payload}\n\n".encode("utf-8")
+    return f"event: {event}\ndata: {payload}\n\n".encode()
 
 
-def _collect_ai_variables() -> Dict[str, Dict[str, Dict[str, Any]]]:
+def _collect_ai_variables() -> dict[str, dict[str, dict[str, Any]]]:
     """Variable registry to pass to the AI prompt builder.
 
     Mirrors what ``GET /templates/variables`` exposes so the model and
@@ -1500,7 +1503,7 @@ def _collect_ai_variables() -> Dict[str, Dict[str, Dict[str, Any]]]:
         return {}
 
 
-def _collect_plugin_demos() -> List[Dict[str, Any]]:
+def _collect_plugin_demos() -> list[dict[str, Any]]:
     """Return plugin-supplied demo pages (from each manifest's ``demo`` block).
 
     Used as exemplars in the prompt. Only demos for *enabled* plugins are
@@ -1510,7 +1513,7 @@ def _collect_plugin_demos() -> List[Dict[str, Any]]:
         from .plugins import get_plugin_registry as _get_registry
     except ImportError:
         return []
-    demos: List[Dict[str, Any]] = []
+    demos: list[dict[str, Any]] = []
     try:
         registry = _get_registry()
         manifests = getattr(registry, "_manifests", {})
@@ -1537,7 +1540,7 @@ def _collect_plugin_demos() -> List[Dict[str, Any]]:
     return demos
 
 
-def _detect_hardware_model() -> Optional[str]:
+def _detect_hardware_model() -> str | None:
     """Return the host hardware model string, or None if undetectable.
 
     Reads ``/proc/device-tree/model``, which on Raspberry Pi devices contains a
@@ -1580,12 +1583,12 @@ GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/rele
 DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
 
 
-def _check_dockerhub_for_latest() -> Optional[str]:
+def _check_dockerhub_for_latest() -> str | None:
     """Check Docker Hub for the latest version tag.
-    
+
     Queries the Docker Hub API for available tags. No authentication required
     for public repositories. Filters tags to find the highest semver version.
-    
+
     Returns the latest version string, or None if the check fails.
     """
     try:
@@ -1593,21 +1596,21 @@ def _check_dockerhub_for_latest() -> Optional[str]:
         resp = requests.get(DOCKERHUB_TAGS_URL, timeout=4)
         resp.raise_for_status()
         data = resp.json()
-        
+
         # Extract tag names from results
         results = data.get("results", [])
         tags = [result.get("name") for result in results if result.get("name")]
-        
+
         # Filter to semver-style tags and find the highest version
         version_tags = []
         for tag in tags:
             parts = tag.split(".")
             if len(parts) >= 2 and all(p.isdigit() for p in parts):
                 version_tags.append(tuple(int(p) for p in parts))
-        
+
         if not version_tags:
             return None
-        
+
         best = max(version_tags)
         return ".".join(str(p) for p in best)
     except Exception as e:
@@ -1615,9 +1618,9 @@ def _check_dockerhub_for_latest() -> Optional[str]:
         return None
 
 
-def _check_github_releases_for_latest() -> Optional[str]:
+def _check_github_releases_for_latest() -> str | None:
     """Check GitHub Releases API for the latest version.
-    
+
     Returns the latest version string, or None if the check fails.
     """
     try:
@@ -1637,11 +1640,11 @@ def _check_github_releases_for_latest() -> Optional[str]:
 @app.get("/system/update-check", response_model=UpdateCheckResponse)
 async def system_update_check():
     """Check if a newer version of FiestaBoard is available.
-    
+
     Checks Docker Hub for the latest container image tag, with a fallback to
     the GitHub Releases API. No authentication is required because the package
     and repository are public.
-    
+
     Returns the current version, latest version, and whether an update is available.
     """
     return await _perform_update_check()
@@ -1669,7 +1672,7 @@ async def _perform_update_check() -> "UpdateCheckResponse":
             update_available = _is_newer_version(latest_version, __version__)
             try:
                 _state = _system_update_state_load()
-                _state["last_check"] = datetime.now(timezone.utc).isoformat()
+                _state["last_check"] = datetime.now(UTC).isoformat()
                 _system_update_state_save(_state)
             except Exception as e:
                 logger.debug("Could not persist update-check result (non-fatal): %s", e, exc_info=True)
@@ -1696,7 +1699,7 @@ async def _perform_update_check() -> "UpdateCheckResponse":
 
 def _is_newer_version(latest: str, current: str) -> bool:
     """Compare two semver-style version strings.
-    
+
     Returns True if latest is strictly newer than current.
     Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
     """
@@ -1727,7 +1730,7 @@ def _is_newer_version(latest: str, current: str) -> bool:
 SYSTEM_UPDATE_STATE_FILE = Path("data/.system-update.json")
 
 
-def _system_update_state_load() -> Dict[str, Any]:
+def _system_update_state_load() -> dict[str, Any]:
     """Read the system-update state file.  Returns a fresh dict on any error."""
     try:
         if SYSTEM_UPDATE_STATE_FILE.exists():
@@ -1740,7 +1743,7 @@ def _system_update_state_load() -> Dict[str, Any]:
     return {}
 
 
-def _system_update_state_save(state: Dict[str, Any]) -> None:
+def _system_update_state_save(state: dict[str, Any]) -> None:
     """Persist the system-update state file."""
     try:
         SYSTEM_UPDATE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -1750,7 +1753,7 @@ def _system_update_state_save(state: Dict[str, Any]) -> None:
         logger.warning(f"Failed to write {SYSTEM_UPDATE_STATE_FILE}: {e}")
 
 
-def _is_update_check_due(state: Dict[str, Any], period_days: int) -> bool:
+def _is_update_check_due(state: dict[str, Any], period_days: int) -> bool:
     """Return True if ``last_check`` is older than ``period_days`` (or missing).
 
     Used by the background scheduler to decide whether to call
@@ -1765,10 +1768,10 @@ def _is_update_check_due(state: Dict[str, Any], period_days: int) -> bool:
     try:
         last = datetime.fromisoformat(raw)
         if last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
+            last = last.replace(tzinfo=UTC)
     except (ValueError, TypeError):
         return True
-    elapsed = datetime.now(timezone.utc) - last
+    elapsed = datetime.now(UTC) - last
     return elapsed.total_seconds() >= period_days * 86400
 
 
@@ -1783,7 +1786,7 @@ def _fiestaboard_profile() -> str:
 # Valid values for ``auto_update_interval``, mapped to their period in days.
 # ``manual`` (0) disables the periodic check entirely; the user can still hit
 # the Refresh button on Settings → System to trigger an on-demand check.
-AUTO_UPDATE_INTERVALS: Dict[str, int] = {
+AUTO_UPDATE_INTERVALS: dict[str, int] = {
     "daily": 1,
     "weekly": 7,
     "monthly": 30,
@@ -1801,7 +1804,7 @@ def _auto_update_default_interval() -> str:
     return "daily" if _fiestaboard_profile() == "pi" else "weekly"
 
 
-def _resolve_auto_update_interval(state: Dict[str, Any]) -> str:
+def _resolve_auto_update_interval(state: dict[str, Any]) -> str:
     """Read the configured interval from state, falling back to legacy bool.
 
     Order of precedence:
@@ -1821,6 +1824,7 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
     """Silently apply pending plugin updates in the background update loop."""
     import os as _os
     from pathlib import Path as _Path
+
     from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
 
     _ext_dir = get_external_plugins_dir()
@@ -1888,7 +1892,7 @@ def _updater_probe() -> bool:
         return False
 
 
-def _updater_last_update() -> Dict[str, Any]:
+def _updater_last_update() -> dict[str, Any]:
     """Return the sidecar's view of the most recent /update attempt.
 
     The sidecar persists this in ``/var/lib/fiestaupdater/last-update.json``
@@ -1929,9 +1933,9 @@ _SETTINGS_SNAPSHOT_NAME_RE = re.compile(
 
 
 def _take_settings_snapshot(
-    previous_digest: Optional[str] = None,
-    previous_image: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+    previous_digest: str | None = None,
+    previous_image: str | None = None,
+) -> dict[str, Any] | None:
     """Snapshot ``data/*.json`` to ``data/update-backups/pre-update-<ts>.json``.
 
     Uses :class:`~src.backup.service.BackupService` so the snapshot is the
@@ -1988,7 +1992,7 @@ def _take_settings_snapshot(
         # Millisecond precision so multiple snapshots within the same
         # second (e.g. tests, or a user retrying immediately) don't
         # collide on filename and silently overwrite each other.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ts = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond // 1000:03d}Z"
         target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
         # Belt-and-braces against same-millisecond collisions: bump the
@@ -2031,7 +2035,7 @@ def _take_settings_snapshot(
     }
 
 
-def _read_snapshot_metadata(path: Path) -> Dict[str, Optional[str]]:
+def _read_snapshot_metadata(path: Path) -> dict[str, str | None]:
     """Return ``{previous_digest, previous_image}`` recorded inside a snapshot.
 
     Snapshots produced before this metadata was added (or that failed to
@@ -2051,7 +2055,7 @@ def _read_snapshot_metadata(path: Path) -> Dict[str, Optional[str]]:
     }
 
 
-def _list_settings_snapshots() -> List[Dict[str, Any]]:
+def _list_settings_snapshots() -> list[dict[str, Any]]:
     """Return metadata for every snapshot currently on disk, newest first.
 
     Each entry includes the recorded ``previous_digest`` / ``previous_image``
@@ -2059,7 +2063,7 @@ def _list_settings_snapshots() -> List[Dict[str, Any]]:
     """
     if not SETTINGS_SNAPSHOT_DIR.exists():
         return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         entries = sorted(SETTINGS_SNAPSHOT_DIR.iterdir(), reverse=True)
     except OSError:
@@ -2078,7 +2082,7 @@ def _list_settings_snapshots() -> List[Dict[str, Any]]:
             {
                 "name": entry.name,
                 "bytes": stat.st_size,
-                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
                 "previous_digest": meta["previous_digest"],
                 "previous_image": meta["previous_image"],
             }
@@ -2099,7 +2103,7 @@ def _prune_settings_snapshots() -> None:
             logger.warning("Could not prune old settings snapshot %s", path)
 
 
-def _resolve_snapshot_name(name: Optional[str]) -> Optional[Path]:
+def _resolve_snapshot_name(name: str | None) -> Path | None:
     """Return the absolute path of the named snapshot, or the newest one
     if *name* is None.  Returns ``None`` when no valid snapshot exists.
 
@@ -2130,7 +2134,7 @@ def _resolve_snapshot_name(name: Optional[str]) -> Optional[Path]:
 async def system_update_status():
     """Report whether the FiestaUpdater sidecar is reachable and whether the
     user has opted in to scheduled auto-updates.
-    
+
     The UI uses this to decide between showing the in-app "Update Now" button
     or fallback "manual update" instructions.
 
@@ -2163,7 +2167,7 @@ async def system_update_status():
     )
 
 
-def _updater_version() -> Dict[str, Any]:
+def _updater_version() -> dict[str, Any]:
     """Return the sidecar's view of the running container's image+digest.
 
     Used by /system/update to label the pre-update snapshot with the exact
@@ -2186,12 +2190,12 @@ def _updater_version() -> Dict[str, Any]:
 @app.post("/system/update", response_model=UpdateApplyResponse)
 async def system_update_apply():
     """Trigger an in-place update via the fiestaupdater sidecar.
-    
+
     The request returns 202 from the sidecar almost immediately; the actual
     container recreation happens shortly after, which will kill this process.
     Clients should expect their HTTP connection to drop and should poll
     `/health` to detect when the new version is up.
-    
+
     If the sidecar is not running (user hasn't opted in), returns 503 with a
     `manual` mode response so the UI can fall back to instructions.
     """
@@ -2235,10 +2239,10 @@ async def system_update_apply():
                 "mode": "manual",
                 "hint": "Could not reach the fiestaupdater sidecar. Run 'docker compose pull && docker compose up -d' from your install directory to update manually.",
             },
-        )
+        ) from None
     except Exception as e:
         logger.warning(f"fiestaupdater update call failed: {e}")
-        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
 
     if resp.status_code == 401:
         raise HTTPException(
@@ -2259,7 +2263,7 @@ async def system_update_apply():
         # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
         logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
     state = _system_update_state_load()
-    state["last_update"] = datetime.now(timezone.utc).isoformat()
+    state["last_update"] = datetime.now(UTC).isoformat()
     _system_update_state_save(state)
 
     return UpdateApplyResponse(
@@ -2325,9 +2329,9 @@ async def system_update_rollback(req: RollbackRequest):
 
     snapshot_meta = await asyncio.to_thread(_read_snapshot_metadata, path)
 
-    warnings: List[str] = []
-    settings_result: Optional[Dict[str, Any]] = None
-    image_result: Optional[Dict[str, Any]] = None
+    warnings: list[str] = []
+    settings_result: dict[str, Any] | None = None
+    image_result: dict[str, Any] | None = None
 
     # ── Settings rollback ───────────────────────────────────────────────
     if req.restore_settings:
@@ -2338,12 +2342,12 @@ async def system_update_rollback(req: RollbackRequest):
             raise HTTPException(
                 status_code=400,
                 detail={"status": "error", "error": f"Could not read snapshot: {e}"},
-            )
+            ) from e
         try:
-            from .backup.service import get_backup_service, BackupError
+            from .backup.service import BackupError, get_backup_service
         except Exception as e:  # pragma: no cover - import error is exceptional
             logger.exception("BackupService unavailable")
-            raise HTTPException(status_code=500, detail={"status": "error", "error": str(e)})
+            raise HTTPException(status_code=500, detail={"status": "error", "error": str(e)}) from e
 
         service = get_backup_service()
         try:
@@ -2356,7 +2360,7 @@ async def system_update_rollback(req: RollbackRequest):
             raise HTTPException(
                 status_code=400,
                 detail={"status": "error", "error": str(e)},
-            )
+            ) from e
         settings_result = {
             "restored_from": path.name,
             "restored_files": result.get("restored_files", []),
@@ -2405,10 +2409,10 @@ async def system_update_rollback(req: RollbackRequest):
                         "status": "manual",
                         "error": "Could not reach the fiestaupdater sidecar; image rollback unavailable.",
                     },
-                )
+                ) from None
             except Exception as e:
                 logger.warning("fiestaupdater rollback call failed: %s", e)
-                raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+                raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
 
             if resp.status_code == 401:
                 raise HTTPException(
@@ -2527,10 +2531,10 @@ async def system_restart():
         raise HTTPException(
             status_code=503,
             detail={"status": "unavailable", "hint": "Could not reach the fiestaupdater sidecar."},
-        )
+        ) from None
     except Exception as e:
         logger.warning("fiestaupdater restart call failed: %s", e)
-        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
     return _handle_updater_response(resp, "restart")
 
 
@@ -2549,15 +2553,15 @@ async def system_shutdown():
         raise HTTPException(
             status_code=503,
             detail={"status": "unavailable", "hint": "Could not reach the fiestaupdater sidecar."},
-        )
+        ) from None
     except Exception as e:
         logger.warning("fiestaupdater shutdown call failed: %s", e)
-        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
+        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
     return _handle_updater_response(resp, "shutdown")
 
 
 # ── WiFi management (FiestaPi only) ──────────────────────────────────────────
-def _wifi_unavailable(reason: Optional[str]) -> HTTPException:
+def _wifi_unavailable(reason: str | None) -> HTTPException:
     return HTTPException(
         status_code=501,
         detail={
@@ -2594,11 +2598,11 @@ async def wifi_status():
     try:
         status = await asyncio.to_thread(svc.status)
     except WiFiError as exc:
-        raise _wifi_error(exc)
+        raise _wifi_error(exc) from exc
     return WiFiStatusModel(**status.__dict__)
 
 
-@app.post("/network/wifi/scan", response_model=List[WiFiNetworkModel])
+@app.post("/network/wifi/scan", response_model=list[WiFiNetworkModel])
 async def wifi_scan():
     """Trigger a rescan and return de-duplicated networks (strongest signal)."""
     svc = get_wifi_service()
@@ -2608,11 +2612,11 @@ async def wifi_scan():
     try:
         networks = await asyncio.to_thread(svc.scan)
     except WiFiError as exc:
-        raise _wifi_error(exc)
+        raise _wifi_error(exc) from exc
     return [WiFiNetworkModel(**n.__dict__) for n in networks]
 
 
-@app.get("/network/wifi/saved", response_model=List[SavedNetworkModel])
+@app.get("/network/wifi/saved", response_model=list[SavedNetworkModel])
 async def wifi_saved():
     svc = get_wifi_service()
     cap = svc.capability()
@@ -2621,7 +2625,7 @@ async def wifi_saved():
     try:
         saved = await asyncio.to_thread(svc.saved_networks)
     except WiFiError as exc:
-        raise _wifi_error(exc)
+        raise _wifi_error(exc) from exc
     return [SavedNetworkModel(**s.__dict__) for s in saved]
 
 
@@ -2642,7 +2646,7 @@ async def wifi_connect(payload: WiFiConnectRequest):
             ssid=payload.ssid, password=payload.password, hidden=payload.hidden
         )
     except WiFiError as exc:
-        raise _wifi_error(exc)
+        raise _wifi_error(exc) from exc
     return WiFiConnectResponse(
         status=WiFiStatusModel(**result.status.__dict__),
         connectivity_confirmed=result.connectivity_confirmed,
@@ -2659,11 +2663,11 @@ async def wifi_disconnect():
     try:
         status = await svc.disconnect()
     except WiFiError as exc:
-        raise _wifi_error(exc)
+        raise _wifi_error(exc) from exc
     return WiFiStatusModel(**status.__dict__)
 
 
-@app.delete("/network/wifi/saved/{con_name}", response_model=Dict[str, str])
+@app.delete("/network/wifi/saved/{con_name}", response_model=dict[str, str])
 async def wifi_forget(con_name: str):
     svc = get_wifi_service()
     cap = svc.capability()
@@ -2672,7 +2676,7 @@ async def wifi_forget(con_name: str):
     try:
         await svc.forget(con_name)
     except WiFiError as exc:
-        raise _wifi_error(exc)
+        raise _wifi_error(exc) from exc
     return {"status": "ok"}
 
 
@@ -2680,17 +2684,17 @@ async def wifi_forget(con_name: str):
 async def get_logs(
     limit: int = Query(default=50, ge=1, le=500, description="Number of log entries to return"),
     offset: int = Query(default=0, ge=0, description="Offset for pagination"),
-    level: Optional[str] = Query(default=None, description="Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"),
-    search: Optional[str] = Query(default=None, description="Search in log message or logger name")
+    level: str | None = Query(default=None, description="Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"),
+    search: str | None = Query(default=None, description="Search in log message or logger name")
 ):
     """Get application logs with pagination, filtering, and search.
-    
+
     Args:
         limit: Maximum number of log entries to return (default 50, max 500)
         offset: Number of entries to skip for pagination
         level: Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         search: Search text in log message or logger name
-    
+
     Returns:
         List of log entries with pagination info
     """
@@ -2698,17 +2702,17 @@ async def get_logs(
     valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     if level and level.upper() not in valid_levels:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Invalid log level: {level}. Valid levels: {valid_levels}"
         )
-    
+
     logs, total, has_more = _read_logs_from_files(
         limit=limit,
         offset=offset,
         level=level,
         search=search
     )
-    
+
     return {
         "logs": logs,
         "total": total,
@@ -2728,9 +2732,9 @@ async def get_status():
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     settings_service = get_settings_service()
-    
+
     status = StatusResponse(
         running=_service_running,
         initialized=service is not None,
@@ -2745,34 +2749,34 @@ async def get_status():
 async def start_service(background_tasks: BackgroundTasks):
     """Start the background service."""
     global _service_thread, _shutting_down
-    
+
     if _service_running:
         return {"status": "already_running", "message": "Service is already running"}
-    
+
     _shutting_down = False  # Re-enable auto-restart
-    
+
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     # Retry initialization if it failed before
     # This allows the service to start after configuration is fixed
     if not service.vb_client:
         logger.info("Retrying service initialization...")
         if not service.initialize():
             raise HTTPException(
-                status_code=503, 
+                status_code=503,
                 detail="Service initialization failed - check board configuration (API key, host, etc.)"
             )
         logger.info("Service initialization successful on retry")
-    
+
     # Start service in background thread
     _service_thread = threading.Thread(target=run_service_background, daemon=True)
     _service_thread.start()
-    
+
     # Give it a moment to start
     await asyncio.sleep(0.5)
-    
+
     if _service_running:
         return {"status": "started", "message": "Service started successfully"}
     else:
@@ -2783,15 +2787,15 @@ async def start_service(background_tasks: BackgroundTasks):
 async def stop_service():
     """Stop the background service."""
     global _service_running, _shutting_down
-    
+
     if not _service_running:
         return {"status": "not_running", "message": "Service is not running"}
-    
+
     _shutting_down = True  # Prevent auto-restart
     if _service:
         _service.running = False
         _service_running = False
-    
+
     return {"status": "stopped", "message": "Service stopped successfully"}
 
 
@@ -2801,13 +2805,13 @@ async def refresh_display():
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         service.check_and_send_active_page()
         return {"status": "success", "message": "Display refreshed successfully"}
     except Exception as e:
         logger.error(f"Error refreshing display: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}") from e
 
 
 def _characters_to_message(characters: list) -> str:
@@ -2891,7 +2895,7 @@ async def get_board_current_message(force: bool = False):
         cached_at = None
     else:
         characters = service._polled_characters
-        cached_at = datetime.fromtimestamp(service._polled_at, tz=timezone.utc).isoformat()
+        cached_at = datetime.fromtimestamp(service._polled_at, tz=UTC).isoformat()
 
     message = _characters_to_message(characters)
     rows = len(characters)
@@ -2914,7 +2918,7 @@ async def send_message(request: MessageRequest):
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
     if Config.is_silence_mode_active():
         logger.info("Silence mode is active - blocking manual message send to prevent wake-up")
@@ -2923,16 +2927,16 @@ async def send_message(request: MessageRequest):
             "message": "Manual sends blocked during silence mode to prevent wake-ups",
             "silence_mode": True
         }
-    
+
     if not service.vb_client:
         raise HTTPException(status_code=503, detail="Board client not initialized")
-    
+
     try:
         # Convert text to board array for proper character/color support
         board_array = text_to_board_array(request.text)
         settings_service = get_settings_service()
         transition = settings_service.get_transition_settings()
-        
+
         success, was_sent = service.vb_client.send_characters(
             board_array,
             strategy=transition.strategy,
@@ -2949,7 +2953,7 @@ async def send_message(request: MessageRequest):
             raise HTTPException(status_code=500, detail="Failed to send message")
     except Exception as e:
         logger.error(f"Error sending message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}") from e
 
 
 @app.get("/config")
@@ -3017,15 +3021,15 @@ def _build_welcome_template(device_type: str, custom_msg: str) -> list:
 async def send_welcome_message():
     """
     Send a colorful welcome message to the board.
-    
+
     Used by the setup wizard to confirm the board is working.
     Sends "HIYA FROM FIESTABOARD" with colorful borders.
-    
+
     Note: This creates a fresh BoardClient with current config values
     to ensure any recent config changes (e.g., from the setup wizard) are used.
     """
     from .board_client import BoardClient
-    
+
     # Check silence mode
     if Config.is_silence_mode_active():
         logger.info("Silence mode is active - blocking welcome message to prevent wake-up")
@@ -3034,7 +3038,7 @@ async def send_welcome_message():
             "message": "Welcome message blocked during silence mode",
             "silence_mode": True
         }
-    
+
     # Create a fresh board client with current config values
     # This ensures any config changes from the setup wizard are used
     try:
@@ -3047,8 +3051,8 @@ async def send_welcome_message():
         )
     except ValueError as e:
         logger.error(f"Failed to create board client: {e}")
-        raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}")
-    
+        raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}") from e
+
     try:
         # Use custom welcome message if set, otherwise use the default
         config_manager = get_config_manager()
@@ -3082,7 +3086,7 @@ async def send_welcome_message():
         welcome_text = "\n".join(welcome_template)
         dims = get_dimensions(device_type)
         board_array = text_to_board_array(welcome_text, rows=dims.rows, cols=dims.cols)
-        
+
         success, was_sent = board_client.send_characters(
             board_array,
             strategy=transition.strategy,
@@ -3090,7 +3094,7 @@ async def send_welcome_message():
             step_size=transition.step_size,
             force=True  # Force send even if cached
         )
-        
+
         if success:
             if was_sent:
                 logger.info("Welcome message sent to board")
@@ -3099,10 +3103,10 @@ async def send_welcome_message():
                 return {"status": "success", "message": "Welcome message unchanged", "skipped": True}
         else:
             raise HTTPException(status_code=500, detail="Failed to send welcome message")
-            
+
     except Exception as e:
         logger.error(f"Error sending welcome message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {str(e)}") from e
 
 
 # =============================================================================
@@ -3113,7 +3117,7 @@ async def send_welcome_message():
 async def get_full_config():
     """
     Get the full configuration with sensitive fields masked.
-    
+
     Returns the complete config structure including all features and settings.
     API keys and passwords are masked with '***'.
     """
@@ -3127,7 +3131,7 @@ async def get_board_config():
     config_manager = get_config_manager()
     board_config = config_manager.get_board()
     masked = config_manager._mask_sensitive(board_config)
-    
+
     return {
         "config": masked,
         "api_modes": ["local", "cloud"]
@@ -3146,7 +3150,7 @@ async def get_board_config_compat(response: Response):
 async def update_board_config(request: dict):
     """
     Update board configuration.
-    
+
     Example body:
     {
         "api_mode": "local",
@@ -3155,22 +3159,22 @@ async def update_board_config(request: dict):
     }
     """
     config_manager = get_config_manager()
-    
+
     # Update board config
     config_manager.set_board(request)
-    
+
     # Reload config in the Config class
     Config.reload()
-    
+
     # Reinitialize the board client with new config
     service = get_service()
     if service:
         service.reinitialize_board_client()
-    
+
     # Get updated config (masked)
     updated = config_manager.get_board()
     masked = config_manager._mask_sensitive(updated)
-    
+
     return {
         "status": "success",
         "config": masked
@@ -3305,31 +3309,31 @@ async def validate_config():
 class BoardTestRequest(BaseModel):
     """Request model for testing board connection."""
     api_mode: str = "local"
-    local_api_key: Optional[str] = None
-    cloud_key: Optional[str] = None
-    host: Optional[str] = None
+    local_api_key: str | None = None
+    cloud_key: str | None = None
+    host: str | None = None
 
 
 @app.post("/config/board/test")
 async def test_board_connection(request: BoardTestRequest):
     """
     Test board connection with provided credentials without saving.
-    
+
     Used by the setup wizard to validate credentials before saving.
-    
+
     Example body for Local API:
     {
         "api_mode": "local",
         "local_api_key": "your-local-api-key",
         "host": "192.168.1.100"
     }
-    
+
     Example body for Cloud API:
     {
         "api_mode": "cloud",
         "cloud_key": "your-read-write-key"
     }
-    
+
     Returns:
         success: Whether the connection test passed
         message: Human-readable status message
@@ -3338,7 +3342,7 @@ async def test_board_connection(request: BoardTestRequest):
     from .board_client import BoardClient, is_successful_board_read_response
 
     api_mode = request.api_mode.lower()
-    
+
     # Validate required fields based on mode
     if api_mode == "cloud":
         if not request.cloud_key:
@@ -3383,13 +3387,13 @@ async def test_board_connection(request: BoardTestRequest):
             use_cloud=use_cloud,
             skip_unchanged=False
         )
-        
+
         # Test the connection directly so we can inspect HTTP status codes
         # (read_current_message() swallows errors and returns None, losing details)
         response = await asyncio.to_thread(
             requests.get, client.base_url, headers=client.headers, timeout=10
         )
-        
+
         if response.status_code == 200:
             # Parse the response to verify it's valid board data
             try:
@@ -3429,7 +3433,7 @@ async def test_board_connection(request: BoardTestRequest):
                         "Try unplugging the board for 10 seconds and plugging it back in.",
                     ]
                 }
-        
+
         elif response.status_code == 401 or response.status_code == 403:
             logger.warning(f"Board connection test: auth rejected HTTP {response.status_code} ({api_mode} mode)")
             if use_cloud:
@@ -3455,7 +3459,7 @@ async def test_board_connection(request: BoardTestRequest):
                         "If the key was recently regenerated, the old key will no longer work.",
                     ]
                 }
-        
+
         elif response.status_code >= 500:
             logger.warning(f"Board connection test: server error HTTP {response.status_code} ({api_mode} mode)")
             return {
@@ -3468,7 +3472,7 @@ async def test_board_connection(request: BoardTestRequest):
                     "If the problem continues, check for firmware updates in the Vestaboard app.",
                 ]
             }
-        
+
         else:
             logger.warning(f"Board connection test: unexpected HTTP {response.status_code} ({api_mode} mode)")
             return {
@@ -3481,8 +3485,8 @@ async def test_board_connection(request: BoardTestRequest):
                     "If the problem continues, try using the other connection mode (Local or Cloud).",
                 ]
             }
-            
-    except ValueError as e:
+
+    except ValueError:
         # Invalid configuration (missing required fields)
         logger.warning("Board connection test failed - invalid config", exc_info=True)
         return {
@@ -3561,44 +3565,44 @@ class EnablementTokenRequest(BaseModel):
 
 class BoardScanRequest(BaseModel):
     """Request model for network board scanning."""
-    timeout: Optional[float] = 4.0
+    timeout: float | None = 4.0
 
 
 @app.post("/config/board/enable-local-api")
 async def enable_local_api(request: EnablementTokenRequest):
     """
     Exchange a Local API Enablement Token for a Local API Key.
-    
+
     Users must email board support to receive an enablement token.
     This endpoint POSTs to the board to exchange it for the actual API key.
-    
+
     Example body:
     {
         "host": "192.168.1.100",
         "enablement_token": "your-enablement-token-from-support"
     }
-    
+
     Returns:
         success: Whether the exchange was successful
         api_key: The local API key (if successful)
         message: Human-readable status message
     """
     import requests as http_requests
-    
+
     if not request.host:
         return {
             "success": False,
             "message": "Board IP address is required",
             "error": "Missing host parameter"
         }
-    
+
     if not request.enablement_token:
         return {
             "success": False,
             "message": "Enablement token is required",
             "error": "Missing enablement_token parameter"
         }
-    
+
     # Validate the host before composing the URL so an attacker can't
     # redirect this request away from the local board (SSRF).
     try:
@@ -3628,15 +3632,15 @@ async def enable_local_api(request: EnablementTokenRequest):
     headers = {
         "X-Vestaboard-Local-Api-Enablement-Token": request.enablement_token
     }
-    
+
     try:
         logger.info(f"Attempting to enable local API on {request.host}")
         response = http_requests.post(url, headers=headers, timeout=10)
-        
+
         if response.status_code == 200:
             data = response.json()
             api_key = data.get("apiKey")
-            
+
             if api_key:
                 logger.info(f"Successfully enabled local API on {request.host}")
                 return {
@@ -3652,7 +3656,7 @@ async def enable_local_api(request: EnablementTokenRequest):
                     "error": "Board response did not include an apiKey",
                 }
         elif response.status_code == 401 or response.status_code == 403:
-            logger.warning(f"Local API enablement failed - invalid token")
+            logger.warning("Local API enablement failed - invalid token")
             return {
                 "success": False,
                 "message": "Invalid enablement token. Please check the token and try again.",
@@ -3665,7 +3669,7 @@ async def enable_local_api(request: EnablementTokenRequest):
                 "message": f"Board returned an error (HTTP {response.status_code})",
                 "error": f"HTTP {response.status_code}",
             }
-            
+
     except http_requests.exceptions.ConnectionError as e:
         logger.error(f"Local API enablement connection error: {e}")
         return {
@@ -3724,7 +3728,7 @@ async def get_general_config():
 async def update_general_config(request: dict):
     """
     Update general configuration.
-    
+
     Body can include:
     - timezone: IANA timezone name (e.g., "America/Los_Angeles")
     - refresh_interval_seconds: Refresh interval in seconds
@@ -3735,10 +3739,10 @@ async def update_general_config(request: dict):
     - welcome_message: Custom board greeting (empty = use default)
     """
     config_manager = get_config_manager()
-    
+
     # Get current general config
     general_config = config_manager.get_general()
-    
+
     # Update with provided values
     if "timezone" in request:
         general_config["timezone"] = request["timezone"]
@@ -3754,13 +3758,13 @@ async def update_general_config(request: dict):
         general_config["date_format"] = request["date_format"]
     if "welcome_message" in request:
         general_config["welcome_message"] = request["welcome_message"]
-    
+
     # Save back
     success = config_manager.set_general(general_config)
-    
+
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update general configuration")
-    
+
     return {
         "status": "success",
         "general": general_config
@@ -3771,7 +3775,7 @@ async def update_general_config(request: dict):
 async def get_silence_status():
     """
     Get current silence mode status with UTC times.
-    
+
     Returns:
     - enabled: Whether silence schedule is enabled
     - active: Whether silence mode is currently active
@@ -3781,13 +3785,13 @@ async def get_silence_status():
     - next_change_utc: Time of next status change
     """
     from .time_service import get_time_service
-    
+
     time_service = get_time_service()
     config_manager = get_config_manager()
-    
+
     # Trigger migration if needed
     config_manager.migrate_silence_schedule_to_utc()
-    
+
     silence_config = config_manager.get_feature("silence_schedule")
     enabled = silence_config.get("enabled", False)
     start_time = silence_config.get("start_time", "20:00+00:00")
@@ -3828,10 +3832,10 @@ class SilenceScheduleRequest(BaseModel):
     enabled: bool
     start_time: str
     end_time: str
-    mode: Optional[str] = None  # "freeze" (default), "indicator", or "page"
-    page_id: Optional[str] = None  # Page id to display when mode == "page"
-    indicator_text: Optional[str] = None  # Custom text to display when mode == "indicator"
-    indicator_position: Optional[str] = None  # Position: center, top-left, top-right, bottom-left, bottom-right
+    mode: str | None = None  # "freeze" (default), "indicator", or "page"
+    page_id: str | None = None  # Page id to display when mode == "page"
+    indicator_text: str | None = None  # Custom text to display when mode == "indicator"
+    indicator_position: str | None = None  # Position: center, top-left, top-right, bottom-left, bottom-right
 
 
 @app.put("/settings/silence-schedule")
@@ -3852,7 +3856,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
 
     # Validate mode and page_id together
     mode = request.mode if request.mode in ("indicator", "freeze", "page") else "freeze"
-    page_id: Optional[str] = None
+    page_id: str | None = None
     if mode == "page":
         if not request.page_id:
             raise HTTPException(
@@ -3918,7 +3922,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
 async def list_displays():
     """
     List all available display types and their status.
-    
+
     Returns information about each display source including whether
     it's currently available/configured.
     """
@@ -3935,24 +3939,24 @@ async def list_displays():
 async def get_display(display_type: str):
     """
     Get formatted output for a specific display type.
-    
+
     Args:
-        display_type: One of: weather, datetime, weather_datetime, 
+        display_type: One of: weather, datetime, weather_datetime,
                       home_assistant, star_trek, guest_wifi
-    
+
     Returns:
         Formatted message text ready for display on board.
     """
     display_service = get_display_service()
     result = display_service.get_display(display_type)
-    
+
     # Check for invalid display type (will have error message about valid types)
     if not result.available and result.error and "Unknown display type" in result.error:
         raise HTTPException(status_code=400, detail=result.error)
-    
+
     if not result.available and result.error:
         raise HTTPException(status_code=503, detail=result.error)
-    
+
     return {
         "display_type": result.display_type,
         "message": result.formatted,
@@ -3969,24 +3973,24 @@ async def get_display_raw(display_type: str, response: Response):
     Deprecated: Use /plugins/{plugin_id}/data instead.
 
     Get raw data from a display source (before formatting).
-    
+
     This is useful for debugging or building custom displays.
-    
+
     Args:
         display_type: Plugin ID (e.g., weather, datetime, stocks)
-    
+
     Returns:
         Raw data dictionary from the source.
     """
     response.headers["Deprecation"] = "true"
     response.headers["Link"] = f'</plugins/{display_type}/data>; rel="successor-version"'
-    
+
     display_service = get_display_service()
     result = display_service.get_display(display_type)
-    
+
     if not result.available and result.error:
         raise HTTPException(status_code=503, detail=result.error)
-    
+
     return {
         "display_type": result.display_type,
         "data": result.raw,
@@ -3999,16 +4003,16 @@ async def get_display_raw(display_type: str, response: Response):
 async def get_displays_raw_batch(request: dict):
     """
     Get raw data from multiple display sources in one request.
-    
+
     This is useful for efficiently fetching data for multiple plugins
     without making individual requests.
-    
+
     Request body:
         {
             "display_types": ["baywheels", "muni", "weather", "stocks"],
             "enabled_only": true  // Optional, only fetch enabled plugins
         }
-    
+
     Returns:
         {
             "displays": {
@@ -4025,24 +4029,24 @@ async def get_displays_raw_batch(request: dict):
     """
     display_types = request.get("display_types", [])
     enabled_only = request.get("enabled_only", True)
-    
+
     if not display_types:
         raise HTTPException(status_code=400, detail="display_types parameter required")
-    
+
     if not isinstance(display_types, list):
         raise HTTPException(status_code=400, detail="display_types must be a list")
-    
+
     display_service = get_display_service()
     results = {}
-    
+
     for display_type in display_types:
         try:
             result = display_service.get_display(display_type)
-            
+
             # Skip if enabled_only is true and plugin is not available
             if enabled_only and not result.available:
                 continue
-            
+
             results[display_type] = {
                 "data": result.raw,
                 "available": result.available,
@@ -4055,7 +4059,7 @@ async def get_displays_raw_batch(request: dict):
                 "available": False,
                 "error": str(e)
             }
-    
+
     return {
         "displays": results,
         "total": len(display_types),
@@ -4066,16 +4070,16 @@ async def get_displays_raw_batch(request: dict):
 @app.post("/displays/{display_type}/send")
 async def send_display(
     display_type: str,
-    target: Optional[str] = None
+    target: str | None = None
 ):
     """
     Send a display to the configured target (ui, board, or both).
-    
+
     Args:
         display_type: The display type to send
         target: Override output target (ui, board, both). If not provided,
                 uses the configured default.
-    
+
     Returns:
         Result of the send operation.
     """
@@ -4084,30 +4088,30 @@ async def send_display(
             status_code=400,
             detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}"
         )
-    
+
     display_service = get_display_service()
     settings_service = get_settings_service()
     service = get_service()
-    
+
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     # Get the display content (validates display_type against plugin registry)
     result = display_service.get_display(display_type)
-    
+
     # Check for invalid display type
     if not result.available and result.error and "Unknown display type" in result.error:
         raise HTTPException(status_code=400, detail=result.error)
-    
+
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Display not available")
-    
+
     # Determine target
     if target is None:
         send_to_board = settings_service.should_send_to_board()
     else:
         send_to_board = target in ["board", "both"]
-    
+
     sent_to_board = False
     if send_to_board:
         transition = settings_service.get_transition_settings()
@@ -4127,7 +4131,7 @@ async def send_display(
         sent_to_board = was_sent
         if not success:
             raise HTTPException(status_code=500, detail="Failed to send to board")
-    
+
     return {
         "status": "success",
         "display_type": display_type,
@@ -4145,12 +4149,13 @@ async def send_display(
 async def list_all_baywheels_stations():
     """
     List all Bay Wheels stations with current status.
-    
+
     Returns all stations from the GBFS feed with their current bike availability.
     """
-    from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
     import requests
-    
+
+    from src.utils.baywheels import STATION_STATUS_URL, BayWheelsSource
+
     try:
         # Get station information and current status concurrently (both make HTTP calls)
         station_info, response = await asyncio.gather(
@@ -4160,12 +4165,12 @@ async def list_all_baywheels_stations():
         response.raise_for_status()
         status_data = response.json()
         stations_status = {s.get("station_id"): s for s in status_data.get("data", {}).get("stations", [])}
-        
+
         # Combine information and status
         result = []
         for station_id, info in (station_info or {}).items():
             status = stations_status.get(station_id, {})
-            
+
             # Count bike types
             electric = 0
             classic = 0
@@ -4178,7 +4183,7 @@ async def list_all_baywheels_stations():
                     classic += count
                 else:
                     classic += count
-            
+
             result.append({
                 "station_id": station_id,
                 "name": info.get("name", station_id),
@@ -4192,14 +4197,14 @@ async def list_all_baywheels_stations():
                 "num_docks_available": status.get("num_docks_available", 0),
                 "is_renting": status.get("is_renting", 1) == 1,
             })
-        
+
         return {
             "stations": result,
             "total": len(result)
         }
     except Exception as e:
         logger.error(f"Error listing Bay Wheels stations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/baywheels/stations/nearby")
@@ -4211,35 +4216,36 @@ async def find_nearby_baywheels_stations(
 ):
     """
     Find Bay Wheels stations near a location.
-    
+
     Args:
         lat: Latitude
         lng: Longitude
         radius: Search radius in kilometers (default 2.0)
         limit: Maximum number of results (default 10)
-    
+
     Returns:
         List of nearby stations sorted by distance
     """
-    from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
     import requests
-    
+
+    from src.utils.baywheels import STATION_STATUS_URL, BayWheelsSource
+
     try:
         stations, response = await asyncio.gather(
             asyncio.to_thread(BayWheelsSource.find_stations_near_location, lat, lng, radius, limit),
             asyncio.to_thread(requests.get, STATION_STATUS_URL, timeout=10),
         )
-        
+
         # Get current status for these stations
         response.raise_for_status()
         status_data = response.json()
         stations_status = {s.get("station_id"): s for s in status_data.get("data", {}).get("stations", [])}
-        
+
         # Add status information to each station
         for station in stations:
             station_id = station["station_id"]
             status = stations_status.get(station_id, {})
-            
+
             # Count bike types
             electric = 0
             classic = 0
@@ -4252,13 +4258,13 @@ async def find_nearby_baywheels_stations(
                     classic += count
                 else:
                     classic += count
-            
+
             station["num_bikes_available"] = status.get("num_bikes_available", 0)
             station["electric_bikes"] = electric
             station["classic_bikes"] = classic
             station["num_docks_available"] = status.get("num_docks_available", 0)
             station["is_renting"] = status.get("is_renting", 1) == 1
-        
+
         return {
             "stations": stations,
             "count": len(stations),
@@ -4267,7 +4273,7 @@ async def find_nearby_baywheels_stations(
         }
     except Exception as e:
         logger.error(f"Error finding nearby Bay Wheels stations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/baywheels/stations/search")
@@ -4278,20 +4284,21 @@ async def search_baywheels_stations_by_address(
 ):
     """
     Find Bay Wheels stations near an address.
-    
+
     Uses OpenStreetMap Nominatim for geocoding (free, no API key required).
-    
+
     Args:
         address: Address string (e.g., "123 Main St, San Francisco, CA")
         radius: Search radius in kilometers (default 2.0)
         limit: Maximum number of results (default 10)
-    
+
     Returns:
         List of nearby stations sorted by distance
     """
-    from src.utils.baywheels import BayWheelsSource, STATION_STATUS_URL
     import requests
-    
+
+    from src.utils.baywheels import STATION_STATUS_URL, BayWheelsSource
+
     try:
         # Geocode address using Nominatim
         geocode_url = "https://nominatim.openstreetmap.org/search"
@@ -4303,36 +4310,36 @@ async def search_baywheels_stations_by_address(
         geocode_headers = {
             "User-Agent": "FiestaBoard-Service/1.0"
         }
-        
+
         geocode_response = await asyncio.to_thread(
             requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
         )
         geocode_response.raise_for_status()
         geocode_data = geocode_response.json()
-        
+
         if not geocode_data:
             raise HTTPException(status_code=404, detail=f"Address not found: {address}")
-        
+
         location = geocode_data[0]
         lat = float(location["lat"])
         lng = float(location["lon"])
-        
+
         # Find nearby stations and get current status concurrently
         stations, response = await asyncio.gather(
             asyncio.to_thread(BayWheelsSource.find_stations_near_location, lat, lng, radius, limit),
             asyncio.to_thread(requests.get, STATION_STATUS_URL, timeout=10),
         )
-        
+
         # Get current status for these stations
         response.raise_for_status()
         status_data = response.json()
         stations_status = {s.get("station_id"): s for s in status_data.get("data", {}).get("stations", [])}
-        
+
         # Add status information to each station
         for station in stations:
             station_id = station["station_id"]
             status = stations_status.get(station_id, {})
-            
+
             # Count bike types
             electric = 0
             classic = 0
@@ -4345,13 +4352,13 @@ async def search_baywheels_stations_by_address(
                     classic += count
                 else:
                     classic += count
-            
+
             station["num_bikes_available"] = status.get("num_bikes_available", 0)
             station["electric_bikes"] = electric
             station["classic_bikes"] = classic
             station["num_docks_available"] = status.get("num_docks_available", 0)
             station["is_renting"] = status.get("is_renting", 1) == 1
-        
+
         return {
             "stations": stations,
             "count": len(stations),
@@ -4363,10 +4370,10 @@ async def search_baywheels_stations_by_address(
         raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Error geocoding address: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {str(e)}") from e
     except Exception as e:
         logger.error(f"Error searching Bay Wheels stations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # =============================================================================
@@ -4374,8 +4381,8 @@ async def search_baywheels_stations_by_address(
 # =============================================================================
 
 QUEUE_TIMES_BASE = "https://queue-times.com"
-QUEUE_TIMES_CACHE: Dict[str, Any] = {}
-QUEUE_TIMES_CACHE_TIME: Dict[str, float] = {}
+QUEUE_TIMES_CACHE: dict[str, Any] = {}
+QUEUE_TIMES_CACHE_TIME: dict[str, float] = {}
 QUEUE_TIMES_CACHE_TTL = 10 * 60  # 10 minutes
 DISNEY_GROUP_ID = 2  # Walt Disney Attractions
 
@@ -4417,7 +4424,7 @@ async def list_disney_parks():
         return []
     except Exception as e:
         logger.error(f"Error listing Disney parks: {e}", exc_info=True)
-        raise HTTPException(status_code=502, detail="Failed to fetch parks from Queue-Times")
+        raise HTTPException(status_code=502, detail="Failed to fetch parks from Queue-Times") from e
 
 
 @app.get("/queue-times/parks/{park_id}/rides")
@@ -4436,7 +4443,7 @@ async def list_park_rides(park_id: int):
         return rides
     except Exception as e:
         logger.error(f"Error listing rides for park {park_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=502, detail="Failed to fetch rides from Queue-Times")
+        raise HTTPException(status_code=502, detail="Failed to fetch rides from Queue-Times") from e
 
 
 # =============================================================================
@@ -4447,15 +4454,16 @@ async def list_park_rides(park_id: int):
 async def list_all_muni_stops():
     """
     List all SF Muni stops with metadata.
-    
+
     Returns all stops from the 511.org transit API with cached data (24hr TTL).
     """
-    import requests
     import time
-    
+
+    import requests
+
     # Cache for stop information (24 hour TTL)
     CACHE_TTL = 24 * 60 * 60  # 24 hours
-    
+
     global _muni_stops_cache, _muni_stops_cache_time
     current_time = time.time()
 
@@ -4463,51 +4471,51 @@ async def list_all_muni_stops():
     with _muni_stops_cache_lock:
         if _muni_stops_cache and (current_time - _muni_stops_cache_time) < CACHE_TTL:
             return _muni_stops_cache
-    
+
     try:
         # Fetch stops from 511.org
         # Note: 511.org requires an API key for most endpoints
         # We'll use the configured MUNI API key
         from src.config import Config
         api_key = Config.MUNI_API_KEY
-        
+
         if not api_key:
             raise HTTPException(status_code=400, detail="MUNI API key not configured")
-        
+
         url = "http://api.511.org/transit/stops"
         params = {
             "api_key": api_key,
             "operator_id": "SF",
             "format": "json"
         }
-        
+
         response = await asyncio.to_thread(requests.get, url, params=params, timeout=15)
         response.raise_for_status()
-        
+
         # Handle BOM if present
         content = response.text
         if content.startswith('\ufeff'):
             content = content[1:]
-        
+
         import json
         data = json.loads(content)
-        
+
         # Parse stops from the Contents.dataObjects.ScheduledStopPoint array
         stops = []
         stop_points = data.get("Contents", {}).get("dataObjects", {}).get("ScheduledStopPoint", [])
-        
+
         for stop in stop_points:
             stop_id = stop.get("id", "")
             # Extract numeric stop code from ID (format: "SF_####")
             stop_code = stop_id.split("_")[-1] if "_" in stop_id else stop_id
-            
+
             location = stop.get("Location", {})
             lat = location.get("Latitude")
             lon = location.get("Longitude")
-            
+
             # Get stop name
             name = stop.get("Name", stop_code)
-            
+
             stops.append({
                 "stop_code": stop_code,
                 "stop_id": stop_id,
@@ -4515,22 +4523,22 @@ async def list_all_muni_stops():
                 "lat": float(lat) if lat else None,
                 "lon": float(lon) if lon else None,
             })
-        
+
         result = {
             "stops": stops,
             "total": len(stops)
         }
-        
+
         # Update cache
         with _muni_stops_cache_lock:
             _muni_stops_cache = result
             _muni_stops_cache_time = current_time
-        
+
         return result
-        
+
     except Exception as e:
         logger.error(f"Error listing Muni stops: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/muni/stops/nearby")
@@ -4542,72 +4550,72 @@ async def find_nearby_muni_stops(
 ):
     """
     Find Muni stops near a location.
-    
+
     Args:
         lat: Latitude
         lng: Longitude
         radius: Search radius in kilometers (default 0.5)
         limit: Maximum number of results (default 10)
-    
+
     Returns:
         List of nearby stops sorted by distance with live arrival data
     """
     import math
-    
+
     try:
         # Get all stops (from cache if available)
         stops_data = await list_all_muni_stops()
         all_stops = stops_data["stops"]
-        
+
         # Calculate distance to each stop using haversine formula
         def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
             """Calculate distance in kilometers between two points."""
             R = 6371.0  # Earth radius in km
-            
+
             lat1_rad = math.radians(lat1)
             lon1_rad = math.radians(lon1)
             lat2_rad = math.radians(lat2)
             lon2_rad = math.radians(lon2)
-            
+
             dlat = lat2_rad - lat1_rad
             dlon = lon2_rad - lon1_rad
-            
+
             a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
             c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-            
+
             return R * c
-        
+
         # Filter stops within radius and calculate distances
         nearby_stops = []
         for stop in all_stops:
             if stop["lat"] is None or stop["lon"] is None:
                 continue
-            
+
             distance = haversine_distance(lat, lng, stop["lat"], stop["lon"])
-            
+
             if distance <= radius:
                 stop_with_distance = stop.copy()
                 stop_with_distance["distance_km"] = round(distance, 2)
                 nearby_stops.append(stop_with_distance)
-        
+
         # Sort by distance and limit
         nearby_stops.sort(key=lambda x: x["distance_km"])
         nearby_stops = nearby_stops[:limit]
-        
+
         # Try to get routes serving each stop from regional transit cache
         try:
             from src.utils.transit_cache import get_transit_cache
             cache = get_transit_cache()
-            
+
             if cache.is_ready():
                 # Get all cached stop codes for SF agency
                 all_sf_stops = cache.get_all_stops_for_agency("SF")
-                
+
                 for stop in nearby_stops:
                     try:
                         # Get cached visits for this stop
                         visits = all_sf_stops.get(stop["stop_code"], [])
-                        
+
                         # Extract unique route names from cached visits
                         routes = set()
                         for visit in visits:
@@ -4617,8 +4625,8 @@ async def find_nearby_muni_stops(
                                 published_line = published_line[0] if published_line else ""
                             if published_line:
                                 routes.add(published_line.upper())
-                        
-                        stop["routes"] = sorted(list(routes))
+
+                        stop["routes"] = sorted(routes)
                     except Exception:
                         # If we can't get routes, just skip
                         stop["routes"] = []
@@ -4630,17 +4638,17 @@ async def find_nearby_muni_stops(
             logger.error(f"Error accessing regional transit cache: {e}")
             for stop in nearby_stops:
                 stop["routes"] = []
-        
+
         return {
             "stops": nearby_stops,
             "count": len(nearby_stops),
             "search_location": {"lat": lat, "lng": lng},
             "radius_km": radius
         }
-        
+
     except Exception as e:
         logger.error(f"Error finding nearby Muni stops: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/muni/stops/search")
@@ -4651,19 +4659,19 @@ async def search_muni_stops_by_address(
 ):
     """
     Find Muni stops near an address.
-    
+
     Uses OpenStreetMap Nominatim for geocoding (free, no API key required).
-    
+
     Args:
         address: Address string (e.g., "123 Main St, San Francisco, CA")
         radius: Search radius in kilometers (default 0.5)
         limit: Maximum number of results (default 10)
-    
+
     Returns:
         List of nearby stops sorted by distance
     """
     import requests
-    
+
     try:
         # Geocode address using Nominatim
         geocode_url = "https://nominatim.openstreetmap.org/search"
@@ -4675,23 +4683,23 @@ async def search_muni_stops_by_address(
         geocode_headers = {
             "User-Agent": "FiestaBoard-Service/1.0"
         }
-        
+
         geocode_response = await asyncio.to_thread(
             requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
         )
         geocode_response.raise_for_status()
         geocode_data = geocode_response.json()
-        
+
         if not geocode_data:
             raise HTTPException(status_code=404, detail=f"Address not found: {address}")
-        
+
         location = geocode_data[0]
         lat = float(location["lat"])
         lng = float(location["lon"])
-        
+
         # Find nearby stops
         stops_data = await find_nearby_muni_stops(lat=lat, lng=lng, radius=radius, limit=limit)
-        
+
         return {
             "stops": stops_data["stops"],
             "count": stops_data["count"],
@@ -4699,22 +4707,22 @@ async def search_muni_stops_by_address(
             "geocoded_location": {"lat": lat, "lng": lng, "display_name": location.get("display_name", "")},
             "radius_km": radius
         }
-        
+
     except HTTPException:
         raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Error geocoding address: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {str(e)}") from e
     except Exception as e:
         logger.error(f"Error searching Muni stops: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/transit/cache/status")
 async def get_transit_cache_status():
     """
     Get status and health information about the regional transit cache.
-    
+
     Returns cache statistics including:
     - Last refresh time and age
     - Number of agencies and stops cached
@@ -4725,22 +4733,22 @@ async def get_transit_cache_status():
         from src.utils.transit_cache import get_transit_cache
         cache = get_transit_cache()
         status = cache.get_status()
-        
+
         # Add human-readable timestamps
         if status["last_refresh"] > 0:
             status["last_refresh_iso"] = datetime.fromtimestamp(status["last_refresh"]).isoformat()
         else:
             status["last_refresh_iso"] = None
-            
+
         if status["last_success"] > 0:
             status["last_success_iso"] = datetime.fromtimestamp(status["last_success"]).isoformat()
         else:
             status["last_success_iso"] = None
-        
+
         return status
     except Exception as e:
         logger.error(f"Error getting transit cache status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # =============================================================================
@@ -4754,30 +4762,30 @@ async def search_stock_symbols(
 ):
     """
     Search for stock symbols by symbol or company name.
-    
+
     Uses Finnhub API if configured, otherwise searches curated list of popular stocks.
-    
+
     Args:
         query: Search query (symbol or company name)
         limit: Maximum number of results (default 10, max 50)
-    
+
     Returns:
         List of matching symbols with company names:
         [{"symbol": "GOOG", "name": "Alphabet Inc."}, ...]
     """
     try:
-        from src.utils.stocks import StocksSource
         from src.config import Config
-        
+        from src.utils.stocks import StocksSource
+
         # Get Finnhub API key if configured
         finnhub_api_key = Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None
-        
+
         results = StocksSource.search_symbols(
             query=query,
             limit=limit,
             finnhub_api_key=finnhub_api_key
         )
-        
+
         return {
             "symbols": results,
             "count": len(results),
@@ -4785,19 +4793,19 @@ async def search_stock_symbols(
         }
     except Exception as e:
         logger.error(f"Error searching stock symbols: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/stocks/validate")
 async def validate_stock_symbol(request: dict):
     """
     Validate if a stock symbol is valid.
-    
+
     Uses yfinance to check if the symbol exists and has price data.
-    
+
     Body:
         symbol: Stock symbol to validate (e.g., "GOOG")
-    
+
     Returns:
         Validation result:
         {
@@ -4810,15 +4818,15 @@ async def validate_stock_symbol(request: dict):
     symbol = request.get("symbol")
     if not symbol:
         raise HTTPException(status_code=400, detail="symbol parameter required")
-    
+
     try:
         from src.utils.stocks import StocksSource
-        
+
         result = StocksSource.validate_symbol(symbol)
         return result
     except Exception as e:
         logger.error(f"Error validating stock symbol: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to validate stock symbol")
+        raise HTTPException(status_code=500, detail="Failed to validate stock symbol") from e
 
 
 # =============================================================================
@@ -4829,19 +4837,19 @@ async def validate_stock_symbol(request: dict):
 async def geocode_address(request: dict):
     """
     Geocode an address to coordinates.
-    
+
     Body:
         address: Address string
-    
+
     Returns:
         lat, lng, and formatted_address
     """
     import requests
-    
+
     address = request.get("address")
     if not address:
         raise HTTPException(status_code=400, detail="address parameter required")
-    
+
     try:
         # Try Nominatim (free, no key needed)
         geocode_url = "https://nominatim.openstreetmap.org/search"
@@ -4853,58 +4861,58 @@ async def geocode_address(request: dict):
         geocode_headers = {
             "User-Agent": "FiestaBoard-Service/1.0"
         }
-        
+
         response = await asyncio.to_thread(
             requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
         )
         response.raise_for_status()
         data = response.json()
-        
+
         if not data:
             raise HTTPException(status_code=404, detail=f"Address not found: {address}")
-        
+
         location = data[0]
         return {
             "lat": float(location["lat"]),
             "lng": float(location["lon"]),
             "formatted_address": location.get("display_name", address)
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error geocoding address: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/traffic/routes/validate")
 async def validate_traffic_route(request: dict):
     """
     Validate a traffic route and get basic info.
-    
+
     Body:
         origin: Origin address or lat,lng
         destination: Destination address or lat,lng
         destination_name: Display name for destination
-    
+
     Returns:
         Validation result with distance and duration estimates
     """
-    from src.utils.traffic import TrafficSource
     from src.config import Config
-    
+    from src.utils.traffic import TrafficSource
+
     origin = request.get("origin")
     destination = request.get("destination")
     destination_name = request.get("destination_name", "DESTINATION")
-    
+
     if not origin or not destination:
         raise HTTPException(status_code=400, detail="origin and destination required")
-    
+
     # Get API key from config
     api_key = getattr(Config, 'GOOGLE_ROUTES_API_KEY', None)
     if not api_key:
         raise HTTPException(status_code=400, detail="Google Routes API key not configured")
-    
+
     try:
         # Create a temporary TrafficSource to test the route
         # Pass as a list of routes (expected format)
@@ -4914,25 +4922,25 @@ async def validate_traffic_route(request: dict):
             "destination_name": destination_name,
             "travel_mode": request.get("travel_mode", "DRIVE")
         }]
-        
+
         traffic_source = TrafficSource(
             api_key=api_key,
             routes=routes
         )
-        
+
         # Fetch traffic data to validate (blocking HTTP call - run in thread pool)
         data = await asyncio.to_thread(traffic_source.fetch_traffic_data)
-        
+
         if not data:
             return {
                 "valid": False,
                 "error": "Failed to validate route. This could be due to: 1) Invalid addresses, 2) Google Routes API not enabled, 3) API key issues. Check the API logs for details."
             }
-        
+
         # Extract coordinates if available
         origin_coords = None
         destination_coords = None
-        
+
         return {
             "valid": True,
             "distance_km": round(data.get("static_duration", 0) / 60 * 0.8, 1),  # Rough estimate
@@ -4943,7 +4951,7 @@ async def validate_traffic_route(request: dict):
             "origin_coords": origin_coords,
             "destination_coords": destination_coords
         }
-        
+
     except Exception as e:
         logger.error(f"Error validating traffic route: {e}", exc_info=True)
         return {
@@ -4973,32 +4981,32 @@ async def get_transition_settings():
 async def update_transition_settings(request: dict):
     """
     Update transition animation settings.
-    
+
     Body can include:
     - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random, or null
     - step_interval_ms: Delay between animation steps (ms), or null for default
     - step_size: How many columns/rows animate at once, or null for default
     """
     settings_service = get_settings_service()
-    
+
     try:
         # Use ... as sentinel for "not provided"
         strategy = request.get("strategy", ...)
         step_interval_ms = request.get("step_interval_ms", ...)
         step_size = request.get("step_size", ...)
-        
+
         transition = settings_service.update_transition_settings(
             strategy=strategy,
             step_interval_ms=step_interval_ms,
             step_size=step_size
         )
-        
+
         return {
             "status": "success",
             "settings": transition.to_dict()
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.get("/settings/output")
@@ -5017,15 +5025,15 @@ async def get_output_settings():
 async def update_output_settings(request: dict):
     """
     Update output target settings.
-    
+
     Body should include:
     - target: One of "ui", "board", or "both"
     """
     if "target" not in request:
         raise HTTPException(status_code=400, detail="target parameter required")
-    
+
     settings_service = get_settings_service()
-    
+
     try:
         output = settings_service.set_output_target(request["target"])
         return {
@@ -5033,7 +5041,7 @@ async def update_output_settings(request: dict):
             "settings": output.to_dict()
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.get("/settings/active-page")
@@ -5050,16 +5058,16 @@ async def get_active_page():
 async def set_active_page(request: dict):
     """
     Set the active page ID.
-    
+
     Body should include:
     - page_id: Page ID to set as active, or null to clear
-    
+
     When a page is set, it will be immediately rendered and sent to the board.
     """
     settings_service = get_settings_service()
     page_service = get_page_service()
     service = get_service()
-    
+
     page_id = request.get("page_id")
     carousel_service = get_carousel_service()
 
@@ -5081,7 +5089,7 @@ async def set_active_page(request: dict):
 
     # Set the active page (stores the carousel ID or page ID as-is)
     settings_service.set_active_page_id(page_id)
-    
+
     # Immediately send to board if a page is set
     sent_to_board = False
     if render_page_id and page and service and service.vb_client and settings_service.should_send_to_board():
@@ -5091,7 +5099,7 @@ async def set_active_page(request: dict):
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            
+
             dims = get_dimensions(page.device_type)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
@@ -5139,9 +5147,14 @@ async def set_temporary_override(request: dict):
       - revert_mode (str, optional): "schedule" | "blank" | "page" (default: "schedule")
       - revert_page_id (str, optional): Required when revert_mode is "page"
     """
-    from .settings.service import TemporaryOverride, VALID_REVERT_MODES
-    from .settings.service import TEMPORARY_OVERRIDE_DURATION_MIN, TEMPORARY_OVERRIDE_DURATION_MAX
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
+
+    from .settings.service import (
+        TEMPORARY_OVERRIDE_DURATION_MAX,
+        TEMPORARY_OVERRIDE_DURATION_MIN,
+        VALID_REVERT_MODES,
+        TemporaryOverride,
+    )
 
     settings_service = get_settings_service()
     page_service = get_page_service()
@@ -5165,7 +5178,7 @@ async def set_temporary_override(request: dict):
     try:
         duration_minutes = int(duration_minutes)
     except (TypeError, ValueError):
-        raise HTTPException(status_code=422, detail="duration_minutes must be an integer")
+        raise HTTPException(status_code=422, detail="duration_minutes must be an integer") from None
     if not (TEMPORARY_OVERRIDE_DURATION_MIN <= duration_minutes <= TEMPORARY_OVERRIDE_DURATION_MAX):
         raise HTTPException(
             status_code=422,
@@ -5184,7 +5197,7 @@ async def set_temporary_override(request: dict):
             if not page_service.get_page(revert_page_id):
                 raise HTTPException(status_code=404, detail=f"Revert page not found: {revert_page_id}")
 
-    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=duration_minutes)).isoformat()
+    expires_at = (datetime.now(UTC) + timedelta(minutes=duration_minutes)).isoformat()
     override = TemporaryOverride(
         page_id=page_id,
         expires_at=expires_at,
@@ -5267,7 +5280,7 @@ async def update_polling_settings(request: dict):
             "requires_restart": requires_restart,
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.get("/settings/board")
@@ -5282,14 +5295,14 @@ async def get_board_settings():
 async def update_board_settings(request: dict):
     """
     Update board settings.
-    
+
     Body may include:
     - board_type: "black", "white", or null for default
     - devices: list of device types (e.g. ["flagship", "note"]) for backward compatibility
     - boards: full list of board instance dicts
     """
     settings_service = get_settings_service()
-    
+
     try:
         if "devices" in request:
             devices = request["devices"]
@@ -5312,7 +5325,7 @@ async def update_board_settings(request: dict):
             detail="One of board_type, devices, or boards is required",
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.post("/settings/board/add")
@@ -5325,7 +5338,7 @@ async def add_board_instance(request: dict):
         board = settings_service.add_board(request)
         return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.delete("/settings/board/{board_id}")
@@ -5336,7 +5349,7 @@ async def remove_board_instance(board_id: str):
         board = settings_service.remove_board(board_id)
         return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.get("/settings/display")
@@ -5384,7 +5397,7 @@ async def update_location_settings(request: dict):
 
 
 @app.get("/settings/location/sun-times")
-async def get_location_sun_times(date: Optional[str] = None):
+async def get_location_sun_times(date: str | None = None):
     """
     Get sunrise and sunset times for the configured location on a given date.
 
@@ -5394,12 +5407,13 @@ async def get_location_sun_times(date: Optional[str] = None):
     Returns sunrise and sunset as HH:MM strings, or null values if location is not
     configured or sun times cannot be computed (e.g. polar day/night).
     """
+    from datetime import date as date_cls
+
     from .schedules.sun_times import (
         get_effective_timezone,
         get_sun_times,
         get_today_in_timezone,
     )
-    from datetime import date as date_cls
 
     settings_service = get_settings_service()
     location = settings_service.get_location_settings()
@@ -5414,7 +5428,7 @@ async def get_location_sun_times(date: Optional[str] = None):
             target_date = date_cls.fromisoformat(date)
         except ValueError:
             from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.") from None
     else:
         target_date = get_today_in_timezone(timezone_str)
 
@@ -5439,8 +5453,10 @@ async def get_location_sun_times_week(week_start: str):
 
     Returns a map of date strings to { sunrise, sunset } HH:MM values.
     """
+    from datetime import date as date_cls
+    from datetime import timedelta
+
     from .schedules.sun_times import get_effective_timezone, get_sun_times
-    from datetime import date as date_cls, timedelta
 
     settings_service = get_settings_service()
     location = settings_service.get_location_settings()
@@ -5454,7 +5470,7 @@ async def get_location_sun_times_week(week_start: str):
         start = date_cls.fromisoformat(week_start)
     except ValueError:
         from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="Invalid week_start format. Use YYYY-MM-DD.")
+        raise HTTPException(status_code=400, detail="Invalid week_start format. Use YYYY-MM-DD.") from None
 
     result: dict = {}
     for i in range(7):
@@ -5472,7 +5488,7 @@ async def get_location_sun_times_week(week_start: str):
 # ==================== Beta Settings (HTTPS, etc.) ====================
 
 
-def _beta_https_status() -> Dict[str, Any]:
+def _beta_https_status() -> dict[str, Any]:
     """Return the runtime status of the HTTPS beta feature.
 
     Reports whether the cert files currently exist on disk and whether
@@ -5524,7 +5540,7 @@ async def update_beta_settings(request: dict):
     previous = settings_service.get_beta_settings().https_enabled
     requested = request.get("https_enabled", previous) if isinstance(request, dict) else previous
 
-    cert_error: Optional[str] = None
+    cert_error: str | None = None
     if "https_enabled" in (request or {}):
         if requested and not previous:
             # User just turned HTTPS on -> generate cert eagerly so nginx
@@ -5550,7 +5566,7 @@ async def update_beta_settings(request: dict):
     # nginx only re-reads its config on container start.
     restart_required = updated.https_enabled != previous
 
-    response: Dict[str, Any] = {
+    response: dict[str, Any] = {
         "status": "success",
         "settings": updated.to_dict(),
         "https": status,
@@ -5585,7 +5601,7 @@ async def update_plugin_settings(request: dict):
 async def get_all_settings():
     """
     Get all settings in a single request.
-    
+
     Returns consolidated settings for the settings page including:
     - general config (timezone, etc.)
     - silence_schedule plugin config
@@ -5599,7 +5615,7 @@ async def get_all_settings():
     """
     settings_service = get_settings_service()
     config_manager = get_config_manager()
-    
+
     # Get silence schedule config (stored under features, not plugins)
     silence_feature = config_manager.get_feature("silence_schedule") or {}
 
@@ -5649,22 +5665,22 @@ def _get_server_ip() -> str:
         return "unknown"
 
 
-def _get_service_uptime() -> Optional[float]:
+def _get_service_uptime() -> float | None:
     """Get service uptime in seconds."""
     if _service_start_time is None:
         return None
     return time.time() - _service_start_time
 
 
-def _format_uptime(seconds: Optional[float]) -> str:
+def _format_uptime(seconds: float | None) -> str:
     """Format uptime seconds as 'Xd Xh Xm'."""
     if seconds is None:
         return "not running"
-    
+
     days = int(seconds // 86400)
     hours = int((seconds % 86400) // 3600)
     minutes = int((seconds % 3600) // 60)
-    
+
     parts = []
     if days > 0:
         parts.append(f"{days}d")
@@ -5672,7 +5688,7 @@ def _format_uptime(seconds: Optional[float]) -> str:
         parts.append(f"{hours}h")
     if minutes > 0 or len(parts) == 0:
         parts.append(f"{minutes}m")
-    
+
     return " ".join(parts)
 
 
@@ -5690,19 +5706,19 @@ async def debug_blank_board():
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
-    
+
     settings_service = get_settings_service()
     if not settings_service.should_send_to_board():
         return {
             "status": "success",
             "message": "Board blank (output target is UI only)"
         }
-    
+
     try:
         # Create a 6x22 array filled with spaces (code 0)
         blank_array = [[0] * 22 for _ in range(6)]
         success, was_sent = client.send_characters(blank_array, force=True)
-        
+
         if success:
             return {
                 "status": "success",
@@ -5712,38 +5728,38 @@ async def debug_blank_board():
             raise HTTPException(status_code=500, detail="Failed to blank board")
     except Exception as e:
         logger.error(f"Error blanking board: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/debug/fill")
 async def debug_fill_board(request: dict):
     """Fill the board with a single character.
-    
+
     Body: {"character_code": number} - code must be 0-71
     """
     character_code = request.get("character_code")
     if character_code is None:
         raise HTTPException(status_code=400, detail="character_code is required")
-    
+
     if not isinstance(character_code, int) or character_code < 0 or character_code > 71:
         raise HTTPException(status_code=400, detail="character_code must be 0-71")
-    
+
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
-    
+
     settings_service = get_settings_service()
     if not settings_service.should_send_to_board():
         return {
             "status": "success",
             "message": f"Board filled with character {character_code} (output target is UI only)"
         }
-    
+
     try:
         # Create a 6x22 array filled with the specified character
         fill_array = [[character_code] * 22 for _ in range(6)]
         success, was_sent = client.send_characters(fill_array, force=True)
-        
+
         if success:
             return {
                 "status": "success",
@@ -5753,7 +5769,7 @@ async def debug_fill_board(request: dict):
             raise HTTPException(status_code=500, detail="Failed to fill board")
     except Exception as e:
         logger.error(f"Error filling board: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/debug/info")
@@ -5762,10 +5778,10 @@ async def debug_show_info():
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
-    
+
     settings_service = get_settings_service()
     send_to_board = settings_service.should_send_to_board()
-    
+
     # Gather system info
     board_ip = Config.BOARD_HOST or "not set"
     server_ip = _get_server_ip()
@@ -5773,13 +5789,13 @@ async def debug_show_info():
     uptime_str = _format_uptime(uptime)
     connection_mode = Config.BOARD_API_MODE.upper()
     version = __version__
-    
+
     # Get current timestamp
     from .time_service import get_time_service
     time_service = get_time_service()
     now = time_service.get_current_time()
     timestamp = now.strftime("%H:%M")
-    
+
     # Build debug info text (6 lines max, 22 chars each)
     debug_text = f"""DEBUG INFO
 BOARD: {board_ip[:15]}
@@ -5787,21 +5803,21 @@ SERVER: {server_ip[:14]}
 UP: {uptime_str[:18]}
 {connection_mode[:20]} API
 V{version[:7]} {timestamp}"""
-    
+
     if not send_to_board:
         return {
             "status": "success",
             "message": "Debug info displayed (output target is UI only)",
             "debug_info": debug_text
         }
-    
+
     try:
         # Convert text to board array
         from .text_to_board import text_to_board_array
         board_array = text_to_board_array(debug_text, use_color_tiles=False)
-        
+
         success, was_sent = client.send_characters(board_array, force=True)
-        
+
         if success:
             return {
                 "status": "success",
@@ -5812,7 +5828,7 @@ V{version[:7]} {timestamp}"""
             raise HTTPException(status_code=500, detail="Failed to send debug info")
     except Exception as e:
         logger.error(f"Error sending debug info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/debug/test-connection")
@@ -5821,12 +5837,12 @@ async def debug_test_connection():
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
-    
+
     try:
         start_time = time.time()
         connected = client.test_connection()
         latency = round((time.time() - start_time) * 1000)  # ms
-        
+
         if connected:
             return {
                 "status": "success",
@@ -5857,7 +5873,7 @@ async def debug_clear_cache():
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
-    
+
     try:
         client.clear_cache()
         return {
@@ -5866,7 +5882,7 @@ async def debug_clear_cache():
         }
     except Exception as e:
         logger.error(f"Error clearing cache: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/debug/cache-status")
@@ -5875,7 +5891,7 @@ async def debug_get_cache_status():
     client = _get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
-    
+
     try:
         cache_status = client.get_cache_status()
         return {
@@ -5884,7 +5900,7 @@ async def debug_get_cache_status():
         }
     except Exception as e:
         logger.error(f"Error getting cache status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/debug/system-info")
@@ -5897,22 +5913,22 @@ async def debug_get_system_info():
     uptime_formatted = _format_uptime(uptime_seconds)
     connection_mode = Config.BOARD_API_MODE
     version = __version__
-    
+
     # Get current timestamp
     from .time_service import get_time_service
     time_service = get_time_service()
     timestamp = time_service.create_utc_timestamp()
-    
+
     # Get cache status if available
     client = _get_board_client()
     cache_status = client.get_cache_status() if client else None
-    
+
     # Check if board is configured
     board_configured = bool(board_ip and (
         (connection_mode == "local" and Config.BOARD_LOCAL_API_KEY) or
         (connection_mode == "cloud" and Config.BOARD_READ_WRITE_KEY)
     ))
-    
+
     return {
         "board_ip": board_ip,
         "server_ip": server_ip,
@@ -5952,7 +5968,7 @@ async def debug_network_diagnostics():
         return {"status": "success", "diagnostics": results}
     except Exception as e:
         logger.error(f"Error running network diagnostics: {e}")
-        raise HTTPException(status_code=500, detail="Network diagnostics failed")
+        raise HTTPException(status_code=500, detail="Network diagnostics failed") from e
 
 
 # =============================================================================
@@ -5964,7 +5980,7 @@ async def list_pages():
     """List all saved pages."""
     page_service = get_page_service()
     pages = page_service.list_pages()
-    
+
     return {
         "pages": [p.model_dump() for p in pages],
         "total": len(pages)
@@ -6044,14 +6060,14 @@ async def get_current_display():
 async def create_page(page_data: PageCreate):
     """
     Create a new page.
-    
+
     Page types:
     - single: Display a single source (set display_type)
     - composite: Combine rows from multiple sources (set rows)
     - template: Custom templated content (set template)
     """
     page_service = get_page_service()
-    
+
     try:
         page = page_service.create_page(page_data)
         return {
@@ -6059,7 +6075,7 @@ async def create_page(page_data: PageCreate):
             "page": page.model_dump()
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.get("/pages/{page_id}")
@@ -6067,10 +6083,10 @@ async def get_page(page_id: str):
     """Get a page by ID."""
     page_service = get_page_service()
     page = page_service.get_page(page_id)
-    
+
     if not page:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    
+
     return page.model_dump()
 
 
@@ -6078,51 +6094,51 @@ async def get_page(page_id: str):
 async def update_page(page_id: str, page_data: PageUpdate):
     """Update an existing page."""
     page_service = get_page_service()
-    
+
     try:
         page = page_service.update_page(page_id, page_data)
         if not page:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-        
+
         return {
             "status": "success",
             "page": page.model_dump()
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.delete("/pages/{page_id}")
 async def delete_page(page_id: str):
     """Delete a page.
-    
+
     If this is the last page, a default welcome page is automatically created
     to ensure there is always at least one page.
-    
+
     If the deleted page was the active display page, the active page will be
     updated to another valid page automatically.
     """
     page_service = get_page_service()
-    
+
     result = page_service.delete_page(page_id)
-    
+
     if not result.deleted:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    
+
     response = {
         "status": "success",
         "message": f"Page {page_id} deleted",
         "default_page_created": result.default_page_created,
         "active_page_updated": result.active_page_updated,
     }
-    
+
     if result.default_page_created:
         response["message"] = f"Page {page_id} deleted. A default welcome page was created."
         response["new_page_id"] = result.new_page_id
-    
+
     if result.active_page_updated:
         response["new_active_page_id"] = result.new_active_page_id
-    
+
     return response
 
 
@@ -6146,7 +6162,7 @@ async def preview_page_import(body: PageImportRequest):
     try:
         page_data = decode_page(body.share_string)
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return page_data
 
 
@@ -6156,7 +6172,7 @@ async def import_page(body: PageImportRequest):
     try:
         page_data = decode_page(body.share_string)
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
     page_service = get_page_service()
     try:
@@ -6164,7 +6180,7 @@ async def import_page(body: PageImportRequest):
         page = page_service.create_page(page_create)
         return {"status": "success", "page": page.model_dump()}
     except Exception as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 # ---------------------------------------------------------------------------
@@ -6210,33 +6226,33 @@ async def preview_page(
 ):
     """
     Preview a page's rendered output.
-    
+
     Uses cached preview by default for fast responses. Set force_refresh=true
     to always render fresh (useful when editing or displaying active page).
-    
+
     Args:
         page_id: The page ID to preview
         force_refresh: If true, bypass cache and always render fresh
-    
+
     Returns:
         The formatted text that would be displayed.
     """
     page_service = get_page_service()
     settings_service = get_settings_service()
-    
+
     # Always force refresh for the active page to ensure it's up-to-date
     active_page_id = settings_service.get_active_page_id()
     if page_id == active_page_id:
         force_refresh = True
-    
+
     result = page_service.preview_page(page_id, force_refresh=force_refresh)
-    
+
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    
+
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
-    
+
     return {
         "page_id": page_id,
         "message": result.formatted,
@@ -6250,13 +6266,13 @@ async def preview_page(
 async def preview_pages_batch(request: dict):
     """
     Preview multiple pages in a single request.
-    
+
     Request body:
         {
             "page_ids": ["page1", "page2", ...],
             "force_refresh": false  // Optional, defaults to false
         }
-    
+
     Returns a dict mapping page_id to preview data (or error).
     Uses cached previews by default for fast responses.
     Active page is always rendered fresh regardless of force_refresh setting.
@@ -6264,22 +6280,22 @@ async def preview_pages_batch(request: dict):
     """
     page_ids = request.get("page_ids", [])
     force_refresh = request.get("force_refresh", False)
-    
+
     if not isinstance(page_ids, list):
         raise HTTPException(status_code=400, detail="page_ids must be a list")
-    
+
     page_service = get_page_service()
     settings_service = get_settings_service()
     active_page_id = settings_service.get_active_page_id()
     results = {}
-    
+
     # Use batch preview to build template context once for all pages
     batch_results = page_service.preview_pages_batch(
         page_ids,
         force_refresh=force_refresh,
         active_page_id=active_page_id,
     )
-    
+
     for page_id in page_ids:
         result = batch_results.get(page_id)
         if result is None:
@@ -6301,7 +6317,7 @@ async def preview_pages_batch(request: dict):
                 "raw": result.raw,
                 "available": True
             }
-    
+
     return {
         "previews": results,
         "total": len(page_ids),
@@ -6313,7 +6329,7 @@ async def preview_pages_batch(request: dict):
 async def get_page_cache_stats():
     """
     Get preview cache statistics.
-    
+
     Returns information about the preview cache including size,
     cached page IDs, and TTL configuration.
     """
@@ -6325,23 +6341,23 @@ async def get_page_cache_stats():
 async def clear_page_cache(request: dict = None):
     """
     Clear preview cache.
-    
+
     Request body (optional):
         {
             "page_id": "page123"  // Clear specific page, omit to clear all
         }
-    
+
     Clears the preview cache, forcing fresh renders on next preview.
     Useful for testing or when data sources have been updated.
     """
     page_service = get_page_service()
-    
+
     page_id = None
     if request:
         page_id = request.get("page_id")
-    
+
     page_service._invalidate_cache(page_id)
-    
+
     if page_id:
         return {
             "status": "success",
@@ -6355,10 +6371,10 @@ async def clear_page_cache(request: dict = None):
 
 
 @app.post("/pages/{page_id}/send")
-async def send_page(page_id: str, target: Optional[str] = None):
+async def send_page(page_id: str, target: str | None = None):
     """
     Send a page to the configured target.
-    
+
     Args:
         page_id: The page ID
         target: Override output target (ui, board, both)
@@ -6368,34 +6384,34 @@ async def send_page(page_id: str, target: Optional[str] = None):
             status_code=400,
             detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}"
         )
-    
+
     page_service = get_page_service()
     settings_service = get_settings_service()
     service = get_service()
-    
+
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     # Get the page for transition settings
     page = page_service.get_page(page_id)
     if not page:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    
+
     # Render the page - always force fresh render when sending to board
     result = page_service.preview_page(page_id, force_refresh=True)
-    
+
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    
+
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
-    
+
     # Determine target
     if target is None:
         send_to_board = settings_service.should_send_to_board()
     else:
         send_to_board = target in ["board", "both"]
-    
+
     sent_to_board = False
     if send_to_board:
         # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
@@ -6409,7 +6425,7 @@ async def send_page(page_id: str, target: Optional[str] = None):
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            
+
             # Convert to board array with dimensions for page's device type (flagship vs note)
             dims = get_dimensions(page.device_type)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
@@ -6480,15 +6496,15 @@ def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
     return schedule_dict
 
 @app.get("/schedules")
-async def list_schedules(board_id: Optional[str] = None):
+async def list_schedules(board_id: str | None = None):
     """List schedule entries, optionally for one board (query: board_id=).
-    
+
     Use board_id=* to get ALL schedules across all boards (useful for cleanup/admin).
     """
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
     schedules = schedule_service.list_schedules(board_id=board_id)
-    
+
     # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
     if board_id == "*":
         return {
@@ -6497,7 +6513,7 @@ async def list_schedules(board_id: Optional[str] = None):
             "default_page_id": None,
             "enabled": False,
         }
-    
+
     return {
         "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
         "total": len(schedules),
@@ -6509,27 +6525,27 @@ async def list_schedules(board_id: Optional[str] = None):
 @app.post("/schedules")
 async def create_schedule(schedule_data: ScheduleCreate):
     """Create a new schedule entry.
-    
+
     Args:
         schedule_data: Schedule configuration
-        
+
     Returns:
         Created schedule entry
     """
     schedule_service = get_schedule_service()
-    
+
     try:
         schedule = schedule_service.create_schedule(schedule_data)
         return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 # Specific routes must come BEFORE parameterized routes
 # to avoid /schedules/{schedule_id} matching everything
 
 @app.get("/schedules/active/page")
-async def get_active_schedule(board_id: Optional[str] = None):
+async def get_active_schedule(board_id: str | None = None):
     """Get the currently active page based on schedule (optional query: board_id=)."""
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
@@ -6571,7 +6587,7 @@ async def get_active_schedule(board_id: Optional[str] = None):
 
 
 @app.post("/schedules/validate")
-async def validate_schedules(request: Optional[dict] = Body(None)):
+async def validate_schedules(request: dict | None = Body(None)):
     """Validate schedules for overlaps and gaps. Body optional: {"board_id": "..."}."""
     schedule_service = get_schedule_service()
     board_id = request.get("board_id") if request else None
@@ -6580,7 +6596,7 @@ async def validate_schedules(request: Optional[dict] = Body(None)):
 
 
 @app.get("/schedules/default-page")
-async def get_default_page(board_id: Optional[str] = None):
+async def get_default_page(board_id: str | None = None):
     """Get the default page ID for schedule gaps (optional query: board_id=)."""
     schedule_service = get_schedule_service()
     return {"default_page_id": schedule_service.get_default_page(board_id=board_id)}
@@ -6608,7 +6624,7 @@ async def set_default_page(request: dict):
 
 
 @app.get("/schedules/enabled")
-async def get_schedule_enabled(board_id: Optional[str] = None):
+async def get_schedule_enabled(board_id: str | None = None):
     """Check if schedule mode is enabled (optional query: board_id=)."""
     settings_service = get_settings_service()
     return {"enabled": settings_service.is_schedule_enabled(board_id=board_id)}
@@ -6637,60 +6653,60 @@ async def set_schedule_enabled(request: dict):
 @app.get("/schedules/{schedule_id}")
 async def get_schedule(schedule_id: str):
     """Get a schedule entry by ID.
-    
+
     Args:
         schedule_id: Schedule ID
-        
+
     Returns:
         Schedule entry
     """
     schedule_service = get_schedule_service()
     schedule = schedule_service.get_schedule(schedule_id)
-    
+
     if not schedule:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-    
+
     return _enrich_schedule_with_sun_times(schedule.model_dump())
 
 
 @app.put("/schedules/{schedule_id}")
 async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
     """Update an existing schedule entry.
-    
+
     Args:
         schedule_id: Schedule ID
         schedule_data: Fields to update
-        
+
     Returns:
         Updated schedule entry
     """
     schedule_service = get_schedule_service()
-    
+
     try:
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
         if not schedule:
             raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
         return _enrich_schedule_with_sun_times(schedule.model_dump())
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.delete("/schedules/{schedule_id}")
 async def delete_schedule(schedule_id: str):
     """Delete a schedule entry.
-    
+
     Args:
         schedule_id: Schedule ID
-        
+
     Returns:
         Success status
     """
     schedule_service = get_schedule_service()
-    
+
     deleted = schedule_service.delete_schedule(schedule_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-    
+
     return {
         "status": "success",
         "message": f"Schedule {schedule_id} deleted"
@@ -6726,7 +6742,7 @@ async def create_carousel(data: CarouselCreate):
         carousel = carousel_service.create_carousel(data)
         return {"status": "success", "carousel": carousel.model_dump()}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.get("/carousels/{carousel_id}")
@@ -6756,7 +6772,7 @@ async def update_carousel(carousel_id: str, data: CarouselUpdate):
             raise HTTPException(status_code=404, detail=f"Carousel not found: {carousel_id}")
         return {"status": "success", "carousel": carousel.model_dump()}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.delete("/carousels/{carousel_id}")
@@ -6777,7 +6793,7 @@ async def delete_carousel(carousel_id: str):
 async def get_template_variables():
     """
     Get available template variables by source.
-    
+
     Returns a dictionary mapping source names to available field names.
     Use these in templates as {{source.field}}, e.g., {{weather.temperature}}.
     Also includes rich metadata (descriptions, types, previews) and variable
@@ -6831,24 +6847,24 @@ async def get_template_variables():
 async def validate_template(request: dict):
     """
     Validate template syntax.
-    
+
     Body should include:
     - template: Template string or list of lines to validate
-    
+
     Returns validation errors if any.
     """
     if "template" not in request:
         raise HTTPException(status_code=400, detail="template parameter required")
-    
+
     template = request["template"]
-    
+
     # Handle both string and list input
     if isinstance(template, list):
         template = '\n'.join(template)
-    
+
     template_engine = get_template_engine()
     errors = template_engine.validate_template(template)
-    
+
     return {
         "valid": len(errors) == 0,
         "errors": [
@@ -6875,24 +6891,24 @@ async def get_formula_functions():
 async def render_template(request: dict):
     """
     Render a template with current data.
-    
+
     Body should include:
     - template: Template string or list of lines to render
-    
+
     Useful for previewing template output before saving as a page.
     """
     if "template" not in request:
         raise HTTPException(status_code=400, detail="template parameter required")
-    
+
     template = request["template"]
     device_type = request.get("device_type")
-    
+
     # Determine line count from device type
-    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    from .devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
     dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
                                   DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
     num_rows = dims.rows
-    
+
     # Early return for empty templates to avoid unnecessary processing
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
@@ -6907,10 +6923,10 @@ async def render_template(request: dict):
             "lines": [""] * num_rows,
             "line_count": num_rows
         }
-    
+
     template_engine = get_template_engine()
     line_metadata = request.get("line_metadata")
-    
+
     try:
         if isinstance(template, list):
             logger.info(f"Rendering template lines: {template}")
@@ -6918,7 +6934,7 @@ async def render_template(request: dict):
         else:
             logger.info(f"Rendering template string: {template}")
             rendered = template_engine.render(template)
-        
+
         return {
             "rendered": rendered,
             "lines": rendered.split('\n'),
@@ -6926,7 +6942,7 @@ async def render_template(request: dict):
         }
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
 
 @app.post("/templates/render/live")
@@ -6952,7 +6968,7 @@ async def render_template_live(request: dict):
     device_type = request.get("device_type")
 
     # Determine line count from device type
-    from .devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
+    from .devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
     dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
                                   DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
     num_rows = dims.rows
@@ -6981,7 +6997,7 @@ async def render_template_live(request: dict):
             rendered = template_engine.render(template)
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
     # Find the target board
     board_settings = settings_service.get_board_settings()
@@ -7035,7 +7051,7 @@ async def get_cache_status():
     service = get_service()
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     return service.vb_client.get_cache_status()
 
 
@@ -7043,14 +7059,14 @@ async def get_cache_status():
 async def clear_cache():
     """
     Clear the client-side message cache.
-    
-    This forces the next update to be sent to the board, 
+
+    This forces the next update to be sent to the board,
     even if the message content hasn't changed.
     """
     service = get_service()
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     service.vb_client.clear_cache()
     return {"status": "success", "message": "Cache cleared - next update will be sent to board"}
 
@@ -7060,14 +7076,14 @@ async def clear_cache():
 async def force_refresh():
     """
     Force a display refresh, ignoring the cache.
-    
-    Unlike /refresh, this will send to the board even if the message 
+
+    Unlike /refresh, this will send to the board even if the message
     content hasn't changed. Useful when you want to resync the board.
     """
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     # Clear cache to force send even if content unchanged
     if service.vb_client:
         service.vb_client.clear_cache()
@@ -7077,7 +7093,7 @@ async def force_refresh():
         return {"status": "success", "message": "Display force-refreshed successfully"}
     except Exception as e:
         logger.error(f"Error force-refreshing display: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to force refresh: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to force refresh: {str(e)}") from e
 
 
 # =============================================================================
@@ -7088,16 +7104,16 @@ async def force_refresh():
 async def get_home_assistant_entities():
     """
     Get all available entities from Home Assistant.
-    
+
     Returns list of entities with their current state and all attributes.
     Used by the UI to populate entity picker dropdowns.
     """
     from .utils.home_assistant import get_home_assistant_source
-    
+
     ha_source = get_home_assistant_source()
     if not ha_source:
         raise HTTPException(status_code=503, detail="Home Assistant not configured")
-    
+
     try:
         # Call Home Assistant /api/states to get ALL entities
         response = await asyncio.to_thread(
@@ -7108,7 +7124,7 @@ async def get_home_assistant_entities():
         )
         response.raise_for_status()
         entities = response.json()
-        
+
         # Transform to simpler format for UI (HA may omit or null attributes)
         result_entities = []
         for e in entities:
@@ -7121,7 +7137,7 @@ async def get_home_assistant_entities():
             })
         return {"entities": result_entities}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Failed to fetch entities: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Failed to fetch entities: {str(e)}") from e
 
 
 # Legacy endpoints /preview and /publish-preview have been removed.
@@ -7144,7 +7160,7 @@ except ImportError:
 
 class PluginConfigRequest(BaseModel):
     """Request body for plugin configuration updates."""
-    config: Dict[str, Any]
+    config: dict[str, Any]
 
 
 class PluginEnableRequest(BaseModel):
@@ -7156,7 +7172,7 @@ class PluginEnableRequest(BaseModel):
 async def list_plugins():
     """
     List all available plugins.
-    
+
     Returns plugins with their status, metadata, and whether they're enabled.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7164,10 +7180,10 @@ async def list_plugins():
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
     plugins = registry.list_plugins()
-    
+
     # Add configuration status (masked)
     config_manager = get_config_manager()
     for plugin in plugins:
@@ -7179,7 +7195,7 @@ async def list_plugins():
         else:
             plugin["configured"] = False
             plugin["config"] = {}
-    
+
     return {
         "plugins": plugins,
         "plugin_system_enabled": True,
@@ -7192,7 +7208,7 @@ async def list_plugins():
 async def get_all_plugin_variables():
     """
     Get all template variables from enabled plugins.
-    
+
     Returns a combined view of all variables for the template editor.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7203,9 +7219,9 @@ async def get_all_plugin_variables():
             "max_lengths": template_engine.get_variable_max_lengths(),
             "plugin_system_enabled": False
         }
-    
+
     registry = get_plugin_registry()
-    
+
     return {
         "variables": registry.get_all_variables(),
         "max_lengths": registry.get_all_max_lengths(),
@@ -7217,7 +7233,7 @@ async def get_all_plugin_variables():
 async def get_plugin_errors():
     """
     Get any plugin load errors.
-    
+
     Returns errors from plugins that failed to load.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7225,9 +7241,9 @@ async def get_plugin_errors():
             "errors": {},
             "plugin_system_enabled": False
         }
-    
+
     registry = get_plugin_registry()
-    
+
     return {
         "errors": registry.get_load_errors(),
         "plugin_system_enabled": True
@@ -7275,7 +7291,7 @@ async def get_plugin_updates():
 async def get_plugin(plugin_id: str):
     """
     Get details for a specific plugin.
-    
+
     Returns the plugin's manifest, configuration, and status.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7283,20 +7299,20 @@ async def get_plugin(plugin_id: str):
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
-    
+
     if not manifest:
         raise HTTPException(
             status_code=404,
             detail=f"Plugin not found: {plugin_id}"
         )
-    
+
     # Get configuration
     config_manager = get_config_manager()
     plugin_config = config_manager.get_plugin_config(plugin_id)
-    
+
     # Check for demo page (use flagship as the representative for backwards compat)
     has_demo = manifest.demo is not None
     demo_page_id = None
@@ -7338,7 +7354,7 @@ async def get_plugin(plugin_id: str):
 async def get_plugin_manifest(plugin_id: str):
     """
     Get the full manifest for a plugin.
-    
+
     Returns the raw manifest data for UI rendering.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7346,16 +7362,16 @@ async def get_plugin_manifest(plugin_id: str):
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
-    
+
     if not manifest:
         raise HTTPException(
             status_code=404,
             detail=f"Plugin not found: {plugin_id}"
         )
-    
+
     return manifest.raw
 
 
@@ -7363,11 +7379,11 @@ async def get_plugin_manifest(plugin_id: str):
 async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     """
     Update configuration for a plugin.
-    
+
     Args:
         plugin_id: Plugin identifier
         request: Configuration to apply
-    
+
     Example body:
     {
         "config": {
@@ -7382,16 +7398,16 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
-    
+
     # Check if plugin exists
     if not registry.get_plugin(plugin_id):
         raise HTTPException(
             status_code=404,
             detail=f"Plugin not found: {plugin_id}"
         )
-    
+
     # Validate configuration against manifest schema
     errors = registry.set_plugin_config(plugin_id, request.config)
     if errors:
@@ -7400,20 +7416,20 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
             status_code=400,
             detail={"errors": errors}
         )
-    
+
     # Save to config file
     config_manager = get_config_manager()
     config_manager.set_plugin_config(plugin_id, request.config)
-    
+
     # Reset services to pick up new config
     reset_display_service()
     reset_template_engine()
-    
+
     logger.info(f"Plugin '{plugin_id}' configuration updated")
-    
+
     # Return masked config
     updated = config_manager.get_plugin_config(plugin_id)
-    
+
     return {
         "status": "success",
         "plugin_id": plugin_id,
@@ -7425,7 +7441,7 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
 async def enable_plugin(plugin_id: str):
     """
     Enable a plugin.
-    
+
     Enables the plugin in both the registry and persists to config.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7433,15 +7449,15 @@ async def enable_plugin(plugin_id: str):
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
-    
+
     if not registry.get_plugin(plugin_id):
         raise HTTPException(
             status_code=404,
             detail=f"Plugin not found: {plugin_id}"
         )
-    
+
     # Enable in registry
     success = registry.enable_plugin(plugin_id)
     if not success:
@@ -7449,17 +7465,17 @@ async def enable_plugin(plugin_id: str):
             status_code=400,
             detail=f"Failed to enable plugin: {plugin_id}"
         )
-    
+
     # Persist to config
     config_manager = get_config_manager()
     config_manager.enable_plugin(plugin_id)
-    
+
     # Reset services
     reset_display_service()
     reset_template_engine()
-    
+
     logger.info(f"Plugin '{plugin_id}' enabled")
-    
+
     return {
         "status": "success",
         "plugin_id": plugin_id,
@@ -7471,7 +7487,7 @@ async def enable_plugin(plugin_id: str):
 async def disable_plugin(plugin_id: str):
     """
     Disable a plugin.
-    
+
     Disables the plugin in both the registry and persists to config.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7479,15 +7495,15 @@ async def disable_plugin(plugin_id: str):
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
-    
+
     if not registry.get_plugin(plugin_id):
         raise HTTPException(
             status_code=404,
             detail=f"Plugin not found: {plugin_id}"
         )
-    
+
     # Disable in registry
     success = registry.disable_plugin(plugin_id)
     if not success:
@@ -7495,17 +7511,17 @@ async def disable_plugin(plugin_id: str):
             status_code=400,
             detail=f"Failed to disable plugin: {plugin_id}"
         )
-    
+
     # Persist to config
     config_manager = get_config_manager()
     config_manager.disable_plugin(plugin_id)
-    
+
     # Reset services
     reset_display_service()
     reset_template_engine()
-    
+
     logger.info(f"Plugin '{plugin_id}' disabled")
-    
+
     return {
         "status": "success",
         "plugin_id": plugin_id,
@@ -7517,7 +7533,7 @@ async def disable_plugin(plugin_id: str):
 async def get_plugin_data(plugin_id: str):
     """
     Fetch current data from a plugin.
-    
+
     Returns the plugin's latest data, formatted output, and status.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7525,21 +7541,21 @@ async def get_plugin_data(plugin_id: str):
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
-    
+
     if not registry.get_plugin(plugin_id):
         raise HTTPException(
             status_code=404,
             detail=f"Plugin not found: {plugin_id}"
         )
-    
+
     if not registry.is_enabled(plugin_id):
         raise HTTPException(
             status_code=400,
             detail=f"Plugin not enabled: {plugin_id}"
         )
-    
+
     result = registry.fetch_plugin_data(plugin_id)
 
     # Return 503 when plugin data is unavailable (e.g. not configured, auth failure)
@@ -7563,7 +7579,7 @@ async def get_plugin_data(plugin_id: str):
 async def get_plugin_variables(plugin_id: str):
     """
     Get template variables exposed by a plugin.
-    
+
     Returns the variables schema for use in the template editor.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -7571,16 +7587,16 @@ async def get_plugin_variables(plugin_id: str):
             status_code=503,
             detail="Plugin system is not available."
         )
-    
+
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
-    
+
     if not manifest:
         raise HTTPException(
             status_code=404,
             detail=f"Plugin not found: {plugin_id}"
         )
-    
+
     return {
         "plugin_id": plugin_id,
         "variables": manifest.raw.get("variables", {}),
@@ -7837,7 +7853,7 @@ async def receive_plugin_payload(plugin_id: str, request: Request):
     try:
         body = json.loads(raw_body)
     except Exception:
-        raise HTTPException(status_code=400, detail="Request body must be valid JSON")
+        raise HTTPException(status_code=400, detail="Request body must be valid JSON") from None
 
     headers = dict(request.headers)
 
@@ -7847,11 +7863,11 @@ async def receive_plugin_payload(plugin_id: str, request: Request):
         raise HTTPException(
             status_code=405,
             detail=f"Plugin '{plugin_id}' does not support receive",
-        )
+        ) from None
     except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc))
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {"status": "ok"}
 
@@ -7862,7 +7878,7 @@ async def receive_plugin_payload(plugin_id: str, request: Request):
 class ExternalPluginInstallRequest(BaseModel):
     """Request body for installing an external plugin."""
     repository: str
-    plugin_id: Optional[str] = None
+    plugin_id: str | None = None
     branch: str = ""
 
 
@@ -7924,7 +7940,7 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
     # Derive the final plugin id
     pid = safe_plugin_id
     if pid is None:
-        from .plugins.sources import repo_name_from_url, plugin_id_from_repo_name
+        from .plugins.sources import plugin_id_from_repo_name, repo_name_from_url
         pid = plugin_id_from_repo_name(repo_name_from_url(request.repository))
 
     return {
@@ -8024,8 +8040,9 @@ async def update_plugin(plugin_id: str):
             detail=f"Plugin '{plugin_id}' has no local path for updating.",
         )
 
-    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
     import os as _os
+
+    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
 
     # Verify the plugin's local_path is within the external plugins directory
     # before updating, as a defence-in-depth check.
@@ -8035,7 +8052,7 @@ async def update_plugin(plugin_id: str):
     try:
         _common = _os.path.commonpath([_ext_root, _real_local])
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid plugin path.")
+        raise HTTPException(status_code=400, detail="Invalid plugin path.") from None
     if _common != _ext_root or _real_local == _ext_root:
         raise HTTPException(status_code=400, detail="Invalid plugin path.")
 
@@ -8089,8 +8106,9 @@ async def apply_all_plugin_updates():
     if not pending:
         return {"updated": [], "failed": {}, "message": "No updates available."}
 
-    from pathlib import Path as _Path
     import os as _os
+    from pathlib import Path as _Path
+
     from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
 
     updated: list = []
@@ -8205,7 +8223,7 @@ async def check_triggers():
     trigger_service = get_trigger_service()
 
     checked = 0
-    for plugin_id, plugin in registry.trigger_plugins.items():
+    for _plugin_id, plugin in registry.trigger_plugins.items():
         trigger_service.check_plugin_triggers(plugin)
         checked += 1
 
@@ -8228,8 +8246,8 @@ async def generic_data_test_fetch(request: dict):
     Reuses the same parsing logic as the generic_data plugin so the preview
     matches real behaviour.  Response body is capped at 1 MB.
     """
-    import requests as req
     import defusedxml.ElementTree as DefusedET
+    import requests as req
 
     from .plugins.config_interpolation import get_builtin_variables, interpolate_string
 
@@ -8264,7 +8282,7 @@ async def generic_data_test_fetch(request: dict):
                     "preview feature — your plugin will still fetch this URL normally "
                     "when your page runs."
                 ),
-            )
+            ) from _url_exc
         raise
     # Re-derive url from a strict allowlist regex so the downstream HTTP call is not
     # tracked as tainted by static-analysis tools (py/full-ssrf).
@@ -8324,16 +8342,16 @@ async def generic_data_test_fetch(request: dict):
     except HTTPException:
         raise
     except req.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Request timed out")
+        raise HTTPException(status_code=504, detail="Request timed out") from None
     except req.exceptions.ConnectionError:
-        raise HTTPException(status_code=502, detail="Connection error — check the URL")
+        raise HTTPException(status_code=502, detail="Connection error — check the URL") from None
     except req.exceptions.HTTPError:
         # Don't echo the upstream exception (URL/headers/status) back to the
         # caller — generic message is enough for a "test fetch" feature.
-        raise HTTPException(status_code=502, detail="HTTP error from remote service")
+        raise HTTPException(status_code=502, detail="HTTP error from remote service") from None
     except Exception:
         logger.exception("generic-data test-fetch failed")
-        raise HTTPException(status_code=500, detail="Failed to fetch data")
+        raise HTTPException(status_code=500, detail="Failed to fetch data") from None
 
 
 # =============================================================================
@@ -8367,7 +8385,7 @@ async def export_backup():
 
 @app.post("/backup/import")
 async def import_backup(
-    payload: Dict[str, Any] = Body(...),
+    payload: dict[str, Any] = Body(...),
     reinstall_plugins: bool = Query(True),
 ):
     """Restore a backup file produced by ``/backup/export``.
@@ -8384,10 +8402,10 @@ async def import_backup(
             payload, reinstall_plugins=reinstall_plugins
         )
     except BackupError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception:
         logger.exception("Backup import failed")
-        raise HTTPException(status_code=500, detail="Backup import failed")
+        raise HTTPException(status_code=500, detail="Backup import failed") from None
 
     return result
 

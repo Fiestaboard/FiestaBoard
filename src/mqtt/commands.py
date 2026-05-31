@@ -1,8 +1,12 @@
 """Command handler: dispatch MQTT commands to FiestaBoard services."""
 
 import logging
-from datetime import datetime, timezone
-from typing import Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +17,8 @@ class CommandHandler:
     def __init__(
         self,
         client: "MQTTClient",
-        start_display_service: Optional[Callable[[], bool]] = None,
-        stop_display_service: Optional[Callable[[], bool]] = None,
+        start_display_service: Callable[[], bool] | None = None,
+        stop_display_service: Callable[[], bool] | None = None,
     ):
         self._client = client
         self._start_display_service = start_display_service or (lambda: False)
@@ -61,7 +65,7 @@ class CommandHandler:
             try:
                 # Enrich all events with a UTC timestamp
                 enriched = attributes.copy() if attributes else {}
-                enriched.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+                enriched.setdefault("timestamp", datetime.now(UTC).isoformat())
                 self._client._state_publisher.publish_event(object_id, event_type, enriched)
             except Exception as e:
                 logger.debug("Event publish failed: %s", e)
@@ -89,8 +93,8 @@ class CommandHandler:
     def _handle_active_page(self, payload: str) -> None:
         if not payload:
             return
-        from src.settings.service import get_settings_service
         from src.pages.service import get_page_service
+        from src.settings.service import get_settings_service
         page_service = get_page_service()
         payload_lower = payload.lower()
         for page in page_service.list_pages():
@@ -103,8 +107,8 @@ class CommandHandler:
     def _handle_transition_style(self, payload: str) -> None:
         if not payload:
             return
-        from src.settings.service import get_settings_service
         from src.board_client import VALID_STRATEGIES
+        from src.settings.service import get_settings_service
         if payload not in VALID_STRATEGIES:
             logger.warning("MQTT transition_style: invalid %r", payload)
             return
@@ -178,8 +182,8 @@ class CommandHandler:
 
     def _handle_next_page(self) -> None:
         """Navigate to the next page in the page list."""
-        from src.settings.service import get_settings_service
         from src.pages.service import get_page_service
+        from src.settings.service import get_settings_service
         page_service = get_page_service()
         settings = get_settings_service()
         pages = page_service.list_pages()
@@ -193,8 +197,8 @@ class CommandHandler:
 
     def _handle_previous_page(self) -> None:
         """Navigate to the previous page in the page list."""
-        from src.settings.service import get_settings_service
         from src.pages.service import get_page_service
+        from src.settings.service import get_settings_service
         page_service = get_page_service()
         settings = get_settings_service()
         pages = page_service.list_pages()
@@ -205,8 +209,3 @@ class CommandHandler:
         prev_page = pages[prev_idx]
         settings.set_active_page_id(prev_page.id)
         self._publish_event("display_updated", "page_navigated", {"page_name": prev_page.name, "direction": "previous"})
-
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from .client import MQTTClient

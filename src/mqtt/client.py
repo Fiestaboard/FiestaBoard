@@ -7,10 +7,14 @@ subscribes to command topics, and runs a periodic state sync.
 import logging
 import threading
 import time
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from .config import MQTTConfig
 from .discovery import build_all_discovery_messages
+
+if TYPE_CHECKING:
+    from .commands import CommandHandler
+    from .state import StatePublisher
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +32,7 @@ class MQTTClient:
         self._client = None
         self._state_publisher = None
         self._command_handler = None
-        self._sync_thread: Optional[threading.Thread] = None
+        self._sync_thread: threading.Thread | None = None
         self._sync_interval = 30
         self._running = False
         self._connected = False
@@ -227,8 +231,3 @@ def set_mqtt_client_instance(client: Optional["MQTTClient"]) -> None:
     _mqtt_client_instance = client
 
 
-# Forward references for type hints
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from .state import StatePublisher
-    from .commands import CommandHandler

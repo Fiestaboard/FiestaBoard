@@ -8,11 +8,12 @@ The PluginRegistry is the central point for:
 - Installing plugins from the registry or arbitrary git URLs
 """
 
-import re
 import logging
-from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
+import re
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait as futures_wait
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
@@ -43,7 +44,7 @@ _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 
 class PluginRegistry:
     """Central registry for all loaded plugins.
-    
+
     The registry manages:
     - Plugin loading via PluginLoader
     - Plugin enable/disable state
@@ -51,26 +52,26 @@ class PluginRegistry:
     - Aggregated variable schemas for templates
     - Periodic update availability checking for external plugins
     """
-    
-    def __init__(self, plugins_dir: Optional[Path] = None):
+
+    def __init__(self, plugins_dir: Path | None = None):
         """Initialize the registry.
-        
+
         Args:
             plugins_dir: Path to plugins directory
         """
         self._loader = PluginLoader(plugins_dir)
-        self._plugins: Dict[str, PluginBase] = {}
-        self._manifests: Dict[str, PluginManifest] = {}
-        self._configs: Dict[str, Dict[str, Any]] = {}
-        self._enabled: Dict[str, bool] = {}
+        self._plugins: dict[str, PluginBase] = {}
+        self._manifests: dict[str, PluginManifest] = {}
+        self._configs: dict[str, dict[str, Any]] = {}
+        self._enabled: dict[str, bool] = {}
 
         # Cached results from the most recent check_for_updates() call.
         # Maps plugin_id -> bool (True = update available).
-        self._update_status: Dict[str, bool] = {}
+        self._update_status: dict[str, bool] = {}
 
         # Auto-discovery cache: maps plugin_id -> discovered variable names
-        self._discovered_vars: Dict[str, List[str]] = {}
-        
+        self._discovered_vars: dict[str, list[str]] = {}
+
         logger.info("PluginRegistry initialized")
 
     # ── instance key helpers ────────────────────────────────────────────
@@ -84,7 +85,7 @@ class PluginRegistry:
         return f"{plugin_id}{INSTANCE_SEPARATOR}{instance_label}"
 
     @staticmethod
-    def parse_instance_key(key: str) -> Tuple[str, Optional[str]]:
+    def parse_instance_key(key: str) -> tuple[str, str | None]:
         """Split a compound key into (base_plugin_id, instance_label).
 
         If *key* has no separator the label is ``None`` (default instance).
@@ -105,7 +106,7 @@ class PluginRegistry:
 
     def create_instance(
         self, plugin_id: str, instance_label: str
-    ) -> List[str]:
+    ) -> list[str]:
         """Create a new instance of an existing plugin.
 
         A new :class:`PluginBase` object of the same class is instantiated
@@ -159,7 +160,7 @@ class PluginRegistry:
         logger.info("Created plugin instance: %s", compound_key)
         return []
 
-    def delete_instance(self, plugin_id: str, instance_label: str) -> List[str]:
+    def delete_instance(self, plugin_id: str, instance_label: str) -> list[str]:
         """Delete a plugin instance.
 
         Only instances (compound keys) can be deleted; base plugins cannot.
@@ -187,7 +188,7 @@ class PluginRegistry:
         logger.info("Deleted plugin instance: %s", compound_key)
         return []
 
-    def list_instances(self, plugin_id: str) -> List[Dict[str, Any]]:
+    def list_instances(self, plugin_id: str) -> list[dict[str, Any]]:
         """List all instances of a plugin (excluding the base).
 
         Args:
@@ -197,7 +198,7 @@ class PluginRegistry:
             List of instance info dicts with ``label``, ``key``,
             ``enabled``, and ``has_config`` fields.
         """
-        instances: List[Dict[str, Any]] = []
+        instances: list[dict[str, Any]] = []
         prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
 
         for key in sorted(self._plugins):
@@ -211,33 +212,33 @@ class PluginRegistry:
                 })
 
         return instances
-    
+
     @property
-    def plugins(self) -> Dict[str, PluginBase]:
+    def plugins(self) -> dict[str, PluginBase]:
         """Return all loaded plugins."""
         return self._plugins.copy()
-    
+
     @property
-    def enabled_plugins(self) -> Dict[str, PluginBase]:
+    def enabled_plugins(self) -> dict[str, PluginBase]:
         """Return only enabled plugins."""
         return {
-            pid: plugin 
-            for pid, plugin in self._plugins.items() 
+            pid: plugin
+            for pid, plugin in self._plugins.items()
             if self._enabled.get(pid, False)
         }
-    
+
     def initialize(self) -> None:
         """Load all discovered plugins.
-        
+
         This should be called once at startup. It will:
         1. Load all plugin modules from the plugins directory
         2. Read stored configurations from config manager
         3. Enable plugins that have enabled=true in their config
         """
         loaded = self._loader.load_all_plugins()
-        
+
         # Try to get stored configs from config manager
-        stored_configs: Dict[str, Dict[str, Any]] = {}
+        stored_configs: dict[str, dict[str, Any]] = {}
         try:
             from ..config_manager import get_config_manager
             config_manager = get_config_manager()
@@ -245,30 +246,30 @@ class PluginRegistry:
             stored_configs = config_manager.get_all_plugin_configs()
         except Exception as e:
             logger.warning(f"Could not load stored plugin configs: {e}")
-        
+
         for plugin_id, plugin in loaded.items():
             manifest = self._loader.get_manifest(plugin_id)
             if manifest:
                 self._plugins[plugin_id] = plugin
                 self._manifests[plugin_id] = manifest
-                
+
                 # Check if plugin has stored config with enabled=true
                 plugin_config = stored_configs.get(plugin_id, {})
                 is_enabled = plugin_config.get("enabled", False)
-                
+
                 self._enabled[plugin_id] = is_enabled
-                
+
                 # Apply stored config to the plugin
                 if plugin_config:
                     self._configs[plugin_id] = plugin_config
                     plugin.config = plugin_config
                     plugin.enabled = is_enabled
-                    
+
                 if is_enabled:
                     logger.info(f"Loaded and enabled plugin: {plugin_id}")
                 else:
                     logger.debug(f"Loaded plugin (disabled): {plugin_id}")
-        
+
         # Auto-install any plugins that were configured in V2 but are no longer
         # built-in (extracted to external repos in V3).
         self._auto_migrate_v2_plugins(stored_configs)
@@ -280,7 +281,7 @@ class PluginRegistry:
         enabled_count = sum(1 for e in self._enabled.values() if e)
         logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
 
-    def _restore_instances(self, stored_configs: Dict[str, Dict[str, Any]]) -> None:
+    def _restore_instances(self, stored_configs: dict[str, dict[str, Any]]) -> None:
         """Restore plugin instances from stored configuration.
 
         Scans *stored_configs* for compound keys (containing the instance
@@ -363,7 +364,7 @@ class PluginRegistry:
         if restored:
             logger.info("Restored %d plugin instance(s) from config", restored)
 
-    def _auto_migrate_v2_plugins(self, stored_configs: Dict[str, Dict[str, Any]]) -> None:
+    def _auto_migrate_v2_plugins(self, stored_configs: dict[str, dict[str, Any]]) -> None:
         """Install external plugins that were configured in V2 but are no longer built-in.
 
         When upgrading from V2 to V3, previously built-in plugins (weather, muni,
@@ -440,127 +441,127 @@ class PluginRegistry:
                 migrated,
             )
 
-    def get_plugin(self, plugin_id: str) -> Optional[PluginBase]:
+    def get_plugin(self, plugin_id: str) -> PluginBase | None:
         """Get a plugin by ID.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             Plugin instance or None if not loaded
         """
         return self._plugins.get(plugin_id)
-    
-    def get_manifest(self, plugin_id: str) -> Optional[PluginManifest]:
+
+    def get_manifest(self, plugin_id: str) -> PluginManifest | None:
         """Get a plugin's manifest.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             PluginManifest or None if not loaded
         """
         return self._manifests.get(plugin_id)
-    
+
     def is_enabled(self, plugin_id: str) -> bool:
         """Check if a plugin is enabled.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             True if enabled, False otherwise
         """
         return self._enabled.get(plugin_id, False)
-    
+
     def enable_plugin(self, plugin_id: str) -> bool:
         """Enable a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             True if enabled successfully, False if plugin not found
         """
         if plugin_id not in self._plugins:
             logger.warning(f"Cannot enable unknown plugin: {plugin_id}")
             return False
-        
+
         plugin = self._plugins[plugin_id]
         plugin.enabled = True
         self._enabled[plugin_id] = True
-        
+
         # Apply stored config
         if plugin_id in self._configs:
             plugin.config = self._configs[plugin_id]
-        
+
         logger.info(f"Enabled plugin: {plugin_id}")
         return True
-    
+
     def disable_plugin(self, plugin_id: str) -> bool:
         """Disable a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             True if disabled successfully, False if plugin not found
         """
         if plugin_id not in self._plugins:
             return False
-        
+
         plugin = self._plugins[plugin_id]
         plugin.enabled = False
         self._enabled[plugin_id] = False
-        
+
         logger.info(f"Disabled plugin: {plugin_id}")
         return True
-    
-    def set_plugin_config(self, plugin_id: str, config: Dict[str, Any]) -> List[str]:
+
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
         """Set configuration for a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier
             config: Configuration dictionary
-            
+
         Returns:
             List of validation errors (empty if valid)
         """
         if plugin_id not in self._plugins:
             return [f"Plugin not found: {plugin_id}"]
-        
+
         plugin = self._plugins[plugin_id]
-        
+
         # Validate config (base refresh_seconds + plugin-specific)
         errors = plugin._validate_refresh_seconds(config)
         errors.extend(plugin.validate_config(config))
         if errors:
             return errors
-        
+
         # Store and apply config
         self._configs[plugin_id] = config
         plugin.config = config
-        
+
         logger.debug(f"Updated config for {plugin_id}")
         return []
-    
-    def get_plugin_config(self, plugin_id: str) -> Optional[Dict[str, Any]]:
+
+    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
         """Get configuration for a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             Configuration dictionary or None if not found
         """
         return self._configs.get(plugin_id)
-    
+
     def fetch_plugin_data(self, plugin_id: str) -> PluginResult:
         """Fetch data from a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             PluginResult with data or error
         """
@@ -569,15 +570,15 @@ class PluginRegistry:
                 available=False,
                 error=f"Plugin not found: {plugin_id}"
             )
-        
+
         if not self._enabled.get(plugin_id, False):
             return PluginResult(
                 available=False,
                 error=f"Plugin not enabled: {plugin_id}"
             )
-        
+
         plugin = self._plugins[plugin_id]
-        
+
         try:
             return plugin.get_data()
         except Exception as e:
@@ -586,8 +587,8 @@ class PluginRegistry:
                 available=False,
                 error=str(e)
             )
-    
-    def _discover_variables(self, plugin_id: str) -> List[str]:
+
+    def _discover_variables(self, plugin_id: str) -> list[str]:
         """Introspect a plugin's live data to discover top-level variable names.
 
         Only scalar values (str, int, float, bool) are surfaced; lists and
@@ -613,14 +614,14 @@ class PluginRegistry:
         self._discovered_vars[plugin_id] = []
         return []
 
-    def clear_discovered_cache(self, plugin_id: Optional[str] = None) -> None:
+    def clear_discovered_cache(self, plugin_id: str | None = None) -> None:
         """Clear auto-discovery cache for one or all plugins."""
         if plugin_id:
             self._discovered_vars.pop(plugin_id, None)
         else:
             self._discovered_vars.clear()
 
-    def get_all_variables(self) -> Dict[str, List[str]]:
+    def get_all_variables(self) -> dict[str, list[str]]:
         """Get all template variables from enabled plugins.
 
         When a plugin has ``auto_discover`` enabled, the manifest-declared
@@ -630,9 +631,9 @@ class PluginRegistry:
         Returns:
             Dictionary mapping plugin_id to list of variable names
         """
-        variables: Dict[str, List[str]] = {}
+        variables: dict[str, list[str]] = {}
 
-        for plugin_id, plugin in self._plugins.items():
+        for plugin_id, _plugin in self._plugins.items():
             if not self._enabled.get(plugin_id, False):
                 continue
 
@@ -656,7 +657,7 @@ class PluginRegistry:
 
     def get_all_variables_with_metadata(
         self,
-    ) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    ) -> dict[str, dict[str, dict[str, Any]]]:
         """Get variables with rich metadata for every enabled plugin.
 
         Returns:
@@ -664,12 +665,12 @@ class PluginRegistry:
         """
         all_vars = self.get_all_variables()
         context = self.build_template_context()
-        result: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        result: dict[str, dict[str, dict[str, Any]]] = {}
 
         for plugin_id, var_names in all_vars.items():
             manifest = self._manifests.get(plugin_id)
             plugin_data = context.get(plugin_id, {})
-            var_dict: Dict[str, Dict[str, Any]] = {}
+            var_dict: dict[str, dict[str, Any]] = {}
 
             for name in var_names:
                 # Skip array path patterns (e.g. "stops.*.field")
@@ -703,13 +704,13 @@ class PluginRegistry:
 
         return result
 
-    def get_all_variable_groups(self) -> Dict[str, Dict[str, Dict[str, str]]]:
+    def get_all_variable_groups(self) -> dict[str, dict[str, dict[str, str]]]:
         """Get variable groups for every enabled plugin.
 
         Returns:
             ``{plugin_id: {group_id: {"label": "..."}}}``
         """
-        result: Dict[str, Dict[str, Dict[str, str]]] = {}
+        result: dict[str, dict[str, dict[str, str]]] = {}
         for plugin_id in self._plugins:
             if not self._enabled.get(plugin_id, False):
                 continue
@@ -720,36 +721,36 @@ class PluginRegistry:
                     for gid, g in manifest.variables.groups.items()
                 }
         return result
-    
-    def get_all_max_lengths(self) -> Dict[str, int]:
+
+    def get_all_max_lengths(self) -> dict[str, int]:
         """Get all max lengths from enabled plugins.
-        
+
         Returns:
             Dictionary mapping "plugin_id.variable" to max length
         """
-        max_lengths: Dict[str, int] = {}
-        
+        max_lengths: dict[str, int] = {}
+
         for plugin_id in self._plugins:
             if not self._enabled.get(plugin_id, False):
                 continue
-            
+
             manifest = self._manifests.get(plugin_id)
             if not manifest:
                 continue
-            
+
             # Prefix variable names with plugin_id
             for var_name, max_len in manifest.max_lengths.items():
                 full_name = f"{plugin_id}.{var_name}"
                 max_lengths[full_name] = max_len
-        
+
         return max_lengths
-    
-    def get_variables_schema(self, plugin_id: str) -> Optional[Dict[str, Any]]:
+
+    def get_variables_schema(self, plugin_id: str) -> dict[str, Any] | None:
         """Get the variables schema for a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             Variables schema dictionary or None
         """
@@ -757,18 +758,18 @@ class PluginRegistry:
         if manifest:
             return manifest.raw.get("variables", {})
         return None
-    
-    def list_plugins(self) -> List[Dict[str, Any]]:
+
+    def list_plugins(self) -> list[dict[str, Any]]:
         """List all plugins with their status.
-        
+
         Returns:
             List of plugin info dictionaries.  Each dict includes an
             ``instance_label`` (string or None) and ``base_plugin_id``
             for plugin instances.
         """
         plugins = []
-        
-        for plugin_id, plugin in self._plugins.items():
+
+        for plugin_id, _plugin in self._plugins.items():
             manifest = self._manifests.get(plugin_id)
             base_id, instance_label = self.parse_instance_key(plugin_id)
             source = self._loader.get_source(base_id)
@@ -793,32 +794,32 @@ class PluginRegistry:
                 "settings_schema": manifest.settings_schema if manifest else {},
             }
             plugins.append(info)
-        
+
         # Sort by name
         plugins.sort(key=lambda p: p["name"].lower())
-        
+
         return plugins
-    
-    def reload_plugin(self, plugin_id: str) -> Optional[PluginBase]:
+
+    def reload_plugin(self, plugin_id: str) -> PluginBase | None:
         """Reload a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier
-            
+
         Returns:
             Reloaded plugin instance or None if failed
         """
         # Remember enabled state and config
         was_enabled = self._enabled.get(plugin_id, False)
         config = self._configs.get(plugin_id, {})
-        
+
         # Unload
         if plugin_id in self._plugins:
             self._plugins[plugin_id].cleanup()
             del self._plugins[plugin_id]
         if plugin_id in self._manifests:
             del self._manifests[plugin_id]
-        
+
         # Reload
         plugin = self._loader.reload_plugin(plugin_id)
         if plugin:
@@ -826,7 +827,7 @@ class PluginRegistry:
             if manifest:
                 self._plugins[plugin_id] = plugin
                 self._manifests[plugin_id] = manifest
-                
+
                 # Restore state
                 if was_enabled:
                     self.enable_plugin(plugin_id)
@@ -846,18 +847,18 @@ class PluginRegistry:
                         plugin.config = config
 
                 return plugin
-        
+
         return None
-    
-    def get_load_errors(self) -> Dict[str, List[str]]:
+
+    def get_load_errors(self) -> dict[str, list[str]]:
         """Get plugin load errors.
-        
+
         Returns:
             Dictionary mapping plugin directory names to error lists
         """
         return self._loader.load_errors
 
-    def check_for_updates(self) -> Dict[str, bool]:
+    def check_for_updates(self) -> dict[str, bool]:
         """Check all external plugins for available upstream updates.
 
         Runs ``git ls-remote`` against each external plugin's origin and
@@ -868,7 +869,7 @@ class PluginRegistry:
         Returns:
             Mapping of plugin_id -> True if an update is available.
         """
-        results: Dict[str, bool] = {}
+        results: dict[str, bool] = {}
         for plugin_id, source in self._loader.plugin_sources.items():
             if source.source_type != "external" or not source.local_path:
                 continue
@@ -881,11 +882,11 @@ class PluginRegistry:
         self._update_status = results
         return results
 
-    def get_update_status(self) -> Dict[str, bool]:
+    def get_update_status(self) -> dict[str, bool]:
         """Return cached update status from the last check_for_updates() call."""
         return self._update_status.copy()
 
-    def get_plugin_source(self, plugin_id: str) -> Optional[PluginSource]:
+    def get_plugin_source(self, plugin_id: str) -> PluginSource | None:
         """Get the source information for a loaded plugin.
 
         Args:
@@ -898,7 +899,7 @@ class PluginRegistry:
 
     # ── external plugin management ───────────────────────────────────────
 
-    def get_registry_entries(self) -> List[Dict[str, Any]]:
+    def get_registry_entries(self) -> list[dict[str, Any]]:
         """Return all entries from the plugin registry file.
 
         Returns:
@@ -921,7 +922,7 @@ class PluginRegistry:
             for e in entries
         ]
 
-    def install_from_registry(self, plugin_id: str) -> List[str]:
+    def install_from_registry(self, plugin_id: str) -> list[str]:
         """Install a plugin from the registry by its id.
 
         Args:
@@ -956,8 +957,8 @@ class PluginRegistry:
         return []
 
     def install_from_git(
-        self, repo_url: str, plugin_id: Optional[str] = None, branch: str = ""
-    ) -> List[str]:
+        self, repo_url: str, plugin_id: str | None = None, branch: str = ""
+    ) -> list[str]:
         """Install a plugin from an arbitrary public git repository.
 
         Custom git plugins do **not** need to follow the
@@ -977,7 +978,7 @@ class PluginRegistry:
 
         # Determine the id if not given
         if plugin_id is None:
-            from .sources import repo_name_from_url, plugin_id_from_repo_name
+            from .sources import plugin_id_from_repo_name, repo_name_from_url
             repo_name = repo_name_from_url(repo_url)
             plugin_id = plugin_id_from_repo_name(repo_name)
 
@@ -997,7 +998,7 @@ class PluginRegistry:
 
         return []
 
-    def uninstall_external_plugin(self, plugin_id: str) -> List[str]:
+    def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
         """Remove an external (non-built-in) plugin.
 
         Built-in plugins cannot be uninstalled via this method.
@@ -1040,9 +1041,9 @@ class PluginRegistry:
         remove_external_plugin(local_path)
         logger.info("Uninstalled external plugin: %s", plugin_id)
         return []
-    
+
     @property
-    def trigger_plugins(self) -> Dict[str, PluginBase]:
+    def trigger_plugins(self) -> dict[str, PluginBase]:
         """Return enabled plugins that support event-based triggers."""
         return {
             pid: plugin
@@ -1050,7 +1051,7 @@ class PluginRegistry:
             if self._enabled.get(pid, False) and plugin.supports_triggers
         }
 
-    def build_template_context(self) -> Dict[str, Any]:
+    def build_template_context(self) -> dict[str, Any]:
         """Build context dictionary for template rendering.
 
         Fetches data from all enabled plugins in parallel so that slow or
@@ -1059,7 +1060,7 @@ class PluginRegistry:
         Returns:
             Dictionary mapping plugin_id to plugin data
         """
-        context: Dict[str, Any] = {}
+        context: dict[str, Any] = {}
         enabled = list(self.enabled_plugins)
 
         if not enabled:
@@ -1096,7 +1097,7 @@ class PluginRegistry:
 
 def get_plugin_registry() -> PluginRegistry:
     """Get or create the global plugin registry singleton.
-    
+
     Returns:
         The global PluginRegistry instance
     """
@@ -1109,7 +1110,7 @@ def get_plugin_registry() -> PluginRegistry:
 
 def reset_plugin_registry() -> None:
     """Reset the global plugin registry.
-    
+
     Use this when you need to reinitialize the registry,
     e.g., in tests or after configuration changes.
     """

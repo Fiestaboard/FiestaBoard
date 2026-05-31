@@ -24,9 +24,9 @@ import logging
 import re
 import shutil
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 #: Strict allowlist for repository URLs read from a backup file.  We only
 #: clone HTTPS URLs that contain a conservative set of characters; anything
@@ -49,7 +49,7 @@ BACKUP_FILE_MARKER = "fiestaboard_backup"
 
 #: Filenames in ``data/`` that we round-trip through a backup.  Order matters
 #: for deterministic export output.
-DATA_FILES: Tuple[str, ...] = (
+DATA_FILES: tuple[str, ...] = (
     "config.json",
     "settings.json",
     "pages.json",
@@ -65,7 +65,7 @@ class BackupError(Exception):
 class BackupService:
     """Export and import FiestaBoard user data."""
 
-    def __init__(self, data_dir: Optional[Path] = None) -> None:
+    def __init__(self, data_dir: Path | None = None) -> None:
         if data_dir is None:
             project_root = Path(__file__).resolve().parent.parent.parent
             data_dir = project_root / "data"
@@ -74,7 +74,7 @@ class BackupService:
 
     # ── export ──────────────────────────────────────────────────────────
 
-    def build_backup(self) -> Dict[str, Any]:
+    def build_backup(self) -> dict[str, Any]:
         """Produce an in-memory backup document.
 
         Returns:
@@ -83,7 +83,7 @@ class BackupService:
             time" from "present but empty".
         """
         with self._lock:
-            data: Dict[str, Optional[Any]] = {}
+            data: dict[str, Any | None] = {}
             for filename in DATA_FILES:
                 key = filename[:-5]  # strip ".json"
                 data[key] = self._read_json(self.data_dir / filename)
@@ -98,7 +98,7 @@ class BackupService:
             return {
                 BACKUP_FILE_MARKER: True,
                 "schema_version": BACKUP_SCHEMA_VERSION,
-                "exported_at": datetime.now(timezone.utc).isoformat(),
+                "exported_at": datetime.now(UTC).isoformat(),
                 "app_version": app_version,
                 "data": data,
                 "installed_plugins": installed_plugins,
@@ -115,7 +115,7 @@ class BackupService:
         backup: Any,
         *,
         reinstall_plugins: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Restore a backup produced by :meth:`build_backup`.
 
         The current ``data/`` directory is *not* deleted — instead each
@@ -141,9 +141,9 @@ class BackupService:
 
         with self._lock:
             self.data_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-            restored: List[str] = []
-            skipped: List[str] = []
+            timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            restored: list[str] = []
+            skipped: list[str] = []
 
             data_section = backup.get("data") or {}
 
@@ -158,7 +158,7 @@ class BackupService:
                 )
                 restored.append(filename)
 
-        plugin_results: Dict[str, Any] = {
+        plugin_results: dict[str, Any] = {
             "attempted": [],
             "installed": [],
             "already_present": [],
@@ -187,7 +187,7 @@ class BackupService:
         raw: str,
         *,
         reinstall_plugins: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Parse *raw* JSON text and call :meth:`import_from_dict`."""
         try:
             backup = json.loads(raw)
@@ -198,11 +198,11 @@ class BackupService:
     # ── helpers ─────────────────────────────────────────────────────────
 
     @staticmethod
-    def _read_json(path: Path) -> Optional[Any]:
+    def _read_json(path: Path) -> Any | None:
         if not path.exists():
             return None
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 return json.load(fh)
         except (OSError, json.JSONDecodeError) as exc:
             logger.warning("Could not read %s for backup: %s", path, exc)
@@ -253,7 +253,7 @@ class BackupService:
             raise BackupError("Backup file is missing the 'data' section.")
 
     @staticmethod
-    def _collect_installed_plugins() -> List[Dict[str, str]]:
+    def _collect_installed_plugins() -> list[dict[str, str]]:
         """Return metadata describing currently-installed external plugins.
 
         Built-in plugins are skipped because they ship with the application
@@ -270,7 +270,7 @@ class BackupService:
             logger.warning("Could not access plugin registry for backup", exc_info=True)
             return []
 
-        plugins: List[Dict[str, str]] = []
+        plugins: list[dict[str, str]] = []
         try:
             sources = registry._loader.plugin_sources  # type: ignore[attr-defined]
         except Exception:  # pragma: no cover - defensive
@@ -295,10 +295,10 @@ class BackupService:
 
     @staticmethod
     def _reinstall_plugins(
-        installed_meta: List[Dict[str, str]],
-    ) -> Dict[str, Any]:
+        installed_meta: list[dict[str, str]],
+    ) -> dict[str, Any]:
         """Best-effort reinstall of external plugins listed in the backup."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "attempted": [],
             "installed": [],
             "already_present": [],
@@ -389,7 +389,7 @@ class BackupService:
 # ── service singleton + reload helpers ──────────────────────────────────────
 
 
-_backup_service: Optional[BackupService] = None
+_backup_service: BackupService | None = None
 _singleton_lock = threading.Lock()
 
 
@@ -403,14 +403,14 @@ def get_backup_service() -> BackupService:
     return _backup_service
 
 
-def _reload_services() -> List[str]:
+def _reload_services() -> list[str]:
     """Reload in-memory singletons after a restore.
 
     Each step is wrapped in its own try/except so a failure in one
     subsystem does not prevent the others from reloading.  Returns a
     list of human-readable error strings (empty on full success).
     """
-    errors: List[str] = []
+    errors: list[str] = []
 
     # Config manager: re-read config.json from disk.
     try:

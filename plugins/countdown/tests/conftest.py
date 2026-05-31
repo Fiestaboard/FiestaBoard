@@ -1,8 +1,9 @@
 """Plugin test fixtures and configuration for countdown."""
 
-import pytest
 import json
 from pathlib import Path
+
+import pytest
 
 from src.plugins.testing import create_mock_response
 

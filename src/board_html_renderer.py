@@ -19,14 +19,13 @@ to embed in a sandboxed iframe.
 from __future__ import annotations
 
 import html
-from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Constants — mirrored from web/src/lib/board-colors.ts and
 # web/src/components/board-display.tsx so the preview matches the web UI.
 # ---------------------------------------------------------------------------
 
-DEVICE_DIMS: Dict[str, Tuple[int, int]] = {
+DEVICE_DIMS: dict[str, tuple[int, int]] = {
     # device_type -> (rows, cols)
     "flagship": (6, 22),
     "note": (3, 15),
@@ -34,7 +33,7 @@ DEVICE_DIMS: Dict[str, Tuple[int, int]] = {
 
 # 8-colour board palette (codes 63-71). 71 ("filled") renders as black, same
 # as the web UI.
-COLOR_CODE_MAP: Dict[str, str] = {
+COLOR_CODE_MAP: dict[str, str] = {
     "63": "#eb4034",  # red
     "64": "#f5a623",  # orange
     "65": "#f8e71c",  # yellow
@@ -46,7 +45,7 @@ COLOR_CODE_MAP: Dict[str, str] = {
     "71": "#1a1a1a",  # filled
 }
 
-NAMED_COLORS: Dict[str, str] = {
+NAMED_COLORS: dict[str, str] = {
     "red": COLOR_CODE_MAP["63"],
     "orange": COLOR_CODE_MAP["64"],
     "yellow": COLOR_CODE_MAP["65"],
@@ -58,7 +57,7 @@ NAMED_COLORS: Dict[str, str] = {
     "black": COLOR_CODE_MAP["70"],
 }
 
-ALL_COLOR_CODES: Dict[str, str] = {**COLOR_CODE_MAP, **NAMED_COLORS}
+ALL_COLOR_CODES: dict[str, str] = {**COLOR_CODE_MAP, **NAMED_COLORS}
 
 
 # ---------------------------------------------------------------------------
@@ -79,14 +78,14 @@ class _ColorToken:
         self.hex = hex_value
 
 
-def _parse_line(line: str) -> List[object]:
+def _parse_line(line: str) -> list[object]:
     """Parse a rendered line into a flat list of character/colour tokens.
 
     Matches the web UI's ``parseLine`` semantics: ``{63}`` / ``{red}`` style
     single-bracket tokens become colour tiles, ``{/...}`` end tags are
     dropped, anything else becomes an uppercase character tile.
     """
-    tokens: List[object] = []
+    tokens: list[object] = []
     i = 0
     n = len(line)
     while i < n:
@@ -107,7 +106,7 @@ def _parse_line(line: str) -> List[object]:
     return tokens
 
 
-def _grid(formatted: str, rows: int, cols: int, device_type: str) -> List[List[object]]:
+def _grid(formatted: str, rows: int, cols: int, device_type: str) -> list[list[object]]:
     """Convert a rendered string into a fixed (rows x cols) token grid.
 
     Lines shorter than ``cols`` are right-padded with blank character
@@ -117,11 +116,11 @@ def _grid(formatted: str, rows: int, cols: int, device_type: str) -> List[List[o
     """
     is_note = device_type == "note"
     lines = formatted.split("\n") if formatted else []
-    grid: List[List[object]] = []
+    grid: list[list[object]] = []
     for r in range(rows):
         line = lines[r] if r < len(lines) else ""
         parsed = _parse_line(line)
-        row: List[object] = []
+        row: list[object] = []
         for c in range(cols):
             if c < len(parsed):
                 tok = parsed[c]
@@ -257,7 +256,7 @@ def render_board_html(
     formatted: str,
     *,
     device_type: str = "flagship",
-    page_name: Optional[str] = None,
+    page_name: str | None = None,
 ) -> str:
     """Render a board preview as a self-contained HTML document.
 
@@ -275,7 +274,7 @@ def render_board_html(
     is_note = device_type == "note"
     grid = _grid(formatted or "", rows, cols, device_type)
 
-    row_html_parts: List[str] = []
+    row_html_parts: list[str] = []
     for r, row in enumerate(grid):
         tiles = "".join(_tile_html(tok, r, c, is_note) for c, tok in enumerate(row))
         row_html_parts.append(f'<div class="row">{tiles}</div>')

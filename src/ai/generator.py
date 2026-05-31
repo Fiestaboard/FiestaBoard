@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import httpx
 from pydantic import ValidationError
@@ -52,7 +52,7 @@ class AIGenerationError(Exception):
     """
 
 
-def _extract_json_object(text: str) -> Dict[str, Any]:
+def _extract_json_object(text: str) -> dict[str, Any]:
     """Parse the first JSON object found in ``text``.
 
     Some models wrap their JSON in markdown fences or a short preamble
@@ -107,22 +107,22 @@ def _line_visible_width(line: str) -> int:
 
 
 def _validate_and_repair(
-    raw: Dict[str, Any],
+    raw: dict[str, Any],
     device_type: DeviceType,
-    known_variables: Dict[str, Dict[str, Dict[str, Any]]],
-) -> Tuple[Dict[str, Any], List[str]]:
+    known_variables: dict[str, dict[str, dict[str, Any]]],
+) -> tuple[dict[str, Any], list[str]]:
     """Coerce model output into a ``PageCreate``-shaped dict.
 
     Returns the cleaned page dict and a list of human-readable warnings
     describing repairs we made (or things we noticed but couldn't fix).
     """
-    warnings: List[str] = []
+    warnings: list[str] = []
     dims = get_dimensions(device_type)
 
     if not isinstance(raw, dict):
         raise AIGenerationError("Model output was not a JSON object.")
 
-    page: Dict[str, Any] = {}
+    page: dict[str, Any] = {}
 
     # name
     name = raw.get("name")
@@ -178,7 +178,7 @@ def _validate_and_repair(
 
     # line_metadata
     raw_meta = raw.get("line_metadata")
-    line_metadata: List[Dict[str, Any]] = []
+    line_metadata: list[dict[str, Any]] = []
     if isinstance(raw_meta, list):
         for item in raw_meta:
             if not isinstance(item, dict):
@@ -254,11 +254,11 @@ def _validate_and_repair(
 
 
 def _find_unknown_variables(
-    template: List[str],
-    known_variables: Dict[str, Dict[str, Dict[str, Any]]],
-) -> List[str]:
+    template: list[str],
+    known_variables: dict[str, dict[str, dict[str, Any]]],
+) -> list[str]:
     """Return a list of ``plugin.var`` refs not in ``known_variables``."""
-    seen: List[str] = []
+    seen: list[str] = []
     for line in template:
         for match in _VARIABLE_REF_RE.finditer(line):
             plugin_id, var_name = match.group(1), match.group(2)
@@ -275,9 +275,9 @@ def _find_unknown_variables(
 
 
 def _resolve_provider(
-    providers_block: Dict[str, Any],
-    provider_id: Optional[str],
-) -> Dict[str, Any]:
+    providers_block: dict[str, Any],
+    provider_id: str | None,
+) -> dict[str, Any]:
     """Pick the provider to use, preferring an explicit ``provider_id``.
 
     Falls back to the configured default; raises if nothing is usable.
@@ -307,7 +307,7 @@ def _resolve_provider(
     return providers[0]
 
 
-def _resolve_model(provider: Dict[str, Any], model: Optional[str]) -> str:
+def _resolve_model(provider: dict[str, Any], model: str | None) -> str:
     """Pick the model id to send. Prefers explicit, then provider default."""
     if model:
         return model
@@ -326,7 +326,7 @@ def _build_request_payload(
     model: str,
     context: PromptContext,
     protocol: Protocol,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a request body for the given protocol."""
     return protocol.build_body(
         model,
@@ -337,13 +337,13 @@ def _build_request_payload(
 
 
 async def _post_chat_completion(
-    provider: Dict[str, Any],
-    payload: Dict[str, Any],
+    provider: dict[str, Any],
+    payload: dict[str, Any],
     *,
-    protocol: Optional[Protocol] = None,
+    protocol: Protocol | None = None,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
-    client: Optional[httpx.AsyncClient] = None,
-) -> Dict[str, Any]:
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
     """POST to the provider's chat endpoint and return the parsed JSON.
 
     The endpoint path and auth headers are determined by ``protocol``;
@@ -377,7 +377,7 @@ async def _post_chat_completion(
         if response.status_code >= 400:
             # Try to surface the provider's own error message via the
             # protocol-specific error parser.
-            err_msg: Optional[str] = None
+            err_msg: str | None = None
             try:
                 err_body = response.json()
                 if isinstance(err_body, dict):
@@ -405,8 +405,8 @@ async def _post_chat_completion(
 
 
 def _extract_message_content(
-    api_response: Dict[str, Any],
-    protocol: Optional[Protocol] = None,
+    api_response: dict[str, Any],
+    protocol: Protocol | None = None,
 ) -> str:
     """Pull the assistant's text out of a provider response.
 
@@ -424,14 +424,14 @@ async def generate_page(
     *,
     user_prompt: str,
     device_type: DeviceType,
-    providers_block: Dict[str, Any],
-    variables: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
-    plugin_demos: Optional[List[Dict[str, Any]]] = None,
-    current_page: Optional[Dict[str, Any]] = None,
-    provider_id: Optional[str] = None,
-    model: Optional[str] = None,
-    client: Optional[httpx.AsyncClient] = None,
-) -> Dict[str, Any]:
+    providers_block: dict[str, Any],
+    variables: dict[str, dict[str, dict[str, Any]]] | None = None,
+    plugin_demos: list[dict[str, Any]] | None = None,
+    current_page: dict[str, Any] | None = None,
+    provider_id: str | None = None,
+    model: str | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
     """Ask the user's configured LLM to draft a page.
 
     Returns a dict ``{page, model_used, provider_id, warnings, usage}``.
@@ -480,12 +480,12 @@ async def generate_page(
 
 
 async def test_provider(
-    provider: Dict[str, Any],
+    provider: dict[str, Any],
     *,
-    model: Optional[str] = None,
-    client: Optional[httpx.AsyncClient] = None,
+    model: str | None = None,
+    client: httpx.AsyncClient | None = None,
     timeout_seconds: float = 30.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Send a tiny smoke-test request to verify a provider works.
 
     Returns ``{ok: bool, message: str, model_used: str}``. Never raises;
@@ -514,7 +514,7 @@ async def test_provider(
         content = _extract_message_content(response, protocol)
     except AIGenerationError as exc:
         return {"ok": False, "message": str(exc), "model_used": chosen_model}
-    except Exception as exc:  # pragma: no cover — defensive
+    except Exception:  # pragma: no cover — defensive
         # Log the full exception server-side, but only return a generic
         # message to avoid leaking stack-trace details to API consumers.
         logger.exception("Unexpected error during provider test")

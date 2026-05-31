@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from plugins.random import RandomPlugin, BOARD_COLORS
+from plugins.random import BOARD_COLORS, RandomPlugin
 
 
 @pytest.fixture

@@ -28,15 +28,15 @@ Uses the plugin system exclusively to resolve available variables.
 Plugin IDs are used as template namespaces (e.g., {{weather.temp}}, {{stocks.symbol}}).
 """
 
-import re
 import logging
-from typing import Dict, Any, List, Optional
+import re
 from dataclasses import dataclass
+from typing import Any
 
+from ..devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
 from ..plugins import get_plugin_registry
 from ..text_utils import extract_alignment_from_line
-from ..devices import DEVICE_DIMENSIONS, DEFAULT_DEVICE_TYPE
-from .expressions import render_expressions, validate_expression, find_formulas
+from .expressions import find_formulas, render_expressions, validate_expression
 
 logger = logging.getLogger(__name__)
 
@@ -92,38 +92,38 @@ class TemplateError:
 
 class TemplateEngine:
     """Template engine for rendering dynamic content.
-    
+
     Supports:
     - Variable substitution from plugin data sources
     - Board color codes (inline and block)
     - Symbol shortcuts
     - Text formatting filters
     - Dynamic colors based on plugin configuration rules
-    
+
     Uses plugin system exclusively for all variable resolution.
     Plugin IDs serve as template namespaces (e.g., {{weather.temp}}, {{stocks.symbol}}).
     """
-    
+
     def __init__(self):
         """Initialize template engine."""
         self._display_service = None
         self._config_manager = None
         self._plugin_registry = None
-        
+
         try:
             self._plugin_registry = get_plugin_registry()
             logger.info("TemplateEngine initialized with plugin system")
         except Exception as e:
             logger.error(f"Failed to initialize plugin registry: {e}")
             raise RuntimeError("Plugin system is required but failed to initialize") from e
-    
+
     def reset_cache(self):
         """Reset cached services to pick up configuration changes."""
         self._display_service = None
         self._config_manager = None
         self._plugin_registry = get_plugin_registry()
         logger.info("TemplateEngine cache reset")
-    
+
     @property
     def display_service(self):
         """Lazy-load display service to avoid circular imports."""
@@ -131,7 +131,7 @@ class TemplateEngine:
             from ..displays.service import get_display_service
             self._display_service = get_display_service()
         return self._display_service
-    
+
     @property
     def config_manager(self):
         """Lazy-load config manager to avoid circular imports."""
@@ -139,27 +139,27 @@ class TemplateEngine:
             from ..config_manager import get_config_manager
             self._config_manager = get_config_manager()
         return self._config_manager
-    
-    def render(self, template: str, context: Optional[Dict[str, Any]] = None) -> str:
+
+    def render(self, template: str, context: dict[str, Any] | None = None) -> str:
         """Render template with data context.
-        
+
         Args:
             template: Template string with {{variables}} and {{colors}}
             context: Optional pre-fetched context data. If not provided,
                      data will be fetched from display sources.
-        
+
         Returns:
             Rendered string with all substitutions applied
         """
         if context is None:
             context = self._build_context()
-        
+
         result = template
-        
+
         # Process colors FIRST (before variables) to prevent VAR_PATTERN from matching them
         # This converts {{red}} to {{63}}, etc.
         result = self._normalize_colors(result)
-        
+
         # Process inline formula expressions ({{= ... }}) before plain variables.
         # See ``src/templates/expressions.py`` for the language reference.
         # Formulas resolve their own variable references against ``context``;
@@ -167,29 +167,29 @@ class TemplateEngine:
         # like ``{67}`` from ``COLOR()``) which then flows through the
         # remaining passes unchanged.
         result = render_expressions(result, context)
-        
+
         # Process variables
         result = self._render_variables(result, context)
-        
+
         # Process symbols (single brackets like {sun})
         result = self._render_symbols(result)
-        
+
         return result
-    
+
     def _count_tiles(self, text: str) -> int:
         """Count the number of tiles in a text string.
-        
+
         Color markers like {66} count as 1 tile each, not their character length.
-        
+
         Args:
             text: Rendered text string (may contain color markers like {66})
-            
+
         Returns:
             Number of tiles (characters + color markers, where each marker = 1 tile)
         """
         tile_count = 0
         i = 0
-        
+
         while i < len(text):
             # Check for color marker
             if text[i] == "{":
@@ -213,20 +213,20 @@ class TemplateEngine:
                         # End tag - skip it (doesn't count as a tile)
                         i = closing_brace + 1
                         continue
-            
+
             # Regular character
             tile_count += 1
             i += 1
-        
+
         return tile_count
-    
+
     def _truncate_to_tiles(self, text: str, max_tiles: int = 22) -> str:
         """Truncate text to max_tiles, where color markers count as 1 tile each.
-        
+
         Args:
             text: Rendered text string (may contain color markers like {66})
             max_tiles: Maximum number of tiles (characters + color markers)
-            
+
         Returns:
             Truncated string that fits within max_tiles
         """
@@ -234,7 +234,7 @@ class TemplateEngine:
         result = []
         tile_count = 0
         i = 0
-        
+
         while i < len(text) and tile_count < max_tiles:
             # Check for color marker
             if text[i] == "{":
@@ -260,28 +260,28 @@ class TemplateEngine:
                         # End tag - skip it
                         i = closing_brace + 1
                         continue
-            
+
             # Regular character
             result.append(text[i])
             tile_count += 1
             i += 1
-        
+
         return "".join(result)
-    
+
     def render_lines(
         self,
-        template_lines: List[str],
-        context: Optional[Dict[str, Any]] = None,
-        line_metadata: Optional[List[dict]] = None,
-        device_type: Optional[str] = None,
+        template_lines: list[str],
+        context: dict[str, Any] | None = None,
+        line_metadata: list[dict] | None = None,
+        device_type: str | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
-        
+
         Handles:
         - The special |wrap filter which allows content to flow across multiple lines
         - Alignment via line_metadata (preferred) or legacy inline prefixes
         - The {{fill_space}} variable for flexible spacing
-        
+
         Args:
             template_lines: List of template lines, padded or truncated to
                 match the device's row count (6 for flagship, 3 for note).
@@ -293,13 +293,13 @@ class TemplateEngine:
                 content (no prefix parsing).
             device_type: Device type ('flagship' or 'note') to determine board
                 dimensions. Defaults to flagship (22 cols, 6 rows).
-            
+
         Returns:
             Rendered string with newlines
         """
         if context is None:
             context = self._build_context()
-        
+
         dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
                                       DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
         num_rows = dims.rows
@@ -311,9 +311,9 @@ class TemplateEngine:
             lines.append("")
 
         # Build per-line alignment/wrap arrays from metadata or legacy parsing
-        alignments: List[str] = []
-        wraps: List[bool] = []
-        contents: List[str] = []
+        alignments: list[str] = []
+        wraps: list[bool] = []
+        contents: list[str] = []
 
         for i, line in enumerate(lines):
             if line_metadata and i < len(line_metadata):
@@ -326,13 +326,13 @@ class TemplateEngine:
                 alignments.append(alignment)
                 wraps.append(wrap_enabled)
                 contents.append(content)
-        
+
         # Process lines, handling |wrap specially
         rendered = [""] * num_rows
         skip_until = -1  # Track lines filled by wrap overflow
         # Cache rendered content per line so the wrap-budget probe and the
         # main non-wrap branch don't render the same line twice.
-        rendered_cache: Dict[int, str] = {}
+        rendered_cache: dict[int, str] = {}
 
         def _render_cached(idx: int) -> str:
             if idx not in rendered_cache:
@@ -395,27 +395,27 @@ class TemplateEngine:
                     rendered[i] = self._apply_alignment(rendered_line, alignment, width=board_width)
 
         return '\n'.join(rendered)
-    
-    def _render_with_wrap(self, template: str, context: Dict[str, Any], max_lines: int = 1, board_width: int = 22) -> List[str]:
+
+    def _render_with_wrap(self, template: str, context: dict[str, Any], max_lines: int = 1, board_width: int = 22) -> list[str]:
         """Render a template line that should wrap across multiple lines.
-        
+
         Handles two cases:
         1. Line-level wrap (via {wrap} prefix): wraps the entire rendered content
         2. Variable-level wrap (via |wrap filter): wraps only the variable with |wrap
-        
+
         Args:
             template: Template string that may contain |wrap filter or should be wrapped entirely
             context: Data context
             max_lines: Maximum number of lines to fill
             board_width: Board width in columns (default 22 for flagship)
-            
+
         Returns:
             List of rendered lines (up to max_lines)
         """
         # First, check if there's a variable with |wrap filter (variable-level wrap)
         wrap_pattern = re.compile(r'\{\{([^}]+\|wrap(?:\|[^}]*)?)\}\}')
         match = wrap_pattern.search(template)
-        
+
         if match:
             # Variable-level wrap: wrap only the variable with |wrap filter
             # Get the variable expression (without |wrap)
@@ -424,35 +424,35 @@ class TemplateEngine:
             parts = expr.split('|')
             var_part = parts[0].strip()
             other_filters = [p for p in parts[1:] if p.lower() != 'wrap']
-            
+
             # Get the raw value
             value = self._get_variable_value(var_part, context)
-            
+
             # Apply any other filters (except wrap)
             for f in other_filters:
                 value = self._apply_filter(value, f)
-            
+
             # Get prefix and suffix around the variable
             prefix = template[:match.start()]
             suffix = template[match.end():]
-            
+
             # Render prefix and suffix (they may have other variables)
             prefix = self.render(prefix, context)
             suffix = self.render(suffix, context)
-            
+
             # Calculate available width for wrapped content using tile counts, not character counts
             # Color markers like {67} are 4 characters but only 1 tile
             prefix_tiles = self._count_tiles(prefix)
             suffix_tiles = self._count_tiles(suffix)
-            
+
             # First line has prefix and suffix
             first_line_width = max(1, board_width - prefix_tiles - suffix_tiles)  # Ensure at least 1 tile available
             # Subsequent lines have full width
             subsequent_width = board_width
-            
+
             # Word-wrap the value
             wrapped = self._word_wrap(value, first_line_width, subsequent_width, max_lines)
-            
+
             # Build result lines
             result = []
             for idx, wrapped_line in enumerate(wrapped):
@@ -460,38 +460,38 @@ class TemplateEngine:
                     result.append(f"{prefix}{wrapped_line}{suffix}")
                 else:
                     result.append(wrapped_line)
-            
+
             return result
         else:
             # Line-level wrap: render the entire template first, then wrap the result
             rendered = self.render(template, context)
-            
+
             # Use tile-based wrapping for the entire rendered content
             # Full width available on all lines
             wrapped = self._word_wrap_tiles(rendered, first_width=board_width, subsequent_width=board_width, max_lines=max_lines)
-            
+
             return wrapped
-    
-    def _word_wrap(self, text: str, first_width: int, subsequent_width: int, max_lines: int) -> List[str]:
+
+    def _word_wrap(self, text: str, first_width: int, subsequent_width: int, max_lines: int) -> list[str]:
         """Word-wrap text across multiple lines.
-        
+
         Args:
             text: Text to wrap
             first_width: Width available on first line
             subsequent_width: Width available on subsequent lines
             max_lines: Maximum number of lines
-            
+
         Returns:
             List of wrapped lines
         """
         if not text:
             return [""]
-        
+
         words = text.split()
         lines = []
         current_line = ""
         current_width = first_width
-        
+
         for word in words:
             if not current_line:
                 # First word on line
@@ -510,32 +510,32 @@ class TemplateEngine:
                     break
                 current_line = word[:subsequent_width] if len(word) > subsequent_width else word
                 current_width = subsequent_width
-        
+
         # Don't forget the last line
         if current_line and len(lines) < max_lines:
             lines.append(current_line)
-        
+
         # Ensure we have at least one line
         if not lines:
             lines = [""]
-        
+
         return lines
-    
-    def _split_into_tokens(self, text: str) -> List[str]:
+
+    def _split_into_tokens(self, text: str) -> list[str]:
         """Split text into tokens (complete color markers or single characters).
-        
+
         This ensures color markers are never split in the middle.
-        
+
         Args:
             text: Text to split (may contain color markers like {67})
-            
+
         Returns:
             List of tokens, where each token is either a complete color marker
             (like {67} or {red}) or a single character
         """
         tokens = []
         i = 0
-        
+
         while i < len(text):
             if text[i] == "{":
                 # Found a potential color marker
@@ -558,37 +558,37 @@ class TemplateEngine:
                         tokens.append(text[i:closing_brace + 1])
                         i = closing_brace + 1
                         continue
-            
+
             # Regular character
             tokens.append(text[i])
             i += 1
-        
+
         return tokens
-    
-    def _word_wrap_tiles(self, text: str, first_width: int, subsequent_width: int, max_lines: int) -> List[str]:
+
+    def _word_wrap_tiles(self, text: str, first_width: int, subsequent_width: int, max_lines: int) -> list[str]:
         """Word-wrap text across multiple lines using tile counts instead of character counts.
-        
+
         This is used for line-level wrap where the text may contain color markers
         like {67} which are 4 characters but only 1 tile.
-        
+
         Args:
             text: Text to wrap (may contain color markers like {67})
             first_width: Tile width available on first line
             subsequent_width: Tile width available on subsequent lines
             max_lines: Maximum number of lines
-            
+
         Returns:
             List of wrapped lines
         """
         if not text:
             return [""]
-        
+
         # Split into words, preserving color markers
         # We'll split on spaces but keep color markers with adjacent text
         words = []
         current_word = ""
         i = 0
-        
+
         while i < len(text):
             if text[i] == "{":
                 # Found a potential color marker
@@ -606,7 +606,7 @@ class TemplateEngine:
                         current_word += text[i:closing_brace + 1]
                         i = closing_brace + 1
                         continue
-            
+
             if text[i].isspace():
                 if current_word:
                     words.append(current_word)
@@ -614,19 +614,19 @@ class TemplateEngine:
             else:
                 current_word += text[i]
             i += 1
-        
+
         if current_word:
             words.append(current_word)
-        
+
         # Now wrap using tile counts
         lines = []
         current_line = ""
         current_width = first_width
-        
+
         for word in words:
             word_tiles = self._count_tiles(word)
             current_line_tiles = self._count_tiles(current_line) if current_line else 0
-            
+
             if not current_line:
                 # First word on line
                 if word_tiles <= current_width:
@@ -639,14 +639,14 @@ class TemplateEngine:
                         tokens = self._split_into_tokens(remaining_word)
                         test_line = ""
                         tokens_to_take = 0
-                        
+
                         for token in tokens:
                             test_with_token = test_line + token
                             if self._count_tiles(test_with_token) > current_width:
                                 break
                             test_line = test_with_token
                             tokens_to_take += 1
-                        
+
                         if tokens_to_take > 0:
                             # Reconstruct the line from tokens
                             current_line = "".join(tokens[:tokens_to_take])
@@ -692,14 +692,14 @@ class TemplateEngine:
                         tokens = self._split_into_tokens(remaining_word)
                         test_line = ""
                         tokens_to_take = 0
-                        
+
                         for token in tokens:
                             test_with_token = test_line + token
                             if self._count_tiles(test_with_token) > current_width:
                                 break
                             test_line = test_with_token
                             tokens_to_take += 1
-                        
+
                         if tokens_to_take > 0:
                             # Reconstruct the line from tokens
                             current_line = "".join(tokens[:tokens_to_take])
@@ -721,36 +721,36 @@ class TemplateEngine:
                                 break
                     current_line = remaining_word if remaining_word else ""
                 current_width = subsequent_width
-        
+
         # Don't forget the last line
         if current_line and len(lines) < max_lines:
             lines.append(current_line)
-        
+
         # Ensure we have at least one line
         if not lines:
             lines = [""]
-        
+
         return lines
-    
-    def _build_context(self) -> Dict[str, Any]:
+
+    def _build_context(self) -> dict[str, Any]:
         """Build context by fetching all available data from enabled plugins.
-        
+
         Returns:
             Dictionary mapping plugin_id to plugin data
         """
         if not self._plugin_registry:
             return {}
-        
+
         return self._plugin_registry.build_template_context()
-    
-    def _render_variables(self, template: str, context: Dict[str, Any]) -> str:
+
+    def _render_variables(self, template: str, context: dict[str, Any]) -> str:
         """Replace {{source.field}} variables with values from context.
-        
+
         Also applies color rules from feature configuration if defined.
         """
         def replace_var(match):
             expr = match.group(1).strip()
-            
+
             # Check for filter: {{value|filter:arg}}
             if '|' in expr:
                 var_part, filter_part = expr.split('|', 1)
@@ -776,27 +776,27 @@ class TemplateEngine:
                     # a color prefix (which would add an unwanted space after the tile)
                     if re.match(r'^\{\d+\}', value):
                         return value
-                
+
                 # Apply color rules
                 color_prefix = self._get_color_for_value(expr, context)
                 return f"{color_prefix}{value}" if color_prefix else value
-        
+
         return VAR_PATTERN.sub(replace_var, template)
-    
-    def _get_color_for_value(self, expr: str, context: Dict[str, Any]) -> str:
+
+    def _get_color_for_value(self, expr: str, context: dict[str, Any]) -> str:
         """Get color tile prefix based on plugin color rules.
-        
+
         Args:
             expr: Variable expression like 'weather.temperature'
             context: Data context
-            
+
         Returns:
             Color prefix like '{65} ' or empty string if no rule matches
         """
         parts = expr.split('.')
         if len(parts) < 2:
             return ""
-        
+
         plugin_id = parts[0].lower()
         field = parts[1].lower()
 
@@ -804,15 +804,15 @@ class TemplateEngine:
         # and manifests are registered under the base plugin ID only, so strip
         # any instance suffix before looking them up.
         base_plugin_id = plugin_id.split(":", 1)[0]
-        
+
         # Skip automatic coloring for fields that have separate _color variables
         # These fields should only be colored via their explicit _color variable
         if field in ("uv_index", "temperature"):
             return ""
-        
+
         # Try to get color rules from config manager first (for legacy features)
         rules = self.config_manager.get_color_rules(base_plugin_id, field)
-        
+
         # If not found, try to get from plugin manifest
         if not rules and self._plugin_registry:
             manifest = self._plugin_registry.get_manifest(base_plugin_id)
@@ -820,44 +820,44 @@ class TemplateEngine:
                 field_schema = manifest.color_rules_schema.get(field)
                 if field_schema and isinstance(field_schema, dict):
                     rules = field_schema.get("default_rules", [])
-        
+
         if not rules:
             return ""
-        
+
         # Map field name for data lookup (e.g., 'temp' -> 'temperature' for weather)
         data_field = self._map_field_for_data_lookup(base_plugin_id, field)
-        
+
         # Get the raw value for comparison
         raw_value = None
         if plugin_id in context:
             raw_value = context[plugin_id].get(data_field) or context[plugin_id].get(parts[1])
-        
+
         if raw_value is None:
             return ""
-        
+
         # Evaluate rules in order (first match wins)
         for rule in rules:
             condition = rule.get("condition", "==")
             rule_value = rule.get("value")
             color = rule.get("color", "")
-            
+
             if self._evaluate_condition(raw_value, condition, rule_value):
                 # Return color code with space
                 color_code = COLOR_CODES.get(color.lower(), color)
                 if isinstance(color_code, int):
                     return f"{{{color_code}}} "
                 return ""
-        
+
         return ""
-    
+
     def _evaluate_condition(self, actual: Any, condition: str, expected: Any) -> bool:
         """Evaluate a color rule condition.
-        
+
         Args:
             actual: The actual value from data
             condition: Comparison operator (==, !=, >, <, >=, <=)
             expected: The expected value from rule
-            
+
         Returns:
             True if condition matches
         """
@@ -866,7 +866,7 @@ class TemplateEngine:
             if condition in (">", "<", ">=", "<="):
                 actual_num = float(actual)
                 expected_num = float(expected)
-                
+
                 if condition == ">":
                     return actual_num > expected_num
                 elif condition == "<":
@@ -875,48 +875,48 @@ class TemplateEngine:
                     return actual_num >= expected_num
                 elif condition == "<=":
                     return actual_num <= expected_num
-            
+
             # String comparison
             actual_str = str(actual).lower()
             expected_str = str(expected).lower()
-            
+
             if condition == "==":
                 return actual_str == expected_str
             elif condition == "!=":
                 return actual_str != expected_str
-            
+
         except (ValueError, TypeError):
             # Fall back to string comparison
             if condition == "==":
                 return str(actual).lower() == str(expected).lower()
             elif condition == "!=":
                 return str(actual).lower() != str(expected).lower()
-        
+
         return False
-    
-    def _get_variable_value(self, expr: str, context: Dict[str, Any]) -> str:
+
+    def _get_variable_value(self, expr: str, context: dict[str, Any]) -> str:
         """Get value from context using dot notation (source.field).
-        
+
         Also supports _color suffix to get just the color tile for a field.
         e.g., {{weather.temperature_color}} returns {65} based on temperature value.
-        
+
         Supports array access:
         - {{baywheels.stations.0.electric_bikes}} - Access first station's e-bikes
         - {{baywheels.stations.1.station_name}} - Access second station's name
-        
+
         Supports Home Assistant entity_id based lookups:
         - {{home_assistant.sensor_temperature.state}} - Get state of sensor.temperature
         - {{home_assistant.media_player_living_room.media_title}} - Get media_title attribute
-        
+
         Special variables:
         - fill_space: Returns a placeholder that will be expanded later
-        
+
         Returns "???" if variable is unavailable (API error, missing data, etc.)
         """
         # Handle special fill_space variable
         if expr.lower() == 'fill_space':
             return '\x00FILL_SPACE\x00'  # Special marker to be processed later
-        
+
         # Handle filled:char — user-facing alias for fill_space_repeat
         if expr.lower().startswith('filled:'):
             repeat_str = expr.split(':', 1)[1]
@@ -926,14 +926,14 @@ class TemplateEngine:
         if expr.lower().startswith('fill_space_repeat:'):
             repeat_str = expr.split(':', 1)[1] if ':' in expr else ' '
             return f'\x00FILL_SPACE_REPEAT:{repeat_str}\x00'  # Special marker with repeat pattern
-        
+
         parts = expr.split('.')
-        
+
         if len(parts) < 2:
             return "???"  # Invalid expression
-        
+
         source = parts[0].lower()
-        
+
         # Special handling for home_assistant with entity_id syntax
         # Format: home_assistant.entity_id.attribute (3 parts minimum)
         if source == 'home_assistant' and len(parts) >= 3:
@@ -943,16 +943,16 @@ class TemplateEngine:
             # Which maps to: entity_id=sensor.temperature, attribute=state
             entity_id_part = parts[1]
             attribute = parts[2]
-            
+
             # Get home_assistant context data first
             ha_data = context.get('home_assistant', {})
-            
+
             # Smart entity_id conversion: try different underscore positions
             # Some domains have underscores (media_player, binary_sensor, device_tracker, etc.)
             # Try to find the entity by testing different split points
             entity_id = None
             entity_data = {}
-            
+
             if '_' in entity_id_part:
                 # Try each underscore position as a potential domain/entity split
                 parts_split = entity_id_part.split('_')
@@ -961,12 +961,12 @@ class TemplateEngine:
                     test_domain = '_'.join(parts_split[:i])
                     test_entity = '_'.join(parts_split[i:])
                     test_entity_id = f"{test_domain}.{test_entity}"
-                    
+
                     if test_entity_id in ha_data:
                         entity_id = test_entity_id
                         entity_data = ha_data[test_entity_id]
                         break
-                
+
                 # Fallback to old behavior if no match found (replace first underscore)
                 if not entity_data:
                     entity_id = entity_id_part.replace('_', '.', 1)
@@ -974,14 +974,14 @@ class TemplateEngine:
             else:
                 entity_id = entity_id_part
                 entity_data = ha_data.get(entity_id, {})
-            
+
             if not entity_data:
                 return "???"  # Entity not found
-            
+
             # Check if requesting the state directly
             if attribute == 'state':
                 return str(entity_data.get('state', '???'))
-            
+
             # Check if requesting an attribute
             attributes = entity_data.get('attributes', {})
             if attribute in attributes:
@@ -994,7 +994,7 @@ class TemplateEngine:
                 if isinstance(value, (int, float)):
                     return str(int(value) if float(value).is_integer() else round(value, 1))
                 return str(value)
-            
+
             # Check if attribute exists at top level
             if attribute in entity_data:
                 value = entity_data[attribute]
@@ -1005,11 +1005,11 @@ class TemplateEngine:
                 if isinstance(value, (int, float)):
                     return str(int(value) if float(value).is_integer() else round(value, 1))
                 return str(value)
-            
+
             return "???"  # Attribute not found
-        
+
         field = parts[1]
-        
+
         # Check if this is a _color request (case-insensitive)
         field_lower = field.lower()
         if field_lower.endswith('_color'):
@@ -1017,10 +1017,10 @@ class TemplateEngine:
             color_result = self._get_color_only(source, base_field, context)
             # If color lookup fails, return empty string (no color tile)
             return color_result if color_result else ""
-        
+
         if source not in context:
             return "???"  # Source not available (API failed, not configured, etc.)
-        
+
         # Navigate to the field, supporting array access
         value = context[source]
         for part in parts[1:]:
@@ -1053,7 +1053,7 @@ class TemplateEngine:
                     return "???"  # Invalid index
             else:
                 return "???"  # Invalid path
-        
+
         # Convert to string
         if value is None:
             return "???"  # Null value
@@ -1062,15 +1062,15 @@ class TemplateEngine:
         if isinstance(value, (int, float)):
             return str(int(value) if float(value).is_integer() else round(value, 1))
         return str(value)
-    
-    def _get_color_only(self, plugin_id: str, field: str, context: Dict[str, Any]) -> str:
+
+    def _get_color_only(self, plugin_id: str, field: str, context: dict[str, Any]) -> str:
         """Get just the color tile for a field based on color rules.
-        
+
         Args:
             plugin_id: Plugin ID (e.g., 'weather' or 'weather:sf' for instances)
             field: Field name (e.g., 'temp')
             context: Data context
-            
+
         Returns:
             Color tile like '{65}' or empty string if no rule matches
         """
@@ -1080,7 +1080,7 @@ class TemplateEngine:
 
         # Try to get color rules from config manager first (for legacy features)
         rules = self.config_manager.get_color_rules(base_plugin_id, field)
-        
+
         # If not found, try to get from plugin manifest
         if not rules and self._plugin_registry:
             manifest = self._plugin_registry.get_manifest(base_plugin_id)
@@ -1088,46 +1088,46 @@ class TemplateEngine:
                 field_schema = manifest.color_rules_schema.get(field)
                 if field_schema and isinstance(field_schema, dict):
                     rules = field_schema.get("default_rules", [])
-        
+
         if not rules:
             return ""
-        
+
         # Map field name for data lookup (e.g., 'temp' -> 'temperature' for weather)
         # Use base_plugin_id for field mapping; look up data under full plugin_id key
         data_field = self._map_field_for_data_lookup(base_plugin_id, field)
-        
+
         # Get the raw value for comparison
         raw_value = None
         if plugin_id in context:
             raw_value = context[plugin_id].get(data_field) or context[plugin_id].get(data_field.lower())
-        
+
         if raw_value is None:
             return ""
-        
+
         # Evaluate rules in order (first match wins)
         for rule in rules:
             condition = rule.get("condition", "==")
             rule_value = rule.get("value")
             color = rule.get("color", "")
-            
+
             if self._evaluate_condition(raw_value, condition, rule_value):
                 color_code = COLOR_CODES.get(color.lower(), color)
                 if isinstance(color_code, int):
                     return f"{{{color_code}}}"
                 return ""
-        
+
         return ""
-    
+
     def _map_field_for_data_lookup(self, source: str, field: str) -> str:
         """Map field name from config to data field name.
-        
+
         Some fields in config (like color rules) use different names than
         the actual data fields. This maps them appropriately.
-        
+
         Args:
             source: Data source name (e.g., 'weather')
             field: Field name from config (e.g., 'temp')
-            
+
         Returns:
             Field name as it appears in the data (e.g., 'temperature')
         """
@@ -1135,12 +1135,12 @@ class TemplateEngine:
         # The primary field name is now 'temperature', so temperature_color works directly
         if source == "weather" and field == "temp":
             return "temperature"
-        
+
         return field
-    
+
     def _apply_filter(self, value: str, filter_expr: str) -> str:
         """Apply a filter to a value.
-        
+
         Supported filters:
         - pad:N - Pad to N characters
         - truncate:N - Truncate to N characters
@@ -1148,34 +1148,34 @@ class TemplateEngine:
         if ':' in filter_expr:
             filter_name, arg = filter_expr.split(':', 1)
             filter_name = filter_name.lower()
-            
+
             if filter_name == 'pad':
                 try:
                     width = int(arg)
                     return value.ljust(width)[:width]
                 except ValueError:
                     return value
-            
+
             elif filter_name == 'truncate':
                 try:
                     length = int(arg)
                     return value[:length]
                 except ValueError:
                     return value
-        
+
         return value
-    
+
     def _render_symbols(self, template: str) -> str:
         """Replace {symbol} shortcuts with characters."""
         def replace_symbol(match):
             symbol = match.group(1).lower()
             return SYMBOL_CHARS.get(symbol, match.group(0))
-        
+
         return SYMBOL_PATTERN.sub(replace_symbol, template)
-    
+
     def _normalize_colors(self, template: str) -> str:
         """Normalize color markers to consistent format.
-        
+
         Converts named colors to code format for consistency.
         e.g., {{red}} -> {63} (single brackets so VAR_PATTERN won't match them)
         """
@@ -1187,36 +1187,36 @@ class TemplateEngine:
             if code:
                 return f"{{{code}}}"
             return match.group(0)
-        
+
         return COLOR_PATTERN.sub(replace_color, template)
-    
+
     def _extract_alignment(self, line: str) -> tuple:
         """Extract alignment and wrap directives from a line.
-        
+
         Delegates to the shared ``extract_alignment_from_line`` utility.
         """
         return extract_alignment_from_line(line)
-    
+
     def _apply_alignment(self, text: str, alignment: str, width: int = 22) -> str:
         """Apply alignment to rendered text.
-        
+
         Args:
             text: Rendered text (may contain color markers)
             alignment: 'left', 'center', or 'right'
             width: Target width (default 22 for board)
-            
+
         Returns:
             Text padded/aligned to the specified width
         """
         # Calculate actual tile count (color markers count as 1 tile)
         tile_count = self._count_tiles(text)
-        
+
         if tile_count >= width:
             # Already at or over width, truncate
             return self._truncate_to_tiles(text, width)
-        
+
         padding_needed = width - tile_count
-        
+
         if alignment == 'center':
             left_pad = padding_needed // 2
             right_pad = padding_needed - left_pad
@@ -1225,57 +1225,57 @@ class TemplateEngine:
             return ' ' * padding_needed + text
         else:  # left (default)
             return text + ' ' * padding_needed
-    
+
     def _process_fill_space(self, text: str, width: int = 22) -> str:
         """Process fill_space markers, expanding them to fill available space.
-        
+
         If multiple fill_space markers exist, space is distributed evenly.
         The fill_space markers are represented by the special marker '\x00FILL_SPACE\x00'
         or '\x00FILL_SPACE_REPEAT:pattern\x00' after variable substitution.
-        
+
         Pattern can be:
         - A color name (red, blue, etc.) - will repeat color tiles
         - A text pattern (-, =, etc.) - will repeat characters
-        
+
         Args:
             text: Rendered text with fill_space markers
             width: Target width (default 22 for board)
-            
+
         Returns:
             Text with fill_space markers replaced by appropriate padding
         """
         from ..board_chars import BoardChars
-        
+
         # Find all fill markers (both regular and repeat)
         fill_pattern = re.compile(r'\x00FILL_SPACE(?:_REPEAT:(.+?))?\x00')
         fill_matches = list(fill_pattern.finditer(text))
         fill_count = len(fill_matches)
-        
+
         if fill_count == 0:
             return text
-        
+
         # Calculate text width without fill_space markers
         text_without_fills = fill_pattern.sub('', text)
         tile_count = self._count_tiles(text_without_fills)
-        
+
         if tile_count >= width:
             # No room for fills, remove them
             return self._truncate_to_tiles(text_without_fills, width)
-        
+
         # Calculate space to distribute
         total_fill_space = width - tile_count
         base_fill = total_fill_space // fill_count
         extra = total_fill_space % fill_count
-        
+
         # Replace each fill_space marker with calculated padding
         result = text
         for i, match in enumerate(fill_matches):
             # Distribute extra space to earlier fills
             fill_width = base_fill + (1 if i < extra else 0)
-            
+
             # Get the repeat pattern (group 1 from regex, or space as default)
             repeat_pattern = match.group(1) if match.group(1) else ' '
-            
+
             # Check if pattern is a color name
             color_code = BoardChars.get_color_code(repeat_pattern)
             if color_code is not None:
@@ -1291,49 +1291,49 @@ class TemplateEngine:
                     fill_content = (repeat_pattern * full_repeats) + repeat_pattern[:remainder]
                 else:
                     fill_content = ' ' * fill_width
-            
+
             # Replace this specific match with the repeated pattern
             result = result.replace(match.group(0), fill_content, 1)
-        
+
         return result
-    
-    def get_available_variables(self) -> Dict[str, List[str]]:
+
+    def get_available_variables(self) -> dict[str, list[str]]:
         """Get list of all available template variables by plugin.
-        
+
         Returns variables from enabled plugins.
-        
+
         Returns:
             Dict mapping plugin_id to lists of field names
         """
         if not self._plugin_registry:
             return {}
         return self._plugin_registry.get_all_variables()
-    
-    def _get_available_sources(self) -> List[str]:
+
+    def _get_available_sources(self) -> list[str]:
         """Get enabled plugin IDs.
-        
+
         Returns:
             List of enabled plugin IDs
         """
         if not self._plugin_registry:
             return []
         return list(self._plugin_registry.enabled_plugins.keys())
-    
-    def validate_template(self, template: str) -> List[TemplateError]:
+
+    def validate_template(self, template: str) -> list[TemplateError]:
         """Validate template syntax.
-        
+
         Args:
             template: Template string to validate
-            
+
         Returns:
             List of validation errors (empty if valid)
         """
         errors = []
         lines = template.split('\n')
-        
+
         # Get available sources based on system mode
         available_sources = self._get_all_known_sources()
-        
+
         for line_num, line in enumerate(lines, 1):
             # Check for unclosed variable braces
             open_count = line.count('{{')
@@ -1344,7 +1344,7 @@ class TemplateEngine:
                     column=0,
                     message="Mismatched variable braces {{}}"
                 ))
-            
+
             # Calculate max possible line length
             max_length = self._calculate_max_line_length(line)
             if max_length > 22:
@@ -1353,7 +1353,7 @@ class TemplateEngine:
                     column=22,
                     message=f"Line may be too long (up to {max_length} chars, max 22)"
                 ))
-            
+
             # Check for invalid variable references
             for match in VAR_PATTERN.finditer(line):
                 expr = match.group(1).split('|')[0].strip()
@@ -1386,57 +1386,57 @@ class TemplateEngine:
                     ))
 
         return errors
-    
+
     def _get_all_known_sources(self) -> set:
         """Get all known plugin IDs (for validation).
-        
+
         Includes all plugins, not just enabled ones, so templates
         can be validated even if not all plugins are enabled.
         """
         if not self._plugin_registry:
             return set()
         return set(self._plugin_registry.plugins.keys())
-    
+
     def _calculate_max_line_length(self, line: str) -> int:
         """Calculate maximum possible rendered length of a template line.
-        
+
         Considers:
         - Static text (counted as-is)
         - Variables (replaced with their max character length)
         - Color markers (not counted - they become tiles)
         - |wrap filter (returns 22 since it handles overflow)
-        
+
         Args:
             line: Template line to analyze
-            
+
         Returns:
             Maximum possible character count after rendering
         """
         # If line has |wrap, it handles overflow automatically
         if '|wrap}}' in line or '|wrap|' in line:
             return 22  # Wrap ensures lines don't overflow
-        
+
         # Start with the line
         result = line
-        
+
         # Remove color markers (they become single tiles, count as 1 char each)
         # Replace {color} with single char placeholder
         result = re.sub(r'\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}', 'C', result, flags=re.IGNORECASE)
         result = re.sub(r'\{/(red|orange|yellow|green|blue|violet|purple|white|black)?\}', '', result, flags=re.IGNORECASE)
-        
+
         # Replace symbols with their character equivalent (usually 1-2 chars)
         for symbol, char in SYMBOL_CHARS.items():
             result = re.sub(rf'\{{{symbol}\}}', char, result, flags=re.IGNORECASE)
-        
+
         # Get max lengths from appropriate source
         max_lengths = self._get_max_lengths_for_validation()
-        
+
         # Replace variables with their max length
         def replace_with_max_length(match):
             expr = match.group(1).strip()
             # Remove filters for lookup
             var_part = expr.split('|')[0].strip().lower()
-            
+
             # Check for color rules (adds 2 chars: color tile + space)
             color_prefix_len = 0
             parts = var_part.split('.')
@@ -1447,7 +1447,7 @@ class TemplateEngine:
                 try:
                     # Try to get color rules from config manager first (for legacy features)
                     rules = self.config_manager.get_color_rules(plugin_id, field)
-                    
+
                     # If not found, try to get from plugin manifest
                     if not rules and self._plugin_registry:
                         manifest = self._plugin_registry.get_manifest(plugin_id)
@@ -1461,40 +1461,40 @@ class TemplateEngine:
                     logger.debug("Error getting color rules for variable %s", var_part, exc_info=True)
             max_len = max_lengths.get(var_part, 22)  # Default to full board width
             return 'X' * (max_len + color_prefix_len)
-        
+
         result = VAR_PATTERN.sub(replace_with_max_length, result)
-        
+
         return len(result)
-    
-    def _get_max_lengths_for_validation(self) -> Dict[str, int]:
+
+    def _get_max_lengths_for_validation(self) -> dict[str, int]:
         """Get max lengths for template validation.
-        
+
         Returns all max lengths from all plugins (not just enabled ones) so
         templates can be fully validated.
         """
         if not self._plugin_registry:
             return {}
-        
-        max_lengths: Dict[str, int] = {}
+
+        max_lengths: dict[str, int] = {}
         for plugin_id, manifest in self._plugin_registry._manifests.items():
             for var_name, max_len in manifest.max_lengths.items():
                 full_name = f"{plugin_id}.{var_name}"
                 max_lengths[full_name] = max_len
         return max_lengths
-    
-    def get_variable_max_lengths(self) -> Dict[str, int]:
+
+    def get_variable_max_lengths(self) -> dict[str, int]:
         """Get the max character lengths for all variables from enabled plugins.
-        
+
         Returns:
             Dict mapping variable names to max lengths
         """
         if not self._plugin_registry:
             return {}
         return self._plugin_registry.get_all_max_lengths()
-    
+
     def strip_formatting(self, text: str) -> str:
         """Remove all template formatting markers from text.
-        
+
         Useful for getting plain text length or display.
         """
         # Remove variables that weren't resolved
@@ -1505,7 +1505,7 @@ class TemplateEngine:
 
 
 # Singleton instance
-_template_engine: Optional[TemplateEngine] = None
+_template_engine: TemplateEngine | None = None
 
 
 def get_template_engine() -> TemplateEngine:
@@ -1518,7 +1518,7 @@ def get_template_engine() -> TemplateEngine:
 
 def reset_template_engine() -> None:
     """Reset the template engine singleton to force reinitialization.
-    
+
     This should be called when configuration changes to ensure
     the template engine picks up updated settings.
     """

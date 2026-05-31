@@ -4,9 +4,8 @@ Defines the supported Vestaboard device types and their physical constraints.
 """
 
 import uuid
-from typing import Literal, Dict, NamedTuple
-from dataclasses import dataclass, asdict, field
-
+from dataclasses import asdict, dataclass, field
+from typing import Literal, NamedTuple
 
 DeviceType = Literal["flagship", "note"]
 
@@ -20,7 +19,7 @@ class DeviceDimensions(NamedTuple):
 
 
 # Board dimensions per device type
-DEVICE_DIMENSIONS: Dict[str, DeviceDimensions] = {
+DEVICE_DIMENSIONS: dict[str, DeviceDimensions] = {
     "flagship": DeviceDimensions(rows=6, cols=22),
     "note": DeviceDimensions(rows=3, cols=15),
 }
@@ -32,7 +31,7 @@ VALID_API_MODES = ("local", "cloud")
 @dataclass
 class BoardInstance:
     """A configured Vestaboard instance.
-    
+
     Represents a single physical board with its own identity,
     device type, display color, and connection settings.
     Each board has its own API credentials and connection mode.
@@ -48,7 +47,7 @@ class BoardInstance:
     port: int = 7000  # Local API port (default Vestaboard); used for multi-board mock e2e
     local_api_key: str = ""
     cloud_key: str = ""
-    
+
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
             self.device_type = "flagship"
@@ -60,16 +59,16 @@ class BoardInstance:
             self.enabled = bool(self.enabled)
         if not self.name:
             self.name = "My Board"
-    
+
     @property
     def is_connection_configured(self) -> bool:
         if self.api_mode == "cloud":
             return bool(self.cloud_key)
         return bool(self.local_api_key and self.host)
-    
+
     def to_dict(self) -> dict:
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "BoardInstance":
         port = data.get("port")
@@ -95,13 +94,13 @@ class BoardInstance:
 
 def get_dimensions(device_type: str) -> DeviceDimensions:
     """Get board dimensions for a device type.
-    
+
     Args:
         device_type: "flagship" or "note"
-        
+
     Returns:
         DeviceDimensions with rows and cols
-        
+
     Raises:
         ValueError: If device_type is not recognized
     """

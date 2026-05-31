@@ -5,8 +5,9 @@ Optional Finnhub integration for symbol search and autocomplete.
 """
 
 import logging
+from typing import Any
+
 import yfinance as yf
-from typing import Optional, Dict, List, Any
 
 logger = logging.getLogger(__name__)
 
@@ -135,16 +136,16 @@ POPULAR_STOCKS = [
 
 class StocksSource:
     """Fetches stock market data using yfinance."""
-    
+
     def __init__(
         self,
-        symbols: List[str],
+        symbols: list[str],
         time_window: str,
-        finnhub_api_key: Optional[str] = None
+        finnhub_api_key: str | None = None
     ):
         """
         Initialize stocks source.
-        
+
         Args:
             symbols: List of stock symbols to monitor (max 5)
             time_window: Human-readable time window (e.g., "1 Day", "ALL")
@@ -157,65 +158,65 @@ class StocksSource:
             self.symbols = [symbols] if symbols else []
         else:
             self.symbols = []
-        
+
         self.time_window = time_window
         self.finnhub_api_key = finnhub_api_key
-    
+
     @staticmethod
     def _map_time_window_to_yfinance(time_window: str) -> str:
         """
         Map human-readable time window to yfinance period.
-        
+
         Args:
             time_window: Human-readable format (e.g., "1 Day", "ALL")
-            
+
         Returns:
             yfinance period string (e.g., "1d", "max")
         """
         return TIME_WINDOW_MAP.get(time_window, "1d")
-    
+
     @staticmethod
     def _format_price(price: float) -> str:
         """
         Format price to always show 2 decimal places.
-        
+
         Args:
             price: Price value
-            
+
         Returns:
             Formatted price string (e.g., "150.25")
         """
         return f"{price:.2f}"
-    
+
     @staticmethod
     def _format_percentage(change_percent: float) -> str:
         """
         Format percentage change with + or - sign.
-        
+
         Args:
             change_percent: Percentage change (positive or negative)
-            
+
         Returns:
             Formatted percentage string (e.g., "+1.18%" or "-2.34%")
         """
         sign = "+" if change_percent >= 0 else ""
         return f"{sign}{change_percent:.2f}%"
-    
-    def fetch_stocks_data(self) -> List[Dict[str, Any]]:
+
+    def fetch_stocks_data(self) -> list[dict[str, Any]]:
         """
         Fetch stock data for all configured symbols with aligned formatting.
-        
+
         Returns:
             List of dictionaries with stock data for each symbol
         """
         if not self.symbols:
             return []
-        
+
         # First pass: fetch all stock data
         # Use a list with None placeholders to maintain index alignment
         raw_results = [None] * len(self.symbols)
         yfinance_period = self._map_time_window_to_yfinance(self.time_window)
-        
+
         for index, symbol in enumerate(self.symbols):
             try:
                 stock_data = self._fetch_single_stock(symbol, yfinance_period)
@@ -224,29 +225,29 @@ class StocksSource:
             except Exception as e:
                 logger.error(f"Error fetching stock data for {symbol}: {e}")
                 # Keep None placeholder to maintain index alignment
-        
+
         # Filter out None entries for alignment calculation, but keep track of indices
         valid_stocks = [s for s in raw_results if s is not None]
-        
+
         if not valid_stocks:
             return []
-        
+
         # Calculate max widths for alignment (only from valid stocks)
         max_price_width = 0
         max_percent_width = 0
-        
+
         for stock in valid_stocks:
             current_price_str = self._format_price(stock["current_price"])
             change_percent_str = self._format_percentage(stock["change_percent"])
-            
+
             # Price width includes "$" and space: "$ 1234.56" = 8 chars
             price_width = len(f"${current_price_str}")
             max_price_width = max(max_price_width, price_width)
-            
+
             # Percentage width: "+12.34%" = 7 chars
             percent_width = len(change_percent_str)
             max_percent_width = max(max_percent_width, percent_width)
-        
+
         # Second pass: apply aligned formatting and maintain index alignment
         # Ensure we process ALL indices, even if some stocks failed
         results = []
@@ -255,16 +256,16 @@ class StocksSource:
                 stock = raw_results[index]
                 current_price_str = self._format_price(stock["current_price"])
                 change_percent_str = self._format_percentage(stock["change_percent"])
-                
+
                 # Right-align price and percentage
                 price_aligned = f"${current_price_str}".rjust(max_price_width)
                 percent_aligned = change_percent_str.rjust(max_percent_width)
-                
+
                 # Rebuild formatted string with aligned values
                 color_tile = stock.get("color_tile", "{white}")
                 symbol = stock["symbol"]
                 formatted = f"{symbol}{color_tile} {price_aligned} {percent_aligned}"
-                
+
                 # Update stock data with aligned formatted string
                 stock["formatted"] = formatted
                 results.append(stock)
@@ -281,31 +282,31 @@ class StocksSource:
                     "color_tile": "{white}",
                     "company_name": f"Failed to fetch: {symbol}",
                 })
-        
+
         return results
-    
-    def _fetch_single_stock(self, symbol: str, period: str) -> Optional[Dict[str, Any]]:
+
+    def _fetch_single_stock(self, symbol: str, period: str) -> dict[str, Any] | None:
         """
         Fetch data for a single stock symbol.
-        
+
         Args:
             symbol: Stock symbol (e.g., "GOOG")
             period: yfinance period string (e.g., "1d", "max")
-            
+
         Returns:
             Dictionary with stock data, or None if failed
         """
         try:
             ticker = yf.Ticker(symbol)
-            
+
             # Get current price (latest available)
             info = ticker.info
             current_price = info.get("regularMarketPrice") or info.get("currentPrice")
-            
+
             if current_price is None:
                 logger.warning(f"No current price available for {symbol}")
                 return None
-            
+
             # For "1d" period, we want yesterday's close, not today's open
             # For other periods, use the first close in the historical data
             if period == "1d":
@@ -314,11 +315,11 @@ class StocksSource:
             else:
                 # Get historical data for comparison
                 hist = ticker.history(period=period)
-            
+
             if hist.empty:
                 logger.warning(f"No historical data available for {symbol} with period {period}")
                 return None
-            
+
             # Get previous price
             if period == "1d":
                 # For daily changes, use yesterday's close (second-to-last day)
@@ -330,22 +331,22 @@ class StocksSource:
             else:
                 # For other periods, use first price in the period
                 previous_price = float(hist.iloc[0]["Close"])
-            
+
             current_price = float(current_price)
-            
+
             # Calculate percentage change
             if previous_price > 0:
                 change_percent = ((current_price - previous_price) / previous_price) * 100
             else:
                 change_percent = 0.0
-            
+
             # Determine direction
             change_direction = "up" if change_percent >= 0 else "down"
-            
+
             # Format values
             current_price_str = self._format_price(current_price)
             change_percent_str = self._format_percentage(change_percent)
-            
+
             # Determine color based on percentage change
             if change_percent > 0:
                 color_tile = "{green}"
@@ -353,15 +354,15 @@ class StocksSource:
                 color_tile = "{red}"
             else:
                 color_tile = "{white}"
-            
+
             # Create initial formatted display string (will be realigned in fetch_stocks_data)
             # Format: <SYMBOL><COLOR> $<CURRENT_PRICE> <PERCENTAGE_CHANGE_SIGN><PERCENTAGE_CHANGE>
             # Note: No parentheses around percentage to save 2 tiles for prices > $1000
             formatted = f"{symbol}{color_tile} ${current_price_str} {change_percent_str}"
-            
+
             # Get company name if available
             company_name = info.get("longName") or info.get("shortName") or symbol
-            
+
             return {
                 "symbol": symbol,
                 "current_price": current_price,
@@ -372,19 +373,19 @@ class StocksSource:
                 "color_tile": color_tile,  # Store color_tile for alignment step
                 "company_name": company_name,
             }
-            
+
         except Exception as e:
             logger.error(f"Error fetching stock data for {symbol}: {e}", exc_info=True)
             return None
-    
+
     @staticmethod
-    def validate_symbol(symbol: str) -> Dict[str, Any]:
+    def validate_symbol(symbol: str) -> dict[str, Any]:
         """
         Validate if a stock symbol is valid using yfinance.
-        
+
         Args:
             symbol: Stock symbol to validate
-            
+
         Returns:
             Dictionary with validation result:
             {
@@ -400,13 +401,13 @@ class StocksSource:
                 "symbol": symbol,
                 "error": "Empty symbol"
             }
-        
+
         symbol = symbol.strip().upper()
-        
+
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
-            
+
             # Check if we got valid data (invalid symbols return empty info or error)
             if not info or "symbol" not in info:
                 return {
@@ -414,7 +415,7 @@ class StocksSource:
                     "symbol": symbol,
                     "error": "Symbol not found"
                 }
-            
+
             # Try to get price to confirm it's valid
             current_price = info.get("regularMarketPrice") or info.get("currentPrice")
             if current_price is None:
@@ -423,16 +424,16 @@ class StocksSource:
                     "symbol": symbol,
                     "error": "No price data available"
                 }
-            
+
             # Get company name
             company_name = info.get("longName") or info.get("shortName") or symbol
-            
+
             return {
                 "valid": True,
                 "symbol": symbol,
                 "name": company_name
             }
-            
+
         except Exception:
             logger.error("Symbol validation failed for %s", symbol, exc_info=True)
             return {
@@ -440,19 +441,19 @@ class StocksSource:
                 "symbol": symbol,
                 "error": "Unable to validate symbol at this time"
             }
-    
+
     @staticmethod
-    def search_symbols(query: str, limit: int = 10, finnhub_api_key: Optional[str] = None) -> List[Dict[str, str]]:
+    def search_symbols(query: str, limit: int = 10, finnhub_api_key: str | None = None) -> list[dict[str, str]]:
         """
         Search for stock symbols by query.
-        
+
         Uses Finnhub API if key is provided, otherwise searches curated list.
-        
+
         Args:
             query: Search query (symbol or company name)
             limit: Maximum number of results
             finnhub_api_key: Optional Finnhub API key
-            
+
         Returns:
             List of dictionaries with symbol and name:
             [{"symbol": "GOOG", "name": "Alphabet Inc."}, ...]
@@ -460,9 +461,9 @@ class StocksSource:
         query = query.strip().upper()
         if not query:
             return []
-        
+
         results = []
-        
+
         # Try Finnhub API if key is provided
         if finnhub_api_key:
             try:
@@ -470,7 +471,7 @@ class StocksSource:
                 # finnhub-python package uses Client class
                 finnhub_client = finnhub.Client(api_key=finnhub_api_key)
                 search_results = finnhub_client.symbol_lookup(query)
-                
+
                 if search_results and "result" in search_results:
                     for item in search_results["result"][:limit]:
                         # Filter to US stocks only (type == "Common Stock" and exchange in US exchanges)
@@ -482,50 +483,50 @@ class StocksSource:
                                     "symbol": symbol,
                                     "name": description
                                 })
-                
+
                 if results:
                     return results[:limit]
             except Exception as e:
                 logger.debug(f"Finnhub search failed, falling back to curated list: {e}")
-        
+
         # Fall back to curated list search
         query_lower = query.lower()
         for stock in POPULAR_STOCKS:
             if len(results) >= limit:
                 break
-            
+
             symbol = stock["symbol"]
             name = stock["name"]
-            
+
             # Match if query is in symbol or name (case-insensitive)
             if query_lower in symbol.lower() or query_lower in name.lower():
                 results.append({
                     "symbol": symbol,
                     "name": name
                 })
-        
+
         return results[:limit]
 
 
 # Singleton instance
-_stocks_source: Optional[StocksSource] = None
+_stocks_source: StocksSource | None = None
 
 
-def get_stocks_source() -> Optional[StocksSource]:
+def get_stocks_source() -> StocksSource | None:
     """Get or create the stocks source singleton."""
     global _stocks_source
     from ..config import Config
-    
+
     if not Config.STOCKS_ENABLED:
         return None
-    
+
     if _stocks_source is None:
         _stocks_source = StocksSource(
             symbols=Config.STOCKS_SYMBOLS,
             time_window=Config.STOCKS_TIME_WINDOW,
             finnhub_api_key=Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None
         )
-    
+
     return _stocks_source
 
 

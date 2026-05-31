@@ -20,7 +20,7 @@ import re
 import time
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 _VAR_PATTERN = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_.:%/-]*)\s*\}\}")
 
 # Common date formats that are pre-computed for convenience.
-_COMMON_DATE_FORMATS: List[str] = [
+_COMMON_DATE_FORMATS: list[str] = [
     "%Y%m%d",       # 20250615
     "%m/%d/%Y",     # 06/15/2025
     "%m-%d",        # 06-15
@@ -42,7 +42,7 @@ _COMMON_DATE_FORMATS: List[str] = [
 ]
 
 
-def get_builtin_variables(timezone: Optional[str] = None) -> Dict[str, str]:
+def get_builtin_variables(timezone: str | None = None) -> dict[str, str]:
     """Return a dictionary of built-in system variables.
 
     All values are returned as strings so they can be safely spliced
@@ -69,7 +69,7 @@ def get_builtin_variables(timezone: Optional[str] = None) -> Dict[str, str]:
         # If the time service is unavailable fall back to UTC.
         now = datetime.utcnow()
 
-    variables: Dict[str, str] = {
+    variables: dict[str, str] = {
         "date": now.strftime("%Y-%m-%d"),
         "year": str(now.year),
         "month": str(now.month),
@@ -93,7 +93,7 @@ def get_builtin_variables(timezone: Optional[str] = None) -> Dict[str, str]:
 
 def interpolate_string(
     value: Any,
-    variables: Dict[str, str],
+    variables: dict[str, str],
 ) -> Any:
     """Replace ``{{variable}}`` patterns in *value* with resolved values.
 
@@ -137,9 +137,9 @@ def interpolate_string(
 
 
 def interpolate_config(
-    config: Dict[str, Any],
-    variables: Dict[str, str],
-) -> Dict[str, Any]:
+    config: dict[str, Any],
+    variables: dict[str, str],
+) -> dict[str, Any]:
     """Recursively interpolate all string values in a config dictionary.
 
     The original *config* is **not** mutated; a deep copy is returned.
@@ -154,7 +154,7 @@ def interpolate_config(
     return _interpolate_value(deepcopy(config), variables)
 
 
-def _interpolate_value(value: Any, variables: Dict[str, str]) -> Any:
+def _interpolate_value(value: Any, variables: dict[str, str]) -> Any:
     """Recursively interpolate a value (string, dict, or list)."""
     if isinstance(value, str):
         return interpolate_string(value, variables)

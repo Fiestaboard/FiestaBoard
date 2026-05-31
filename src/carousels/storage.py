@@ -2,9 +2,8 @@
 
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional
 from datetime import datetime
+from pathlib import Path
 
 from .models import Carousel
 
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 class CarouselStorage:
     """JSON file-based storage for carousels."""
 
-    def __init__(self, storage_file: Optional[str] = None):
+    def __init__(self, storage_file: str | None = None):
         if storage_file is None:
             project_root = Path(__file__).parent.parent.parent
             data_dir = project_root / "data"
@@ -23,7 +22,7 @@ class CarouselStorage:
         else:
             self.storage_file = Path(storage_file)
 
-        self._carousels: Dict[str, Carousel] = {}
+        self._carousels: dict[str, Carousel] = {}
         self._load()
 
         logger.info(
@@ -36,7 +35,7 @@ class CarouselStorage:
             self._carousels = {}
             return
         try:
-            with open(self.storage_file, "r") as f:
+            with open(self.storage_file) as f:
                 data = json.load(f)
 
             self._carousels = {}
@@ -52,7 +51,7 @@ class CarouselStorage:
                     logger.warning(f"Failed to load carousel: {e}")
 
             logger.info(f"Loaded {len(self._carousels)} carousels from storage")
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load carousels file: {e}")
             self._carousels = {}
 
@@ -71,16 +70,16 @@ class CarouselStorage:
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Saved {len(self._carousels)} carousels to storage")
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save carousels file: {e}")
             raise
 
-    def list_all(self) -> List[Carousel]:
+    def list_all(self) -> list[Carousel]:
         carousels = list(self._carousels.values())
         carousels.sort(key=lambda c: c.name.lower())
         return carousels
 
-    def get(self, carousel_id: str) -> Optional[Carousel]:
+    def get(self, carousel_id: str) -> Carousel | None:
         return self._carousels.get(carousel_id)
 
     def create(self, carousel: Carousel) -> Carousel:
@@ -96,7 +95,7 @@ class CarouselStorage:
         logger.info(f"Created carousel: {carousel.id} ({carousel.name})")
         return carousel
 
-    def update(self, carousel_id: str, updates: dict) -> Optional[Carousel]:
+    def update(self, carousel_id: str, updates: dict) -> Carousel | None:
         if carousel_id not in self._carousels:
             return None
 

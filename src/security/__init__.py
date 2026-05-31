@@ -6,12 +6,12 @@ Submodules:
 """
 
 from .secrets import (
-    encrypt_secret,
+    ENCRYPTED_PREFIX,
     decrypt_secret,
+    encrypt_secret,
+    get_secret_cipher,
     is_encrypted,
     rotate_key,
-    get_secret_cipher,
-    ENCRYPTED_PREFIX,
 )
 
 __all__ = [

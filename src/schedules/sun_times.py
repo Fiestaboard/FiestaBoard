@@ -6,8 +6,7 @@ timezone for direct use in schedule evaluation.
 """
 
 import logging
-from datetime import datetime, timedelta, date
-from typing import Optional, Tuple
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from astral import LocationInfo
@@ -59,7 +58,7 @@ def get_sun_times(
     longitude: float,
     target_date: date,
     timezone_str: str = "UTC",
-) -> Optional[dict]:
+) -> dict | None:
     """Compute sunrise and sunset times for a given location and date.
 
     Args:
@@ -104,7 +103,7 @@ def resolve_sun_time(
     longitude: float,
     target_date: date,
     timezone_str: str = "UTC",
-) -> Optional[str]:
+) -> str | None:
     """Resolve a sun event + offset to an HH:MM time string.
 
     Args:
@@ -146,12 +145,12 @@ def resolve_schedule_sun_times(
     start_time_fallback: str,
     end_type: str,
     end_sun_offset: int,
-    end_time_fallback: Optional[str],
-    latitude: Optional[float],
-    longitude: Optional[float],
+    end_time_fallback: str | None,
+    latitude: float | None,
+    longitude: float | None,
     target_date: date,
     timezone_str: str = "UTC",
-) -> Tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     """Resolve both start and end times for a schedule entry.
 
     For fixed-type times, returns the fallback value unchanged.

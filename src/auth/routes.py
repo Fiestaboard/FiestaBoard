@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
 from .service import (
+    SESSION_COOKIE_NAME,
     AlreadySetup,
     InvalidCredentials,
-    SESSION_COOKIE_NAME,
     SetupRequired,
     _auth_env_override,
     _remember_me_ttl_seconds,
@@ -32,7 +31,7 @@ class StatusResponse(BaseModel):
     enabled: bool
     setup_required: bool
     authenticated: bool
-    username: Optional[str] = None
+    username: str | None = None
     # Tri-state mode + ``first_run`` so the UI can show the opt-in /
     # opt-out picker on a brand-new install. ``first_run`` is true iff
     # the admin hasn't recorded a preference and the env var is unset.
@@ -76,7 +75,7 @@ class PreferenceRequest(BaseModel):
 
 class SimpleResponse(BaseModel):
     status: str
-    username: Optional[str] = None
+    username: str | None = None
 
 
 # --- Cookie helpers --------------------------------------------------------
@@ -229,9 +228,9 @@ async def auth_setup(payload: SetupRequest, request: Request, response: Response
         svc.create_initial_user(payload.username, payload.password)
     except AlreadySetup:
         # Race with another setup call.
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already set up")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already set up") from None
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     # Log them in straight away so the UI can hand control to the dashboard.
     # New admins get a persistent session (matches the prior setup behavior).
     token = svc.authenticate(payload.username, payload.password, remember=True)
@@ -254,13 +253,13 @@ async def auth_login(payload: LoginRequest, request: Request, response: Response
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="No user has been created. Call /auth/setup first.",
-        )
+        ) from None
     except InvalidCredentials:
         _record_failure(ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
-        )
+        ) from None
     _clear_failures(ip)
     _set_session_cookie(response, request, token, persistent=payload.remember_me)
     return SimpleResponse(status="ok", username=payload.username)
@@ -291,9 +290,9 @@ async def auth_change_password(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect",
-        )
+        ) from None
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     # Mint a fresh session under the bumped sessions_valid_after watermark
     # so the user stays signed in and any previously-issued cookies are
     # implicitly revoked.
@@ -322,9 +321,9 @@ async def auth_change_username(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Password is incorrect",
-        )
+        ) from None
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     # The username rename bumped ``sessions_valid_after_ms``, so the old
     # cookie is now invalid. Issue a fresh session under the new name.
     new_token = svc.authenticate(new_username, payload.current_password)
@@ -361,7 +360,7 @@ async def auth_disable(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Password is incorrect",
-        )
+        ) from None
     _clear_session_cookie(response)
     logger.info("Auth disabled by user '%s'", username)
     return SimpleResponse(status="ok")

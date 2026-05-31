@@ -12,7 +12,7 @@ import logging
 import os
 import socket
 import threading
-from typing import Optional, List, Dict, Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ class MDNSService:
 
     def __init__(
         self,
-        hostname: Optional[str] = None,
-        port: Optional[int] = None,
+        hostname: str | None = None,
+        port: int | None = None,
     ) -> None:
         self._hostname = (
             hostname
@@ -77,13 +77,13 @@ class MDNSService:
             return True
 
         try:
-            from zeroconf import Zeroconf, ServiceInfo
+            from zeroconf import ServiceInfo, Zeroconf
 
             ip_address = _get_local_ip()
 
             self._service_info = ServiceInfo(
                 type_="_http._tcp.local.",
-                name=f"FiestaBoard._http._tcp.local.",
+                name="FiestaBoard._http._tcp.local.",
                 server=f"{self._hostname}.local.",
                 port=self._port,
                 properties={
@@ -185,11 +185,11 @@ def _probe_vestaboard_port(ip: str, port: int = _VESTABOARD_LOCAL_API_PORT, time
             s.settimeout(timeout)
             s.connect((ip, port))
             return True
-    except (OSError, socket.timeout):
+    except (TimeoutError, OSError):
         return False
 
 
-def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
+def scan_for_boards(timeout: float = 4.0) -> list[dict[str, Any]]:
     """Scan the local network for Vestaboard devices.
 
     Uses two complementary strategies:
@@ -209,14 +209,15 @@ def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
         optional ``hostname`` and ``source`` fields.
     """
     seen_ips: set = set()
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
 
     # -- Phase 1: mDNS browse ------------------------------------------------
     try:
-        from zeroconf import Zeroconf, ServiceBrowser
         import time
 
-        discovered: List[Dict[str, Any]] = []
+        from zeroconf import ServiceBrowser, Zeroconf
+
+        discovered: list[dict[str, Any]] = []
         lock = threading.Lock()
 
         class _Listener:
@@ -280,7 +281,7 @@ def scan_for_boards(timeout: float = 4.0) -> List[Dict[str, Any]]:
         local_ip = _get_local_ip()
         if local_ip and local_ip != "127.0.0.1":
             prefix = ".".join(local_ip.split(".")[:3])
-            probe_results: List[str] = []
+            probe_results: list[str] = []
             probe_lock = threading.Lock()
 
             def _check(ip: str) -> None:

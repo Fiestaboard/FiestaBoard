@@ -13,7 +13,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -236,7 +236,7 @@ class VariableMetadata:
     """
     description: str = ""
     type: str = "string"  # "string", "number", "boolean"
-    max_length: Optional[int] = None
+    max_length: int | None = None
     group: str = ""
     example: str = ""
 
@@ -254,9 +254,9 @@ class Screenshot:
 class DemoPageSchema:
     """Bundled demo page template that showcases a plugin's features."""
     name: str
-    template: List[str]
+    template: list[str]
     device_type: str = "flagship"
-    line_metadata: Optional[List[Dict[str, Any]]] = None
+    line_metadata: list[dict[str, Any]] | None = None
     duration_seconds: int = 300
 
 
@@ -271,10 +271,10 @@ class VariableArraySchema:
     """Schema for array-type variables."""
     name: str
     label_field: str
-    item_fields: List[str]
-    sub_arrays: Dict[str, "VariableArraySchema"] = field(default_factory=dict)
+    item_fields: list[str]
+    sub_arrays: dict[str, "VariableArraySchema"] = field(default_factory=dict)
     key_type: str = "index"  # "index" or "dynamic"
-    key_field: Optional[str] = None
+    key_field: str | None = None
 
 
 @dataclass
@@ -289,13 +289,13 @@ class VariablesSchema:
     ``auto_discover`` defaults to ``True`` so that every key returned
     by ``fetch_data()`` is automatically surfaced in the editor.
     """
-    simple: List[str] = field(default_factory=list)
-    arrays: Dict[str, VariableArraySchema] = field(default_factory=dict)
-    metadata: Dict[str, VariableMetadata] = field(default_factory=dict)
-    groups: Dict[str, VariableGroupSchema] = field(default_factory=dict)
+    simple: list[str] = field(default_factory=list)
+    arrays: dict[str, VariableArraySchema] = field(default_factory=dict)
+    metadata: dict[str, VariableMetadata] = field(default_factory=dict)
+    groups: dict[str, VariableGroupSchema] = field(default_factory=dict)
     auto_discover: bool = True
 
-    def get_all_variable_names(self, plugin_id: str) -> List[str]:
+    def get_all_variable_names(self, plugin_id: str) -> list[str]:
         """Get all variable names for template engine.
 
         Returns flattened list like:
@@ -335,21 +335,21 @@ class PluginManifest:
     author: str = "Unknown"
     repository: str = ""
     documentation: str = "README.md"
-    settings_schema: Dict[str, Any] = field(default_factory=dict)
-    env_vars: List[Dict[str, Any]] = field(default_factory=list)
+    settings_schema: dict[str, Any] = field(default_factory=dict)
+    env_vars: list[dict[str, Any]] = field(default_factory=list)
     variables: VariablesSchema = field(default_factory=VariablesSchema)
-    max_lengths: Dict[str, int] = field(default_factory=dict)
-    color_rules_schema: Dict[str, Any] = field(default_factory=dict)
+    max_lengths: dict[str, int] = field(default_factory=dict)
+    color_rules_schema: dict[str, Any] = field(default_factory=dict)
     icon: str = "puzzle"
     category: str = "utility"
     fiestaboard_version: str = ""
     supports_triggers: bool = False
-    screenshots: List[Screenshot] = field(default_factory=list)
-    demo: Optional[Dict[str, DemoPageSchema]] = None  # keyed by device_type
-    raw: Dict[str, Any] = field(default_factory=dict)
-    
+    screenshots: list[Screenshot] = field(default_factory=list)
+    demo: dict[str, DemoPageSchema] | None = None  # keyed by device_type
+    raw: dict[str, Any] = field(default_factory=dict)
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PluginManifest":
+    def from_dict(cls, data: dict[str, Any]) -> "PluginManifest":
         """Create PluginManifest from dictionary.
 
         The ``variables.simple`` field accepts two formats:
@@ -363,8 +363,8 @@ class PluginManifest:
 
         # --- parse simple (list or dict) ---
         simple_raw = variables_data.get("simple", [])
-        simple_names: List[str] = []
-        var_metadata: Dict[str, VariableMetadata] = {}
+        simple_names: list[str] = []
+        var_metadata: dict[str, VariableMetadata] = {}
 
         if isinstance(simple_raw, list):
             simple_names = list(simple_raw)
@@ -382,7 +382,7 @@ class PluginManifest:
 
         # --- parse groups ---
         groups_raw = variables_data.get("groups", {})
-        groups: Dict[str, VariableGroupSchema] = {}
+        groups: dict[str, VariableGroupSchema] = {}
         if isinstance(groups_raw, dict):
             for group_id, group_data in groups_raw.items():
                 label = group_data.get("label", group_id) if isinstance(group_data, dict) else str(group_data)
@@ -405,7 +405,7 @@ class PluginManifest:
 
         # --- parse array schemas ---
         for array_name, array_data in variables_data.get("arrays", {}).items():
-            sub_arrays: Dict[str, VariableArraySchema] = {}
+            sub_arrays: dict[str, VariableArraySchema] = {}
             for sub_name, sub_data in array_data.get("sub_arrays", {}).items():
                 sub_arrays[sub_name] = VariableArraySchema(
                     name=sub_name,
@@ -429,7 +429,7 @@ class PluginManifest:
                 top_max_lengths[var_name] = meta.max_length
 
         # --- parse screenshots ---
-        screenshots: List[Screenshot] = []
+        screenshots: list[Screenshot] = []
         for entry in data.get("screenshots", []):
             if isinstance(entry, dict) and "src" in entry and "alt" in entry:
                 screenshots.append(Screenshot(
@@ -440,7 +440,7 @@ class PluginManifest:
                 ))
 
         # --- parse demo page schema ---
-        demo: Optional[Dict[str, DemoPageSchema]] = None
+        demo: dict[str, DemoPageSchema] | None = None
         demo_raw = data.get("demo")
         if isinstance(demo_raw, dict):
             if "name" in demo_raw and "template" in demo_raw:
@@ -489,8 +489,8 @@ class PluginManifest:
             demo=demo,
             raw=data,
         )
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         result = {
             "id": self.id,
@@ -540,25 +540,25 @@ class PluginManifest:
         return result
 
 
-def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
+def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate a manifest dictionary against the schema.
-    
+
     Args:
         data: Manifest dictionary to validate
-        
+
     Returns:
         Tuple of (is_valid, list_of_errors)
     """
     errors = []
-    
+
     # Check required fields
     for required in ["id", "name", "version"]:
         if required not in data:
             errors.append(f"Missing required field: {required}")
-    
+
     if errors:
         return False, errors
-    
+
     # Validate id format
     plugin_id = data.get("id", "")
     if not plugin_id:
@@ -567,7 +567,7 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
         errors.append("Plugin id must start with a lowercase letter")
     elif not all(c.islower() or c.isdigit() or c == '_' for c in plugin_id):
         errors.append("Plugin id must contain only lowercase letters, numbers, and underscores")
-    
+
     # Validate version format
     version = data.get("version", "")
     if version:
@@ -579,12 +579,12 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
                 if not part.isdigit():
                     errors.append("Version parts must be integers")
                     break
-    
+
     # Validate settings_schema if present
     settings = data.get("settings_schema", {})
     if settings and not isinstance(settings, dict):
         errors.append("settings_schema must be an object")
-    
+
     # Validate env_vars if present
     env_vars = data.get("env_vars", [])
     if not isinstance(env_vars, list):
@@ -595,7 +595,7 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
                 errors.append(f"env_vars[{i}] must be an object")
             elif "name" not in env_var:
                 errors.append(f"env_vars[{i}] missing required field: name")
-    
+
     # Validate variables if present
     variables = data.get("variables", {})
     if variables:
@@ -622,7 +622,7 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
                         errors.append(f"variables.arrays.{array_name} must be an object")
                     elif "item_fields" not in array_schema:
                         errors.append(f"variables.arrays.{array_name} missing item_fields")
-    
+
     # Validate max_lengths if present
     max_lengths = data.get("max_lengths", {})
     if max_lengths and not isinstance(max_lengths, dict):
@@ -667,31 +667,31 @@ def validate_manifest(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
     return len(errors) == 0, errors
 
 
-def load_manifest(manifest_path: Path) -> Tuple[Optional[PluginManifest], List[str]]:
+def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]]:
     """Load and validate a manifest.json file.
-    
+
     Args:
         manifest_path: Path to manifest.json
-        
+
     Returns:
         Tuple of (PluginManifest or None, list_of_errors)
     """
     if not manifest_path.exists():
         return None, [f"Manifest not found: {manifest_path}"]
-    
+
     try:
-        with open(manifest_path, "r", encoding="utf-8") as f:
+        with open(manifest_path, encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
         return None, [f"Invalid JSON in manifest: {e}"]
     except Exception as e:
         return None, [f"Failed to read manifest: {e}"]
-    
+
     # Validate
     is_valid, validation_errors = validate_manifest(data)
     if not is_valid:
         return None, validation_errors
-    
+
     # Parse
     try:
         manifest = PluginManifest.from_dict(data)

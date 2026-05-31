@@ -23,7 +23,6 @@ import os
 import stat
 import threading
 from pathlib import Path
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -41,7 +40,7 @@ _KEY_PATH = _DATA_DIR / ".secret_key"
 _ENV_VAR = "FIESTABOARD_SECRET_KEY"
 
 _cipher_lock = threading.Lock()
-_cipher: Optional[Fernet] = None
+_cipher: Fernet | None = None
 
 
 def _load_or_generate_key() -> bytes:
@@ -164,7 +163,7 @@ def decrypt_secret(value: str) -> str:
         ) from exc
 
 
-def rotate_key(new_key: bytes, *, values: Optional[list] = None) -> list:
+def rotate_key(new_key: bytes, *, values: list | None = None) -> list:
     """Re-encrypt *values* under *new_key* and switch the process to it.
 
     Intended for an admin "rotate encryption key" flow. Returns the list of

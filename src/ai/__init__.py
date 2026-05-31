@@ -9,8 +9,8 @@ This package is BYO-LLM: users supply their own endpoint, key, and list
 of model identifiers. FiestaBoard never bundles a key.
 """
 
-from .prompt_builder import build_prompt, PromptContext
-from .generator import generate_page, AIGenerationError
+from .generator import AIGenerationError, generate_page
+from .prompt_builder import PromptContext, build_prompt
 
 __all__ = [
     "build_prompt",

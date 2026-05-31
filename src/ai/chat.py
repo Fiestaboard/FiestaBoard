@@ -28,7 +28,8 @@ import json
 import logging
 import re
 import secrets
-from typing import Any, AsyncIterator, Dict, List, Literal, Optional
+from collections.abc import AsyncIterator
+from typing import Any, Literal
 
 import httpx
 
@@ -479,23 +480,23 @@ def _build_tool_grammar_addendum(surface: ChatSurface) -> str:
 
 async def stream_chat(
     *,
-    messages: List[Dict[str, str]],
+    messages: list[dict[str, str]],
     device_type: DeviceType,
-    providers_block: Dict[str, Any],
-    variables: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
-    plugin_demos: Optional[List[Dict[str, Any]]] = None,
-    current_page: Optional[Dict[str, Any]] = None,
-    available_pages: Optional[List[Dict[str, Any]]] = None,
-    installed_plugins: Optional[List[Dict[str, Any]]] = None,
-    available_schedules: Optional[List[Dict[str, Any]]] = None,
-    available_carousels: Optional[List[Dict[str, Any]]] = None,
-    registry_plugins: Optional[List[Dict[str, Any]]] = None,
+    providers_block: dict[str, Any],
+    variables: dict[str, dict[str, dict[str, Any]]] | None = None,
+    plugin_demos: list[dict[str, Any]] | None = None,
+    current_page: dict[str, Any] | None = None,
+    available_pages: list[dict[str, Any]] | None = None,
+    installed_plugins: list[dict[str, Any]] | None = None,
+    available_schedules: list[dict[str, Any]] | None = None,
+    available_carousels: list[dict[str, Any]] | None = None,
+    registry_plugins: list[dict[str, Any]] | None = None,
     surface: ChatSurface = "global",
-    provider_id: Optional[str] = None,
-    model: Optional[str] = None,
-    client: Optional[httpx.AsyncClient] = None,
+    provider_id: str | None = None,
+    model: str | None = None,
+    client: httpx.AsyncClient | None = None,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
-) -> AsyncIterator[Dict[str, Any]]:
+) -> AsyncIterator[dict[str, Any]]:
     """Stream a chat completion from the user's configured LLM.
 
     Yields normalized events (see module docstring). Always yields a
@@ -508,7 +509,7 @@ async def stream_chat(
 
     # Validate message shape early — we can't recover from bad inputs
     # later in the stream.
-    cleaned: List[Dict[str, str]] = []
+    cleaned: list[dict[str, str]] = []
     for msg in messages:
         if not isinstance(msg, dict):
             yield {
@@ -614,8 +615,8 @@ async def stream_chat(
     if owns_client:
         client = httpx.AsyncClient(timeout=timeout_seconds)
 
-    last_warning: Optional[str] = None
-    usage: Dict[str, Optional[int]] = {
+    last_warning: str | None = None
+    usage: dict[str, int | None] = {
         "prompt_tokens": None,
         "completion_tokens": None,
         "total_tokens": None,
@@ -720,8 +721,8 @@ async def _extract_error_message(
 async def _iter_provider_stream(
     response: httpx.Response,
     protocol: Protocol,
-    usage: Dict[str, Optional[int]],
-) -> AsyncIterator[Dict[str, Any]]:
+    usage: dict[str, int | None],
+) -> AsyncIterator[dict[str, Any]]:
     """Yield ``{"kind": "text", "text": "..."}`` events as deltas arrive.
 
     Both supported protocols emit SSE-formatted streams:
@@ -770,7 +771,7 @@ async def _iter_provider_stream(
             _absorb_openai_usage(event, usage)
 
 
-def _openai_delta_text(event: Dict[str, Any]) -> str:
+def _openai_delta_text(event: dict[str, Any]) -> str:
     choices = event.get("choices") or []
     if not choices:
         return ""
@@ -779,7 +780,7 @@ def _openai_delta_text(event: Dict[str, Any]) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        parts: List[str] = []
+        parts: list[str] = []
         for part in content:
             if isinstance(part, dict) and part.get("type") in (None, "text"):
                 text = part.get("text", "")
@@ -790,7 +791,7 @@ def _openai_delta_text(event: Dict[str, Any]) -> str:
 
 
 def _absorb_openai_usage(
-    event: Dict[str, Any], usage: Dict[str, Optional[int]]
+    event: dict[str, Any], usage: dict[str, int | None]
 ) -> None:
     u = event.get("usage")
     if isinstance(u, dict):
@@ -802,7 +803,7 @@ def _absorb_openai_usage(
             usage["total_tokens"] = u["total_tokens"]
 
 
-def _anthropic_delta_text(event: Dict[str, Any]) -> str:
+def _anthropic_delta_text(event: dict[str, Any]) -> str:
     if event.get("type") == "content_block_delta":
         delta = event.get("delta") or {}
         if delta.get("type") == "text_delta":
@@ -813,7 +814,7 @@ def _anthropic_delta_text(event: Dict[str, Any]) -> str:
 
 
 def _absorb_anthropic_usage(
-    event: Dict[str, Any], usage: Dict[str, Optional[int]]
+    event: dict[str, Any], usage: dict[str, int | None]
 ) -> None:
     if event.get("type") == "message_start":
         msg = event.get("message") or {}
@@ -854,7 +855,7 @@ class _FenceParser:
         self._in_fence: bool = False
         self._fence_buffer: str = ""
 
-    def feed(self, chunk: str) -> List[Dict[str, Any]]:
+    def feed(self, chunk: str) -> list[dict[str, Any]]:
         """Feed a text delta; return zero or more events to emit.
 
         While outside a fence we emit text deltas as soon as we know they
@@ -862,7 +863,7 @@ class _FenceParser:
         accumulate silently until the closing triple-backtick, then
         validate and emit either a ``tool_call`` or a ``warning``.
         """
-        events: List[Dict[str, Any]] = []
+        events: list[dict[str, Any]] = []
         self._buffer += chunk
         while True:
             if self._in_fence:
@@ -920,9 +921,9 @@ class _FenceParser:
             self._in_fence = True
             self._fence_buffer = ""
 
-    def flush(self) -> List[Dict[str, Any]]:
+    def flush(self) -> list[dict[str, Any]]:
         """Drain any remaining buffered text after the stream closes."""
-        events: List[Dict[str, Any]] = []
+        events: list[dict[str, Any]] = []
         if self._in_fence:
             # Unterminated fence — surface as a warning rather than
             # losing the content silently.
@@ -957,7 +958,7 @@ class _FenceParser:
                 return marker[:size]
         return ""
 
-    def _finalize_fence(self) -> List[Dict[str, Any]]:
+    def _finalize_fence(self) -> list[dict[str, Any]]:
         """Parse, validate, and repair a completed fenced block.
 
         Returns a list of events: zero or one ``warning`` events for
@@ -997,7 +998,7 @@ class _FenceParser:
         # in-place and emit a warning event per repair so the user
         # (and, via the chat transcript, the model on the next turn)
         # sees what was changed.
-        events: List[Dict[str, Any]] = []
+        events: list[dict[str, Any]] = []
         for warning in _repair_tool_template_lines(tool):
             events.append({"event": "warning", "data": {"message": warning}})
         events.append({
@@ -1011,7 +1012,7 @@ class _FenceParser:
         return events
 
 
-def _repair_tool_template_lines(tool: Any) -> List[str]:
+def _repair_tool_template_lines(tool: Any) -> list[str]:
     """Repair template lines carried by a validated tool call.
 
     Supports the two ops that ship template text: ``replace_page``
@@ -1033,7 +1034,7 @@ def _repair_tool_template_lines(tool: Any) -> List[str]:
         return warnings
     if op == "apply_patch":
         changes = getattr(args, "changes", None) or []
-        patch_warnings: List[str] = []
+        patch_warnings: list[str] = []
         for change in changes:
             change_type = getattr(change, "type", None)
             if change_type not in ("replace_line", "insert_line"):

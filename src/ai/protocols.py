@@ -16,12 +16,13 @@ one more entry to ``PROTOCOLS`` — no branching elsewhere in the code.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 # A thin alias to keep the function signatures readable.
-Headers = Dict[str, str]
-Body = Dict[str, Any]
+Headers = dict[str, str]
+Body = dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -31,15 +32,15 @@ class Protocol:
     name: str
     request_path: str
     # (api_key, extra_headers) -> headers
-    build_headers: Callable[[str, Dict[str, str]], Headers]
+    build_headers: Callable[[str, dict[str, str]], Headers]
     # (model, messages, temperature, max_tokens) -> body
-    build_body: Callable[[str, List[Dict[str, Any]], float, int], Body]
+    build_body: Callable[[str, list[dict[str, Any]], float, int], Body]
     # api_response -> assistant text
-    parse_content: Callable[[Dict[str, Any]], str]
+    parse_content: Callable[[dict[str, Any]], str]
     # api_response -> {prompt_tokens, completion_tokens, total_tokens}
-    parse_usage: Callable[[Dict[str, Any]], Dict[str, Optional[int]]]
+    parse_usage: Callable[[dict[str, Any]], dict[str, int | None]]
     # Provider-side error message extractor for non-2xx responses.
-    parse_error: Callable[[Dict[str, Any]], Optional[str]]
+    parse_error: Callable[[dict[str, Any]], str | None]
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +48,7 @@ class Protocol:
 # ---------------------------------------------------------------------------
 
 
-def _openai_headers(api_key: str, extra: Dict[str, str]) -> Headers:
+def _openai_headers(api_key: str, extra: dict[str, str]) -> Headers:
     headers: Headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -57,7 +58,7 @@ def _openai_headers(api_key: str, extra: Dict[str, str]) -> Headers:
 
 def _openai_body(
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     temperature: float,
     max_tokens: int,
 ) -> Body:
@@ -72,7 +73,7 @@ def _openai_body(
     }
 
 
-def _openai_content(api_response: Dict[str, Any]) -> str:
+def _openai_content(api_response: dict[str, Any]) -> str:
     choices = api_response.get("choices") or []
     if not choices:
         return ""
@@ -81,7 +82,7 @@ def _openai_content(api_response: Dict[str, Any]) -> str:
     if isinstance(content, list):
         # Some OpenAI-compatible servers (and OpenAI's newer responses)
         # return content as a list of typed parts.
-        parts: List[str] = []
+        parts: list[str] = []
         for part in content:
             if isinstance(part, dict) and part.get("type") in (None, "text"):
                 text = part.get("text", "")
@@ -91,7 +92,7 @@ def _openai_content(api_response: Dict[str, Any]) -> str:
     return content if isinstance(content, str) else ""
 
 
-def _openai_usage(api_response: Dict[str, Any]) -> Dict[str, Optional[int]]:
+def _openai_usage(api_response: dict[str, Any]) -> dict[str, int | None]:
     usage = api_response.get("usage") or {}
     return {
         "prompt_tokens": usage.get("prompt_tokens"),
@@ -100,7 +101,7 @@ def _openai_usage(api_response: Dict[str, Any]) -> Dict[str, Optional[int]]:
     }
 
 
-def _openai_error(api_response: Dict[str, Any]) -> Optional[str]:
+def _openai_error(api_response: dict[str, Any]) -> str | None:
     err = api_response.get("error")
     if isinstance(err, dict):
         msg = err.get("message")
@@ -126,7 +127,7 @@ def _openai_error(api_response: Dict[str, Any]) -> Optional[str]:
 _ANTHROPIC_VERSION = "2023-06-01"
 
 
-def _anthropic_headers(api_key: str, extra: Dict[str, str]) -> Headers:
+def _anthropic_headers(api_key: str, extra: dict[str, str]) -> Headers:
     headers: Headers = {
         "Content-Type": "application/json",
         "anthropic-version": _ANTHROPIC_VERSION,
@@ -137,14 +138,14 @@ def _anthropic_headers(api_key: str, extra: Dict[str, str]) -> Headers:
     return headers
 
 
-def _split_system(messages: List[Dict[str, Any]]) -> tuple[str, List[Dict[str, Any]]]:
+def _split_system(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
     """Pull system messages out into a single concatenated string.
 
     Anthropic's Messages API takes ``system`` as a top-level field and
     only allows ``user``/``assistant`` roles in ``messages``.
     """
-    system_chunks: List[str] = []
-    rest: List[Dict[str, Any]] = []
+    system_chunks: list[str] = []
+    rest: list[dict[str, Any]] = []
     for msg in messages:
         role = msg.get("role")
         content = msg.get("content", "")
@@ -162,7 +163,7 @@ def _split_system(messages: List[Dict[str, Any]]) -> tuple[str, List[Dict[str, A
 
 def _anthropic_body(
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     temperature: float,
     max_tokens: int,
 ) -> Body:
@@ -178,11 +179,11 @@ def _anthropic_body(
     return body
 
 
-def _anthropic_content(api_response: Dict[str, Any]) -> str:
+def _anthropic_content(api_response: dict[str, Any]) -> str:
     content = api_response.get("content")
     if not isinstance(content, list):
         return ""
-    parts: List[str] = []
+    parts: list[str] = []
     for block in content:
         if isinstance(block, dict) and block.get("type") == "text":
             text = block.get("text", "")
@@ -191,11 +192,11 @@ def _anthropic_content(api_response: Dict[str, Any]) -> str:
     return "".join(parts)
 
 
-def _anthropic_usage(api_response: Dict[str, Any]) -> Dict[str, Optional[int]]:
+def _anthropic_usage(api_response: dict[str, Any]) -> dict[str, int | None]:
     usage = api_response.get("usage") or {}
     prompt = usage.get("input_tokens")
     completion = usage.get("output_tokens")
-    total: Optional[int]
+    total: int | None
     if isinstance(prompt, int) and isinstance(completion, int):
         total = prompt + completion
     else:
@@ -207,7 +208,7 @@ def _anthropic_usage(api_response: Dict[str, Any]) -> Dict[str, Optional[int]]:
     }
 
 
-def _anthropic_error(api_response: Dict[str, Any]) -> Optional[str]:
+def _anthropic_error(api_response: dict[str, Any]) -> str | None:
     err = api_response.get("error")
     if isinstance(err, dict):
         msg = err.get("message")
@@ -221,7 +222,7 @@ def _anthropic_error(api_response: Dict[str, Any]) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 
-PROTOCOLS: Dict[str, Protocol] = {
+PROTOCOLS: dict[str, Protocol] = {
     "openai": Protocol(
         name="openai",
         request_path="/chat/completions",
@@ -246,7 +247,7 @@ PROTOCOLS: Dict[str, Protocol] = {
 DEFAULT_PROTOCOL = "openai"
 
 
-def get_protocol(name: Optional[str]) -> Protocol:
+def get_protocol(name: str | None) -> Protocol:
     """Look up a protocol adapter, falling back to OpenAI-compatible."""
     if not name:
         return PROTOCOLS[DEFAULT_PROTOCOL]
@@ -258,6 +259,6 @@ def get_protocol(name: Optional[str]) -> Protocol:
     return proto
 
 
-def supported_protocols() -> List[str]:
+def supported_protocols() -> list[str]:
     """List of supported protocol identifiers (stable order)."""
     return list(PROTOCOLS.keys())
