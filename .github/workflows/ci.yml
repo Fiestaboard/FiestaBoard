@@ -311,10 +311,50 @@ jobs:
       working-directory: web
       run: npm run test-storybook:ci -- --url "http://localhost:6006?globals=theme:light"
 
+  build-test-image:
+    name: Build Test Image
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    timeout-minutes: 10
+
+    # Builds the test Docker image once and warms the `build-test` GHA
+    # cache scope. The three downstream E2E jobs (e2e, ai-mcp, auth)
+    # each `needs:` this job and pull from the warm cache via
+    # `cache-from`, skipping the work of computing layers themselves.
+    # Net effect: one cold build per PR instead of three.
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        continue-on-error: true
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build test image (warms cache for E2E jobs)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          # `load: false` — this job doesn't run the image, it only
+          # populates the GHA cache so the E2E jobs can pull warm layers.
+          build-args: |
+            VERSION=dev
+          cache-from: |
+            type=gha,scope=build-linux/amd64
+            type=gha,scope=build-test
+          cache-to: type=gha,mode=max,scope=build-test
+
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, build-test-image]
     if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 15
 
@@ -371,10 +411,10 @@ jobs:
           tags: fiestaboard:e2e
           build-args: |
             VERSION=dev
+          # Cache is warmed by the `build-test-image` job; we only read.
           cache-from: |
             type=gha,scope=build-linux/amd64
             type=gha,scope=build-test
-          cache-to: type=gha,mode=max,scope=build-test
 
       # ── Start containers ──────────────────────────────────────────
       - name: Start 4 mock board + FiestaBoard containers
@@ -501,7 +541,7 @@ jobs:
   ai-mcp-e2e-tests:
     name: AI + MCP E2E Tests
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, build-test-image]
     if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 12
 
@@ -650,7 +690,7 @@ jobs:
   auth-e2e-tests:
     name: Auth E2E Tests
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, build-test-image]
     if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
 
@@ -832,7 +872,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, test-platform, test-plugins, test-ui, a11y-tests, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, build, build-docs]
+    needs: [detect-changes, test-platform, test-plugins, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, build, build-docs]
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
