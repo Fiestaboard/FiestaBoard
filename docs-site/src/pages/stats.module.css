@@ -1,0 +1,371 @@
+.page {
+  padding: 3rem 0 5rem;
+}
+
+.header {
+  margin-bottom: 2.5rem;
+}
+
+.subtitle {
+  font-size: 1.125rem;
+  color: var(--ifm-color-secondary-darkest);
+  margin: 0;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 4rem 0;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.error {
+  color: var(--ifm-color-danger);
+}
+
+/* ── Dashboard two-column grid ────────────────────────────────── */
+
+.dashboard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2.5rem;
+  align-items: start;
+  margin-bottom: 3rem;
+}
+
+.dashboardLeft {
+  min-width: 0;
+}
+
+.dashboardRight {
+  min-width: 0;
+}
+
+/* ── Top plugin spotlight ──────────────────────────────────────── */
+
+.spotlight {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s;
+}
+
+.spotlight:hover {
+  border-color: var(--ifm-color-primary);
+  text-decoration: none;
+  color: inherit;
+}
+
+.spotlightImage {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.spotlightImagePlaceholder {
+  width: 100%;
+  height: 200px;
+  background: var(--ifm-color-emphasis-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.spotlightFooter {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.spotlightIcon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: var(--ifm-color-emphasis-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ifm-color-primary);
+}
+
+.spotlightBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.spotlightName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ifm-font-color-base);
+  line-height: 1.3;
+}
+
+.spotlightStat {
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-top: 0.1rem;
+}
+
+.spotlightBadge {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+  padding: 0.3em 0.65em;
+  border-radius: 4px;
+}
+
+/* ── Summary strip ─────────────────────────────────────────────── */
+
+.statStrip {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.25rem;
+}
+
+.statStripItem {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.statStripValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  line-height: 1;
+}
+
+.statStripLabel {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ── Sections ──────────────────────────────────────────────────── */
+
+.section {
+  margin-bottom: 3.5rem;
+}
+
+.sectionNote {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0.25rem 0 1.25rem;
+}
+
+/* ── Bar chart ─────────────────────────────────────────────────── */
+
+.barChart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 150px 1fr 46px;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.barName {
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+
+.barName:hover {
+  text-decoration: underline;
+}
+
+.barTrack {
+  height: 18px;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--ifm-color-primary);
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.barValue {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-700);
+  text-align: right;
+}
+
+/* ── Show more button ──────────────────────────────────────────── */
+
+.showMoreBtn {
+  margin-top: 0.75rem;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  color: var(--ifm-color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.showMoreBtn:hover {
+  opacity: 0.8;
+}
+
+/* ── Category grid ─────────────────────────────────────────────── */
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.75rem;
+}
+
+.categoryCard {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.categoryCount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+}
+
+.categoryName {
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-top: 0.25rem;
+}
+
+/* ── Recently added / updated ──────────────────────────────────── */
+
+.recentColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.recentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recentItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  gap: 0.5rem;
+}
+
+.recentMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.recentCategory {
+  font-size: 0.75rem;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.recentDate {
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-600);
+  white-space: nowrap;
+}
+
+.recentVersion {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ── Freshness footer ──────────────────────────────────────────── */
+
+.freshness {
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-top: 3rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  padding-top: 1rem;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .statStrip {
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .barRow {
+    grid-template-columns: 120px 1fr 40px;
+    gap: 0.5rem;
+  }
+
+  .barName {
+    font-size: 0.8125rem;
+  }
+
+  .recentColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .recentItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+}
