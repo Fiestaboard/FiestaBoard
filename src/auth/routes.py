@@ -16,7 +16,9 @@ from .service import (
     _auth_env_override,
     _remember_me_ttl_seconds,
     auth_mode,
+    generate_mcp_token,
     get_auth_service,
+    mcp_token_source,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,6 +78,25 @@ class PreferenceRequest(BaseModel):
 class SimpleResponse(BaseModel):
     status: str
     username: str | None = None
+
+
+class McpTokenStatusResponse(BaseModel):
+    # Whether the MCP endpoint will accept *any* bearer token right now.
+    configured: bool
+    # ``"env"``  -> ``FIESTABOARD_MCP_TOKEN`` is set; the UI must show
+    #               "managed by ops" and hide rotate/clear controls.
+    # ``"stored"`` -> token lives in ``auth.json`` and is UI-managed.
+    # ``"none"`` -> nothing configured; ``/mcp`` still requires the
+    #               session cookie (legacy behaviour).
+    source: str
+
+
+class McpTokenRotateResponse(BaseModel):
+    # Returned ONCE on rotation. The plaintext token is never readable
+    # again after this response — the client must show it to the user
+    # immediately. The server stores it verbatim (auth.json is 0600) so
+    # ``verify_mcp_bearer`` can constant-time-compare future requests.
+    token: str
 
 
 # --- Cookie helpers --------------------------------------------------------
@@ -363,4 +384,82 @@ async def auth_disable(
         ) from None
     _clear_session_cookie(response)
     logger.info("Auth disabled by user '%s'", username)
+    return SimpleResponse(status="ok")
+
+
+# --- MCP bearer-token management ------------------------------------------
+#
+# These endpoints let an authenticated admin generate / rotate / revoke the
+# pre-shared bearer token that external MCP clients (Claude Desktop, Claude
+# Code) use to authenticate. The plaintext token is only returned by
+# ``POST /auth/mcp-token`` and never read back — the UI is responsible for
+# showing it to the user at rotation time.
+
+
+def _require_admin(request: Request) -> str:
+    """Return the logged-in username or raise 401. Shared 1-line gate."""
+    svc = get_auth_service()
+    cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    username = svc.verify_session(cookie) if cookie else None
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+    return username
+
+
+@router.get("/mcp-token", response_model=McpTokenStatusResponse)
+async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
+    """Report whether an MCP bearer token is configured, and from where."""
+    _require_admin(request)
+    source = mcp_token_source()
+    return McpTokenStatusResponse(configured=source != "none", source=source)
+
+
+@router.post(
+    "/mcp-token",
+    response_model=McpTokenRotateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
+    """Generate a fresh MCP bearer token, persist it, and return it ONCE.
+
+    Refuses if ``FIESTABOARD_MCP_TOKEN`` is set, because the env var wins
+    in :func:`~src.auth.service.mcp_token` resolution — a UI rotation
+    would silently have no effect and confuse the admin.
+    """
+    username = _require_admin(request)
+    if mcp_token_source() == "env":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "MCP token is pinned by FIESTABOARD_MCP_TOKEN environment "
+                "variable. Unset it before managing the token from the UI."
+            ),
+        )
+    token = generate_mcp_token()
+    get_auth_service().set_stored_mcp_token(token)
+    logger.info("MCP token rotated by user '%s'", username)
+    return McpTokenRotateResponse(token=token)
+
+
+@router.delete("/mcp-token", response_model=SimpleResponse)
+async def auth_mcp_token_clear(request: Request) -> SimpleResponse:
+    """Revoke the stored MCP bearer token.
+
+    External MCP clients will start receiving 401 + Bearer challenge on
+    their next request. (If ``FIESTABOARD_MCP_TOKEN`` is set, this only
+    clears the stored fallback — the env var continues to be active.)
+    """
+    username = _require_admin(request)
+    if mcp_token_source() == "env":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "MCP token is pinned by FIESTABOARD_MCP_TOKEN environment "
+                "variable. Unset it before managing the token from the UI."
+            ),
+        )
+    get_auth_service().set_stored_mcp_token(None)
+    logger.info("MCP token revoked by user '%s'", username)
     return SimpleResponse(status="ok")
