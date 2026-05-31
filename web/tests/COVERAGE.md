@@ -13,12 +13,14 @@ Tests exercise the full stack:
 Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 ```
 
-### Playwright Spec Files (27 files)
+### Playwright Spec Files (29 files)
 
 | File | Area | What's Covered |
 |------|------|----------------|
+| `ai.spec.ts` | AI providers + generation | `/settings/ai` round-trip + api_key masking, `/settings/ai/test` against a mock OpenAI server (happy path + draft override + auth error), `/pages/ai/context` debug payload, `/pages/ai/generate` happy path / disabled / bad JSON / missing template / upstream auth error, Settings → Integrations tab renders AI Settings. Gated behind `RUN_AI_TESTS=1`; runs in the `ai-mcp-e2e-tests` CI job against `integration-tests/mock-llm/server.py`. |
 | `api.spec.ts` | Backend API | Core endpoint contracts: version, config, settings CRUD, pages CRUD, schedules CRUD, plugins, template validation, displays, debug |
 | `api-extended.spec.ts` | Backend API | Deeper API coverage: full config, board config test, page preview/send/batch, schedule active/validate/default/enable, plugin config/variables, settings transitions/active-page/board, template render, service start/stop |
+| `mcp.spec.ts` | MCP HTTP | Smoke that `/api/mcp/` is mounted, MCP Streamable-HTTP initialize handshake, `tools/list` returns the expected FiestaBoard tool catalog, `tools/call list_pages` returns valid JSON, unknown-tool error path. Catches "MCP broke at the HTTP boundary" regressions that `tests/test_mcp_server.py` can't see. Gated behind `RUN_AI_TESTS=1`. |
 | `board-discovery-offline.spec.ts` | Board discovery & offline | Board scan/discovery endpoint, connection test (online/offline/missing creds), per-board schedule active page resolution, per-board schedule enable/disable independence, Note template rendering dimensions, offline board send handling, multi-board state independence |
 | `calendar-alignment.spec.ts` | Schedule UI | Time gutter label alignment with hour grid, desktop + mobile viewports |
 | `dashboard.spec.ts` | Dashboard | Board display visible, active page name, manual mode badge |

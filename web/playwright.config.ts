@@ -20,6 +20,13 @@ const ciIgnore = ["**/generate-screenshots.spec.ts"];
 if (!process.env.RUN_VISUAL_REGRESSION) {
   ciIgnore.push("**/visual-regression.spec.ts");
 }
+// AI + MCP specs need the mock-llm container reachable and (for the AI
+// tests) write to the global /settings/ai config. They share a dedicated
+// CI job and are opted in via RUN_AI_TESTS to keep the main e2e matrix
+// free of cross-spec state contention.
+if (!process.env.RUN_AI_TESTS) {
+  ciIgnore.push("**/ai.spec.ts", "**/mcp.spec.ts");
+}
 
 export default defineConfig({
   testDir: "./tests",
