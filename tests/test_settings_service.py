@@ -19,6 +19,7 @@ from src.settings.service import (
     BoardSettings,
     ScheduleSettings,
     BetaSettings,
+    DisplaySettings,
     get_settings_service,
     VALID_OUTPUT_TARGETS,
 )
@@ -668,3 +669,101 @@ class TestSettingsServiceBeta:
 
         svc2 = SettingsService(settings_file=settings_file)
         assert svc2.get_beta_settings().https_enabled is True
+
+
+class TestDisplaySettings:
+    """Test DisplaySettings dataclass."""
+
+    def test_defaults(self):
+        ds = DisplaySettings()
+        assert ds.reduce_motion is False
+        assert ds.board_animations == "on"
+        assert ds.site_animations == "on"
+
+    def test_from_dict_empty_uses_defaults(self):
+        ds = DisplaySettings.from_dict({})
+        assert ds.reduce_motion is False
+        assert ds.board_animations == "on"
+        assert ds.site_animations == "on"
+
+    def test_from_dict_with_all_fields(self):
+        ds = DisplaySettings.from_dict({
+            "reduce_motion": True,
+            "board_animations": "desktop",
+            "site_animations": "off",
+        })
+        assert ds.reduce_motion is True
+        assert ds.board_animations == "desktop"
+        assert ds.site_animations == "off"
+
+    def test_from_dict_rejects_invalid_board_animations(self):
+        ds = DisplaySettings.from_dict({"board_animations": "bogus"})
+        assert ds.board_animations == "on"
+
+    def test_from_dict_rejects_invalid_site_animations(self):
+        ds = DisplaySettings.from_dict({"site_animations": "sometimes"})
+        assert ds.site_animations == "on"
+
+    def test_from_dict_case_insensitive(self):
+        ds = DisplaySettings.from_dict({
+            "board_animations": "DESKTOP",
+            "site_animations": "OFF",
+        })
+        assert ds.board_animations == "desktop"
+        assert ds.site_animations == "off"
+
+    def test_to_dict_roundtrip(self):
+        original = DisplaySettings(
+            reduce_motion=True,
+            board_animations="off",
+            site_animations="off",
+        )
+        restored = DisplaySettings.from_dict(original.to_dict())
+        assert restored == original
+
+
+class TestSettingsServiceDisplay:
+    """Test SettingsService display-settings methods."""
+
+    def test_get_display_settings_defaults(self, settings_service):
+        ds = settings_service.get_display_settings()
+        assert ds.board_animations == "on"
+        assert ds.site_animations == "on"
+        assert ds.reduce_motion is False
+
+    def test_update_board_animations(self, settings_service):
+        ds = settings_service.update_display_settings({"board_animations": "desktop"})
+        assert ds.board_animations == "desktop"
+
+    def test_update_site_animations(self, settings_service):
+        ds = settings_service.update_display_settings({"site_animations": "off"})
+        assert ds.site_animations == "off"
+
+    def test_update_display_settings_partial_preserves_others(self, settings_service):
+        settings_service.update_display_settings({
+            "board_animations": "off",
+            "site_animations": "off",
+        })
+        # Only touch reduce_motion — other keys must stick around.
+        ds = settings_service.update_display_settings({"reduce_motion": True})
+        assert ds.reduce_motion is True
+        assert ds.board_animations == "off"
+        assert ds.site_animations == "off"
+
+    def test_update_rejects_invalid_value(self, settings_service):
+        ds = settings_service.update_display_settings({"board_animations": "wat"})
+        # Invalid input falls back to "on" rather than raising — keeps the
+        # UI from getting wedged if an old client sends a stale value.
+        assert ds.board_animations == "on"
+
+    def test_display_settings_persist_across_reload(self, settings_file, mock_config):
+        svc1 = SettingsService(settings_file=settings_file)
+        svc1.update_display_settings({
+            "board_animations": "desktop",
+            "site_animations": "off",
+        })
+
+        svc2 = SettingsService(settings_file=settings_file)
+        ds = svc2.get_display_settings()
+        assert ds.board_animations == "desktop"
+        assert ds.site_animations == "off"

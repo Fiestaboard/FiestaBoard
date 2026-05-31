@@ -85,7 +85,11 @@ def mock_settings_service():
         ss.get_board_settings.return_value = board_settings
 
         display = Mock()
-        display.to_dict.return_value = {"reduce_motion": False}
+        display.to_dict.return_value = {
+            "reduce_motion": False,
+            "board_animations": "on",
+            "site_animations": "on",
+        }
         ss.get_display_settings.return_value = display
         ss.update_display_settings.return_value = display
 

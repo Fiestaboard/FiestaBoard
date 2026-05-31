@@ -274,17 +274,42 @@ class LocationSettings:
         )
 
 
+BOARD_ANIMATIONS_VALUES = ("on", "desktop", "off")
+SITE_ANIMATIONS_VALUES = ("on", "off")
+
+
+def _coerce_board_animations(value: object) -> str:
+    s = str(value).lower() if value is not None else "on"
+    return s if s in BOARD_ANIMATIONS_VALUES else "on"
+
+
+def _coerce_site_animations(value: object) -> str:
+    s = str(value).lower() if value is not None else "on"
+    return s if s in SITE_ANIMATIONS_VALUES else "on"
+
+
 @dataclass
 class DisplaySettings:
     """Web UI display preferences."""
     reduce_motion: bool = False
+    # Split-flap board animation. "on" = animate everywhere, "desktop" =
+    # animate on desktop but skip on mobile (saves battery / avoids motion
+    # sickness on small screens), "off" = never animate the board.
+    board_animations: str = "on"
+    # General UI motion (transitions, hovers, page enter/leave).
+    # "on" = animate, "off" = disable. `reduce_motion` overrides to off.
+    site_animations: str = "on"
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "DisplaySettings":
-        return cls(reduce_motion=bool(data.get("reduce_motion", False)))
+        return cls(
+            reduce_motion=bool(data.get("reduce_motion", False)),
+            board_animations=_coerce_board_animations(data.get("board_animations", "on")),
+            site_animations=_coerce_site_animations(data.get("site_animations", "on")),
+        )
 
 
 @dataclass
@@ -990,6 +1015,14 @@ class SettingsService:
         """
         if "reduce_motion" in updates:
             self._display.reduce_motion = bool(updates["reduce_motion"])
+        if "board_animations" in updates:
+            self._display.board_animations = _coerce_board_animations(
+                updates["board_animations"]
+            )
+        if "site_animations" in updates:
+            self._display.site_animations = _coerce_site_animations(
+                updates["site_animations"]
+            )
         self._save_to_file()
         logger.info(f"Display settings updated: {self._display}")
         return self._display

@@ -966,7 +966,22 @@
     "statusStopped": "Stopped",
     "devBuild": "Development build",
     "viewDocs": "View documentation",
-    "timezoneLabel": "Timezone"
+    "timezoneLabel": "Timezone",
+    "animationsTitle": "Animations",
+    "animationsDescription": "Fine-tune motion separately for the board preview and the rest of the app",
+    "boardAnimationsLabel": "Board animations",
+    "boardAnimationsHint": "The split-flap flip when tiles change",
+    "boardAnimationsOn": "On",
+    "boardAnimationsDesktop": "Desktop only",
+    "boardAnimationsOff": "Off",
+    "boardAnimationsOnHint": "Animate everywhere",
+    "boardAnimationsDesktopHint": "Skip the flap animation on phones and tablets",
+    "boardAnimationsOffHint": "Never animate; tiles change instantly",
+    "siteAnimationsLabel": "Site animations",
+    "siteAnimationsHint": "Transitions, hovers, and other UI motion",
+    "siteAnimationsOn": "On",
+    "siteAnimationsOff": "Off",
+    "animationsReduceMotionOverride": "Reduce motion is enabled, which overrides these settings."
   },
   "monitor": {
     "title": "Monitor",
