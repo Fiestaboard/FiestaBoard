@@ -28,8 +28,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Detect changed paths
         id: filter
@@ -530,6 +528,7 @@ jobs:
       # ── Run tests ─────────────────────────────────────────────────
       - name: Run E2E tests
         working-directory: web
+        timeout-minutes: 10
         run: npx playwright test --reporter=github
         env:
           CI: true
@@ -549,6 +548,7 @@ jobs:
         id: visual-regression
         working-directory: web
         continue-on-error: true
+        timeout-minutes: 5
         run: npx playwright test visual-regression.spec.ts --reporter=github --workers=1
         env:
           CI: true
@@ -700,6 +700,7 @@ jobs:
 
       - name: Run AI + MCP E2E tests
         working-directory: web
+        timeout-minutes: 8
         run: npx playwright test ai.spec.ts mcp.spec.ts --reporter=github --workers=1
         env:
           CI: true
@@ -808,6 +809,7 @@ jobs:
 
       - name: Run auth E2E tests
         working-directory: web
+        timeout-minutes: 5
         run: npx playwright test auth.spec.ts --reporter=github --workers=1
         env:
           CI: true

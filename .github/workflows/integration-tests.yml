@@ -50,30 +50,36 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:integration
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Share scopes with ci.yml's e2e jobs so PR builds hit cache
+          # populated by the most recent release as well as any other
+          # in-flight PR build of the same image.
+          cache-from: |
+            type=gha,scope=build-linux/amd64
+            type=gha,scope=build-test
+          cache-to: type=gha,mode=max,scope=build-test
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      # mock-board/server.py uses only the Python stdlib (http.server,
+      # urllib, json, threading), so no pip install is needed on the
+      # runner. ubuntu-latest ships with python3 pre-installed.
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "20"
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Install UI dependencies
         working-directory: web
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: Install Playwright browsers
         working-directory: web
@@ -85,7 +91,8 @@ jobs:
       - name: Start mock Vestaboard API (smoke)
         if: github.event_name == 'pull_request'
         run: |
-          python integration-tests/mock-board/server.py &
+          # python3 is pre-installed on ubuntu-latest; the script is stdlib-only.
+          python3 integration-tests/mock-board/server.py &
           sleep 2
           echo "Mock board started on port 7000"
 
@@ -116,6 +123,7 @@ jobs:
       - name: Run integration tests (smoke subset on PRs)
         if: github.event_name == 'pull_request'
         working-directory: web
+        timeout-minutes: 8
         run: npx playwright test integration.spec.ts --reporter=github
         env:
           CI: true
@@ -193,6 +201,7 @@ jobs:
       - name: Run integration tests (full suite on merge queue)
         if: github.event_name == 'merge_group'
         working-directory: web
+        timeout-minutes: 12
         run: npx playwright test --reporter=github
         env:
           CI: true
