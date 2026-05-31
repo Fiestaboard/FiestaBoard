@@ -13,12 +13,13 @@ Tests exercise the full stack:
 Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 ```
 
-### Playwright Spec Files (27 files)
+### Playwright Spec Files (28 files)
 
 | File | Area | What's Covered |
 |------|------|----------------|
 | `api.spec.ts` | Backend API | Core endpoint contracts: version, config, settings CRUD, pages CRUD, schedules CRUD, plugins, template validation, displays, debug |
 | `api-extended.spec.ts` | Backend API | Deeper API coverage: full config, board config test, page preview/send/batch, schedule active/validate/default/enable, plugin config/variables, settings transitions/active-page/board, template render, service start/stop |
+| `auth.spec.ts` | Authentication | First-run setup form, sign-in form (valid + invalid creds), remember-me cookie behavior, logout, protected-route 401 / 409 setup-required, `/profile` redirect, `redirect=` query param. Gated behind `RUN_AUTH_TESTS=1` because it requires a container booted with `FIESTABOARD_AUTH_ENABLED=true`. Runs in its own CI job (`auth-e2e-tests`); the main e2e job runs with auth disabled. |
 | `board-discovery-offline.spec.ts` | Board discovery & offline | Board scan/discovery endpoint, connection test (online/offline/missing creds), per-board schedule active page resolution, per-board schedule enable/disable independence, Note template rendering dimensions, offline board send handling, multi-board state independence |
 | `calendar-alignment.spec.ts` | Schedule UI | Time gutter label alignment with hour grid, desktop + mobile viewports |
 | `dashboard.spec.ts` | Dashboard | Board display visible, active page name, manual mode badge |
@@ -63,6 +64,8 @@ Playwright browser → Next.js UI → FastAPI backend → Mock Vestaboard API
 | `/integrations/[pluginId]` | `plugin-detail.spec.ts` |
 | `/settings` | `settings.spec.ts`, `settings-full.spec.ts`, `visual-regression.spec.ts` |
 | `/debug` | `settings-full.spec.ts` (debug tools section) |
+| `/login` | `auth.spec.ts` (setup + sign-in forms) |
+| `/profile` | `auth.spec.ts` (redirects to `/settings`) |
 
 ---
 
