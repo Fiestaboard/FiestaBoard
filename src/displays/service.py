@@ -4,6 +4,8 @@ This module provides a clean interface to fetch formatted and raw data
 from each display source via the plugin system.
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from typing import Any
