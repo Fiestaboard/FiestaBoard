@@ -4,15 +4,17 @@ This module provides a clean interface to fetch formatted and raw data
 from each display source via the plugin system.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
+from typing import Any
 
 from ..formatters.message_formatter import get_message_formatter
 
 # Import plugin system
 try:
-    from ..plugins import get_plugin_registry, PluginRegistry
+    from ..plugins import PluginRegistry, get_plugin_registry
     PLUGIN_SYSTEM_AVAILABLE = True
 except ImportError:
     PLUGIN_SYSTEM_AVAILABLE = False
@@ -27,27 +29,27 @@ class DisplayResult:
     """Result from fetching a display."""
     display_type: str
     formatted: str
-    raw: Dict[str, Any]
+    raw: dict[str, Any]
     available: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class DisplayService:
     """Service for fetching individual display sources.
-    
+
     Provides methods to:
     - List available display types
     - Get formatted output for a specific type
     - Get raw data from a source
-    
+
     Uses the plugin system exclusively for all data sources.
     """
-    
+
     def __init__(self):
         """Initialize display service with plugin registry."""
         self.formatter = get_message_formatter()
-        self._plugin_registry: Optional[PluginRegistry] = None
-        
+        self._plugin_registry: PluginRegistry | None = None
+
         if PLUGIN_SYSTEM_AVAILABLE:
             try:
                 self._plugin_registry = get_plugin_registry()
@@ -58,16 +60,16 @@ class DisplayService:
                 self._plugin_registry = None
         else:
             logger.error("Plugin system is not available. DisplayService cannot function.")
-        
+
         logger.info(f"DisplayService initialized (plugins={'enabled' if self._plugin_registry else 'disabled'})")
-    
-    def get_plugin_registry(self) -> Optional[PluginRegistry]:
+
+    def get_plugin_registry(self) -> PluginRegistry | None:
         """Get the plugin registry if available."""
         return self._plugin_registry
-    
-    def get_available_displays(self) -> List[Dict[str, Any]]:
+
+    def get_available_displays(self) -> list[dict[str, Any]]:
         """Get list of available display types with their status.
-        
+
         Returns:
             List of display info dictionaries with:
             - type: Display type name (plugin ID)
@@ -77,7 +79,7 @@ class DisplayService:
         """
         if not self._plugin_registry:
             return []
-        
+
         displays = []
         for plugin_data in self._plugin_registry.list_plugins():
             plugin_id = plugin_data["id"]
@@ -88,13 +90,13 @@ class DisplayService:
                 "source": "plugin",
             })
         return displays
-    
+
     def get_display(self, display_type: str) -> DisplayResult:
         """Get formatted and raw data for a specific display type (plugin).
-        
+
         Args:
             display_type: Plugin ID
-            
+
         Returns:
             DisplayResult with formatted text and raw data
         """
@@ -106,7 +108,7 @@ class DisplayService:
                 available=False,
                 error="Plugin system not initialized."
             )
-        
+
         # Validate the display type exists as a plugin
         if not self._plugin_registry.get_plugin(display_type):
             # Get list of valid plugin IDs
@@ -118,10 +120,10 @@ class DisplayService:
                 available=False,
                 error=f"Unknown display type: {display_type}. Valid types: {valid_types}"
             )
-        
+
         try:
             plugin_result = self._plugin_registry.fetch_plugin_data(display_type)
-            
+
             if plugin_result.available:
                 # Convert PluginResult to DisplayResult
                 formatted_lines = plugin_result.formatted_lines
@@ -129,7 +131,7 @@ class DisplayService:
                     formatted = "\n".join(formatted_lines)
                 else:
                     formatted = str(plugin_result.data.get("formatted", "")) if plugin_result.data else ""
-                
+
                 return DisplayResult(
                     display_type=display_type,
                     formatted=formatted,
@@ -156,7 +158,7 @@ class DisplayService:
 
 
 # Singleton instance
-_display_service: Optional[DisplayService] = None
+_display_service: DisplayService | None = None
 
 
 def get_display_service() -> DisplayService:
@@ -169,7 +171,7 @@ def get_display_service() -> DisplayService:
 
 def reset_display_service() -> None:
     """Reset the display service singleton to force reinitialization.
-    
+
     This should be called when configuration changes to ensure
     data sources are recreated with updated settings.
     """

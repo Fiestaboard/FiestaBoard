@@ -9,7 +9,7 @@ import logging
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any
 
 from .base import PluginBase
 from .manifest import PluginManifest, load_manifest
@@ -33,7 +33,7 @@ def _get_fiestaboard_version() -> str:
     return __version__
 
 
-def _parse_version(version_str: str) -> Tuple[int, int, int]:
+def _parse_version(version_str: str) -> tuple[int, int, int]:
     """Parse a semver string into a (major, minor, patch) tuple."""
     match = re.match(r"(\d+)\.(\d+)\.(\d+)", version_str)
     if not match:
@@ -41,7 +41,7 @@ def _parse_version(version_str: str) -> Tuple[int, int, int]:
     return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
 
 
-def _check_version_constraint(constraint: str, running_version: str) -> Tuple[bool, str]:
+def _check_version_constraint(constraint: str, running_version: str) -> tuple[bool, str]:
     """Check whether *running_version* satisfies *constraint*.
 
     Supports simple single-operator constraints: ``>=``, ``>``, ``<=``, ``<``,
@@ -96,8 +96,8 @@ class PluginLoader:
 
     def __init__(
         self,
-        plugins_dir: Optional[Path] = None,
-        external_dirs: Optional[List[Path]] = None,
+        plugins_dir: Path | None = None,
+        external_dirs: list[Path] | None = None,
     ):
         """Initialize the plugin loader.
 
@@ -118,44 +118,44 @@ class PluginLoader:
         if external_dirs is None:
             project_root = Path(__file__).parent.parent.parent
             ext_dir = project_root / EXTERNAL_PLUGINS_DIR
-            self._external_dirs: List[Path] = [ext_dir] if ext_dir.is_dir() else []
+            self._external_dirs: list[Path] = [ext_dir] if ext_dir.is_dir() else []
         else:
             self._external_dirs = list(external_dirs)
 
-        self._loaded_plugins: Dict[str, Tuple[PluginBase, PluginManifest]] = {}
-        self._plugin_classes: Dict[str, Type[PluginBase]] = {}
-        self._load_errors: Dict[str, List[str]] = {}
-        self._plugin_sources: Dict[str, PluginSource] = {}
+        self._loaded_plugins: dict[str, tuple[PluginBase, PluginManifest]] = {}
+        self._plugin_classes: dict[str, type[PluginBase]] = {}
+        self._load_errors: dict[str, list[str]] = {}
+        self._plugin_sources: dict[str, PluginSource] = {}
 
         logger.info(
             "PluginLoader initialized – built-in: %s, external dirs: %s",
             self.plugins_dir,
             [str(d) for d in self._external_dirs],
         )
-    
+
     @property
-    def loaded_plugins(self) -> Dict[str, Tuple[PluginBase, PluginManifest]]:
+    def loaded_plugins(self) -> dict[str, tuple[PluginBase, PluginManifest]]:
         """Return all successfully loaded plugins."""
         return self._loaded_plugins.copy()
 
     @property
-    def load_errors(self) -> Dict[str, List[str]]:
+    def load_errors(self) -> dict[str, list[str]]:
         """Return load errors by plugin directory name."""
         return self._load_errors.copy()
 
     @property
-    def plugin_sources(self) -> Dict[str, PluginSource]:
+    def plugin_sources(self) -> dict[str, PluginSource]:
         """Return source information for every loaded plugin."""
         return self._plugin_sources.copy()
 
     # ── discovery ────────────────────────────────────────────────────────
 
-    def _discover_from_dir(self, directory: Path) -> List[str]:
+    def _discover_from_dir(self, directory: Path) -> list[str]:
         """Discover valid plugin directories inside *directory*."""
         if not directory.exists() or not directory.is_dir():
             return []
 
-        found: List[str] = []
+        found: list[str] = []
         for item in directory.iterdir():
             if item.name.startswith(".") or item.name.startswith("_"):
                 continue
@@ -164,7 +164,7 @@ class PluginLoader:
                 logger.debug("Discovered plugin directory: %s", item.name)
         return found
 
-    def discover_plugins(self) -> List[str]:
+    def discover_plugins(self) -> list[str]:
         """Discover available plugin directories.
 
         Scans the built-in ``plugins/`` directory first, then any
@@ -175,7 +175,7 @@ class PluginLoader:
         Returns:
             Sorted list of unique plugin directory names.
         """
-        seen: Dict[str, Path] = {}
+        seen: dict[str, Path] = {}
 
         # Built-in directory first (takes precedence)
         for name in self._discover_from_dir(self.plugins_dir):
@@ -188,10 +188,10 @@ class PluginLoader:
                     seen[name] = ext_dir / name
 
         return sorted(seen.keys())
-    
+
     # ── resolution ──────────────────────────────────────────────────────
 
-    def _resolve_plugin_dir(self, plugin_name: str) -> Optional[Path]:
+    def _resolve_plugin_dir(self, plugin_name: str) -> Path | None:
         """Find the on-disk directory for *plugin_name*.
 
         Checks built-in first, then external directories.
@@ -223,39 +223,39 @@ class PluginLoader:
 
     # ── loading ──────────────────────────────────────────────────────────
 
-    def load_plugin(self, plugin_name: str) -> Optional[PluginBase]:
+    def load_plugin(self, plugin_name: str) -> PluginBase | None:
         """Load a single plugin by directory name.
-        
+
         Args:
             plugin_name: Name of the plugin directory
-            
+
         Returns:
             Loaded plugin instance, or None if loading failed
         """
         plugin_dir = self._resolve_plugin_dir(plugin_name)
-        errors: List[str] = []
-        
+        errors: list[str] = []
+
         # Clear previous errors
         self._load_errors.pop(plugin_name, None)
-        
+
         # Check directory exists
         if plugin_dir is None or not plugin_dir.exists():
             errors.append(f"Plugin directory not found: {plugin_name}")
             self._load_errors[plugin_name] = errors
             return None
-        
+
         # Load and validate manifest
         manifest_path = plugin_dir / "manifest.json"
         manifest, manifest_errors = load_manifest(manifest_path)
-        
+
         if manifest_errors:
             errors.extend(manifest_errors)
             self._load_errors[plugin_name] = errors
             logger.error(f"Failed to load manifest for {plugin_name}: {manifest_errors}")
             return None
-        
+
         assert manifest is not None
-        
+
         # Verify manifest id matches directory name
         if manifest.id != plugin_name:
             errors.append(f"Manifest id '{manifest.id}' does not match directory name '{plugin_name}'")
@@ -288,38 +288,38 @@ class PluginLoader:
                 errors.append(f"Plugin __init__.py not found: {init_path}")
                 self._load_errors[plugin_name] = errors
                 return None
-        
+
         try:
             # Import the plugin module dynamically
             module_name = f"plugins.{plugin_name}"
             spec = importlib.util.spec_from_file_location(module_name, init_path)
-            
+
             if spec is None or spec.loader is None:
                 errors.append(f"Failed to create module spec for {plugin_name}")
                 self._load_errors[plugin_name] = errors
                 return None
-            
+
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
-            
+
         except Exception as e:
             errors.append(f"Failed to import plugin module: {e}")
             self._load_errors[plugin_name] = errors
             logger.exception(f"Error importing plugin {plugin_name}")
             return None
-        
+
         # Find PluginBase subclass
         plugin_class = self._find_plugin_class(module, manifest.id)
         if plugin_class is None:
             errors.append(f"No PluginBase subclass found in {plugin_name}")
             self._load_errors[plugin_name] = errors
             return None
-        
+
         # Instantiate plugin
         try:
             plugin_instance = plugin_class(manifest.raw)
-            
+
             # Verify plugin_id property
             if plugin_instance.plugin_id != manifest.id:
                 errors.append(
@@ -328,78 +328,78 @@ class PluginLoader:
                 )
                 self._load_errors[plugin_name] = errors
                 return None
-            
+
             # Store loaded plugin and class
             self._loaded_plugins[manifest.id] = (plugin_instance, manifest)
             self._plugin_classes[manifest.id] = plugin_class
             self._plugin_sources[manifest.id] = self._source_for_dir(plugin_dir)
             logger.info(f"Successfully loaded plugin: {manifest.id} v{manifest.version}")
-            
+
             return plugin_instance
-            
+
         except Exception as e:
             errors.append(f"Failed to instantiate plugin: {e}")
             self._load_errors[plugin_name] = errors
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
-    
-    def _find_plugin_class(self, module: Any, expected_id: str) -> Optional[Type[PluginBase]]:
+
+    def _find_plugin_class(self, module: Any, expected_id: str) -> type[PluginBase] | None:
         """Find the PluginBase subclass in a module.
-        
+
         Args:
             module: Loaded Python module
             expected_id: Expected plugin_id for validation
-            
+
         Returns:
             PluginBase subclass, or None if not found
         """
         # Look for exported Plugin class
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-            
+
             # Skip non-classes
             if not isinstance(attr, type):
                 continue
-            
+
             # Skip PluginBase itself
             if attr is PluginBase:
                 continue
-            
+
             # Check if it's a PluginBase subclass
             if issubclass(attr, PluginBase):
                 logger.debug(f"Found plugin class: {attr_name}")
                 return attr
-        
+
         return None
-    
-    def load_all_plugins(self) -> Dict[str, PluginBase]:
+
+    def load_all_plugins(self) -> dict[str, PluginBase]:
         """Discover and load all available plugins.
-        
+
         Returns:
             Dictionary mapping plugin IDs to loaded instances
         """
         plugin_dirs = self.discover_plugins()
         loaded = {}
-        
+
         for plugin_name in plugin_dirs:
             plugin = self.load_plugin(plugin_name)
             if plugin:
                 loaded[plugin.plugin_id] = plugin
-        
+
         logger.info(f"Loaded {len(loaded)}/{len(plugin_dirs)} plugins")
-        
+
         if self._load_errors:
             for name, errors in self._load_errors.items():
                 logger.warning(f"Plugin {name} had errors: {errors}")
-        
+
         return loaded
-    
-    def reload_plugin(self, plugin_id: str) -> Optional[PluginBase]:
+
+    def reload_plugin(self, plugin_id: str) -> PluginBase | None:
         """Reload a plugin (unload and load again).
-        
+
         Args:
             plugin_id: ID of plugin to reload
-            
+
         Returns:
             Reloaded plugin instance, or None if failed
         """
@@ -408,45 +408,45 @@ class PluginLoader:
             old_plugin, _ = self._loaded_plugins[plugin_id]
             old_plugin.cleanup()
             del self._loaded_plugins[plugin_id]
-            
+
             # Remove from sys.modules to force reimport
             module_name = f"plugins.{plugin_id}"
             if module_name in sys.modules:
                 del sys.modules[module_name]
-        
+
         # Load again
         return self.load_plugin(plugin_id)
-    
+
     def unload_plugin(self, plugin_id: str) -> bool:
         """Unload a plugin.
-        
+
         Args:
             plugin_id: ID of plugin to unload
-            
+
         Returns:
             True if unloaded, False if not loaded
         """
         if plugin_id not in self._loaded_plugins:
             return False
-        
+
         plugin, _ = self._loaded_plugins[plugin_id]
         plugin.cleanup()
         del self._loaded_plugins[plugin_id]
-        
+
         # Remove from sys.modules
         module_name = f"plugins.{plugin_id}"
         if module_name in sys.modules:
             del sys.modules[module_name]
-        
+
         logger.info(f"Unloaded plugin: {plugin_id}")
         return True
-    
-    def get_manifest(self, plugin_id: str) -> Optional[PluginManifest]:
+
+    def get_manifest(self, plugin_id: str) -> PluginManifest | None:
         """Get the manifest for a loaded plugin.
-        
+
         Args:
             plugin_id: Plugin ID
-            
+
         Returns:
             PluginManifest or None if not loaded
         """
@@ -455,7 +455,7 @@ class PluginLoader:
             return manifest
         return None
 
-    def get_source(self, plugin_id: str) -> Optional[PluginSource]:
+    def get_source(self, plugin_id: str) -> PluginSource | None:
         """Get the source information for a loaded plugin.
 
         Args:
@@ -466,7 +466,7 @@ class PluginLoader:
         """
         return self._plugin_sources.get(plugin_id)
 
-    def get_plugin_class(self, plugin_id: str) -> Optional[Type[PluginBase]]:
+    def get_plugin_class(self, plugin_id: str) -> type[PluginBase] | None:
         """Get the plugin class for a loaded plugin.
 
         This is used to create additional instances of the same plugin type.
@@ -479,7 +479,7 @@ class PluginLoader:
         """
         return self._plugin_classes.get(plugin_id)
 
-    def create_instance(self, plugin_id: str) -> Optional[PluginBase]:
+    def create_instance(self, plugin_id: str) -> PluginBase | None:
         """Create a new instance of a loaded plugin.
 
         Returns a fresh PluginBase instance using the stored class and

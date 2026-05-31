@@ -19,7 +19,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class PluginSource:
     #: The directory on disk where the plugin lives after checkout/clone.
     local_path: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source_type": self.source_type,
             "repository_url": self.repository_url,
@@ -110,7 +110,7 @@ class RegistryEntry:
     category: str = "utility"
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RegistryEntry":
+    def from_dict(cls, data: dict[str, Any]) -> "RegistryEntry":
         return cls(
             plugin_id=data.get("id", ""),
             name=data.get("name", ""),
@@ -127,7 +127,7 @@ class RegistryEntry:
 # ── registry loading ────────────────────────────────────────────────────────
 
 
-def load_registry(registry_path: Optional[Path] = None) -> List[RegistryEntry]:
+def load_registry(registry_path: Path | None = None) -> list[RegistryEntry]:
     """Load the plugin registry JSON file.
 
     Args:
@@ -147,13 +147,13 @@ def load_registry(registry_path: Optional[Path] = None) -> List[RegistryEntry]:
         return []
 
     try:
-        with open(registry_path, "r", encoding="utf-8") as fh:
+        with open(registry_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (json.JSONDecodeError, OSError) as exc:
         logger.error("Failed to read plugin registry %s: %s", registry_path, exc)
         return []
 
-    entries: List[RegistryEntry] = []
+    entries: list[RegistryEntry] = []
     for item in data.get("plugins", []):
         entry = RegistryEntry.from_dict(item)
         if not entry.plugin_id or not entry.repository:
@@ -168,7 +168,7 @@ def load_registry(registry_path: Optional[Path] = None) -> List[RegistryEntry]:
 # ── naming convention helpers ────────────────────────────────────────────────
 
 
-def validate_registry_repo_name(repo_url: str) -> Tuple[bool, str]:
+def validate_registry_repo_name(repo_url: str) -> tuple[bool, str]:
     """Check that a repository URL follows the registry naming convention.
 
     Registry plugins **must** live in a repository whose name matches
@@ -222,7 +222,7 @@ def repo_name_from_url(url: str) -> str:
 # ── git operations ───────────────────────────────────────────────────────────
 
 
-def _validate_git_url(url: str) -> Tuple[bool, str]:
+def _validate_git_url(url: str) -> tuple[bool, str]:
     """Very basic validation that *url* looks like an HTTPS git URL.
 
     In addition to scheme checking we reject characters that could confuse
@@ -258,7 +258,7 @@ def _validate_git_url(url: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def _validate_plugin_id(plugin_id: str) -> Tuple[bool, str]:
+def _validate_plugin_id(plugin_id: str) -> tuple[bool, str]:
     """Validate that *plugin_id* is safe to use as a single path segment."""
     if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.match(plugin_id):
         return False, (
@@ -268,7 +268,7 @@ def _validate_plugin_id(plugin_id: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def _validate_git_ref(ref: str) -> Tuple[bool, str]:
+def _validate_git_ref(ref: str) -> tuple[bool, str]:
     """Validate a user-supplied git branch/tag name."""
     if not isinstance(ref, str):
         return False, "Invalid branch/tag: must be a string"
@@ -284,8 +284,8 @@ def clone_or_update_repo(
     plugin_id: str,
     branch: str = "",
     *,
-    external_dir: Optional[Path] = None,
-) -> Tuple[bool, str]:
+    external_dir: Path | None = None,
+) -> tuple[bool, str]:
     """Clone a git repository, or fetch/reset if it already exists.
 
     For existing clones (the update path) the ``repo_url`` is not used —
@@ -428,7 +428,7 @@ def clone_or_update_repo(
         return False, f"git clone failed (I/O error): {exc}"
 
 
-def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
+def get_remote_head_sha(dest_dir: Path) -> str | None:
     """Return the remote HEAD SHA for the origin of an existing clone.
 
     Uses ``git ls-remote`` which is a lightweight network operation that does
@@ -500,7 +500,7 @@ def get_remote_head_sha(dest_dir: Path) -> Optional[str]:
         return None
 
 
-def get_local_head_sha(dest_dir: Path) -> Optional[str]:
+def get_local_head_sha(dest_dir: Path) -> str | None:
     """Return the local HEAD SHA of a cloned plugin repository."""
     if not dest_dir.exists() or not (dest_dir / ".git").is_dir():
         return None
@@ -539,7 +539,7 @@ def remove_external_plugin(dest_dir: Path) -> bool:
 # ── high-level helpers ───────────────────────────────────────────────────────
 
 
-def get_external_plugins_dir(project_root: Optional[Path] = None) -> Path:
+def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     """Return the directory used for cloned external plugins.
 
     The directory is created if it does not exist.
@@ -553,7 +553,7 @@ def get_external_plugins_dir(project_root: Optional[Path] = None) -> Path:
 
 def _safe_external_dest(
     external_dir: Path, plugin_id: str
-) -> Tuple[Optional[Path], str]:
+) -> tuple[Path | None, str]:
     """Compute a safe destination path inside `external_dir` for a plugin.
 
     The plugin id flows through three independent CodeQL-recognized
@@ -602,8 +602,8 @@ def _safe_external_dest(
 
 def install_registry_plugin(
     entry: RegistryEntry,
-    external_dir: Optional[Path] = None,
-) -> Tuple[bool, str]:
+    external_dir: Path | None = None,
+) -> tuple[bool, str]:
     """Clone a plugin listed in the registry.
 
     Validates the naming convention before cloning.
@@ -627,10 +627,10 @@ def install_registry_plugin(
 
 def install_git_plugin(
     repo_url: str,
-    plugin_id: Optional[str] = None,
+    plugin_id: str | None = None,
     branch: str = "",
-    external_dir: Optional[Path] = None,
-) -> Tuple[bool, str]:
+    external_dir: Path | None = None,
+) -> tuple[bool, str]:
     """Clone an arbitrary public git repository as a plugin.
 
     Custom git plugins do **not** need to follow the

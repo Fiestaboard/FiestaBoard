@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ except ImportError:  # pragma: no cover
     )
 
 
-def _page_response_with_preview(json_text: str, page: Any) -> List[Any]:
+def _page_response_with_preview(json_text: str, page: Any) -> list[Any]:
     """Wrap a page tool's JSON result with an MCP-UI HTML preview block.
 
     Returns a list of MCP content blocks:
@@ -68,7 +68,7 @@ def _page_response_with_preview(json_text: str, page: Any) -> List[Any]:
     the text block so the tool's primary response is never blocked by
     preview errors.
     """
-    blocks: List[Any] = [TextContent(type="text", text=json_text)]
+    blocks: list[Any] = [TextContent(type="text", text=json_text)]
     try:
         from .board_html_renderer import render_page_preview_html
 
@@ -193,8 +193,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         - config: current configuration (sensitive values masked as '***')
         """
         try:
-            from .plugins import get_plugin_registry
             from .config_manager import get_config_manager
+            from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             cm = get_config_manager()
             plugins = registry.list_plugins()
@@ -296,7 +296,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             return f"Error uninstalling plugin '{plugin_id}': {exc}"
 
     @mcp.tool()
-    def configure_plugin(plugin_id: str, config: Dict[str, Any]) -> str:
+    def configure_plugin(plugin_id: str, config: dict[str, Any]) -> str:
         """Update configuration settings for an installed plugin.
 
         Use list_installed_plugins() to see the settings_schema for a plugin,
@@ -311,8 +311,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                     Only include keys you want to change.
         """
         try:
-            from .plugins import get_plugin_registry
             from .config_manager import get_config_manager
+            from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             cm = get_config_manager()
             # Merge with existing config to avoid wiping unchanged fields
@@ -440,7 +440,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
     @mcp.tool()
     def create_page(
         name: str,
-        template_lines: List[str],
+        template_lines: list[str],
         device_type: str = "flagship",
         duration_seconds: int = 300,
     ) -> str:
@@ -465,8 +465,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
              "{{weather.condition}}", "", "{{date_time.time_12h}}", "{{date_time.date_short}}"]
         """
         try:
-            from .pages.service import get_page_service
             from .pages.models import PageCreate
+            from .pages.service import get_page_service
             svc = get_page_service()
             data = PageCreate(
                 name=name,
@@ -489,9 +489,9 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
     @mcp.tool()
     def update_page(
         page_id: str,
-        name: Optional[str] = None,
-        template_lines: Optional[List[str]] = None,
-        duration_seconds: Optional[int] = None,
+        name: str | None = None,
+        template_lines: list[str] | None = None,
+        duration_seconds: int | None = None,
     ) -> str:
         """Update an existing page's name, template content, or duration.
 
@@ -502,8 +502,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             duration_seconds: New carousel duration in seconds (optional).
         """
         try:
-            from .pages.service import get_page_service
             from .pages.models import PageUpdate
+            from .pages.service import get_page_service
             svc = get_page_service()
             data = PageUpdate(
                 name=name,
@@ -540,7 +540,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
 
     @mcp.tool()
     def render_page_preview(
-        template_lines: List[str],
+        template_lines: list[str],
         device_type: str = "flagship",
     ) -> str:
         """Render a template to see how it will look BEFORE saving it as a page.
@@ -610,7 +610,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         page_id: str,
         start_time: str,
         day_pattern: str = "all",
-        end_time: Optional[str] = None,
+        end_time: str | None = None,
         enabled: bool = True,
     ) -> str:
         """Create a new schedule entry to show a specific page at a specific time.
@@ -626,8 +626,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             enabled: Whether this schedule is active. Default: True.
         """
         try:
-            from .schedules.service import get_schedule_service
             from .schedules.models import ScheduleCreate
+            from .schedules.service import get_schedule_service
             svc = get_schedule_service()
             data = ScheduleCreate(
                 page_id=page_id,
@@ -648,11 +648,11 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
     @mcp.tool()
     def update_schedule(
         schedule_id: str,
-        page_id: Optional[str] = None,
-        start_time: Optional[str] = None,
-        end_time: Optional[str] = None,
-        day_pattern: Optional[str] = None,
-        enabled: Optional[bool] = None,
+        page_id: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        day_pattern: str | None = None,
+        enabled: bool | None = None,
     ) -> str:
         """Update an existing schedule entry.
 
@@ -667,8 +667,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             enabled: Enable or disable this schedule entry (optional).
         """
         try:
-            from .schedules.service import get_schedule_service
             from .schedules.models import ScheduleUpdate
+            from .schedules.service import get_schedule_service
             svc = get_schedule_service()
             data = ScheduleUpdate(
                 page_id=page_id,
@@ -722,7 +722,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
     @mcp.tool()
     def create_carousel(
         name: str,
-        page_ids: List[str],
+        page_ids: list[str],
         interval_seconds: int = 30,
     ) -> str:
         """Create a carousel that rotates through multiple pages.
@@ -736,8 +736,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             interval_seconds: How long to show each page (default: 30). Range: 5–3600.
         """
         try:
-            from .carousels.service import get_carousel_service
             from .carousels.models import CarouselCreate
+            from .carousels.service import get_carousel_service
             svc = get_carousel_service()
             data = CarouselCreate(
                 name=name,
@@ -757,9 +757,9 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
     @mcp.tool()
     def update_carousel(
         carousel_id: str,
-        name: Optional[str] = None,
-        page_ids: Optional[List[str]] = None,
-        interval_seconds: Optional[int] = None,
+        name: str | None = None,
+        page_ids: list[str] | None = None,
+        interval_seconds: int | None = None,
     ) -> str:
         """Update an existing carousel's name, page list, or rotation interval.
 
@@ -770,8 +770,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             interval_seconds: New rotation interval in seconds (optional).
         """
         try:
-            from .carousels.service import get_carousel_service
             from .carousels.models import CarouselUpdate
+            from .carousels.service import get_carousel_service
             svc = get_carousel_service()
             data = CarouselUpdate(
                 name=name,
@@ -837,7 +837,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .settings.service import get_settings_service
             svc = get_settings_service()
-            summary: Dict[str, Any] = {}
+            summary: dict[str, Any] = {}
             try:
                 display = svc.get_display_settings()
                 summary["display"] = display.__dict__ if hasattr(display, "__dict__") else str(display)
@@ -936,8 +936,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         page id without going through the page tools.
         """
         try:
-            from .pages.service import get_page_service
             from .board_html_renderer import render_page_preview_html
+            from .pages.service import get_page_service
             svc = get_page_service()
             page = svc.get_page(page_id)
             if page is None:

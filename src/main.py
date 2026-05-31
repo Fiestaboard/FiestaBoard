@@ -1,23 +1,22 @@
 """Main application entry point for FiestaBoard Display Service."""
 
 import logging
+import signal
 import threading
 import time
-import signal
-from typing import List, Optional
 
 import schedule
 
-from .config import Config
-from .board_client import BoardClient, board_client_from_board_dict
 from .board_chars import BoardChars
+from .board_client import BoardClient, board_client_from_board_dict
+from .carousels.models import is_carousel_id
+from .carousels.service import get_carousel_service
+from .config import Config
 from .devices import get_dimensions
-from .text_to_board import text_to_board_array
-from .settings.service import get_settings_service
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
-from .carousels.service import get_carousel_service
-from .carousels.models import is_carousel_id
+from .settings.service import get_settings_service
+from .text_to_board import text_to_board_array
 from .triggers.service import get_trigger_service
 
 # Configure logging
@@ -32,24 +31,24 @@ logger = logging.getLogger(__name__)
 
 class DisplayService:
     """Main service for displaying information on the board."""
-    
+
     def __init__(self):
         """Initialize the display service."""
         self.running = True
-        self.vb_client: Optional[BoardClient] = None
+        self.vb_client: BoardClient | None = None
 
         # Active page polling state
-        self._last_active_page_content: Optional[str] = None
-        self._last_active_page_id: Optional[str] = None
+        self._last_active_page_content: str | None = None
+        self._last_active_page_id: str | None = None
         self._last_silence_mode_active: bool = False
         self._snoozing_message_sent: bool = False
 
         # Board state polling (background thread reads actual board state)
-        self._polled_characters: Optional[List[List[int]]] = None
-        self._polled_at: Optional[float] = None
-        self._poll_thread: Optional[threading.Thread] = None
-        self._pending_refresh_timer: Optional[threading.Timer] = None
-    
+        self._polled_characters: list[list[int]] | None = None
+        self._polled_at: float | None = None
+        self._poll_thread: threading.Thread | None = None
+        self._pending_refresh_timer: threading.Timer | None = None
+
     def _build_board_clients(self):
         """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
         settings_service = get_settings_service()
@@ -96,7 +95,7 @@ class DisplayService:
         except Exception as e:
             logger.error(f"Failed to reinitialize board client: {e}")
             return False
-    
+
     def _get_board_read_interval(self) -> int:
         """Return the board-state read poll interval in seconds based on API mode."""
         polling = get_settings_service().get_polling_settings()
@@ -176,9 +175,9 @@ class DisplayService:
         logger.info(f"Configuration: {summary}")
 
         return True
-    
+
     @staticmethod
-    def _get_first_board_id() -> Optional[str]:
+    def _get_first_board_id() -> str | None:
         """Return the ID of the first configured board, or None."""
         boards = get_settings_service().get_board_settings().boards or []
         if boards and isinstance(boards[0], dict):
@@ -187,11 +186,11 @@ class DisplayService:
 
     def check_and_send_active_page(self) -> bool:
         """Check the active page and send to board if content changed.
-        
+
         Respects schedule mode - uses schedule-based page selection when enabled,
         otherwise falls back to manual active page setting.
         Active triggers take priority over scheduled/manual pages.
-            
+
         Returns:
             True if content was sent to board, False otherwise
         """
@@ -278,7 +277,7 @@ class DisplayService:
                 # Manual mode: Use manual active page setting
                 active_page_id = settings_service.get_active_page_id()
                 logger.debug(f"Manual mode: Using manual active page: {active_page_id}")
-            
+
             # No active page set - try to default to first page (manual mode only)
             if not active_page_id and not settings_service.is_schedule_enabled():
                 pages = page_service.list_pages()
@@ -289,7 +288,7 @@ class DisplayService:
                 else:
                     logger.debug("No active page and no pages available")
                     return False
-            
+
             # If schedule mode but no page (gap without default), don't update board
             if not active_page_id:
                 logger.debug("No active page available (schedule gap with no default)")
@@ -311,14 +310,14 @@ class DisplayService:
             if not page:
                 logger.warning(f"Active page not found: {active_page_id}")
                 return False
-            
+
             # Render the page with fresh data — force_refresh bypasses the preview
             # cache so template variables (weather, time, stocks, etc.) are current.
             result = page_service.preview_page(active_page_id, force_refresh=True)
             if not result or not result.available:
                 logger.warning(f"Failed to render active page: {active_page_id}")
                 return False
-            
+
             # Silence-mode state was already evaluated at the top of this method.
             # If we get here while silence is active, it means we are entering
             # silence (or recovering from a missing indicator after restart /
@@ -348,19 +347,19 @@ class DisplayService:
                 logger.debug("Active page content unchanged, skipping send")
                 return False
             logger.info(f"Active page content changed, sending to board: {active_page_id}")
-            
+
             # At this point, we're going to send an update
-            
+
             if not self.vb_client:
                 logger.warning("Board client not initialized")
                 return False
-            
+
             # Get transition settings - use page-level if set, otherwise system defaults
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
             step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            
+
             # Send to board
             dims = get_dimensions(page.device_type)
             board_array = text_to_board_array(content_to_send, rows=dims.rows, cols=dims.cols)
@@ -387,7 +386,7 @@ class DisplayService:
             else:
                 logger.error(f"Failed to send active page to board: {active_page_id}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error checking active page: {e}")
             return False
@@ -574,7 +573,7 @@ class DisplayService:
         logger.error("Failed to send silence page to board")
         return False
 
-    def _check_trigger_override(self) -> Optional[str]:
+    def _check_trigger_override(self) -> str | None:
         """Check all trigger-capable plugins and return content if a trigger is active.
 
         Returns:
@@ -587,7 +586,7 @@ class DisplayService:
             trigger_service = get_trigger_service()
 
             # Evaluate triggers for all enabled trigger-capable plugins
-            for plugin_id, plugin in registry.trigger_plugins.items():
+            for _plugin_id, plugin in registry.trigger_plugins.items():
                 trigger_service.check_plugin_triggers(plugin)
 
             active = trigger_service.get_active_trigger()
@@ -656,7 +655,7 @@ class DisplayService:
             logger.error("Failed to send triggered message to board")
             return False
 
-    def _get_active_ref_id(self) -> Optional[str]:
+    def _get_active_ref_id(self) -> str | None:
         """Return the raw active-page/carousel reference (before carousel resolution)."""
         settings_service = get_settings_service()
         if settings_service.is_schedule_enabled():
@@ -671,22 +670,22 @@ class DisplayService:
     def run(self):
         """Run the main service loop."""
         self.running = True
-        
+
         if not self.vb_client and not self.initialize():
             logger.error("Initialization failed")
             return
-        
+
         schedule.clear()
-        
+
         settings_service = get_settings_service()
         polling_interval = settings_service.get_polling_interval()
-        
+
         schedule.every(polling_interval).seconds.do(self.check_and_send_active_page)
         logger.info(f"Active page polling scheduled every {polling_interval} seconds")
-        
+
         logger.info("Sending initial active page...")
         self.check_and_send_active_page()
-        
+
         logger.info("Service started, waiting for scheduled updates...")
         _next_carousel_check: float = time.time()
         try:

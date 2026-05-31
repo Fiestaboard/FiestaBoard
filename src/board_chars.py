@@ -6,15 +6,14 @@ Reference: https://docs.vestaboard.com/docs/characterCodes
 Note: Some codes (43, 45, 51, 57, 58, 61) are not defined in the official table.
 """
 
-from typing import Dict, Optional, List
 
 
 class BoardChars:
     """Board character code mappings - Official codes."""
-    
+
     # Blank/Space
     SPACE = 0       # Black on black / white on white
-    
+
     # Letters A-Z (codes 1-26)
     A = 1
     B = 2
@@ -24,13 +23,13 @@ class BoardChars:
     F = 6
     G = 7
     H = 8
-    I = 9
+    I = 9  # noqa: E741 — letter constant
     J = 10
     K = 11
     L = 12
     M = 13
     N = 14
-    O = 15
+    O = 15  # noqa: E741 — letter constant
     P = 16
     Q = 17
     R = 18
@@ -42,7 +41,7 @@ class BoardChars:
     X = 24
     Y = 25
     Z = 26
-    
+
     # Numbers - IMPORTANT: 1-9 are 27-35, then 0 is 36
     ONE = 27
     TWO = 28
@@ -54,7 +53,7 @@ class BoardChars:
     EIGHT = 34
     NINE = 35
     ZERO = 36
-    
+
     # Punctuation and symbols (official codes)
     EXCLAMATION = 37     # !
     AT = 38              # @
@@ -81,7 +80,7 @@ class BoardChars:
     QUESTION = 60        # ?
     # 61 is undefined
     DEGREE = 62          # ° (Flagship only, Heart on Note)
-    
+
     # Color codes (filled color tiles)
     RED = 63
     ORANGE = 64
@@ -92,35 +91,35 @@ class BoardChars:
     WHITE = 69           # Black on white board (local API)
     BLACK = 70           # White on white board (local API)
     FILLED = 71          # White on black / black on white (not available for local API)
-    
+
     # Aliases for compatibility
     APOSTROPHE = SINGLE_QUOTE
     HYPHEN = DASH
     HEART = DEGREE  # Code 62 renders as ❤ on Note, ° on Flagship
-    
+
     @classmethod
-    def get_char_code(cls, char: str) -> Optional[int]:
+    def get_char_code(cls, char: str) -> int | None:
         """
         Get character code for a single character.
-        
+
         Args:
             char: Single character to convert
-            
+
         Returns:
             Character code (0-71) or None if not found
         """
         char = char.upper()
-        
+
         # Letters A-Z → codes 1-26
         if 'A' <= char <= 'Z':
             return ord(char) - ord('A') + 1
-        
+
         # Numbers: 1-9 → codes 27-35, 0 → code 36
         if '1' <= char <= '9':
             return ord(char) - ord('1') + 27  # 1→27, 2→28, ..., 9→35
         elif char == '0':
             return 36
-        
+
         # Special characters mapping (official codes)
         special_map = {
             ' ': cls.SPACE,
@@ -147,17 +146,17 @@ class BoardChars:
             '❤': cls.DEGREE,  # Heart on Note devices shares code 62
             '♥': cls.DEGREE,
         }
-        
+
         return special_map.get(char)
-    
+
     @classmethod
-    def get_color_code(cls, color_name: str) -> Optional[int]:
+    def get_color_code(cls, color_name: str) -> int | None:
         """
         Get color code by name.
-        
+
         Args:
             color_name: Color name (red, green, blue, etc.)
-            
+
         Returns:
             Color code or None if not found
         """
@@ -174,15 +173,15 @@ class BoardChars:
             'filled': cls.FILLED,
         }
         return color_map.get(color_name.lower())
-    
+
     @classmethod
-    def text_to_codes(cls, text: str) -> List[int]:
+    def text_to_codes(cls, text: str) -> list[int]:
         """
         Convert text string to list of character codes.
-        
+
         Args:
             text: Text string to convert
-            
+
         Returns:
             List of character codes
         """
@@ -198,7 +197,7 @@ class BoardChars:
 
 
 # Weather condition to symbol mapping
-WEATHER_SYMBOLS: Dict[str, Dict[str, any]] = {
+WEATHER_SYMBOLS: dict[str, dict[str, any]] = {
     "Clear": {
         "symbol": "O",  # Sun approximation
         "char_code": BoardChars.O,
@@ -277,34 +276,34 @@ WEATHER_SYMBOLS: Dict[str, Dict[str, any]] = {
 }
 
 
-def get_weather_symbol(condition: str) -> Dict[str, any]:
+def get_weather_symbol(condition: str) -> dict[str, any]:
     """
     Get weather symbol for a condition.
-    
+
     Args:
         condition: Weather condition string (e.g., "Clear", "Rainy")
-        
+
     Returns:
         Dictionary with symbol, char_code, and description
     """
     # Normalize condition string
     condition = condition.strip()
-    
+
     # Try exact match first
     if condition in WEATHER_SYMBOLS:
         return WEATHER_SYMBOLS[condition]
-    
+
     # Try case-insensitive match
     for key, value in WEATHER_SYMBOLS.items():
         if key.lower() == condition.lower():
             return value
-    
+
     # Try partial match (e.g., "Light Rain" contains "Rain")
     condition_lower = condition.lower()
     for key, value in WEATHER_SYMBOLS.items():
         if key.lower() in condition_lower or condition_lower in key.lower():
             return value
-    
+
     # Default fallback
     return {
         "symbol": "?",

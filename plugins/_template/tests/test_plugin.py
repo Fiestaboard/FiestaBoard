@@ -5,12 +5,12 @@ correctly and that the formatted_lines bug fix is in place.
 """
 
 import json
-import pytest
 from pathlib import Path
+
+import pytest
 
 from plugins._template import MyPlugin
 from src.plugins.manifest import PluginManifest
-
 
 MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
 

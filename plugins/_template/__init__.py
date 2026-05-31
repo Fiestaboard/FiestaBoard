@@ -9,7 +9,7 @@ Rename the directory to match your plugin ID (from manifest.json).
 
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 from src.plugins.base import PluginBase, PluginResult
 
@@ -18,23 +18,23 @@ logger = logging.getLogger(__name__)
 
 class MyPlugin(PluginBase):
     """Template plugin implementation.
-    
+
     This class demonstrates how to create a FiestaBoard plugin.
     Rename this class to match your plugin.
     """
-    
+
     @property
     def plugin_id(self) -> str:
         """Return the plugin ID matching manifest.json."""
         return "my_plugin"
-    
+
     def fetch_data(self) -> PluginResult:
         """
         Fetch data from your data source.
-        
+
         This method is called by the display service to get data for
         templates and displays.
-        
+
         Returns:
             PluginResult with:
             - available: True if data was fetched successfully
@@ -44,23 +44,23 @@ class MyPlugin(PluginBase):
         """
         # Get configuration
         api_key = self.get_config("api_key")
-        
+
         # Can also check environment variable
         if not api_key:
             api_key = os.getenv("MY_PLUGIN_API_KEY")
-        
+
         if not api_key:
             return PluginResult(
                 available=False,
                 error="API key not configured"
             )
-        
+
         try:
             # TODO: Implement your data fetching logic here
             # Example:
             # response = requests.get("https://api.example.com/data", headers={"Authorization": api_key})
             # data = response.json()
-            
+
             # For this template, return example data
             example_data = {
                 "value": "123",
@@ -72,72 +72,72 @@ class MyPlugin(PluginBase):
                     {"name": "Item 2", "value": "200", "status": "Pending"},
                 ],
             }
-            
+
             return PluginResult(
                 available=True,
                 data=example_data,
                 formatted_lines=self._format_display(example_data)
             )
-            
+
         except Exception as e:
             logger.error(f"Error fetching data: {e}", exc_info=True)
             return PluginResult(
                 available=False,
                 error=str(e)
             )
-    
-    def validate_config(self, config: Dict[str, Any]) -> List[str]:
+
+    def validate_config(self, config: dict[str, Any]) -> list[str]:
         """
         Validate plugin configuration.
-        
+
         This method is called when configuration is updated.
         Note: refresh_seconds validation is handled automatically by
         the base class using the manifest's settings_schema bounds.
-        
+
         Args:
             config: The configuration dictionary to validate
-            
+
         Returns:
             List of error messages (empty if valid)
         """
         errors = []
-        
+
         # Example validation
         if not config.get("api_key"):
             # API key is required per settings_schema
             errors.append("API key is required")
-        
+
         return errors
-    
-    def _format_display(self, data: Dict[str, Any]) -> List[str]:
+
+    def _format_display(self, data: dict[str, Any]) -> list[str]:
         """
         Format data for display on the board.
-        
+
         Args:
             data: The fetched data
-            
+
         Returns:
             List of display lines (max 22 chars per line, up to 6 lines)
         """
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"Status: {data.get('status', 'N/A')}")
         lines.append(f"Value: {data.get('value', 'N/A')}")
-        
+
         items = data.get("items", [])
         if items:
             lines.append(f"Items: {len(items)}")
             for item in items[:2]:
                 lines.append(f"  {item['name']}: {item['value']}")
-        
+
         while len(lines) < 6:
             lines.append("")
-        
+
         return lines[:6]
-    
+
     def cleanup(self) -> None:
         """
         Cleanup when plugin is disabled.
-        
+
         Override this to clean up any resources (close connections, etc.)
         """
         logger.info(f"Plugin {self.plugin_id} cleanup")

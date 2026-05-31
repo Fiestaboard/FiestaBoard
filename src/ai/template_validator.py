@@ -27,7 +27,6 @@ ambiguous is left untouched and only flagged.
 from __future__ import annotations
 
 import re
-from typing import List, Tuple
 
 # Known color names accepted by both the template engine and BoardChars.
 # Keep in sync with ``src.templates.engine.COLOR_CODES`` and
@@ -77,7 +76,7 @@ _BARE_COLOR_PUNCT_RE = re.compile(
 )
 
 
-def _looks_like_color_with_trailing_punct(arg: str) -> Tuple[bool, str, str]:
+def _looks_like_color_with_trailing_punct(arg: str) -> tuple[bool, str, str]:
     """If ``arg`` is a color name plus stray trailing punctuation, split it.
 
     Returns ``(matched, color_name, stripped_suffix)``. ``matched`` is
@@ -96,8 +95,8 @@ def _looks_like_color_with_trailing_punct(arg: str) -> Tuple[bool, str, str]:
 
 
 def repair_template_lines(
-    lines: List[str],
-) -> Tuple[List[str], List[str]]:
+    lines: list[str],
+) -> tuple[list[str], list[str]]:
     """Repair common AI mistakes in ``{{filled:...}}`` syntax.
 
     Args:
@@ -109,8 +108,8 @@ def repair_template_lines(
         human-readable strings, one per repair or notable issue. Both
         are empty/identity when nothing needed fixing.
     """
-    repaired: List[str] = []
-    warnings: List[str] = []
+    repaired: list[str] = []
+    warnings: list[str] = []
 
     for idx, line in enumerate(lines):
         new_line, line_warnings = _repair_line(line, idx)
@@ -120,13 +119,13 @@ def repair_template_lines(
     return repaired, warnings
 
 
-def _repair_line(line: str, idx: int) -> Tuple[str, List[str]]:
+def _repair_line(line: str, idx: int) -> tuple[str, list[str]]:
     """Apply all known repairs to a single line."""
-    warnings: List[str] = []
+    warnings: list[str] = []
     line_no = idx + 1
 
     # ---- 1. ``{{filled.X}}`` / ``{{filled X}}`` → ``{{filled:X}}`` ----
-    def _fix_wrong_sep(match: "re.Match[str]") -> str:
+    def _fix_wrong_sep(match: re.Match[str]) -> str:
         keyword = match.group(1)
         sep = match.group(2)
         arg = match.group(3)
@@ -150,7 +149,7 @@ def _repair_line(line: str, idx: int) -> Tuple[str, List[str]]:
     # ---- 2. ``{{filled:green.}}`` etc. — trailing punctuation on a
     # color name. Also handles empty arg and stray surrounding
     # whitespace inside the braces.
-    def _fix_arg(match: "re.Match[str]") -> str:
+    def _fix_arg(match: re.Match[str]) -> str:
         keyword = match.group(1)
         arg = match.group(2)
         canonical = "{{" + keyword + ":" + arg + "}}"
@@ -192,7 +191,7 @@ def _repair_line(line: str, idx: int) -> Tuple[str, List[str]]:
     # ---- 3. ``{{green.}}`` etc. — bare color tile with trailing punctuation.
     # The engine looks up the block content directly as a color name, so any
     # trailing character causes a silent render failure.
-    def _fix_bare_color(match: "re.Match[str]") -> str:
+    def _fix_bare_color(match: re.Match[str]) -> str:
         candidate = match.group(1)
         trailing = match.group(2)
         if candidate.lower() in _COLOR_NAMES:

@@ -53,7 +53,7 @@ def decode_page(share_string: str) -> dict:
         json_bytes = base64.urlsafe_b64decode(padded)
         envelope = json.loads(json_bytes)
     except Exception:
-        raise ValueError("Invalid share string — could not decode.")
+        raise ValueError("Invalid share string — could not decode.") from None
 
     if not isinstance(envelope, dict) or "v" not in envelope or "page" not in envelope:
         raise ValueError("Invalid share string — unrecognized format.")

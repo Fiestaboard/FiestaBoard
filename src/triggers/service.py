@@ -10,7 +10,7 @@ display loop can override the normal schedule/manual page.
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..plugins.base import PluginBase, TriggerResult
 
@@ -33,9 +33,9 @@ class ActiveTrigger:
     """
     trigger_id: str
     plugin_id: str
-    message: Optional[str]
-    formatted_lines: Optional[List[str]]
-    data: Optional[Dict[str, Any]]
+    message: str | None
+    formatted_lines: list[str] | None
+    data: dict[str, Any] | None
     priority: int
     duration_seconds: int
     activated_at: datetime = field(default_factory=datetime.now)
@@ -50,7 +50,7 @@ class ActiveTrigger:
         age = (datetime.now() - self.activated_at).total_seconds()
         return max(0.0, self.duration_seconds - age)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise for API responses."""
         return {
             "trigger_id": self.trigger_id,
@@ -78,7 +78,7 @@ class TriggerService:
     """
 
     def __init__(self) -> None:
-        self._active_triggers: Dict[str, ActiveTrigger] = {}
+        self._active_triggers: dict[str, ActiveTrigger] = {}
         logger.info("TriggerService initialized")
 
     # -- public API --------------------------------------------------------
@@ -104,7 +104,7 @@ class TriggerService:
             trigger.duration_seconds,
         )
 
-    def get_active_trigger(self) -> Optional[ActiveTrigger]:
+    def get_active_trigger(self) -> ActiveTrigger | None:
         """Return the highest-priority non-expired trigger, or None.
 
         Automatically clears expired triggers before selecting.
@@ -114,7 +114,7 @@ class TriggerService:
             return None
         return max(self._active_triggers.values(), key=lambda t: t.priority)
 
-    def list_active_triggers(self) -> List[ActiveTrigger]:
+    def list_active_triggers(self) -> list[ActiveTrigger]:
         """Return all active (non-expired) triggers sorted by priority desc."""
         self.clear_expired()
         return sorted(
@@ -174,7 +174,7 @@ class TriggerService:
 
 # -- Singleton access ------------------------------------------------------
 
-_trigger_service: Optional[TriggerService] = None
+_trigger_service: TriggerService | None = None
 
 
 def get_trigger_service() -> TriggerService:

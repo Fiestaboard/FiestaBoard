@@ -30,7 +30,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ def auth_mode() -> str:
     return "undecided"
 
 
-def _auth_env_override() -> Optional[str]:
+def _auth_env_override() -> str | None:
     """Return ``"enabled"``/``"disabled"`` if the env var pins the mode, else ``None``.
 
     Centralised so callers (e.g. ``/auth/preference``) can ask "is the
@@ -305,7 +305,7 @@ class AuthService:
     -level instance, but tests can construct their own with a temp path.
     """
 
-    def __init__(self, auth_file: Optional[Path] = None) -> None:
+    def __init__(self, auth_file: Path | None = None) -> None:
         self._path = Path(auth_file) if auth_file else _default_auth_file()
         # RLock because _now_ms() is called from inside other methods
         # that already hold the lock.
@@ -316,7 +316,7 @@ class AuthService:
         # password rotation having ``issued_at > cutoff`` even when both
         # fall in the same wall-clock millisecond.
         self._last_ms = 0
-        self._data: Dict[str, Any] = {"version": 1, "users": []}
+        self._data: dict[str, Any] = {"version": 1, "users": []}
         self._load()
 
     def _monotonic_ms(self) -> int:
@@ -339,7 +339,7 @@ class AuthService:
         if not self._path.exists():
             return
         try:
-            with open(self._path, "r", encoding="utf-8") as fh:
+            with open(self._path, encoding="utf-8") as fh:
                 self._data = json.load(fh)
         except (json.JSONDecodeError, OSError) as exc:
             logger.error("Failed to read %s: %s; starting empty", self._path, exc)
@@ -382,14 +382,14 @@ class AuthService:
         with self._lock:
             return bool(self._data.get("users"))
 
-    def get_user(self, username: str) -> Optional[Dict[str, Any]]:
+    def get_user(self, username: str) -> dict[str, Any] | None:
         with self._lock:
             for u in self._data.get("users", []):
                 if u.get("username") == username:
                     return dict(u)
         return None
 
-    def get_auth_preference(self) -> Optional[str]:
+    def get_auth_preference(self) -> str | None:
         """Return the persisted auth preference, or ``None`` if unset.
 
         Possible values: ``"enabled"``, ``"disabled"``, ``None``.
@@ -400,7 +400,7 @@ class AuthService:
             return pref
         return None
 
-    def set_auth_preference(self, preference: Optional[str]) -> None:
+    def set_auth_preference(self, preference: str | None) -> None:
         """Persist the admin's auth on/off choice.
 
         Pass ``None`` to clear the preference (rare, mostly for tests).
@@ -550,7 +550,7 @@ class AuthService:
         )
         return self._sign(token.encode())
 
-    def verify_session(self, raw: Optional[str]) -> Optional[str]:
+    def verify_session(self, raw: str | None) -> str | None:
         """Return the username if *raw* is a valid, unexpired session token."""
         if not raw or not isinstance(raw, str):
             return None
@@ -633,7 +633,7 @@ def _validate_password(password: str) -> None:
 # --- Module-level singleton -----------------------------------------------
 
 _service_lock = threading.Lock()
-_service: Optional[AuthService] = None
+_service: AuthService | None = None
 
 
 def get_auth_service() -> AuthService:

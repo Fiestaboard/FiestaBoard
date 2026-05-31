@@ -6,7 +6,7 @@ Displays the remaining time to an event timestamp in real time.
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.plugins.base import PluginBase, PluginResult
@@ -21,7 +21,7 @@ class CountdownPlugin(PluginBase):
     configured target date/time.
     """
 
-    def __init__(self, manifest: Dict[str, Any]):
+    def __init__(self, manifest: dict[str, Any]):
         """Initialize the countdown plugin."""
         super().__init__(manifest)
 
@@ -29,7 +29,7 @@ class CountdownPlugin(PluginBase):
     def plugin_id(self) -> str:
         return "countdown"
 
-    def validate_config(self, config: Dict[str, Any]) -> List[str]:
+    def validate_config(self, config: dict[str, Any]) -> list[str]:
         """Validate countdown configuration."""
         errors = []
 
@@ -135,14 +135,14 @@ class CountdownPlugin(PluginBase):
                 error=str(e),
             )
 
-    def get_formatted_display(self) -> Optional[List[str]]:
+    def get_formatted_display(self) -> list[str] | None:
         """Return default formatted countdown display."""
         result = self.fetch_data()
         if not result.available or not result.data:
             return None
         return self._format_display(result.data)
 
-    def _format_display(self, data: Dict[str, Any]) -> List[str]:
+    def _format_display(self, data: dict[str, Any]) -> list[str]:
         """Format countdown data for the 6-line board display."""
         event_name = data.get("event_name", "Event")
         is_expired = data.get("is_expired") == "true"

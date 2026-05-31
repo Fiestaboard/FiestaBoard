@@ -4,9 +4,9 @@ Provides randomly selected values as template variables, refreshed on a
 configurable interval.
 """
 
-from random import choice as _random_choice
-from typing import Any, Dict, List, Optional
 import logging
+from random import choice as _random_choice
+from typing import Any
 
 from src.plugins.base import PluginBase, PluginResult
 
@@ -30,7 +30,7 @@ class RandomPlugin(PluginBase):
     def plugin_id(self) -> str:
         return "random"
 
-    def validate_config(self, config: Dict[str, Any]) -> List[str]:
+    def validate_config(self, config: dict[str, Any]) -> list[str]:
         errors = self._validate_refresh_seconds(config)
         choices = config.get("choices", _DEFAULT_CHOICES)
         if not isinstance(choices, list):

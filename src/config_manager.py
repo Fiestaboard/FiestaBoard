@@ -13,7 +13,7 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # Import TimeService for migration
 from .time_service import get_time_service
@@ -42,7 +42,7 @@ MIGRATION_EXCLUDED_FIELDS = {"color_rules"}
 # Plugin renames applied on startup. Maps an obsolete plugin id to its
 # replacement id. Each entry is a one-shot, idempotent rename of the
 # `plugins.<old_id>` config block to `plugins.<new_id>`.
-PLUGIN_ID_RENAMES: Dict[str, str] = {
+PLUGIN_ID_RENAMES: dict[str, str] = {
     # v2.0.0 of the bike share plugin generalised to all Lyft-operated
     # GBFS systems (Bay Wheels, CitiBike, Capital Bikeshare, Biketown,
     # Divvy, ...) and renamed the plugin id.
@@ -53,7 +53,7 @@ PLUGIN_ID_RENAMES: Dict[str, str] = {
 # receives a deep-copied settings dict and returns the adjusted dict
 # that will be written under the new plugin id. Used to drop fields
 # that no longer exist in the new manifest and seed new defaults.
-def _adjust_baywheels_to_lyft_bike_share(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def _adjust_baywheels_to_lyft_bike_share(cfg: dict[str, Any]) -> dict[str, Any]:
     """Adjust a v1 baywheels config to fit the v2 lyft_bike_share schema.
 
     - Promotes the legacy singular ``station_id`` into ``station_ids`` if
@@ -76,12 +76,12 @@ def _adjust_baywheels_to_lyft_bike_share(cfg: Dict[str, Any]) -> Dict[str, Any]:
     return cfg
 
 
-PLUGIN_RENAME_ADJUSTERS: Dict[str, Any] = {
+PLUGIN_RENAME_ADJUSTERS: dict[str, Any] = {
     "baywheels": _adjust_baywheels_to_lyft_bike_share,
 }
 
 # Default configuration schema
-DEFAULT_CONFIG: Dict[str, Any] = {
+DEFAULT_CONFIG: dict[str, Any] = {
     "board": {
         "api_mode": "local",
         "local_api_key": "",
@@ -304,7 +304,7 @@ class ConfigManager:
     _instance: Optional["ConfigManager"] = None
     _lock = threading.Lock()
 
-    def __new__(cls, config_path: Optional[str] = None) -> "ConfigManager":
+    def __new__(cls, config_path: str | None = None) -> "ConfigManager":
         """Singleton pattern to ensure only one config manager exists."""
         if cls._instance is None:
             with cls._lock:
@@ -313,9 +313,9 @@ class ConfigManager:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, config_path: Optional[str] = None) -> None:
+    def __init__(self, config_path: str | None = None) -> None:
         """Initialize the config manager.
-        
+
         Args:
             config_path: Path to the config file. Defaults to config.json in project root.
         """
@@ -323,7 +323,7 @@ class ConfigManager:
             return
 
         self._file_lock = threading.Lock()
-        
+
         # Determine config file path
         if config_path:
             self._config_path = Path(config_path)
@@ -332,9 +332,9 @@ class ConfigManager:
             data_dir = Path(__file__).parent.parent / "data"
             data_dir.mkdir(exist_ok=True)
             self._config_path = data_dir / "config.json"
-        
-        self._config: Dict[str, Any] = {}
-        self._raw_features: Dict[str, Any] = {}
+
+        self._config: dict[str, Any] = {}
+        self._raw_features: dict[str, Any] = {}
         self._load_or_create()
         self._auto_migrate_features_to_plugins()
         self._migrate_renamed_plugins()
@@ -346,15 +346,15 @@ class ConfigManager:
         with self._file_lock:
             if self._config_path.exists():
                 try:
-                    with open(self._config_path, "r") as f:
+                    with open(self._config_path) as f:
                         self._config = json.load(f)
                     logger.info(f"Loaded config from {self._config_path}")
-                    
+
                     # Snapshot features actually present before merge fills in defaults
                     self._raw_features = self._deep_copy(
                         self._config.get("features", {})
                     )
-                    
+
                     # Merge with defaults to handle missing keys
                     self._config = self._merge_with_defaults(self._config)
                     self._save_internal()
@@ -397,15 +397,15 @@ class ConfigManager:
     # Fields that should be replaced entirely (not recursively merged)
     REPLACE_FIELDS = {"color_rules"}
 
-    def _merge_with_defaults(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_with_defaults(self, config: dict[str, Any]) -> dict[str, Any]:
         """Recursively merge config with defaults to handle missing keys.
-        
+
         Note: Some fields like 'color_rules' are replaced entirely rather than
         recursively merged, so user deletions are preserved.
         """
         result = self._deep_copy(DEFAULT_CONFIG)
-        
-        def merge(base: Dict, update: Dict, path: str = "") -> Dict:
+
+        def merge(base: dict, update: dict, path: str = "") -> dict:
             for key, value in update.items():
                 current_path = f"{path}.{key}" if path else key
                 # Check if this field should be replaced entirely
@@ -416,7 +416,7 @@ class ConfigManager:
                 else:
                     base[key] = value
             return base
-        
+
         return merge(result, config)
 
     def _auto_migrate_features_to_plugins(self) -> None:
@@ -432,7 +432,7 @@ class ConfigManager:
         """
         plugins = self._config.get("plugins", {})
 
-        to_migrate: List[tuple] = []
+        to_migrate: list[tuple] = []
         for feature_key, plugin_id in FEATURE_TO_PLUGIN_MAP.items():
             if feature_key not in self._raw_features:
                 continue
@@ -449,7 +449,7 @@ class ConfigManager:
 
         # Back up config before making changes
         backup_path = self._config_path.with_suffix(
-            f".json.v1_backup"
+            ".json.v1_backup"
         )
         if not backup_path.exists():
             try:
@@ -495,7 +495,7 @@ class ConfigManager:
         if not isinstance(plugins, dict) or not plugins:
             return
 
-        renamed: List[tuple] = []
+        renamed: list[tuple] = []
         for old_id, new_id in PLUGIN_ID_RENAMES.items():
             if old_id not in plugins:
                 continue
@@ -550,7 +550,7 @@ class ConfigManager:
             with open(self._config_path, "w") as f:
                 json.dump(self._config, f, indent=2)
             logger.debug(f"Saved config to {self._config_path}")
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save config: {e}")
             raise
 
@@ -574,13 +574,13 @@ class ConfigManager:
 
     def _apply_env_overrides(self) -> None:
         """Apply environment variable overrides to config.
-        
+
         Only sets values if they're empty in config (allows env vars to provide defaults).
         Environment variables take precedence for initial setup but UI changes are preserved.
         Placeholder values from .env (e.g. ``your_api_key_here``) are ignored.
         """
         changed = False
-        
+
         # Ensure structures exist
         if "board" not in self._config:
             self._config["board"] = {}
@@ -588,13 +588,13 @@ class ConfigManager:
             self._config["features"] = {}
         if "general" not in self._config:
             self._config["general"] = {}
-        
+
         # Helper to safely get/create feature config
         def get_feature(name: str) -> dict:
             if name not in self._config["features"]:
                 self._config["features"][name] = {}
             return self._config["features"][name]
-        
+
         # Helper to apply string env var
         def apply_str(config: dict, key: str, env_var: str, alt_env_var: str = None) -> bool:
             value = os.getenv(env_var, "").strip()
@@ -608,7 +608,7 @@ class ConfigManager:
                 logger.info(f"Applied {env_var} from environment variable")
                 return True
             return False
-        
+
         # Helper to apply int env var
         def apply_int(config: dict, key: str, env_var: str, alt_env_var: str = None) -> bool:
             value = os.getenv(env_var, "").strip()
@@ -622,7 +622,7 @@ class ConfigManager:
                 except ValueError:
                     logger.warning(f"Invalid {env_var} value: {value}")
             return False
-        
+
         # Helper to apply float env var
         def apply_float(config: dict, key: str, env_var: str) -> bool:
             value = os.getenv(env_var, "").strip()
@@ -634,10 +634,10 @@ class ConfigManager:
                 except ValueError:
                     logger.warning(f"Invalid {env_var} value: {value}")
             return False
-        
+
         board_config = self._config["board"]
         general_config = self._config["general"]
-        
+
         # ==================== Board Configuration ====================
         changed |= apply_str(board_config, "api_mode", "BOARD_API_MODE", "FB_API_MODE")
         changed |= apply_str(board_config, "local_api_key", "BOARD_LOCAL_API_KEY", "FB_LOCAL_API_KEY")
@@ -646,29 +646,29 @@ class ConfigManager:
         changed |= apply_str(board_config, "transition_strategy", "BOARD_TRANSITION_STRATEGY", "FB_TRANSITION_STRATEGY")
         changed |= apply_int(board_config, "transition_interval_ms", "BOARD_TRANSITION_INTERVAL_MS", "FB_TRANSITION_INTERVAL_MS")
         changed |= apply_int(board_config, "transition_step_size", "BOARD_TRANSITION_STEP_SIZE", "FB_TRANSITION_STEP_SIZE")
-        
+
         # ==================== General Configuration ====================
         changed |= apply_str(general_config, "timezone", "TIMEZONE")
         changed |= apply_int(general_config, "refresh_interval_seconds", "REFRESH_INTERVAL_SECONDS")
         changed |= apply_str(general_config, "output_target", "OUTPUT_TARGET")
-        
+
         # Silence schedule start/end times (enabling via env var is no longer supported;
         # use the UI or config.json to set silence_schedule.enabled)
         changed |= apply_str(general_config, "silence_schedule_start_time", "SILENCE_SCHEDULE_START_TIME")
         changed |= apply_str(general_config, "silence_schedule_end_time", "SILENCE_SCHEDULE_END_TIME")
-        
+
         # ==================== Weather Feature ====================
         weather = get_feature("weather")
         changed |= apply_str(weather, "api_key", "WEATHER_API_KEY")
         changed |= apply_str(weather, "provider", "WEATHER_PROVIDER")
         changed |= apply_str(weather, "location", "WEATHER_LOCATION")
-        
+
         # ==================== Guest WiFi Feature ====================
         guest_wifi = get_feature("guest_wifi")
         changed |= apply_str(guest_wifi, "ssid", "GUEST_WIFI_SSID")
         changed |= apply_str(guest_wifi, "password", "GUEST_WIFI_PASSWORD")
         changed |= apply_int(guest_wifi, "refresh_seconds", "GUEST_WIFI_REFRESH_SECONDS")
-        
+
         # ==================== Home Assistant Feature ====================
         home_assistant = get_feature("home_assistant")
         changed |= apply_str(home_assistant, "base_url", "HOME_ASSISTANT_BASE_URL")
@@ -685,31 +685,31 @@ class ConfigManager:
                 changed = True
             except json.JSONDecodeError:
                 logger.warning(f"Invalid HOME_ASSISTANT_ENTITIES JSON: {entities_str}")
-        
+
         # ==================== Star Trek Quotes Feature ====================
         star_trek = get_feature("star_trek_quotes")
         changed |= apply_str(star_trek, "ratio", "STAR_TREK_QUOTES_RATIO")
-        
+
         # ==================== Muni Feature ====================
         muni = get_feature("muni")
         changed |= apply_str(muni, "api_key", "MUNI_API_KEY")
         changed |= apply_int(muni, "refresh_seconds", "MUNI_REFRESH_SECONDS")
-        
+
         # ==================== Traffic Feature ====================
         traffic = get_feature("traffic")
         changed |= apply_str(traffic, "api_key", "GOOGLE_ROUTES_API_KEY")
         changed |= apply_int(traffic, "refresh_seconds", "TRAFFIC_REFRESH_SECONDS")
-        
+
         # ==================== Bay Wheels Feature ====================
         baywheels = get_feature("baywheels")
         changed |= apply_int(baywheels, "refresh_seconds", "BAYWHEELS_REFRESH_SECONDS")
-        
+
         # ==================== Surf Feature ====================
         surf = get_feature("surf")
         changed |= apply_float(surf, "latitude", "SURF_LATITUDE")
         changed |= apply_float(surf, "longitude", "SURF_LONGITUDE")
         changed |= apply_int(surf, "refresh_seconds", "SURF_REFRESH_SECONDS")
-        
+
         # ==================== Air/Fog Feature ====================
         air_fog = get_feature("air_fog")
         changed |= apply_str(air_fog, "purpleair_api_key", "PURPLEAIR_API_KEY")
@@ -718,7 +718,7 @@ class ConfigManager:
         changed |= apply_float(air_fog, "latitude", "AIR_FOG_LATITUDE")
         changed |= apply_float(air_fog, "longitude", "AIR_FOG_LONGITUDE")
         changed |= apply_int(air_fog, "refresh_seconds", "AIR_FOG_REFRESH_SECONDS")
-        
+
         # ==================== Stocks Feature ====================
         stocks = get_feature("stocks")
         changed |= apply_str(stocks, "finnhub_api_key", "FINNHUB_API_KEY")
@@ -730,24 +730,24 @@ class ConfigManager:
             stocks["symbols"] = [s.strip() for s in symbols_str.split(",") if s.strip()]
             logger.info("Applied STOCKS_SYMBOLS from environment variable")
             changed = True
-        
+
         # Save if any changes were made
         if changed:
             with self._file_lock:
                 self._save_internal()
-    
+
     def reload(self) -> None:
         """Reload configuration from file."""
         self._load_or_create()
         self._apply_env_overrides()
         logger.info("Configuration reloaded from file")
 
-    def get_all(self) -> Dict[str, Any]:
+    def get_all(self) -> dict[str, Any]:
         """Get full configuration (internal use - includes secrets)."""
         with self._file_lock:
             return self._deep_copy(self._config)
 
-    def get_all_masked(self) -> Dict[str, Any]:
+    def get_all_masked(self) -> dict[str, Any]:
         """Get full configuration with sensitive fields masked."""
         config = self.get_all()
         return self._mask_sensitive(config)
@@ -768,23 +768,23 @@ class ConfigManager:
             return [self._mask_sensitive(item, path) for item in obj]
         return obj
 
-    def get_board(self) -> Dict[str, Any]:
+    def get_board(self) -> dict[str, Any]:
         """Get board configuration."""
         with self._file_lock:
             # Support both old "board_legacy" and new "board" keys for migration
             config = self._config.get("board") or self._config.get("board_legacy", {})
             return self._deep_copy(config)
 
-    def set_board(self, settings: Dict[str, Any]) -> None:
+    def set_board(self, settings: dict[str, Any]) -> None:
         """Update board configuration.
-        
+
         Args:
             settings: Partial board settings to update.
         """
         with self._file_lock:
             if "board" not in self._config:
                 self._config["board"] = {}
-            
+
             # Only update provided fields
             for key, value in settings.items():
                 if key in DEFAULT_CONFIG["board"]:
@@ -793,16 +793,16 @@ class ConfigManager:
                         logger.debug(f"Preserving existing value for masked field: board.{key}")
                         continue
                     self._config["board"][key] = value
-            
+
             self._save_internal()
         logger.info("Board settings updated")
 
     # Backward compatibility aliases
-    def get_board_legacy(self) -> Dict[str, Any]:
+    def get_board_legacy(self) -> dict[str, Any]:
         """Backward compatibility alias for get_board()."""
         return self.get_board()
 
-    def set_board_legacy(self, settings: Dict[str, Any]) -> None:
+    def set_board_legacy(self, settings: dict[str, Any]) -> None:
         """Backward compatibility alias for set_board()."""
         self.set_board(settings)
 
@@ -816,16 +816,16 @@ class ConfigManager:
         which is the behaviour the setup-wizard integration test needs.
         """
         with self._file_lock:
-            self._config["board"] = {k: v for k, v in DEFAULT_CONFIG["board"].items()}
+            self._config["board"] = dict(DEFAULT_CONFIG["board"].items())
             self._save_internal()
         logger.info("Board config reset to defaults (first-run mode, env overrides skipped)")
 
-    def get_feature(self, feature_name: str) -> Optional[Dict[str, Any]]:
+    def get_feature(self, feature_name: str) -> dict[str, Any] | None:
         """Get configuration for a specific feature.
-        
+
         Args:
             feature_name: Name of the feature (e.g., 'weather', 'guest_wifi').
-            
+
         Returns:
             Feature configuration dict or None if not found.
         """
@@ -838,29 +838,29 @@ class ConfigManager:
                 return self._deep_copy(DEFAULT_CONFIG["features"][feature_name])
             return None
 
-    def set_feature(self, feature_name: str, settings: Dict[str, Any]) -> bool:
+    def set_feature(self, feature_name: str, settings: dict[str, Any]) -> bool:
         """Update configuration for a specific feature.
-        
+
         Args:
             feature_name: Name of the feature.
             settings: Partial feature settings to update.
-            
+
         Returns:
             True if successful, False if feature doesn't exist.
         """
         with self._file_lock:
             if "features" not in self._config:
                 self._config["features"] = {}
-            
+
             if feature_name not in DEFAULT_CONFIG.get("features", {}):
                 logger.warning(f"Unknown feature: {feature_name}")
                 return False
-            
+
             if feature_name not in self._config["features"]:
                 self._config["features"][feature_name] = self._deep_copy(
                     DEFAULT_CONFIG["features"][feature_name]
                 )
-            
+
             # Only update provided fields
             for key, value in settings.items():
                 # Allow any key that exists in defaults, 'enabled', or 'color_rules'
@@ -873,22 +873,22 @@ class ConfigManager:
                         logger.debug(f"Preserving existing value for masked field: {feature_name}.{key}")
                         continue
                     self._config["features"][feature_name][key] = value
-            
+
             self._save_internal()
         logger.info(f"Feature '{feature_name}' settings updated")
         return True
 
-    def get_general(self) -> Dict[str, Any]:
+    def get_general(self) -> dict[str, Any]:
         """Get general configuration."""
         with self._file_lock:
             return self._deep_copy(self._config.get("general", {}))
 
-    def set_general(self, settings: Dict[str, Any]) -> bool:
+    def set_general(self, settings: dict[str, Any]) -> bool:
         """Update general configuration.
-        
+
         Args:
             settings: Partial general settings to update.
-            
+
         Returns:
             True if settings were saved successfully, False otherwise.
         """
@@ -896,7 +896,7 @@ class ConfigManager:
             with self._file_lock:
                 if "general" not in self._config:
                     self._config["general"] = {}
-                
+
                 for key, value in settings.items():
                     if key in DEFAULT_CONFIG.get("general", {}):
                         # Don't overwrite real values with masked placeholders
@@ -904,7 +904,7 @@ class ConfigManager:
                             logger.debug(f"Preserving existing value for masked field: general.{key}")
                             continue
                         self._config["general"][key] = value
-                
+
                 self._save_internal()
             logger.info("General settings updated")
             return True
@@ -912,7 +912,7 @@ class ConfigManager:
             logger.error(f"Failed to update general settings: {e}")
             return False
 
-    def get_ai_providers(self) -> Dict[str, Any]:
+    def get_ai_providers(self) -> dict[str, Any]:
         """Get the AI providers configuration block.
 
         Returns the full block (enabled flag, providers list, default id).
@@ -928,11 +928,11 @@ class ConfigManager:
                 })
             )
 
-    def get_ai_providers_masked(self) -> Dict[str, Any]:
+    def get_ai_providers_masked(self) -> dict[str, Any]:
         """Get the AI providers config with each provider's api_key masked."""
         return self._mask_sensitive(self.get_ai_providers())
 
-    def get_ai_provider(self, provider_id: str) -> Optional[Dict[str, Any]]:
+    def get_ai_provider(self, provider_id: str) -> dict[str, Any] | None:
         """Return the unmasked provider dict for ``provider_id``, or None."""
         block = self.get_ai_providers()
         for provider in block.get("providers", []):
@@ -940,7 +940,7 @@ class ConfigManager:
                 return provider
         return None
 
-    def set_ai_providers(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    def set_ai_providers(self, settings: dict[str, Any]) -> dict[str, Any]:
         """Update the AI providers configuration block.
 
         Accepts a partial dict with any of: ``enabled`` (bool),
@@ -973,7 +973,7 @@ class ConfigManager:
                 existing["default_provider_id"] = value if value else None
 
             if "providers" in settings and isinstance(settings["providers"], list):
-                cleaned: List[Dict[str, Any]] = []
+                cleaned: list[dict[str, Any]] = []
                 for raw in settings["providers"]:
                     if not isinstance(raw, dict):
                         continue
@@ -992,10 +992,10 @@ class ConfigManager:
 
     def is_feature_enabled(self, feature_name: str) -> bool:
         """Check if a feature is enabled.
-        
+
         Args:
             feature_name: Name of the feature.
-            
+
         Returns:
             True if feature is enabled, False otherwise.
         """
@@ -1010,34 +1010,34 @@ class ConfigManager:
 
     def get_color_rules(self, feature_name: str, field_name: str) -> list:
         """Get color rules for a specific feature field.
-        
+
         Args:
             feature_name: Name of the feature (e.g., 'weather').
             field_name: Name of the field (e.g., 'temp').
-            
+
         Returns:
             List of color rule dicts, or empty list if none defined.
         """
         feature = self.get_feature(feature_name)
         if not feature:
             return []
-        
+
         color_rules = feature.get("color_rules", {})
         return color_rules.get(field_name, [])
 
     def validate(self) -> tuple[bool, list[str]]:
         """Validate the current configuration.
-        
+
         Returns:
             Tuple of (is_valid, list of error messages).
         """
         errors = []
         config = self.get_all()
-        
+
         # Validate board settings (support both old and new key names)
         board = config.get("board") or config.get("board_legacy", {})
         api_mode = board.get("api_mode", "local")
-        
+
         if api_mode == "cloud":
             if not board.get("cloud_key"):
                 errors.append("Board cloud_key is required when api_mode is 'cloud'")
@@ -1046,36 +1046,36 @@ class ConfigManager:
                 errors.append("Board local_api_key is required when api_mode is 'local'")
             if not board.get("host"):
                 errors.append("Board host is required when api_mode is 'local'")
-        
+
         # Validate features that are enabled
         features = config.get("features", {})
-        
+
         if features.get("weather", {}).get("enabled"):
             if not features["weather"].get("api_key"):
                 errors.append("Weather API key is required when weather is enabled")
-        
+
         if features.get("home_assistant", {}).get("enabled"):
             ha = features["home_assistant"]
             if not ha.get("base_url"):
                 errors.append("Home Assistant base_url is required when enabled")
             if not ha.get("access_token"):
                 errors.append("Home Assistant access_token is required when enabled")
-        
+
         if features.get("guest_wifi", {}).get("enabled"):
             wifi = features["guest_wifi"]
             if not wifi.get("ssid"):
                 errors.append("Guest WiFi SSID is required when enabled")
             if not wifi.get("password"):
                 errors.append("Guest WiFi password is required when enabled")
-        
+
         return (len(errors) == 0, errors)
-    
+
     def migrate_silence_schedule_to_utc(self) -> bool:
         """Migrate silence_schedule times from old HH:MM format to UTC ISO format.
-        
+
         This method detects if the silence_schedule is using the old local time format
         (e.g., "20:00") and converts it to the new UTC ISO format (e.g., "04:00+00:00").
-        
+
         Returns:
             True if migration was performed, False if no migration needed
         """
@@ -1083,56 +1083,56 @@ class ConfigManager:
             silence_config = self.get_feature("silence_schedule")
             start_time = silence_config.get("start_time", "")
             end_time = silence_config.get("end_time", "")
-            
+
             # Check if migration is needed (old format is just HH:MM, 5 chars)
             if not start_time or not end_time:
                 return False
-            
+
             # Old format: "20:00" (5 chars), New format: "20:00-08:00" (11+ chars)
-            needs_migration = (len(start_time) == 5 and ":" in start_time and 
+            needs_migration = (len(start_time) == 5 and ":" in start_time and
                              len(end_time) == 5 and ":" in end_time)
-            
+
             if not needs_migration:
                 logger.debug("Silence schedule already in UTC format, no migration needed")
                 return False
-            
+
             # Get timezone for conversion (try general.timezone first, then datetime.timezone)
             general_config = self.get_general()
             timezone = general_config.get("timezone")
-            
+
             if not timezone:
                 # Fall back to date_time feature timezone
                 datetime_config = self.get_feature("date_time")
                 timezone = datetime_config.get("timezone", "America/Los_Angeles")
-            
+
             logger.info(f"Migrating silence schedule from local time to UTC using timezone: {timezone}")
-            
+
             # Convert times to UTC
             time_service = get_time_service()
             start_utc = time_service.local_to_utc_iso(start_time, timezone)
             end_utc = time_service.local_to_utc_iso(end_time, timezone)
-            
+
             # Update the config
             silence_config["start_time"] = start_utc
             silence_config["end_time"] = end_utc
-            
+
             success = self.set_feature("silence_schedule", silence_config)
-            
+
             if success:
                 logger.info(f"Successfully migrated silence schedule: {start_time} → {start_utc}, {end_time} → {end_utc}")
             else:
                 logger.error("Failed to save migrated silence schedule")
-            
+
             return success
 
     # ==================== Plugin Configuration Methods ====================
-    
-    def get_plugin_config(self, plugin_id: str) -> Optional[Dict[str, Any]]:
+
+    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
         """Get configuration for a specific plugin.
-        
+
         Args:
             plugin_id: Plugin identifier (e.g., 'weather', 'stocks').
-            
+
         Returns:
             Plugin configuration dict or None if not found.
         """
@@ -1141,69 +1141,69 @@ class ConfigManager:
             if plugin_id in plugins:
                 return self._deep_copy(plugins[plugin_id])
             return None
-    
-    def set_plugin_config(self, plugin_id: str, config: Dict[str, Any]) -> bool:
+
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> bool:
         """Set configuration for a specific plugin.
-        
+
         Args:
             plugin_id: Plugin identifier.
             config: Full plugin configuration (replaces existing).
-            
+
         Returns:
             True if successful.
         """
         with self._file_lock:
             if "plugins" not in self._config:
                 self._config["plugins"] = {}
-            
+
             # Preserve sensitive fields if they're masked
             existing = self._config["plugins"].get(plugin_id, {})
             for key, value in config.items():
                 if key in SENSITIVE_FIELDS and value == "***":
                     # Keep existing value
                     config[key] = existing.get(key, "")
-            
+
             self._config["plugins"][plugin_id] = config
             self._save_internal()
-        
+
         logger.info(f"Plugin '{plugin_id}' configuration updated")
         return True
-    
-    def update_plugin_config(self, plugin_id: str, updates: Dict[str, Any]) -> bool:
+
+    def update_plugin_config(self, plugin_id: str, updates: dict[str, Any]) -> bool:
         """Update specific fields in a plugin's configuration.
-        
+
         Args:
             plugin_id: Plugin identifier.
             updates: Partial configuration to merge.
-            
+
         Returns:
             True if successful.
         """
         with self._file_lock:
             if "plugins" not in self._config:
                 self._config["plugins"] = {}
-            
+
             if plugin_id not in self._config["plugins"]:
                 self._config["plugins"][plugin_id] = {}
-            
+
             # Merge updates, preserving masked sensitive fields
             for key, value in updates.items():
                 if key in SENSITIVE_FIELDS and value == "***":
                     logger.debug(f"Preserving existing value for masked field: plugins.{plugin_id}.{key}")
                     continue
                 self._config["plugins"][plugin_id][key] = value
-            
+
             self._save_internal()
-        
+
         logger.debug(f"Plugin '{plugin_id}' configuration updated")
         return True
-    
+
     def is_plugin_enabled(self, plugin_id: str) -> bool:
         """Check if a plugin is enabled.
-        
+
         Args:
             plugin_id: Plugin identifier.
-            
+
         Returns:
             True if plugin is enabled, False otherwise.
         """
@@ -1211,47 +1211,47 @@ class ConfigManager:
         if config:
             return config.get("enabled", False)
         return False
-    
+
     def enable_plugin(self, plugin_id: str) -> bool:
         """Enable a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier.
-            
+
         Returns:
             True if successful.
         """
         return self.update_plugin_config(plugin_id, {"enabled": True})
-    
+
     def disable_plugin(self, plugin_id: str) -> bool:
         """Disable a plugin.
-        
+
         Args:
             plugin_id: Plugin identifier.
-            
+
         Returns:
             True if successful.
         """
         return self.update_plugin_config(plugin_id, {"enabled": False})
-    
-    def get_all_plugin_configs(self) -> Dict[str, Dict[str, Any]]:
+
+    def get_all_plugin_configs(self) -> dict[str, dict[str, Any]]:
         """Get all plugin configurations.
-        
+
         Returns:
             Dict mapping plugin_id to configuration.
         """
         with self._file_lock:
             return self._deep_copy(self._config.get("plugins", {}))
-    
-    def get_all_plugin_configs_masked(self) -> Dict[str, Dict[str, Any]]:
+
+    def get_all_plugin_configs_masked(self) -> dict[str, dict[str, Any]]:
         """Get all plugin configurations with sensitive fields masked.
-        
+
         Returns:
             Dict mapping plugin_id to masked configuration.
         """
         configs = self.get_all_plugin_configs()
         return self._mask_sensitive(configs)
-    
+
     def delete_plugin_config(self, plugin_id: str) -> bool:
         """Delete configuration for a specific plugin.
 
@@ -1274,9 +1274,9 @@ class ConfigManager:
         logger.info(f"Plugin '{plugin_id}' configuration deleted")
         return True
 
-    def get_enabled_plugins(self) -> List[str]:
+    def get_enabled_plugins(self) -> list[str]:
         """Get list of enabled plugin IDs.
-        
+
         Returns:
             List of plugin IDs that are enabled.
         """
@@ -1285,17 +1285,17 @@ class ConfigManager:
             if config.get("enabled", False):
                 enabled.append(plugin_id)
         return enabled
-    
+
     def migrate_feature_to_plugin(self, feature_name: str, plugin_id: str) -> bool:
         """Migrate a legacy feature configuration to plugin format.
-        
+
         This copies the feature configuration to the plugins section,
         mapping field names as needed.
-        
+
         Args:
             feature_name: Name of the legacy feature.
             plugin_id: Target plugin identifier.
-            
+
         Returns:
             True if migration was performed.
         """
@@ -1303,7 +1303,7 @@ class ConfigManager:
         if not feature_config:
             logger.warning(f"Feature '{feature_name}' not found for migration")
             return False
-        
+
         # Copy to plugins section
         return self.set_plugin_config(plugin_id, feature_config)
 

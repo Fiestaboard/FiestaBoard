@@ -3,11 +3,11 @@
 All plugins must inherit from PluginBase and implement the required methods.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ MAX_REFRESH_SECONDS = 86400
 @dataclass
 class PluginResult:
     """Result from a plugin data fetch operation.
-    
+
     Attributes:
         available: Whether the plugin is available and configured
         data: The fetched data dictionary (raw data for template variables)
@@ -27,11 +27,11 @@ class PluginResult:
         formatted_lines: Optional pre-formatted display lines (6 lines for board)
     """
     available: bool
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    formatted_lines: Optional[List[str]] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    data: dict[str, Any] | None = None
+    error: str | None = None
+    formatted_lines: list[str] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
             "available": self.available,
@@ -60,13 +60,13 @@ class TriggerResult:
     """
     triggered: bool
     trigger_id: str = ""
-    message: Optional[str] = None
-    formatted_lines: Optional[List[str]] = None
+    message: str | None = None
+    formatted_lines: list[str] | None = None
     priority: int = 0
     duration_seconds: int = 30
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
             "triggered": self.triggered,
@@ -82,7 +82,7 @@ class TriggerResult:
 @dataclass
 class PluginInfo:
     """Plugin metadata from manifest.
-    
+
     Attributes:
         id: Unique plugin identifier
         name: Human-readable name
@@ -103,45 +103,45 @@ class PluginInfo:
 
 class PluginBase(ABC):
     """Abstract base class for all FiestaBoard plugins.
-    
+
     Plugins must implement:
     - plugin_id property: Returns unique identifier matching manifest
     - fetch_data(): Returns PluginResult with data
-    
+
     Plugins may optionally implement:
     - validate_config(): Validate configuration before use
     - get_formatted_display(): Return pre-formatted 6-line display
     - on_config_change(): Called when configuration is updated
     - cleanup(): Called when plugin is disabled/unloaded
     """
-    
-    def __init__(self, manifest: Dict[str, Any]):
+
+    def __init__(self, manifest: dict[str, Any]):
         """Initialize plugin with its manifest.
-        
+
         Args:
             manifest: Parsed manifest.json dictionary
         """
         self._manifest = manifest
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
         self._enabled = False
-        self._cached_result: Optional["PluginResult"] = None
-        self._last_fetch_time: Optional[datetime] = None
+        self._cached_result: PluginResult | None = None
+        self._last_fetch_time: datetime | None = None
         logger.debug(f"Plugin initialized: {self.plugin_id}")
-    
+
     @property
     @abstractmethod
     def plugin_id(self) -> str:
         """Return unique plugin identifier.
-        
+
         Must match the 'id' field in manifest.json.
         """
         pass
-    
+
     @property
-    def manifest(self) -> Dict[str, Any]:
+    def manifest(self) -> dict[str, Any]:
         """Return the plugin's manifest."""
         return self._manifest
-    
+
     @property
     def info(self) -> PluginInfo:
         """Return plugin metadata from manifest."""
@@ -154,26 +154,26 @@ class PluginBase(ABC):
             repository=self._manifest.get("repository", ""),
             documentation=self._manifest.get("documentation", "README.md"),
         )
-    
+
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """Return current plugin configuration."""
         return self._config
-    
+
     @config.setter
-    def config(self, value: Dict[str, Any]) -> None:
+    def config(self, value: dict[str, Any]) -> None:
         """Set plugin configuration."""
         old_config = self._config
         self._config = value
         if old_config != value:
             self.clear_cache()
             self.on_config_change(old_config, value)
-    
+
     @property
     def enabled(self) -> bool:
         """Return whether plugin is enabled."""
         return self._enabled
-    
+
     @enabled.setter
     def enabled(self, value: bool) -> None:
         """Set plugin enabled state."""
@@ -185,31 +185,31 @@ class PluginBase(ABC):
                 logger.info(f"Plugin disabled: {self.plugin_id}")
                 self.clear_cache()
                 self.cleanup()
-    
+
     @abstractmethod
     def fetch_data(self) -> PluginResult:
         """Fetch and return plugin data.
-        
+
         This is the main method that plugins must implement.
         It should fetch data from external sources and return
         a PluginResult with the raw data for template variables.
-        
+
         Returns:
             PluginResult with available=True and data if successful,
             or available=False and error message if failed.
         """
         pass
-    
-    def _get_refresh_schema(self) -> Optional[Dict[str, Any]]:
+
+    def _get_refresh_schema(self) -> dict[str, Any] | None:
         """Get refresh_seconds property schema from the manifest, if defined."""
         schema = self._manifest.get("settings_schema", {})
         properties = schema.get("properties", {})
         return properties.get("refresh_seconds")
 
     @property
-    def min_refresh_seconds(self) -> Optional[int]:
+    def min_refresh_seconds(self) -> int | None:
         """Get the hard rate-limit floor from the manifest.
-        
+
         This is the absolute minimum refresh interval enforced at runtime,
         regardless of user configuration.  Plugin developers set this via
         the top-level ``min_refresh_seconds`` field in manifest.json.
@@ -225,9 +225,9 @@ class PluginBase(ABC):
         return refresh_schema.get("minimum", MIN_REFRESH_SECONDS)
 
     @property
-    def refresh_seconds(self) -> Optional[int]:
+    def refresh_seconds(self) -> int | None:
         """Get the effective refresh interval in seconds.
-        
+
         Returns the configured value, falling back to the manifest default.
         The value is clamped to never go below ``min_refresh_seconds`` --
         even if the stored config contains a lower number.
@@ -249,11 +249,11 @@ class PluginBase(ABC):
 
     def get_data(self) -> PluginResult:
         """Get plugin data with automatic caching based on refresh_seconds.
-        
+
         If the plugin's manifest defines refresh_seconds in settings_schema,
         results are cached and reused until the refresh interval expires.
         Plugins without refresh_seconds in their manifest always fetch fresh.
-        
+
         Returns:
             PluginResult with data or error
         """
@@ -284,13 +284,13 @@ class PluginBase(ABC):
         self._cached_result = None
         self._last_fetch_time = None
 
-    def _validate_refresh_seconds(self, config: Dict[str, Any]) -> List[str]:
+    def _validate_refresh_seconds(self, config: dict[str, Any]) -> list[str]:
         """Validate refresh_seconds against the manifest schema bounds.
-        
+
         Uses the hard floor from ``min_refresh_seconds`` (which considers
         the top-level manifest field first, then the schema minimum).
         """
-        errors: List[str] = []
+        errors: list[str] = []
         refresh_schema = self._get_refresh_schema()
 
         if refresh_schema is None or "refresh_seconds" not in config:
@@ -313,55 +313,54 @@ class PluginBase(ABC):
 
         return errors
 
-    def validate_config(self, config: Dict[str, Any]) -> List[str]:
+    def validate_config(self, config: dict[str, Any]) -> list[str]:
         """Validate configuration before use.
-        
+
         Override this method to add custom validation logic.
-        
+
         Args:
             config: Configuration dictionary to validate
-            
+
         Returns:
             List of error messages (empty if valid)
         """
         return []
-    
-    def get_formatted_display(self) -> Optional[List[str]]:
+
+    def get_formatted_display(self) -> list[str] | None:
         """Return pre-formatted 6-line display.
-        
+
         Override this method to provide a default formatted display.
         This is used when showing the plugin as a "single" page type.
-        
+
         Returns:
             List of 6 strings for board display, or None to use
             the template system for formatting.
         """
         return None
-    
-    def on_config_change(self, old_config: Dict[str, Any], new_config: Dict[str, Any]) -> None:
+
+    def on_config_change(self, old_config: dict[str, Any], new_config: dict[str, Any]) -> None:
         """Called when configuration is updated.
-        
+
         Override this method to handle configuration changes,
         e.g., to reset caches or reconnect to services.
-        
+
         Args:
             old_config: Previous configuration
             new_config: New configuration
         """
         logger.debug(f"Config changed for {self.plugin_id}")
-    
-    def cleanup(self) -> None:
+
+    def cleanup(self) -> None:  # noqa: B027 — optional override hook, intentionally empty
         """Called when plugin is disabled or unloaded.
-        
+
         Override this method to clean up resources, close connections, etc.
         """
-        pass
 
     def resolve_config_variables(
         self,
-        extra_variables: Optional[Dict[str, str]] = None,
-        timezone: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        extra_variables: dict[str, str] | None = None,
+        timezone: str | None = None,
+    ) -> dict[str, Any]:
         """Return a copy of the plugin config with ``{{variable}}`` patterns resolved.
 
         Built-in system variables (date, year, month, day, hour, minute,
@@ -391,8 +390,8 @@ class PluginBase(ABC):
         self,
         key: str,
         default: Any = None,
-        extra_variables: Optional[Dict[str, str]] = None,
-        timezone: Optional[str] = None,
+        extra_variables: dict[str, str] | None = None,
+        timezone: str | None = None,
     ) -> Any:
         """Return a single config value from a resolved copy (see ``resolve_config_variables``)."""
         resolved = self.resolve_config_variables(
@@ -404,8 +403,8 @@ class PluginBase(ABC):
         self,
         key: str = "url",
         default: str = "",
-        extra_variables: Optional[Dict[str, str]] = None,
-        timezone: Optional[str] = None,
+        extra_variables: dict[str, str] | None = None,
+        timezone: str | None = None,
     ) -> str:
         """Return a string setting with ``{{variable}}`` patterns resolved.
 
@@ -424,30 +423,30 @@ class PluginBase(ABC):
             return raw
         return default
 
-    def get_variables_schema(self) -> Dict[str, Any]:
+    def get_variables_schema(self) -> dict[str, Any]:
         """Return the variables schema from manifest.
-        
+
         Returns:
             Variables schema dictionary for the template engine.
         """
         return self._manifest.get("variables", {})
-    
-    def get_max_lengths(self) -> Dict[str, int]:
+
+    def get_max_lengths(self) -> dict[str, int]:
         """Return the max lengths from manifest.
-        
+
         Returns:
             Dictionary mapping variable names to max character lengths.
         """
         return self._manifest.get("max_lengths", {})
-    
-    def get_settings_schema(self) -> Dict[str, Any]:
+
+    def get_settings_schema(self) -> dict[str, Any]:
         """Return the settings JSON schema from manifest.
-        
+
         Returns:
             JSON Schema for the plugin's settings form.
         """
         return self._manifest.get("settings_schema", {})
-    
+
     @property
     def supports_triggers(self) -> bool:
         """Whether this plugin supports event-based triggers.
@@ -456,7 +455,7 @@ class PluginBase(ABC):
         """
         return bool(self._manifest.get("supports_triggers", False))
 
-    def receive_payload(self, payload: Dict[str, Any], headers: Dict[str, str], raw_body: bytes = b"") -> None:
+    def receive_payload(self, payload: dict[str, Any], headers: dict[str, str], raw_body: bytes = b"") -> None:
         """Handle an incoming webhook payload pushed to this plugin.
 
         Override this in plugins that accept push data from external systems.
@@ -466,7 +465,7 @@ class PluginBase(ABC):
         """
         raise NotImplementedError(f"Plugin {self.plugin_id} does not support receive")
 
-    def check_triggers(self) -> List["TriggerResult"]:
+    def check_triggers(self) -> list["TriggerResult"]:
         """Check whether any event-based triggers should fire.
 
         Plugins that support triggers override this method to evaluate
@@ -480,9 +479,9 @@ class PluginBase(ABC):
         """
         return []
 
-    def get_env_vars(self) -> List[Dict[str, Any]]:
+    def get_env_vars(self) -> list[dict[str, Any]]:
         """Return required/optional environment variables from manifest.
-        
+
         Returns:
             List of env var definitions with name, required, description.
         """

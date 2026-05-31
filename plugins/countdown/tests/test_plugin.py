@@ -1,9 +1,9 @@
 """Tests for the countdown plugin."""
 
-from unittest.mock import patch
-from datetime import datetime
 import json
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from plugins.countdown import CountdownPlugin

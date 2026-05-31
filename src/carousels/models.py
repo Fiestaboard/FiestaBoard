@@ -5,11 +5,10 @@ at a configured interval. They can be used anywhere a page_id is accepted
 by using the prefixed ID format: carousel:{uuid}.
 """
 
-from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field
 import uuid
+from datetime import datetime
 
+from pydantic import BaseModel, Field
 
 CAROUSEL_ID_PREFIX = "carousel:"
 
@@ -33,14 +32,14 @@ class Carousel(BaseModel):
     """A carousel – an ordered collection of pages that cycle automatically."""
     id: str = Field(default_factory=make_carousel_id)
     name: str = Field(min_length=1, max_length=100)
-    page_ids: List[str] = Field(min_length=1)
+    page_ids: list[str] = Field(min_length=1)
     interval_seconds: int = Field(default=30, ge=5, le=3600)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
-    def validate_config(self) -> List[str]:
-        errors: List[str] = []
+    def validate_config(self) -> list[str]:
+        errors: list[str] = []
         if not self.page_ids:
             errors.append("Carousel requires at least one page")
         if len(self.page_ids) != len(set(self.page_ids)):
@@ -78,12 +77,12 @@ class Carousel(BaseModel):
 class CarouselCreate(BaseModel):
     """Request model for creating a new carousel."""
     name: str = Field(min_length=1, max_length=100)
-    page_ids: List[str] = Field(min_length=1)
+    page_ids: list[str] = Field(min_length=1)
     interval_seconds: int = Field(default=30, ge=5, le=3600)
 
 
 class CarouselUpdate(BaseModel):
     """Request model for updating an existing carousel."""
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    page_ids: Optional[List[str]] = Field(default=None, min_length=1)
-    interval_seconds: Optional[int] = Field(default=None, ge=5, le=3600)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    page_ids: list[str] | None = Field(default=None, min_length=1)
+    interval_seconds: int | None = Field(default=None, ge=5, le=3600)

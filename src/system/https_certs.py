@@ -25,7 +25,6 @@ import socket
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ def cert_exists() -> bool:
     return cert.is_file() and key.is_file()
 
 
-def _detect_lan_ips() -> List[str]:
+def _detect_lan_ips() -> list[str]:
     """Best-effort discovery of IPv4 addresses on this host.
 
     Used to populate ``IP:`` Subject Alternative Names so the cert is
@@ -101,7 +100,7 @@ def _detect_lan_ips() -> List[str]:
     return [ip for ip in ips if ip and not ip.startswith("127.")]
 
 
-def _build_san_entries(extra_hosts: Optional[List[str]] = None) -> List[str]:
+def _build_san_entries(extra_hosts: list[str] | None = None) -> list[str]:
     """Build the list of subjectAltName entries for the cert.
 
     Always includes ``localhost``, ``127.0.0.1``, ``fiestaboard.local``,
@@ -148,7 +147,7 @@ def _openssl_available() -> bool:
 
 
 def generate_cert(
-    extra_hosts: Optional[List[str]] = None,
+    extra_hosts: list[str] | None = None,
     overwrite: bool = False,
 ) -> tuple[Path, Path]:
     """Generate a self-signed certificate + key into the cert directory.

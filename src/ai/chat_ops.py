@@ -18,10 +18,9 @@ SSE frame to the frontend.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 Alignment = Literal["left", "center", "right"]
 
@@ -49,8 +48,8 @@ class ReplacePageArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     name: str = Field(..., min_length=1, max_length=100)
-    template: List[str] = Field(..., min_length=1)
-    line_metadata: List[LineMetadata] = Field(default_factory=list)
+    template: list[str] = Field(..., min_length=1)
+    line_metadata: list[LineMetadata] = Field(default_factory=list)
     duration_seconds: int = Field(300, ge=10, le=3600)
 
 
@@ -72,8 +71,8 @@ class ReplaceLineOp(BaseModel):
     type: Literal["replace_line"]
     index: int = Field(..., ge=0)
     text: str
-    alignment: Optional[Alignment] = None
-    wrap: Optional[bool] = None
+    alignment: Alignment | None = None
+    wrap: bool | None = None
 
 
 class InsertLineOp(BaseModel):
@@ -82,8 +81,8 @@ class InsertLineOp(BaseModel):
     type: Literal["insert_line"]
     index: int = Field(..., ge=0)
     text: str
-    alignment: Optional[Alignment] = None
-    wrap: Optional[bool] = None
+    alignment: Alignment | None = None
+    wrap: bool | None = None
 
 
 class DeleteLineOp(BaseModel):
@@ -98,18 +97,18 @@ class UpdateLineMetadataOp(BaseModel):
 
     type: Literal["update_line_metadata"]
     index: int = Field(..., ge=0)
-    alignment: Optional[Alignment] = None
-    wrap: Optional[bool] = None
+    alignment: Alignment | None = None
+    wrap: bool | None = None
 
 
-LineOp = Union[ReplaceLineOp, InsertLineOp, DeleteLineOp, UpdateLineMetadataOp]
+LineOp = ReplaceLineOp | InsertLineOp | DeleteLineOp | UpdateLineMetadataOp
 
 
 class ApplyPatchArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    changes: List[LineOp] = Field(default_factory=list)
-    rename: Optional[str] = Field(default=None, max_length=100)
+    changes: list[LineOp] = Field(default_factory=list)
+    rename: str | None = Field(default=None, max_length=100)
 
 
 class ApplyPatchOp(BaseModel):
@@ -128,14 +127,14 @@ class VariableSuggestion(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     ref: str = Field(..., description="Variable reference like 'plugin.field'.")
-    description: Optional[str] = None
-    example: Optional[str] = None
+    description: str | None = None
+    example: str | None = None
 
 
 class SuggestVariablesArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    suggestions: List[VariableSuggestion] = Field(default_factory=list)
+    suggestions: list[VariableSuggestion] = Field(default_factory=list)
 
 
 class SuggestVariablesOp(BaseModel):
@@ -154,7 +153,7 @@ class NavigateToPageArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     page_id: str = Field(..., description="Existing page ID, or 'new' to create.")
-    device_type: Optional[str] = Field(default=None)
+    device_type: str | None = Field(default=None)
 
 
 class NavigateToPageOp(BaseModel):
@@ -175,7 +174,7 @@ class InstallPluginArgs(BaseModel):
     plugin_id: str = Field(..., min_length=1, max_length=100)
     source: Literal["registry"] = "registry"
     auto_enable: bool = True
-    initial_config: Optional[Dict[str, Any]] = None
+    initial_config: dict[str, Any] | None = None
 
 
 class InstallPluginOp(BaseModel):
@@ -194,7 +193,7 @@ class UpdatePluginConfigArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     plugin_id: str = Field(..., min_length=1, max_length=100)
-    config: Dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
 
 
 class UpdatePluginConfigOp(BaseModel):
@@ -278,7 +277,7 @@ class UpdateSettingArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     category: SettingCategory
-    values: Dict[str, Any] = Field(default_factory=dict)
+    values: dict[str, Any] = Field(default_factory=dict)
 
 
 class UpdateSettingOp(BaseModel):
@@ -297,7 +296,7 @@ class CreateCarouselArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     name: str = Field(..., min_length=1, max_length=100)
-    page_ids: List[str] = Field(default_factory=list)
+    page_ids: list[str] = Field(default_factory=list)
     interval_seconds: int = Field(30, ge=5, le=3600)
 
 
@@ -312,9 +311,9 @@ class UpdateCarouselArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     carousel_id: str = Field(..., description="ID of the carousel to update.")
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    page_ids: Optional[List[str]] = None
-    interval_seconds: Optional[int] = Field(default=None, ge=5, le=3600)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    page_ids: list[str] | None = None
+    interval_seconds: int | None = Field(default=None, ge=5, le=3600)
 
 
 class UpdateCarouselOp(BaseModel):
@@ -338,9 +337,9 @@ class CreateScheduleArgs(BaseModel):
 
     page_id: str = Field(..., description="Page or carousel ID to show.")
     start_time: str = Field(..., description="24h HH:MM start time.")
-    end_time: Optional[str] = Field(default=None, description="24h HH:MM end time, or null for open-ended.")
+    end_time: str | None = Field(default=None, description="24h HH:MM end time, or null for open-ended.")
     day_pattern: DayPattern = "all"
-    custom_days: Optional[List[str]] = Field(default=None, description="Required when day_pattern='custom'.")
+    custom_days: list[str] | None = Field(default=None, description="Required when day_pattern='custom'.")
     enabled: bool = True
 
 
@@ -355,12 +354,12 @@ class UpdateScheduleArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     schedule_id: str = Field(..., description="ID of the schedule entry to update.")
-    page_id: Optional[str] = None
-    start_time: Optional[str] = None
-    end_time: Optional[str] = None
-    day_pattern: Optional[DayPattern] = None
-    custom_days: Optional[List[str]] = None
-    enabled: Optional[bool] = None
+    page_id: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    day_pattern: DayPattern | None = None
+    custom_days: list[str] | None = None
+    enabled: bool | None = None
 
 
 class UpdateScheduleOp(BaseModel):
@@ -410,7 +409,7 @@ class UpdatePluginOp(BaseModel):
 class NavigateToScheduleArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    prefill: Optional[Dict[str, Any]] = Field(default=None)
+    prefill: dict[str, Any] | None = Field(default=None)
 
 
 class NavigateToScheduleOp(BaseModel):
@@ -456,7 +455,7 @@ class TaskItem(BaseModel):
 class UpdateTaskListArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    tasks: List[TaskItem] = Field(default_factory=list)
+    tasks: list[TaskItem] = Field(default_factory=list)
 
 
 class UpdateTaskListOp(BaseModel):
@@ -471,7 +470,7 @@ class UpdateTaskListOp(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-ToolCall = Union[
+ToolCall = Union[  # noqa: UP007 — pydantic discriminated-union requires typing.Union
     ReplacePageOp,
     ApplyPatchOp,
     SuggestVariablesOp,
@@ -545,6 +544,6 @@ def parse_tool_call(payload: object) -> ToolCall:
         raise ToolCallValidationError(str(exc)) from exc
 
 
-def supported_ops() -> List[str]:
+def supported_ops() -> list[str]:
     """Stable list of supported op names — used in the system prompt."""
     return list(_OP_REGISTRY.keys())

@@ -26,14 +26,15 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 # --------------------------------------------------------------------------- #
 # Color tile names -- duplicated from engine.py to keep this module dependency
 # free. Kept in sync with ``COLOR_CODES`` there.
 # --------------------------------------------------------------------------- #
-_COLOR_CODES: Dict[str, int] = {
+_COLOR_CODES: dict[str, int] = {
     "red": 63,
     "orange": 64,
     "yellow": 65,
@@ -61,7 +62,7 @@ class FormulaError(Exception):
     public :func:`validate_expression` helper.
     """
 
-    def __init__(self, code: str, message: str = "", pos: Optional[int] = None):
+    def __init__(self, code: str, message: str = "", pos: int | None = None):
         super().__init__(message or code)
         self.code = code
         self.message = message or code
@@ -112,8 +113,8 @@ _OPERATORS = (
 )
 
 
-def _tokenize(source: str) -> List[Token]:
-    tokens: List[Token] = []
+def _tokenize(source: str) -> list[Token]:
+    tokens: list[Token] = []
     i = 0
     n = len(source)
 
@@ -151,7 +152,7 @@ def _tokenize(source: str) -> List[Token]:
         if ch == '"':
             start = i
             i += 1
-            buf: List[str] = []
+            buf: list[str] = []
             while i < n and source[i] != '"':
                 if source[i] == "\\" and i + 1 < n:
                     nxt = source[i + 1]
@@ -255,7 +256,7 @@ class _Binary(_Node):
 @dataclass
 class _Call(_Node):
     name: str  # uppercase
-    args: List[_Node]
+    args: list[_Node]
 
 
 # --------------------------------------------------------------------------- #
@@ -282,7 +283,7 @@ _CMP_OPS = {"=", "==", "!=", "<>", "<", ">", "<=", ">="}
 
 
 class _Parser:
-    def __init__(self, tokens: List[Token]):
+    def __init__(self, tokens: list[Token]):
         self.tokens = tokens
         self.pos = 0
 
@@ -294,14 +295,14 @@ class _Parser:
         self.pos += 1
         return tok
 
-    def _accept_op(self, *ops: str) -> Optional[str]:
+    def _accept_op(self, *ops: str) -> str | None:
         tok = self._peek()
         if tok.kind == _T_OP and tok.value in ops:
             self._advance()
             return tok.value
         return None
 
-    def _accept_kw(self, *names: str) -> Optional[str]:
+    def _accept_kw(self, *names: str) -> str | None:
         tok = self._peek()
         if tok.kind == _T_IDENT and tok.value.upper() in names:
             self._advance()
@@ -425,7 +426,7 @@ class _Parser:
             # Function call?
             if self._peek().kind == _T_LPAREN:
                 self._advance()
-                args: List[_Node] = []
+                args: list[_Node] = []
                 if self._peek().kind != _T_RPAREN:
                     args.append(self._parse_or())
                     while self._peek().kind == _T_COMMA:
@@ -460,7 +461,7 @@ def _is_error(value: Any) -> bool:
     return isinstance(value, ErrorValue)
 
 
-def _propagate(*values: Any) -> Optional[ErrorValue]:
+def _propagate(*values: Any) -> ErrorValue | None:
     for v in values:
         if _is_error(v):
             return v
@@ -559,14 +560,14 @@ def _compare(left: Any, right: Any) -> int:
 # --- Built-in functions ---------------------------------------------------- #
 
 
-def _expect_args(name: str, args: List[Any], minimum: int, maximum: Optional[int] = None) -> None:
+def _expect_args(name: str, args: list[Any], minimum: int, maximum: int | None = None) -> None:
     if len(args) < minimum:
         raise FormulaError("#VALUE", f"{name}: expected at least {minimum} args, got {len(args)}")
     if maximum is not None and len(args) > maximum:
         raise FormulaError("#VALUE", f"{name}: expected at most {maximum} args, got {len(args)}")
 
 
-def _fn_if(args: List[Any]) -> Any:
+def _fn_if(args: list[Any]) -> Any:
     _expect_args("IF", args, 2, 3)
     cond = args[0]
     err = _propagate(cond)
@@ -575,7 +576,7 @@ def _fn_if(args: List[Any]) -> Any:
     return args[1] if _to_bool(cond) else (args[2] if len(args) == 3 else "")
 
 
-def _fn_ifs(args: List[Any]) -> Any:
+def _fn_ifs(args: list[Any]) -> Any:
     if len(args) < 2:
         raise FormulaError("#VALUE", "IFS: expected at least 2 args")
     # Iterate condition/value pairs. A trailing single arg (odd-length args)
@@ -595,7 +596,7 @@ def _fn_ifs(args: List[Any]) -> Any:
     return ErrorValue("#VALUE")
 
 
-def _fn_switch(args: List[Any]) -> Any:
+def _fn_switch(args: list[Any]) -> Any:
     if len(args) < 3:
         raise FormulaError("#VALUE", "SWITCH: expected at least 3 args")
     err = _propagate(args[0])
@@ -612,7 +613,7 @@ def _fn_switch(args: List[Any]) -> Any:
     return ""
 
 
-def _fn_and(args: List[Any]) -> Any:
+def _fn_and(args: list[Any]) -> Any:
     if not args:
         return True
     err = _propagate(*args)
@@ -621,7 +622,7 @@ def _fn_and(args: List[Any]) -> Any:
     return all(_to_bool(a) for a in args)
 
 
-def _fn_or(args: List[Any]) -> Any:
+def _fn_or(args: list[Any]) -> Any:
     if not args:
         return False
     err = _propagate(*args)
@@ -630,7 +631,7 @@ def _fn_or(args: List[Any]) -> Any:
     return any(_to_bool(a) for a in args)
 
 
-def _fn_not(args: List[Any]) -> Any:
+def _fn_not(args: list[Any]) -> Any:
     _expect_args("NOT", args, 1, 1)
     err = _propagate(args[0])
     if err is not None:
@@ -638,17 +639,17 @@ def _fn_not(args: List[Any]) -> Any:
     return not _to_bool(args[0])
 
 
-def _fn_iferror(args: List[Any]) -> Any:
+def _fn_iferror(args: list[Any]) -> Any:
     _expect_args("IFERROR", args, 2, 2)
     return args[1] if _is_error(args[0]) else args[0]
 
 
-def _fn_iserror(args: List[Any]) -> Any:
+def _fn_iserror(args: list[Any]) -> Any:
     _expect_args("ISERROR", args, 1, 1)
     return _is_error(args[0])
 
 
-def _fn_isblank(args: List[Any]) -> Any:
+def _fn_isblank(args: list[Any]) -> Any:
     _expect_args("ISBLANK", args, 1, 1)
     v = args[0]
     if _is_error(v):
@@ -660,7 +661,7 @@ def _fn_isblank(args: List[Any]) -> Any:
     return False
 
 
-def _fn_default(args: List[Any]) -> Any:
+def _fn_default(args: list[Any]) -> Any:
     _expect_args("DEFAULT", args, 2, 2)
     v = args[0]
     if _is_error(v):
@@ -670,7 +671,7 @@ def _fn_default(args: List[Any]) -> Any:
     return v
 
 
-def _fn_coalesce(args: List[Any]) -> Any:
+def _fn_coalesce(args: list[Any]) -> Any:
     """Return the first argument that isn't an error / NULL / blank.
 
     Mirrors SQL's COALESCE and is the n-ary form of DEFAULT. Falls
@@ -693,8 +694,8 @@ def _fn_coalesce(args: List[Any]) -> Any:
 
 
 # Math
-def _math_unary(name: str, fn: Callable[[float], float]) -> Callable[[List[Any]], Any]:
-    def impl(args: List[Any]) -> Any:
+def _math_unary(name: str, fn: Callable[[float], float]) -> Callable[[list[Any]], Any]:
+    def impl(args: list[Any]) -> Any:
         _expect_args(name, args, 1, 1)
         err = _propagate(args[0])
         if err is not None:
@@ -703,7 +704,7 @@ def _math_unary(name: str, fn: Callable[[float], float]) -> Callable[[List[Any]]
     return impl
 
 
-def _fn_round(args: List[Any]) -> Any:
+def _fn_round(args: list[Any]) -> Any:
     _expect_args("ROUND", args, 1, 2)
     err = _propagate(*args)
     if err is not None:
@@ -713,7 +714,7 @@ def _fn_round(args: List[Any]) -> Any:
     return round(x, n)
 
 
-def _fn_roundup(args: List[Any]) -> Any:
+def _fn_roundup(args: list[Any]) -> Any:
     """Round away from zero to ``n`` decimals (Excel's ROUNDUP)."""
     _expect_args("ROUNDUP", args, 1, 2)
     err = _propagate(*args)
@@ -727,7 +728,7 @@ def _fn_roundup(args: List[Any]) -> Any:
     return math.floor(x * multiplier) / multiplier
 
 
-def _fn_rounddown(args: List[Any]) -> Any:
+def _fn_rounddown(args: list[Any]) -> Any:
     """Round toward zero to ``n`` decimals (Excel's ROUNDDOWN)."""
     _expect_args("ROUNDDOWN", args, 1, 2)
     err = _propagate(*args)
@@ -741,7 +742,7 @@ def _fn_rounddown(args: List[Any]) -> Any:
     return math.ceil(x * multiplier) / multiplier
 
 
-def _fn_power(args: List[Any]) -> Any:
+def _fn_power(args: list[Any]) -> Any:
     _expect_args("POWER", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -757,7 +758,7 @@ def _fn_power(args: List[Any]) -> Any:
     return result
 
 
-def _fn_sqrt(args: List[Any]) -> Any:
+def _fn_sqrt(args: list[Any]) -> Any:
     _expect_args("SQRT", args, 1, 1)
     err = _propagate(*args)
     if err is not None:
@@ -768,7 +769,7 @@ def _fn_sqrt(args: List[Any]) -> Any:
     return math.sqrt(x)
 
 
-def _fn_min(args: List[Any]) -> Any:
+def _fn_min(args: list[Any]) -> Any:
     _expect_args("MIN", args, 1)
     err = _propagate(*args)
     if err is not None:
@@ -776,7 +777,7 @@ def _fn_min(args: List[Any]) -> Any:
     return min(_to_number(a) for a in args)
 
 
-def _fn_max(args: List[Any]) -> Any:
+def _fn_max(args: list[Any]) -> Any:
     _expect_args("MAX", args, 1)
     err = _propagate(*args)
     if err is not None:
@@ -784,7 +785,7 @@ def _fn_max(args: List[Any]) -> Any:
     return max(_to_number(a) for a in args)
 
 
-def _fn_sum(args: List[Any]) -> Any:
+def _fn_sum(args: list[Any]) -> Any:
     _expect_args("SUM", args, 1)
     err = _propagate(*args)
     if err is not None:
@@ -792,7 +793,7 @@ def _fn_sum(args: List[Any]) -> Any:
     return sum(_to_number(a) for a in args)
 
 
-def _fn_avg(args: List[Any]) -> Any:
+def _fn_avg(args: list[Any]) -> Any:
     _expect_args("AVG", args, 1)
     err = _propagate(*args)
     if err is not None:
@@ -801,7 +802,7 @@ def _fn_avg(args: List[Any]) -> Any:
     return sum(nums) / len(nums)
 
 
-def _fn_mod(args: List[Any]) -> Any:
+def _fn_mod(args: list[Any]) -> Any:
     _expect_args("MOD", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -812,7 +813,7 @@ def _fn_mod(args: List[Any]) -> Any:
     return _to_number(args[0]) % b
 
 
-def _fn_sign(args: List[Any]) -> Any:
+def _fn_sign(args: list[Any]) -> Any:
     _expect_args("SIGN", args, 1, 1)
     err = _propagate(args[0])
     if err is not None:
@@ -822,14 +823,14 @@ def _fn_sign(args: List[Any]) -> Any:
 
 
 # Text
-def _fn_concat(args: List[Any]) -> Any:
+def _fn_concat(args: list[Any]) -> Any:
     err = _propagate(*args)
     if err is not None:
         return err
     return "".join(_to_string(a) for a in args)
 
 
-def _fn_len(args: List[Any]) -> Any:
+def _fn_len(args: list[Any]) -> Any:
     _expect_args("LEN", args, 1, 1)
     err = _propagate(args[0])
     if err is not None:
@@ -837,7 +838,7 @@ def _fn_len(args: List[Any]) -> Any:
     return len(_to_string(args[0]))
 
 
-def _fn_left(args: List[Any]) -> Any:
+def _fn_left(args: list[Any]) -> Any:
     _expect_args("LEFT", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -848,7 +849,7 @@ def _fn_left(args: List[Any]) -> Any:
     return _to_string(args[0])[:n]
 
 
-def _fn_right(args: List[Any]) -> Any:
+def _fn_right(args: list[Any]) -> Any:
     _expect_args("RIGHT", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -860,7 +861,7 @@ def _fn_right(args: List[Any]) -> Any:
     return s[-n:] if n > 0 else ""
 
 
-def _fn_mid(args: List[Any]) -> Any:
+def _fn_mid(args: list[Any]) -> Any:
     _expect_args("MID", args, 3, 3)
     err = _propagate(*args)
     if err is not None:
@@ -876,7 +877,7 @@ def _fn_mid(args: List[Any]) -> Any:
     return s[start : start + length]
 
 
-def _fn_replace(args: List[Any]) -> Any:
+def _fn_replace(args: list[Any]) -> Any:
     _expect_args("REPLACE", args, 3, 3)
     err = _propagate(*args)
     if err is not None:
@@ -884,7 +885,7 @@ def _fn_replace(args: List[Any]) -> Any:
     return _to_string(args[0]).replace(_to_string(args[1]), _to_string(args[2]))
 
 
-def _fn_proper(args: List[Any]) -> Any:
+def _fn_proper(args: list[Any]) -> Any:
     """Title-case (capitalize the first letter of every word).
 
     Similar to Excel's PROPER but with a friendlier treatment of intra-word
@@ -897,7 +898,7 @@ def _fn_proper(args: List[Any]) -> Any:
     if err is not None:
         return err
     s = _to_string(args[0])
-    out: List[str] = []
+    out: list[str] = []
     prev_in_word = False
     for ch in s:
         if ch.isalpha():
@@ -915,7 +916,7 @@ def _fn_proper(args: List[Any]) -> Any:
     return "".join(out)
 
 
-def _fn_find(args: List[Any]) -> Any:
+def _fn_find(args: list[Any]) -> Any:
     """Case-sensitive substring search. 1-indexed like Excel; ``#VALUE`` if not found."""
     _expect_args("FIND", args, 2, 3)
     err = _propagate(*args)
@@ -932,7 +933,7 @@ def _fn_find(args: List[Any]) -> Any:
     return idx + 1  # 1-indexed
 
 
-def _fn_search(args: List[Any]) -> Any:
+def _fn_search(args: list[Any]) -> Any:
     """Case-insensitive version of FIND. Returns 0 if not found (template-friendly)."""
     _expect_args("SEARCH", args, 2, 3)
     err = _propagate(*args)
@@ -949,7 +950,7 @@ def _fn_search(args: List[Any]) -> Any:
     return idx + 1
 
 
-def _fn_rept(args: List[Any]) -> Any:
+def _fn_rept(args: list[Any]) -> Any:
     _expect_args("REPT", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -964,7 +965,7 @@ def _fn_rept(args: List[Any]) -> Any:
     return _to_string(args[0]) * n
 
 
-def _fn_contains(args: List[Any]) -> Any:
+def _fn_contains(args: list[Any]) -> Any:
     _expect_args("CONTAINS", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -972,7 +973,7 @@ def _fn_contains(args: List[Any]) -> Any:
     return _to_string(args[1]) in _to_string(args[0])
 
 
-def _fn_startswith(args: List[Any]) -> Any:
+def _fn_startswith(args: list[Any]) -> Any:
     _expect_args("STARTSWITH", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -980,7 +981,7 @@ def _fn_startswith(args: List[Any]) -> Any:
     return _to_string(args[0]).startswith(_to_string(args[1]))
 
 
-def _fn_endswith(args: List[Any]) -> Any:
+def _fn_endswith(args: list[Any]) -> Any:
     _expect_args("ENDSWITH", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -988,7 +989,7 @@ def _fn_endswith(args: List[Any]) -> Any:
     return _to_string(args[0]).endswith(_to_string(args[1]))
 
 
-def _fn_pad(args: List[Any]) -> Any:
+def _fn_pad(args: list[Any]) -> Any:
     _expect_args("PAD", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -999,7 +1000,7 @@ def _fn_pad(args: List[Any]) -> Any:
     return _to_string(args[0]).ljust(width)[:width]
 
 
-def _fn_padleft(args: List[Any]) -> Any:
+def _fn_padleft(args: list[Any]) -> Any:
     _expect_args("PADLEFT", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -1011,7 +1012,7 @@ def _fn_padleft(args: List[Any]) -> Any:
     return s.rjust(width) if len(s) <= width else s[-width:]
 
 
-def _fn_center(args: List[Any]) -> Any:
+def _fn_center(args: list[Any]) -> Any:
     _expect_args("CENTER", args, 2, 2)
     err = _propagate(*args)
     if err is not None:
@@ -1022,7 +1023,7 @@ def _fn_center(args: List[Any]) -> Any:
     return _to_string(args[0]).center(width)[:width]
 
 
-def _fn_text(args: List[Any]) -> Any:
+def _fn_text(args: list[Any]) -> Any:
     _expect_args("TEXT", args, 1, 1)
     err = _propagate(args[0])
     if err is not None:
@@ -1030,7 +1031,7 @@ def _fn_text(args: List[Any]) -> Any:
     return _to_string(args[0])
 
 
-def _fn_num(args: List[Any]) -> Any:
+def _fn_num(args: list[Any]) -> Any:
     _expect_args("NUM", args, 1, 1)
     err = _propagate(args[0])
     if err is not None:
@@ -1038,7 +1039,7 @@ def _fn_num(args: List[Any]) -> Any:
     return _to_number(args[0])
 
 
-def _fn_fixed(args: List[Any]) -> Any:
+def _fn_fixed(args: list[Any]) -> Any:
     _expect_args("FIXED", args, 1, 2)
     err = _propagate(*args)
     if err is not None:
@@ -1049,7 +1050,7 @@ def _fn_fixed(args: List[Any]) -> Any:
     return f"{_to_number(args[0]):.{n}f}"
 
 
-def _text_unary(name: str, args: List[Any], fn: Callable[[str], str]) -> Any:
+def _text_unary(name: str, args: list[Any], fn: Callable[[str], str]) -> Any:
     _expect_args(name, args, 1, 1)
     err = _propagate(args[0])
     if err is not None:
@@ -1057,7 +1058,7 @@ def _text_unary(name: str, args: List[Any], fn: Callable[[str], str]) -> Any:
     return fn(_to_string(args[0]))
 
 
-def _fn_color(args: List[Any]) -> Any:
+def _fn_color(args: list[Any]) -> Any:
     _expect_args("COLOR", args, 1, 1)
     err = _propagate(args[0])
     if err is not None:
@@ -1092,7 +1093,7 @@ def _math_ceil(x: float) -> float:
     return float(math.ceil(x))
 
 
-_BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
+_BUILTINS: dict[str, Callable[[list[Any]], Any]] = {
     # Logic
     "IF": _fn_if,
     "IFS": _fn_ifs,
@@ -1156,7 +1157,7 @@ _BUILTINS: Dict[str, Callable[[List[Any]], Any]] = {
 # can render a function picker without any further introspection. The shape
 # is intentionally simple and stable; it is part of the public API surface.
 
-_SIGNATURES: Dict[str, Tuple[str, str, str]] = {
+_SIGNATURES: dict[str, tuple[str, str, str]] = {
     # Logic
     "IF":        ("logic", "IF(cond, then[, else])",          "Conditional value"),
     "IFS":       ("logic", "IFS(c1, v1, c2, v2, ...[, def])", "First matching condition's value"),
@@ -1217,7 +1218,7 @@ _SIGNATURES: Dict[str, Tuple[str, str, str]] = {
 # --- Variable lookup against the template context -------------------------- #
 
 
-def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
+def _lookup_variable(path: str, context: dict[str, Any]) -> Any:
     """Resolve a dotted path against the context.
 
     Returns ``ErrorValue('#REF')`` if any segment is missing. Values come
@@ -1253,7 +1254,7 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
 
         # Try the key as-is first (handles cases where the entity is stored
         # without dots, e.g. an underscore-only key).
-        entity_data: Optional[Any] = value.get(entity_id_part)
+        entity_data: Any | None = value.get(entity_id_part)
 
         if entity_data is None and "_" in entity_id_part:
             # Try each underscore as the domain/name boundary until a match
@@ -1298,7 +1299,7 @@ def _lookup_variable(path: str, context: Dict[str, Any]) -> Any:
 # --- Tree walker ----------------------------------------------------------- #
 
 
-def _eval_node(node: _Node, context: Dict[str, Any]) -> Any:
+def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
     if isinstance(node, _Literal):
         return node.value
 
@@ -1400,7 +1401,7 @@ def _eval_node(node: _Node, context: Dict[str, Any]) -> Any:
 # --------------------------------------------------------------------------- #
 
 
-def evaluate(expression: str, context: Optional[Dict[str, Any]] = None) -> str:
+def evaluate(expression: str, context: dict[str, Any] | None = None) -> str:
     """Parse and evaluate ``expression``, returning a rendered string.
 
     Parsing or evaluation errors render as their short code (e.g. ``#REF``)
@@ -1431,13 +1432,13 @@ class ExpressionIssue:
 
     code: str           # e.g. "#SYNTAX", "#NAME?"
     message: str        # Human-readable diagnostic
-    pos: Optional[int]  # Character offset within the expression (None if unknown)
+    pos: int | None  # Character offset within the expression (None if unknown)
 
 
 def validate_expression(
     expression: str,
-    known_sources: Optional[set] = None,
-) -> List[ExpressionIssue]:
+    known_sources: set | None = None,
+) -> list[ExpressionIssue]:
     """Statically validate a formula body.
 
     Returns an empty list if the expression looks well-formed. This is a
@@ -1446,7 +1447,7 @@ def validate_expression(
     known plugin source (when ``known_sources`` is provided), and that
     obvious arity mistakes are flagged. It does not attempt to evaluate.
     """
-    issues: List[ExpressionIssue] = []
+    issues: list[ExpressionIssue] = []
     try:
         tokens = _tokenize(expression)
         tree = _Parser(tokens).parse()
@@ -1493,7 +1494,7 @@ def validate_expression(
 # ``None`` means "unbounded". Functions that don't appear here are assumed to
 # accept any number of arguments (we still rely on runtime ``_expect_args``
 # checks for the strict variants).
-_ARITY: Dict[str, Tuple[int, Optional[int]]] = {
+_ARITY: dict[str, tuple[int, int | None]] = {
     "IF": (2, 3), "NOT": (1, 1), "IFERROR": (2, 2), "ISERROR": (1, 1),
     "ISBLANK": (1, 1), "DEFAULT": (2, 2), "COALESCE": (1, None),
     "ABS": (1, 1), "FLOOR": (1, 1), "CEIL": (1, 1), "INT": (1, 1),
@@ -1513,7 +1514,7 @@ _ARITY: Dict[str, Tuple[int, Optional[int]]] = {
 }
 
 
-def _check_arity(node: _Call, issues: List[ExpressionIssue]) -> None:
+def _check_arity(node: _Call, issues: list[ExpressionIssue]) -> None:
     spec = _ARITY.get(node.name)
     if spec is None:
         return
@@ -1548,14 +1549,14 @@ def _check_arity(node: _Call, issues: List[ExpressionIssue]) -> None:
 _FORMULA_PATTERN = re.compile(r"\{\{=([^}{]*)\}\}")
 
 
-def render_expressions(template: str, context: Optional[Dict[str, Any]] = None) -> str:
+def render_expressions(template: str, context: dict[str, Any] | None = None) -> str:
     """Replace every ``{{= ... }}`` formula in ``template`` with its value."""
     if "{{" not in template or "=" not in template:
         return template
 
     ctx = context or {}
 
-    def _sub(match: "re.Match[str]") -> str:
+    def _sub(match: re.Match[str]) -> str:
         body = match.group(1).strip()
         if not body:
             return ""
@@ -1564,7 +1565,7 @@ def render_expressions(template: str, context: Optional[Dict[str, Any]] = None) 
     return _FORMULA_PATTERN.sub(_sub, template)
 
 
-def find_formulas(template: str) -> List[Tuple[int, int, str]]:
+def find_formulas(template: str) -> list[tuple[int, int, str]]:
     """Return ``(start, end, body)`` for each formula in ``template``.
 
     Useful for editor tooling that wants to underline / lint the formula
@@ -1576,12 +1577,12 @@ def find_formulas(template: str) -> List[Tuple[int, int, str]]:
     ]
 
 
-def list_builtins() -> Tuple[str, ...]:
+def list_builtins() -> tuple[str, ...]:
     """Return a stable, sorted tuple of all built-in formula function names."""
     return tuple(sorted(_BUILTINS.keys()))
 
 
-def function_signatures() -> Dict[str, Dict[str, str]]:
+def function_signatures() -> dict[str, dict[str, str]]:
     """Return ``{ name: {category, signature, summary} }`` for every built-in.
 
     Editors and docs can use this to render an autocomplete picker without
