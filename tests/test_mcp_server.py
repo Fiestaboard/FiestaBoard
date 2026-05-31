@@ -17,12 +17,10 @@ Strategy
 
 from __future__ import annotations
 
-import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Skip entire module if the mcp package isn't installed
@@ -30,8 +28,7 @@ import pytest
 
 pytest.importorskip("mcp", reason="mcp package not installed")
 
-from src.mcp_server import _build_mcp_server, mcp_server, _MCP_AVAILABLE  # noqa: E402
-
+from src.mcp_server import _MCP_AVAILABLE, _build_mcp_server, mcp_server  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -42,31 +39,7 @@ def _call_tool(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
 
     FastMCP registers tools in ``_tool_manager``. Each tool's ``fn`` is the
     original decorated function.  We call it directly, bypassing JSON-RPC.
-
-    Page tools that emit an MCP-UI HTML preview return a list of content
-    blocks (``[TextContent, EmbeddedResource]``). For backward-compat with
-    existing assertions that ``json.loads(result)``, this helper unwraps
-    the first ``TextContent`` block to its raw ``.text`` string. Callers
-    that need the embedded HTML resource should use ``_call_tool_blocks``.
     """
-    import asyncio
-    mgr = mcp_instance._tool_manager
-    tool = mgr._tools.get(tool_name)
-    if tool is None:
-        raise KeyError(f"Tool '{tool_name}' not registered. Available: {list(mgr._tools)}")
-    result = tool.fn(**kwargs)
-    if asyncio.iscoroutine(result):
-        result = asyncio.get_event_loop().run_until_complete(result)
-    if isinstance(result, list) and result:
-        first = result[0]
-        if hasattr(first, "text"):
-            return first.text
-    return result
-
-
-def _call_tool_blocks(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
-    """Like ``_call_tool`` but returns the raw tool return value (list of
-    content blocks for page tools, or a string otherwise)."""
     import asyncio
     mgr = mcp_instance._tool_manager
     tool = mgr._tools.get(tool_name)
@@ -306,7 +279,7 @@ class TestListInstalledPlugins:
             patch("src.config_manager.get_config_manager", return_value=mock_config_manager),
         ):
             result = _call_tool(mcp, "list_installed_plugins")
-        data = json.loads(result)
+        data = result
         assert isinstance(data, list)
         assert data[0]["id"] == "openweather"
 
@@ -316,14 +289,14 @@ class TestListInstalledPlugins:
             patch("src.config_manager.get_config_manager", return_value=mock_config_manager),
         ):
             result = _call_tool(mcp, "list_installed_plugins")
-        data = json.loads(result)
+        data = result
         assert "config" in data[0]
 
     def test_error_handling(self, mcp):
         """Returns JSON error object when service call fails."""
         with patch("src.plugins.get_plugin_registry", side_effect=RuntimeError("db unavailable")):
             result = _call_tool(mcp, "list_installed_plugins")
-        data = json.loads(result)
+        data = result
         assert "error" in data
 
 
@@ -331,7 +304,7 @@ class TestListRegistryPlugins:
     def test_returns_registry_entries(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "list_registry_plugins")
-        data = json.loads(result)
+        data = result
         assert len(data) == 2
         ids = {d["id"] for d in data}
         assert "openweather" in ids
@@ -342,14 +315,15 @@ class TestInstallPlugin:
     def test_install_and_enable(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "install_plugin", plugin_id="stocks")
-        assert "installed and enabled" in result
+        assert result["status"] == "success"
+        assert "installed and enabled" in result["message"]
         mock_registry.install_from_registry.assert_called_once_with("stocks")
         mock_registry.enable_plugin.assert_called_once_with("stocks")
 
     def test_install_without_enable(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "install_plugin", plugin_id="stocks", auto_enable=False)
-        assert "installed (disabled)" in result
+        assert "installed (disabled)" in result["message"]
         mock_registry.enable_plugin.assert_not_called()
 
     def test_install_error(self, mcp):
@@ -357,36 +331,37 @@ class TestInstallPlugin:
         mock_reg.install_from_registry.side_effect = ValueError("Not in registry")
         with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
             result = _call_tool(mcp, "install_plugin", plugin_id="unknown")
-        assert "Error" in result
-        assert "Not in registry" in result
+        assert result["status"] == "error"
+        assert "Not in registry" in result["error"]
 
 
 class TestEnablePlugin:
     def test_enable_success(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
-        assert "enabled successfully" in result
+        assert result["status"] == "success"
+        assert "enabled successfully" in result["message"]
 
     def test_enable_error(self, mcp):
         mock_reg = MagicMock()
         mock_reg.enable_plugin.side_effect = KeyError("openweather not found")
         with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
             result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
-        assert "Error" in result
+        assert result["status"] == "error"
 
 
 class TestDisablePlugin:
     def test_disable_success(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "disable_plugin", plugin_id="openweather")
-        assert "disabled successfully" in result
+        assert "disabled successfully" in result["message"]
 
 
 class TestUninstallPlugin:
     def test_uninstall_success(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "uninstall_plugin", plugin_id="openweather")
-        assert "uninstalled successfully" in result
+        assert "uninstalled successfully" in result["message"]
         mock_registry.uninstall_external_plugin.assert_called_once_with("openweather")
 
 
@@ -402,7 +377,7 @@ class TestConfigurePlugin:
                 plugin_id="openweather",
                 config={"api_key": "new-key"},
             )
-        data = json.loads(result)
+        data = result
         assert data["status"] == "success"
         assert data["plugin_id"] == "openweather"
         # Should have called set_plugin_config with merged dict
@@ -424,7 +399,7 @@ class TestConfigurePlugin:
                 plugin_id="openweather",
                 config={"api_key": "new-key"},
             )
-        data = json.loads(result)
+        data = result
         # Sensitive value should be masked
         assert data["config"]["api_key"] == "***"
 
@@ -442,14 +417,14 @@ class TestConfigurePlugin:
                 plugin_id="nonexistent",
                 config={"api_key": "x"},
             )
-        assert "Error" in result
+        assert result["status"] == "error"
 
 
 class TestGetTemplateVariables:
     def test_returns_nested_dict(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "get_template_variables")
-        data = json.loads(result)
+        data = result
         assert "openweather" in data
         assert "temperature" in data["openweather"]
 
@@ -464,7 +439,7 @@ class TestGetPluginData:
         )
         with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
             result = _call_tool(mcp, "get_plugin_data", plugin_id="openweather")
-        data = json.loads(result)
+        data = result
         assert data["available"] is True
         assert data["data"]["temperature"] == "72°F"
         assert data["error"] is None
@@ -478,7 +453,7 @@ class TestGetPluginData:
         )
         with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
             result = _call_tool(mcp, "get_plugin_data", plugin_id="openweather")
-        data = json.loads(result)
+        data = result
         assert data["available"] is False
         assert "not enabled" in data["error"]
 
@@ -491,7 +466,7 @@ class TestListPages:
     def test_returns_page_list(self, mcp, mock_page_service):
         with patch("src.pages.service.get_page_service", return_value=mock_page_service):
             result = _call_tool(mcp, "list_pages")
-        data = json.loads(result)
+        data = result
         assert isinstance(data, list)
         assert data[0]["id"] == "page-001"
 
@@ -500,7 +475,7 @@ class TestListPages:
         mock_svc.list_pages.side_effect = RuntimeError("service down")
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
             result = _call_tool(mcp, "list_pages")
-        data = json.loads(result)
+        data = result
         assert "error" in data
 
 
@@ -508,7 +483,7 @@ class TestGetPage:
     def test_returns_page_details(self, mcp, mock_page_service):
         with patch("src.pages.service.get_page_service", return_value=mock_page_service):
             result = _call_tool(mcp, "get_page", page_id="page-001")
-        data = json.loads(result)
+        data = result
         assert data["id"] == "page-001"
         assert "template" in data
 
@@ -517,7 +492,7 @@ class TestGetPage:
         mock_svc.get_page.return_value = None
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
             result = _call_tool(mcp, "get_page", page_id="missing")
-        data = json.loads(result)
+        data = result
         assert "error" in data
         assert "not found" in data["error"]
 
@@ -531,7 +506,7 @@ class TestCreatePage:
                 name="My Page",
                 template_lines=["Line 1", "Line 2", "Line 3", "Line 4", "Line 5", "Line 6"],
             )
-        data = json.loads(result)
+        data = result
         assert data["status"] == "success"
         assert "page_id" in data
 
@@ -545,14 +520,14 @@ class TestCreatePage:
                 name="Bad Page",
                 template_lines=["only one line"],
             )
-        assert "Error" in result
+        assert result["status"] == "error"
 
 
 class TestUpdatePage:
     def test_update_name(self, mcp, mock_page_service):
         with patch("src.pages.service.get_page_service", return_value=mock_page_service):
             result = _call_tool(mcp, "update_page", page_id="page-001", name="New Name")
-        data = json.loads(result)
+        data = result
         assert data["status"] == "success"
 
     def test_not_found(self, mcp):
@@ -560,64 +535,15 @@ class TestUpdatePage:
         mock_svc.update_page.return_value = None
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
             result = _call_tool(mcp, "update_page", page_id="missing")
-        data = json.loads(result)
+        data = result
         assert "error" in data
-
-
-class TestPageToolsEmbedHtmlPreview:
-    """Page tools attach a ``ui://`` text/html EmbeddedResource as the
-    second content block so MCP-UI clients can render a board preview."""
-
-    @staticmethod
-    def _assert_html_block(blocks):
-        from mcp.types import EmbeddedResource, TextContent
-        assert isinstance(blocks, list), f"expected list, got {type(blocks).__name__}"
-        assert len(blocks) >= 2, "expected text + html resource blocks"
-        assert isinstance(blocks[0], TextContent)
-        embedded = blocks[1]
-        assert isinstance(embedded, EmbeddedResource)
-        assert embedded.resource.mimeType == "text/html"
-        assert str(embedded.resource.uri).startswith("ui://fiestaboard/page/")
-        html_text = embedded.resource.text
-        assert "<!DOCTYPE html>" in html_text
-        return html_text
-
-    def test_get_page_embeds_html_preview(self, mcp, mock_page_service):
-        # preview_page returns None -> renderer falls back to template lines
-        mock_page_service.preview_page.return_value = None
-        with patch("src.pages.service.get_page_service", return_value=mock_page_service):
-            blocks = _call_tool_blocks(mcp, "get_page", page_id="page-001")
-        self._assert_html_block(blocks)
-
-    def test_create_page_embeds_html_preview(self, mcp, mock_page_service):
-        mock_page_service.preview_page.return_value = None
-        # create_page returns a result MagicMock; give it the attrs the renderer reads.
-        result = mock_page_service.create_page.return_value
-        result.device_type = "flagship"
-        result.template = ["{{red}}HELLO", "WORLD"]
-        with patch("src.pages.service.get_page_service", return_value=mock_page_service):
-            blocks = _call_tool_blocks(
-                mcp,
-                "create_page",
-                name="My Page",
-                template_lines=["Line 1", "Line 2", "Line 3", "Line 4", "Line 5", "Line 6"],
-            )
-        html_text = self._assert_html_block(blocks)
-        # Fallback path uses template lines verbatim, so the red swatch appears.
-        assert "#eb4034" in html_text
-
-    def test_update_page_embeds_html_preview(self, mcp, mock_page_service):
-        mock_page_service.preview_page.return_value = None
-        with patch("src.pages.service.get_page_service", return_value=mock_page_service):
-            blocks = _call_tool_blocks(mcp, "update_page", page_id="page-001", name="New Name")
-        self._assert_html_block(blocks)
 
 
 class TestDeletePage:
     def test_delete_success(self, mcp, mock_page_service):
         with patch("src.pages.service.get_page_service", return_value=mock_page_service):
             result = _call_tool(mcp, "delete_page", page_id="page-001")
-        assert "deleted successfully" in result
+        assert "deleted successfully" in result["message"]
 
     def test_delete_failure(self, mcp):
         mock_svc = MagicMock()
@@ -627,7 +553,8 @@ class TestDeletePage:
         mock_svc.delete_page.return_value = fail
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
             result = _call_tool(mcp, "delete_page", page_id="page-001")
-        assert "Error" in result or "Page is in use" in result
+        assert result["status"] == "error"
+        assert "Page is in use" in result["error"]
 
 
 class TestRenderPagePreview:
@@ -638,12 +565,11 @@ class TestRenderPagePreview:
             template_lines=["HELLO", "WORLD"],
             device_type="flagship",
         )
-        data = json.loads(result)
-        assert "rendered" in data
-        assert "HELLO" in data["rendered"]
-        assert "WORLD" in data["rendered"]
-        assert data["device_type"] == "flagship"
-        assert isinstance(data["context_plugins"], list)
+        assert "rendered" in result
+        assert "HELLO" in result["rendered"]
+        assert "WORLD" in result["rendered"]
+        assert result["device_type"] == "flagship"
+        assert isinstance(result["context_plugins"], list)
 
     def test_returns_error_json_on_bad_device_type(self, mcp):
         # Bad device_type falls back to flagship in the engine, so this
@@ -654,8 +580,7 @@ class TestRenderPagePreview:
             template_lines=["X"],
             device_type="not-a-device",
         )
-        data = json.loads(result)
-        assert "rendered" in data or "error" in data
+        assert "rendered" in result or "error" in result
 
 
 # ---------------------------------------------------------------------------
@@ -666,7 +591,7 @@ class TestListSchedules:
     def test_returns_schedule_list(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
             result = _call_tool(mcp, "list_schedules")
-        data = json.loads(result)
+        data = result
         assert isinstance(data, list)
         assert data[0]["id"] == "sched-001"
 
@@ -681,7 +606,7 @@ class TestCreateSchedule:
                 start_time="08:00",
                 day_pattern="weekdays",
             )
-        data = json.loads(result)
+        data = result
         assert data["status"] == "success"
         assert "schedule_id" in data
 
@@ -695,14 +620,14 @@ class TestCreateSchedule:
                 page_id="page-001",
                 start_time="not-a-time",
             )
-        assert "Error" in result
+        assert result["status"] == "error"
 
 
 class TestUpdateSchedule:
     def test_update_success(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
             result = _call_tool(mcp, "update_schedule", schedule_id="sched-001", enabled=False)
-        data = json.loads(result)
+        data = result
         assert data["status"] == "success"
 
     def test_not_found(self, mcp):
@@ -710,14 +635,14 @@ class TestUpdateSchedule:
         mock_svc.update_schedule.return_value = None
         with patch("src.schedules.service.get_schedule_service", return_value=mock_svc):
             result = _call_tool(mcp, "update_schedule", schedule_id="missing")
-        assert "not found" in result
+        assert "not found" in result["error"]
 
 
 class TestDeleteSchedule:
     def test_delete_success(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
             result = _call_tool(mcp, "delete_schedule", schedule_id="sched-001")
-        assert "deleted successfully" in result
+        assert "deleted successfully" in result["message"]
 
 
 # ---------------------------------------------------------------------------
@@ -728,7 +653,7 @@ class TestListCarousels:
     def test_returns_carousel_list(self, mcp, mock_carousel_service):
         with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
             result = _call_tool(mcp, "list_carousels")
-        data = json.loads(result)
+        data = result
         assert data[0]["id"] == "carousel-001"
         assert len(data[0]["page_ids"]) == 2
 
@@ -743,7 +668,7 @@ class TestCreateCarousel:
                 page_ids=["page-001", "page-002"],
                 interval_seconds=60,
             )
-        data = json.loads(result)
+        data = result
         assert data["status"] == "success"
         assert "carousel_id" in data
 
@@ -752,7 +677,7 @@ class TestUpdateCarousel:
     def test_update_success(self, mcp, mock_carousel_service):
         with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
             result = _call_tool(mcp, "update_carousel", carousel_id="carousel-001", name="Renamed")
-        data = json.loads(result)
+        data = result
         assert data["status"] == "success"
 
     def test_not_found(self, mcp):
@@ -760,14 +685,14 @@ class TestUpdateCarousel:
         mock_svc.update_carousel.return_value = None
         with patch("src.carousels.service.get_carousel_service", return_value=mock_svc):
             result = _call_tool(mcp, "update_carousel", carousel_id="missing")
-        assert "not found" in result
+        assert "not found" in result["error"]
 
 
 class TestDeleteCarousel:
     def test_delete_success(self, mcp, mock_carousel_service):
         with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
             result = _call_tool(mcp, "delete_carousel", carousel_id="carousel-001")
-        assert "deleted successfully" in result
+        assert "deleted successfully" in result["message"]
 
 
 # ---------------------------------------------------------------------------
@@ -789,15 +714,14 @@ class TestGetSystemStatus:
                     result = _call_tool(mcp, "get_system_status")
             finally:
                 api_mod._service_running = orig_running
-        data = json.loads(result)
+        data = result
         assert "version" in data
         assert "plugins_installed" in data
 
     def test_returns_plugin_counts(self, mcp, mock_registry):
-        import src.api_server as api_mod
         with patch("src.api_server.get_service", return_value=None):
             result = _call_tool(mcp, "get_system_status")
-        data = json.loads(result)
+        data = result
         assert isinstance(data.get("plugins_installed"), int)
 
 
@@ -805,7 +729,7 @@ class TestGetSettingsSummary:
     def test_returns_settings_sections(self, mcp, mock_settings_service):
         with patch("src.settings.service.get_settings_service", return_value=mock_settings_service):
             result = _call_tool(mcp, "get_settings_summary")
-        data = json.loads(result)
+        data = result
         # Should have at least one section
         assert len(data) > 0
 
@@ -815,7 +739,7 @@ class TestSetActivePage:
         mock_cm = MagicMock()
         with patch("src.config_manager.get_config_manager", return_value=mock_cm):
             result = _call_tool(mcp, "set_active_page", page_id="page-001")
-        assert "page-001" in result
+        assert result["page_id"] == "page-001"
         mock_cm.set_active_page.assert_called_once_with("page-001")
 
     def test_error_handling(self, mcp):
@@ -823,19 +747,21 @@ class TestSetActivePage:
         mock_cm.set_active_page.side_effect = ValueError("page not found")
         with patch("src.config_manager.get_config_manager", return_value=mock_cm):
             result = _call_tool(mcp, "set_active_page", page_id="bad-id")
-        assert "Error" in result
+        assert result["status"] == "error"
 
 
 class TestSetScheduleMode:
     def test_enable(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
             result = _call_tool(mcp, "set_schedule_mode", enabled=True)
-        assert "enabled" in result
+        assert result["enabled"] is True
+        assert "enabled" in result["message"]
 
     def test_disable(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
             result = _call_tool(mcp, "set_schedule_mode", enabled=False)
-        assert "disabled" in result
+        assert result["enabled"] is False
+        assert "disabled" in result["message"]
 
 
 # ---------------------------------------------------------------------------
@@ -942,7 +868,7 @@ class TestMCPPrompts:
 # ---------------------------------------------------------------------------
 
 class TestToolErrorResilience:
-    """All tools should catch exceptions and return an error string / JSON."""
+    """All tools should catch exceptions and return a structured response."""
 
     @pytest.mark.parametrize("tool_name,kwargs", [
         ("list_installed_plugins", {}),
@@ -975,7 +901,7 @@ class TestToolErrorResilience:
         ("set_schedule_mode", {"enabled": True}),
     ])
     def test_tool_does_not_raise(self, mcp, tool_name: str, kwargs: dict):
-        """Each tool returns a string (not raises) even when all services fail."""
+        """Each tool returns a dict/list (not raises) even when all services fail."""
         with (
             patch("src.plugins.get_plugin_registry", side_effect=RuntimeError("boom")),
             patch("src.pages.service.get_page_service", side_effect=RuntimeError("boom")),
@@ -987,6 +913,9 @@ class TestToolErrorResilience:
         ):
             result = _call_tool(mcp, tool_name, **kwargs)
         assert result is not None
-        assert isinstance(result, str)
-        # Must not be empty
-        assert len(result) > 0
+        # Every tool returns a dict (success/error envelope, get_plugin_data
+        # shape, system_status, etc.) or list (list_* tools that succeed
+        # despite our boom — e.g., get_settings_summary swallows per-field
+        # errors and returns {}). Either way it must be a structured value,
+        # never a raw exception.
+        assert isinstance(result, (dict, list))

@@ -25,11 +25,55 @@ Connection example for Claude Code:
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Response helpers — every tool returns structured data (dict/list) rather
+# than a json.dumps()'d string. FastMCP serializes the return value into
+# tool output automatically, so clients get real JSON instead of a JSON
+# string that has to be parsed again.
+# ---------------------------------------------------------------------------
+
+def _ok(message: str, **fields: Any) -> dict[str, Any]:
+    """Standard success envelope for mutation tools."""
+    return {"status": "success", "message": message, **fields}
+
+
+def _err(error: str) -> dict[str, Any]:
+    """Standard error envelope. Tools never raise — they return this instead."""
+    return {"status": "error", "error": error}
+
+
+def _serialize(obj: Any) -> Any:
+    """Convert Pydantic models / dataclasses / datetimes to JSON-compatible primitives.
+
+    Used when a tool returns Pydantic models (pages, schedules, carousels)
+    or dataclasses (settings objects). Plain dicts/lists pass through.
+    Falls back to ``__dict__`` for other ad-hoc objects (e.g. SimpleNamespace).
+    """
+    import dataclasses
+    from datetime import date, datetime, time
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(mode="json")
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return {k: _serialize(v) for k, v in dataclasses.asdict(obj).items()}
+    if isinstance(obj, list):
+        return [_serialize(x) for x in obj]
+    if isinstance(obj, tuple):
+        return [_serialize(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _serialize(v) for k, v in obj.items()}
+    if isinstance(obj, (datetime, date, time)):
+        return obj.isoformat()
+    if hasattr(obj, "__dict__"):
+        return {k: _serialize(v) for k, v in vars(obj).items() if not k.startswith("_")}
+    return str(obj)
 
 # ---------------------------------------------------------------------------
 # Lazy imports — the MCP package is optional; we log a warning if missing
@@ -38,55 +82,14 @@ logger = logging.getLogger(__name__)
 
 try:
     from mcp.server.fastmcp import FastMCP  # type: ignore[import-untyped]
-    from mcp.types import (  # type: ignore[import-untyped]
-        EmbeddedResource,
-        TextContent,
-        TextResourceContents,
-    )
     _MCP_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _MCP_AVAILABLE = False
     FastMCP = None  # type: ignore[assignment,misc]
-    TextContent = None  # type: ignore[assignment,misc]
-    EmbeddedResource = None  # type: ignore[assignment,misc]
-    TextResourceContents = None  # type: ignore[assignment,misc]
     logger.warning(
         "mcp package not installed — FiestaBoard MCP server is disabled. "
         "Add `mcp>=1.8.0` to requirements.txt and rebuild the container."
     )
-
-
-def _page_response_with_preview(json_text: str, page: Any) -> list[Any]:
-    """Wrap a page tool's JSON result with an MCP-UI HTML preview block.
-
-    Returns a list of MCP content blocks:
-      1. ``TextContent`` carrying the JSON the tool already returns.
-      2. ``EmbeddedResource`` with ``text/html`` mime under a ``ui://``
-         URI — MCP-UI-aware clients render this inline as a board preview.
-
-    If HTML rendering fails for any reason, falls back to returning just
-    the text block so the tool's primary response is never blocked by
-    preview errors.
-    """
-    blocks: list[Any] = [TextContent(type="text", text=json_text)]
-    try:
-        from .board_html_renderer import render_page_preview_html
-
-        page_id = getattr(page, "id", None) or "unknown"
-        html_text = render_page_preview_html(page)
-        blocks.append(
-            EmbeddedResource(
-                type="resource",
-                resource=TextResourceContents(
-                    uri=f"ui://fiestaboard/page/{page_id}",
-                    mimeType="text/html",
-                    text=html_text,
-                ),
-            )
-        )
-    except Exception as exc:  # pragma: no cover — preview is best-effort
-        logger.warning("Failed to render board HTML preview: %s", exc)
-    return blocks
 
 
 def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
@@ -180,10 +183,10 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
     # -----------------------------------------------------------------------
 
     @mcp.tool()
-    def list_installed_plugins() -> str:
+    def list_installed_plugins() -> list[dict[str, Any]] | dict[str, Any]:
         """List all installed FiestaBoard plugins with their status and config schema.
 
-        Returns a JSON array of plugin objects. Each includes:
+        Returns a list of plugin objects. Each includes:
         - id: plugin identifier (use this for other plugin tools)
         - name: display name
         - enabled: whether the plugin is active
@@ -202,15 +205,15 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 cfg = cm.get_plugin_config(p["id"])
                 p["config"] = cm._mask_sensitive(cfg) if cfg else {}
                 p["configured"] = bool(cfg)
-            return json.dumps(plugins, default=str)
+            return _serialize(plugins)
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
-    def list_registry_plugins() -> str:
+    def list_registry_plugins() -> list[dict[str, Any]] | dict[str, Any]:
         """List all plugins available to install from the FiestaBoard registry.
 
-        Returns a JSON array. Each entry includes:
+        Returns a list. Each entry includes:
         - id: use this as plugin_id when calling install_plugin()
         - name, description, category
         - installed: true if already installed
@@ -218,12 +221,12 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
-            return json.dumps(registry.get_registry_entries(), default=str)
+            return _serialize(registry.get_registry_entries())
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
-    def install_plugin(plugin_id: str, auto_enable: bool = True) -> str:
+    def install_plugin(plugin_id: str, auto_enable: bool = True) -> dict[str, Any]:
         """Install a plugin from the official FiestaBoard registry and optionally enable it.
 
         Args:
@@ -239,13 +242,14 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             registry.install_from_registry(plugin_id)
             if auto_enable:
                 registry.enable_plugin(plugin_id)
-            status = "installed and enabled" if auto_enable else "installed (disabled)"
-            return f"Plugin '{plugin_id}' {status} successfully."
+            state = "installed and enabled" if auto_enable else "installed (disabled)"
+            return _ok(f"Plugin '{plugin_id}' {state} successfully.",
+                       plugin_id=plugin_id, enabled=auto_enable)
         except Exception as exc:
-            return f"Error installing plugin '{plugin_id}': {exc}"
+            return _err(f"Error installing plugin '{plugin_id}': {exc}")
 
     @mcp.tool()
-    def enable_plugin(plugin_id: str) -> str:
+    def enable_plugin(plugin_id: str) -> dict[str, Any]:
         """Enable an installed but currently-disabled plugin.
 
         Args:
@@ -255,12 +259,12 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             registry.enable_plugin(plugin_id)
-            return f"Plugin '{plugin_id}' enabled successfully."
+            return _ok(f"Plugin '{plugin_id}' enabled successfully.", plugin_id=plugin_id)
         except Exception as exc:
-            return f"Error enabling plugin '{plugin_id}': {exc}"
+            return _err(f"Error enabling plugin '{plugin_id}': {exc}")
 
     @mcp.tool()
-    def disable_plugin(plugin_id: str) -> str:
+    def disable_plugin(plugin_id: str) -> dict[str, Any]:
         """Disable an installed plugin without uninstalling it.
 
         The plugin can be re-enabled later with enable_plugin().
@@ -272,12 +276,12 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             registry.disable_plugin(plugin_id)
-            return f"Plugin '{plugin_id}' disabled successfully."
+            return _ok(f"Plugin '{plugin_id}' disabled successfully.", plugin_id=plugin_id)
         except Exception as exc:
-            return f"Error disabling plugin '{plugin_id}': {exc}"
+            return _err(f"Error disabling plugin '{plugin_id}': {exc}")
 
     @mcp.tool()
-    def uninstall_plugin(plugin_id: str) -> str:
+    def uninstall_plugin(plugin_id: str) -> dict[str, Any]:
         """Permanently remove an installed plugin.
 
         WARNING: This is irreversible. The plugin and all its configuration
@@ -291,12 +295,12 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             registry.uninstall_external_plugin(plugin_id)
-            return f"Plugin '{plugin_id}' uninstalled successfully."
+            return _ok(f"Plugin '{plugin_id}' uninstalled successfully.", plugin_id=plugin_id)
         except Exception as exc:
-            return f"Error uninstalling plugin '{plugin_id}': {exc}"
+            return _err(f"Error uninstalling plugin '{plugin_id}': {exc}")
 
     @mcp.tool()
-    def configure_plugin(plugin_id: str, config: dict[str, Any]) -> str:
+    def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
         """Update configuration settings for an installed plugin.
 
         Use list_installed_plugins() to see the settings_schema for a plugin,
@@ -315,22 +319,20 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             cm = get_config_manager()
-            # Merge with existing config to avoid wiping unchanged fields
             existing = cm.get_plugin_config(plugin_id) or {}
             merged = {**existing, **config}
             registry.set_plugin_config(plugin_id, merged)
-            # Return masked config so sensitive values aren't echoed back
             updated = cm.get_plugin_config(plugin_id) or {}
-            return json.dumps({
-                "status": "success",
-                "plugin_id": plugin_id,
-                "config": cm._mask_sensitive(updated),
-            }, default=str)
+            return _ok(
+                f"Configuration updated for '{plugin_id}'.",
+                plugin_id=plugin_id,
+                config=_serialize(cm._mask_sensitive(updated)),
+            )
         except Exception as exc:
-            return f"Error configuring plugin '{plugin_id}': {exc}"
+            return _err(f"Error configuring plugin '{plugin_id}': {exc}")
 
     @mcp.tool()
-    def update_plugin(plugin_id: str) -> str:
+    def update_plugin(plugin_id: str) -> dict[str, Any]:
         """Update an installed plugin to its latest registry version.
 
         Args:
@@ -340,15 +342,15 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             registry.reload_plugin(plugin_id)
-            return f"Plugin '{plugin_id}' updated successfully."
+            return _ok(f"Plugin '{plugin_id}' updated successfully.", plugin_id=plugin_id)
         except Exception as exc:
-            return f"Error updating plugin '{plugin_id}': {exc}"
+            return _err(f"Error updating plugin '{plugin_id}': {exc}")
 
     @mcp.tool()
-    def get_template_variables() -> str:
+    def get_template_variables() -> dict[str, Any]:
         """Get all template variables available from enabled plugins.
 
-        Returns a nested JSON object: {plugin_id: {variable_name: {description, example, max_length}}}.
+        Returns a nested object: {plugin_id: {variable_name: {description, example, max_length}}}.
         Use these variables in page templates as {{plugin_id.variable_name}}.
 
         Example: {{weather.temperature}}, {{stocks.price}}, {{date_time.time_12h}}
@@ -356,13 +358,12 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
-            variables = registry.get_all_variables()
-            return json.dumps(variables, default=str)
+            return _serialize(registry.get_all_variables())
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
-    def get_plugin_data(plugin_id: str) -> str:
+    def get_plugin_data(plugin_id: str) -> dict[str, Any]:
         """Fetch the CURRENT live values a plugin is exposing to template variables.
 
         Use this when debugging a page that renders unexpectedly — e.g. a value
@@ -372,8 +373,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
 
-        Returns a JSON object:
-            {"available": bool, "data": {...}, "error": "..."}
+        Returns: {"available": bool, "data": {...}, "error": "..."}
         If the plugin is disabled or not configured, 'available' is false and
         'error' explains why; no exception is raised. Cached values may be
         returned if the plugin's refresh interval hasn't elapsed.
@@ -382,23 +382,23 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .plugins import get_plugin_registry
             registry = get_plugin_registry()
             result = registry.fetch_plugin_data(plugin_id)
-            return json.dumps({
+            return {
                 "available": result.available,
-                "data": result.data,
+                "data": _serialize(result.data),
                 "error": result.error,
-            }, default=str)
+            }
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     # -----------------------------------------------------------------------
     # Page tools
     # -----------------------------------------------------------------------
 
     @mcp.tool()
-    def list_pages() -> str:
+    def list_pages() -> list[dict[str, Any]] | dict[str, Any]:
         """List all display pages on this FiestaBoard.
 
-        Returns a JSON array of page objects with:
+        Returns a list of page objects with:
         - id: use this for get_page(), update_page(), delete_page(), schedules
         - name: display name
         - type: 'template' (dynamic content), 'single', or 'composite'
@@ -408,34 +408,30 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .pages.service import get_page_service
             svc = get_page_service()
-            pages = svc.list_pages()
-            return json.dumps([p.model_dump() for p in pages], default=str)
+            return _serialize(svc.list_pages())
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
-    def get_page(page_id: str) -> Any:
+    def get_page(page_id: str) -> dict[str, Any]:
         """Get full details of a specific page including its template content.
 
         Args:
             page_id: The page identifier (from list_pages()).
 
-        Returns the page JSON plus an MCP-UI ``text/html`` board preview
-        embedded resource (``ui://fiestaboard/page/{id}``). MCP-UI-aware
-        clients render the preview inline; others see the JSON only.
-        Each template line can contain {{plugin.variable}} references and
-        {{color}} tokens like {{red}}, {{green}}, {{white}} etc.
+        Returns all page fields including the template array. Each template
+        line can contain {{plugin.variable}} references and {{color}} tokens
+        like {{red}}, {{green}}, {{white}} etc.
         """
         try:
             from .pages.service import get_page_service
             svc = get_page_service()
             page = svc.get_page(page_id)
             if page is None:
-                return json.dumps({"error": f"Page '{page_id}' not found."})
-            json_text = json.dumps(page.model_dump(), default=str)
-            return _page_response_with_preview(json_text, page)
+                return _err(f"Page '{page_id}' not found.")
+            return _serialize(page)
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
     def create_page(
@@ -443,7 +439,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         template_lines: list[str],
         device_type: str = "flagship",
         duration_seconds: int = 300,
-    ) -> str:
+    ) -> dict[str, Any]:
         """Create a new template page on FiestaBoard.
 
         Template lines use {{plugin.variable}} syntax for dynamic data and
@@ -476,15 +472,13 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 duration_seconds=duration_seconds,
             )
             page = svc.create_page(data)
-            json_text = json.dumps({
-                "status": "success",
-                "page_id": page.id,
-                "name": page.name,
-                "message": f"Page '{name}' created with id '{page.id}'.",
-            }, default=str)
-            return _page_response_with_preview(json_text, page)
+            return _ok(
+                f"Page '{name}' created with id '{page.id}'.",
+                page_id=page.id,
+                name=page.name,
+            )
         except Exception as exc:
-            return f"Error creating page: {exc}"
+            return _err(f"Error creating page: {exc}")
 
     @mcp.tool()
     def update_page(
@@ -492,7 +486,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         name: str | None = None,
         template_lines: list[str] | None = None,
         duration_seconds: int | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         """Update an existing page's name, template content, or duration.
 
         Args:
@@ -512,14 +506,13 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             )
             page = svc.update_page(page_id, data)
             if page is None:
-                return json.dumps({"error": f"Page '{page_id}' not found."})
-            json_text = json.dumps({"status": "success", "page_id": page.id, "name": page.name}, default=str)
-            return _page_response_with_preview(json_text, page)
+                return _err(f"Page '{page_id}' not found.")
+            return _ok(f"Page '{page_id}' updated.", page_id=page.id, name=page.name)
         except Exception as exc:
-            return f"Error updating page '{page_id}': {exc}"
+            return _err(f"Error updating page '{page_id}': {exc}")
 
     @mcp.tool()
-    def delete_page(page_id: str) -> str:
+    def delete_page(page_id: str) -> dict[str, Any]:
         """Delete a page permanently.
 
         WARNING: This cannot be undone. If this is the last page, a default
@@ -533,16 +526,16 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             svc = get_page_service()
             result = svc.delete_page(page_id)
             if not result.success:
-                return f"Error deleting page: {result.message}"
-            return f"Page '{page_id}' deleted successfully."
+                return _err(f"Error deleting page: {result.message}")
+            return _ok(f"Page '{page_id}' deleted successfully.", page_id=page_id)
         except Exception as exc:
-            return f"Error deleting page '{page_id}': {exc}"
+            return _err(f"Error deleting page '{page_id}': {exc}")
 
     @mcp.tool()
     def render_page_preview(
         template_lines: list[str],
         device_type: str = "flagship",
-    ) -> str:
+    ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
         Use this to iterate on a design without creating (and then having to
@@ -555,7 +548,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                             rows are dropped; missing rows are filled with blanks.
             device_type: 'flagship' (22×6) or 'note' (15×3).
 
-        Returns a JSON object:
+        Returns:
             {
               "rendered": "<grid string with \\n between rows>",
               "device_type": "flagship",
@@ -574,23 +567,23 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 context=context,
                 device_type=device_type,
             )
-            return json.dumps({
+            return {
                 "rendered": rendered,
                 "device_type": device_type,
                 "context_plugins": sorted(context.keys()),
-            }, default=str)
+            }
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     # -----------------------------------------------------------------------
     # Schedule tools
     # -----------------------------------------------------------------------
 
     @mcp.tool()
-    def list_schedules() -> str:
+    def list_schedules() -> list[dict[str, Any]] | dict[str, Any]:
         """List all scheduled time slots for page display.
 
-        Returns a JSON array of schedule entries with:
+        Returns a list of schedule entries with:
         - id: use this for update_schedule(), delete_schedule()
         - page_id: which page to show
         - start_time / end_time: HH:MM format (24h). end_time null = runs until next schedule.
@@ -600,10 +593,9 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .schedules.service import get_schedule_service
             svc = get_schedule_service()
-            schedules = svc.list_schedules()
-            return json.dumps([s.model_dump() for s in schedules], default=str)
+            return _serialize(svc.list_schedules())
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
     def create_schedule(
@@ -612,7 +604,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         day_pattern: str = "all",
         end_time: str | None = None,
         enabled: bool = True,
-    ) -> str:
+    ) -> dict[str, Any]:
         """Create a new schedule entry to show a specific page at a specific time.
 
         Args:
@@ -637,13 +629,12 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 enabled=enabled,
             )
             entry = svc.create_schedule(data)
-            return json.dumps({
-                "status": "success",
-                "schedule_id": entry.id,
-                "message": f"Schedule created: page '{page_id}' from {start_time} on {day_pattern} days.",
-            }, default=str)
+            return _ok(
+                f"Schedule created: page '{page_id}' from {start_time} on {day_pattern} days.",
+                schedule_id=entry.id,
+            )
         except Exception as exc:
-            return f"Error creating schedule: {exc}"
+            return _err(f"Error creating schedule: {exc}")
 
     @mcp.tool()
     def update_schedule(
@@ -653,7 +644,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         end_time: str | None = None,
         day_pattern: str | None = None,
         enabled: bool | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         """Update an existing schedule entry.
 
         Only the fields you provide will be changed.
@@ -679,13 +670,13 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             )
             entry = svc.update_schedule(schedule_id, data)
             if entry is None:
-                return f"Schedule '{schedule_id}' not found."
-            return json.dumps({"status": "success", "schedule_id": entry.id}, default=str)
+                return _err(f"Schedule '{schedule_id}' not found.")
+            return _ok(f"Schedule '{schedule_id}' updated.", schedule_id=entry.id)
         except Exception as exc:
-            return f"Error updating schedule '{schedule_id}': {exc}"
+            return _err(f"Error updating schedule '{schedule_id}': {exc}")
 
     @mcp.tool()
-    def delete_schedule(schedule_id: str) -> str:
+    def delete_schedule(schedule_id: str) -> dict[str, Any]:
         """Delete a schedule entry permanently.
 
         Args:
@@ -695,36 +686,35 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .schedules.service import get_schedule_service
             svc = get_schedule_service()
             svc.delete_schedule(schedule_id)
-            return f"Schedule '{schedule_id}' deleted successfully."
+            return _ok(f"Schedule '{schedule_id}' deleted successfully.", schedule_id=schedule_id)
         except Exception as exc:
-            return f"Error deleting schedule '{schedule_id}': {exc}"
+            return _err(f"Error deleting schedule '{schedule_id}': {exc}")
 
     # -----------------------------------------------------------------------
     # Carousel tools
     # -----------------------------------------------------------------------
 
     @mcp.tool()
-    def list_carousels() -> str:
+    def list_carousels() -> list[dict[str, Any]] | dict[str, Any]:
         """List all carousels (playlists that rotate between multiple pages).
 
-        Returns a JSON array with:
+        Returns a list with:
         - id: use this for update_carousel(), delete_carousel(), or as page_id in schedules
         - name, page_ids, interval_seconds
         """
         try:
             from .carousels.service import get_carousel_service
             svc = get_carousel_service()
-            carousels = svc.list_carousels()
-            return json.dumps([c.model_dump() for c in carousels], default=str)
+            return _serialize(svc.list_carousels())
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
     def create_carousel(
         name: str,
         page_ids: list[str],
         interval_seconds: int = 30,
-    ) -> str:
+    ) -> dict[str, Any]:
         """Create a carousel that rotates through multiple pages.
 
         The carousel ID can be used as the page_id in create_schedule() to
@@ -745,14 +735,13 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 interval_seconds=interval_seconds,
             )
             carousel = svc.create_carousel(data)
-            return json.dumps({
-                "status": "success",
-                "carousel_id": carousel.id,
-                "name": carousel.name,
-                "message": f"Carousel '{name}' created with {len(page_ids)} pages.",
-            }, default=str)
+            return _ok(
+                f"Carousel '{name}' created with {len(page_ids)} pages.",
+                carousel_id=carousel.id,
+                name=carousel.name,
+            )
         except Exception as exc:
-            return f"Error creating carousel: {exc}"
+            return _err(f"Error creating carousel: {exc}")
 
     @mcp.tool()
     def update_carousel(
@@ -760,7 +749,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         name: str | None = None,
         page_ids: list[str] | None = None,
         interval_seconds: int | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         """Update an existing carousel's name, page list, or rotation interval.
 
         Args:
@@ -780,13 +769,13 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             )
             carousel = svc.update_carousel(carousel_id, data)
             if carousel is None:
-                return f"Carousel '{carousel_id}' not found."
-            return json.dumps({"status": "success", "carousel_id": carousel.id}, default=str)
+                return _err(f"Carousel '{carousel_id}' not found.")
+            return _ok(f"Carousel '{carousel_id}' updated.", carousel_id=carousel.id)
         except Exception as exc:
-            return f"Error updating carousel '{carousel_id}': {exc}"
+            return _err(f"Error updating carousel '{carousel_id}': {exc}")
 
     @mcp.tool()
-    def delete_carousel(carousel_id: str) -> str:
+    def delete_carousel(carousel_id: str) -> dict[str, Any]:
         """Delete a carousel permanently.
 
         Args:
@@ -796,16 +785,16 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .carousels.service import get_carousel_service
             svc = get_carousel_service()
             svc.delete_carousel(carousel_id)
-            return f"Carousel '{carousel_id}' deleted successfully."
+            return _ok(f"Carousel '{carousel_id}' deleted successfully.", carousel_id=carousel_id)
         except Exception as exc:
-            return f"Error deleting carousel '{carousel_id}': {exc}"
+            return _err(f"Error deleting carousel '{carousel_id}': {exc}")
 
     # -----------------------------------------------------------------------
     # System tools
     # -----------------------------------------------------------------------
 
     @mcp.tool()
-    def get_system_status() -> str:
+    def get_system_status() -> dict[str, Any]:
         """Get the current status of the FiestaBoard system.
 
         Returns version, whether the display service is running, plugin system
@@ -817,18 +806,18 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             registry = get_plugin_registry()
             plugins = registry.list_plugins()
             service = get_service()
-            return json.dumps({
+            return {
                 "version": __version__,
                 "service_running": _service_running and service is not None,
                 "plugin_system_available": True,
                 "plugins_installed": len(plugins),
                 "plugins_enabled": sum(1 for p in plugins if p.get("enabled")),
-            }, default=str)
+            }
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
-    def get_settings_summary() -> str:
+    def get_settings_summary() -> dict[str, Any]:
         """Get a summary of current FiestaBoard settings (non-sensitive fields only).
 
         Returns display, output, location, and schedule settings.
@@ -838,27 +827,24 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .settings.service import get_settings_service
             svc = get_settings_service()
             summary: dict[str, Any] = {}
-            try:
-                display = svc.get_display_settings()
-                summary["display"] = display.__dict__ if hasattr(display, "__dict__") else str(display)
-            except Exception as exc:
-                logger.debug("get_settings_summary: could not fetch display settings: %s", exc)
-            try:
-                location = svc.get_location_settings()
-                summary["location"] = location.__dict__ if hasattr(location, "__dict__") else str(location)
-            except Exception as exc:
-                logger.debug("get_settings_summary: could not fetch location settings: %s", exc)
-            try:
-                output = svc.get_output_settings()
-                summary["output"] = output.__dict__ if hasattr(output, "__dict__") else str(output)
-            except Exception as exc:
-                logger.debug("get_settings_summary: could not fetch output settings: %s", exc)
-            return json.dumps(summary, default=str)
+            for key, fetch in (
+                ("display", svc.get_display_settings),
+                ("location", svc.get_location_settings),
+                ("output", svc.get_output_settings),
+            ):
+                try:
+                    summary[key] = _serialize(fetch())
+                except Exception as exc:
+                    logger.debug(
+                        "get_settings_summary: could not fetch %s settings: %s",
+                        key, exc,
+                    )
+            return summary
         except Exception as exc:
-            return json.dumps({"error": str(exc)})
+            return _err(str(exc))
 
     @mcp.tool()
-    def set_active_page(page_id: str) -> str:
+    def set_active_page(page_id: str) -> dict[str, Any]:
         """Set which page is currently shown on the FiestaBoard display.
 
         This immediately changes what's visible on the board.
@@ -870,12 +856,12 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             from .config_manager import get_config_manager
             cm = get_config_manager()
             cm.set_active_page(page_id)
-            return f"Active page set to '{page_id}'."
+            return _ok(f"Active page set to '{page_id}'.", page_id=page_id)
         except Exception as exc:
-            return f"Error setting active page: {exc}"
+            return _err(f"Error setting active page: {exc}")
 
     @mcp.tool()
-    def set_schedule_mode(enabled: bool) -> str:
+    def set_schedule_mode(enabled: bool) -> dict[str, Any]:
         """Enable or disable schedule mode.
 
         When enabled, FiestaBoard automatically switches pages according to
@@ -889,9 +875,9 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             svc = get_schedule_service()
             svc.set_schedule_enabled(enabled)
             state = "enabled" if enabled else "disabled"
-            return f"Schedule mode {state}."
+            return _ok(f"Schedule mode {state}.", enabled=enabled)
         except Exception as exc:
-            return f"Error setting schedule mode: {exc}"
+            return _err(f"Error setting schedule mode: {exc}")
 
     # -----------------------------------------------------------------------
     # MCP Resources
