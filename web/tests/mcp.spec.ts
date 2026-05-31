@@ -149,7 +149,7 @@ test.describe("MCP", () => {
     }
   });
 
-  test("tools/call list_pages returns valid JSON content", async ({ request }) => {
+  test("tools/call list_pages returns structured payload", async ({ request }) => {
     const { sessionId } = await initialize(request);
 
     const res = await rpc(
@@ -165,17 +165,30 @@ test.describe("MCP", () => {
     expect(res.status).toBeLessThan(400);
     expect(res.body.error).toBeUndefined();
 
-    // MCP tools/call results carry a `content` array of typed blocks; for
-    // text tools FastMCP wraps the return value as {type:"text", text:"..."}.
+    // Per the MCP spec, tools whose return is a structured value (dict /
+    // list / BaseModel) populate `structuredContent`. Tools that return a
+    // raw string populate `content` with a TextContent block. We accept
+    // either — list_pages now returns a structured list so we'll see
+    // `structuredContent`, but some other tools may still text-respond.
     const result = res.body.result || {};
+    const structured = result.structuredContent;
     const content = (result.content || []) as Array<{ type: string; text?: string }>;
-    expect(Array.isArray(content)).toBe(true);
-    expect(content.length).toBeGreaterThan(0);
-    const textBlock = content.find((b) => b.type === "text" && typeof b.text === "string");
-    expect(textBlock, "no text block in tools/call result").toBeDefined();
 
-    // list_pages returns JSON-encoded text. It must parse.
-    expect(() => JSON.parse(textBlock!.text as string)).not.toThrow();
+    if (structured !== undefined) {
+      // structuredContent is the source of truth for structured returns.
+      // For list_pages it wraps the array under a `result` key.
+      const payload =
+        typeof structured === "object" && structured !== null && "result" in structured
+          ? (structured as { result: unknown }).result
+          : structured;
+      expect(Array.isArray(payload) || typeof payload === "object").toBe(true);
+    } else {
+      // Fallback: text-mode tool. Must have a parseable JSON text block.
+      expect(content.length).toBeGreaterThan(0);
+      const textBlock = content.find((b) => b.type === "text" && typeof b.text === "string");
+      expect(textBlock, "no text block and no structuredContent").toBeDefined();
+      expect(() => JSON.parse(textBlock!.text as string)).not.toThrow();
+    }
   });
 
   test("unknown tool name is reported as a JSON-RPC error", async ({ request }) => {
