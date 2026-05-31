@@ -18,7 +18,8 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:4420";
 const API_URL = `${BASE_URL}/api`;
-const SESSION_COOKIE_NAME = "fb_session";
+// Must match SESSION_COOKIE_NAME in src/auth/service.py.
+const SESSION_COOKIE_NAME = "fiestaboard_session";
 
 const ADMIN_USERNAME = "e2e-admin";
 const ADMIN_PASSWORD = "e2e-password-12345";
@@ -244,6 +245,12 @@ test.describe("Authentication", () => {
 
     test("/profile redirects to /settings while authenticated", async ({ page }) => {
       await signIn(page);
+      // The WizardProvider gates every non-/login route behind /config/validate
+      // and renders a full-screen loader (then the SetupWizard) when
+      // `is_first_run` is true — children never mount, so /profile's
+      // redirect useEffect never fires. Configure a stub board so
+      // is_first_run flips to false and the page actually loads.
+      await ensureBoardConfigured(page);
       await page.goto("/profile");
       // Profile is a thin redirect to /settings?section=general.
       await page.waitForURL(/\/settings/, { timeout: 5_000 });
@@ -289,5 +296,30 @@ async function signIn(page: Page): Promise<void> {
   });
   if (!res.ok()) {
     throw new Error(`signIn failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+/**
+ * PUT a stub board config so `/api/config/validate` reports
+ * `is_first_run: false`. Without this, the WizardProvider holds the page
+ * on a loading screen / setup wizard and any UI test that needs the real
+ * page to mount (and run its useEffects) hangs.
+ *
+ * Idempotent — the values aren't checked against a real board here.
+ * Caller must already be authenticated; the session cookie on page.request
+ * carries through.
+ */
+async function ensureBoardConfigured(page: Page): Promise<void> {
+  const res = await page.request.put(`${API_URL}/config/board`, {
+    data: {
+      api_mode: "local",
+      local_api_key: "auth-e2e-stub-key",
+      host: "127.0.0.1",
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(
+      `ensureBoardConfigured failed: ${res.status()} ${await res.text()}`,
+    );
   }
 }
