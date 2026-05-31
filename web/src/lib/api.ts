@@ -1203,6 +1203,45 @@ export type AuthStatusResponse = {
   first_run: boolean;
 };
 
+// ── WiFi (FiestaPi only) ──────────────────────────────────────────────────
+export interface WifiCapability {
+  available: boolean;
+  reason: string | null;
+}
+
+export interface WifiNetwork {
+  ssid: string;
+  signal: number;
+  security: string;
+  in_use: boolean;
+}
+
+export interface SavedWifiNetwork {
+  name: string;
+  autoconnect: boolean;
+}
+
+export interface WifiStatus {
+  connected: boolean;
+  ssid: string | null;
+  ip_address: string | null;
+  gateway: string | null;
+  signal: number | null;
+  internet_reachable: boolean;
+}
+
+export interface WifiConnectPayload {
+  ssid: string;
+  password?: string;
+  hidden?: boolean;
+}
+
+export interface WifiConnectResponse {
+  status: WifiStatus;
+  connectivity_confirmed: boolean;
+  message: string;
+}
+
 export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
@@ -2053,4 +2092,29 @@ export const api = {
     }
     return (await res.json()) as { status: string };
   },
+
+  // ── WiFi (FiestaPi only) ────────────────────────────────────────────────
+  getWifiCapability: () => fetchApi<WifiCapability>("/network/wifi/capability"),
+  getWifiStatus: () => fetchApi<WifiStatus>("/network/wifi/status"),
+  scanWifi: () =>
+    fetchApi<WifiNetwork[]>("/network/wifi/scan", {
+      method: "POST",
+      // Scans take several seconds with --rescan auto on cold cache.
+      timeoutMs: 45_000,
+    }),
+  getSavedWifi: () => fetchApi<SavedWifiNetwork[]>("/network/wifi/saved"),
+  connectWifi: (payload: WifiConnectPayload) =>
+    fetchApi<WifiConnectResponse>("/network/wifi/connect", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      // connect = nmcli add + up + nm-online (up to ~30s wait).
+      timeoutMs: 90_000,
+    }),
+  disconnectWifi: () =>
+    fetchApi<WifiStatus>("/network/wifi/disconnect", { method: "POST" }),
+  forgetWifi: (conName: string) =>
+    fetchApi<{ status: string }>(
+      `/network/wifi/saved/${encodeURIComponent(conName)}`,
+      { method: "DELETE" },
+    ),
 };

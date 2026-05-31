@@ -46,6 +46,7 @@ from .board_client import board_client_from_board_dict
 from .auth import is_auth_enabled
 from .auth.middleware import AuthMiddleware
 from .auth.routes import router as auth_router
+from .network.wifi import WiFiError, get_wifi_service
 
 logger = logging.getLogger(__name__)
 
@@ -589,6 +590,45 @@ class SystemActionResponse(BaseModel):
     """Response model for restart / shutdown system actions."""
     status: str   # "queued"
     action: str   # "restart" | "shutdown"
+
+
+# ── WiFi / NetworkManager models ─────────────────────────────────────────────
+class WiFiCapabilityResponse(BaseModel):
+    available: bool
+    reason: Optional[str] = None
+
+
+class WiFiNetworkModel(BaseModel):
+    ssid: str
+    signal: int  # 0..100
+    security: str
+    in_use: bool
+
+
+class SavedNetworkModel(BaseModel):
+    name: str
+    autoconnect: bool
+
+
+class WiFiStatusModel(BaseModel):
+    connected: bool
+    ssid: Optional[str] = None
+    ip_address: Optional[str] = None
+    gateway: Optional[str] = None
+    signal: Optional[int] = None
+    internet_reachable: bool
+
+
+class WiFiConnectRequest(BaseModel):
+    ssid: str
+    password: Optional[str] = None
+    hidden: bool = False
+
+
+class WiFiConnectResponse(BaseModel):
+    status: WiFiStatusModel
+    connectivity_confirmed: bool
+    message: str
 
 
 @asynccontextmanager
@@ -2514,6 +2554,126 @@ async def system_shutdown():
         logger.warning("fiestaupdater shutdown call failed: %s", e)
         raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)})
     return _handle_updater_response(resp, "shutdown")
+
+
+# ── WiFi management (FiestaPi only) ──────────────────────────────────────────
+def _wifi_unavailable(reason: Optional[str]) -> HTTPException:
+    return HTTPException(
+        status_code=501,
+        detail={
+            "status": "unavailable",
+            "reason": reason or "WiFi management is unavailable on this deployment.",
+        },
+    )
+
+
+def _wifi_error(exc: WiFiError) -> HTTPException:
+    return HTTPException(
+        status_code=400,
+        detail={"status": "error", "error": str(exc)},
+    )
+
+
+@app.get("/network/wifi/capability", response_model=WiFiCapabilityResponse)
+async def wifi_capability():
+    """Feature probe — does this deployment support WiFi management?
+
+    The UI calls this once on load and hides the Network tab when the
+    answer is False, so generic Docker users never see WiFi controls.
+    """
+    cap = get_wifi_service().capability()
+    return WiFiCapabilityResponse(available=cap.available, reason=cap.reason)
+
+
+@app.get("/network/wifi/status", response_model=WiFiStatusModel)
+async def wifi_status():
+    svc = get_wifi_service()
+    cap = svc.capability()
+    if not cap.available:
+        raise _wifi_unavailable(cap.reason)
+    try:
+        status = await asyncio.to_thread(svc.status)
+    except WiFiError as exc:
+        raise _wifi_error(exc)
+    return WiFiStatusModel(**status.__dict__)
+
+
+@app.post("/network/wifi/scan", response_model=List[WiFiNetworkModel])
+async def wifi_scan():
+    """Trigger a rescan and return de-duplicated networks (strongest signal)."""
+    svc = get_wifi_service()
+    cap = svc.capability()
+    if not cap.available:
+        raise _wifi_unavailable(cap.reason)
+    try:
+        networks = await asyncio.to_thread(svc.scan)
+    except WiFiError as exc:
+        raise _wifi_error(exc)
+    return [WiFiNetworkModel(**n.__dict__) for n in networks]
+
+
+@app.get("/network/wifi/saved", response_model=List[SavedNetworkModel])
+async def wifi_saved():
+    svc = get_wifi_service()
+    cap = svc.capability()
+    if not cap.available:
+        raise _wifi_unavailable(cap.reason)
+    try:
+        saved = await asyncio.to_thread(svc.saved_networks)
+    except WiFiError as exc:
+        raise _wifi_error(exc)
+    return [SavedNetworkModel(**s.__dict__) for s in saved]
+
+
+@app.post("/network/wifi/connect", response_model=WiFiConnectResponse)
+async def wifi_connect(payload: WiFiConnectRequest):
+    """Create/replace a persistent profile and activate it.
+
+    Returns the new status plus a `connectivity_confirmed` flag so the
+    UI can warn the user when the AP associates but the internet probe
+    fails (typical for wrong password / captive portal).
+    """
+    svc = get_wifi_service()
+    cap = svc.capability()
+    if not cap.available:
+        raise _wifi_unavailable(cap.reason)
+    try:
+        result = await svc.connect(
+            ssid=payload.ssid, password=payload.password, hidden=payload.hidden
+        )
+    except WiFiError as exc:
+        raise _wifi_error(exc)
+    return WiFiConnectResponse(
+        status=WiFiStatusModel(**result.status.__dict__),
+        connectivity_confirmed=result.connectivity_confirmed,
+        message=result.message,
+    )
+
+
+@app.post("/network/wifi/disconnect", response_model=WiFiStatusModel)
+async def wifi_disconnect():
+    svc = get_wifi_service()
+    cap = svc.capability()
+    if not cap.available:
+        raise _wifi_unavailable(cap.reason)
+    try:
+        status = await svc.disconnect()
+    except WiFiError as exc:
+        raise _wifi_error(exc)
+    return WiFiStatusModel(**status.__dict__)
+
+
+@app.delete("/network/wifi/saved/{con_name}", response_model=Dict[str, str])
+async def wifi_forget(con_name: str):
+    svc = get_wifi_service()
+    cap = svc.capability()
+    if not cap.available:
+        raise _wifi_unavailable(cap.reason)
+    try:
+        await svc.forget(con_name)
+    except WiFiError as exc:
+        raise _wifi_error(exc)
+    return {"status": "ok"}
 
 
 @app.get("/logs")
