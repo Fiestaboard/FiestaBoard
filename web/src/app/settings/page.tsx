@@ -40,6 +40,7 @@ import { DisplaySettings } from "@/components/settings/display-settings";
 import { InstanceNameCard } from "@/components/settings/instance-name";
 import { LanguageSettingsCard } from "@/components/settings/language-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
+import { McpSettings } from "@/components/settings/mcp-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { NetworkSettings } from "@/components/settings/network-settings";
 import { PluginSettingsCard } from "@/components/settings/plugin-settings";
@@ -222,6 +223,7 @@ export default function SettingsPage() {
 
         <TabsContent value="integrations" className="mt-0 space-y-6">
           <AiSettings />
+          <McpSettings />
           <MqttSettingsCard />
           <PluginSettingsCard />
         </TabsContent>

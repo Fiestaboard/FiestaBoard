@@ -1203,6 +1203,17 @@ export type AuthStatusResponse = {
   first_run: boolean;
 };
 
+/**
+ * Status of the pre-shared bearer token used by external MCP clients.
+ * ``source: "env"`` means ``FIESTABOARD_MCP_TOKEN`` is pinned by ops and
+ * the UI must hide rotate/clear actions; ``"stored"`` means it's
+ * UI-managed; ``"none"`` means no token is configured (cookie auth only).
+ */
+export type McpTokenStatus = {
+  configured: boolean;
+  source: "env" | "stored" | "none";
+};
+
 // ── WiFi (FiestaPi only) ──────────────────────────────────────────────────
 export interface WifiCapability {
   available: boolean;
@@ -2092,6 +2103,24 @@ export const api = {
     }
     return (await res.json()) as { status: string };
   },
+
+  // ── MCP bearer token (admin only) ───────────────────────────────────────
+  // Lets external MCP clients (Claude Desktop, Claude Code) connect by
+  // pasting a one-time-shown token into their connector config instead
+  // of editing FIESTABOARD_MCP_TOKEN in .env. See src/auth/routes.py.
+
+  getMcpTokenStatus: () => fetchApi<McpTokenStatus>("/auth/mcp-token"),
+
+  /**
+   * Generate a fresh token, persist it server-side, and return the
+   * plaintext value ONCE. The caller is responsible for showing it to
+   * the user immediately — it can't be read back after this response.
+   */
+  rotateMcpToken: () =>
+    fetchApi<{ token: string }>("/auth/mcp-token", { method: "POST" }),
+
+  clearMcpToken: () =>
+    fetchApi<{ status: string }>("/auth/mcp-token", { method: "DELETE" }),
 
   // ── WiFi (FiestaPi only) ────────────────────────────────────────────────
   getWifiCapability: () => fetchApi<WifiCapability>("/network/wifi/capability"),
