@@ -72,7 +72,7 @@ test.describe("Authentication", () => {
     test("protected API endpoint returns 409 setup_required when no user exists", async ({
       request,
     }) => {
-      const res = await request.get(`${API_URL}/settings`);
+      const res = await request.get(`${API_URL}/pages`);
       expect(res.status()).toBe(409);
       const body = await res.json();
       expect(body.setup_required).toBe(true);
@@ -128,7 +128,7 @@ test.describe("Authentication", () => {
           data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD, remember_me: true },
         });
         expect(login.ok()).toBe(true);
-        const res = await ctx.get(`${API_URL}/settings`);
+        const res = await ctx.get(`${API_URL}/pages`);
         expect(res.ok()).toBe(true);
       } finally {
         await ctx.dispose();
@@ -151,7 +151,7 @@ test.describe("Authentication", () => {
         expect(out.headers()["set-cookie"] || "").toContain(SESSION_COOKIE_NAME);
 
         // A protected endpoint must now 401 (user exists, no valid cookie).
-        const protectedRes = await ctx.get(`${API_URL}/settings`);
+        const protectedRes = await ctx.get(`${API_URL}/pages`);
         expect(protectedRes.status()).toBe(401);
       } finally {
         await ctx.dispose();
