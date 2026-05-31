@@ -778,6 +778,21 @@ class TestMCPPrompts:
         result = _call_prompt(mcp, "create_display_page", topic="stocks")
         assert "stocks" in result
 
+    def test_schedule_my_day_prompt(self, mcp):
+        result = _call_prompt(mcp, "schedule_my_day")
+        assert "create_schedule" in result
+        assert "set_schedule_mode" in result
+
+    def test_build_a_carousel_prompt(self, mcp):
+        result = _call_prompt(mcp, "build_a_carousel")
+        assert "create_carousel" in result
+        assert "list_pages" in result
+
+    def test_troubleshoot_display_prompt(self, mcp):
+        result = _call_prompt(mcp, "troubleshoot_display")
+        assert "get_system_status" in result
+        assert "get_page" in result
+
 
 # ---------------------------------------------------------------------------
 # Error resilience: ensure no tool raises an unhandled exception
