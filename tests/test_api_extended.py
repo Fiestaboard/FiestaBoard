@@ -106,7 +106,11 @@ def mock_settings_service():
         ss.get_mqtt_settings.return_value = mqtt
 
         display = Mock()
-        display.to_dict.return_value = {"reduce_motion": False}
+        display.to_dict.return_value = {
+            "reduce_motion": False,
+            "board_animations": "on",
+            "site_animations": "on",
+        }
         ss.get_display_settings.return_value = display
 
         location = Mock()
@@ -616,7 +620,11 @@ class TestSettingsEndpoints:
         assert "board" in data
         assert "mqtt" in data
         assert "display" in data
-        assert data["display"] == {"reduce_motion": False}
+        assert data["display"] == {
+            "reduce_motion": False,
+            "board_animations": "on",
+            "site_animations": "on",
+        }
         assert "status" in data
 
 

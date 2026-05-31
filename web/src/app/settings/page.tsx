@@ -29,6 +29,7 @@ import { AboutCard } from "@/components/settings/about-card";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AccountSection } from "@/components/account-section";
 import { AiSettings } from "@/components/settings/ai-settings";
+import { AnimationSettings } from "@/components/settings/animation-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interval";
 import { BackupSettings } from "@/components/settings/backup-settings";
@@ -170,6 +171,7 @@ export default function SettingsPage() {
           <TimeAndDateCard />
           <LocationSettingsCard />
           <AccessibilitySettings />
+          <AnimationSettings />
         </TabsContent>
 
         {showAccount && (

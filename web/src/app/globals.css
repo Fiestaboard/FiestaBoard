@@ -1087,3 +1087,37 @@
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* User-opt-in site animation kill switch. Scoped to elements outside the
+   board preview so users can leave board motion enabled while disabling
+   the rest. The board sits inside `[data-board-preview]` — see board-display.tsx. */
+.site-animations-off *:not([data-board-preview] *):not([data-board-preview]),
+.site-animations-off *:not([data-board-preview] *):not([data-board-preview])::before,
+.site-animations-off *:not([data-board-preview] *):not([data-board-preview])::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Board animation kill switch. The board flap structure (4 layers) is
+   already gated in JS so the extra DOM never renders when this is set,
+   but the CSS belt-and-braces guarantees no leftover transforms animate
+   if a flap node is mid-render when the setting flips. */
+.board-animations-off [data-board-preview] *,
+.board-animations-off [data-board-preview] *::before,
+.board-animations-off [data-board-preview] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Desktop-only mode: suppress board animation below the `md` breakpoint
+   (768px — matches Tailwind's default). */
+@media (max-width: 767px) {
+  .board-animations-desktop-only [data-board-preview] *,
+  .board-animations-desktop-only [data-board-preview] *::before,
+  .board-animations-desktop-only [data-board-preview] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -4,6 +4,7 @@ import { useMemo, memo, useState, useEffect, useRef } from "react";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
 import type { DeviceType } from "@/lib/api";
 import { useTranslations } from "next-intl";
+import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 
 const ROWS = 6;
 const COLS = 22;
@@ -309,30 +310,33 @@ const StaticGridRow = memo(function StaticGridRow({
 // ---------------------------------------------------------------------------
 
 // Memoized grid row component to prevent row-level re-renders
-const GridRow = memo(function GridRow({ 
-  row, 
-  rowIdx, 
-  size, 
+const GridRow = memo(function GridRow({
+  row,
+  rowIdx,
+  size,
   gapClass,
   boardType = "black",
-  isAnimating = false
-}: { 
-  row: Token[]; 
-  rowIdx: number; 
-  size: "sm" | "md" | "lg"; 
+  isAnimating = false,
+  animationsEnabled = true,
+}: {
+  row: Token[];
+  rowIdx: number;
+  size: "sm" | "md" | "lg";
   gapClass: string;
   boardType?: "black" | "white";
   isAnimating?: boolean;
+  animationsEnabled?: boolean;
 }) {
   return (
     <div className={`flex ${gapClass} justify-center`}>
       {row.map((token, colIdx) => (
-        <CharTile 
-          key={`col-${rowIdx}-${colIdx}`} 
-          token={token} 
-          size={size} 
+        <CharTile
+          key={`col-${rowIdx}-${colIdx}`}
+          token={token}
+          size={size}
           boardType={boardType}
           isAnimating={isAnimating}
+          animationsEnabled={animationsEnabled}
           rowIdx={rowIdx}
           colIdx={colIdx}
         />
@@ -346,6 +350,7 @@ const GridRow = memo(function GridRow({
   if (prevProps.gapClass !== nextProps.gapClass) return false;
   if (prevProps.boardType !== nextProps.boardType) return false;
   if (prevProps.isAnimating !== nextProps.isAnimating) return false;
+  if (prevProps.animationsEnabled !== nextProps.animationsEnabled) return false;
   
   // Deep compare tokens
   for (let i = 0; i < prevProps.row.length; i++) {
@@ -357,21 +362,29 @@ const GridRow = memo(function GridRow({
 
 // Individual character tile component - memoized to prevent unnecessary re-renders
 // Now pre-renders all 71 characters and uses CSS to show/hide them
-const CharTile = memo(function CharTile({ 
-  token, 
-  size = "md", 
+const CharTile = memo(function CharTile({
+  token,
+  size = "md",
   boardType = "black",
-  isAnimating = false,
+  isAnimating: rawIsAnimating = false,
+  animationsEnabled = true,
   rowIdx = 0,
   colIdx = 0
-}: { 
-  token: Token; 
-  size?: "sm" | "md" | "lg"; 
+}: {
+  token: Token;
+  size?: "sm" | "md" | "lg";
   boardType?: "black" | "white";
   isAnimating?: boolean;
+  animationsEnabled?: boolean;
   rowIdx?: number;
   colIdx?: number;
 }) {
+  // When the user disables board animations (or reduce_motion is on),
+  // collapse isAnimating so the loading rotation never starts and the
+  // 4-layer flap structure (~4 extra DOM nodes per tile) never renders.
+  // The transition effect below also short-circuits to snap tiles to
+  // their target instantly.
+  const isAnimating = animationsEnabled && rawIsAnimating;
   const sizeClasses = {
     sm: "w-[14px] h-[18px]", // Small previews stay fixed size
     md: "w-[14px] h-[20px] sm:w-[20px] sm:h-[28px] md:w-[24px] md:h-[34px] lg:w-[28px] lg:h-[40px]", // Responsive
@@ -421,7 +434,21 @@ const CharTile = memo(function CharTile({
   useEffect(() => {
     const wasAnimating = prevIsAnimatingRef.current;
     prevIsAnimatingRef.current = isAnimating;
-    
+
+    // If animations are disabled (user setting or reduce-motion), short-circuit:
+    // clear any running interval and snap to target without rotating.
+    if (!animationsEnabled) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setIsTransitioning(false);
+      setCurrentCharIndex(targetCharIndex);
+      prevTargetCharIndexRef.current = targetCharIndex;
+      justStoppedLoadingRef.current = false;
+      return;
+    }
+
     if (isAnimating) {
       // Loading state: cycle through all characters continuously
       // Don't reset to target - just continue from current position
@@ -566,17 +593,30 @@ const CharTile = memo(function CharTile({
       // Use functional update to avoid unnecessary re-renders if already at target
       setCurrentCharIndex((prev) => prev === targetCharIndex ? prev : targetCharIndex);
     }
-  }, [isAnimating, targetCharIndex, animationDuration]); // Include targetCharIndex so we can transition to it when loading stops
+  }, [isAnimating, targetCharIndex, animationDuration, animationsEnabled]); // Include targetCharIndex so we can transition to it when loading stops
   
   // Effect 2: Handle target character changes - independent transition
   useEffect(() => {
+    // If animations are disabled, snap directly to the target — no flap,
+    // no rotation through intermediate characters.
+    if (!animationsEnabled) {
+      prevTargetCharIndexRef.current = targetCharIndex;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setIsTransitioning(false);
+      setCurrentCharIndex(targetCharIndex);
+      return;
+    }
+
     // If we're transitioning from loading, update the target ref so Effect 1 uses the new target
     if (justStoppedLoadingRef.current) {
       // Update the target ref so Effect 1's transition uses the new target
       prevTargetCharIndexRef.current = targetCharIndex;
       return;
     }
-    
+
     // CRITICAL: Don't do anything if we're in loading state OR transitioning
     // The loading animation (Effect 1) handles everything during/after loading
     if (isAnimating || isTransitioning) {
@@ -673,7 +713,7 @@ const CharTile = memo(function CharTile({
         intervalRef.current = null;
       }
     }
-  }, [targetCharIndex, isAnimating, isTransitioning, animationDuration]);
+  }, [targetCharIndex, isAnimating, isTransitioning, animationDuration, animationsEnabled]);
   
   // Enhanced 3D shadows for flip tile effect
   const boxShadow = isWhiteBoard
@@ -954,7 +994,8 @@ const CharTile = memo(function CharTile({
   return tokensEqual(prevProps.token, nextProps.token) &&
          prevProps.size === nextProps.size &&
          prevProps.boardType === nextProps.boardType &&
-         prevProps.isAnimating === nextProps.isAnimating;
+         prevProps.isAnimating === nextProps.isAnimating &&
+         prevProps.animationsEnabled === nextProps.animationsEnabled;
 });
 
 
@@ -975,6 +1016,7 @@ interface _FiestaboardDisplayProps extends BoardDisplayProps {}
 
 export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = false, size = "md", className = "", boardType = "black", deviceType = "flagship", isStatic = false }: BoardDisplayProps) {
   const t = useTranslations("boardDisplay");
+  const animationsEnabled = useBoardAnimationsEnabled();
   // Get dimensions for the device type
   const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
   
@@ -1037,11 +1079,12 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
 
   return (
     <div className={`w-full flex justify-center`}>
-      <div 
+      <div
         role="img"
         aria-label={boardText}
+        data-board-preview=""
         className={`${borderClasses} ${className} max-w-full`}
-        style={{ 
+        style={{
           backgroundColor: bezelBg,
           borderColor,
           boxShadow,
@@ -1080,6 +1123,7 @@ export const BoardDisplay = memo(function BoardDisplay({ message, isLoading = fa
                   gapClass={gapClasses[size]}
                   boardType={boardType}
                   isAnimating={isLoading}
+                  animationsEnabled={animationsEnabled}
                 />
               )
             )}

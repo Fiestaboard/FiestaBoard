@@ -640,8 +640,13 @@ export interface CarouselsResponse {
   total: number;
 }
 
+export type BoardAnimationsMode = "on" | "desktop" | "off";
+export type SiteAnimationsMode = "on" | "off";
+
 export interface DisplaySettings {
   reduce_motion: boolean;
+  board_animations: BoardAnimationsMode;
+  site_animations: SiteAnimationsMode;
 }
 
 export interface BetaSettings {

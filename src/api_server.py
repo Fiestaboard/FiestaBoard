@@ -5139,6 +5139,9 @@ async def update_display_settings(request: dict):
 
     Body may include:
     - reduce_motion: bool — force reduced-motion CSS behaviour in the UI
+    - board_animations: "on" | "desktop" | "off" — control split-flap board
+      animation. "desktop" disables it on mobile screens only.
+    - site_animations: "on" | "off" — control general UI transitions/hovers.
     """
     settings_service = get_settings_service()
     display = settings_service.update_display_settings(request)
