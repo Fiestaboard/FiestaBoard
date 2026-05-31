@@ -6,21 +6,32 @@ FiestaBoard via conversation.
 
 Mount point: ``/mcp``  (accessed as ``/api/mcp`` via nginx)
 
-No authentication is required — this server is intended for local / LAN use.
-When FiestaBoard gains a login system, Bearer-token auth should be added here.
+Authentication
+--------------
+When ``FIESTABOARD_AUTH_ENABLED`` is on, ``/mcp`` accepts either the
+session cookie (used by the FiestaBoard web UI) or a pre-shared bearer
+token configured via ``FIESTABOARD_MCP_TOKEN`` — set the env var and pass
+the value as ``Authorization: Bearer <token>``. A 401 from ``/mcp``
+includes ``WWW-Authenticate: Bearer realm="FiestaBoard MCP"`` so MCP
+clients send a token rather than attempting OAuth registration.
 
 Connection example for Claude Desktop (``claude_desktop_config.json``):
     {
         "mcpServers": {
             "fiestaboard": {
                 "type": "http",
-                "url": "http://fiestaboard.local:4420/api/mcp"
+                "url": "http://fiestaboard.local:4420/api/mcp",
+                "headers": {
+                    "Authorization": "Bearer <FIESTABOARD_MCP_TOKEN>"
+                }
             }
         }
     }
 
 Connection example for Claude Code:
-    Add via: /mcp add fiestaboard --transport http --url http://localhost:4420/api/mcp
+    /mcp add fiestaboard --transport http \\
+        --url http://localhost:4420/api/mcp \\
+        --header "Authorization: Bearer <FIESTABOARD_MCP_TOKEN>"
 """
 
 from __future__ import annotations
