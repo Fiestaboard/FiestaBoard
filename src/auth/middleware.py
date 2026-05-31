@@ -8,6 +8,14 @@ Public paths (no auth required):
     * ``/auth/*`` — login / setup / status itself
     * ``/openapi.json``, ``/docs``, ``/redoc`` — API docs (still useful)
     * CORS preflight (``OPTIONS``) requests
+
+MCP endpoint (``/mcp/*``):
+    If ``FIESTABOARD_MCP_TOKEN`` is set, the MCP endpoint accepts an
+    ``Authorization: Bearer <token>`` header instead of (or in addition to)
+    the session cookie. This lets external MCP clients (Claude Desktop,
+    Claude Code) connect without needing to drive a browser login flow.
+    A 401 from this endpoint includes ``WWW-Authenticate: Bearer`` so the
+    client knows to send a pre-shared token rather than attempting OAuth.
 """
 
 from __future__ import annotations
@@ -23,6 +31,8 @@ from .service import (
     SESSION_COOKIE_NAME,
     auth_mode,
     get_auth_service,
+    mcp_token,
+    verify_mcp_bearer,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,6 +59,34 @@ def _is_public_path(path: str) -> bool:
     return False
 
 
+def _is_mcp_path(path: str) -> bool:
+    return path == "/mcp" or path.startswith("/mcp/")
+
+
+def _bearer_from(request: Request) -> str | None:
+    """Pull the token from an ``Authorization: Bearer <token>`` header."""
+    header = request.headers.get("authorization", "")
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() == "bearer" and token:
+        return token.strip()
+    return None
+
+
+def _mcp_unauthorized() -> JSONResponse:
+    """401 with a plain Bearer challenge.
+
+    The ``WWW-Authenticate: Bearer`` header signals to MCP clients that
+    this endpoint takes a pre-shared token, not an OAuth flow. We
+    deliberately omit a ``resource_metadata=`` parameter so spec-compliant
+    clients don't attempt OAuth 2.1 dynamic client registration here.
+    """
+    return JSONResponse(
+        {"detail": "Not authenticated"},
+        status_code=401,
+        headers={"WWW-Authenticate": 'Bearer realm="FiestaBoard MCP"'},
+    )
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     """Enforce a valid session cookie on non-public requests."""
 
@@ -73,6 +111,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
         for extra in self._extra_public:
             if path == extra or path.startswith(extra.rstrip("/") + "/"):
                 return await call_next(request)
+
+        # MCP endpoint: accept a Bearer token if one is configured. Falls
+        # through to cookie auth when no token env var is set so the UI's
+        # own MCP usage (and existing installs) keep working.
+        if _is_mcp_path(path) and mcp_token() is not None:
+            supplied = _bearer_from(request)
+            if supplied is not None:
+                if verify_mcp_bearer(supplied):
+                    request.scope["auth_user"] = "mcp-client"
+                    return await call_next(request)
+                return _mcp_unauthorized()
+            # No Authorization header — challenge the client. We skip the
+            # session-cookie fallback here because Claude/etc. will never
+            # have a cookie, and emitting a 401 with WWW-Authenticate is
+            # exactly the signal it needs.
+            return _mcp_unauthorized()
 
         svc = get_auth_service()
 

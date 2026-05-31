@@ -139,6 +139,24 @@ def _auth_env_override() -> str | None:
     return None
 
 
+def mcp_token() -> str | None:
+    """Return the configured MCP bearer token, or ``None`` if none is set.
+
+    Read fresh from the environment on every call so tests / runtime
+    reconfiguration don't have to bust a cache.
+    """
+    raw = os.environ.get("FIESTABOARD_MCP_TOKEN", "").strip()
+    return raw or None
+
+
+def verify_mcp_bearer(supplied: str) -> bool:
+    """Constant-time compare a supplied Bearer token to the configured one."""
+    expected = mcp_token()
+    if expected is None or not supplied:
+        return False
+    return secrets.compare_digest(expected, supplied)
+
+
 # --- Errors ----------------------------------------------------------------
 
 
