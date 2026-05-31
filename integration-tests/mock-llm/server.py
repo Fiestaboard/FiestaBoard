@@ -272,7 +272,7 @@ def main() -> None:
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        pass
+        logger.info("KeyboardInterrupt received, shutting down mock LLM server.")
     finally:
         server.server_close()
 
