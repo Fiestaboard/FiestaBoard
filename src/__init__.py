@@ -1,4 +1,4 @@
 """FiestaBoard Display Service - Main package."""
 
-__version__ = "6.5.3"
+__version__ = "6.6.0"
 
