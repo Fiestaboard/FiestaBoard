@@ -60,7 +60,26 @@ def _is_public_path(path: str) -> bool:
 
 
 def _is_mcp_path(path: str) -> bool:
-    return path == "/mcp" or path.startswith("/mcp/")
+    """True for any path that lands on the MCP sub-app.
+
+    The MCP server is mounted at ``/mcp`` inside FastAPI. Behind nginx we
+    have two regimes:
+
+    * Most ``/api/*`` traffic is rewritten to drop the prefix, so the
+      middleware sees ``/mcp/...`` here.
+    * ``/api/mcp/*`` is proxied WITHOUT the rewrite (otherwise Starlette
+      can't compute Mount root_path correctly against FastAPI's
+      ``root_path="/api"``) — so for that path we see ``/api/mcp/...``.
+
+    Both forms point at the same endpoint and should accept the same
+    bearer token.
+    """
+    return (
+        path == "/mcp"
+        or path.startswith("/mcp/")
+        or path == "/api/mcp"
+        or path.startswith("/api/mcp/")
+    )
 
 
 def _bearer_from(request: Request) -> str | None:

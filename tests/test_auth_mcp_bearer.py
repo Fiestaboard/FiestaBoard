@@ -52,6 +52,18 @@ def with_token(monkeypatch):
 
 
 @pytest.fixture
+def no_token(monkeypatch):
+    """Ensure the env var is *unset* even if the dev's local .env had one.
+
+    api_server.py calls ``load_dotenv()`` at import time, which can leak
+    ``FIESTABOARD_MCP_TOKEN`` from the developer's ``.env`` into pytest's
+    process environment. Tests that assert "no token configured" must use
+    this fixture to neutralise that.
+    """
+    monkeypatch.delenv("FIESTABOARD_MCP_TOKEN", raising=False)
+
+
+@pytest.fixture
 def setup_user(client, enabled):
     """Provision an admin user so middleware doesn't 409 for setup.
 
@@ -68,7 +80,7 @@ def setup_user(client, enabled):
 # --- Cookie path is unaffected when no token is configured ----------------
 
 
-def test_mcp_without_token_env_still_requires_cookie(client, setup_user):
+def test_mcp_without_token_env_still_requires_cookie(client, setup_user, no_token):
     """No FIESTABOARD_MCP_TOKEN set -> /mcp falls back to cookie auth."""
     r = client.get("/mcp/")
     # Cookie missing -> standard 401, no Bearer challenge.
@@ -106,6 +118,20 @@ def test_mcp_bearer_does_not_expose_oauth_resource_metadata(client, setup_user, 
     compliant MCP clients will try OAuth dynamic client registration."""
     r = client.get("/mcp/", headers={"Authorization": "Bearer wrong"})
     assert "resource_metadata" not in r.headers.get("WWW-Authenticate", "")
+
+
+def test_bearer_works_for_unstripped_api_mcp_path(client, setup_user, with_token):
+    """Behind nginx the MCP endpoint is reachable at ``/api/mcp/...`` *without*
+    the prefix being stripped (so Starlette's Mount can compute the sub-app's
+    root_path correctly). The middleware must accept the bearer header on
+    that path too, not only on ``/mcp/``."""
+    r = client.get("/api/mcp/", headers={"Authorization": f"Bearer {with_token}"})
+    # Middleware lets us through; downstream MCP may 405 the GET or otherwise
+    # respond, but it must not be the auth-layer 401.
+    assert r.status_code != 401
+    r2 = client.get("/api/mcp/", headers={"Authorization": "Bearer wrong"})
+    assert r2.status_code == 401
+    assert r2.headers.get("WWW-Authenticate", "").startswith("Bearer")
 
 
 # --- Token scope: MCP only -------------------------------------------------
