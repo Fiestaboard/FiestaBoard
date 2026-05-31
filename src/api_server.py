@@ -483,6 +483,7 @@ class VersionResponse(BaseModel):
     package_version: str
     build_version: str
     is_dev: bool
+    hardware_model: Optional[str] = None
 
 
 class UpdateCheckResponse(BaseModel):
@@ -1461,10 +1462,27 @@ def _collect_plugin_demos() -> List[Dict[str, Any]]:
     return demos
 
 
+def _detect_hardware_model() -> Optional[str]:
+    """Return the host hardware model string, or None if undetectable.
+
+    Reads ``/proc/device-tree/model``, which on Raspberry Pi devices contains a
+    null-terminated string such as ``"Raspberry Pi 5 Model B Rev 1.0"``. The
+    file is absent on most non-Pi hosts (generic Docker, macOS, etc.), so the
+    UI suppresses the row when this returns None.
+    """
+    try:
+        with open("/proc/device-tree/model", "rb") as f:
+            raw = f.read(256)
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+    model = raw.decode("utf-8", errors="replace").rstrip("\x00").strip()
+    return model or None
+
+
 @app.get("/version", response_model=VersionResponse)
 async def version():
     """Get version information.
-    
+
     Returns both the package version (from __version__) and the build version
     (from VERSION environment variable). In production builds, these should match.
     """
@@ -1473,7 +1491,8 @@ async def version():
     return VersionResponse(
         package_version=__version__,
         build_version=build_version,
-        is_dev=build_version == "dev" and not production
+        is_dev=build_version == "dev" and not production,
+        hardware_model=_detect_hardware_model(),
     )
 
 
