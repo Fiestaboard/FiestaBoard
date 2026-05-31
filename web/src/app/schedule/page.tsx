@@ -454,17 +454,26 @@ export default function SchedulePage() {
               {/* Schedule on/off toggle */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div data-testid="schedule-enabled-toggle" className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer" onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}>
+                  <button
+                    type="button"
+                    data-testid="schedule-enabled-toggle"
+                    role="switch"
+                    aria-checked={scheduleEnabled}
+                    aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+                    disabled={toggleSchedule.isPending}
+                    onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
+                    className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                  >
                     <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
                     <span className="text-xs font-medium">{scheduleEnabled ? tCommon("on") : tCommon("off")}</span>
                     <Switch
                       checked={scheduleEnabled}
-                      onCheckedChange={toggleSchedule.mutate}
                       disabled={toggleSchedule.isPending}
                       className="scale-75 pointer-events-none"
                       tabIndex={-1}
+                      aria-hidden="true"
                     />
-                  </div>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}

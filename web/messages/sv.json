@@ -69,7 +69,8 @@
     "mainNavigation": "Huvudnavigering",
     "primaryNavigation": "Huvudnavigering",
     "secondaryNavigation": "Sekundär navigering",
-    "picks": "Personalens val"
+    "picks": "Personalens val",
+    "skipToMainContent": "Hoppa till huvudinnehållet"
   },
   "home": {
     "title": "Instrumentpanel",

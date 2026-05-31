@@ -69,7 +69,8 @@
     "mainNavigation": "Hauptnavigation",
     "primaryNavigation": "Hauptnavigation",
     "secondaryNavigation": "Sekundärnavigation",
-    "picks": "Empfehlungen"
+    "picks": "Empfehlungen",
+    "skipToMainContent": "Zum Hauptinhalt springen"
   },
   "home": {
     "title": "Übersicht",

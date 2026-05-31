@@ -69,7 +69,8 @@
     "mainNavigation": "Navigation principale",
     "primaryNavigation": "Navigation principale",
     "secondaryNavigation": "Navigation secondaire",
-    "picks": "Sélections de l'équipe"
+    "picks": "Sélections de l'équipe",
+    "skipToMainContent": "Aller au contenu principal"
   },
   "home": {
     "title": "Tableau de bord",

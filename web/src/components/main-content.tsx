@@ -16,6 +16,7 @@ export function MainContent({ children }: { children: React.ReactNode }) {
 
   return (
     <main
+      id="main-content"
       className={cn(
         "h-screen flex flex-col overflow-x-hidden overflow-y-auto w-full mx-auto",
         !isAuthScreen && "pt-[72px] lg:pt-0 sidebar-transition",

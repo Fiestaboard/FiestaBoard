@@ -69,7 +69,8 @@
     "mainNavigation": "메인 탐색",
     "primaryNavigation": "기본 탐색",
     "secondaryNavigation": "보조 탐색",
-    "picks": "스태프 추천"
+    "picks": "스태프 추천",
+    "skipToMainContent": "본문으로 건너뛰기"
   },
   "home": {
     "title": "대시보드",

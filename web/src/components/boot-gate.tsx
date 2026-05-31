@@ -77,7 +77,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3">
           <Image
             src="/icons/favicon-32x32.png"
-            alt="FiestaBoard"
+            alt=""
             width={36}
             height={36}
             className="flex-shrink-0"

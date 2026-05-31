@@ -303,6 +303,8 @@ export function TimezonePicker({
                   <button
                     key={timezone.value}
                     type="button"
+                    role="option"
+                    aria-selected={isSelected}
                     className={cn(
                       "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
                       "hover:bg-accent hover:text-accent-foreground",
