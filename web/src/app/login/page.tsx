@@ -464,7 +464,6 @@ function CenteredCard({
 }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <h1 className="sr-only">{title}</h1>
       <div className="mb-6 flex items-center gap-3">
         <Image
           src="/icons/favicon-32x32.png"
@@ -479,7 +478,7 @@ function CenteredCard({
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-2">
             {icon}
-            <CardTitle aria-hidden="true">{title}</CardTitle>
+            <CardTitle as="h1">{title}</CardTitle>
           </div>
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
