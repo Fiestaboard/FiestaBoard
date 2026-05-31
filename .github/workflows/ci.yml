@@ -554,6 +554,16 @@ jobs:
       working-directory: docs-site
       run: npm ci
 
+    - name: Cache Docusaurus build
+      uses: actions/cache@v4
+      with:
+        path: |
+          docs-site/.docusaurus
+          docs-site/node_modules/.cache
+        key: docusaurus-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs-site/docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
+        restore-keys: |
+          docusaurus-${{ runner.os }}-
+
     - name: Build Docusaurus site
       working-directory: docs-site
       run: npm run build
