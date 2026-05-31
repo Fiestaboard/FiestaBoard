@@ -30,6 +30,8 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes."
           else
-            git commit -m "chore: refresh plugin stats"
+            # [skip ci] so the daily stats refresh doesn't trigger
+            # docs.yml (6-min Docusaurus build) on every cron run.
+            git commit -m "chore: refresh plugin stats [skip ci]"
             git push
           fi
