@@ -44,7 +44,7 @@ jobs:
               - 'Dockerfile'
               - 'start-dev.sh'
               - 'tests/**'
-              - '.pylintrc'
+              - 'pyproject.toml'
             ui:
               - 'web/**'
               - 'Dockerfile'
@@ -115,12 +115,12 @@ jobs:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
     
-    - name: Run pylint
+    - name: Lint with ruff
       run: |
-        pylint --version
-        pylint src/ --rcfile=.pylintrc || true
-      continue-on-error: true
-    
+        ruff --version
+        # Config is in pyproject.toml [tool.ruff].
+        ruff check src/ plugins/
+
     - name: Check code formatting (basic syntax check)
       run: |
         find src -name "*.py" -exec python -m py_compile {} \;
