@@ -38,14 +38,55 @@ logger = logging.getLogger(__name__)
 
 try:
     from mcp.server.fastmcp import FastMCP  # type: ignore[import-untyped]
+    from mcp.types import (  # type: ignore[import-untyped]
+        EmbeddedResource,
+        TextContent,
+        TextResourceContents,
+    )
     _MCP_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _MCP_AVAILABLE = False
     FastMCP = None  # type: ignore[assignment,misc]
+    TextContent = None  # type: ignore[assignment,misc]
+    EmbeddedResource = None  # type: ignore[assignment,misc]
+    TextResourceContents = None  # type: ignore[assignment,misc]
     logger.warning(
         "mcp package not installed — FiestaBoard MCP server is disabled. "
         "Add `mcp>=1.8.0` to requirements.txt and rebuild the container."
     )
+
+
+def _page_response_with_preview(json_text: str, page: Any) -> List[Any]:
+    """Wrap a page tool's JSON result with an MCP-UI HTML preview block.
+
+    Returns a list of MCP content blocks:
+      1. ``TextContent`` carrying the JSON the tool already returns.
+      2. ``EmbeddedResource`` with ``text/html`` mime under a ``ui://``
+         URI — MCP-UI-aware clients render this inline as a board preview.
+
+    If HTML rendering fails for any reason, falls back to returning just
+    the text block so the tool's primary response is never blocked by
+    preview errors.
+    """
+    blocks: List[Any] = [TextContent(type="text", text=json_text)]
+    try:
+        from .board_html_renderer import render_page_preview_html
+
+        page_id = getattr(page, "id", None) or "unknown"
+        html_text = render_page_preview_html(page)
+        blocks.append(
+            EmbeddedResource(
+                type="resource",
+                resource=TextResourceContents(
+                    uri=f"ui://fiestaboard/page/{page_id}",
+                    mimeType="text/html",
+                    text=html_text,
+                ),
+            )
+        )
+    except Exception as exc:  # pragma: no cover — preview is best-effort
+        logger.warning("Failed to render board HTML preview: %s", exc)
+    return blocks
 
 
 def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
@@ -300,13 +341,15 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             return json.dumps({"error": str(exc)})
 
     @mcp.tool()
-    def get_page(page_id: str) -> str:
+    def get_page(page_id: str) -> Any:
         """Get full details of a specific page including its template content.
 
         Args:
             page_id: The page identifier (from list_pages()).
 
-        Returns a JSON object with all page fields including the template array.
+        Returns the page JSON plus an MCP-UI ``text/html`` board preview
+        embedded resource (``ui://fiestaboard/page/{id}``). MCP-UI-aware
+        clients render the preview inline; others see the JSON only.
         Each template line can contain {{plugin.variable}} references and
         {{color}} tokens like {{red}}, {{green}}, {{white}} etc.
         """
@@ -316,7 +359,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             page = svc.get_page(page_id)
             if page is None:
                 return json.dumps({"error": f"Page '{page_id}' not found."})
-            return json.dumps(page.model_dump(), default=str)
+            json_text = json.dumps(page.model_dump(), default=str)
+            return _page_response_with_preview(json_text, page)
         except Exception as exc:
             return json.dumps({"error": str(exc)})
 
@@ -359,12 +403,13 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 duration_seconds=duration_seconds,
             )
             page = svc.create_page(data)
-            return json.dumps({
+            json_text = json.dumps({
                 "status": "success",
                 "page_id": page.id,
                 "name": page.name,
                 "message": f"Page '{name}' created with id '{page.id}'.",
             }, default=str)
+            return _page_response_with_preview(json_text, page)
         except Exception as exc:
             return f"Error creating page: {exc}"
 
@@ -395,7 +440,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             page = svc.update_page(page_id, data)
             if page is None:
                 return json.dumps({"error": f"Page '{page_id}' not found."})
-            return json.dumps({"status": "success", "page_id": page.id, "name": page.name}, default=str)
+            json_text = json.dumps({"status": "success", "page_id": page.id, "name": page.name}, default=str)
+            return _page_response_with_preview(json_text, page)
         except Exception as exc:
             return f"Error updating page '{page_id}': {exc}"
 
@@ -764,6 +810,27 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"
+
+    @mcp.resource("fiestaboard://page/{page_id}/preview.html", mime_type="text/html")
+    def get_page_preview_html(page_id: str) -> str:
+        """Self-contained HTML preview of a page rendered as a board.
+
+        Useful for MCP-UI clients that want to fetch a board preview by
+        page id without going through the page tools.
+        """
+        try:
+            from .pages.service import get_page_service
+            from .board_html_renderer import render_page_preview_html
+            svc = get_page_service()
+            page = svc.get_page(page_id)
+            if page is None:
+                return (
+                    "<!DOCTYPE html><html><body><p>Page "
+                    f"<code>{page_id}</code> not found.</p></body></html>"
+                )
+            return render_page_preview_html(page)
+        except Exception as exc:
+            return f"<!DOCTYPE html><html><body><p>Error: {exc}</p></body></html>"
 
     @mcp.resource("fiestaboard://variables")
     def get_variables_resource() -> str:

@@ -42,12 +42,36 @@ def _call_tool(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
 
     FastMCP registers tools in ``_tool_manager``. Each tool's ``fn`` is the
     original decorated function.  We call it directly, bypassing JSON-RPC.
+
+    Page tools that emit an MCP-UI HTML preview return a list of content
+    blocks (``[TextContent, EmbeddedResource]``). For backward-compat with
+    existing assertions that ``json.loads(result)``, this helper unwraps
+    the first ``TextContent`` block to its raw ``.text`` string. Callers
+    that need the embedded HTML resource should use ``_call_tool_blocks``.
     """
+    import asyncio
     mgr = mcp_instance._tool_manager
     tool = mgr._tools.get(tool_name)
     if tool is None:
         raise KeyError(f"Tool '{tool_name}' not registered. Available: {list(mgr._tools)}")
+    result = tool.fn(**kwargs)
+    if asyncio.iscoroutine(result):
+        result = asyncio.get_event_loop().run_until_complete(result)
+    if isinstance(result, list) and result:
+        first = result[0]
+        if hasattr(first, "text"):
+            return first.text
+    return result
+
+
+def _call_tool_blocks(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
+    """Like ``_call_tool`` but returns the raw tool return value (list of
+    content blocks for page tools, or a string otherwise)."""
     import asyncio
+    mgr = mcp_instance._tool_manager
+    tool = mgr._tools.get(tool_name)
+    if tool is None:
+        raise KeyError(f"Tool '{tool_name}' not registered. Available: {list(mgr._tools)}")
     result = tool.fn(**kwargs)
     if asyncio.iscoroutine(result):
         result = asyncio.get_event_loop().run_until_complete(result)
@@ -509,6 +533,55 @@ class TestUpdatePage:
             result = _call_tool(mcp, "update_page", page_id="missing")
         data = json.loads(result)
         assert "error" in data
+
+
+class TestPageToolsEmbedHtmlPreview:
+    """Page tools attach a ``ui://`` text/html EmbeddedResource as the
+    second content block so MCP-UI clients can render a board preview."""
+
+    @staticmethod
+    def _assert_html_block(blocks):
+        from mcp.types import EmbeddedResource, TextContent
+        assert isinstance(blocks, list), f"expected list, got {type(blocks).__name__}"
+        assert len(blocks) >= 2, "expected text + html resource blocks"
+        assert isinstance(blocks[0], TextContent)
+        embedded = blocks[1]
+        assert isinstance(embedded, EmbeddedResource)
+        assert embedded.resource.mimeType == "text/html"
+        assert str(embedded.resource.uri).startswith("ui://fiestaboard/page/")
+        html_text = embedded.resource.text
+        assert "<!DOCTYPE html>" in html_text
+        return html_text
+
+    def test_get_page_embeds_html_preview(self, mcp, mock_page_service):
+        # preview_page returns None -> renderer falls back to template lines
+        mock_page_service.preview_page.return_value = None
+        with patch("src.pages.service.get_page_service", return_value=mock_page_service):
+            blocks = _call_tool_blocks(mcp, "get_page", page_id="page-001")
+        self._assert_html_block(blocks)
+
+    def test_create_page_embeds_html_preview(self, mcp, mock_page_service):
+        mock_page_service.preview_page.return_value = None
+        # create_page returns a result MagicMock; give it the attrs the renderer reads.
+        result = mock_page_service.create_page.return_value
+        result.device_type = "flagship"
+        result.template = ["{{red}}HELLO", "WORLD"]
+        with patch("src.pages.service.get_page_service", return_value=mock_page_service):
+            blocks = _call_tool_blocks(
+                mcp,
+                "create_page",
+                name="My Page",
+                template_lines=["Line 1", "Line 2", "Line 3", "Line 4", "Line 5", "Line 6"],
+            )
+        html_text = self._assert_html_block(blocks)
+        # Fallback path uses template lines verbatim, so the red swatch appears.
+        assert "#eb4034" in html_text
+
+    def test_update_page_embeds_html_preview(self, mcp, mock_page_service):
+        mock_page_service.preview_page.return_value = None
+        with patch("src.pages.service.get_page_service", return_value=mock_page_service):
+            blocks = _call_tool_blocks(mcp, "update_page", page_id="page-001", name="New Name")
+        self._assert_html_block(blocks)
 
 
 class TestDeletePage:
