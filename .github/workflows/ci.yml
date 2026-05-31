@@ -383,33 +383,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # ── Install deps (parallel) ──────────────────────────────────
-      # npm ci and Playwright install run concurrently to overlap I/O.
-      # NOTE: actions/cache was removed — e2e only runs on PRs (never
-      # on main), so branch-scoped caches were never populated and every
-      # restore was a miss.  Removing the save phase cuts ~2.5 min/run.
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - name: Install deps (parallel)
-        run: |
-          # npm ci in background
-          (cd web && npm ci && echo "✅ npm ci complete") &
-          NPM_PID=$!
-
-          # Playwright system deps (always needed on fresh runner)
-          cd web
-          npx playwright install-deps chromium > /dev/null
-          echo "✅ Playwright system deps installed"
-
-          # Wait for npm before Playwright browser install (needs node_modules)
-          wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }
-
-          # Playwright browsers
-          npx playwright install chromium
-          echo "✅ Playwright browsers installed"
+      # ── Install deps (npm + Playwright, with caching) ─────────────
+      - name: Set up web E2E environment
+        uses: ./.github/actions/setup-web-e2e
 
       # ── Build Docker image ─────────────────────────────────────────
       - name: Set up Docker Buildx
@@ -570,19 +546,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - name: Install deps (parallel)
-        run: |
-          (cd web && npm ci && echo "✅ npm ci complete") &
-          NPM_PID=$!
-          cd web
-          npx playwright install-deps chromium > /dev/null
-          wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }
-          npx playwright install chromium
+      - name: Set up web E2E environment
+        uses: ./.github/actions/setup-web-e2e
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -719,19 +684,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - name: Install deps (parallel)
-        run: |
-          (cd web && npm ci && echo "✅ npm ci complete") &
-          NPM_PID=$!
-          cd web
-          npx playwright install-deps chromium > /dev/null
-          wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }
-          npx playwright install chromium
+      - name: Set up web E2E environment
+        uses: ./.github/actions/setup-web-e2e
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
