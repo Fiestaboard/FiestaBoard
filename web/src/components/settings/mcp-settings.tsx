@@ -41,9 +41,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 /**
  * Build the Claude Desktop config snippet the user will paste into
  * ``~/Library/Application Support/Claude/claude_desktop_config.json``.
- * We compute the URL from the browser's own ``window.location`` so the
- * snippet matches however the user is currently reaching FiestaBoard
- * (``localhost``, ``fiestaboard.local``, a LAN IP, etc.).
+ *
+ * Claude Desktop's ``mcpServers`` only accepts **stdio** entries, so for a
+ * remote HTTP MCP server like FiestaBoard we wrap it with the ``mcp-remote``
+ * Node proxy. The trailing slash on the URL matters: hitting ``/api/mcp``
+ * triggers a FastAPI 307 to ``/api/mcp/`` that drops the ``:4420`` port,
+ * which Node's fetch follows and times out on. ``--allow-http`` is required
+ * because the proxy refuses plaintext targets by default.
+ *
+ * URL host/protocol come from ``window.location`` so the snippet matches
+ * however the user is currently reaching FiestaBoard (``localhost``,
+ * ``fiestaboard.local``, a LAN IP, etc.).
  */
 function buildClaudeDesktopConfig(token: string): string {
   let host = "fiestaboard.local:4420";
@@ -54,12 +62,15 @@ function buildClaudeDesktopConfig(token: string): string {
     typeof window !== "undefined" && window.location?.protocol === "https:"
       ? "https"
       : "http";
+  const url = `${proto}://${host}/api/mcp/`;
+  const args = ["-y", "mcp-remote", url];
+  if (proto === "http") args.push("--allow-http");
+  args.push("--header", `Authorization: Bearer ${token}`);
   const config = {
     mcpServers: {
       fiestaboard: {
-        type: "http",
-        url: `${proto}://${host}/api/mcp`,
-        headers: { Authorization: `Bearer ${token}` },
+        command: "npx",
+        args,
       },
     },
   };
@@ -146,7 +157,18 @@ export function McpSettings() {
             A pre-shared token that lets Claude Desktop, Claude Code, and other MCP
             clients talk to this FiestaBoard. The token authenticates as a single
             principal — scoped to the <code className="font-mono text-xs">/api/mcp</code>{" "}
-            endpoint only — so it can&apos;t edit pages or other settings.
+            endpoint only — so it can&apos;t edit pages or other settings. See{" "}
+            <a
+              href="https://github.com/Fiestaboard/FiestaBoard/blob/main/docs/setup/MCP_CLIENTS.md"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
+              MCP client setup
+            </a>{" "}
+            for client-specific quirks (Desktop needs an stdio proxy; claude.ai web
+            Connectors require public HTTPS and OAuth, so they won&apos;t reach a LAN
+            host).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -358,6 +380,22 @@ export function McpSettings() {
                 </code>
                 , merging with anything that&apos;s already there, then fully quit and
                 relaunch Claude Desktop (⌘Q — closing the window isn&apos;t enough).
+                Claude Desktop only supports stdio MCP servers, so this snippet shells
+                out to{" "}
+                <a
+                  href="https://www.npmjs.com/package/mcp-remote"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  mcp-remote
+                </a>{" "}
+                via <code className="font-mono">npx</code> as a proxy — Node 18+ must
+                be installed and <code className="font-mono">npx</code> reachable from
+                Claude Desktop&apos;s PATH. If it errors with{" "}
+                <code className="font-mono">command not found</code>, replace{" "}
+                <code className="font-mono">&quot;npx&quot;</code> with the absolute
+                path from <code className="font-mono">which npx</code>.
               </p>
               <pre className="max-h-64 overflow-auto rounded bg-muted px-3 py-2 font-mono text-xs">
                 {configSnippet}
@@ -365,14 +403,21 @@ export function McpSettings() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              <strong>Claude Code (CLI):</strong>{" "}
+              <strong>Claude Code (CLI):</strong> talks HTTP directly — no proxy needed.
+              <br />
               <code className="font-mono">
                 claude mcp add fiestaboard --transport http --url{" "}
                 {typeof window !== "undefined"
                   ? `${window.location.protocol}//${window.location.host}`
                   : "http://fiestaboard.local:4420"}
-                /api/mcp --header &quot;Authorization: Bearer &lt;token&gt;&quot;
+                /api/mcp/ --header &quot;Authorization: Bearer &lt;token&gt;&quot;
               </code>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              <strong>claude.ai web (Connectors):</strong> not supported for self-hosted
+              FiestaBoard. The Connectors flow requires a public HTTPS URL and OAuth
+              2.1 dynamic client registration, neither of which a LAN host can provide.
+              Use Desktop or Code instead.
             </p>
           </div>
 
