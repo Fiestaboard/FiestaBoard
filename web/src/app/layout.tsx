@@ -59,9 +59,10 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const isPrideMonth = new Date().getMonth() === 5;
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning className={isPrideMonth ? "pride-month" : undefined}>
       <head>
         <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
@@ -75,9 +76,12 @@ export default async function RootLayout({
         <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
           <defs>
             <linearGradient id="page-icon-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="24" y2="24">
-              <stop offset="0%" stopColor="var(--fiesta-red)" />
-              <stop offset="50%" stopColor="var(--fiesta-orange)" />
-              <stop offset="100%" stopColor="var(--fiesta-purple)" />
+              <stop offset="0%"   stopColor="var(--icon-g1)" />
+              <stop offset="20%"  stopColor="var(--icon-g2)" />
+              <stop offset="40%"  stopColor="var(--icon-g3)" />
+              <stop offset="60%"  stopColor="var(--icon-g4)" />
+              <stop offset="80%"  stopColor="var(--icon-g5)" />
+              <stop offset="100%" stopColor="var(--icon-g6)" />
             </linearGradient>
           </defs>
         </svg>

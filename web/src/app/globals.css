@@ -167,6 +167,13 @@
   --fiesta-red: #c97a72;
   --fiesta-orange: #c99662;
   --fiesta-purple: #9b7bb0;
+  /* Page icon gradient stops — 6 vars so pride month can expand to a full rainbow */
+  --icon-g1: var(--fiesta-red);
+  --icon-g2: var(--fiesta-orange);
+  --icon-g3: var(--fiesta-orange);
+  --icon-g4: var(--fiesta-orange);
+  --icon-g5: var(--fiesta-purple);
+  --icon-g6: var(--fiesta-purple);
   /* Elevation - subtle card and modal shadows */
   --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.06);
   --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 4px 16px -4px rgb(0 0 0 / 0.06);
@@ -231,6 +238,39 @@
   --elevation-card: 0 1px 3px 0 rgb(0 0 0 / 0.20), 0 0 0 1px oklch(1 0 0 / 6%);
   --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.30), 0 0 0 1px oklch(1 0 0 / 10%);
   --elevation-modal: 0 8px 24px -4px rgb(0 0 0 / 0.25), 0 4px 8px -4px rgb(0 0 0 / 0.15);
+}
+
+/* Pride month (June) — rainbow page icon gradient + logo text + sidebar */
+.pride-month {
+  --icon-g1: #E40303;
+  --icon-g2: #FF8C00;
+  --icon-g3: #FFED00;
+  --icon-g4: #008026;
+  --icon-g5: #004DFF;
+  --icon-g6: #750787;
+}
+
+.pride-month .logo-fiesta-text {
+  background: linear-gradient(90deg, #E40303, #FF8C00, #FFED00, #008026, #004DFF, #750787);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Sidebar gradient: 3 pride colors spread wide across the spectrum */
+.pride-month .sidebar-gradient,
+.pride-month .sidebar-gradient-horizontal {
+  --sidebar-fiesta-red: #E40303;
+  --sidebar-fiesta-orange: #FFED00;
+  --sidebar-fiesta-purple: #750787;
+}
+
+/* Dark mode sidebar: muted pride colors to stay readable against dark text */
+.pride-month.dark .sidebar-gradient,
+.pride-month.dark .sidebar-gradient-horizontal {
+  --sidebar-fiesta-red: #8a1a10;
+  --sidebar-fiesta-orange: #7a7000;
+  --sidebar-fiesta-purple: #3d1268;
 }
 
 @layer base {

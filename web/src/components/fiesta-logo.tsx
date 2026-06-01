@@ -16,7 +16,7 @@ export function FiestaLogo({ size = "md", className }: FiestaLogoProps) {
         className,
       )}
     >
-      <span className="font-black text-brand">
+      <span className="font-black text-brand logo-fiesta-text">
         Fiesta
       </span>
       <span className="font-light text-sidebar-foreground">
