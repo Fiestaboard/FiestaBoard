@@ -140,13 +140,42 @@ def _auth_env_override() -> str | None:
 
 
 def mcp_token() -> str | None:
-    """Return the configured MCP bearer token, or ``None`` if none is set.
+    """Return the active MCP bearer token, or ``None`` if none is set.
 
-    Read fresh from the environment on every call so tests / runtime
-    reconfiguration don't have to bust a cache.
+    Resolution order (first match wins):
+
+    1. ``FIESTABOARD_MCP_TOKEN`` environment variable — lets ops pin a
+       value out-of-band without touching ``auth.json``.
+    2. ``mcp_token`` field in ``auth.json`` — managed by the Settings UI.
+
+    Read fresh on every call so tests / runtime reconfiguration don't
+    have to bust a cache.
     """
-    raw = os.environ.get("FIESTABOARD_MCP_TOKEN", "").strip()
-    return raw or None
+    env = os.environ.get("FIESTABOARD_MCP_TOKEN", "").strip()
+    if env:
+        return env
+    try:
+        return get_auth_service().get_stored_mcp_token()
+    except Exception:
+        # Auth store unreachable — fail closed so we don't grant access
+        # we can't reason about.
+        return None
+
+
+def mcp_token_source() -> str:
+    """Where the active MCP token comes from: ``"env"``, ``"stored"``, or ``"none"``.
+
+    Used by the Settings API so the UI can show "managed by ops" when
+    the env var is set and hide the rotate/clear controls.
+    """
+    if os.environ.get("FIESTABOARD_MCP_TOKEN", "").strip():
+        return "env"
+    try:
+        if get_auth_service().get_stored_mcp_token():
+            return "stored"
+    except Exception:
+        return "none"
+    return "none"
 
 
 def verify_mcp_bearer(supplied: str) -> bool:
@@ -155,6 +184,11 @@ def verify_mcp_bearer(supplied: str) -> bool:
     if expected is None or not supplied:
         return False
     return secrets.compare_digest(expected, supplied)
+
+
+def generate_mcp_token() -> str:
+    """Return a fresh 32-byte URL-safe token suitable for the MCP endpoint."""
+    return secrets.token_urlsafe(32)
 
 
 # --- Errors ----------------------------------------------------------------
@@ -430,6 +464,36 @@ class AuthService:
                 self._data.pop("auth_pref", None)
             else:
                 self._data["auth_pref"] = preference
+            self._save()
+
+    # -- MCP bearer token --------------------------------------------------
+
+    def get_stored_mcp_token(self) -> str | None:
+        """Return the persisted MCP bearer token, or ``None`` if unset.
+
+        This is the UI-managed value. The runtime ``mcp_token()`` helper
+        in this module also consults ``FIESTABOARD_MCP_TOKEN``; the env
+        var wins so ops can pin a value out-of-band.
+        """
+        with self._lock:
+            tok = self._data.get("mcp_token")
+        if isinstance(tok, str) and tok:
+            return tok
+        return None
+
+    def set_stored_mcp_token(self, token: str | None) -> None:
+        """Persist (or clear) the UI-managed MCP bearer token.
+
+        Pass ``None`` to remove it. Stored in ``auth.json`` (file mode
+        0600 alongside the password hash), so no extra encryption layer.
+        """
+        if token is not None and (not isinstance(token, str) or not token.strip()):
+            raise ValueError("token must be a non-empty string or None")
+        with self._lock:
+            if token is None:
+                self._data.pop("mcp_token", None)
+            else:
+                self._data["mcp_token"] = token.strip()
             self._save()
 
     # -- mutations ---------------------------------------------------------
