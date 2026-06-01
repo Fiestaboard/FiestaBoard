@@ -15,23 +15,34 @@ the value as ``Authorization: Bearer <token>``. A 401 from ``/mcp``
 includes ``WWW-Authenticate: Bearer realm="FiestaBoard MCP"`` so MCP
 clients send a token rather than attempting OAuth registration.
 
-Connection example for Claude Desktop (``claude_desktop_config.json``):
+Connection example for Claude Desktop (``claude_desktop_config.json``).
+Desktop only supports stdio servers, so we proxy through ``mcp-remote``.
+The trailing slash on the URL avoids a 307 from FastAPI that drops the port::
+
     {
         "mcpServers": {
             "fiestaboard": {
-                "type": "http",
-                "url": "http://fiestaboard.local:4420/api/mcp",
-                "headers": {
-                    "Authorization": "Bearer <FIESTABOARD_MCP_TOKEN>"
-                }
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "mcp-remote",
+                    "http://fiestaboard.local:4420/api/mcp/",
+                    "--allow-http",
+                    "--header",
+                    "Authorization: Bearer <FIESTABOARD_MCP_TOKEN>"
+                ]
             }
         }
     }
 
-Connection example for Claude Code:
-    /mcp add fiestaboard --transport http \\
-        --url http://localhost:4420/api/mcp \\
+Connection example for Claude Code (talks HTTP directly, no proxy)::
+
+    claude mcp add fiestaboard --transport http \\
+        --url http://localhost:4420/api/mcp/ \\
         --header "Authorization: Bearer <FIESTABOARD_MCP_TOKEN>"
+
+See ``docs/setup/MCP_CLIENTS.md`` for the full setup walkthrough,
+including why claude.ai web Connectors can't reach a LAN host.
 """
 
 from __future__ import annotations
