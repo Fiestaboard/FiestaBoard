@@ -7570,7 +7570,7 @@ async def get_plugin_data(plugin_id: str):
         "plugin_id": plugin_id,
         "available": result.available,
         "data": result.data,
-        "formatted": result.formatted,
+        "formatted_lines": result.formatted_lines,
         "error": result.error
     }
 
