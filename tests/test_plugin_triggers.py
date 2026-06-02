@@ -289,6 +289,119 @@ class TestTriggerService:
         result = trigger_service.dismiss_trigger("does_not_exist")
         assert result is False
 
+    def test_dismiss_with_suppress_blocks_reactivation(self, trigger_service):
+        """Regression for #856.
+
+        A plugin that re-emits the same trigger every loop tick (e.g.
+        calendar_sub during a countdown window) used to silently overwrite
+        the user's manual "Change Page" selection. Dismissing with
+        suppress=True blacklists the trigger_id until its natural duration
+        would have ended, so subsequent activations are dropped.
+        """
+        trigger = TriggerResult(
+            triggered=True,
+            trigger_id="sticky_event",
+            message="UPCOMING",
+            priority=5,
+            duration_seconds=900,  # 15 min — typical countdown horizon
+        )
+        trigger_service.activate_trigger("calendar_sub", trigger)
+        assert trigger_service.get_active_trigger() is not None
+
+        # User clicks "Change Page" — backend dismisses + suppresses.
+        dismissed = trigger_service.dismiss_trigger("sticky_event", suppress=True)
+        assert dismissed is True
+        assert trigger_service.get_active_trigger() is None
+
+        # Plugin re-emits the same trigger on the next display loop tick.
+        # Without suppression this would re-activate and clobber the user's
+        # page choice; with suppression it must be ignored.
+        trigger_service.activate_trigger("calendar_sub", trigger)
+        assert trigger_service.get_active_trigger() is None
+
+    def test_suppression_allows_new_trigger_ids_through(self, trigger_service):
+        """Suppressing one trigger_id must not block other events from firing.
+
+        Calendar_sub uses a per-event trigger_id (different ID per upcoming
+        event), so dismissing today's standup must not block tomorrow's
+        design review.
+        """
+        first = TriggerResult(
+            triggered=True, trigger_id="event_a", message="Event A",
+            priority=5, duration_seconds=900,
+        )
+        second = TriggerResult(
+            triggered=True, trigger_id="event_b", message="Event B",
+            priority=5, duration_seconds=900,
+        )
+        trigger_service.activate_trigger("calendar_sub", first)
+        trigger_service.dismiss_trigger("event_a", suppress=True)
+
+        # A different event fires — should activate normally.
+        trigger_service.activate_trigger("calendar_sub", second)
+        active = trigger_service.get_active_trigger()
+        assert active is not None
+        assert active.trigger_id == "event_b"
+
+    def test_suppression_lapses_after_duration(self, trigger_service):
+        """Suppression entries must expire so trigger_ids can fire again later."""
+        from datetime import datetime, timedelta
+
+        trigger = TriggerResult(
+            triggered=True, trigger_id="lapsing", message="X",
+            priority=1, duration_seconds=60,
+        )
+        trigger_service.activate_trigger("plugin", trigger)
+        trigger_service.dismiss_trigger("lapsing", suppress=True)
+
+        # Rewind suppression entry into the past.
+        trigger_service._suppressed_until["lapsing"] = (
+            datetime.now() - timedelta(seconds=1)
+        )
+
+        trigger_service.activate_trigger("plugin", trigger)
+        assert trigger_service.get_active_trigger() is not None
+
+    def test_dismiss_active_for_user_override_clears_all(self, trigger_service):
+        """Helper used by PUT /settings/active-page to clear + suppress in one go."""
+        for tid in ("a", "b", "c"):
+            trigger_service.activate_trigger(
+                "plugin",
+                TriggerResult(
+                    triggered=True, trigger_id=tid, message=tid,
+                    priority=1, duration_seconds=300,
+                ),
+            )
+        assert len(trigger_service.list_active_triggers()) == 3
+
+        count = trigger_service.dismiss_active_for_user_override()
+        assert count == 3
+        assert trigger_service.get_active_trigger() is None
+
+        # Re-firing any of the suppressed IDs must be a no-op.
+        for tid in ("a", "b", "c"):
+            trigger_service.activate_trigger(
+                "plugin",
+                TriggerResult(
+                    triggered=True, trigger_id=tid, message=tid,
+                    priority=1, duration_seconds=300,
+                ),
+            )
+        assert trigger_service.get_active_trigger() is None
+
+    def test_clear_all_resets_suppressions_too(self, trigger_service):
+        """clear_all must wipe suppression entries so post-clear triggers fire normally."""
+        trigger = TriggerResult(
+            triggered=True, trigger_id="cleared", message="X",
+            priority=1, duration_seconds=60,
+        )
+        trigger_service.activate_trigger("plugin", trigger)
+        trigger_service.dismiss_trigger("cleared", suppress=True)
+        trigger_service.clear_all()
+
+        trigger_service.activate_trigger("plugin", trigger)
+        assert trigger_service.get_active_trigger() is not None
+
     def test_expired_triggers_cleared(self, trigger_service):
         trigger = TriggerResult(
             triggered=True,
