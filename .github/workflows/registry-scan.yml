@@ -23,6 +23,10 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: "3.11"
+        # We don't have a pinned manifest for the scan tools (bandit,
+        # pip-audit), but caching against a static key still saves ~60s
+        # by reusing the wheel cache across weekly runs.
+        cache: 'pip'
 
     - name: Install scanning tools
       run: |
@@ -31,8 +35,21 @@ jobs:
 
     - name: Scan all registry plugins
       id: scan
-      run: python scripts/scan_registry.py --verbose --output scan-results
-      continue-on-error: true
+      # scan_registry.py exits 0 (clean), 1 (vulns found — sets
+      # has_vulnerabilities output for the issue-creator step), or 2
+      # (setup/config error). Allow 1 but surface 2 — a crashing scan
+      # silently skipping issue creation is the exact failure mode we
+      # had before this change.
+      run: |
+        set +e
+        python scripts/scan_registry.py --verbose --output scan-results
+        code=$?
+        set -e
+        if [ "$code" = "0" ] || [ "$code" = "1" ]; then
+          exit 0
+        fi
+        echo "::error::scan_registry.py crashed with exit code $code"
+        exit "$code"
 
     - name: Upload scan results
       if: always()
