@@ -305,6 +305,27 @@ export default function SchedulePage() {
     setDeleteScheduleId(id);
   }, []);
 
+  const toggleScheduleEnabled = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => api.updateSchedule(id, { enabled }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      toast.success(variables.enabled ? t("toastEntryEnabled") : t("toastEntryDisabled"));
+    },
+    onError: () => {
+      toast.error(t("toastUpdateFailed"));
+    },
+  });
+
+  const handleToggleEnabled = useCallback(
+    (schedule: ScheduleEntry, enabled: boolean) => {
+      toggleScheduleEnabled.mutate({ id: schedule.id, enabled });
+    },
+    [toggleScheduleEnabled],
+  );
+
   const handleAdd = useCallback(() => {
     setEditingSchedule(null);
     setPrefillData(null);
@@ -633,6 +654,7 @@ export default function SchedulePage() {
           carousels={carouselsData?.carousels}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onToggleEnabled={handleToggleEnabled}
         />
       ) : (
         /* Calendar card: grows to fill remaining space in the pinned layout */

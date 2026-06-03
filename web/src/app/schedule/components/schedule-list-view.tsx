@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import type { Carousel, Page, ScheduleEntry } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
 
@@ -15,6 +17,7 @@ interface ScheduleListViewProps {
   carousels?: Carousel[];
   onEdit: (schedule: ScheduleEntry) => void;
   onDelete: (id: string) => void;
+  onToggleEnabled?: (schedule: ScheduleEntry, enabled: boolean) => void;
 }
 
 const DAY_KEYS: Record<string, "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"> = {
@@ -85,7 +88,14 @@ function useFormatters() {
   return { formatDays, formatTimeDisplay };
 }
 
-export function ScheduleListView({ schedules, pages, carousels = [], onEdit, onDelete }: ScheduleListViewProps) {
+export function ScheduleListView({
+  schedules,
+  pages,
+  carousels = [],
+  onEdit,
+  onDelete,
+  onToggleEnabled,
+}: ScheduleListViewProps) {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const { formatDays, formatTimeDisplay } = useFormatters();
@@ -114,6 +124,7 @@ export function ScheduleListView({ schedules, pages, carousels = [], onEdit, onD
           <div className="space-y-3">
             {schedules.map((schedule) => {
               const pageName = getPageName(schedule.page_id);
+              const toggleId = `schedule-enabled-${schedule.id}`;
               return (
                 <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
@@ -128,7 +139,20 @@ export function ScheduleListView({ schedules, pages, carousels = [], onEdit, onD
                       {formatTimeDisplay(schedule)} • {formatDays(schedule)}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    {onToggleEnabled && (
+                      <div className="flex items-center gap-2 pr-2 border-r mr-1">
+                        <Label htmlFor={toggleId} className="text-xs text-muted-foreground cursor-pointer">
+                          {t("scheduleEntryForm.enabledLabel")}
+                        </Label>
+                        <Switch
+                          id={toggleId}
+                          checked={schedule.enabled}
+                          onCheckedChange={(checked) => onToggleEnabled(schedule, checked)}
+                          aria-label={t("toggleEnabledAriaLabel", { pageName })}
+                        />
+                      </div>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
