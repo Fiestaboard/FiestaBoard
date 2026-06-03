@@ -13,7 +13,11 @@ export function PageLayout({ children, className, outerClassName, fillHeight }: 
   return (
     <div className={cn(
       "bg-background overflow-x-hidden",
-      fillHeight ? "flex-1 min-h-0 flex flex-col overflow-hidden" : "min-h-full",
+      // fillHeight pins the page to the viewport so inner content (e.g. the
+      // calendar grid) can scroll independently. The mobile topbar (`pt-[72px]`
+      // on MainContent) is subtracted on small screens so the wrapper doesn't
+      // extend past the viewport bottom.
+      fillHeight ? "h-[calc(100dvh-72px)] lg:h-dvh flex flex-col overflow-hidden" : "min-h-full",
       outerClassName
     )}>
       <div className={cn(

@@ -284,6 +284,10 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'ss01';
+    /* Clip horizontal overflow at the document root so the body itself stays the
+     * vertical scroll container. Applying overflow-x to <main> would force its
+     * computed overflow-y to `auto`, recreating a nested scrollbar. */
+    overflow-x: hidden;
   }
   /* Prevent Radix UI Select from removing scrollbar when opened */
   body[data-scroll-locked] {

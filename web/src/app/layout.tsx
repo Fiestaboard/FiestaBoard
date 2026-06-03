@@ -71,7 +71,7 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-dvh overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
           <defs>
