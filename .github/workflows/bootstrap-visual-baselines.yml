@@ -8,23 +8,17 @@ name: Bootstrap Visual Regression Baselines
 #   - Intentionally updating baselines after a UI redesign
 #   - A baseline has drifted due to library/font changes
 #
-# The PR opened by this workflow:
-#   1. Commits the generated *.png snapshots under
-#      web/tests/visual-regression.spec.ts-snapshots/
-#   2. Removes `continue-on-error: true` from the visual regression
-#      step in ci.yml — flipping it from advisory to required.
+# The PR opened by this workflow commits the generated *.png snapshots
+# under web/tests/visual-regression.spec.ts-snapshots/. Review the
+# screenshots before merging.
 #
-# Always review the generated screenshots before merging the PR.
+# Note: flipping visual regression from advisory (continue-on-error: true)
+# to required is a separate one-line PR — the bot token here lacks the
+# `workflow` scope needed to modify ci.yml.
 # =============================================================================
 
 on:
   workflow_dispatch:
-    inputs:
-      enforce:
-        description: 'Also remove continue-on-error: true from ci.yml (make required)'
-        required: false
-        type: boolean
-        default: true
 
 permissions:
   contents: write
@@ -125,39 +119,19 @@ jobs:
         if: always()
         run: docker rm -f fiestaboard mock-board 2>/dev/null || true
 
-      - name: Flip visual regression to required
-        if: inputs.enforce
-        run: |
-          # Remove `continue-on-error: true` from the visual regression step.
-          # We match the precise context so we don't touch other CoE flags.
-          python3 - <<'PY'
-          import re, sys, pathlib
-          p = pathlib.Path('.github/workflows/ci.yml')
-          src = p.read_text()
-          pattern = re.compile(
-              r'(- name: Run visual regression tests\n'
-              r'        id: visual-regression\n'
-              r'        working-directory: web\n)'
-              r'        continue-on-error: true\n',
-          )
-          new, n = pattern.subn(r'\1', src)
-          if n != 1:
-              print(f"::error::expected exactly 1 match for visual regression CoE, found {n}", file=sys.stderr)
-              sys.exit(1)
-          p.write_text(new)
-          print(f"Removed continue-on-error from {n} visual-regression step.")
-          PY
-
       - name: Open PR with baselines
         uses: peter-evans/create-pull-request@v7
         with:
-          # GITHUB_TOKEN can't modify workflow files
-          # (`refusing to allow a GitHub App to ... without 'workflows'
-          # permission`). The PR includes a change to ci.yml, so use
-          # the PAT that's already wired for release pushes.
+          # GITHUB_TOKEN can't modify workflow files at all; RELEASE_PAT
+          # works for snapshot PNGs (regular files), but doesn't currently
+          # carry the `workflow` PAT scope needed to change ci.yml. So this
+          # PR is intentionally PNGs-only — the enforcement flip is a
+          # separate one-line PR a maintainer opens after merging this.
           token: ${{ secrets.RELEASE_PAT }}
           branch: ci/visual-baselines
           delete-branch: true
+          add-paths: |
+            web/tests/**/*.png
           commit-message: |
             ci: refresh visual regression baselines
 
@@ -173,9 +147,12 @@ jobs:
             - [ ] Verify no unexpected UI changes are baked in
             - [ ] Confirm CI's `Run visual regression tests` step now passes against the new baselines
 
-            > ⚠️ Once merged, the visual regression step is **required** (no longer
-            > `continue-on-error: true`). Future UI changes must regenerate baselines
-            > via this workflow or `npx playwright test --update-snapshots` locally.
+            ## Next step (separate PR)
+
+            Once these baselines are in `main`, remove `continue-on-error: true`
+            from the `Run visual regression tests` step in `.github/workflows/ci.yml`
+            so the check is required. That change needs to be made in a separate
+            PR because the bot token used here lacks the `workflow` PAT scope.
           labels: |
             ci
             visual-regression
