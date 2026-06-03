@@ -929,6 +929,7 @@ jobs:
         env:
           NAMES: |
             detect-changes
+            dependency-review
             test-platform
             test-plugins
             test-ui
