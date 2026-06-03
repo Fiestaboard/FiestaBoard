@@ -9,7 +9,7 @@ display loop can override the normal schedule/manual page.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from ..plugins.base import PluginBase, TriggerResult
@@ -79,12 +79,37 @@ class TriggerService:
 
     def __init__(self) -> None:
         self._active_triggers: dict[str, ActiveTrigger] = {}
+        # Triggers the user has explicitly dismissed (typically via a manual
+        # "Change Page" action). Each entry maps a trigger_id to the time at
+        # which the suppression expires, after which the trigger is allowed
+        # to re-fire. Without this, a plugin re-emitting the trigger every
+        # display loop tick would silently overwrite the user's choice
+        # (see issue #856 — manual page change blocked by active trigger).
+        self._suppressed_until: dict[str, datetime] = {}
         logger.info("TriggerService initialized")
 
     # -- public API --------------------------------------------------------
 
     def activate_trigger(self, plugin_id: str, trigger: TriggerResult) -> None:
-        """Record a fired trigger (replaces any existing trigger with same id)."""
+        """Record a fired trigger (replaces any existing trigger with same id).
+
+        Triggers that were recently dismissed by the user are suppressed: a
+        plugin can keep returning the same TriggerResult every loop tick, but
+        it won't show on the board until the suppression entry expires (or
+        a new trigger fires with a different ``trigger_id``).
+        """
+        suppressed_until = self._suppressed_until.get(trigger.trigger_id)
+        if suppressed_until is not None:
+            if datetime.now() < suppressed_until:
+                logger.debug(
+                    "Trigger %s is user-suppressed until %s — not activating",
+                    trigger.trigger_id,
+                    suppressed_until.isoformat(),
+                )
+                return
+            # Suppression has lapsed; drop the entry and fall through.
+            del self._suppressed_until[trigger.trigger_id]
+
         active = ActiveTrigger(
             trigger_id=trigger.trigger_id,
             plugin_id=plugin_id,
@@ -123,16 +148,59 @@ class TriggerService:
             reverse=True,
         )
 
-    def dismiss_trigger(self, trigger_id: str) -> bool:
+    def dismiss_trigger(self, trigger_id: str, suppress: bool = False) -> bool:
         """Dismiss (remove) a trigger by its id.
+
+        Args:
+            trigger_id: The trigger to dismiss.
+            suppress: When True, also blacklist this ``trigger_id`` from
+                re-activating until its natural duration would have ended.
+                This is what makes a user's manual page change stick when a
+                plugin keeps re-emitting the same trigger.
 
         Returns True if the trigger existed and was removed.
         """
-        if trigger_id in self._active_triggers:
-            del self._active_triggers[trigger_id]
+        active = self._active_triggers.get(trigger_id)
+        if active is None:
+            return False
+
+        if suppress:
+            # Suppress for whatever was left of the trigger's natural duration,
+            # not the full duration — once that window passes, the underlying
+            # condition (e.g. "event happening soon") should be gone, and any
+            # new trigger from the plugin is a fresh signal worth honoring.
+            self._suppressed_until[trigger_id] = (
+                active.activated_at + timedelta(seconds=active.duration_seconds)
+            )
+            logger.info(
+                "Trigger dismissed + suppressed: %s (until %s)",
+                trigger_id,
+                self._suppressed_until[trigger_id].isoformat(),
+            )
+        else:
             logger.info("Trigger dismissed: %s", trigger_id)
-            return True
-        return False
+
+        del self._active_triggers[trigger_id]
+        return True
+
+    def dismiss_active_for_user_override(self) -> int:
+        """Dismiss every currently-active trigger and suppress re-firing.
+
+        Called when the user explicitly takes control of what's on the board
+        (e.g. via "Change Page" on the Home screen). Returns the number of
+        triggers dismissed.
+        """
+        # Snapshot keys first because dismiss_trigger mutates the dict.
+        ids = list(self._active_triggers.keys())
+        for tid in ids:
+            self.dismiss_trigger(tid, suppress=True)
+        if ids:
+            logger.info(
+                "Dismissed %d trigger(s) for user override; suppressed: %s",
+                len(ids),
+                ", ".join(ids),
+            )
+        return len(ids)
 
     def clear_expired(self) -> None:
         """Remove all triggers that have exceeded their duration."""
@@ -143,9 +211,17 @@ class TriggerService:
             del self._active_triggers[tid]
             logger.debug("Trigger expired and removed: %s", tid)
 
+        # Garbage-collect lapsed suppression entries so the dict doesn't
+        # grow without bound.
+        now = datetime.now()
+        lapsed = [tid for tid, until in self._suppressed_until.items() if now >= until]
+        for tid in lapsed:
+            del self._suppressed_until[tid]
+
     def clear_all(self) -> None:
         """Remove all active triggers."""
         self._active_triggers.clear()
+        self._suppressed_until.clear()
         logger.info("All triggers cleared")
 
     def check_plugin_triggers(self, plugin: PluginBase) -> None:

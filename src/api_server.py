@@ -5087,6 +5087,14 @@ async def set_active_page(request: dict):
             if not page:
                 raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
+    # Dismiss any active plugin triggers so the user's explicit page change
+    # actually sticks. Without this, a plugin re-emitting the same trigger
+    # every display loop tick (e.g. calendar_sub during a countdown window)
+    # would silently overwrite the user's selection. See issue #856.
+    if PLUGIN_SYSTEM_AVAILABLE:
+        from .triggers.service import get_trigger_service
+        get_trigger_service().dismiss_active_for_user_override()
+
     # Set the active page (stores the carousel ID or page ID as-is)
     settings_service.set_active_page_id(page_id)
 
@@ -7570,7 +7578,7 @@ async def get_plugin_data(plugin_id: str):
         "plugin_id": plugin_id,
         "available": result.available,
         "data": result.data,
-        "formatted": result.formatted,
+        "formatted_lines": result.formatted_lines,
         "error": result.error
     }
 

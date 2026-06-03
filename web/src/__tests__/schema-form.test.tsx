@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SchemaForm, type JSONSchema } from "@/components/plugin-settings";
 
 /**
@@ -243,5 +244,139 @@ describe("SchemaForm - editing fields with schema defaults", () => {
     await user.keyboard("{Control>}a{/Control}{Backspace}");
 
     expect(input.value).toBe("");
+  });
+});
+
+/**
+ * page-picker widget: a plugin can declare `"ui:widget": "page-picker"` on a
+ * string field to get a button that opens the existing PagePickerDialog and
+ * writes back the chosen page UUID, instead of a raw text input.
+ */
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      getPages: vi.fn().mockResolvedValue({
+        pages: [
+          { id: "page-uuid-1", name: "Welcome", type: "template" },
+          { id: "page-uuid-2", name: "Stocks", type: "template" },
+        ],
+        total: 2,
+      }),
+    },
+  };
+});
+
+function QueryHarness({ children }: { children: React.ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
+describe("SchemaForm - page-picker widget", () => {
+  const pageSchema: JSONSchema = {
+    type: "object",
+    properties: {
+      trigger_page_id: {
+        type: "string",
+        title: "Trigger Page",
+        "ui:widget": "page-picker",
+      },
+    },
+  };
+
+  function Harness({ initial }: { initial: Record<string, unknown> }) {
+    const [values, setValues] = useState<Record<string, unknown>>(initial);
+    return (
+      <QueryHarness>
+        <SchemaForm schema={pageSchema} values={values} onChange={setValues} />
+      </QueryHarness>
+    );
+  }
+
+  it("renders a Select trigger (not a raw text input) for ui:widget: page-picker", async () => {
+    render(<Harness initial={{ trigger_page_id: "" }} />);
+
+    // The picker is a Radix Select trigger, exposing role=combobox.
+    expect(await screen.findByRole("combobox")).toBeInTheDocument();
+    // The raw text input fallback must NOT be rendered.
+    expect(screen.queryByRole("textbox", { name: /trigger page/i })).not.toBeInTheDocument();
+    // With no value, the dropdown's trigger surfaces the "None (no override)"
+    // option, which maps to "" in the form state.
+    expect(await screen.findByText(/none \(no override\)/i)).toBeInTheDocument();
+  });
+
+  it("shows the selected page's name once the pages have loaded", async () => {
+    render(<Harness initial={{ trigger_page_id: "page-uuid-2" }} />);
+
+    expect(await screen.findByText("Stocks")).toBeInTheDocument();
+  });
+});
+
+describe("SchemaForm - numeric enum (integer Select)", () => {
+  const enumSchema: JSONSchema = {
+    type: "object",
+    properties: {
+      minutes_before: {
+        type: "integer",
+        title: "Lead Time",
+        default: 5,
+        enum: [1, 2, 3, 5, 10],
+      },
+    },
+  };
+
+  function Harness({
+    initial,
+    onChange,
+  }: {
+    initial: Record<string, unknown>;
+    onChange?: (v: Record<string, unknown>) => void;
+  }) {
+    const [values, setValues] = useState<Record<string, unknown>>(initial);
+    return (
+      <SchemaForm
+        schema={enumSchema}
+        values={values}
+        onChange={(v) => {
+          setValues(v);
+          onChange?.(v);
+        }}
+      />
+    );
+  }
+
+  it("renders as a Select trigger (combobox), not a number input", () => {
+    render(<Harness initial={{ minutes_before: 5 }} />);
+
+    // The combobox role identifies a Radix Select trigger.
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
+  it("uses enumNames as friendly labels when provided", () => {
+    const labeledSchema: JSONSchema = {
+      type: "object",
+      properties: {
+        stay_minutes: {
+          type: "integer",
+          title: "Stay On Board",
+          default: 0,
+          enum: [0, 5, 15],
+          enumNames: ["Until next page", "5 min", "15 min"],
+        },
+      },
+    };
+    function Local() {
+      const [values, setValues] = useState<Record<string, unknown>>({ stay_minutes: 0 });
+      return <SchemaForm schema={labeledSchema} values={values} onChange={setValues} />;
+    }
+    render(<Local />);
+
+    // The Select trigger displays the friendly label for the current value.
+    expect(screen.getByText("Until next page")).toBeInTheDocument();
   });
 });

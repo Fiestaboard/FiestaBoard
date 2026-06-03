@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { PagePickerField } from "./page-picker-field";
 import { cn } from "@/lib/utils";
 import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
 import { Plus, Trash2, Eye, EyeOff, MapPin, Loader2, ChevronRight, ChevronDown, Zap, Copy, Check } from "lucide-react";
@@ -25,7 +26,8 @@ interface SchemaProperty {
   title?: string;
   description?: string;
   default?: unknown;
-  enum?: string[];
+  enum?: unknown[];
+  enumNames?: string[];
   minimum?: number;
   maximum?: number;
   minItems?: number;
@@ -67,6 +69,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
   const isPassword = property["ui:widget"] === "password";
   const isTextarea = property["ui:widget"] === "textarea";
   const isTimezone = property["ui:widget"] === "timezone";
+  const isPagePicker = property["ui:widget"] === "page-picker";
   
   if (property.enum) {
     // Normalize enum to array of strings - handle all possible formats
@@ -114,19 +117,30 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
       };
       
       // Render all enum options
+      const enumNames = property.enumNames;
       const selectItems = React.useMemo(() => {
         return allOptions.map((option, idx) => {
           const itemKey = `${name}-option-${idx}-${option}`;
+          // Look up custom label from enumNames if provided. Use the
+          // original enum index (not the deduped one) so labels stay
+          // aligned with their values.
+          let displayLabel = capitalizeDisplay(option);
+          if (enumNames && Array.isArray(enumNames)) {
+            const originalIdx = enumArray.indexOf(option);
+            if (originalIdx >= 0 && enumNames[originalIdx]) {
+              displayLabel = enumNames[originalIdx];
+            }
+          }
           return (
-            <SelectItem 
+            <SelectItem
               key={itemKey}
               value={option}
             >
-              {capitalizeDisplay(option)}
+              {displayLabel}
             </SelectItem>
           );
         });
-      }, [name, allOptions]);
+      }, [name, allOptions, enumNames, enumArray]);
       
       // Stable onChange handler to prevent re-renders
       const handleValueChange = React.useCallback((newValue: string) => {
@@ -185,6 +199,17 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
     );
   }
 
+  if (isPagePicker) {
+    return (
+      <PagePickerField
+        id={name}
+        value={String(value || "")}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    );
+  }
+
   return (
     <div className="relative">
       <Input
@@ -223,9 +248,59 @@ interface NumberFieldProps extends FieldProps {
   isLocationLoading?: boolean;
 }
 
-function NumberField({ name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading }: NumberFieldProps) {
+function NumberEnumField({ name, property, value, onChange, disabled }: FieldProps) {
+  const rawEnum = property.enum as unknown[];
+  const numericEnum = rawEnum
+    .map((opt) => Number(opt))
+    .filter((n) => Number.isFinite(n));
+  const enumNames = property.enumNames;
+  const defaultNum =
+    property.default !== undefined && Number.isFinite(Number(property.default))
+      ? Number(property.default)
+      : numericEnum[0];
+  const currentNum =
+    value !== undefined && value !== null && Number.isFinite(Number(value))
+      ? Number(value)
+      : defaultNum;
+  const selectValue = numericEnum.includes(currentNum)
+    ? String(currentNum)
+    : String(defaultNum);
+  return (
+    <Select
+      value={selectValue}
+      onValueChange={(v) => onChange(Number(v))}
+      disabled={disabled}
+      modal={false}
+    >
+      <SelectTrigger id={name}>
+        <SelectValue
+          placeholder={property["ui:placeholder"] || `Select ${property.title || name}`}
+        />
+      </SelectTrigger>
+      <SelectContent className="max-h-[300px] z-[120]">
+        {numericEnum.map((option, idx) => (
+          <SelectItem key={`${name}-num-${idx}-${option}`} value={String(option)}>
+            {enumNames && enumNames[idx] ? enumNames[idx] : String(option)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function NumberField(props: NumberFieldProps) {
+  const { name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading } = props;
   const t = useTranslations("schemaForm");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  // Numeric enum → Select. Honors optional enumNames for friendly labels
+  // (e.g. {enum: [0, 5], enumNames: ["Until next page", "5 min"]}).
+  // Delegated to a sub-component so the hook order is stable when a field
+  // switches between enum and free-number variants.
+  const hasNumericEnum =
+    property.enum &&
+    Array.isArray(property.enum) &&
+    property.enum.some((opt) => Number.isFinite(Number(opt)));
 
   // Local text buffer so the user can freely edit the field (delete the
   // existing value, paste a new one, type intermediate states like "-" or
@@ -245,6 +320,10 @@ function NumberField({ name, property, value, onChange, required, disabled, onLo
       setText(value !== undefined && value !== null ? String(value) : "");
     }
   }, [value, isFocused]);
+
+  if (hasNumericEnum) {
+    return <NumberEnumField {...props} />;
+  }
 
   // Helper function to get user-friendly error message
   const getErrorMessage = (error: GeolocationPositionError | null | undefined): string => {

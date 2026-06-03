@@ -374,7 +374,15 @@ class TestTrafficEndpoints:
 
 class TestPluginData:
     def test_get_plugin_data_success(self, client):
-        mock_result = Mock(available=True, data={"key": "val"}, formatted="formatted", error=None)
+        # ``formatted_lines`` mirrors the field on PluginResult after the
+        # ``/plugins/{id}/data`` endpoint was fixed to stop referencing the
+        # non-existent ``formatted`` attribute (issue surfaced as a 500).
+        mock_result = Mock(
+            available=True,
+            data={"key": "val"},
+            formatted_lines=["line1", "line2"],
+            error=None,
+        )
         mock_registry = Mock()
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.is_enabled.return_value = True
@@ -383,7 +391,9 @@ class TestPluginData:
              patch("src.api_server.get_plugin_registry", return_value=mock_registry):
             resp = client.get("/plugins/test_plugin/data")
         assert resp.status_code == 200
-        assert resp.json()["available"] is True
+        body = resp.json()
+        assert body["available"] is True
+        assert body["formatted_lines"] == ["line1", "line2"]
 
     def test_get_plugin_data_not_available(self, client):
         mock_result = Mock(available=False, error="auth failed")
