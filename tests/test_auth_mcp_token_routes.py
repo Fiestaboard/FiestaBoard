@@ -38,6 +38,14 @@ def enabled(monkeypatch):
 
 
 @pytest.fixture
+def auth_disabled(monkeypatch):
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+    monkeypatch.delenv("FIESTABOARD_MCP_TOKEN", raising=False)
+    yield
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+
+
+@pytest.fixture
 def signed_in(client, enabled):
     r = client.post("/auth/setup", json={"username": "admin", "password": "Password123!"})
     assert r.status_code in (200, 201), r.text
@@ -159,3 +167,50 @@ def test_clear_blocked_when_env_var_pins_the_token(signed_in, client, monkeypatc
     monkeypatch.setenv("FIESTABOARD_MCP_TOKEN", "pinned-by-ops")
     r = client.delete("/auth/mcp-token")
     assert r.status_code == 409
+
+
+# --- Auth-disabled mode (issue #857) --------------------------------------
+#
+# When the install opted out of login, there's no session cookie to send.
+# The mcp-token endpoints must still respond so Settings → Integrations can
+# render. Before the fix these 401s triggered an infinite /login bounce.
+
+
+def test_status_accessible_when_auth_disabled(client, auth_disabled):
+    r = client.get("/auth/mcp-token")
+    assert r.status_code == 200
+    assert r.json() == {"configured": False, "source": "none"}
+
+
+def test_rotate_accessible_when_auth_disabled(client, auth_disabled):
+    r = client.post("/auth/mcp-token")
+    assert r.status_code == 201
+    token = r.json()["token"]
+    assert len(token) >= 32
+    assert client.get("/auth/mcp-token").json() == {
+        "configured": True,
+        "source": "stored",
+    }
+    bare = TestClient(app, raise_server_exceptions=False)
+    assert (
+        bare.get("/mcp/", headers={"Authorization": f"Bearer {token}"}).status_code
+        != 401
+    )
+
+
+def test_clear_accessible_when_auth_disabled(client, auth_disabled):
+    client.post("/auth/mcp-token")
+    r = client.delete("/auth/mcp-token")
+    assert r.status_code == 200
+    assert client.get("/auth/mcp-token").json() == {
+        "configured": False,
+        "source": "none",
+    }
+
+
+def test_undecided_mode_still_requires_auth(client, monkeypatch):
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("FIESTABOARD_MCP_TOKEN", raising=False)
+    assert client.get("/auth/mcp-token").status_code == 401
+    assert client.post("/auth/mcp-token").status_code == 401
+    assert client.delete("/auth/mcp-token").status_code == 401
