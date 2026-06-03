@@ -397,7 +397,19 @@ async def auth_disable(
 
 
 def _require_admin(request: Request) -> str:
-    """Return the logged-in username or raise 401. Shared 1-line gate."""
+    """Return the logged-in username or raise 401. Shared 1-line gate.
+
+    When auth is explicitly *disabled* (``FIESTABOARD_AUTH_ENABLED=0`` or the
+    persisted preference is ``disabled``) there is no admin concept and no
+    session cookie ever gets issued — return a sentinel so MCP token
+    management remains reachable. Without this the Settings → Integrations
+    page hits a 401, the web client redirects to ``/login``, the login page
+    sees auth is disabled and bounces back, and the user is stuck in an
+    infinite reload loop. ``undecided`` mode (first-run, secure-by-default)
+    still requires a session.
+    """
+    if auth_mode() == "disabled":
+        return "anonymous"
     svc = get_auth_service()
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     username = svc.verify_session(cookie) if cookie else None
