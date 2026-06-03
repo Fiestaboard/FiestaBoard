@@ -104,22 +104,10 @@ jobs:
     
     steps:
     - uses: actions/checkout@v6
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.11"
-        cache: 'pip'
-        cache-dependency-path: |
-          requirements.txt
-          requirements-dev.txt
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-    
+
+    - name: Set up Python deps
+      uses: ./.github/actions/setup-python-deps
+
     - name: Verify imports
       run: |
         python -c "import sys; sys.path.insert(0, '.'); from src import config, board_client, board_chars; print('✅ Core imports successful')"
@@ -169,18 +157,9 @@ jobs:
       if: always()
       run: |
         if [ -f coverage.xml ]; then
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-        import xml.etree.ElementTree as ET
-        root = ET.parse('coverage.xml').getroot()
-        line = float(root.attrib.get('line-rate', '0')) * 100
-        branch = float(root.attrib.get('branch-rate', '0')) * 100
-        print('## Platform Tests')
-        print()
-        print('| Metric | Value |')
-        print('|---|---|')
-        print(f'| Line coverage | {line:.1f}% |')
-        print(f'| Branch coverage | {branch:.1f}% |')
-        PY
+          python3 scripts/ci/coverage_summary.py \
+            --cobertura coverage.xml \
+            --title "Platform Tests" >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Run plugin install integration tests
@@ -210,22 +189,10 @@ jobs:
     
     steps:
     - uses: actions/checkout@v6
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.11"
-        cache: 'pip'
-        cache-dependency-path: |
-          requirements.txt
-          requirements-dev.txt
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-    
+
+    - name: Set up Python deps
+      uses: ./.github/actions/setup-python-deps
+
     - name: Validate plugin integrity
       run: |
         echo "Validating plugin manifests and uniqueness..."
@@ -256,9 +223,10 @@ jobs:
       if: steps.discover.outputs.has_plugins == 'true'
       run: |
         python scripts/run_plugin_tests.py --verbose
-        # Combine per-plugin coverage data and generate XML for Codecov
-        coverage combine || true
-        coverage xml -o coverage-plugins.xml || true
+        # Combine per-plugin coverage data and generate XML for Codecov.
+        # Failures here mean the test setup is broken — surface them.
+        coverage combine
+        coverage xml -o coverage-plugins.xml
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
@@ -267,18 +235,9 @@ jobs:
       if: always() && steps.discover.outputs.has_plugins == 'true'
       run: |
         if [ -f coverage-plugins.xml ]; then
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-        import xml.etree.ElementTree as ET
-        root = ET.parse('coverage-plugins.xml').getroot()
-        line = float(root.attrib.get('line-rate', '0')) * 100
-        branch = float(root.attrib.get('branch-rate', '0')) * 100
-        print('## Plugin Tests')
-        print()
-        print('| Metric | Value |')
-        print('|---|---|')
-        print(f'| Line coverage | {line:.1f}% |')
-        print(f'| Branch coverage | {branch:.1f}% |')
-        PY
+          python3 scripts/ci/coverage_summary.py \
+            --cobertura coverage-plugins.xml \
+            --title "Plugin Tests" >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Upload plugin coverage
@@ -319,27 +278,11 @@ jobs:
 
     - name: Write coverage summary
       if: always()
-      working-directory: web
       run: |
-        if [ -f coverage/lcov.info ]; then
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-        # Parse lcov.info: sum LF (lines found) and LH (lines hit) across files.
-        lf = lh = brf = brh = 0
-        with open('coverage/lcov.info') as f:
-            for line in f:
-                if line.startswith('LF:'): lf += int(line[3:])
-                elif line.startswith('LH:'): lh += int(line[3:])
-                elif line.startswith('BRF:'): brf += int(line[4:])
-                elif line.startswith('BRH:'): brh += int(line[4:])
-        line_pct = (lh / lf * 100) if lf else 0
-        branch_pct = (brh / brf * 100) if brf else 0
-        print('## UI Tests')
-        print()
-        print('| Metric | Value |')
-        print('|---|---|')
-        print(f'| Line coverage | {line_pct:.1f}% |')
-        print(f'| Branch coverage | {branch_pct:.1f}% |')
-        PY
+        if [ -f web/coverage/lcov.info ]; then
+          python3 scripts/ci/coverage_summary.py \
+            --lcov web/coverage/lcov.info \
+            --title "UI Tests" >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Upload UI coverage
@@ -429,8 +372,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -470,8 +416,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -531,6 +480,10 @@ jobs:
           echo "WORKER_MOCK_HOSTS=$WORKER_MOCK_HOSTS" >> $GITHUB_ENV
 
       - name: Wait for all containers to be ready
+        # Worst case is 4 workers × 60s = 4min; cap at 3 so we fail
+        # well before the job-level timeout (15m) and leave time for
+        # log capture + cleanup.
+        timeout-minutes: 3
         run: |
           IFS=',' read -ra URLS <<< "$WORKER_URLS"
           for url in "${URLS[@]}"; do
@@ -563,11 +516,12 @@ jobs:
       # ── Visual regression tests ───────────────────────────────────
       # Runs visual-regression.spec.ts against the first worker container
       # only (15 screenshot tests don't benefit from per-worker sharding).
-      # `continue-on-error: true` keeps PRs unblocked while baseline
-      # snapshots are being bootstrapped — generated snapshots are
-      # uploaded as artifacts so maintainers can download and commit
-      # them. Once committed, this step compares against the baseline
-      # using the 0.3% pixel threshold defined in the spec file.
+      # `continue-on-error: true` is in place until baseline snapshots are
+      # committed. To bootstrap (or refresh) baselines, run:
+      #   gh workflow run bootstrap-visual-baselines.yml
+      # That workflow opens a PR with the new PNGs and removes this
+      # `continue-on-error: true` line, making the step required.
+      # See docs/development/VISUAL_REGRESSION.md for the full workflow.
       - name: Run visual regression tests
         id: visual-regression
         working-directory: web
@@ -633,8 +587,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -681,6 +638,9 @@ jobs:
           echo "MOCK_LLM_CONTROL_URL=http://$MOCK_IP:9100" >> $GITHUB_ENV
 
       - name: Wait for containers to be ready
+        # 60s for FiestaBoard + 30s for mock LLM; cap at 2m so a stuck
+        # container fails fast.
+        timeout-minutes: 2
         run: |
           for i in $(seq 1 60); do
             STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$BASE_URL/api/health" 2>/dev/null || echo "000")
@@ -772,8 +732,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -805,6 +768,8 @@ jobs:
           echo "FiestaBoard IP: $FB_IP"
 
       - name: Wait for container ready
+        # 60s polling budget; cap at 90s so we fail before job timeout.
+        timeout-minutes: 2
         run: |
           for i in $(seq 1 60); do
             STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$BASE_URL/api/health" 2>/dev/null || echo "000")
@@ -958,10 +923,49 @@ jobs:
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
+        # Names line up positionally with `needs:` above. If you add/remove
+        # a needs entry, update this list too — keeping them in sync is
+        # what lets the summary tell the reviewer which job failed.
+        env:
+          NAMES: |
+            detect-changes
+            test-platform
+            test-plugins
+            test-ui
+            a11y-tests
+            build-test-image
+            e2e-tests
+            ai-mcp-e2e-tests
+            auth-e2e-tests
+            build
+            build-docs
+          RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
-          results='${{ toJSON(needs.*.result) }}'
-          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
-            echo "❌ One or more CI jobs failed or were cancelled"
-            exit 1
-          fi
-          echo "✅ All CI jobs passed or were skipped"
+          python3 - <<'PY'
+          import json, os, sys
+          names = [n for n in os.environ["NAMES"].split() if n]
+          results = json.loads(os.environ["RESULTS"])
+          if len(names) != len(results):
+              print(f"::error::ci-success: name/result length mismatch "
+                    f"({len(names)} names vs {len(results)} results) — "
+                    f"update the NAMES list to match needs:", file=sys.stderr)
+              sys.exit(1)
+
+          rows = list(zip(names, results))
+          failed = [n for n, r in rows if r in ("failure", "cancelled")]
+
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a") as fh:
+                  fh.write("## CI job results\n\n")
+                  fh.write("| Job | Result |\n|---|---|\n")
+                  icon = {"success": "✅", "skipped": "⏭️",
+                          "failure": "❌", "cancelled": "🚫"}
+                  for n, r in rows:
+                      fh.write(f"| {n} | {icon.get(r, '❓')} {r} |\n")
+
+          if failed:
+              print(f"::error::Failed/cancelled jobs: {', '.join(failed)}")
+              sys.exit(1)
+          print("All CI jobs passed or were skipped.")
+          PY

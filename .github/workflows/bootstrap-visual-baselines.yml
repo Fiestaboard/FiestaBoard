@@ -1,0 +1,158 @@
+name: Bootstrap Visual Regression Baselines
+
+# =============================================================================
+# Generates Playwright visual-regression baseline snapshots and opens a PR.
+#
+# Manual-only (workflow_dispatch). Run this when:
+#   - Setting up visual regression for the first time
+#   - Intentionally updating baselines after a UI redesign
+#   - A baseline has drifted due to library/font changes
+#
+# The PR opened by this workflow commits the generated *.png snapshots
+# under web/tests/visual-regression.spec.ts-snapshots/. Review the
+# screenshots before merging.
+#
+# Note: flipping visual regression from advisory (continue-on-error: true)
+# to required is a separate one-line PR — the bot token here lacks the
+# `workflow` scope needed to modify ci.yml.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bootstrap:
+    name: Generate baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up web E2E environment
+        uses: ./.github/actions/setup-web-e2e
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        if: github.repository == 'Fiestaboard/FiestaBoard'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build test image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: fiestaboard:e2e
+          build-args: |
+            VERSION=dev
+          cache-from: |
+            type=gha,scope=build-test
+            type=gha,scope=build-linux/amd64
+
+      - name: Start mock board + FiestaBoard
+        run: |
+          docker run -d --name mock-board \
+            -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
+            -w /app \
+            python:3.11-slim python server.py
+
+          docker run -d --name fiestaboard \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=false \
+            fiestaboard:e2e
+
+          FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard)
+          MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board)
+          echo "WORKER_URLS=http://$FB_IP:3000" >> "$GITHUB_ENV"
+          echo "WORKER_MOCK_URLS=http://$MOCK_IP:7000" >> "$GITHUB_ENV"
+          echo "WORKER_MOCK_HOSTS=$MOCK_IP" >> "$GITHUB_ENV"
+
+      - name: Wait for FiestaBoard to be ready
+        timeout-minutes: 3
+        run: |
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "${WORKER_URLS}/api/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Ready (attempt $i)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::FiestaBoard did not become ready"
+          exit 1
+
+      - name: Generate baselines
+        working-directory: web
+        timeout-minutes: 10
+        env:
+          CI: true
+          RUN_VISUAL_REGRESSION: "1"
+          WORKER_URLS: ${{ env.WORKER_URLS }}
+          WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
+          WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
+        # --update-snapshots writes new baselines on disk. The first run
+        # always "fails" with status 1 (snapshots were updated), so we
+        # accept exit 1 here.
+        run: |
+          set +e
+          npx playwright test visual-regression.spec.ts --update-snapshots --workers=1 --reporter=github
+          code=$?
+          set -e
+          if [ "$code" = "0" ] || [ "$code" = "1" ]; then
+            exit 0
+          fi
+          echo "::error::Playwright crashed with exit $code (not a snapshot update)"
+          exit "$code"
+
+      - name: Stop containers
+        if: always()
+        run: docker rm -f fiestaboard mock-board 2>/dev/null || true
+
+      - name: Open PR with baselines
+        uses: peter-evans/create-pull-request@v7
+        with:
+          # GITHUB_TOKEN can't modify workflow files at all; RELEASE_PAT
+          # works for snapshot PNGs (regular files), but doesn't currently
+          # carry the `workflow` PAT scope needed to change ci.yml. So this
+          # PR is intentionally PNGs-only — the enforcement flip is a
+          # separate one-line PR a maintainer opens after merging this.
+          token: ${{ secrets.RELEASE_PAT }}
+          branch: ci/visual-baselines
+          delete-branch: true
+          add-paths: |
+            web/tests/**/*.png
+          commit-message: |
+            ci: refresh visual regression baselines
+
+            Generated by .github/workflows/bootstrap-visual-baselines.yml.
+            Review the screenshots before merging.
+          title: "ci: refresh visual regression baselines"
+          body: |
+            Generated by the **Bootstrap Visual Regression Baselines** workflow.
+
+            ## Review checklist
+
+            - [ ] Inspect each generated `*.png` under `web/tests/visual-regression.spec.ts-snapshots/`
+            - [ ] Verify no unexpected UI changes are baked in
+            - [ ] Confirm CI's `Run visual regression tests` step now passes against the new baselines
+
+            ## Next step (separate PR)
+
+            Once these baselines are in `main`, remove `continue-on-error: true`
+            from the `Run visual regression tests` step in `.github/workflows/ci.yml`
+            so the check is required. That change needs to be made in a separate
+            PR because the bot token used here lacks the `workflow` PAT scope.
+          labels: |
+            ci
+            visual-regression
