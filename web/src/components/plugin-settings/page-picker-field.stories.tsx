@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Label } from "@/components/ui/label";
 import { PagePickerField } from "./page-picker-field";
 
 const mockPages = {
@@ -47,6 +48,11 @@ function withMockedPages(initialValue: string) {
           <div className="text-xs text-muted-foreground">
             Selected: <code>{value || "(none)"}</code>
           </div>
+          {/* The Label is what gives the Radix Select trigger its accessible
+              name; the SchemaForm renders one in production, so we mirror that
+              here to keep the story representative and pass axe-core's
+              button-name rule. */}
+          <Label htmlFor="trigger_page_id">Trigger Page</Label>
           <PagePickerField
             id="trigger_page_id"
             value={value}
