@@ -1,17 +1,22 @@
 """Data models for schedule entries.
 
-Schedules allow automatic time-based page rotation with day-of-week patterns.
+Schedules allow automatic time-based page rotation with day-of-week patterns,
+annually-recurring specific dates (e.g. birthdays, holidays), or one-off dates.
 """
 
 import re
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 DayPattern = Literal["all", "weekdays", "weekends", "custom"]
 TimeType = Literal["fixed", "sunrise", "sunset"]
+RecurrenceType = Literal["weekly", "annual_date", "one_off_date"]
+
+MMDD_PATTERN = r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
+YYYYMMDD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
 
 VALID_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
@@ -38,9 +43,18 @@ class ScheduleEntry(BaseModel):
     page_id: str = Field(min_length=1)
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")  # HH:MM format
     end_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")  # HH:MM format or None
-    day_pattern: DayPattern
+    day_pattern: DayPattern = "all"
     custom_days: list[str] | None = None
     enabled: bool = True
+
+    # Recurrence: "weekly" (default, uses day_pattern/custom_days),
+    # "annual_date" (MM-DD, repeats annually), or "one_off_date" (YYYY-MM-DD).
+    # Date-specific recurrences override weekly entries during their window.
+    recurrence_type: RecurrenceType = "weekly"
+    annual_date: str | None = Field(default=None, pattern=MMDD_PATTERN)
+    annual_end_date: str | None = Field(default=None, pattern=MMDD_PATTERN)
+    one_off_date: str | None = Field(default=None, pattern=YYYYMMDD_PATTERN)
+    one_off_end_date: str | None = Field(default=None, pattern=YYYYMMDD_PATTERN)
 
     # Sun schedule fields
     start_type: TimeType = "fixed"
@@ -80,8 +94,8 @@ class ScheduleEntry(BaseModel):
         ):
             errors.append("end_time must be different from start_time (zero-duration schedule)")
 
-        # Validate custom_days when pattern is custom
-        if self.day_pattern == "custom":
+        # Validate custom_days when pattern is custom (weekly recurrence only)
+        if self.recurrence_type == "weekly" and self.day_pattern == "custom":
             if self.custom_days is None:
                 errors.append("custom_days is required when day_pattern is 'custom'")
             elif len(self.custom_days) == 0:
@@ -90,6 +104,29 @@ class ScheduleEntry(BaseModel):
                 for day in self.custom_days:
                     if day not in VALID_DAYS:
                         errors.append(f"Invalid day name: {day}. Must be one of {VALID_DAYS}")
+
+        # Validate date-specific recurrence fields
+        if self.recurrence_type == "annual_date":
+            if not self.annual_date:
+                errors.append("annual_date (MM-DD) is required when recurrence_type is 'annual_date'")
+            elif not _valid_mmdd(self.annual_date):
+                errors.append(f"annual_date must be a real MM-DD calendar date: {self.annual_date}")
+            if self.annual_end_date and not _valid_mmdd(self.annual_end_date):
+                errors.append(f"annual_end_date must be a real MM-DD calendar date: {self.annual_end_date}")
+        elif self.recurrence_type == "one_off_date":
+            if not self.one_off_date:
+                errors.append("one_off_date (YYYY-MM-DD) is required when recurrence_type is 'one_off_date'")
+            elif not _valid_iso_date(self.one_off_date):
+                errors.append(f"one_off_date must be a real YYYY-MM-DD calendar date: {self.one_off_date}")
+            if self.one_off_end_date:
+                if not _valid_iso_date(self.one_off_end_date):
+                    errors.append(f"one_off_end_date must be a real YYYY-MM-DD calendar date: {self.one_off_end_date}")
+                elif (
+                    self.one_off_date
+                    and _valid_iso_date(self.one_off_date)
+                    and self.one_off_end_date < self.one_off_date
+                ):
+                    errors.append("one_off_end_date must be on or after one_off_date")
 
         return errors
 
@@ -129,6 +166,34 @@ class ScheduleEntry(BaseModel):
         """
         return day_name.lower() in self.get_days()
 
+    def applies_to_date(self, today: date) -> bool:
+        """Check if this schedule applies on the given calendar date.
+
+        - "weekly" recurrence always returns True (date is not constrained;
+          callers also check applies_to_day).
+        - "annual_date" matches today's MM-DD against annual_date / annual_end_date,
+          handling year-boundary ranges (e.g. Dec 30 - Jan 02).
+        - "one_off_date" matches the full YYYY-MM-DD, optionally as a range.
+        """
+        if self.recurrence_type == "weekly":
+            return True
+        if self.recurrence_type == "annual_date":
+            if not self.annual_date:
+                return False
+            return _mmdd_in_range(
+                f"{today.month:02d}-{today.day:02d}",
+                self.annual_date,
+                self.annual_end_date,
+            )
+        if self.recurrence_type == "one_off_date":
+            if not self.one_off_date:
+                return False
+            today_iso = today.isoformat()
+            start = self.one_off_date
+            end = self.one_off_end_date or self.one_off_date
+            return start <= today_iso <= end
+        return False
+
     def applies_to_time(self, time_str: str) -> bool:
         """Check if this schedule applies to a given time.
 
@@ -165,9 +230,14 @@ class ScheduleCreate(BaseModel):
     page_id: str = Field(min_length=1)
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
     end_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
-    day_pattern: DayPattern
+    day_pattern: DayPattern = "all"
     custom_days: list[str] | None = None
     enabled: bool = True
+    recurrence_type: RecurrenceType = "weekly"
+    annual_date: str | None = Field(default=None, pattern=MMDD_PATTERN)
+    annual_end_date: str | None = Field(default=None, pattern=MMDD_PATTERN)
+    one_off_date: str | None = Field(default=None, pattern=YYYYMMDD_PATTERN)
+    one_off_end_date: str | None = Field(default=None, pattern=YYYYMMDD_PATTERN)
     start_type: TimeType = "fixed"
     start_sun_offset: int = 0
     end_type: TimeType = "fixed"
@@ -184,6 +254,11 @@ class ScheduleUpdate(BaseModel):
     day_pattern: DayPattern | None = None
     custom_days: list[str] | None = None
     enabled: bool | None = None
+    recurrence_type: RecurrenceType | None = None
+    annual_date: str | None = Field(default=None, pattern=MMDD_PATTERN)
+    annual_end_date: str | None = Field(default=None, pattern=MMDD_PATTERN)
+    one_off_date: str | None = Field(default=None, pattern=YYYYMMDD_PATTERN)
+    one_off_end_date: str | None = Field(default=None, pattern=YYYYMMDD_PATTERN)
     start_type: TimeType | None = None
     start_sun_offset: int | None = None
     end_type: TimeType | None = None
@@ -212,3 +287,41 @@ class ScheduleValidationResult(BaseModel):
     valid: bool
     overlaps: list[Overlap]
     gaps: list[Gap]
+
+
+def _valid_mmdd(value: str) -> bool:
+    """Validate MM-DD against the real calendar (uses leap year 2024 so 02-29 is allowed)."""
+    if not re.match(MMDD_PATTERN, value):
+        return False
+    try:
+        month, day = (int(p) for p in value.split("-"))
+        date(2024, month, day)
+        return True
+    except ValueError:
+        return False
+
+
+def _valid_iso_date(value: str) -> bool:
+    """Validate YYYY-MM-DD against the real calendar."""
+    if not re.match(YYYYMMDD_PATTERN, value):
+        return False
+    try:
+        date.fromisoformat(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _mmdd_in_range(today_mmdd: str, start_mmdd: str, end_mmdd: str | None) -> bool:
+    """Check if today's MM-DD falls in [start_mmdd, end_mmdd], handling year-boundary ranges.
+
+    When end_mmdd is None or equals start_mmdd, matches only on start_mmdd.
+    When end_mmdd < start_mmdd lexicographically, the range wraps the year boundary
+    (e.g. start=12-30, end=01-02 matches Dec 30, 31, Jan 1, Jan 2).
+    """
+    if not end_mmdd or end_mmdd == start_mmdd:
+        return today_mmdd == start_mmdd
+    if start_mmdd <= end_mmdd:
+        return start_mmdd <= today_mmdd <= end_mmdd
+    # Year-boundary wrap
+    return today_mmdd >= start_mmdd or today_mmdd <= end_mmdd
