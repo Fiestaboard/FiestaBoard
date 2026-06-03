@@ -507,6 +507,10 @@ jobs:
           echo "WORKER_MOCK_HOSTS=$WORKER_MOCK_HOSTS" >> $GITHUB_ENV
 
       - name: Wait for all containers to be ready
+        # Worst case is 4 workers × 60s = 4min; cap at 3 so we fail
+        # well before the job-level timeout (15m) and leave time for
+        # log capture + cleanup.
+        timeout-minutes: 3
         run: |
           IFS=',' read -ra URLS <<< "$WORKER_URLS"
           for url in "${URLS[@]}"; do
@@ -657,6 +661,9 @@ jobs:
           echo "MOCK_LLM_CONTROL_URL=http://$MOCK_IP:9100" >> $GITHUB_ENV
 
       - name: Wait for containers to be ready
+        # 60s for FiestaBoard + 30s for mock LLM; cap at 2m so a stuck
+        # container fails fast.
+        timeout-minutes: 2
         run: |
           for i in $(seq 1 60); do
             STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$BASE_URL/api/health" 2>/dev/null || echo "000")
@@ -781,6 +788,8 @@ jobs:
           echo "FiestaBoard IP: $FB_IP"
 
       - name: Wait for container ready
+        # 60s polling budget; cap at 90s so we fail before job timeout.
+        timeout-minutes: 2
         run: |
           for i in $(seq 1 60); do
             STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$BASE_URL/api/health" 2>/dev/null || echo "000")
@@ -934,10 +943,49 @@ jobs:
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
+        # Names line up positionally with `needs:` above. If you add/remove
+        # a needs entry, update this list too — keeping them in sync is
+        # what lets the summary tell the reviewer which job failed.
+        env:
+          NAMES: |
+            detect-changes
+            test-platform
+            test-plugins
+            test-ui
+            a11y-tests
+            build-test-image
+            e2e-tests
+            ai-mcp-e2e-tests
+            auth-e2e-tests
+            build
+            build-docs
+          RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
-          results='${{ toJSON(needs.*.result) }}'
-          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
-            echo "❌ One or more CI jobs failed or were cancelled"
-            exit 1
-          fi
-          echo "✅ All CI jobs passed or were skipped"
+          python3 - <<'PY'
+          import json, os, sys
+          names = [n for n in os.environ["NAMES"].split() if n]
+          results = json.loads(os.environ["RESULTS"])
+          if len(names) != len(results):
+              print(f"::error::ci-success: name/result length mismatch "
+                    f"({len(names)} names vs {len(results)} results) — "
+                    f"update the NAMES list to match needs:", file=sys.stderr)
+              sys.exit(1)
+
+          rows = list(zip(names, results))
+          failed = [n for n, r in rows if r in ("failure", "cancelled")]
+
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a") as fh:
+                  fh.write("## CI job results\n\n")
+                  fh.write("| Job | Result |\n|---|---|\n")
+                  icon = {"success": "✅", "skipped": "⏭️",
+                          "failure": "❌", "cancelled": "🚫"}
+                  for n, r in rows:
+                      fh.write(f"| {n} | {icon.get(r, '❓')} {r} |\n")
+
+          if failed:
+              print(f"::error::Failed/cancelled jobs: {', '.join(failed)}")
+              sys.exit(1)
+          print("All CI jobs passed or were skipped.")
+          PY
