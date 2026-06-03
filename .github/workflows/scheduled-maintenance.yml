@@ -1,0 +1,169 @@
+name: Scheduled Maintenance
+
+# =============================================================================
+# Recurring repo upkeep jobs. Cron-only with a workflow_dispatch fallback
+# for one-off runs. Bundled into a single workflow so the Actions menu
+# stays scannable.
+#
+# Jobs:
+#   - plugin-stats   : daily refresh of docs-site/static/plugin-stats.json
+#                      (was .github/workflows/plugin-stats.yml)
+#   - security-scan  : weekly bandit + pip-audit sweep of plugin-registry
+#                      repos, opens/updates an issue on findings
+#                      (was .github/workflows/registry-scan.yml)
+# =============================================================================
+
+on:
+  schedule:
+    # Daily 04:00 UTC for stats refresh; Sunday 00:00 UTC for security scan.
+    # Both crons listed here; each job filters on the resolved schedule
+    # via `github.event.schedule`.
+    - cron: '0 4 * * *'    # plugin stats
+    - cron: '0 0 * * 0'    # security scan (Sundays)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run'
+        required: true
+        default: 'all'
+        type: choice
+        options: [all, plugin-stats, security-scan]
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-stats:
+    name: Refresh plugin stats
+    runs-on: ubuntu-latest
+    # Daily cron OR explicit dispatch.
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 4 * * *') ||
+      (github.event_name == 'workflow_dispatch' &&
+        (inputs.job == 'all' || inputs.job == 'plugin-stats'))
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Fetch plugin stats
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: python3 scripts/fetch_plugin_stats.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs-site/static/plugin-stats.json
+          if git diff --staged --quiet; then
+            echo "No changes."
+          else
+            # [skip ci] so the daily stats refresh doesn't trigger
+            # docs.yml (6-min Docusaurus build) on every cron run.
+            git commit -m "chore: refresh plugin stats [skip ci]"
+            git push
+          fi
+
+  security-scan:
+    name: Scan plugin registry
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Sunday cron OR explicit dispatch.
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * 0') ||
+      (github.event_name == 'workflow_dispatch' &&
+        (inputs.job == 'all' || inputs.job == 'security-scan'))
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.11"
+        # Static scan tools have no pinned manifest, but caching against
+        # the project's requirements still saves wheel-download time.
+        cache: 'pip'
+
+    - name: Install scanning tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit pip-audit
+
+    - name: Scan all registry plugins
+      id: scan
+      # scan_registry.py exits 0 (clean), 1 (vulns found — sets
+      # has_vulnerabilities output for the issue-creator step), or 2
+      # (setup/config error). Allow 1 but surface 2.
+      run: |
+        set +e
+        python scripts/scan_registry.py --verbose --output scan-results
+        code=$?
+        set -e
+        if [ "$code" = "0" ] || [ "$code" = "1" ]; then
+          exit 0
+        fi
+        echo "::error::scan_registry.py crashed with exit code $code"
+        exit "$code"
+
+    - name: Upload scan results
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: registry-scan-results
+        path: scan-results/
+        retention-days: 90
+
+    - name: Create or update issue on vulnerabilities
+      if: steps.scan.outputs.has_vulnerabilities == 'true'
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('scan-results/scan-report.md', 'utf8');
+          const title = '🔒 Plugin Registry Security Scan: Vulnerabilities Found';
+
+          // Look for an existing open issue with this title
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'security',
+            per_page: 100
+          });
+
+          const existing = issues.find(i => i.title === title);
+          const body = [
+            report,
+            '',
+            '---',
+            '_This issue was automatically created by the weekly plugin registry security scan._',
+            `_Last updated: ${new Date().toISOString()}_`
+          ].join('\n');
+
+          if (existing) {
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body
+            });
+            console.log(`Updated existing issue #${existing.number}`);
+          } else {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['security']
+            });
+            console.log('Created new security scan issue');
+          }
