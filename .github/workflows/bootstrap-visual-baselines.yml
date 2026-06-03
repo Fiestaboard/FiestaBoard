@@ -151,6 +151,11 @@ jobs:
       - name: Open PR with baselines
         uses: peter-evans/create-pull-request@v7
         with:
+          # GITHUB_TOKEN can't modify workflow files
+          # (`refusing to allow a GitHub App to ... without 'workflows'
+          # permission`). The PR includes a change to ci.yml, so use
+          # the PAT that's already wired for release pushes.
+          token: ${{ secrets.RELEASE_PAT }}
           branch: ci/visual-baselines
           delete-branch: true
           commit-message: |
