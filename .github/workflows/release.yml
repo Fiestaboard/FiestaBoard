@@ -68,6 +68,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Determine version bump type
         id: bump_type
