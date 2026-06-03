@@ -199,9 +199,10 @@ jobs:
       if: steps.discover.outputs.has_plugins == 'true'
       run: |
         python scripts/run_plugin_tests.py --verbose
-        # Combine per-plugin coverage data and generate XML for Codecov
-        coverage combine || true
-        coverage xml -o coverage-plugins.xml || true
+        # Combine per-plugin coverage data and generate XML for Codecov.
+        # Failures here mean the test setup is broken — surface them.
+        coverage combine
+        coverage xml -o coverage-plugins.xml
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
@@ -210,18 +211,9 @@ jobs:
       if: always() && steps.discover.outputs.has_plugins == 'true'
       run: |
         if [ -f coverage-plugins.xml ]; then
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-        import xml.etree.ElementTree as ET
-        root = ET.parse('coverage-plugins.xml').getroot()
-        line = float(root.attrib.get('line-rate', '0')) * 100
-        branch = float(root.attrib.get('branch-rate', '0')) * 100
-        print('## Plugin Tests')
-        print()
-        print('| Metric | Value |')
-        print('|---|---|')
-        print(f'| Line coverage | {line:.1f}% |')
-        print(f'| Branch coverage | {branch:.1f}% |')
-        PY
+          python3 scripts/ci/coverage_summary.py \
+            --cobertura coverage-plugins.xml \
+            --title "Plugin Tests" >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Upload plugin coverage
@@ -262,27 +254,11 @@ jobs:
 
     - name: Write coverage summary
       if: always()
-      working-directory: web
       run: |
-        if [ -f coverage/lcov.info ]; then
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-        # Parse lcov.info: sum LF (lines found) and LH (lines hit) across files.
-        lf = lh = brf = brh = 0
-        with open('coverage/lcov.info') as f:
-            for line in f:
-                if line.startswith('LF:'): lf += int(line[3:])
-                elif line.startswith('LH:'): lh += int(line[3:])
-                elif line.startswith('BRF:'): brf += int(line[4:])
-                elif line.startswith('BRH:'): brh += int(line[4:])
-        line_pct = (lh / lf * 100) if lf else 0
-        branch_pct = (brh / brf * 100) if brf else 0
-        print('## UI Tests')
-        print()
-        print('| Metric | Value |')
-        print('|---|---|')
-        print(f'| Line coverage | {line_pct:.1f}% |')
-        print(f'| Branch coverage | {branch_pct:.1f}% |')
-        PY
+        if [ -f web/coverage/lcov.info ]; then
+          python3 scripts/ci/coverage_summary.py \
+            --lcov web/coverage/lcov.info \
+            --title "UI Tests" >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Upload UI coverage
@@ -372,8 +348,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -413,8 +392,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -506,11 +488,12 @@ jobs:
       # ── Visual regression tests ───────────────────────────────────
       # Runs visual-regression.spec.ts against the first worker container
       # only (15 screenshot tests don't benefit from per-worker sharding).
-      # `continue-on-error: true` keeps PRs unblocked while baseline
-      # snapshots are being bootstrapped — generated snapshots are
-      # uploaded as artifacts so maintainers can download and commit
-      # them. Once committed, this step compares against the baseline
-      # using the 0.3% pixel threshold defined in the spec file.
+      # `continue-on-error: true` is in place until baseline snapshots are
+      # committed. To bootstrap (or refresh) baselines, run:
+      #   gh workflow run bootstrap-visual-baselines.yml
+      # That workflow opens a PR with the new PNGs and removes this
+      # `continue-on-error: true` line, making the step required.
+      # See docs/development/VISUAL_REGRESSION.md for the full workflow.
       - name: Run visual regression tests
         id: visual-regression
         working-directory: web
@@ -576,8 +559,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -715,8 +701,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
+        # Skip on fork PRs (no secret access). On internal PRs and main,
+        # fail loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/login-action@v4
-        continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

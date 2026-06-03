@@ -57,10 +57,12 @@ jobs:
 
       - name: Free up disk space
         # pi-gen needs ~4 GB of scratch; ubuntu-latest is tight by default.
+        # If cleanup fails, fail fast — the alternative is a confusing
+        # out-of-disk error later in the build.
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
-          sudo docker image prune -af || true
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune -af
           df -h /
 
       - name: Set up QEMU (arm64 emulation for pi-gen)
