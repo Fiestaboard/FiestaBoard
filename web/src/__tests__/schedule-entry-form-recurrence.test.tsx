@@ -73,7 +73,8 @@ describe("ScheduleEntryForm — annual_date recurrence", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("submits annual_date payload with single date", async () => {
+  // Heavy Select-click test — bump per-test timeout (locally ~10s, CI ~20s).
+  it("submits annual_date payload with single date", { timeout: 60_000 }, async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<ScheduleEntryForm pages={mockPages} prefillPageId="page-1" onSubmit={onSubmit} onCancel={vi.fn()} />);
@@ -103,7 +104,7 @@ describe("ScheduleEntryForm — annual_date recurrence", () => {
     );
   });
 
-  it("submits annual_date payload with date range", async () => {
+  it("submits annual_date payload with date range", { timeout: 60_000 }, async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<ScheduleEntryForm pages={mockPages} prefillPageId="page-1" onSubmit={onSubmit} onCancel={vi.fn()} />);
@@ -203,7 +204,7 @@ describe("ScheduleEntryForm — one_off_date recurrence", () => {
     );
   });
 
-  it("shows error when one_off end date is before start date", async () => {
+  it("shows error when one_off end date is before start date", { timeout: 60_000 }, async () => {
     const user = userEvent.setup();
     render(<ScheduleEntryForm pages={mockPages} prefillPageId="page-1" onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
@@ -221,7 +222,7 @@ describe("ScheduleEntryForm — one_off_date recurrence", () => {
     });
   });
 
-  it("submits one_off_date payload with date range", async () => {
+  it("submits one_off_date payload with date range", { timeout: 60_000 }, async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<ScheduleEntryForm pages={mockPages} prefillPageId="page-1" onSubmit={onSubmit} onCancel={vi.fn()} />);
@@ -294,7 +295,7 @@ describe("ScheduleEntryForm — switching back to weekly clears date overrides",
 });
 
 describe("ScheduleEntryForm — recurrence description text", () => {
-  it("shows the description for the currently selected recurrence type", async () => {
+  it("shows the description for the currently selected recurrence type", { timeout: 60_000 }, async () => {
     const user = userEvent.setup();
     render(<ScheduleEntryForm pages={mockPages} prefillPageId="page-1" onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
