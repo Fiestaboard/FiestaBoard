@@ -48,7 +48,12 @@
     "settings": "Impostazioni",
     "savingIndicator": "Salvataggio...",
     "pageCount": "{count, plural, one {# pagina} other {# pagine}}",
-    "unknownError": "Errore sconosciuto"
+    "unknownError": "Errore sconosciuto",
+    "opensInNewTab": "(si apre in una nuova scheda)"
+  },
+  "metadata": {
+    "appTitle": "Pannello FiestaBoard",
+    "appDescription": "Centro di controllo per il tuo display FiestaBoard"
   },
   "navigation": {
     "home": "Home",
@@ -1366,6 +1371,43 @@
     "indexLabel": "Indice: {index}",
     "configureHint": "Configura {arrayName} in Impostazioni per vedere qui le variabili indicizzate.",
     "configureExample": "Esempio:"
+  },
+  "login": {
+    "signInTitle": "Accedi a FiestaBoard",
+    "signInDescription": "Inserisci le tue credenziali di amministratore per continuare.",
+    "usernameLabel": "Nome utente",
+    "passwordLabel": "Password",
+    "rememberMeLabel": "Mantieni l'accesso",
+    "submitButton": "Accedi",
+    "submittingButton": "Accesso…",
+    "invalidCredentials": "Nome utente o password non validi.",
+    "tooManyAttempts": "Troppi tentativi di accesso falliti. Attendi un minuto e riprova.",
+    "networkError": "Errore di rete. Riprova.",
+    "signInFailedStatus": "Accesso non riuscito ({status}).",
+    "changeLater": "Puoi modificarlo più tardi — consulta la <link>documentazione sull'autenticazione</link>.",
+    "setupTitle": "Crea amministratore",
+    "setupDescription": "Non esiste ancora alcun account. Imposta un nome utente e una password per proteggere questo FiestaBoard.",
+    "confirmPasswordLabel": "Conferma password",
+    "passwordMinHint": "Almeno 8 caratteri.",
+    "createButton": "Crea account",
+    "creatingButton": "Creazione…",
+    "passwordTooShort": "La password deve contenere almeno 8 caratteri.",
+    "passwordsDontMatch": "Le password non corrispondono.",
+    "adminExists": "Esiste già un account amministratore. Effettua l'accesso.",
+    "setupFailedStatus": "Configurazione non riuscita ({status}).",
+    "couldNotDisableAuth": "Impossibile disattivare l'autenticazione ({status}).",
+    "protectTitle": "Proteggere questo FiestaBoard?",
+    "protectDescription": "Un nome utente e una password impediscono ad altri sulla tua rete di leggere o modificare le tue chiavi API, la configurazione del tabellone e altre impostazioni.",
+    "protectEnableButton": "Imposta nome utente e password (consigliato)",
+    "protectSkipButton": "Salta — chiunque sulla mia rete può accedervi",
+    "disablingButton": "Disattivazione…",
+    "protectFootnote": "Fortemente consigliato se condividi il Wi-Fi con persone di cui non ti fidi completamente (coinquilini, ospiti, dispositivi smart home) o se questo FiestaBoard è raggiungibile da internet. Il tabellone continua a essere mostrato normalmente in ogni caso — questo controlla solo chi può accedere per modificare le impostazioni.",
+    "apiUnreachableTitle": "Impossibile contattare l'API",
+    "loadingTitle": "Caricamento…",
+    "loadingDescription": "Verifica dello stato di autenticazione…",
+    "redirectingTitle": "Reindirizzamento…",
+    "redirectingDescription": "Un momento…",
+    "pageTitle": "Accedi"
   },
   "picks": {
     "title": "Scelte del team",

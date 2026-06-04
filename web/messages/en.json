@@ -48,7 +48,12 @@
     "settings": "Settings",
     "savingIndicator": "Saving...",
     "pageCount": "{count, plural, one {# page} other {# pages}}",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "opensInNewTab": "(opens in new tab)"
+  },
+  "metadata": {
+    "appTitle": "FiestaBoard Control",
+    "appDescription": "Home hub for your FiestaBoard display"
   },
   "navigation": {
     "home": "Home",
@@ -1366,6 +1371,43 @@
     "secured": "Secured",
     "open": "Open",
     "reconnectHint": "If you're using this Wi-Fi to manage the device, reconnect to http://{ip}:4420"
+  },
+  "login": {
+    "signInTitle": "Sign in to FiestaBoard",
+    "signInDescription": "Enter your administrator credentials to continue.",
+    "usernameLabel": "Username",
+    "passwordLabel": "Password",
+    "rememberMeLabel": "Keep me logged in",
+    "submitButton": "Sign in",
+    "submittingButton": "Signing in…",
+    "invalidCredentials": "Invalid username or password.",
+    "tooManyAttempts": "Too many failed login attempts. Please wait a minute and try again.",
+    "networkError": "Network error. Please try again.",
+    "signInFailedStatus": "Sign-in failed ({status}).",
+    "changeLater": "You can change this later — see the <link>authentication docs</link>.",
+    "setupTitle": "Create administrator",
+    "setupDescription": "No accounts exist yet. Set a username and password to lock down this FiestaBoard.",
+    "confirmPasswordLabel": "Confirm password",
+    "passwordMinHint": "At least 8 characters.",
+    "createButton": "Create account",
+    "creatingButton": "Creating…",
+    "passwordTooShort": "Password must be at least 8 characters long.",
+    "passwordsDontMatch": "Passwords do not match.",
+    "adminExists": "An administrator account already exists. Please sign in instead.",
+    "setupFailedStatus": "Setup failed ({status}).",
+    "couldNotDisableAuth": "Could not disable authentication ({status}).",
+    "protectTitle": "Protect this FiestaBoard?",
+    "protectDescription": "A username and password keep your API keys, board configuration, and other settings from being read or changed by anyone else who can reach this device on your network.",
+    "protectEnableButton": "Set up a username & password (recommended)",
+    "protectSkipButton": "Skip — anyone on my network can access this",
+    "disablingButton": "Disabling…",
+    "protectFootnote": "Strongly recommended if you share Wi-Fi with people you don't fully trust (roommates, guests, smart-home devices), or if this FiestaBoard is reachable from the internet. Your board keeps displaying as normal either way — this only controls who can sign in to change settings.",
+    "apiUnreachableTitle": "Couldn't reach the API",
+    "loadingTitle": "Loading…",
+    "loadingDescription": "Checking authentication status…",
+    "redirectingTitle": "Redirecting…",
+    "redirectingDescription": "One moment…",
+    "pageTitle": "Sign in"
   },
   "picks": {
     "title": "Staff Picks",

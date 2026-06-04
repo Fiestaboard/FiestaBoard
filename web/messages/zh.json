@@ -48,7 +48,12 @@
     "settings": "设置",
     "savingIndicator": "保存中...",
     "pageCount": "{count, plural, one {# 个页面} other {# 个页面}}",
-    "unknownError": "未知错误"
+    "unknownError": "未知错误",
+    "opensInNewTab": "（在新标签页中打开）"
+  },
+  "metadata": {
+    "appTitle": "FiestaBoard 控制台",
+    "appDescription": "您的 FiestaBoard 显示屏控制中心"
   },
   "navigation": {
     "home": "首页",
@@ -1366,6 +1371,43 @@
     "indexLabel": "索引:{index}",
     "configureHint": "在设置中配置 {arrayName} 以在此查看索引变量。",
     "configureExample": "示例:"
+  },
+  "login": {
+    "signInTitle": "登录 FiestaBoard",
+    "signInDescription": "请输入管理员凭据以继续。",
+    "usernameLabel": "用户名",
+    "passwordLabel": "密码",
+    "rememberMeLabel": "保持登录状态",
+    "submitButton": "登录",
+    "submittingButton": "正在登录…",
+    "invalidCredentials": "用户名或密码错误。",
+    "tooManyAttempts": "登录失败次数过多。请稍后再试。",
+    "networkError": "网络错误。请重试。",
+    "signInFailedStatus": "登录失败 ({status})。",
+    "changeLater": "您稍后可以更改此设置 — 请参阅<link>身份验证文档</link>。",
+    "setupTitle": "创建管理员",
+    "setupDescription": "尚无账户。请设置用户名和密码以保护此 FiestaBoard。",
+    "confirmPasswordLabel": "确认密码",
+    "passwordMinHint": "至少 8 个字符。",
+    "createButton": "创建账户",
+    "creatingButton": "正在创建…",
+    "passwordTooShort": "密码必须至少 8 个字符。",
+    "passwordsDontMatch": "两次输入的密码不一致。",
+    "adminExists": "管理员账户已存在。请登录。",
+    "setupFailedStatus": "设置失败 ({status})。",
+    "couldNotDisableAuth": "无法禁用身份验证 ({status})。",
+    "protectTitle": "保护此 FiestaBoard?",
+    "protectDescription": "用户名和密码可防止网络上的其他人读取或更改您的 API 密钥、面板配置和其他设置。",
+    "protectEnableButton": "设置用户名和密码（推荐）",
+    "protectSkipButton": "跳过 — 我网络上的任何人都可以访问",
+    "disablingButton": "正在禁用…",
+    "protectFootnote": "如果您与并不完全信任的人（室友、客人、智能家居设备）共享 Wi-Fi，或如果此 FiestaBoard 可从互联网访问，则强烈建议启用此功能。无论哪种情况，您的面板都会正常显示 — 这仅控制谁可以登录以更改设置。",
+    "apiUnreachableTitle": "无法连接到 API",
+    "loadingTitle": "正在加载…",
+    "loadingDescription": "正在检查身份验证状态…",
+    "redirectingTitle": "正在跳转…",
+    "redirectingDescription": "请稍候…",
+    "pageTitle": "登录"
   },
   "picks": {
     "title": "团队精选",

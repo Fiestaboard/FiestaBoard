@@ -48,7 +48,12 @@
     "settings": "Configuración",
     "savingIndicator": "Guardando...",
     "pageCount": "{count, plural, one {# página} other {# páginas}}",
-    "unknownError": "Error desconocido"
+    "unknownError": "Error desconocido",
+    "opensInNewTab": "(se abre en una pestaña nueva)"
+  },
+  "metadata": {
+    "appTitle": "Panel de FiestaBoard",
+    "appDescription": "Centro de control para tu pantalla FiestaBoard"
   },
   "navigation": {
     "home": "Inicio",
@@ -1366,6 +1371,43 @@
     "indexLabel": "Índice: {index}",
     "configureHint": "Configura {arrayName} en Ajustes para ver aquí las variables indexadas.",
     "configureExample": "Ejemplo:"
+  },
+  "login": {
+    "signInTitle": "Iniciar sesión en FiestaBoard",
+    "signInDescription": "Introduce tus credenciales de administrador para continuar.",
+    "usernameLabel": "Nombre de usuario",
+    "passwordLabel": "Contraseña",
+    "rememberMeLabel": "Mantener la sesión iniciada",
+    "submitButton": "Iniciar sesión",
+    "submittingButton": "Iniciando sesión…",
+    "invalidCredentials": "Nombre de usuario o contraseña incorrectos.",
+    "tooManyAttempts": "Demasiados intentos de inicio de sesión fallidos. Espera un minuto e inténtalo de nuevo.",
+    "networkError": "Error de red. Inténtalo de nuevo.",
+    "signInFailedStatus": "Error al iniciar sesión ({status}).",
+    "changeLater": "Puedes cambiar esto más tarde — consulta la <link>documentación de autenticación</link>.",
+    "setupTitle": "Crear administrador",
+    "setupDescription": "Todavía no existen cuentas. Define un nombre de usuario y una contraseña para proteger este FiestaBoard.",
+    "confirmPasswordLabel": "Confirmar contraseña",
+    "passwordMinHint": "Mínimo 8 caracteres.",
+    "createButton": "Crear cuenta",
+    "creatingButton": "Creando…",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+    "passwordsDontMatch": "Las contraseñas no coinciden.",
+    "adminExists": "Ya existe una cuenta de administrador. Inicia sesión.",
+    "setupFailedStatus": "La configuración falló ({status}).",
+    "couldNotDisableAuth": "No se pudo desactivar la autenticación ({status}).",
+    "protectTitle": "¿Proteger este FiestaBoard?",
+    "protectDescription": "Un nombre de usuario y una contraseña impiden que tus claves de API, la configuración del tablero y otros ajustes los pueda leer o cambiar otra persona en tu red.",
+    "protectEnableButton": "Configurar nombre de usuario y contraseña (recomendado)",
+    "protectSkipButton": "Omitir — cualquiera en mi red puede acceder",
+    "disablingButton": "Desactivando…",
+    "protectFootnote": "Muy recomendable si compartes Wi-Fi con personas en las que no confías totalmente (compañeros de piso, invitados, dispositivos del hogar inteligente) o si este FiestaBoard es accesible desde internet. El tablero seguirá mostrándose con normalidad en cualquier caso — esto solo controla quién puede iniciar sesión para cambiar la configuración.",
+    "apiUnreachableTitle": "No se pudo contactar con la API",
+    "loadingTitle": "Cargando…",
+    "loadingDescription": "Comprobando el estado de autenticación…",
+    "redirectingTitle": "Redirigiendo…",
+    "redirectingDescription": "Un momento…",
+    "pageTitle": "Iniciar sesión"
   },
   "picks": {
     "title": "Selecciones del equipo",

@@ -48,7 +48,12 @@
     "settings": "Настройки",
     "savingIndicator": "Сохранение...",
     "pageCount": "{count, plural, one {# страница} few {# страницы} many {# страниц} other {# страниц}}",
-    "unknownError": "Неизвестная ошибка"
+    "unknownError": "Неизвестная ошибка",
+    "opensInNewTab": "(откроется в новой вкладке)"
+  },
+  "metadata": {
+    "appTitle": "Управление FiestaBoard",
+    "appDescription": "Центр управления вашим табло FiestaBoard"
   },
   "navigation": {
     "home": "Главная",
@@ -1366,6 +1371,43 @@
     "indexLabel": "Индекс: {index}",
     "configureHint": "Настройте {arrayName} в Настройках, чтобы видеть здесь индексированные переменные.",
     "configureExample": "Пример:"
+  },
+  "login": {
+    "signInTitle": "Войти в FiestaBoard",
+    "signInDescription": "Введите учётные данные администратора, чтобы продолжить.",
+    "usernameLabel": "Имя пользователя",
+    "passwordLabel": "Пароль",
+    "rememberMeLabel": "Запомнить меня",
+    "submitButton": "Войти",
+    "submittingButton": "Вход…",
+    "invalidCredentials": "Неверное имя пользователя или пароль.",
+    "tooManyAttempts": "Слишком много неудачных попыток входа. Подождите минуту и попробуйте снова.",
+    "networkError": "Ошибка сети. Повторите попытку.",
+    "signInFailedStatus": "Вход не удался ({status}).",
+    "changeLater": "Это можно изменить позже — см. <link>документацию по аутентификации</link>.",
+    "setupTitle": "Создать администратора",
+    "setupDescription": "Учётных записей ещё нет. Задайте имя пользователя и пароль, чтобы защитить этот FiestaBoard.",
+    "confirmPasswordLabel": "Подтвердите пароль",
+    "passwordMinHint": "Не менее 8 символов.",
+    "createButton": "Создать учётную запись",
+    "creatingButton": "Создание…",
+    "passwordTooShort": "Пароль должен содержать не менее 8 символов.",
+    "passwordsDontMatch": "Пароли не совпадают.",
+    "adminExists": "Учётная запись администратора уже существует. Пожалуйста, войдите.",
+    "setupFailedStatus": "Настройка не удалась ({status}).",
+    "couldNotDisableAuth": "Не удалось отключить аутентификацию ({status}).",
+    "protectTitle": "Защитить этот FiestaBoard?",
+    "protectDescription": "Имя пользователя и пароль не позволят другим людям в вашей сети читать или изменять ваши API-ключи, конфигурацию табло и другие настройки.",
+    "protectEnableButton": "Задать имя пользователя и пароль (рекомендуется)",
+    "protectSkipButton": "Пропустить — любой в моей сети может получить доступ",
+    "disablingButton": "Отключение…",
+    "protectFootnote": "Настоятельно рекомендуется, если вы делитесь Wi-Fi с людьми, которым не полностью доверяете (соседи, гости, устройства умного дома), или если этот FiestaBoard доступен из интернета. Ваше табло продолжит работать как обычно — это управляет только тем, кто может войти и изменить настройки.",
+    "apiUnreachableTitle": "Не удалось подключиться к API",
+    "loadingTitle": "Загрузка…",
+    "loadingDescription": "Проверка статуса аутентификации…",
+    "redirectingTitle": "Перенаправление…",
+    "redirectingDescription": "Один момент…",
+    "pageTitle": "Войти"
   },
   "picks": {
     "title": "Подборка команды",

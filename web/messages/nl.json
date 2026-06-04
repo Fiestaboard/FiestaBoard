@@ -48,7 +48,12 @@
     "settings": "Instellingen",
     "savingIndicator": "Opslaan...",
     "pageCount": "{count, plural, one {# pagina} other {# pagina's}}",
-    "unknownError": "Onbekende fout"
+    "unknownError": "Onbekende fout",
+    "opensInNewTab": "(opent in een nieuw tabblad)"
+  },
+  "metadata": {
+    "appTitle": "FiestaBoard-bediening",
+    "appDescription": "Bedieningscentrum voor je FiestaBoard-display"
   },
   "navigation": {
     "home": "Start",
@@ -1366,6 +1371,43 @@
     "indexLabel": "Index: {index}",
     "configureHint": "Configureer {arrayName} in Instellingen om geïndexeerde variabelen hier te zien.",
     "configureExample": "Voorbeeld:"
+  },
+  "login": {
+    "signInTitle": "Inloggen bij FiestaBoard",
+    "signInDescription": "Voer je beheerdersgegevens in om door te gaan.",
+    "usernameLabel": "Gebruikersnaam",
+    "passwordLabel": "Wachtwoord",
+    "rememberMeLabel": "Ingelogd blijven",
+    "submitButton": "Inloggen",
+    "submittingButton": "Inloggen…",
+    "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord.",
+    "tooManyAttempts": "Te veel mislukte inlogpogingen. Wacht een minuut en probeer het opnieuw.",
+    "networkError": "Netwerkfout. Probeer het opnieuw.",
+    "signInFailedStatus": "Inloggen mislukt ({status}).",
+    "changeLater": "Je kunt dit later wijzigen — zie de <link>authenticatiedocumentatie</link>.",
+    "setupTitle": "Beheerder aanmaken",
+    "setupDescription": "Er bestaan nog geen accounts. Stel een gebruikersnaam en wachtwoord in om deze FiestaBoard te beveiligen.",
+    "confirmPasswordLabel": "Wachtwoord bevestigen",
+    "passwordMinHint": "Minstens 8 tekens.",
+    "createButton": "Account aanmaken",
+    "creatingButton": "Aanmaken…",
+    "passwordTooShort": "Wachtwoord moet minstens 8 tekens lang zijn.",
+    "passwordsDontMatch": "Wachtwoorden komen niet overeen.",
+    "adminExists": "Er bestaat al een beheerdersaccount. Log in.",
+    "setupFailedStatus": "Instellen mislukt ({status}).",
+    "couldNotDisableAuth": "Kon authenticatie niet uitschakelen ({status}).",
+    "protectTitle": "Deze FiestaBoard beveiligen?",
+    "protectDescription": "Een gebruikersnaam en wachtwoord voorkomen dat anderen op je netwerk je API-sleutels, bordconfiguratie en andere instellingen kunnen lezen of wijzigen.",
+    "protectEnableButton": "Gebruikersnaam en wachtwoord instellen (aanbevolen)",
+    "protectSkipButton": "Overslaan — iedereen op mijn netwerk heeft toegang",
+    "disablingButton": "Uitschakelen…",
+    "protectFootnote": "Sterk aanbevolen als je wifi deelt met mensen die je niet volledig vertrouwt (huisgenoten, gasten, smarthome-apparaten), of als deze FiestaBoard vanaf internet bereikbaar is. Je bord blijft hoe dan ook normaal weergeven — dit bepaalt alleen wie kan inloggen om instellingen te wijzigen.",
+    "apiUnreachableTitle": "Kan API niet bereiken",
+    "loadingTitle": "Laden…",
+    "loadingDescription": "Authenticatiestatus controleren…",
+    "redirectingTitle": "Doorverwijzen…",
+    "redirectingDescription": "Een moment…",
+    "pageTitle": "Inloggen"
   },
   "picks": {
     "title": "Aanbevolen",

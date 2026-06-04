@@ -48,7 +48,12 @@
     "settings": "Paramètres",
     "savingIndicator": "Enregistrement...",
     "pageCount": "{count, plural, one {# page} other {# pages}}",
-    "unknownError": "Erreur inconnue"
+    "unknownError": "Erreur inconnue",
+    "opensInNewTab": "(ouvre dans un nouvel onglet)"
+  },
+  "metadata": {
+    "appTitle": "Panneau FiestaBoard",
+    "appDescription": "Le centre de contrôle de votre afficheur FiestaBoard"
   },
   "navigation": {
     "home": "Accueil",
@@ -1366,6 +1371,43 @@
     "indexLabel": "Index : {index}",
     "configureHint": "Configurez {arrayName} dans les paramètres pour voir ici les variables indexées.",
     "configureExample": "Exemple :"
+  },
+  "login": {
+    "signInTitle": "Se connecter à FiestaBoard",
+    "signInDescription": "Saisissez vos identifiants administrateur pour continuer.",
+    "usernameLabel": "Nom d'utilisateur",
+    "passwordLabel": "Mot de passe",
+    "rememberMeLabel": "Rester connecté",
+    "submitButton": "Se connecter",
+    "submittingButton": "Connexion…",
+    "invalidCredentials": "Nom d'utilisateur ou mot de passe incorrect.",
+    "tooManyAttempts": "Trop de tentatives de connexion infructueuses. Veuillez patienter une minute et réessayer.",
+    "networkError": "Erreur réseau. Veuillez réessayer.",
+    "signInFailedStatus": "Échec de la connexion ({status}).",
+    "changeLater": "Vous pourrez modifier cela plus tard — voir la <link>documentation d'authentification</link>.",
+    "setupTitle": "Créer un administrateur",
+    "setupDescription": "Aucun compte n'existe encore. Définissez un nom d'utilisateur et un mot de passe pour protéger ce FiestaBoard.",
+    "confirmPasswordLabel": "Confirmer le mot de passe",
+    "passwordMinHint": "Au moins 8 caractères.",
+    "createButton": "Créer le compte",
+    "creatingButton": "Création…",
+    "passwordTooShort": "Le mot de passe doit comporter au moins 8 caractères.",
+    "passwordsDontMatch": "Les mots de passe ne correspondent pas.",
+    "adminExists": "Un compte administrateur existe déjà. Veuillez vous connecter.",
+    "setupFailedStatus": "Échec de la configuration ({status}).",
+    "couldNotDisableAuth": "Impossible de désactiver l'authentification ({status}).",
+    "protectTitle": "Protéger ce FiestaBoard ?",
+    "protectDescription": "Un nom d'utilisateur et un mot de passe empêchent quiconque sur votre réseau de lire ou modifier vos clés d'API, la configuration du tableau et d'autres paramètres.",
+    "protectEnableButton": "Configurer un nom d'utilisateur et un mot de passe (recommandé)",
+    "protectSkipButton": "Ignorer — n'importe qui sur mon réseau peut y accéder",
+    "disablingButton": "Désactivation…",
+    "protectFootnote": "Fortement recommandé si vous partagez le Wi-Fi avec des personnes en qui vous n'avez pas totalement confiance (colocataires, invités, objets connectés) ou si ce FiestaBoard est accessible depuis internet. Votre tableau continue de s'afficher normalement dans tous les cas — ceci contrôle uniquement qui peut se connecter pour modifier les paramètres.",
+    "apiUnreachableTitle": "Impossible de joindre l'API",
+    "loadingTitle": "Chargement…",
+    "loadingDescription": "Vérification du statut d'authentification…",
+    "redirectingTitle": "Redirection…",
+    "redirectingDescription": "Un instant…",
+    "pageTitle": "Se connecter"
   },
   "picks": {
     "title": "Sélections de l'équipe",
