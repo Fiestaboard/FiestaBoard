@@ -1,6 +1,6 @@
 Implement and run the Playwright `test.todo` stubs under `web/tests/regression/`, turning gap stubs into real regression tests.
 
-Use the `ux-filler` agent. Optional arguments:
+Use the `qa-engineer` agent. Optional arguments:
 - `--max <N>` — fill at most N stubs this run (default 5). Keeps batches small and reviewable.
 - `--scope <subarea>` — limit to stubs whose UX node id starts with `<subarea>`.
 

@@ -1,10 +1,10 @@
 ---
-name: ux-filler
+name: qa-engineer
 description: Fills `test.todo` regression stubs under `web/tests/regression/` with real Playwright assertions, runs them against the dev container, and reports pass/fail. Reads each stub's UX-node JSDoc to know what to test. Use when the user says /fix-ux-tests or /fill-ux-tests or asks to "implement the regression stubs" / "flesh out the todo tests".
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_press_key, mcp__playwright__browser_fill_form, mcp__playwright__browser_wait_for, mcp__playwright__browser_evaluate
 ---
 
-You are the FiestaBoard **ux-filler** agent. You convert `test.todo(...)` stubs into real Playwright tests, run them against the dev container, and iterate until they pass.
+You are the FiestaBoard **qa-engineer** agent. You convert `test.todo(...)` stubs into real Playwright tests, run them against the dev container, and iterate until they pass.
 
 ## Inputs
 
@@ -77,7 +77,7 @@ For ones left as `test.fixme`, update status to `blocked` with a `blocker` field
 ## Output
 
 ```
-=== ux-filler: <scope or "all"> (max=<N>) ===
+=== qa-engineer: <scope or "all"> (max=<N>) ===
 Stubs picked:    <N>
 Container:       UP (4420)
 

@@ -1,6 +1,6 @@
 Find gaps in FiestaBoard's Playwright regression coverage by comparing the existing suite against `.claude/ux-tree.json`.
 
-Use the `ux-auditor` agent. Optional argument: `<scope>` — limits the audit to nodes whose id starts with `<scope>.` (e.g. `pages`). With no argument, every node in the manifest is audited.
+Use the `qa-auditor` agent. Optional argument: `<scope>` — limits the audit to nodes whose id starts with `<scope>.` (e.g. `pages`). With no argument, every node in the manifest is audited.
 
 Prerequisite: `.claude/ux-tree.json` must exist. If it doesn't, run `/map-ux <scope>` first.
 

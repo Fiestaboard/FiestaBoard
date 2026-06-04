@@ -1,6 +1,6 @@
 Scaffold Playwright `test.todo` stubs under `web/tests/regression/` for every UX node marked `uncovered` or `partial` in `.claude/ux-coverage.json`.
 
-Use the `ux-stubber` agent. Optional argument: `<scope>` — limit stubbing to nodes whose id starts with `<scope>.`. Default: every gap in the coverage report.
+Use the `qa-stubber` agent. Optional argument: `<scope>` — limit stubbing to nodes whose id starts with `<scope>.`. Default: every gap in the coverage report.
 
 Prerequisites: `.claude/ux-tree.json` and `.claude/ux-coverage.json` must exist. If either is missing, run `/map-ux` and `/audit-ux-coverage` first.
 
