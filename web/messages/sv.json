@@ -51,6 +51,10 @@
     "unknownError": "Okänt fel",
     "opensInNewTab": "(öppnas i en ny flik)"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard-styrning",
+    "appDescription": "Kontrollcentral för din FiestaBoard-skärm"
+  },
   "navigation": {
     "home": "Hem",
     "pages": "Sidor",

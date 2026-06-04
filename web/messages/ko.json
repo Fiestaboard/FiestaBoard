@@ -51,6 +51,10 @@
     "unknownError": "알 수 없는 오류",
     "opensInNewTab": "(새 탭에서 열림)"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard 컨트롤",
+    "appDescription": "FiestaBoard 디스플레이를 위한 컨트롤 센터"
+  },
   "navigation": {
     "home": "홈",
     "pages": "페이지",

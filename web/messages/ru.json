@@ -51,6 +51,10 @@
     "unknownError": "Неизвестная ошибка",
     "opensInNewTab": "(откроется в новой вкладке)"
   },
+  "metadata": {
+    "appTitle": "Управление FiestaBoard",
+    "appDescription": "Центр управления вашим табло FiestaBoard"
+  },
   "navigation": {
     "home": "Главная",
     "pages": "Страницы",

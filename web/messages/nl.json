@@ -51,6 +51,10 @@
     "unknownError": "Onbekende fout",
     "opensInNewTab": "(opent in een nieuw tabblad)"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard-bediening",
+    "appDescription": "Bedieningscentrum voor je FiestaBoard-display"
+  },
   "navigation": {
     "home": "Start",
     "pages": "Pagina's",

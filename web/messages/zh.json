@@ -51,6 +51,10 @@
     "unknownError": "未知错误",
     "opensInNewTab": "（在新标签页中打开）"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard 控制台",
+    "appDescription": "您的 FiestaBoard 显示屏控制中心"
+  },
   "navigation": {
     "home": "首页",
     "pages": "页面",

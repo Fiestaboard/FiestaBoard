@@ -51,6 +51,10 @@
     "unknownError": "Unknown error",
     "opensInNewTab": "(opens in new tab)"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard Control",
+    "appDescription": "Home hub for your FiestaBoard display"
+  },
   "navigation": {
     "home": "Home",
     "pages": "Pages",

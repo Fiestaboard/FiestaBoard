@@ -51,6 +51,10 @@
     "unknownError": "Unbekannter Fehler",
     "opensInNewTab": "(wird in einem neuen Tab geöffnet)"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard-Steuerung",
+    "appDescription": "Zentrale für Ihr FiestaBoard-Display"
+  },
   "navigation": {
     "home": "Startseite",
     "pages": "Seiten",

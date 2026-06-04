@@ -51,6 +51,10 @@
     "unknownError": "Bilinmeyen hata",
     "opensInNewTab": "(yeni sekmede açılır)"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard Kontrol",
+    "appDescription": "FiestaBoard ekranınız için kontrol merkezi"
+  },
   "navigation": {
     "home": "Ana Sayfa",
     "pages": "Sayfalar",

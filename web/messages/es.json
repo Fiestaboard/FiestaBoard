@@ -51,6 +51,10 @@
     "unknownError": "Error desconocido",
     "opensInNewTab": "(se abre en una pestaña nueva)"
   },
+  "metadata": {
+    "appTitle": "Panel de FiestaBoard",
+    "appDescription": "Centro de control para tu pantalla FiestaBoard"
+  },
   "navigation": {
     "home": "Inicio",
     "pages": "Páginas",

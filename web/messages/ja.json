@@ -51,6 +51,10 @@
     "unknownError": "不明なエラー",
     "opensInNewTab": "(新しいタブで開きます)"
   },
+  "metadata": {
+    "appTitle": "FiestaBoard コントロール",
+    "appDescription": "FiestaBoard ディスプレイのコントロールセンター"
+  },
   "navigation": {
     "home": "ホーム",
     "pages": "ページ",
