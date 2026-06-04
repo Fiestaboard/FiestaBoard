@@ -13,12 +13,15 @@
  * want to surface "wrong password" / "account locked" cleanly.
  *
  * Accessibility:
- *   All visible strings route through next-intl's `login.*` namespace so
- *   screen readers don't read English under a non-English `<html lang>`
- *   (WCAG 3.1.1 Language of Page, 3.1.2 Language of Parts).
+ *   - All visible strings route through next-intl's `login.*` namespace so
+ *     screen readers don't read English under a non-English `<html lang>`
+ *     (WCAG 3.1.1 Language of Page, 3.1.2 Language of Parts).
+ *   - On a failed sign-in / setup the username input regains focus so the
+ *     user can retry without re-tabbing past the skip link
+ *     (WCAG 2.4.3 Focus Order, 3.3.1 Error Identification).
  */
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -97,6 +100,11 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Refs let us restore focus after a failed submit so the user can retry
+  // without re-tabbing past the skip link, sidebar, etc.
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
   // Resolve /auth/status on mount so we know which form to render.
   useEffect(() => {
     let cancelled = false;
@@ -167,10 +175,14 @@ export default function LoginPage() {
       setFormError(null);
       if (password.length < 8) {
         setFormError(t("passwordTooShort"));
+        // Send focus back to the password field so the user can correct it
+        // without re-tabbing (WCAG 3.3.1 Error Identification).
+        passwordInputRef.current?.focus();
         return;
       }
       if (password !== confirmPassword) {
         setFormError(t("passwordsDontMatch"));
+        passwordInputRef.current?.focus();
         return;
       }
       setSubmitting(true);
@@ -211,6 +223,15 @@ export default function LoginPage() {
       setSubmitting(false);
     }
   }, [router, redirectTo, t]);
+
+  // After a failed sign-in or setup submit, return focus to the failing
+  // field. Triggers whenever ``formError`` transitions from null to a string
+  // while we're not mid-submit (the submit handler clears submitting after).
+  useEffect(() => {
+    if (formError && !submitting) {
+      usernameInputRef.current?.focus();
+    }
+  }, [formError, submitting]);
 
   // --- Render states --------------------------------------------------------
 
@@ -311,6 +332,7 @@ export default function LoginPage() {
               autoComplete="username"
               required
               autoFocus
+              ref={usernameInputRef}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={submitting}
@@ -325,6 +347,7 @@ export default function LoginPage() {
               autoComplete="new-password"
               required
               minLength={8}
+              ref={passwordInputRef}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={submitting}
@@ -384,6 +407,7 @@ export default function LoginPage() {
             autoComplete="username"
             required
             autoFocus
+            ref={usernameInputRef}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             disabled={submitting}
@@ -397,6 +421,7 @@ export default function LoginPage() {
             type="password"
             autoComplete="current-password"
             required
+            ref={passwordInputRef}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
