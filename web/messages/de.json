@@ -48,7 +48,8 @@
     "settings": "Einstellungen",
     "savingIndicator": "Wird gespeichert...",
     "pageCount": "{count, plural, one {# Seite} other {# Seiten}}",
-    "unknownError": "Unbekannter Fehler"
+    "unknownError": "Unbekannter Fehler",
+    "opensInNewTab": "(wird in einem neuen Tab geöffnet)"
   },
   "navigation": {
     "home": "Startseite",

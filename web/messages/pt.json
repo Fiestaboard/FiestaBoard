@@ -48,7 +48,8 @@
     "settings": "Configurações",
     "savingIndicator": "Salvando...",
     "pageCount": "{count, plural, one {# página} other {# páginas}}",
-    "unknownError": "Erro desconhecido"
+    "unknownError": "Erro desconhecido",
+    "opensInNewTab": "(abre numa nova aba)"
   },
   "navigation": {
     "home": "Início",

@@ -48,7 +48,8 @@
     "settings": "設定",
     "savingIndicator": "保存中...",
     "pageCount": "{count, plural, one {# ページ} other {# ページ}}",
-    "unknownError": "不明なエラー"
+    "unknownError": "不明なエラー",
+    "opensInNewTab": "(新しいタブで開きます)"
   },
   "navigation": {
     "home": "ホーム",

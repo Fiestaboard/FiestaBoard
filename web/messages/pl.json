@@ -48,7 +48,8 @@
     "settings": "Ustawienia",
     "savingIndicator": "Zapisywanie...",
     "pageCount": "{count, plural, one {# strona} few {# strony} many {# stron} other {# stron}}",
-    "unknownError": "Nieznany błąd"
+    "unknownError": "Nieznany błąd",
+    "opensInNewTab": "(otwiera się w nowej karcie)"
   },
   "navigation": {
     "home": "Strona główna",

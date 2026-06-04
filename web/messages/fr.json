@@ -48,7 +48,8 @@
     "settings": "Paramètres",
     "savingIndicator": "Enregistrement...",
     "pageCount": "{count, plural, one {# page} other {# pages}}",
-    "unknownError": "Erreur inconnue"
+    "unknownError": "Erreur inconnue",
+    "opensInNewTab": "(ouvre dans un nouvel onglet)"
   },
   "navigation": {
     "home": "Accueil",

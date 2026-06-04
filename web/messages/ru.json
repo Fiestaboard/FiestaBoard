@@ -48,7 +48,8 @@
     "settings": "Настройки",
     "savingIndicator": "Сохранение...",
     "pageCount": "{count, plural, one {# страница} few {# страницы} many {# страниц} other {# страниц}}",
-    "unknownError": "Неизвестная ошибка"
+    "unknownError": "Неизвестная ошибка",
+    "opensInNewTab": "(откроется в новой вкладке)"
   },
   "navigation": {
     "home": "Главная",

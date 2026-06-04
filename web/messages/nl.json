@@ -48,7 +48,8 @@
     "settings": "Instellingen",
     "savingIndicator": "Opslaan...",
     "pageCount": "{count, plural, one {# pagina} other {# pagina's}}",
-    "unknownError": "Onbekende fout"
+    "unknownError": "Onbekende fout",
+    "opensInNewTab": "(opent in een nieuw tabblad)"
   },
   "navigation": {
     "home": "Start",

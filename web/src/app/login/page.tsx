@@ -19,6 +19,9 @@
  *   - On a failed sign-in / setup the username input regains focus so the
  *     user can retry without re-tabbing past the skip link
  *     (WCAG 2.4.3 Focus Order, 3.3.1 Error Identification).
+ *   - The "authentication docs" link opens in a new tab and carries a
+ *     visually-hidden "(opens in new tab)" string for screen readers
+ *     (WCAG 2.4.4 Link Purpose, 3.2.5 Change on Request).
  */
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -82,6 +85,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
   const t = useTranslations("login");
+  const tCommon = useTranslations("common");
 
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -238,6 +242,7 @@ export default function LoginPage() {
   if (statusError) {
     return (
       <CenteredCard
+        tCommon={tCommon}
         icon={<ShieldAlert className="h-6 w-6 text-destructive" />}
         title={t("apiUnreachableTitle")}
       >
@@ -251,6 +256,7 @@ export default function LoginPage() {
   if (!status) {
     return (
       <CenteredCard
+        tCommon={tCommon}
         icon={<Loader2 className="h-6 w-6 animate-spin" />}
         title={t("loadingTitle")}
       >
@@ -263,6 +269,7 @@ export default function LoginPage() {
   if (!status.enabled || status.authenticated) {
     return (
       <CenteredCard
+        tCommon={tCommon}
         icon={<Loader2 className="h-6 w-6 animate-spin" />}
         title={t("redirectingTitle")}
       >
@@ -276,6 +283,7 @@ export default function LoginPage() {
   if (status.first_run && firstRunChoice === null) {
     return (
       <CenteredCard
+        tCommon={tCommon}
         icon={<ShieldQuestion className="h-6 w-6 text-brand" />}
         title={t("protectTitle")}
         description={t("protectDescription")}
@@ -319,6 +327,7 @@ export default function LoginPage() {
   if (status.setup_required) {
     return (
       <CenteredCard
+        tCommon={tCommon}
         icon={<ShieldCheck className="h-6 w-6 text-brand" />}
         title={t("setupTitle")}
         description={t("setupDescription")}
@@ -394,6 +403,7 @@ export default function LoginPage() {
 
   return (
     <CenteredCard
+      tCommon={tCommon}
       icon={<Lock className="h-6 w-6 text-brand" />}
       title={t("signInTitle")}
       description={t("signInDescription")}
@@ -470,11 +480,13 @@ function CenteredCard({
   title,
   description,
   children,
+  tCommon,
 }: {
   icon: React.ReactNode;
   title: string;
   description?: string;
   children: React.ReactNode;
+  tCommon: ReturnType<typeof useTranslations>;
 }) {
   const t = useTranslations("login");
   return (
@@ -508,6 +520,9 @@ function CenteredCard({
                 className="underline hover:text-foreground"
               >
                 {chunks}
+                {/* sr-only cue lets screen-reader users know this link
+                    leaves the app (WCAG 2.4.4 / 3.2.5). */}
+                <span className="sr-only"> {tCommon("opensInNewTab")}</span>
               </a>
             ),
           })}

@@ -48,7 +48,8 @@
     "settings": "Inställningar",
     "savingIndicator": "Sparar...",
     "pageCount": "{count, plural, one {# sida} other {# sidor}}",
-    "unknownError": "Okänt fel"
+    "unknownError": "Okänt fel",
+    "opensInNewTab": "(öppnas i en ny flik)"
   },
   "navigation": {
     "home": "Hem",

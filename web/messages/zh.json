@@ -48,7 +48,8 @@
     "settings": "设置",
     "savingIndicator": "保存中...",
     "pageCount": "{count, plural, one {# 个页面} other {# 个页面}}",
-    "unknownError": "未知错误"
+    "unknownError": "未知错误",
+    "opensInNewTab": "（在新标签页中打开）"
   },
   "navigation": {
     "home": "首页",

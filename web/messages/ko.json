@@ -48,7 +48,8 @@
     "settings": "설정",
     "savingIndicator": "저장 중...",
     "pageCount": "{count, plural, one {# 페이지} other {# 페이지}}",
-    "unknownError": "알 수 없는 오류"
+    "unknownError": "알 수 없는 오류",
+    "opensInNewTab": "(새 탭에서 열림)"
   },
   "navigation": {
     "home": "홈",

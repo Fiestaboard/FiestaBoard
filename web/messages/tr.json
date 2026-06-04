@@ -48,7 +48,8 @@
     "settings": "Ayarlar",
     "savingIndicator": "Kaydediliyor...",
     "pageCount": "{count, plural, one {# sayfa} other {# sayfa}}",
-    "unknownError": "Bilinmeyen hata"
+    "unknownError": "Bilinmeyen hata",
+    "opensInNewTab": "(yeni sekmede açılır)"
   },
   "navigation": {
     "home": "Ana Sayfa",
