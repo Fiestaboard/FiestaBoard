@@ -83,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Review new dependencies
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
         with:
           # Fail on a vulnerable dep being added at moderate or higher.
           fail-on-severity: moderate

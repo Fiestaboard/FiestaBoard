@@ -120,7 +120,7 @@ jobs:
         run: docker rm -f fiestaboard mock-board 2>/dev/null || true
 
       - name: Open PR with baselines
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           # GITHUB_TOKEN can't modify workflow files at all; RELEASE_PAT
           # works for snapshot PNGs (regular files), but doesn't currently
