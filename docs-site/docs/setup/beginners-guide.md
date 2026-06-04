@@ -15,7 +15,7 @@ Never used Docker or the command line before? No problem. This guide walks throu
 - A split-flap display that's already set up and working with the board's app
 - Your board's API key (Step 2 below shows you where to find it)
 - An internet connection
-- **Either** a Raspberry Pi + microSD card (the easiest path — see below), **or** a computer (Mac, Windows, or Linux) where we'll install Docker
+- **Either** a Raspberry Pi + microSD card (see [The Easiest Path: Flash a Raspberry Pi](#the-easiest-path-flash-a-raspberry-pi)), **or** a computer (Mac, Windows, or Linux) where we'll install Docker
 
 ## The Easiest Path: Flash a Raspberry Pi
 

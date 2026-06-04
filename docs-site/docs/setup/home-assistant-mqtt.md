@@ -43,12 +43,12 @@ An MQTT broker is the message relay between FiestaBoard and Home Assistant. You 
 | Situation | What to do |
 |-----------|------------|
 | You use Zigbee2MQTT, Tasmota, ESPHome, or Frigate | You already have a broker. [Skip to Step 2.](#step-2-enable-the-mqtt-integration-in-home-assistant) |
-| You run Home Assistant OS or Supervised | Install the Mosquitto add-on — takes about 2 minutes. See below. |
-| You run Home Assistant Container or Core | Install Mosquitto on your server. See below. |
+| You run Home Assistant OS or Supervised | Install the Mosquitto add-on — takes about 2 minutes. See [Installing the Mosquitto add-on](#installing-the-mosquitto-add-on-haos--supervised). |
+| You run Home Assistant Container or Core | Install Mosquitto on your server. See [Installing Mosquitto standalone](#installing-mosquitto-standalone-container--core--separate-machine). |
 
 ---
 
-### Installing the Mosquitto add-on (HAOS / Supervised)
+### Installing the Mosquitto add-on (HAOS / Supervised) {#installing-the-mosquitto-add-on-haos--supervised}
 
 The Mosquitto broker add-on is a one-click install inside Home Assistant:
 
@@ -72,7 +72,7 @@ If you don't see the **Users** section, go to your Profile and enable **Advanced
 
 ---
 
-### Installing Mosquitto standalone (Container / Core / separate machine)
+### Installing Mosquitto standalone (Container / Core / separate machine) {#installing-mosquitto-standalone-container--core--separate-machine}
 
 If you don't have the HA add-on store, install Mosquitto directly on your server:
 

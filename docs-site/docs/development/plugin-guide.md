@@ -161,7 +161,7 @@ These fields are not enforced by the manifest validator but should be included i
 | `category` | string | `"utility"` | Grouping category. Valid values: `"art"`, `"data"`, `"transit"`, `"weather"`, `"entertainment"`, `"utility"`, `"home"`. |
 | `repository` | string | - | GitHub repository URL. |
 | `documentation` | string | `"README.md"` | Path to documentation file relative to plugin directory. |
-| `env_vars` | array | `[]` | Environment variables the plugin can read (see below). |
+| `env_vars` | array | `[]` | Environment variables the plugin can read (see [Environment Variables](#environment-variables)). |
 | `color_rules_schema` | object | `{}` | Schema for dynamic color rules. |
 
 ### Settings Schema

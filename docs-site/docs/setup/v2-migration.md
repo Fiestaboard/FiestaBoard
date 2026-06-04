@@ -66,7 +66,7 @@ The `PUT /settings/board` endpoint previously accepted only a `board_type` field
 
 | Option | Description |
 |--------|-------------|
-| `boards` | Full board instance objects (new format — see below) |
+| `boards` | Full board instance objects (new format — see the [full board instance example](#example-full-board-instance)) |
 | `devices` | List of device type strings: `["flagship"]`, `["flagship", "note"]` |
 | `board_type` | Still accepted for backward compatibility |
 
@@ -75,6 +75,7 @@ The `PUT /settings/board` endpoint previously accepted only a `board_type` field
 { "devices": ["flagship", "note"] }
 ```
 
+<a id="example-full-board-instance"></a>
 **Example — configure a full board instance:**
 ```json
 {
