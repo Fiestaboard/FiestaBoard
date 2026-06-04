@@ -105,3 +105,6 @@ docs-site/.cache-loader/
 # Team-shared config lives in .claude/settings.json; this file is for individual
 # overrides that should never be committed.
 .claude/settings.local.json
+
+# Claude Code worktrees (per-user, ephemeral isolated checkouts).
+.claude/worktrees/
