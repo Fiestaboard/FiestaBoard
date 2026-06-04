@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fiestaboard.local/schemas/ux-tree.json",
+  "title": "FiestaBoard UX Tree",
+  "description": "Manifest of user-reachable UX states. Shared source of truth for /map-ux, /audit-ux-coverage, /stub-ux-tests, /fill-ux-tests.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "scope", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "scope": {
+      "type": "string",
+      "description": "Area covered by this manifest. Examples: 'pages', 'integrations', 'schedule', 'all'."
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/node" }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["id", "route", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z0-9][a-z0-9-]*)+$",
+          "description": "Stable dotted identifier. Format: <area>.<subarea>[.<state>]. Example: 'pages.edit.dirty-discard-confirm'."
+        },
+        "route": {
+          "type": "string",
+          "description": "Next.js route path. Use Next-style brackets for dynamic segments. Example: '/pages/edit/[id]'."
+        },
+        "preconditions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Setup steps required to reach this state. Examples: 'auth:configured', 'pages:none', 'editor:dirty', 'plugin:installed=weather'."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 8,
+          "description": "Plain-English description of what the user sees / can do in this state."
+        },
+        "interactions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "User actions exposed from this state. Examples: 'click:new-page', 'submit:import-form', 'keyboard:esc'."
+        },
+        "transitions_to": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of nodes reachable from this one via the listed interactions."
+        },
+        "source_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Component / route file paths backing this state. Used by auditor to cross-reference."
+        },
+        "i18n_sensitive": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the state contains localized strings that should be spot-checked in a non-English locale."
+        }
+      }
+    }
+  }
+}
