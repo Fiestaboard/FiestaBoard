@@ -359,7 +359,7 @@ docker-compose -f docker-compose.dev.yml up --build
 
 ### Project Structure
 
-```
+```text
 FiestaBoard/
 ├── plugins/          # Plugin-based data sources (weather, stocks, etc.)
 ├── src/              # Platform core (API server, display service, plugin system)

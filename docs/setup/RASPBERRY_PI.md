@@ -43,7 +43,7 @@ If you flashed with `dd` or Balena Etcher (no Imager customisation), you can sti
 1. Open the `bootfs` drive that appeared when you plugged in the SD card.
 2. Create a file named **`fiestapi-wifi.txt`** with the following content:
 
-   ```
+   ```ini
    SSID=YourNetworkName
    PASSWORD=YourPassword
    COUNTRY=US
