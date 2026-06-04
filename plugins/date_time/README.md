@@ -14,7 +14,7 @@ The Date & Time plugin provides various date and time variables that update auto
 
 ### Time Variables
 
-```
+```jinja
 {{date_time.time}}          # 24-hour format (e.g., "14:30")
 {{date_time.time_24h}}      # 24-hour format (e.g., "14:30")
 {{date_time.time_12h}}      # 12-hour format with AM/PM (e.g., "2:30 PM")
@@ -24,7 +24,7 @@ The Date & Time plugin provides various date and time variables that update auto
 
 ### Date Variables
 
-```
+```jinja
 {{date_time.date}}          # ISO format (e.g., "2025-01-15")
 {{date_time.date_us}}       # US format MM/DD/YYYY (e.g., "01/15/2025")
 {{date_time.date_us_short}} # US format MM/DD/YY (e.g., "01/15/25")
@@ -33,14 +33,14 @@ The Date & Time plugin provides various date and time variables that update auto
 
 ### Day Variables
 
-```
+```jinja
 {{date_time.day_of_week}}   # Full day name (e.g., "Wednesday")
 {{date_time.day}}           # Day of month 1-31 (e.g., "15")
 ```
 
 ### Month Variables
 
-```
+```jinja
 {{date_time.month}}              # Full month name (e.g., "January")
 {{date_time.month_abbr}}         # 3-letter abbreviation (e.g., "Jan")
 {{date_time.month_number}}        # Month number 1-12 (e.g., "1")
@@ -49,13 +49,13 @@ The Date & Time plugin provides various date and time variables that update auto
 
 ### Year Variables
 
-```
+```jinja
 {{date_time.year}}          # Year (e.g., "2025")
 ```
 
 ### Timezone Variables
 
-```
+```jinja
 {{date_time.timezone}}      # Full timezone name (e.g., "America/Los_Angeles")
 {{date_time.timezone_abbr}} # Timezone abbreviation (e.g., "PST")
 ```
@@ -64,19 +64,19 @@ The Date & Time plugin provides various date and time variables that update auto
 
 ### Simple 24-Hour Clock
 
-```
+```jinja
 {center}{{date_time.time_24h}}
 ```
 
 ### Simple 12-Hour Clock
 
-```
+```jinja
 {center}{{date_time.time_12h}}
 ```
 
 ### Full Date Display
 
-```
+```jinja
 {center}{{date_time.day_of_week}}
 {{date_time.date}}
 {{date_time.time_12h}}
@@ -84,28 +84,28 @@ The Date & Time plugin provides various date and time variables that update auto
 
 ### US Date Format
 
-```
+```jinja
 {center}{{date_time.date_us}}
 {{date_time.time_12h}} {{date_time.timezone_abbr}}
 ```
 
 ### Classic Format
 
-```
+```jinja
 {center}{{date_time.month}} {{date_time.day}}, {{date_time.year}}
 {{date_time.time_12h}} {{date_time.timezone_abbr}}
 ```
 
 ### Compact Format
 
-```
+```jinja
 {center}{{date_time.month_abbr}} {{date_time.day}}
 {{date_time.time_12h}}
 ```
 
 ### Date Components
 
-```
+```jinja
 {center}{{date_time.month_number_padded}}/{{date_time.day}}/{{date_time.year}}
 {{date_time.day_of_week}}
 ```

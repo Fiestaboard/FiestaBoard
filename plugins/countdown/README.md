@@ -14,7 +14,7 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 
 ### Event Info
 
-```
+```jinja
 {{countdown.event_name}}       # Name of the event (e.g., "Last Day of School")
 {{countdown.target_datetime}}  # Target datetime string (e.g., "2025-06-15T00:00:00")
 {{countdown.is_expired}}       # "true" if the event has passed, "false" otherwise
@@ -22,7 +22,7 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 
 ### Countdown Values
 
-```
+```jinja
 {{countdown.days}}             # Remaining days (e.g., "22")
 {{countdown.hours}}            # Remaining hours (0-23) (e.g., "3")
 {{countdown.minutes}}          # Remaining minutes (0-59) (e.g., "10")
@@ -35,7 +35,7 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 
 ### Classic Countdown (Inspired by Vestaboard)
 
-```
+```jinja
 {center}COUNTDOWN UNTIL
 {{countdown.event_name}}
 
@@ -46,21 +46,21 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 
 ### Compact Countdown
 
-```
+```jinja
 {center}{{countdown.event_name}}
 {{countdown.days}}D {{countdown.hours}}H {{countdown.minutes}}M
 ```
 
 ### Days Only
 
-```
+```jinja
 {center}{{countdown.days}} DAYS UNTIL
 {{countdown.event_name}}
 ```
 
 ### Full Countdown with Seconds
 
-```
+```jinja
 {center}{{countdown.event_name}}
 {{countdown.days}}D {{countdown.hours}}H
 {{countdown.minutes}}M {{countdown.seconds}}S

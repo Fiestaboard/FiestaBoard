@@ -47,7 +47,7 @@ Create or edit a page template to display the countdown:
 
 Example classic countdown template:
 
-```
+```jinja
 {center}COUNTDOWN UNTIL
 {{countdown.event_name}}
 
@@ -82,7 +82,7 @@ Available variables:
 
 ### Classic Countdown
 
-```
+```jinja
 {center}COUNTDOWN UNTIL
 {{countdown.event_name}}
 
@@ -93,7 +93,7 @@ Available variables:
 
 ### Compact Countdown
 
-```
+```jinja
 {center}{{countdown.event_name}}
 {{countdown.days}}D {{countdown.hours}}H {{countdown.minutes}}M
 ```
