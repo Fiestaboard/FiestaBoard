@@ -1,10 +1,10 @@
-<p align="center">
+<h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs-site/static/img/branding/logo-lockup-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs-site/static/img/branding/logo-lockup-light.png">
     <img alt="FiestaBoard" src="docs-site/static/img/branding/logo-lockup-light.png" width="320">
   </picture>
-</p>
+</h1>
 
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
@@ -359,7 +359,7 @@ docker-compose -f docker-compose.dev.yml up --build
 
 ### Project Structure
 
-```
+```text
 FiestaBoard/
 ├── plugins/          # Plugin-based data sources (weather, stocks, etc.)
 ├── src/              # Platform core (API server, display service, plugin system)

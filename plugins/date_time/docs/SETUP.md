@@ -102,19 +102,19 @@ The plugin provides a comprehensive set of template variables:
 
 ### Simple 24-Hour Clock
 
-```
+```jinja
 {center}{{date_time.time_24h}}
 ```
 
 ### Simple 12-Hour Clock
 
-```
+```jinja
 {center}{{date_time.time_12h}}
 ```
 
 ### Full Date Display
 
-```
+```jinja
 {center}{{date_time.day_of_week}}
 {{date_time.date}}
 {{date_time.time_12h}}
@@ -122,28 +122,28 @@ The plugin provides a comprehensive set of template variables:
 
 ### US Date Format
 
-```
+```jinja
 {center}{{date_time.date_us}}
 {{date_time.time_12h}} {{date_time.timezone_abbr}}
 ```
 
 ### Classic Format
 
-```
+```jinja
 {center}{{date_time.month}} {{date_time.day}}, {{date_time.year}}
 {{date_time.time_12h}} {{date_time.timezone_abbr}}
 ```
 
 ### Compact Format
 
-```
+```jinja
 {center}{{date_time.month_abbr}} {{date_time.day}}
 {{date_time.time_12h}}
 ```
 
 ### Date Components
 
-```
+```jinja
 {center}{{date_time.month_number_padded}}/{{date_time.day}}/{{date_time.year}}
 {{date_time.day_of_week}}
 ```

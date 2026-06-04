@@ -11,12 +11,12 @@ The `/config/vestaboard` endpoints are deprecated. Use `/config/board` instead.
 ### GET - Retrieve board configuration
 
 **Deprecated (returns `Deprecation: true` header):**
-```
+```http
 GET /config/vestaboard
 ```
 
 **Canonical:**
-```
+```http
 GET /config/board
 ```
 
@@ -35,12 +35,12 @@ GET /config/board
 ### PUT - Update board configuration
 
 **Deprecated (returns `Deprecation: true` header):**
-```
+```http
 PUT /config/vestaboard
 ```
 
 **Canonical:**
-```
+```http
 PUT /config/board
 ```
 
@@ -62,19 +62,19 @@ The `/displays/{display_type}/raw` endpoint is deprecated. Use `/plugins/{plugin
 ### GET - Retrieve plugin/display data
 
 **Deprecated (returns `Deprecation: true` header):**
-```
+```http
 GET /displays/{display_type}/raw
 ```
 
 **Canonical:**
-```
+```http
 GET /plugins/{plugin_id}/data
 ```
 
 The `display_type` and `plugin_id` values are the same identifiers (e.g., `weather`, `datetime`, `stocks`).
 
 **Example - old endpoint:**
-```
+```http
 GET /displays/weather/raw
 ```
 ```json
@@ -87,7 +87,7 @@ GET /displays/weather/raw
 ```
 
 **Example - new endpoint:**
-```
+```http
 GET /plugins/weather/data
 ```
 ```json
@@ -108,7 +108,7 @@ GET /plugins/weather/data
 
 Deprecated endpoints include the following HTTP response headers:
 
-```
+```http
 Deprecation: true
 Link: </config/board>; rel="successor-version"
 ```
