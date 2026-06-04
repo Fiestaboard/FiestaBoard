@@ -22,7 +22,7 @@ The SF Muni plugin provides:
 
 ### 1. Get an API Key
 
-1. Go to [511.org/open-data/token](https://511.org/open-data/token)
+1. Go to [the 511.org Open Data token page](https://511.org/open-data/token)
 2. Register for a free API key
 
 ### 2. Enable in the Web UI

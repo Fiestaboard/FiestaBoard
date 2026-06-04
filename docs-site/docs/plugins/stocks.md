@@ -29,7 +29,7 @@ The Stock Prices plugin shows:
 6. Click **Save Changes**
 
 :::tip
-No API key is required for stock data. An optional Finnhub API key enables better symbol search -- get one free at [finnhub.io](https://finnhub.io/).
+No API key is required for stock data. An optional Finnhub API key enables better symbol search -- get one free at [Finnhub](https://finnhub.io/).
 :::
 
 ## Available Variables

@@ -26,7 +26,7 @@ The Sports Scores plugin works **without an API key** using free data from TheSp
 
 ### Enhanced Setup (Optional API Key)
 
-1. Sign up at [thesportsdb.com](https://www.thesportsdb.com/)
+1. Sign up at [TheSportsDB](https://www.thesportsdb.com/)
 2. Get a free API key
 3. In the Web UI, go to **Integrations** > **Sports Scores** and enter the key
 

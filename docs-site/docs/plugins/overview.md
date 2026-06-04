@@ -56,8 +56,8 @@ These plugins need a free API key from an external service:
 
 | Plugin | What It Shows | Where to Get the Key |
 |--------|--------------|---------------------|
-| **Weather** | Temperature, UV index, precipitation, high/low, sunset | [weatherapi.com](https://www.weatherapi.com/) (1M calls/month free) or [openweathermap.org](https://openweathermap.org/api) |
-| **Muni Transit** | Real-time SF Muni arrival predictions | [511.org](https://511.org/open-data/token) (free) |
+| **Weather** | Temperature, UV index, precipitation, high/low, sunset | [WeatherAPI](https://www.weatherapi.com/) (1M calls/month free) or [OpenWeatherMap](https://openweathermap.org/api) |
+| **Muni Transit** | Real-time SF Muni arrival predictions | [511.org Open Data token](https://511.org/open-data/token) (free) |
 | **WSDOT Ferries** | WA State ferry schedules, vessel names, car spots, and alerts | [wsdot.wa.gov/traffic/api](https://wsdot.wa.gov/traffic/api/) (free) |
 | **Last.fm Now Playing** | Currently playing music via Last.fm scrobbling | [last.fm/api](https://www.last.fm/api/account/create) (free) |
 
@@ -77,9 +77,9 @@ These plugins work without an API key but offer additional features with one:
 
 | Plugin | Without API Key | With API Key |
 |--------|----------------|-------------|
-| **Stocks** | Monitor stock prices with color-coded indicators | Better symbol search/autocomplete ([finnhub.io](https://finnhub.io/)) |
-| **Sports Scores** | NFL, Soccer, NHL, NBA match scores | Extended data ([thesportsdb.com](https://www.thesportsdb.com/)) |
-| **Nearby Aircraft** | Real-time aircraft info from OpenSky Network | Higher rate limits ([opensky-network.org](https://opensky-network.org/)) |
+| **Stocks** | Monitor stock prices with color-coded indicators | Better symbol search/autocomplete ([Finnhub](https://finnhub.io/)) |
+| **Sports Scores** | NFL, Soccer, NHL, NBA match scores | Extended data ([TheSportsDB](https://www.thesportsdb.com/)) |
+| **Nearby Aircraft** | Real-time aircraft info from OpenSky Network | Higher rate limits ([OpenSky Network](https://opensky-network.org/)) |
 
 ## Using Plugin Data in Pages
 

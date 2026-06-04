@@ -16,7 +16,7 @@ The install wizard asks for this during setup. If you need to find or change you
 
 Faster updates, supports transition animations, requires same-network access.
 
-1. Request a Local API enablement token at [vestaboard.com/local-api](https://www.vestaboard.com/local-api)
+1. Request a Local API enablement token at [the Vestaboard Local API token page](https://www.vestaboard.com/local-api)
 2. After approval, Vestaboard will email you an enablement token
 3. Use the enablement token to enable the Local API on your board — you can do this through FiestaBoard's **Settings** page (select the **Enablement Token** option) or via a `curl` command (see the [Vestaboard Local API docs](https://docs.vestaboard.com/docs/local-api/authentication))
 4. Save the API key returned in the response
@@ -27,7 +27,7 @@ Faster updates, supports transition animations, requires same-network access.
 
 Works from anywhere with internet. No transition animation support.
 
-1. Go to [web.vestaboard.com](https://web.vestaboard.com)
+1. Go to [your Vestaboard account](https://web.vestaboard.com)
 2. Log in with your board account
 3. Navigate to the API section
 4. Enable the **Read/Write API**
@@ -45,11 +45,11 @@ These are optional. Enter them in the **Integrations page** of the web UI as you
 
 | Plugin | Where to Get the Key | Free Tier |
 |--------|---------------------|-----------|
-| Weather | [weatherapi.com](https://www.weatherapi.com/) or [openweathermap.org](https://openweathermap.org/api) | 1M calls/month (WeatherAPI) |
+| Weather | [WeatherAPI](https://www.weatherapi.com/) or [OpenWeatherMap](https://openweathermap.org/api) | 1M calls/month (WeatherAPI) |
 | Traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | $200/month credit |
 | Home Assistant | Your HA instance → Profile → Long-Lived Access Tokens | Self-hosted |
 | Last.fm | [last.fm/api/account/create](https://www.last.fm/api/account/create) | Unlimited |
-| Muni Transit | [511.org/open-data/token](https://511.org/open-data/token) | Free |
+| Muni Transit | [511.org Open Data token](https://511.org/open-data/token) | Free |
 | WSDOT Ferries | [wsdot.wa.gov/traffic/api](https://wsdot.wa.gov/traffic/api/) | Free |
 | Air Quality | PurpleAir or OpenWeatherMap | Varies |
 
@@ -57,8 +57,8 @@ These are optional. Enter them in the **Integrations page** of the web UI as you
 
 | Plugin | API Key | What It Unlocks |
 |--------|---------|----------------|
-| Stocks | [finnhub.io](https://finnhub.io/) | Better symbol search/autocomplete |
-| Sports Scores | [thesportsdb.com](https://www.thesportsdb.com/) | Extended data |
+| Stocks | [Finnhub](https://finnhub.io/) | Better symbol search/autocomplete |
+| Sports Scores | [TheSportsDB](https://www.thesportsdb.com/) | Extended data |
 | Nearby Aircraft | [OpenSky Network](https://opensky-network.org/) | Higher rate limits |
 
 ### Plugins That Need No API Key

@@ -125,7 +125,7 @@ This is the most common issue. Work through this checklist:
 
 **Fix:**
 - Double-check your API key has no extra spaces or line breaks
-- For Cloud API: verify the key is still active at [web.vestaboard.com](https://web.vestaboard.com)
+- For Cloud API: verify the key is still active in [your Vestaboard account at web.vestaboard.com](https://web.vestaboard.com)
 - Try regenerating the key and entering the new one in Settings
 
 ### Board updates are slow or laggy
@@ -179,7 +179,7 @@ docker-compose restart
 1. Go to **Integrations** and check that the Weather plugin is enabled
 2. Click on the Weather plugin to check your API key is entered
 3. Verify you've entered a valid location
-4. Check if your API key is still active at [weatherapi.com](https://www.weatherapi.com/) or [openweathermap.org](https://openweathermap.org/)
+4. Check if your API key is still active at [WeatherAPI](https://www.weatherapi.com/) or [OpenWeatherMap](https://openweathermap.org/)
 
 ### Traffic plugin returns errors
 
