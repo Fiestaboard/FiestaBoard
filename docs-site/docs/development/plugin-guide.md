@@ -77,7 +77,7 @@ cp -r plugins/_template plugins/my_plugin
 
 This gives you the required directory structure:
 
-```
+```text
 plugins/my_plugin/
 ├── __init__.py          # Plugin class (PluginBase subclass)
 ├── manifest.json        # Plugin metadata and configuration schema
@@ -161,7 +161,7 @@ These fields are not enforced by the manifest validator but should be included i
 | `category` | string | `"utility"` | Grouping category. Valid values: `"art"`, `"data"`, `"transit"`, `"weather"`, `"entertainment"`, `"utility"`, `"home"`. |
 | `repository` | string | - | GitHub repository URL. |
 | `documentation` | string | `"README.md"` | Path to documentation file relative to plugin directory. |
-| `env_vars` | array | `[]` | Environment variables the plugin can read (see below). |
+| `env_vars` | array | `[]` | Environment variables the plugin can read (see [Environment Variables](#environment-variables)). |
 | `color_rules_schema` | object | `{}` | Schema for dynamic color rules. |
 
 ### Settings Schema
@@ -492,7 +492,7 @@ class DateTimePlugin(PluginBase):
 
 ### Test Structure
 
-```
+```text
 plugins/my_plugin/tests/
 ├── __init__.py       # Required (can be empty)
 ├── conftest.py       # Shared test fixtures
@@ -867,7 +867,7 @@ You can also develop a plugin as a standalone git repository instead of adding i
 
 Your external plugin repository should have the same structure as a built-in plugin, but at the repository root:
 
-```
+```text
 fiestaboard-plugin--my-weather/
 ├── __init__.py          # Plugin class (PluginBase subclass)
 ├── manifest.json        # Plugin metadata and configuration schema
@@ -882,7 +882,7 @@ fiestaboard-plugin--my-weather/
 
 If you want your plugin listed in the official **plugin registry**, your repository **must** follow this naming convention:
 
-```
+```text
 fiestaboard-plugin--{name}
 ```
 

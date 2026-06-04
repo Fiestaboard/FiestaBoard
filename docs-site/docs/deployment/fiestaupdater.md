@@ -31,7 +31,7 @@ with a `socat`-driven HTTP listener and a single shell handler script.
 
 ## Architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────────┐
 │                    Docker host                        │
 │                                                       │
@@ -68,7 +68,7 @@ Key properties:
 | **Docker / manual** | Off by default; opt in via `COMPOSE_PROFILES` | Off — banner shown, user clicks Update Now |
 
 On FiestaPi the `FIESTAUPDATER_TOKEN` is generated automatically on first boot
-by `firstboot.sh`. On Docker installs you generate it yourself (see below).
+by `firstboot.sh`. On Docker installs you generate it yourself (see [Enabling on an existing Docker install](#enabling-on-an-existing-docker-install)).
 
 ## Docker Compose configuration
 

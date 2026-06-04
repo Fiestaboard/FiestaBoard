@@ -26,12 +26,12 @@ The Weather plugin provides real-time weather data for your location, including:
 ### 1. Get an API Key
 
 **WeatherAPI.com (Recommended):**
-1. Sign up at [weatherapi.com](https://www.weatherapi.com/)
+1. Sign up at [WeatherAPI](https://www.weatherapi.com/)
 2. Free tier: 1 million calls/month
 3. No credit card required
 
 **OpenWeatherMap (Alternative):**
-1. Sign up at [openweathermap.org](https://openweathermap.org/api)
+1. Sign up at [OpenWeatherMap](https://openweathermap.org/api)
 2. Free tier: 1,000 calls/day
 
 ### 2. Enable and Configure in the Web UI
@@ -86,7 +86,7 @@ The board uses special characters for weather conditions:
 
 ## Example Page Layout
 
-```
+```text
 ┌──────────────────────┐
 │  SAN FRANCISCO  72*F │
 │  SUNNY     H78  L58  │

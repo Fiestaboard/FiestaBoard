@@ -15,7 +15,7 @@ Never used Docker or the command line before? No problem. This guide walks throu
 - A split-flap display that's already set up and working with the board's app
 - Your board's API key (Step 2 below shows you where to find it)
 - An internet connection
-- **Either** a Raspberry Pi + microSD card (the easiest path — see below), **or** a computer (Mac, Windows, or Linux) where we'll install Docker
+- **Either** a Raspberry Pi + microSD card (see [The Easiest Path: Flash a Raspberry Pi](#the-easiest-path-flash-a-raspberry-pi)), **or** a computer (Mac, Windows, or Linux) where we'll install Docker
 
 ## The Easiest Path: Flash a Raspberry Pi
 
@@ -28,7 +28,7 @@ The simplest, most reliable way to run FiestaBoard — even if you've never touc
 If you have (or are willing to buy) a Raspberry Pi, this is by far the easiest route. Here's the whole process:
 
 1. **Get a Raspberry Pi** (3B or newer — the Pi 4, Pi 5, and the inexpensive [Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) all work), plus a microSD card (8 GB minimum, 16 GB+ recommended) and a 5 V power supply.
-2. **Download Raspberry Pi Imager** — a free, official tool from the Raspberry Pi Foundation that flashes images to SD cards. Available for Mac, Windows, and Linux at [raspberrypi.com/software](https://www.raspberrypi.com/software/).
+2. **Download Raspberry Pi Imager** — a free, official tool from the Raspberry Pi Foundation that flashes images to SD cards. Available for Mac, Windows, and Linux on [the Raspberry Pi Imager downloads page](https://www.raspberrypi.com/software/).
 3. **Download the FiestaPi image** from our [GitHub Releases page](https://github.com/Fiestaboard/FiestaBoard/releases/latest) — grab the file named `FiestaPi-<version>-arm64.img.xz`.
 4. **Flash the SD card** with Raspberry Pi Imager:
    - Choose Device → your Pi model
@@ -37,7 +37,7 @@ If you have (or are willing to buy) a Raspberry Pi, this is by far the easiest r
    - Click **Next** and use **Edit Settings** to pre-configure your Wi-Fi network and timezone
    - Click **Write** and wait ~5 minutes
 5. **Insert the SD card into the Pi, plug it in**, and wait 2–3 minutes for first boot.
-6. **Open a browser** on any device on the same network and go to **[http://fiestapi.local:4420](http://fiestapi.local:4420)** — you'll see the FiestaBoard setup wizard.
+6. **Open a browser** on any device on the same network and go to **[the FiestaBoard setup wizard](http://fiestapi.local:4420)** at `http://fiestapi.local:4420`.
 7. **Skip ahead to Step 2** below to grab your board's API key, then enter it in the wizard. You're done.
 
 That's the whole thing. No Docker. No Terminal. No PowerShell. The Pi runs FiestaBoard 24/7 and updates itself with one click in **Settings → System** when new versions release.
@@ -94,7 +94,7 @@ Your board API key is what lets FiestaBoard talk to your display. You can use ei
 
 This is faster and supports transition animations. Your board and computer need to be on the same WiFi network.
 
-1. Go to [vestaboard.com/local-api](https://www.vestaboard.com/local-api) and request a Local API enablement token
+1. Go to [the Vestaboard Local API token page](https://www.vestaboard.com/local-api) and request a Local API enablement token
 2. After approval, Vestaboard will email you the token
 3. Use the token to enable the Local API on your board — FiestaBoard's setup wizard and **Settings** page can do this for you (select the **Enablement Token** option and enter the token), or see the [Vestaboard Local API docs](https://docs.vestaboard.com/docs/local-api/authentication) for how to do it via `curl`
 4. Save the **API key** returned in the response, and note your board's **IP address** (you can find it on your router or use FiestaBoard's network scan)
@@ -103,7 +103,7 @@ This is faster and supports transition animations. Your board and computer need 
 
 Use this if your board and computer are on different networks, or if Local API isn't available for your board.
 
-1. Go to [web.vestaboard.com](https://web.vestaboard.com) and log in
+1. Go to [your Vestaboard account at web.vestaboard.com](https://web.vestaboard.com) and log in
 2. Navigate to the API section
 3. Enable the **Read/Write API**
 4. Copy the API key and save it somewhere safe
@@ -166,7 +166,7 @@ The wizard will:
 
 ### Path C: Download ZIP (No Git, No curl)
 
-1. Go to [github.com/Fiestaboard/FiestaBoard](https://github.com/Fiestaboard/FiestaBoard)
+1. Go to [the FiestaBoard repository on GitHub](https://github.com/Fiestaboard/FiestaBoard)
 2. Click the green **Code** button
 3. Click **Download ZIP**
 4. Extract the ZIP file to a folder you'll remember (like Documents)

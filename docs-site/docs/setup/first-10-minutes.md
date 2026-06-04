@@ -74,7 +74,7 @@ Click any variable to insert it into your page at the cursor position. When the 
 
 Here's a page layout you could create using Date & Time and Star Trek Quotes:
 
-```
+```text
   GOOD MORNING
   {date_time.date}
   {date_time.time}

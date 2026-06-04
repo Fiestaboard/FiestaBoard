@@ -121,7 +121,7 @@ If the same plugin ID exists in both directories, the built-in version is used.
 
 Plugins submitted to the official FiestaBoard plugin registry must follow this repository naming convention:
 
-```
+```text
 fiestaboard-plugin--{name}
 ```
 

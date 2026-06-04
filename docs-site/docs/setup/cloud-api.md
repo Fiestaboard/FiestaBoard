@@ -29,7 +29,7 @@ By default, FiestaBoard communicates with your board over the local network (Loc
 
 ### Step 1: Get Your Cloud API Key
 
-1. Go to [web.vestaboard.com](https://web.vestaboard.com)
+1. Go to [your Vestaboard account](https://web.vestaboard.com)
 2. Log in to your account
 3. Navigate to the API section
 4. Enable the **Read/Write API**
@@ -69,7 +69,7 @@ The Cloud API has a rate limit of **1 message per 15 seconds**. If you see rate 
 ### 401 Unauthorized
 
 - Double-check your Read/Write API key in Settings
-- Make sure the key is still active at [web.vestaboard.com](https://web.vestaboard.com)
+- Make sure the key is still active in [your Vestaboard account](https://web.vestaboard.com)
 - Verify there are no extra spaces or line breaks in the key
 
 ### Rate Limit Errors

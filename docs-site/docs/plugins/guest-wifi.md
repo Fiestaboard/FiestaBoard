@@ -35,7 +35,7 @@ The Guest WiFi plugin provides a simple way to share WiFi credentials:
 
 ## Example Page Layout
 
-```
+```text
 ┌──────────────────────┐
 │                      │
 │  WIFI NETWORK        │

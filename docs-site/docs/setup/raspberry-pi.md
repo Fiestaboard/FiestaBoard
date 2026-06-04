@@ -96,7 +96,7 @@ That's it. FiestaBoard starts automatically.
 
 On any device on the same network, open:
 
-**→ [http://fiestapi.local:4420](http://fiestapi.local:4420)**
+**→ [Open FiestaBoard at fiestapi.local:4420](http://fiestapi.local:4420)**
 
 You'll see the FiestaBoard setup wizard. Enter your board API key, choose your board type, and you're running.
 

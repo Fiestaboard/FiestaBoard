@@ -28,7 +28,7 @@ The Nearby Aircraft plugin shows:
 5. Click **Save Changes**
 
 :::tip
-No API key is required for basic usage. An optional OpenSky Network account increases rate limits -- register free at [opensky-network.org](https://opensky-network.org/).
+No API key is required for basic usage. An optional OpenSky Network account increases rate limits -- register free at [the OpenSky Network](https://opensky-network.org/).
 :::
 
 ## Available Variables
