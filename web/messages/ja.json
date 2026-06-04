@@ -49,7 +49,8 @@
     "savingIndicator": "保存中...",
     "pageCount": "{count, plural, one {# ページ} other {# ページ}}",
     "unknownError": "不明なエラー",
-    "opensInNewTab": "(新しいタブで開きます)"
+    "opensInNewTab": "(新しいタブで開きます)",
+    "notificationsRegionLabel": "通知"
   },
   "metadata": {
     "appTitle": "FiestaBoard コントロール",

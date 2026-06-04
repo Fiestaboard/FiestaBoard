@@ -49,7 +49,8 @@
     "savingIndicator": "Saving...",
     "pageCount": "{count, plural, one {# page} other {# pages}}",
     "unknownError": "Unknown error",
-    "opensInNewTab": "(opens in new tab)"
+    "opensInNewTab": "(opens in new tab)",
+    "notificationsRegionLabel": "Notifications"
   },
   "metadata": {
     "appTitle": "FiestaBoard Control",
