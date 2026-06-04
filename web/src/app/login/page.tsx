@@ -11,11 +11,17 @@
  * Talks to the API directly with credentials:"include" because lib/api.ts's
  * fetchApi swallows the FastAPI `detail` body (see api.ts comment), and we
  * want to surface "wrong password" / "account locked" cleanly.
+ *
+ * Accessibility:
+ *   All visible strings route through next-intl's `login.*` namespace so
+ *   screen readers don't read English under a non-English `<html lang>`
+ *   (WCAG 3.1.1 Language of Page, 3.1.2 Language of Parts).
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion, Loader2 } from "lucide-react";
 import type { AuthStatusResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -72,6 +78,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
+  const t = useTranslations("login");
 
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -135,26 +142,23 @@ export default function LoginPage() {
           return;
         }
         if (res.status === 429) {
-          setFormError(
-            res.detail ||
-              "Too many failed login attempts. Please wait a minute and try again.",
-          );
+          setFormError(res.detail || t("tooManyAttempts"));
         } else if (res.status === 401) {
-          setFormError(res.detail || "Invalid username or password.");
+          setFormError(res.detail || t("invalidCredentials"));
         } else if (res.status === 409) {
           // User store is empty — drop into setup mode.
           setStatus((s) => (s ? { ...s, setup_required: true } : s));
           setFormError(null);
         } else {
-          setFormError(res.detail || `Sign-in failed (${res.status}).`);
+          setFormError(res.detail || t("signInFailedStatus", { status: res.status }));
         }
       } catch {
-        setFormError("Network error. Please try again.");
+        setFormError(t("networkError"));
       } finally {
         setSubmitting(false);
       }
     },
-    [username, password, rememberMe, router, redirectTo],
+    [username, password, rememberMe, router, redirectTo, t],
   );
 
   const handleSetup = useCallback(
@@ -162,11 +166,11 @@ export default function LoginPage() {
       e.preventDefault();
       setFormError(null);
       if (password.length < 8) {
-        setFormError("Password must be at least 8 characters long.");
+        setFormError(t("passwordTooShort"));
         return;
       }
       if (password !== confirmPassword) {
-        setFormError("Passwords do not match.");
+        setFormError(t("passwordsDontMatch"));
         return;
       }
       setSubmitting(true);
@@ -177,21 +181,18 @@ export default function LoginPage() {
           return;
         }
         if (res.status === 409) {
-          setFormError(
-            res.detail ||
-              "An administrator account already exists. Please sign in instead.",
-          );
+          setFormError(res.detail || t("adminExists"));
           setStatus((s) => (s ? { ...s, setup_required: false } : s));
         } else {
-          setFormError(res.detail || `Setup failed (${res.status}).`);
+          setFormError(res.detail || t("setupFailedStatus", { status: res.status }));
         }
       } catch {
-        setFormError("Network error. Please try again.");
+        setFormError(t("networkError"));
       } finally {
         setSubmitting(false);
       }
     },
-    [username, password, confirmPassword, router, redirectTo],
+    [username, password, confirmPassword, router, redirectTo, t],
   );
 
   const handleSkipAuth = useCallback(async () => {
@@ -203,15 +204,13 @@ export default function LoginPage() {
         router.replace(redirectTo);
         return;
       }
-      setFormError(
-        res.detail || `Could not disable authentication (${res.status}).`,
-      );
+      setFormError(res.detail || t("couldNotDisableAuth", { status: res.status }));
     } catch {
-      setFormError("Network error. Please try again.");
+      setFormError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
-  }, [router, redirectTo]);
+  }, [router, redirectTo, t]);
 
   // --- Render states --------------------------------------------------------
 
@@ -219,7 +218,7 @@ export default function LoginPage() {
     return (
       <CenteredCard
         icon={<ShieldAlert className="h-6 w-6 text-destructive" />}
-        title="Couldn't reach the API"
+        title={t("apiUnreachableTitle")}
       >
         <Alert variant="destructive">
           <AlertDescription>{statusError}</AlertDescription>
@@ -232,11 +231,9 @@ export default function LoginPage() {
     return (
       <CenteredCard
         icon={<Loader2 className="h-6 w-6 animate-spin" />}
-        title="Loading…"
+        title={t("loadingTitle")}
       >
-        <p className="text-sm text-muted-foreground">
-          Checking authentication status…
-        </p>
+        <p className="text-sm text-muted-foreground">{t("loadingDescription")}</p>
       </CenteredCard>
     );
   }
@@ -246,9 +243,9 @@ export default function LoginPage() {
     return (
       <CenteredCard
         icon={<Loader2 className="h-6 w-6 animate-spin" />}
-        title="Redirecting…"
+        title={t("redirectingTitle")}
       >
-        <p className="text-sm text-muted-foreground">One moment…</p>
+        <p className="text-sm text-muted-foreground">{t("redirectingDescription")}</p>
       </CenteredCard>
     );
   }
@@ -259,8 +256,8 @@ export default function LoginPage() {
     return (
       <CenteredCard
         icon={<ShieldQuestion className="h-6 w-6 text-brand" />}
-        title="Protect this FiestaBoard?"
-        description="A username and password keep your API keys, board configuration, and other settings from being read or changed by anyone else who can reach this device on your network."
+        title={t("protectTitle")}
+        description={t("protectDescription")}
       >
         <div className="space-y-3">
           <Button
@@ -270,7 +267,7 @@ export default function LoginPage() {
             onClick={() => setFirstRunChoice("enable")}
             disabled={submitting}
           >
-            <ShieldCheck className="h-4 w-4" /> Set up a username & password (recommended)
+            <ShieldCheck className="h-4 w-4" /> {t("protectEnableButton")}
           </Button>
           <Button
             type="button"
@@ -281,10 +278,10 @@ export default function LoginPage() {
           >
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Disabling…
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("disablingButton")}
               </>
             ) : (
-              "Skip — anyone on my network can access this"
+              t("protectSkipButton")
             )}
           </Button>
           {formError && (
@@ -292,13 +289,7 @@ export default function LoginPage() {
               <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}
-          <p className="text-xs text-muted-foreground">
-            Strongly recommended if you share Wi-Fi with people you don&apos;t
-            fully trust (roommates, guests, smart-home devices), or if this
-            FiestaBoard is reachable from the internet. Your board keeps
-            displaying as normal either way — this only controls who can sign
-            in to change settings.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("protectFootnote")}</p>
         </div>
       </CenteredCard>
     );
@@ -308,12 +299,12 @@ export default function LoginPage() {
     return (
       <CenteredCard
         icon={<ShieldCheck className="h-6 w-6 text-brand" />}
-        title="Create administrator"
-        description="No accounts exist yet. Set a username and password to lock down this FiestaBoard."
+        title={t("setupTitle")}
+        description={t("setupDescription")}
       >
         <form className="space-y-4" onSubmit={handleSetup}>
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">{t("usernameLabel")}</Label>
             <Input
               id="username"
               name="username"
@@ -326,7 +317,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("passwordLabel")}</Label>
             <Input
               id="password"
               name="password"
@@ -338,12 +329,10 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={submitting}
             />
-            <p className="text-xs text-muted-foreground">
-              At least 8 characters.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("passwordMinHint")}</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm password</Label>
+            <Label htmlFor="confirm-password">{t("confirmPasswordLabel")}</Label>
             <Input
               id="confirm-password"
               name="confirm-password"
@@ -369,10 +358,10 @@ export default function LoginPage() {
           >
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("creatingButton")}
               </>
             ) : (
-              "Create account"
+              t("createButton")
             )}
           </Button>
         </form>
@@ -383,12 +372,12 @@ export default function LoginPage() {
   return (
     <CenteredCard
       icon={<Lock className="h-6 w-6 text-brand" />}
-      title="Sign in to FiestaBoard"
-      description="Enter your administrator credentials to continue."
+      title={t("signInTitle")}
+      description={t("signInDescription")}
     >
       <form className="space-y-4" onSubmit={handleLogin}>
         <div className="space-y-2">
-          <Label htmlFor="username">Username</Label>
+          <Label htmlFor="username">{t("usernameLabel")}</Label>
           <Input
             id="username"
             name="username"
@@ -401,7 +390,7 @@ export default function LoginPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t("passwordLabel")}</Label>
           <Input
             id="password"
             name="password"
@@ -422,7 +411,7 @@ export default function LoginPage() {
             disabled={submitting}
           />
           <Label htmlFor="remember-me" className="cursor-pointer">
-            Keep me logged in
+            {t("rememberMeLabel")}
           </Label>
         </div>
         {formError && (
@@ -438,10 +427,10 @@ export default function LoginPage() {
         >
           {submitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Signing in…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("submittingButton")}
             </>
           ) : (
-            "Sign in"
+            t("submitButton")
           )}
         </Button>
       </form>
@@ -462,6 +451,7 @@ function CenteredCard({
   description?: string;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("login");
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="mb-6 flex items-center gap-3">
@@ -484,16 +474,18 @@ function CenteredCard({
         </CardHeader>
         <CardContent>{children}</CardContent>
         <CardFooter className="text-xs text-muted-foreground">
-          You can change this later — see the{" "}
-          <a
-            href="https://fiestaboard.app/docs/setup/authentication"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-foreground"
-          >
-            authentication docs
-          </a>
-          .
+          {t.rich("changeLater", {
+            link: (chunks) => (
+              <a
+                href="https://fiestaboard.app/docs/setup/authentication"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground"
+              >
+                {chunks}
+              </a>
+            ),
+          })}
         </CardFooter>
       </Card>
     </div>
