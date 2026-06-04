@@ -51,7 +51,7 @@ class MyPlugin(PluginBase):
 
 Every key in your `data` dictionary becomes a variable:
 
-```
+```jinja
 {{my_plugin.score}}
 {{my_plugin.status}}
 {{my_plugin.label}}
@@ -218,7 +218,7 @@ When a plugin has many variables, groups help users find what they need:
 
 In the editor, variables render under their group headings:
 
-```
+```text
 ▼ Weather
   Current Conditions
     [temperature] [humidity] [condition]
@@ -250,7 +250,7 @@ For plugins that expose lists of items (transit stops, stock tickers, locations)
 
 In templates, arrays are accessed by index:
 
-```
+```jinja
 {{my_plugin.locations.0.name}}: {{my_plugin.locations.0.temperature}}°F
 {{my_plugin.locations.1.name}}: {{my_plugin.locations.1.temperature}}°F
 ```
@@ -279,7 +279,7 @@ For deeply nested data (e.g., transit stops with multiple lines):
 
 Template usage:
 
-```
+```jinja
 {{my_plugin.stops.0.lines.N.next_arrival}}
 {{my_plugin.stops.0.lines.KT.is_delayed}}
 ```
@@ -321,7 +321,7 @@ If you want only your declared variables to appear (hiding any extra data keys):
 
 ## Plugin Structure
 
-```
+```text
 plugins/my_plugin/
 ├── __init__.py           # Required: Plugin implementation
 ├── manifest.json         # Required: Plugin metadata + screenshots
@@ -567,7 +567,7 @@ class PluginResult:
 
 ### Test Directory Structure
 
-```
+```text
 plugins/my_plugin/tests/
 ├── __init__.py       # Required (can be empty)
 ├── conftest.py       # Test fixtures
