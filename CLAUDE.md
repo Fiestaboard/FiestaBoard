@@ -30,8 +30,8 @@ This project uses a **unified single container** for all environments (productio
 - **Starting the dev container**: Use `/start` command or `docker-compose -f docker-compose.dev.yml up`
 - **Stopping**: Use `/stop` command or `docker-compose -f docker-compose.dev.yml down`
 - **Restarting**: Use `/restart` command (stops, rebuilds with --no-cache, restarts)
-- **Building**: Use `/build` command to rebuild images without restarting
-- **Running tests**: Use `/test-api` or `/test-web` commands to run tests inside the Docker container
+- **Building**: `docker-compose -f docker-compose.dev.yml build` to rebuild images without restarting
+- **Running tests**: `docker-compose -f docker-compose.dev.yml exec fiestaboard pytest` (API) or `docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"` (web)
 - **Debugging**: Use `docker-compose logs -f` or `docker-compose exec` for interactive debugging
 - **Checking status**: Use `docker-compose ps` to see container status
 - **Code changes**: Edit code on host machine; Python changes auto-reload via volume mounts. UI changes require a container rebuild.
@@ -54,25 +54,17 @@ The only code that may run locally:
 
 ### Available Commands
 
-- `/setup` - Check and install prerequisites (Homebrew, Docker) and configure environment
 - `/start` - Start the dev container
 - `/stop` - Stop the dev container
 - `/restart` - Stop, rebuild with --no-cache, and restart the container
-- `/redeploy` - Full rebuild with --no-cache and restart (alias for restart)
-- `/redeploy-quick` - Quick rebuild (with cache) and restart
-- `/build` - Rebuild Docker image without restarting
-- `/status` - Show status of the Docker container
-- `/logs` - View Docker container logs
-- `/test-api` - Run API tests in Docker
-- `/test-web` - Run web tests in Docker
+- `/qa-a11y` - Audit the running web UI for WCAG 2.2 AA accessibility issues
+- `/qa-a11y-docs` - Audit markdown docs for accessibility issues
+- `/fix-a11y` - Fix accessibility findings on a feature branch and open a PR
 
 ### When Suggesting Commands
 
 Always suggest Docker-based commands:
-- ✅ Use `/start` and `/stop` commands to control the container
-- ✅ Use `/restart` command for full redeployment with clean rebuild
-- ✅ Use `/build` command to rebuild the image
-- ✅ Use `/test-api` or `/test-web` commands for testing
+- ✅ Use `/start`, `/stop`, `/restart` to control the container
 - ✅ `docker-compose -f docker-compose.dev.yml up`
 - ✅ `docker-compose -f docker-compose.dev.yml exec fiestaboard pytest`
 - ✅ `docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"`

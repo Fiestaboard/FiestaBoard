@@ -1,30 +1,14 @@
 {
   "permissions": {
     "allow": [
+      "Bash(docker-compose -f docker-compose.dev.yml config --services)",
       "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard which python pytest)",
       "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard python -m pytest --version)",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard ls /opt/venv/bin)",
-      "Bash(docker-compose -f docker-compose.dev.yml config --services)",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'find / -name pytest -type f 2>/dev/null | head -5')",
-      "Bash(cat /Users/jeffrey/.claude/commands/test-api.md 2>/dev/null; echo ---; find /Users/jeffrey/workspace/FiestaBoard -maxdepth 3 -name 'test-api*' -o -name '*test-api*' 2>/dev/null | head -5)",
-      "Read(//Users/jeffrey/.claude/commands/**)",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'pip list 2>&1 | grep -i pytest')",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'echo $PATH; ls /usr/local/bin/ | grep -i pytest')",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pip install pytest pytest-asyncio pytest-cov)",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pytest tests/test_templates_extended.py::TestRenderLinesWrapRegion tests/test_templates_extended.py::TestRenderLinesWrap -v)",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pytest tests/test_templates.py tests/test_templates_extended.py tests/test_template_expressions.py tests/test_pages.py)",
       "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pytest --tb=no -q)",
       "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pytest tests/ --tb=short -q)",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pytest tests/test_silence_mode_display.py::TestSilenceModeDispatch::test_page_mode_renders_configured_page -v)",
-      "Bash(git stash *)",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pytest tests/test_silence_mode_display.py -q)",
+      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard pip install pytest pytest-asyncio pytest-cov)",
       "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'cd /app/web && npx tsc --noEmit 2>&1 | head -40')",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'cd /app/web && npx tsc --noEmit 2>&1 | grep -E \"page-builder|TipTap|Toolbar\" | head -20')",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'cd /app/web && npx tsc --noEmit 2>&1 | grep -E \"page-builder\\\\.tsx|TipTapTemplateEditor\\\\.tsx|TemplateEditorToolbar\\\\.tsx\" | wc -l')",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'cd /app/web && ls package.json && grep -E \"\\\\\"test\\\\\":|\\\\\"vitest\\\\\":\" package.json | head -5')",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'cd /app/web && ls src/__tests__ 2>&1 | grep -i \"page-builder\\\\|template\" | head -10')",
-      "Bash(docker-compose -f docker-compose.dev.yml exec -T fiestaboard sh -c 'cd /app/web && npx vitest run src/__tests__/page-builder.test.tsx 2>&1 | tail -30')",
-      "Bash(curl -fsS -X POST http://localhost:4420/api/templates/render -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(git stash *)",
       "Bash(python3 -m json.tool)",
       "mcp__playwright__browser_navigate"
     ]
