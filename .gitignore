@@ -100,3 +100,8 @@ docs-site/.cache-loader/
 
 # Playwright MCP session artifacts
 /.playwright-mcp/
+
+# Claude Code per-user settings (auto-collected allowed tools, personal MCP perms).
+# Team-shared config lives in .claude/settings.json; this file is for individual
+# overrides that should never be committed.
+.claude/settings.local.json
