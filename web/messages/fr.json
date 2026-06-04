@@ -49,7 +49,8 @@
     "savingIndicator": "Enregistrement...",
     "pageCount": "{count, plural, one {# page} other {# pages}}",
     "unknownError": "Erreur inconnue",
-    "opensInNewTab": "(ouvre dans un nouvel onglet)"
+    "opensInNewTab": "(ouvre dans un nouvel onglet)",
+    "notificationsRegionLabel": "Notifications"
   },
   "metadata": {
     "appTitle": "Panneau FiestaBoard",

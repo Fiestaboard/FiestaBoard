@@ -49,7 +49,8 @@
     "savingIndicator": "Opslaan...",
     "pageCount": "{count, plural, one {# pagina} other {# pagina's}}",
     "unknownError": "Onbekende fout",
-    "opensInNewTab": "(opent in een nieuw tabblad)"
+    "opensInNewTab": "(opent in een nieuw tabblad)",
+    "notificationsRegionLabel": "Meldingen"
   },
   "metadata": {
     "appTitle": "FiestaBoard-bediening",

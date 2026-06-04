@@ -49,7 +49,8 @@
     "savingIndicator": "Salvando...",
     "pageCount": "{count, plural, one {# página} other {# páginas}}",
     "unknownError": "Erro desconhecido",
-    "opensInNewTab": "(abre numa nova aba)"
+    "opensInNewTab": "(abre numa nova aba)",
+    "notificationsRegionLabel": "Notificações"
   },
   "metadata": {
     "appTitle": "Painel FiestaBoard",

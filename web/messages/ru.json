@@ -49,7 +49,8 @@
     "savingIndicator": "Сохранение...",
     "pageCount": "{count, plural, one {# страница} few {# страницы} many {# страниц} other {# страниц}}",
     "unknownError": "Неизвестная ошибка",
-    "opensInNewTab": "(откроется в новой вкладке)"
+    "opensInNewTab": "(откроется в новой вкладке)",
+    "notificationsRegionLabel": "Уведомления"
   },
   "metadata": {
     "appTitle": "Управление FiestaBoard",
