@@ -24,7 +24,7 @@ The development environment uses the **same single-container layout** as product
 
 ## Project Structure
 
-```
+```text
 FiestaBoard/
 ├── plugins/                    # Plugin-based data sources
 │   ├── _template/              # Template for new plugins

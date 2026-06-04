@@ -18,7 +18,7 @@ FiestaBoard uses [MQTT Discovery](https://www.home-assistant.io/integrations/mqt
 
 The result: a **FiestaBoard device** appears in HA with switches, selects, sensors, and buttons you can use in automations and dashboards.
 
-```
+```text
 FiestaBoard ──────── MQTT broker ──────── Home Assistant
   (publishes state)   (Mosquitto)           (reads state,
   (reads commands)                           sends commands)

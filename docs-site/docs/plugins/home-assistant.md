@@ -61,7 +61,7 @@ The plugin uses colors to indicate state:
 
 ## Example Display
 
-```
+```text
 ┌──────────────────────┐
 │   HOME STATUS        │
 │  FRONT DOOR   CLOSED │

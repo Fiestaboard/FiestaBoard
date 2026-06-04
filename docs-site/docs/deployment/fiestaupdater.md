@@ -31,7 +31,7 @@ with a `socat`-driven HTTP listener and a single shell handler script.
 
 ## Architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────────┐
 │                    Docker host                        │
 │                                                       │

@@ -24,7 +24,7 @@ FiestaBoard runs in a single unified container:
 |-----------|---------|------|-------------|
 | `fiestaboard` | Nginx + FastAPI + Next.js | 4420 | Web UI, REST API, display service, plugin system |
 
-```
+```text
 ┌──────────────────────────────────────────────┐
 │                   Browser                     │
 │              http://localhost:4420             │

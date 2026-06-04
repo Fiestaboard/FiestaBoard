@@ -47,7 +47,7 @@ The Sports Scores plugin works **without an API key** using free data from TheSp
 
 ## Example Display
 
-```
+```text
 ┌──────────────────────┐
 │  SPORTS SCORES       │
 │  NFL  CHIEFS 27      │

@@ -10,7 +10,7 @@ FiestaBoard provides a REST API powered by FastAPI. Interactive API documentatio
 
 ## Base URL
 
-```
+```text
 http://localhost:4420
 ```
 
@@ -167,7 +167,7 @@ curl -X POST http://localhost:4420/api/pages/1/preview
 
 For a complete interactive API explorer with request/response schemas, visit:
 
-```
+```text
 http://localhost:4420/api/docs
 ```
 
