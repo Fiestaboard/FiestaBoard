@@ -6,7 +6,7 @@ schedule>=1.2.2
 defusedxml>=0.7.1
 
 # Symmetric encryption for secrets at rest (see src/security/secrets.py)
-cryptography>=46.0.5
+cryptography>=48.0.0
 
 # API Server dependencies
 fastapi>=0.125.0
@@ -15,7 +15,7 @@ pydantic>=2.10.0
 httpx>=0.28.1
 
 # Stock market data
-yfinance>=1.4.0
+yfinance>=1.4.1
 finnhub-python>=2.4.28
 
 # Sun position calculations
@@ -38,7 +38,7 @@ recurring-ical-events>=3.8.2
 pytz>=2026.2
 
 # MCP (Model Context Protocol) server — exposes FiestaBoard as an MCP tool server
-mcp>=1.27.1
+mcp>=1.27.2
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
