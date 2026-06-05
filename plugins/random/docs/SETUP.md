@@ -23,16 +23,18 @@ The Random plugin needs no API key or external service — it generates all valu
 |----------|-------------|---------|
 | `{{random.choice}}` | Random pick from your configured choices | `Pizza` |
 | `{{random.coin_flip}}` | Heads or Tails | `Tails` |
-| `{{random.color}}` | Random color name (for color tiles) | `blue` |
+| `{{random.color}}` | Random board color as a rendered color tile (a solid colored square) | _(colored square)_ |
+| `{{random.color_name}}` | Random board color as text — `red`, `orange`, `yellow`, `green`, `blue`, or `violet` | `green` |
 
 ## Configuration Reference
 
 ### Settings
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `choices` | `["Heads", "Tails"]` | List of 2–10 strings to pick from for `random.choice` |
-| `refresh_seconds` | `60` | Seconds between re-rolls (minimum: 60, maximum: 86400) |
+| Setting | Type | Required | Default | Description |
+|---------|------|----------|---------|-------------|
+| `enabled` | boolean | No | `true` | Enable or disable the plugin |
+| `choices` | array of strings | No | `["Heads", "Tails"]` | List of 2–10 strings to pick from for `{{random.choice}}` |
+| `refresh_seconds` | integer | No | `60` | Seconds between re-rolls (minimum: 60, maximum: 86400) |
 
 ### Environment Variables
 
