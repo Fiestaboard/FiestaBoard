@@ -1,0 +1,4046 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-04T05:30:53Z",
+  "scope": "all",
+  "nodes": [
+    {
+      "id": "pages.list.loading",
+      "route": "/pages",
+      "preconditions": [
+        "pages-query:in-flight"
+      ],
+      "description": "Initial route-level loading state shown by Next.js loading.tsx. Header is rendered with skeleton toolbar and a 6-tile skeleton grid (aspect 9:16) while the page bundle and pages query resolve.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.list.empty",
+        "pages.list.grid-view",
+        "pages.list.list-view"
+      ],
+      "source_refs": [
+        "web/src/app/pages/loading.tsx",
+        "web/src/components/page-layout.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.list.grid-loading",
+      "route": "/pages",
+      "preconditions": [
+        "pages:fetching"
+      ],
+      "description": "PageGridSelector's own loading state (after the route resolves but the pages list is still loading). Shows aria-busy=true with 4 skeleton tile placeholders in grid mode.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.list.grid-view",
+        "pages.list.empty"
+      ],
+      "source_refs": [
+        "web/src/components/page-grid-selector.tsx"
+      ]
+    },
+    {
+      "id": "pages.list.list-loading",
+      "route": "/pages",
+      "preconditions": [
+        "pages:fetching",
+        "viewMode:list"
+      ],
+      "description": "PageGridSelector loading state in list view mode. Renders 4 stacked skeleton rows of height 14 while pages query resolves.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.list.list-view",
+        "pages.list.empty"
+      ],
+      "source_refs": [
+        "web/src/components/page-grid-selector.tsx"
+      ]
+    },
+    {
+      "id": "pages.list.empty",
+      "route": "/pages",
+      "preconditions": [
+        "pages:none"
+      ],
+      "description": "Empty state when no pages exist for the active device filter. Shows an SVG illustration, 'No pages created yet.' title, description, and a brand 'Create First Page' button linking to /pages/new (with ?device=... when filtered).",
+      "interactions": [
+        "click:create-first-page",
+        "click:new-page-toolbar",
+        "click:import-page-toolbar"
+      ],
+      "transitions_to": [
+        "pages.new.flagship",
+        "pages.new.note",
+        "pages.import-dialog.open"
+      ],
+      "source_refs": [
+        "web/src/components/page-grid-selector.tsx",
+        "web/src/components/ui/empty-state.tsx",
+        "web/src/app/pages/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.list.grid-view",
+      "route": "/pages",
+      "preconditions": [
+        "pages:>=1",
+        "viewMode:grid"
+      ],
+      "description": "Default grid view: 1-2 column responsive grid of page tiles. Each tile renders a StaticBoardDisplay preview lazily via IntersectionObserver, with the page name and layout icon. Active page shows a bottom underline. View-mode buttons in toolbar show aria-pressed=true on Grid.",
+      "interactions": [
+        "click:page-tile",
+        "click:view-mode-list",
+        "click:new-page",
+        "click:import-page",
+        "click:device-tab"
+      ],
+      "transitions_to": [
+        "pages.edit.loading",
+        "pages.list.list-view",
+        "pages.new.flagship",
+        "pages.import-dialog.open",
+        "pages.list.device-tab-note"
+      ],
+      "source_refs": [
+        "web/src/app/pages/page.tsx",
+        "web/src/components/page-grid-selector.tsx",
+        "web/src/components/page-toolbar.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.list.list-view",
+      "route": "/pages",
+      "preconditions": [
+        "pages:>=1",
+        "viewMode:list"
+      ],
+      "description": "Compact list view (no preview): single-column rows showing icon, page name, and last-updated date (Clock icon). View-mode toggle persists choice to localStorage key fiestaboard_pages_view_mode.",
+      "interactions": [
+        "click:page-row",
+        "click:view-mode-grid",
+        "click:new-page",
+        "click:import-page"
+      ],
+      "transitions_to": [
+        "pages.edit.loading",
+        "pages.list.grid-view",
+        "pages.new.flagship",
+        "pages.import-dialog.open"
+      ],
+      "source_refs": [
+        "web/src/components/page-grid-selector.tsx",
+        "web/src/app/pages/page.tsx"
+      ]
+    },
+    {
+      "id": "pages.list.device-tab-flagship",
+      "route": "/pages",
+      "preconditions": [
+        "board-settings:devices=[flagship,note]"
+      ],
+      "description": "Flagship device tab active. Shown only when multiple devices are configured. PageGridSelector filters pages where device_type==='flagship'. activeTab state drives which /pages/new?device=... is opened.",
+      "interactions": [
+        "click:tab-note",
+        "click:new-page",
+        "click:page-tile"
+      ],
+      "transitions_to": [
+        "pages.list.device-tab-note",
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/app/pages/page.tsx",
+        "web/src/components/ui/tabs.tsx"
+      ]
+    },
+    {
+      "id": "pages.list.device-tab-note",
+      "route": "/pages",
+      "preconditions": [
+        "board-settings:devices=[flagship,note]"
+      ],
+      "description": "Note device tab active. PageGridSelector filters pages where device_type==='note'. The 'New Page' button now navigates to /pages/new?device=note.",
+      "interactions": [
+        "click:tab-flagship",
+        "click:new-page",
+        "click:page-tile"
+      ],
+      "transitions_to": [
+        "pages.list.device-tab-flagship",
+        "pages.new.note"
+      ],
+      "source_refs": [
+        "web/src/app/pages/page.tsx"
+      ]
+    },
+    {
+      "id": "pages.list.carousels-tab",
+      "route": "/pages",
+      "preconditions": [
+        "carousels:>=1"
+      ],
+      "description": "When carousels exist and showCarousels=true, the grid is wrapped in a Tabs widget with Pages | Carousels triggers (showing counts). Carousels tab renders a 2-column grid of CarouselButton cards, each a cascading 5-card stack of board previews.",
+      "interactions": [
+        "click:tab-pages",
+        "click:carousel-card"
+      ],
+      "transitions_to": [
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/components/page-grid-selector.tsx"
+      ]
+    },
+    {
+      "id": "pages.import-dialog.open",
+      "route": "/pages",
+      "preconditions": [],
+      "description": "Import Page dialog open (Radix Dialog, sm:max-w-md). Renders a 28-row textarea pre-focused for the share string, plus Cancel and Import buttons. Import is disabled while textarea is empty or import mutation is pending.",
+      "interactions": [
+        "type:share-string",
+        "click:cancel",
+        "click:import",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "pages.import-dialog.importing",
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/app/pages/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.import-dialog.importing",
+      "route": "/pages",
+      "preconditions": [
+        "import-mutation:pending"
+      ],
+      "description": "Import button shows 'Importing...' label and is disabled while api.importPage is in flight. Cancel still works.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.import-dialog.success",
+        "pages.import-dialog.error"
+      ],
+      "source_refs": [
+        "web/src/app/pages/page.tsx"
+      ]
+    },
+    {
+      "id": "pages.import-dialog.error",
+      "route": "/pages",
+      "preconditions": [
+        "import-mutation:error"
+      ],
+      "description": "Import failed (invalid share string or API error). A sonner error toast surfaces the thrown Error message; dialog remains open with the share-string still populated so the user can retry.",
+      "interactions": [
+        "edit:share-string",
+        "click:cancel",
+        "click:import"
+      ],
+      "transitions_to": [
+        "pages.import-dialog.importing",
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/app/pages/page.tsx"
+      ]
+    },
+    {
+      "id": "pages.import-dialog.success",
+      "route": "/pages",
+      "preconditions": [
+        "import-mutation:success"
+      ],
+      "description": "Successful import: pages query invalidated, success toast '<name> added to your pages' appears, dialog closes, and a slide-up view transition pushes the user to /pages/edit/<new-id>.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.edit.clean"
+      ],
+      "source_refs": [
+        "web/src/app/pages/page.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.flagship",
+      "route": "/pages/new",
+      "preconditions": [
+        "query:device=flagship|absent"
+      ],
+      "description": "New page editor mounted via PageEditorShell with deviceType='flagship'. Header reads 'Create Page'; back arrow returns to /pages with slide-down transition. Save button is disabled until name is non-empty.",
+      "interactions": [
+        "type:name",
+        "type:template-line",
+        "click:save",
+        "click:back",
+        "toggle:rich-plain-editor",
+        "toggle:live-output"
+      ],
+      "transitions_to": [
+        "pages.new.draft-restored",
+        "pages.edit.saving",
+        "pages.list.grid-view",
+        "pages.new.editor-plain"
+      ],
+      "source_refs": [
+        "web/src/app/pages/new/page.tsx",
+        "web/src/components/page-editor-shell.tsx",
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.new.note",
+      "route": "/pages/new",
+      "preconditions": [
+        "query:device=note"
+      ],
+      "description": "New page editor scoped to Note device dimensions (different board cols/rows). Same shell as flagship but ScaledBoardDisplay renders the smaller Note layout.",
+      "interactions": [
+        "type:name",
+        "click:save",
+        "click:back"
+      ],
+      "transitions_to": [
+        "pages.edit.saving",
+        "pages.list.device-tab-note"
+      ],
+      "source_refs": [
+        "web/src/app/pages/new/page.tsx",
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.draft-restored",
+      "route": "/pages/new",
+      "preconditions": [
+        "draft:<7-days-old",
+        "query:fresh!=1"
+      ],
+      "description": "When a draft exists in localStorage (key derived from getDraftKey()), the editor restores name/template/alignments/wrap and shows an info Alert ('Draft restored'). Alert auto-dismisses after 5 seconds.",
+      "interactions": [
+        "wait:5s",
+        "edit:any-field"
+      ],
+      "transitions_to": [
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.new.fresh-skips-draft",
+      "route": "/pages/new",
+      "preconditions": [
+        "query:fresh=1"
+      ],
+      "description": "When ?fresh=1 is present, skipDraft=true: any existing draft for the 'new' key is cleared and the editor starts from blank state.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/app/pages/new/page.tsx",
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.editor-plain",
+      "route": "/pages/new",
+      "preconditions": [
+        "editor-mode:plain"
+      ],
+      "description": "Plain-text editor mode selected via toolbar toggle. Renders PlainTextEditor (single textarea) instead of TipTapTemplateEditor. Choice persisted to localStorage.",
+      "interactions": [
+        "toggle:rich"
+      ],
+      "transitions_to": [
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.sync-from-board",
+      "route": "/pages/new",
+      "preconditions": [
+        "new-page-only"
+      ],
+      "description": "TipTap editor exposes a 'Sync from board' affordance (passed via onSyncFromBoard prop). Triggers api.getCurrentDisplay; on success populates lines/alignments/wrap/device and toasts 'Synced from <name>'. On no active page, toasts 'No active display to sync from'.",
+      "interactions": [
+        "click:sync-from-board"
+      ],
+      "transitions_to": [
+        "pages.new.flagship",
+        "pages.new.sync-error"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx",
+        "web/src/components/tiptap-template-editor.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.sync-error",
+      "route": "/pages/new",
+      "preconditions": [
+        "no-active-display"
+      ],
+      "description": "Sync-from-board fails (404 no active page). Editor state is unchanged; an error sonner toast 'No active display to sync from' appears.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.line-count-warning",
+      "route": "/pages/new",
+      "preconditions": [
+        "template-lines:>numLines"
+      ],
+      "description": "When the user enters more template lines than the device allows, a warning banner ('lineCountWarning') appears under the editor with the actual vs max line count.",
+      "interactions": [
+        "edit:reduce-lines"
+      ],
+      "transitions_to": [
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.new.wrap-budget-warning",
+      "route": "/pages/new",
+      "preconditions": [
+        "wrap-enabled-line:no-room"
+      ],
+      "description": "Per-line warning when a {wrap}-enabled line's rendered content saturates the board width but no following empty/wrap line exists for overflow. Each affected line emits its own warning row.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.new.live-output-on",
+      "route": "/pages/new",
+      "preconditions": [],
+      "description": "Live Output toggle ON: typing into the editor fires the fast-path renderTemplateLive (100ms debounce) and pushes rendered text to the active board. A pulsing red Radio icon and a 'sending' label appear during the in-flight request. Multi-board users see a Select to choose target board.",
+      "interactions": [
+        "toggle:live-output-off",
+        "select:board",
+        "type:template-line"
+      ],
+      "transitions_to": [
+        "pages.new.flagship",
+        "pages.new.live-output-error"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.live-output-error",
+      "route": "/pages/new",
+      "preconditions": [
+        "live-send:failed"
+      ],
+      "description": "Live-send mutation throws (network or backend error). Error sonner toast 'Failed to send to board' appears; toggle stays on.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.new.live-output-on"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.new.save-disabled",
+      "route": "/pages/new",
+      "preconditions": [
+        "name:empty"
+      ],
+      "description": "Save button disabled when name is empty/whitespace. Tooltip still appears on hover.",
+      "interactions": [
+        "type:name"
+      ],
+      "transitions_to": [
+        "pages.new.flagship"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.no-id-redirect",
+      "route": "/pages/edit",
+      "preconditions": [
+        "query:id absent"
+      ],
+      "description": "Legacy /pages/edit route (no [id] segment): on mount, if URLSearchParams 'id' is missing, push('/pages') with slide-down transition. Briefly shows 'Loading...' centered.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/app/pages/edit/page.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.legacy-query-id",
+      "route": "/pages/edit",
+      "preconditions": [
+        "query:id=<pageId>"
+      ],
+      "description": "Legacy /pages/edit?id=<id> route reads the id from query params and mounts PageBuilder directly (not via PageEditorShell). Used for static export compatibility.",
+      "interactions": [
+        "click:save",
+        "click:back"
+      ],
+      "transitions_to": [
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/app/pages/edit/page.tsx",
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.loading",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "page-query:pending"
+      ],
+      "description": "Editing existing page: while api.getPage(id) is pending, the builder renders a single Card with a 64-tall Skeleton.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.edit.clean",
+        "pages.edit.not-found"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx",
+        "web/src/app/pages/edit/[id]/edit-page-client.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.not-found",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "page-query:404"
+      ],
+      "description": "When getPage rejects (e.g. id deleted by another tab), React Query exposes an error and no existingPage. The skeleton dismisses but the editor renders with empty defaults; no explicit not-found UI is provided. (Coverage gap candidate.)",
+      "interactions": [
+        "click:back"
+      ],
+      "transitions_to": [
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.clean",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "page:loaded",
+        "dirty:false"
+      ],
+      "description": "Loaded existing page with savedSnapshot matching current state. Header reads 'Edit Page'. Delete (trash) icon visible; Save button enabled; Export button enabled (because hasUnsavedChanges=false).",
+      "interactions": [
+        "click:delete",
+        "click:save",
+        "click:export",
+        "edit:any-field",
+        "toggle:rich-plain-editor",
+        "toggle:live-output",
+        "click:back"
+      ],
+      "transitions_to": [
+        "pages.edit.delete-confirm",
+        "pages.edit.dirty",
+        "pages.edit.export-dialog",
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.edit.dirty",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "page:loaded",
+        "dirty:true"
+      ],
+      "description": "User has modified name, template, alignments, or wrap from the saved snapshot. Export button is disabled with tooltip 'Save your changes before exporting'. Save button is enabled (when name non-empty).",
+      "interactions": [
+        "click:save",
+        "click:back",
+        "click:delete"
+      ],
+      "transitions_to": [
+        "pages.edit.saving",
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.saving",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "save-mutation:pending"
+      ],
+      "description": "Save mutation in flight: Save button shows 'Saving...' label and is disabled.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.edit.save-success",
+        "pages.edit.save-error"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.save-success",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "save-mutation:success"
+      ],
+      "description": "Save succeeded. Drafts and preview cache for this id are cleared; queries invalidated; success toast ('Page updated' or 'Page created'); slide-down transition back to /pages.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.list.grid-view"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.save-error",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "save-mutation:error"
+      ],
+      "description": "Save mutation rejects. Error toast surfaces error.message; editor stays open with dirty state preserved.",
+      "interactions": [
+        "click:save"
+      ],
+      "transitions_to": [
+        "pages.edit.dirty"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.delete-confirm",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "page:loaded"
+      ],
+      "description": "AlertDialog opened by the destructive trash button. Title 'Delete Page'; description names the page ('Are you sure you want to delete \"<name>\"?'). Cancel and red Delete actions; Delete label switches to 'Deleting...' while mutation pending.",
+      "interactions": [
+        "click:cancel",
+        "click:confirm-delete",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "pages.edit.clean",
+        "pages.edit.delete-success",
+        "pages.edit.delete-error"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.edit.delete-success",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "delete-mutation:success"
+      ],
+      "description": "Page deleted. Toast variant depends on backend response: 'Page deleted', 'Active page updated' (if it replaced the running display), or 'Deleted; default page created' (if the last page was removed). onClose() navigates back to /pages.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.list.grid-view",
+        "pages.list.empty"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.delete-error",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "delete-mutation:error"
+      ],
+      "description": "Delete mutation fails. Error toast 'Failed to delete page'; dialog closes (Radix default) and editor stays.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.edit.clean"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.export-dialog",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "page:loaded",
+        "dirty:false"
+      ],
+      "description": "Export dialog open (Radix Dialog, sm:max-w-md): read-only textarea pre-filled with share string and a copy icon button in the top-right. After copy, icon becomes a green checkmark for 2 seconds.",
+      "interactions": [
+        "click:copy",
+        "focus:textarea-selects-all",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "pages.edit.export-copied",
+        "pages.edit.clean"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.edit.export-copied",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "clipboard:write-ok"
+      ],
+      "description": "After clicking copy: copy icon swaps to a green Check icon for 2s indicating success. No toast.",
+      "interactions": [
+        "wait:2s"
+      ],
+      "transitions_to": [
+        "pages.edit.export-dialog"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.export-error",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "api.getPageShareString:error"
+      ],
+      "description": "Fetching the share string fails before the dialog opens. The dialog never opens; an error toast 'Failed to get share string' is shown.",
+      "interactions": [
+        "click:export"
+      ],
+      "transitions_to": [
+        "pages.edit.clean"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.export-disabled-when-dirty",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "dirty:true"
+      ],
+      "description": "Export button is disabled while hasUnsavedChanges is true. Tooltip on hover reads 'Save your changes before exporting'.",
+      "interactions": [
+        "hover:export"
+      ],
+      "transitions_to": [
+        "pages.edit.dirty"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "pages.edit.live-output-on",
+      "route": "/pages/edit/[id]",
+      "preconditions": [],
+      "description": "Live Output enabled on an existing page: fast-path live rendering with AbortController-cancelled stale requests. Same UI as new page (pulsing Radio, optional multi-board Select).",
+      "interactions": [
+        "toggle:live-output-off",
+        "type:template-line"
+      ],
+      "transitions_to": [
+        "pages.edit.clean",
+        "pages.edit.dirty"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "pages.edit.live-output-inactivity-off",
+      "route": "/pages/edit/[id]",
+      "preconditions": [
+        "live-output:inactive-timeout"
+      ],
+      "description": "Live output is auto-disabled after a period of inactivity. Info toast 'Live output turned off due to inactivity' is shown; toggle returns to off.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.edit.clean"
+      ],
+      "source_refs": [
+        "web/src/components/page-builder.tsx"
+      ]
+    },
+    {
+      "id": "schedule.list.loading",
+      "route": "/schedule",
+      "preconditions": [
+        "schedules-query:in-flight"
+      ],
+      "description": "Route-level loading state while api.getSchedules resolves. PageLayout renders a 10-tall title Skeleton and a 64-tall card Skeleton placeholder. No toolbar visible yet.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.list.empty",
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.list.empty",
+      "route": "/schedule",
+      "preconditions": [
+        "schedules:none"
+      ],
+      "description": "List view with zero schedules. ScheduleListView renders a centered empty state: Calendar icon (h-12 w-12), 'No schedules created yet.' and helper text 'Use the toolbar above to add a schedule.' Validation indicator hidden because no schedules exist.",
+      "interactions": [
+        "click:add-schedule",
+        "click:view-mode-calendar"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-create",
+        "schedule.calendar.empty"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/app/schedule/components/schedule-list-view.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.list.with-entries",
+      "route": "/schedule",
+      "preconditions": [
+        "schedules:>=1",
+        "viewMode:list"
+      ],
+      "description": "Default list view: card titled 'Schedule Entries' containing rows for each schedule. Each row shows pageName (or carousel name with GalleryHorizontalEnd icon), a 'Disabled' badge when off, the formatted time range, and the day pattern. Edit and Trash buttons with localized aria-labels are at row end.",
+      "interactions": [
+        "click:edit-row",
+        "click:delete-row",
+        "click:add-schedule",
+        "click:view-mode-calendar",
+        "click:schedule-enabled-toggle",
+        "select:gap-default",
+        "click:validation-indicator"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit",
+        "schedule.delete-confirm.open",
+        "schedule.calendar.with-entries",
+        "schedule.toolbar.toggle-on",
+        "schedule.toolbar.default-page-selected",
+        "schedule.toolbar.validation-dropdown-overlaps",
+        "schedule.toolbar.validation-dropdown-gaps"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-list-view.tsx",
+        "web/src/app/schedule/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.list.row-disabled",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.enabled:false"
+      ],
+      "description": "An individual list row where schedule.enabled === false. Shows a 'Disabled' Badge inline with the page name and the row still surfaces edit/delete buttons.",
+      "interactions": [
+        "click:edit-row"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-list-view.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.list.row-carousel",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.page_id:carousel"
+      ],
+      "description": "Row whose page_id matches a carousel id (isCarouselId true). The GalleryHorizontalEnd icon is prepended to the carousel's display name. Edit/delete buttons unchanged.",
+      "interactions": [
+        "click:edit-row",
+        "click:delete-row"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit",
+        "schedule.delete-confirm.open"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-list-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.list.row-sun-schedule",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.start_type:sunrise|sunset"
+      ],
+      "description": "Row formatting for sun-based start/end: prefixed with sunrise/sunset glyph (\u2600\u2191 / \u2600\u2193) followed by optional minute offset and, when present, the backend-resolved clock time in parentheses (e.g. 'sunrise +30m (06:45)').",
+      "interactions": [
+        "click:edit-row"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-list-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.list.row-open-ended",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.end_time:null"
+      ],
+      "description": "Row for a schedule without an end_time (open-ended). Time display reads '<start> - Open' so the user knows the schedule runs until another schedule supersedes it.",
+      "interactions": [
+        "click:edit-row"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-list-view.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.toolbar.toggle-off",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.enabled:false"
+      ],
+      "description": "Schedule on/off switch in the toolbar with role=switch aria-checked=false. Power icon is muted-foreground; trailing pill indicator is at the left position. Tooltip and aria-label read 'Enable schedule mode'.",
+      "interactions": [
+        "click:schedule-enabled-toggle"
+      ],
+      "transitions_to": [
+        "schedule.toolbar.toggle-pending",
+        "schedule.toolbar.toggle-on"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.toolbar.toggle-on",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.enabled:true"
+      ],
+      "description": "Schedule mode enabled. role=switch aria-checked=true. Power icon turns green-500; pill indicator slid right with primary background. Tooltip reads 'Disable schedule mode'. While enabled the runtime serves the matching scheduled page.",
+      "interactions": [
+        "click:schedule-enabled-toggle"
+      ],
+      "transitions_to": [
+        "schedule.toolbar.toggle-pending",
+        "schedule.toolbar.toggle-off"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.toolbar.toggle-pending",
+      "route": "/schedule",
+      "preconditions": [
+        "toggle-schedule-mutation:pending"
+      ],
+      "description": "Schedule on/off toggle is disabled (opacity 0.6, cursor not-allowed) while api.setScheduleEnabled is in flight. After success a toast announces the new state ('Schedule mode enabled' / 'Schedule mode disabled'); on error 'Failed to toggle schedule mode'.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.toolbar.toggle-on",
+        "schedule.toolbar.toggle-off",
+        "schedule.toolbar.toggle-error"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.toolbar.toggle-error",
+      "route": "/schedule",
+      "preconditions": [
+        "toggle-schedule-mutation:error"
+      ],
+      "description": "setScheduleEnabled mutation rejects. Error toast 'Failed to toggle schedule mode'. Previous toggle state is preserved (optimistic value reverts via query invalidation).",
+      "interactions": [
+        "click:schedule-enabled-toggle"
+      ],
+      "transitions_to": [
+        "schedule.toolbar.toggle-off",
+        "schedule.toolbar.toggle-on"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.toolbar.default-page-empty",
+      "route": "/schedule",
+      "preconditions": [
+        "default_page_id:null"
+      ],
+      "description": "Default-page Select in the toolbar showing placeholder 'Default Page'. Value is the sentinel '__none__'. Tooltip explains 'Page shown during gaps in the schedule'.",
+      "interactions": [
+        "select:gap-default"
+      ],
+      "transitions_to": [
+        "schedule.toolbar.default-page-selected"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.toolbar.default-page-selected",
+      "route": "/schedule",
+      "preconditions": [
+        "default_page_id:set"
+      ],
+      "description": "Default-page Select shows the chosen page (or carousel with ' (Carousel)' suffix). On change, setDefaultPage mutation fires; success toast 'Default page updated', error 'Failed to update default page'. Choosing 'No Default' clears (passes null).",
+      "interactions": [
+        "select:gap-default"
+      ],
+      "transitions_to": [
+        "schedule.toolbar.default-page-empty",
+        "schedule.toolbar.default-page-error"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.toolbar.default-page-error",
+      "route": "/schedule",
+      "preconditions": [
+        "set-default-page-mutation:error"
+      ],
+      "description": "setDefaultPage mutation rejects. Error toast 'Failed to update default page'; previous value remains in the Select.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.toolbar.default-page-selected"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.toolbar.validation-dropdown-overlaps",
+      "route": "/schedule",
+      "preconditions": [
+        "validation.overlaps:>=1"
+      ],
+      "description": "AlertCircle button in toolbar is text-destructive with a red badge showing the overlap count. Tooltip 'N scheduling conflicts'. Opening reveals a DropdownMenu labeled 'Schedule Conflicts' with one destructive item per overlap (conflict_description). Gaps are hidden when overlaps exist.",
+      "interactions": [
+        "click:validation-indicator",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.toolbar.validation-dropdown-gaps",
+      "route": "/schedule",
+      "preconditions": [
+        "validation.overlaps:0",
+        "validation.gaps:>=1"
+      ],
+      "description": "AlertTriangle button is text-yellow-500 with a yellow badge. Tooltip 'N gaps in schedule'. Dropdown labeled 'Schedule Gaps' shows current default-page text ('Default: <name>' or 'No default page set'), then a separator, then one item per gap with formatDaysCompact label and 'HH:MM - HH:MM'.",
+      "interactions": [
+        "click:validation-indicator"
+      ],
+      "transitions_to": [
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.toolbar.location-warning",
+      "route": "/schedule",
+      "preconditions": [
+        "schedules.any:start_type|end_type!=fixed",
+        "location-settings:not-configured"
+      ],
+      "description": "Amber warning banner (MapPin icon) between toolbar and view when sun-based schedules exist but lat/lon are unset in location settings. Includes inline Link to /settings ('Configure your location') styled as underlined.",
+      "interactions": [
+        "click:configure-location-link"
+      ],
+      "transitions_to": [
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.toolbar.multi-board-selector",
+      "route": "/schedule",
+      "preconditions": [
+        "board-settings:boards.length>1"
+      ],
+      "description": "Multi-board mode: a Select (data-testid=board-selector, width 130px) appears at the left of the toolbar right-group. Defaults to boards[0].id on mount. Switching boards re-queries schedules/validation scoped to the chosen board_id; create/toggle/default-page mutations carry the board_id.",
+      "interactions": [
+        "select:board"
+      ],
+      "transitions_to": [
+        "schedule.list.with-entries",
+        "schedule.list.empty"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/hooks/use-board.ts"
+      ]
+    },
+    {
+      "id": "schedule.calendar.loading",
+      "route": "/schedule",
+      "preconditions": [
+        "viewMode:calendar",
+        "dynamic-import:in-flight"
+      ],
+      "description": "react-big-calendar is lazy-loaded via next/dynamic ({ssr:false}). While the chunk loads, the card body shows a single 96-tall Skeleton placeholder. PageLayout uses fillHeight=true so the card claims remaining viewport height.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.calendar.empty",
+        "schedule.calendar.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.empty",
+      "route": "/schedule",
+      "preconditions": [
+        "viewMode:calendar",
+        "schedules:none"
+      ],
+      "description": "Calendar view (week view, Sun-Sat) with no events rendered. User can click any empty slot to seed prefillData and open the create form.",
+      "interactions": [
+        "click:calendar-slot",
+        "click:add-schedule",
+        "click:view-mode-list"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-create-from-slot",
+        "schedule.form.sheet-create",
+        "schedule.list.empty"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-calendar-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.with-entries",
+      "route": "/schedule",
+      "preconditions": [
+        "viewMode:calendar",
+        "schedules:>=1"
+      ],
+      "description": "Calendar week view with ScheduleEvent blocks. Each event uses a stable HSL color keyed off scheduleId, with a left border accent. Header shows abbreviated day names (Mon, Tue, ...). Events are draggable and resizable; clicking an event opens the edit form. Zoom slider (top-right) controls hour height.",
+      "interactions": [
+        "click:event",
+        "drag:event",
+        "resize:event",
+        "click:calendar-slot",
+        "click:zoom-in",
+        "click:zoom-out",
+        "drag:zoom-slider"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit",
+        "schedule.calendar.drag-pending",
+        "schedule.form.sheet-create-from-slot",
+        "schedule.calendar.zoom-changed"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-calendar-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.event-disabled",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.enabled:false"
+      ],
+      "description": "Disabled schedule rendered in the calendar with .schedule-event-disabled class, muted background, 0.5 opacity, and an inline 'Off' Badge.",
+      "interactions": [
+        "click:event"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-event.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.event-conflict",
+      "route": "/schedule",
+      "preconditions": [
+        "validation.overlaps:contains-this-schedule"
+      ],
+      "description": "Calendar event highlighted with .schedule-event-conflict (red outline via CSS) when its id is in any overlap entry. Visual signal that the schedule competes with another.",
+      "interactions": [
+        "click:event"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-calendar-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.event-midnight-split-evening",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.crosses-midnight:true"
+      ],
+      "description": "Evening half of a schedule that crosses midnight (e.g. 23:00 - 03:00). Rendered ending at 11:59:59pm with a dashed bottom border, the original 'HH:MMpm - 12:00am' time range, and a continuation hint to the morning end. draggableAccessor returns false (this half is not draggable); only resizing the start is allowed.",
+      "interactions": [
+        "click:event",
+        "resize:event-start"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit",
+        "schedule.calendar.drag-pending"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-event.tsx",
+        "web/src/lib/schedule-calendar.ts"
+      ]
+    },
+    {
+      "id": "schedule.calendar.event-midnight-split-morning",
+      "route": "/schedule",
+      "preconditions": [
+        "schedule.crosses-midnight:true"
+      ],
+      "description": "Morning half of a midnight-crossing schedule starting at 12:00am. Dashed top border, '12:00am - HH:MMam' time range, continuation hint above. Resize is allowed only on the end; if user tries to move the start away from 00:00 the change is silently reverted.",
+      "interactions": [
+        "click:event",
+        "resize:event-end"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-edit",
+        "schedule.calendar.drag-pending"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-event.tsx",
+        "web/src/app/schedule/components/schedule-calendar-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.drag-pending",
+      "route": "/schedule",
+      "preconditions": [
+        "update-schedule-mutation:pending"
+      ],
+      "description": "After dropping/resizing an event the optimistic UI shows it at the new position while updateSchedule is in flight. On success toast 'Schedule updated' and queries invalidate; on error toast 'Failed to update schedule' and the calendar refetches the pre-edit position.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.calendar.with-entries",
+        "schedule.calendar.drag-error"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.drag-error",
+      "route": "/schedule",
+      "preconditions": [
+        "update-schedule-mutation:error"
+      ],
+      "description": "Drag/resize update failed. Sonner error toast surfaces error.message or fallback 'Failed to update schedule'. Calendar event snaps back via query refetch.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.calendar.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.zoom-changed",
+      "route": "/schedule",
+      "preconditions": [],
+      "description": "Zoom slider changed (1x through 24x). hour-height CSS var updates, step/timeslots adjust (15min at low zoom, 5min mid, 1min at 16x and above). Choice persists to localStorage key 'schedule-calendar-zoom'. Tooltip reads 'N-minute grid'. Sun markers (sunrise/sunset slot classes) reposition.",
+      "interactions": [
+        "drag:zoom-slider",
+        "click:zoom-in",
+        "click:zoom-out"
+      ],
+      "transitions_to": [
+        "schedule.calendar.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-calendar-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.calendar.sun-markers",
+      "route": "/schedule",
+      "preconditions": [
+        "location:configured"
+      ],
+      "description": "When api.getSunTimes returns location_configured=true, time slots matching today's sunrise/sunset receive .sun-slot-sunrise / .sun-slot-sunset classes for visual markers. Per-day events use sunTimesMap from api.getSunTimesWeek for accurate positioning of sun-based schedules across the week.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.calendar.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-calendar-view.tsx",
+        "web/src/lib/api.ts"
+      ]
+    },
+    {
+      "id": "schedule.calendar.mobile-view",
+      "route": "/schedule",
+      "preconditions": [
+        "viewport:width<768"
+      ],
+      "description": "Mobile calendar shows 3 days at a time. A top bar exposes Prev/Next chevrons and 7 single-letter day dots; the active triple-day window is highlighted with primary background. mobileStartDay state (0-4) drives the visible range; Prev disabled at 0, Next disabled at 4.",
+      "interactions": [
+        "click:prev-days",
+        "click:next-days",
+        "click:day-dot"
+      ],
+      "transitions_to": [
+        "schedule.calendar.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/components/schedule-calendar-view.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.sheet-create",
+      "route": "/schedule",
+      "preconditions": [],
+      "description": "Add-schedule Sheet open (max-w-xl). Title 'Add Schedule', description from i18n. ScheduleEntryForm mounts with defaults: start 09:00, end 17:00, hasEndTime true, dayPattern 'all', enabled true, both start_type/end_type 'fixed'. Submit button disabled until validation passes.",
+      "interactions": [
+        "select:page",
+        "type:start-time",
+        "type:end-time",
+        "toggle:has-end-time",
+        "select:day-pattern",
+        "toggle:enabled",
+        "select:start-type",
+        "select:end-type",
+        "click:create",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "schedule.form.creating",
+        "schedule.form.validation-error",
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/components/schedule-entry-form.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.form.sheet-create-from-slot",
+      "route": "/schedule",
+      "preconditions": [
+        "calendar-slot-selected"
+      ],
+      "description": "Sheet opened by selecting an empty slot on the calendar. prefillData supplies startTime, endTime (rounded from slot), dayPattern='custom' and customDays=[<dayNameFromSlot>]. DaySelector renders with the inferred custom day pre-selected.",
+      "interactions": [
+        "select:page",
+        "type:start-time",
+        "type:end-time",
+        "click:create",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "schedule.form.creating",
+        "schedule.calendar.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.sheet-create-from-ai",
+      "route": "/schedule",
+      "preconditions": [
+        "ai-bridge:openScheduleForm-called"
+      ],
+      "description": "Sheet opened by the global AI chat drawer. The schedule editor bridge invokes register() callback with prefill (page_id/start_time/end_time/day_pattern/custom_days). When the user navigates from another page, prefill arrives via /schedule?prefill_page_id=&prefill_start=&prefill_end=&prefill_days= URL params (single-shot, then router.replace clears them).",
+      "interactions": [
+        "edit:any-field",
+        "click:create"
+      ],
+      "transitions_to": [
+        "schedule.form.creating",
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/components/schedule-editor-bridge-context.tsx",
+        "web/src/components/global-ai-chat-drawer.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.sheet-edit",
+      "route": "/schedule",
+      "preconditions": [
+        "editingSchedule:set"
+      ],
+      "description": "Sheet open in edit mode. Title 'Edit Schedule'. Form pre-populated from the schedule entity (page_id, times, day pattern, enabled, sun offsets). Delete button (destructive variant) appears on the left of the actions row; primary action button reads 'Update Schedule'.",
+      "interactions": [
+        "edit:any-field",
+        "click:update",
+        "click:delete",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "schedule.form.updating",
+        "schedule.delete-confirm.open-from-form",
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/components/schedule-entry-form.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.form.sun-start",
+      "route": "/schedule",
+      "preconditions": [
+        "form.start_type:sunrise|sunset"
+      ],
+      "description": "Start-time field with type Sunrise or Sunset selected. The fixed-time Select is replaced by a numeric offset Input (minutes, accepts negative) and a hint 'minutes before/after'. When editing an existing schedule with a resolved_start_time, a small line below shows '(resolved: HH:MM)' with the matching Sunrise/Sunset icon.",
+      "interactions": [
+        "select:start-type-fixed",
+        "edit:start-sun-offset"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-create",
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.sun-end",
+      "route": "/schedule",
+      "preconditions": [
+        "form.end_type:sunrise|sunset",
+        "form.hasEndTime:true"
+      ],
+      "description": "End-time field with sunrise/sunset selected. Same offset Input pattern as start. Resolved end time displayed when editing.",
+      "interactions": [
+        "edit:end-sun-offset",
+        "select:end-type-fixed"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-create",
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.no-end-time",
+      "route": "/schedule",
+      "preconditions": [
+        "form.hasEndTime:false"
+      ],
+      "description": "'Set end time' Switch toggled off. End-time field hidden; a hint reads '(runs until next schedule)'. Submission sends end_time: null.",
+      "interactions": [
+        "toggle:has-end-time",
+        "click:create"
+      ],
+      "transitions_to": [
+        "schedule.form.creating",
+        "schedule.form.sheet-create"
+      ],
+      "source_refs": [
+        "web/src/components/schedule-entry-form.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.form.day-pattern-custom",
+      "route": "/schedule",
+      "preconditions": [
+        "form.dayPattern:custom"
+      ],
+      "description": "DaySelector with 'Custom' radio selected. Below the radio group a 7-button toggle row appears for Mon-Sun. customDays array reflects active selections. Validation error 'Select at least one day' fires until customDays.length>=1.",
+      "interactions": [
+        "click:day-monday",
+        "click:day-sunday",
+        "click:day-pattern-weekdays",
+        "click:day-pattern-all",
+        "keyboard:arrow-keys"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-create",
+        "schedule.form.validation-error"
+      ],
+      "source_refs": [
+        "web/src/components/schedule-entry-form.tsx",
+        "web/src/components/day-selector.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.form.validation-error",
+      "route": "/schedule",
+      "preconditions": [
+        "form:invalid"
+      ],
+      "description": "Inline Alert (default variant) with bulleted list of validation messages: 'Select a page', 'End time must be different from start time', 'Select at least one day'. Submit button is disabled while validationErrors.length > 0.",
+      "interactions": [
+        "edit:any-field"
+      ],
+      "transitions_to": [
+        "schedule.form.sheet-create",
+        "schedule.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/components/schedule-entry-form.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.form.creating",
+      "route": "/schedule",
+      "preconditions": [
+        "create-schedule-mutation:pending"
+      ],
+      "description": "Create button shows a spinner (Loader2 animate-spin) and is disabled. Cancel/Delete also disabled. On success: 'Schedule created' toast, sheet closes, prefillData cleared. On error: 'Failed to create schedule' (or backend error.message) toast and form returns to editable state.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.list.with-entries",
+        "schedule.form.create-error"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.create-error",
+      "route": "/schedule",
+      "preconditions": [
+        "create-schedule-mutation:error"
+      ],
+      "description": "createSchedule.mutateAsync throws (overlap rejection, 4xx). The form catches the error, sets the local error state, and renders a destructive Alert at the top of the form with the message; sheet stays open.",
+      "interactions": [
+        "edit:any-field",
+        "click:create",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "schedule.form.creating",
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.updating",
+      "route": "/schedule",
+      "preconditions": [
+        "update-schedule-mutation:pending"
+      ],
+      "description": "Update button shows spinner, disabled. On success: 'Schedule updated' toast, sheet closes, editingSchedule cleared. On error: destructive Alert shown inside form with error.message.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.list.with-entries",
+        "schedule.form.update-error"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.form.update-error",
+      "route": "/schedule",
+      "preconditions": [
+        "update-schedule-mutation:error"
+      ],
+      "description": "updateSchedule rejects. Destructive Alert with backend message rendered in the form; sheet stays open with edits preserved.",
+      "interactions": [
+        "click:update",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "schedule.form.updating",
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.delete-confirm.open",
+      "route": "/schedule",
+      "preconditions": [
+        "deleteScheduleId:set"
+      ],
+      "description": "AlertDialog opened from a list/calendar row's trash icon. Title 'Delete Schedule', description from i18n confirms intent. Cancel and Delete actions; Delete uses default (not destructive) variant.",
+      "interactions": [
+        "click:cancel",
+        "click:confirm-delete",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "schedule.list.with-entries",
+        "schedule.delete-confirm.deleting"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "schedule.delete-confirm.open-from-form",
+      "route": "/schedule",
+      "preconditions": [
+        "editingSchedule:set"
+      ],
+      "description": "When the user clicks Delete inside the edit sheet, handleCloseForm() runs first (sheet closes) and then deleteScheduleId is set to the editingSchedule.id, opening the AlertDialog. Confirming deletes; canceling returns to the list view (not back to the form).",
+      "interactions": [
+        "click:confirm-delete",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "schedule.delete-confirm.deleting",
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx",
+        "web/src/components/schedule-entry-form.tsx"
+      ]
+    },
+    {
+      "id": "schedule.delete-confirm.deleting",
+      "route": "/schedule",
+      "preconditions": [
+        "delete-schedule-mutation:pending"
+      ],
+      "description": "Delete in flight. On success: 'Schedule deleted' toast, dialog closes, queries invalidated. On error: 'Failed to delete schedule' toast, dialog auto-closes via onOpenChange.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.list.with-entries",
+        "schedule.delete-confirm.delete-error"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.delete-confirm.delete-error",
+      "route": "/schedule",
+      "preconditions": [
+        "delete-schedule-mutation:error"
+      ],
+      "description": "Delete mutation rejects. Error toast 'Failed to delete schedule'. Schedule remains in the list.",
+      "interactions": [],
+      "transitions_to": [
+        "schedule.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "schedule.viewmode.persistence",
+      "route": "/schedule",
+      "preconditions": [],
+      "description": "View-mode toggle (List | Calendar) in the toolbar with secondary variant indicating active. Choice persists to localStorage key 'schedule-view-mode'. On mount the saved value rehydrates state; default is 'list'.",
+      "interactions": [
+        "click:view-mode-list",
+        "click:view-mode-calendar"
+      ],
+      "transitions_to": [
+        "schedule.list.with-entries",
+        "schedule.calendar.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/schedule/page.tsx"
+      ]
+    },
+    {
+      "id": "dashboard.home.loading",
+      "route": "/",
+      "preconditions": [
+        "active-page-query:in-flight"
+      ],
+      "description": "Root home view while ActivePageDisplay's getActiveDisplay query is in flight. Shows the PageHeader (Home icon, localized title) plus a skeleton board preview card.",
+      "interactions": [],
+      "transitions_to": [
+        "dashboard.home.live",
+        "dashboard.home.live-empty",
+        "dashboard.home.board-not-configured"
+      ],
+      "source_refs": [
+        "web/src/app/page.tsx",
+        "web/src/components/active-page-display.tsx"
+      ]
+    },
+    {
+      "id": "dashboard.home.live",
+      "route": "/",
+      "preconditions": [
+        "board-config:valid",
+        "active-page:set"
+      ],
+      "description": "Default dashboard: ActivePageDisplay shows the currently active page name, mode badge (Schedule / Live / Override / Carousel), a StaticBoardDisplay preview, and an Actions row (Resend, Switch Page, Change Mode). PageHeader on top.",
+      "interactions": [
+        "click:resend",
+        "click:switch-page",
+        "click:change-mode",
+        "click:cancel-override"
+      ],
+      "transitions_to": [
+        "dashboard.actions.switch-page-sheet",
+        "dashboard.actions.change-mode-dialog",
+        "dashboard.actions.resend-toast",
+        "dashboard.actions.cancel-override"
+      ],
+      "source_refs": [
+        "web/src/app/page.tsx",
+        "web/src/components/active-page-display.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "dashboard.home.live-empty",
+      "route": "/",
+      "preconditions": [
+        "pages:none",
+        "active-page:null"
+      ],
+      "description": "Edge case where the board is reachable but no pages exist. ActivePageDisplay nudges the user to create their first page (link to /pages/new) or run the wizard.",
+      "interactions": [
+        "click:create-first-page",
+        "click:run-wizard"
+      ],
+      "transitions_to": [
+        "pages.new.flagship",
+        "dashboard.wizard.welcome"
+      ],
+      "source_refs": [
+        "web/src/components/active-page-display.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "dashboard.home.board-not-configured",
+      "route": "/",
+      "preconditions": [
+        "getSetupStatus.valid:false"
+      ],
+      "description": "getSetupStatus returns valid=false. An info Alert ('No board configured') with a brand 'Run setup wizard' button is rendered above the ActivePageDisplay placeholder.",
+      "interactions": [
+        "click:run-setup-wizard"
+      ],
+      "transitions_to": [
+        "dashboard.wizard.welcome"
+      ],
+      "source_refs": [
+        "web/src/app/page.tsx",
+        "web/src/lib/setup-detection.ts",
+        "web/src/components/wizard-provider.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "dashboard.actions.switch-page-sheet",
+      "route": "/",
+      "preconditions": [],
+      "description": "Right-side Sheet (max-w-4xl) opened by 'Switch Page'. Renders a search field and a grid/list of all pages with previews; selecting one calls api.setActivePage and toasts the chosen page name.",
+      "interactions": [
+        "click:page-tile",
+        "type:search",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/components/active-page-display.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "dashboard.actions.change-mode-dialog",
+      "route": "/",
+      "preconditions": [],
+      "description": "Dialog opened by 'Change Mode'. Lets the user disable schedule mode (toggle off), enable schedule mode, or pick a carousel/page as the runtime override. Confirmation toasts on success; errors surface via destructive toast.",
+      "interactions": [
+        "select:mode",
+        "click:confirm",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/components/active-page-display.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "dashboard.actions.resend-toast",
+      "route": "/",
+      "preconditions": [
+        "resend-mutation:settled"
+      ],
+      "description": "Resend button triggers api.resend; success toast 'Refreshed board' / error toast 'Failed to refresh board'. No dialog.",
+      "interactions": [],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/components/active-page-display.tsx"
+      ]
+    },
+    {
+      "id": "dashboard.actions.cancel-override",
+      "route": "/",
+      "preconditions": [
+        "override-active:true"
+      ],
+      "description": "When an override page is active, an inline 'Cancel override' button appears next to the mode badge. Clicking calls api.cancelOverride and toasts 'Override cancelled'.",
+      "interactions": [
+        "click:cancel-override"
+      ],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/components/active-page-display.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "dashboard.wizard.welcome",
+      "route": "/",
+      "preconditions": [
+        "wizard:active"
+      ],
+      "description": "Full-screen Setup Wizard overlay (welcome step). WizardProvider replaces all children with the SetupWizard when isWizardActive is true. Welcome step introduces the wizard and offers Next.",
+      "interactions": [
+        "click:next",
+        "click:skip"
+      ],
+      "transitions_to": [
+        "dashboard.wizard.board-setup",
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/components/wizard-provider.tsx",
+        "web/src/components/wizard/step-welcome.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "dashboard.wizard.board-setup",
+      "route": "/",
+      "preconditions": [
+        "wizard:active",
+        "step:board-setup"
+      ],
+      "description": "Board-setup step: collects API host/token (or enablement token), validates against the backend, displays inline errors if validation fails. 'Back' returns to welcome; 'Next' advances after successful validation.",
+      "interactions": [
+        "type:host",
+        "type:token",
+        "click:next",
+        "click:back"
+      ],
+      "transitions_to": [
+        "dashboard.wizard.easy-plugins",
+        "dashboard.wizard.welcome"
+      ],
+      "source_refs": [
+        "web/src/components/wizard/step-board-setup.tsx"
+      ]
+    },
+    {
+      "id": "dashboard.wizard.easy-plugins",
+      "route": "/",
+      "preconditions": [
+        "wizard:active",
+        "step:easy-plugins"
+      ],
+      "description": "Final wizard step: list of recommended no-config plugins with checkboxes. 'Enable selected' enables in bulk and closes the wizard; 'Skip' closes the wizard without changes.",
+      "interactions": [
+        "toggle:plugin-checkbox",
+        "click:enable-selected",
+        "click:skip"
+      ],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/components/wizard/step-easy-plugins.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.loading",
+      "route": "/integrations",
+      "preconditions": [
+        "plugins-query:in-flight"
+      ],
+      "description": "Default tab 'Installed'. While api.listPlugins resolves the page renders a skeleton table with header row and 5 skeleton rows (icon, name, category, status badge, action buttons).",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.empty",
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.installed.error",
+      "route": "/integrations",
+      "preconditions": [
+        "plugins-query:error"
+      ],
+      "description": "api.listPlugins rejected. A destructive Card with AlertCircle icon shows 'loadPluginsError' i18n message. No retry button.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.empty",
+      "route": "/integrations",
+      "preconditions": [
+        "plugins:none",
+        "search:empty"
+      ],
+      "description": "No plugins installed and search empty. Centered Puzzle icon, 'noPluginsInstalled' headline, 'headToMarketplace' helper, and an outline button 'Browse Marketplace' that switches to the marketplace tab.",
+      "interactions": [
+        "click:browse-marketplace"
+      ],
+      "transitions_to": [
+        "integrations.marketplace.card-view"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.empty-search",
+      "route": "/integrations",
+      "preconditions": [
+        "plugins:>=1",
+        "filteredInstalled:none"
+      ],
+      "description": "Search query has zero matches among installed plugins. Search icon + i18n 'noInstalledMatch' with the query string echoed back.",
+      "interactions": [
+        "clear:search"
+      ],
+      "transitions_to": [
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.list",
+      "route": "/integrations",
+      "preconditions": [
+        "plugins:>=1"
+      ],
+      "description": "Default installed view: sortable table (Name | Category | Status | actions). Header click cycles asc/desc via ChevronUp/Down icons. Each row uses PluginCard with a toggle Switch, settings gear, and overflow menu.",
+      "interactions": [
+        "click:sort-name",
+        "click:sort-category",
+        "click:sort-status",
+        "click:row-toggle",
+        "click:row-config",
+        "click:row-overflow",
+        "type:search",
+        "click:tab-marketplace"
+      ],
+      "transitions_to": [
+        "integrations.installed.toggle-pending",
+        "integrations.plugin.config-sheet.open",
+        "integrations.installed.overflow-menu",
+        "integrations.marketplace.card-view"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.updates-banner",
+      "route": "/integrations",
+      "preconditions": [
+        "updates_available:>=1"
+      ],
+      "description": "Amber banner above the list reading 'pluginUpdatesAvailable' with an 'Update all (N)' button. Clicking calls api.applyAllPluginUpdates; spinner during pending; success/partial-failure toasts.",
+      "interactions": [
+        "click:update-all"
+      ],
+      "transitions_to": [
+        "integrations.installed.update-all-pending"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.update-all-pending",
+      "route": "/integrations",
+      "preconditions": [
+        "update-all-mutation:pending"
+      ],
+      "description": "'Update all' button shows spinning RefreshCw and 'updating' label, disabled. On settle the plugins / registry / template-variables queries invalidate.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.installed.check-updates-pending",
+      "route": "/integrations",
+      "preconditions": [
+        "check-updates-mutation:pending"
+      ],
+      "description": "PageHeader's 'Check for updates' button shows animate-spin RefreshCw and 'checking' label. On success: 'updates found (N)' or 'no updates' toast.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list",
+        "integrations.installed.updates-banner"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.installed.toggle-pending",
+      "route": "/integrations",
+      "preconditions": [
+        "toggle-mutation:pending"
+      ],
+      "description": "Plugin row's Switch optimistically flips; Switch is disabled until the mutation settles. Error rolls back via context.previousPlugins and toasts 'toastToggleFailed'.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list",
+        "integrations.installed.toggle-error"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.installed.toggle-error",
+      "route": "/integrations",
+      "preconditions": [
+        "toggle-mutation:error"
+      ],
+      "description": "enablePlugin/disablePlugin rejects. Previous query data restored; sonner error toast 'toastToggleFailed' with plugin id and error message.",
+      "interactions": [
+        "click:row-toggle"
+      ],
+      "transitions_to": [
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.installed.overflow-menu",
+      "route": "/integrations",
+      "preconditions": [],
+      "description": "DropdownMenu for a plugin row: Configure, Add Instance (only for non-instance rows), Enable/Disable, optional 'Update' if hasUpdate, and a destructive Delete / Uninstall item for instances and external plugins.",
+      "interactions": [
+        "click:configure",
+        "click:add-instance",
+        "click:enable-disable",
+        "click:update",
+        "click:delete",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.open",
+        "integrations.installed.add-instance-row",
+        "integrations.installed.update-pending",
+        "integrations.plugin.delete-confirm"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.installed.add-instance-row",
+      "route": "/integrations",
+      "preconditions": [
+        "showAddInstance:true"
+      ],
+      "description": "An inline expansion row below the plugin row exposes an Input ('Instance name', autofocus) with Create/Cancel buttons. Enter submits, Escape cancels. Hint reads '1-40 chars, alphanumeric/-/_'.",
+      "interactions": [
+        "type:instance-label",
+        "keyboard:enter",
+        "keyboard:escape",
+        "click:create",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "integrations.installed.create-instance-pending",
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.create-instance-pending",
+      "route": "/integrations",
+      "preconditions": [
+        "create-instance-mutation:pending"
+      ],
+      "description": "Create button shows 'Creating...' label and is disabled. On success: toast 'Instance \"<label>\" created', plugins query invalidates, row collapses. On error: destructive toast.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list",
+        "integrations.installed.add-instance-row"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.installed.update-pending",
+      "route": "/integrations",
+      "preconditions": [
+        "update-mutation:pending"
+      ],
+      "description": "Single-plugin update in flight (overflow > Update). Overflow item icon spins. Success toast 'toastUpdated'; error toast 'toastUpdateFailed'.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.plugin.config-sheet.open",
+      "route": "/integrations",
+      "preconditions": [
+        "plugin-row:configure-clicked"
+      ],
+      "description": "Right-side Sheet (max-w-xl). Header shows plugin icon and name. Body renders settings SchemaForm, template-variable copy table, env-var table, color-rules editor, and optional Demo Page section. Footer has Cancel, Save Changes, and (for external plugins) a destructive Uninstall button.",
+      "interactions": [
+        "type:setting",
+        "click:copy-variable",
+        "click:save",
+        "click:cancel",
+        "click:uninstall",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.saving",
+        "integrations.plugin.config-sheet.no-config",
+        "integrations.plugin.color-rules-editor",
+        "integrations.plugin.demo-page-create",
+        "integrations.plugin.delete-confirm",
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.plugin.config-sheet.loading",
+      "route": "/integrations",
+      "preconditions": [
+        "plugin-details-query:pending"
+      ],
+      "description": "While api.getPlugin(pluginId) resolves, the Sheet body shows three full-width Skeleton bars in place of the settings form.",
+      "interactions": [
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.open"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.plugin.config-sheet.no-config",
+      "route": "/integrations",
+      "preconditions": [
+        "settings_schema:empty",
+        "variables:empty"
+      ],
+      "description": "Plugin with no settings, no template variables, and no env vars. Sheet body reads 'No configuration options available for this plugin.' The color-rules editor still renders.",
+      "interactions": [
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.plugin.config-sheet.saving",
+      "route": "/integrations",
+      "preconditions": [
+        "update-plugin-config-mutation:pending"
+      ],
+      "description": "Save Changes button label switches to 'Saving...' and is disabled. On success: success toast '<name> configuration saved', plugin-displays-batch and pagePreview queries invalidated, sheet closes. On error: destructive toast.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list",
+        "integrations.plugin.config-sheet.open"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.plugin.config-sheet.with-env-vars",
+      "route": "/integrations",
+      "preconditions": [
+        "env_vars:>=1"
+      ],
+      "description": "Plugin exposes env_vars in its manifest. Environment Variables section renders a table with Variable/Description/Required columns; required vars show a destructive 'Required' badge.",
+      "interactions": [
+        "scroll"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.open"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.plugin.config-sheet.copy-variable",
+      "route": "/integrations",
+      "preconditions": [
+        "clipboard:write-ok"
+      ],
+      "description": "Clicking a template-variable row copies '{{<pluginId>.<var>}}' to clipboard, swaps the Copy icon for a green Check for 2 seconds, and toasts 'Copied {{...}}'.",
+      "interactions": [
+        "click:variable-row"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.open"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.plugin.color-rules-editor",
+      "route": "/integrations",
+      "preconditions": [],
+      "description": "Color Rules section: per-field cards listing condition (>=, <=, etc.), value, and color swatch. Buttons to add field (with name input), add rule, reorder via ArrowUp/Down, delete rule, delete field. Empty state shows 'No color rules configured. Add a field to create dynamic colors.'",
+      "interactions": [
+        "click:add-field",
+        "type:field-name",
+        "click:add-rule",
+        "select:condition",
+        "type:value",
+        "select:color",
+        "click:reorder-up",
+        "click:reorder-down",
+        "click:delete-rule",
+        "click:delete-field"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.open"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.plugin.demo-page-create",
+      "route": "/integrations",
+      "preconditions": [
+        "has_demo:true",
+        "demo_page_id:null"
+      ],
+      "description": "Plugin's manifest declares has_demo. A demo-page card in the sheet shows 'Create Demo Page' button. Button disabled when required settings are missing (amber hint: 'Configure the required settings below before creating a demo page.'). On click: api.createPluginDemoPage and toast 'Demo page created for <name>'.",
+      "interactions": [
+        "click:create-demo"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.open"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.plugin.demo-page-recreate-confirm",
+      "route": "/integrations",
+      "preconditions": [
+        "demo_page_id:set"
+      ],
+      "description": "Dialog opened by 'Recreate' button when a demo page already exists. Title 'Recreate Demo Page?'; body warns the existing demo will be deleted. Recreate label switches to 'Creating...' during mutation.",
+      "interactions": [
+        "click:recreate",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "integrations.plugin.config-sheet.open"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.plugin.delete-confirm",
+      "route": "/integrations",
+      "preconditions": [
+        "isExternal|isInstance:true"
+      ],
+      "description": "AlertDialog confirming uninstall (external plugin) or instance deletion. Title varies: 'Delete instance \"<label>\"?' vs 'Delete \"<name>\"?'. Confirm uses destructive variant.",
+      "interactions": [
+        "click:confirm-delete",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "integrations.installed.uninstall-pending",
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.installed.uninstall-pending",
+      "route": "/integrations",
+      "preconditions": [
+        "uninstall-mutation:pending"
+      ],
+      "description": "During api.uninstallPlugin / api.deletePluginInstance the row's actions are disabled and the overflow item reads 'Uninstalling...'. Settled: plugins, registry, template-variables queries invalidated. Success toast 'toastUninstalled'.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.marketplace.card-view",
+      "route": "/integrations",
+      "preconditions": [
+        "activeTab:marketplace",
+        "registry:>=1"
+      ],
+      "description": "Default Marketplace tab view: registry plugins grouped by category, each section header showing label and (count). Each plugin renders as a Card with icon, name, author, description (line-clamp-2), category badge, and an Install or Installed badge.",
+      "interactions": [
+        "click:install",
+        "click:card",
+        "type:search",
+        "click:view-list",
+        "click:add-from-git",
+        "click:tab-installed"
+      ],
+      "transitions_to": [
+        "integrations.marketplace.installing",
+        "integrations.detail.loading",
+        "integrations.marketplace.list-view",
+        "integrations.marketplace.git-install-dialog",
+        "integrations.installed.list"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.marketplace.list-view",
+      "route": "/integrations",
+      "preconditions": [
+        "activeTab:marketplace",
+        "marketplaceView:list"
+      ],
+      "description": "Marketplace shown as a sortable table (Name | Category | Author | install). Header click cycles asc/desc. Each row is a link to /integrations/<id>.",
+      "interactions": [
+        "click:sort-name",
+        "click:sort-category",
+        "click:sort-author",
+        "click:row",
+        "click:install",
+        "click:view-card"
+      ],
+      "transitions_to": [
+        "integrations.marketplace.installing",
+        "integrations.detail.loading",
+        "integrations.marketplace.card-view"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.marketplace.empty-search",
+      "route": "/integrations",
+      "preconditions": [
+        "filteredRegistry:none",
+        "search:non-empty"
+      ],
+      "description": "Marketplace search with zero matches. Search icon + 'noPluginsMatch' i18n message echoing the query.",
+      "interactions": [
+        "clear:search"
+      ],
+      "transitions_to": [
+        "integrations.marketplace.card-view"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.marketplace.empty",
+      "route": "/integrations",
+      "preconditions": [
+        "registry:empty",
+        "search:empty"
+      ],
+      "description": "Registry returned no entries and no search. Empty Puzzle icon, 'noRegistryPluginsFound' headline, hint 'canInstallCustomGitDescription' below.",
+      "interactions": [
+        "click:add-from-git"
+      ],
+      "transitions_to": [
+        "integrations.marketplace.git-install-dialog"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.marketplace.installing",
+      "route": "/integrations",
+      "preconditions": [
+        "install-mutation:pending"
+      ],
+      "description": "Card/row install button shows animate-bounce ArrowDownToLine icon and 'Installing...' label, disabled. On success: api.enablePlugin runs, toast 'toastInstalledAndEnabled', active tab switches to 'installed'.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list",
+        "integrations.marketplace.card-view"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.marketplace.git-install-dialog",
+      "route": "/integrations",
+      "preconditions": [],
+      "description": "Dialog 'gitInstallTitle'. Yellow ShieldAlert security warning Alert at top. Inputs: repo URL, optional plugin id (auto-detected placeholder), optional branch. Cancel and Install Plugin buttons; Install spinner during pending.",
+      "interactions": [
+        "type:git-url",
+        "type:plugin-id",
+        "type:branch",
+        "click:install",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "integrations.marketplace.git-installing",
+        "integrations.marketplace.card-view"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.marketplace.git-installing",
+      "route": "/integrations",
+      "preconditions": [
+        "install-git-mutation:pending"
+      ],
+      "description": "Install Plugin button shows spinning RefreshCw + 'installing'. On success: toast 'toastInstalledFromGit' with detected plugin_id, dialog closes, tab switches to 'installed'. On error: destructive toast, dialog stays open.",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list",
+        "integrations.marketplace.git-install-dialog"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.detail.loading",
+      "route": "/integrations/[pluginId]",
+      "preconditions": [
+        "registry-query:pending"
+      ],
+      "description": "Plugin detail page while registry is loading. Header card shows Skeletons for name and subtitle; README card shows multiple Skeleton lines.",
+      "interactions": [
+        "click:back"
+      ],
+      "transitions_to": [
+        "integrations.detail.not-installed",
+        "integrations.detail.installed"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/[pluginId]/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.detail.not-installed",
+      "route": "/integrations/[pluginId]",
+      "preconditions": [
+        "registry-entry:found",
+        "isInstalled:false"
+      ],
+      "description": "Plugin detail header card with icon, name, category badge, author / 'requires FiestaBoard <ver>' line. Action buttons: GitHub (external link), Install. README from the plugin's GitHub repo is rendered below via react-markdown + remark-gfm.",
+      "interactions": [
+        "click:install",
+        "click:github",
+        "click:back",
+        "click:readme-link"
+      ],
+      "transitions_to": [
+        "integrations.detail.install-pending",
+        "integrations.marketplace.card-view"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/[pluginId]/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "integrations.detail.install-pending",
+      "route": "/integrations/[pluginId]",
+      "preconditions": [
+        "install-mutation:pending"
+      ],
+      "description": "Install button shows animate-bounce ArrowDownToLine and 'installing' label, disabled. On success: toast 'toastInstalled', router.push('/integrations?tab=installed').",
+      "interactions": [],
+      "transitions_to": [
+        "integrations.installed.list",
+        "integrations.detail.not-installed"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/[pluginId]/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.detail.installed",
+      "route": "/integrations/[pluginId]",
+      "preconditions": [
+        "registry-entry:found",
+        "isInstalled:true"
+      ],
+      "description": "Plugin detail page when already installed. Install button replaced by an outline 'Add Instance' button (CopyPlus icon). Opening the add-instance dialog reuses the same instance-label flow as the integrations list.",
+      "interactions": [
+        "click:add-instance",
+        "click:github",
+        "click:back"
+      ],
+      "transitions_to": [
+        "integrations.detail.add-instance-dialog"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/[pluginId]/page.tsx"
+      ]
+    },
+    {
+      "id": "integrations.detail.add-instance-dialog",
+      "route": "/integrations/[pluginId]",
+      "preconditions": [],
+      "description": "Dialog 'Add Instance of <name>'. Label input autofocused; Enter submits, Escape cancels. Help text describes instance-name rules. Create button disabled until label non-empty; 'creating'/'create' labels.",
+      "interactions": [
+        "type:instance-label",
+        "keyboard:enter",
+        "keyboard:escape",
+        "click:create",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "integrations.detail.installed"
+      ],
+      "source_refs": [
+        "web/src/app/integrations/[pluginId]/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.tab-general",
+      "route": "/settings",
+      "preconditions": [
+        "section:general|absent"
+      ],
+      "description": "Default Settings tab. Renders a stack of cards: InstanceName, AppearanceSettings (theme), LanguageSettings (locale picker), TimeAndDateCard, LocationSettingsCard, AccessibilitySettings, AnimationSettings. SystemUpdate banner sits above the Tabs.",
+      "interactions": [
+        "click:tab-account",
+        "click:tab-hardware",
+        "click:tab-network",
+        "click:tab-behavior",
+        "click:tab-integrations",
+        "click:tab-system",
+        "click:tab-advanced",
+        "edit:instance-name",
+        "select:theme",
+        "select:language",
+        "select:timezone",
+        "click:geolocate"
+      ],
+      "transitions_to": [
+        "settings.general.instance-name-saved",
+        "settings.general.location-geolocating",
+        "settings.tab-hardware"
+      ],
+      "source_refs": [
+        "web/src/app/settings/page.tsx",
+        "web/src/components/settings/instance-name.tsx",
+        "web/src/components/settings/appearance-settings.tsx",
+        "web/src/components/settings/language-settings.tsx",
+        "web/src/components/settings/time-and-date.tsx",
+        "web/src/components/settings/location-settings.tsx",
+        "web/src/components/settings/accessibility-settings.tsx",
+        "web/src/components/settings/animation-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.general.instance-name-saved",
+      "route": "/settings",
+      "preconditions": [
+        "section:general",
+        "save-instance:success"
+      ],
+      "description": "Saving the instance name shows a success toast 'Instance name updated' and updates the BoardNameContext live.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-general"
+      ],
+      "source_refs": [
+        "web/src/components/settings/instance-name.tsx"
+      ]
+    },
+    {
+      "id": "settings.general.location-geolocating",
+      "route": "/settings",
+      "preconditions": [
+        "geolocation:in-flight"
+      ],
+      "description": "LocationSettingsCard 'Use my location' button triggers navigator.geolocation. Button shows spinner during pending. Errors surface as toasts: 'Location services unavailable' or 'Location permission denied'.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-general",
+        "settings.general.location-error"
+      ],
+      "source_refs": [
+        "web/src/components/settings/location-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.general.location-error",
+      "route": "/settings",
+      "preconditions": [
+        "geolocation:denied|unavailable"
+      ],
+      "description": "Geolocation permission denied or unavailable. Destructive toast surfaces the localized error; latitude/longitude fields remain unchanged.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-general"
+      ],
+      "source_refs": [
+        "web/src/components/settings/location-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-account.loading",
+      "route": "/settings",
+      "preconditions": [
+        "section:account",
+        "auth-status-query:pending"
+      ],
+      "description": "Account tab body shows a skeleton Card (header skeleton + 20-tall body skeleton) while api.getAuthStatus resolves.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-account.signed-in",
+        "settings.tab-account.auth-disabled"
+      ],
+      "source_refs": [
+        "web/src/components/account-section.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-account.signed-in",
+      "route": "/settings",
+      "preconditions": [
+        "auth:on",
+        "authenticated:true"
+      ],
+      "description": "Account tab when signed in: stack of cards \u2014 Signed in (username readout), Change username, Change password, Sign out, and a destructive 'Disable login' card.",
+      "interactions": [
+        "submit:change-username",
+        "submit:change-password",
+        "click:sign-out",
+        "click:disable-login"
+      ],
+      "transitions_to": [
+        "settings.account.change-username-success",
+        "settings.account.change-password-success",
+        "settings.account.change-password-error",
+        "settings.account.disable-login-dialog",
+        "login.sign-in-form"
+      ],
+      "source_refs": [
+        "web/src/components/account-section.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-account.auth-disabled",
+      "route": "/settings",
+      "preconditions": [
+        "authStatus.mode:disabled"
+      ],
+      "description": "Account tab when authentication is off. A brand-bordered 'Turn on login' card invites the user to set up credentials. Button label switches to 'Enabling...' during api.setAuthPreference; on success router pushes /login.",
+      "interactions": [
+        "click:enable-login"
+      ],
+      "transitions_to": [
+        "login.first-run-picker",
+        "login.setup-form"
+      ],
+      "source_refs": [
+        "web/src/components/account-section.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.account.change-username-success",
+      "route": "/settings",
+      "preconditions": [
+        "change-username-mutation:success"
+      ],
+      "description": "Change-username form submitted. Password cleared, success toast 'Username updated', auth-status query invalidated. The 'Save username' button disabled while unchanged or password blank.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-account.signed-in"
+      ],
+      "source_refs": [
+        "web/src/components/account-section.tsx"
+      ]
+    },
+    {
+      "id": "settings.account.change-password-success",
+      "route": "/settings",
+      "preconditions": [
+        "change-password-mutation:success"
+      ],
+      "description": "Change-password form submitted. Three fields cleared; success toast 'Password updated'.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-account.signed-in"
+      ],
+      "source_refs": [
+        "web/src/components/account-section.tsx"
+      ]
+    },
+    {
+      "id": "settings.account.change-password-error",
+      "route": "/settings",
+      "preconditions": [
+        "new-password:invalid|mismatch|api-error"
+      ],
+      "description": "Inline destructive paragraph (role=alert) under the password form when new password is <8 chars, doesn't match confirm, or api.changePassword rejects.",
+      "interactions": [
+        "edit:fields"
+      ],
+      "transitions_to": [
+        "settings.tab-account.signed-in"
+      ],
+      "source_refs": [
+        "web/src/components/account-section.tsx"
+      ]
+    },
+    {
+      "id": "settings.account.disable-login-dialog",
+      "route": "/settings",
+      "preconditions": [],
+      "description": "AlertDialog warning about disabling auth. Body explains the install becomes wide open. Requires the user's current password to confirm. Submit label 'Disabling...' during pending; on success router replaces /, auth-status cache dropped.",
+      "interactions": [
+        "type:password",
+        "click:confirm",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "settings.tab-account.auth-disabled",
+        "settings.tab-account.signed-in"
+      ],
+      "source_refs": [
+        "web/src/components/account-section.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.tab-hardware",
+      "route": "/settings",
+      "preconditions": [
+        "section:hardware"
+      ],
+      "description": "Hardware tab: DisplaySettings card managing board API host(s), local enablement token, and FiestaBoard registry boards. Supports multi-board mode (board picker, add/remove), enablement-token flow with toggle.",
+      "interactions": [
+        "select:board",
+        "type:host",
+        "type:token",
+        "toggle:enablement-token-mode",
+        "click:enable",
+        "click:add-board",
+        "click:remove-board"
+      ],
+      "transitions_to": [
+        "settings.hardware.add-board-picker",
+        "settings.hardware.remove-board-confirm",
+        "settings.hardware.enabling"
+      ],
+      "source_refs": [
+        "web/src/app/settings/page.tsx",
+        "web/src/components/settings/display-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.hardware.add-board-picker",
+      "route": "/settings",
+      "preconditions": [
+        "showTypePicker:true"
+      ],
+      "description": "A picker UI surfaces when adding a new board: choose 'FiestaBoard' (cloud registry) or 'Local API'. Cancel returns to the hardware tab.",
+      "interactions": [
+        "click:type-cloud",
+        "click:type-local",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.tab-hardware"
+      ],
+      "source_refs": [
+        "web/src/components/settings/display-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.hardware.remove-board-confirm",
+      "route": "/settings",
+      "preconditions": [
+        "boards.length:>=2"
+      ],
+      "description": "Removing a board: inline confirm or toast 'atLeastOneBoard' if attempting to remove the last board. On success toast 'boardRemoved'.",
+      "interactions": [
+        "click:confirm-remove",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.tab-hardware"
+      ],
+      "source_refs": [
+        "web/src/components/settings/display-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.hardware.enabling",
+      "route": "/settings",
+      "preconditions": [
+        "enable-local-mutation:pending"
+      ],
+      "description": "Enabling local API: enable button shows pending state. Success: 'localApiEnabled' toast. Errors: toast surfaces backend message or 'failedToEnable'.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-hardware"
+      ],
+      "source_refs": [
+        "web/src/components/settings/display-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-network.unavailable",
+      "route": "/settings",
+      "preconditions": [
+        "wifi-capability.available:false"
+      ],
+      "description": "Network tab is hidden entirely on installs without nmcli/D-Bus; ?section=network falls back to general.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-general"
+      ],
+      "source_refs": [
+        "web/src/app/settings/page.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-network.list",
+      "route": "/settings",
+      "preconditions": [
+        "section:network",
+        "wifi-capability.available:true"
+      ],
+      "description": "Network tab (FiestaPi only): NetworkSettings card shows current SSID + IP, a Scan button, and lists of available + saved networks. Each available row exposes Connect; each saved row exposes Forget.",
+      "interactions": [
+        "click:scan",
+        "click:connect-network",
+        "click:disconnect",
+        "click:forget-network"
+      ],
+      "transitions_to": [
+        "settings.network.connect-dialog",
+        "settings.network.disconnect-dialog",
+        "settings.network.forget-dialog",
+        "settings.network.scan-error"
+      ],
+      "source_refs": [
+        "web/src/components/settings/network-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.network.connect-dialog",
+      "route": "/settings",
+      "preconditions": [
+        "connectTarget:set"
+      ],
+      "description": "Dialog asking for the chosen SSID's password. Show/hide password toggle. Submit button disabled while empty/in-flight. On success: toast 'Connected to <ssid> at <ip>' (or '... (no IP)'); errors surface destructive toast.",
+      "interactions": [
+        "type:password",
+        "click:show-password",
+        "click:connect",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "settings.network.connect-pending",
+        "settings.tab-network.list"
+      ],
+      "source_refs": [
+        "web/src/components/settings/network-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.network.connect-pending",
+      "route": "/settings",
+      "preconditions": [
+        "connect-mutation:pending"
+      ],
+      "description": "Connect button shows spinner and is disabled. On settle: success or error toast as described above; dialog closes on success.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-network.list"
+      ],
+      "source_refs": [
+        "web/src/components/settings/network-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.network.disconnect-dialog",
+      "route": "/settings",
+      "preconditions": [],
+      "description": "Confirm-disconnect dialog (no password required). Confirm calls disconnectMutation; toast 'Disconnected' on success.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.tab-network.list"
+      ],
+      "source_refs": [
+        "web/src/components/settings/network-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.network.forget-dialog",
+      "route": "/settings",
+      "preconditions": [
+        "forgetTarget:set"
+      ],
+      "description": "Confirm-forget dialog for a saved network. Confirm calls forgetMutation; success toast 'Forgot <name>'.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.tab-network.list"
+      ],
+      "source_refs": [
+        "web/src/components/settings/network-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.network.scan-error",
+      "route": "/settings",
+      "preconditions": [
+        "scan-mutation:error"
+      ],
+      "description": "Wi-Fi scan failed; destructive toast 'toastScanFailed' with the error message. Network lists keep previous data.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-network.list"
+      ],
+      "source_refs": [
+        "web/src/components/settings/network-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-behavior",
+      "route": "/settings",
+      "preconditions": [
+        "section:behavior"
+      ],
+      "description": "Behavior tab: TransitionSettings (page transition presets), UpdateIntervals (per-plugin polling), and SilenceSchedule (quiet hours editor with start/end pickers, mode selector indicator/page, indicator text input).",
+      "interactions": [
+        "select:transition",
+        "type:interval",
+        "toggle:silence-enabled",
+        "type:silence-start",
+        "type:silence-end",
+        "select:silence-mode",
+        "click:save"
+      ],
+      "transitions_to": [
+        "settings.behavior.silence-saved",
+        "settings.tab-behavior"
+      ],
+      "source_refs": [
+        "web/src/components/settings/transition-settings.tsx",
+        "web/src/components/settings/update-intervals.tsx",
+        "web/src/components/settings/silence-schedule.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.behavior.silence-saved",
+      "route": "/settings",
+      "preconditions": [
+        "silence-save-mutation:success"
+      ],
+      "description": "Silence schedule save success toast 'toastSettingsSaved'; hasChanges flips back to false. Error toast 'toastSilenceSaveFailed' on rejection.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-behavior"
+      ],
+      "source_refs": [
+        "web/src/components/settings/silence-schedule.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-integrations",
+      "route": "/settings",
+      "preconditions": [
+        "section:integrations"
+      ],
+      "description": "Integrations tab: stacks AiSettings, McpSettings, MqttSettings, and PluginSettingsCard. Each card has independent expand/edit/save states.",
+      "interactions": [
+        "click:expand-ai",
+        "click:expand-mcp",
+        "click:expand-mqtt",
+        "click:save"
+      ],
+      "transitions_to": [
+        "settings.integrations.ai-test",
+        "settings.integrations.mcp-rotate-confirm",
+        "settings.integrations.mcp-revoke-confirm",
+        "settings.integrations.mcp-token-dialog",
+        "settings.integrations.mqtt-saved"
+      ],
+      "source_refs": [
+        "web/src/components/settings/ai-settings.tsx",
+        "web/src/components/settings/mcp-settings.tsx",
+        "web/src/components/settings/mqtt-settings.tsx",
+        "web/src/components/settings/plugin-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.integrations.ai-test",
+      "route": "/settings",
+      "preconditions": [
+        "ai-test:in-flight|done"
+      ],
+      "description": "AI provider test button validates configured key/model. testResult state shows success ('OK \u00b7 ms') or error message inline. testing=true disables the button.",
+      "interactions": [
+        "click:test",
+        "type:key",
+        "type:model"
+      ],
+      "transitions_to": [
+        "settings.tab-integrations"
+      ],
+      "source_refs": [
+        "web/src/components/settings/ai-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.integrations.mcp-rotate-confirm",
+      "route": "/settings",
+      "preconditions": [
+        "confirmingRotate:true"
+      ],
+      "description": "AlertDialog confirming rotation of the MCP access token. Confirm calls rotateMutation; on success the new token surfaces in a Save-this-token dialog.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.integrations.mcp-token-dialog"
+      ],
+      "source_refs": [
+        "web/src/components/settings/mcp-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.integrations.mcp-revoke-confirm",
+      "route": "/settings",
+      "preconditions": [
+        "confirmingClear:true"
+      ],
+      "description": "AlertDialog 'Revoke MCP token?'. Confirm calls clearMutation; success toast 'MCP token revoked'; errors surface via toast.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.tab-integrations"
+      ],
+      "source_refs": [
+        "web/src/components/settings/mcp-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.integrations.mcp-token-dialog",
+      "route": "/settings",
+      "preconditions": [
+        "revealedToken:set"
+      ],
+      "description": "Dialog 'Save this token' showing the freshly-rotated MCP token in a read-only field with copy buttons (token + JSON config). After copy, icon swaps to a green Check for 2s; failure toasts 'Couldn't copy to clipboard'.",
+      "interactions": [
+        "click:copy-token",
+        "click:copy-config",
+        "click:close"
+      ],
+      "transitions_to": [
+        "settings.tab-integrations"
+      ],
+      "source_refs": [
+        "web/src/components/settings/mcp-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.integrations.mqtt-saved",
+      "route": "/settings",
+      "preconditions": [
+        "mqtt-save:success"
+      ],
+      "description": "MQTT settings save success toast 'toastSaved'; draft cleared. Error toast on rejection.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-integrations"
+      ],
+      "source_refs": [
+        "web/src/components/settings/mqtt-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-system",
+      "route": "/settings",
+      "preconditions": [
+        "section:system"
+      ],
+      "description": "System tab: SystemControls (restart/shutdown/factory-reset cards), AutoUpdateInterval, BackupSettings (export/import), 'Setup wizard' card with Wand2 brand button, and AboutCard (version/license).",
+      "interactions": [
+        "click:restart",
+        "click:shutdown",
+        "click:factory-reset",
+        "click:export-backup",
+        "click:import-backup",
+        "click:run-wizard"
+      ],
+      "transitions_to": [
+        "settings.system.restart-dialog",
+        "settings.system.shutdown-dialog",
+        "settings.system.factory-reset-dialog",
+        "settings.system.restart-overlay",
+        "settings.system.import-confirm",
+        "dashboard.wizard.welcome"
+      ],
+      "source_refs": [
+        "web/src/components/settings/system-controls.tsx",
+        "web/src/components/settings/auto-update-interval.tsx",
+        "web/src/components/settings/backup-settings.tsx",
+        "web/src/components/settings/about-card.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.system.restart-dialog",
+      "route": "/settings",
+      "preconditions": [
+        "confirmAction:restart"
+      ],
+      "description": "Confirm-restart Dialog ('restartDialogTitle'). Cancel and Confirm; Confirm calls api.restart and switches to a 'Restarting...' overlay until /api/health returns ready.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.system.restart-overlay",
+        "settings.tab-system"
+      ],
+      "source_refs": [
+        "web/src/components/settings/system-controls.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.system.shutdown-dialog",
+      "route": "/settings",
+      "preconditions": [
+        "confirmAction:shutdown"
+      ],
+      "description": "Confirm-shutdown Dialog ('shutdownDialogTitle'). Confirm calls api.shutdown; toast on success.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.tab-system"
+      ],
+      "source_refs": [
+        "web/src/components/settings/system-controls.tsx"
+      ]
+    },
+    {
+      "id": "settings.system.restart-overlay",
+      "route": "/settings",
+      "preconditions": [
+        "activeOverlay:restarting|ready|error"
+      ],
+      "description": "Full-screen overlay tracking restart progress. phase='restarting' shows a spinner and message; phase='ready' shows success and an auto-reload countdown; phase='error' shows a destructive message with a Retry button.",
+      "interactions": [
+        "click:retry",
+        "click:reload"
+      ],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/components/settings/system-controls.tsx"
+      ]
+    },
+    {
+      "id": "settings.system.import-confirm",
+      "route": "/settings",
+      "preconditions": [
+        "pending:set"
+      ],
+      "description": "AlertDialog confirming a backup import after the user picks a file. Shows backup metadata (created_at, plugin counts) and a 'Reinstall plugins' checkbox. Confirm calls api.importBackup; success toast describes what changed.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel",
+        "toggle:reinstall-plugins"
+      ],
+      "transitions_to": [
+        "settings.tab-system",
+        "settings.system.import-error"
+      ],
+      "source_refs": [
+        "web/src/components/settings/backup-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.system.import-error",
+      "route": "/settings",
+      "preconditions": [
+        "import-mutation:error|invalid-file"
+      ],
+      "description": "Destructive toast covering import-side errors: 'Could not read file', 'File is not valid JSON', 'This does not look like a FiestaBoard backup file', or backend error message. Dialog closes on file errors.",
+      "interactions": [],
+      "transitions_to": [
+        "settings.tab-system"
+      ],
+      "source_refs": [
+        "web/src/components/settings/backup-settings.tsx"
+      ]
+    },
+    {
+      "id": "settings.system.update-available",
+      "route": "/settings",
+      "preconditions": [
+        "system-update:available"
+      ],
+      "description": "SystemUpdate banner above the tabs (top of every settings tab) when a new FiestaBoard version is available. 'Update now' button opens the confirm Dialog ('dialogTitle').",
+      "interactions": [
+        "click:update",
+        "click:dismiss"
+      ],
+      "transitions_to": [
+        "settings.system.update-confirm"
+      ],
+      "source_refs": [
+        "web/src/components/settings/system-update.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "settings.system.update-confirm",
+      "route": "/settings",
+      "preconditions": [
+        "confirmOpen:true"
+      ],
+      "description": "System-update confirm Dialog. Confirm triggers the update workflow which restarts the container; the restart overlay then takes over.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "settings.system.restart-overlay"
+      ],
+      "source_refs": [
+        "web/src/components/settings/system-update.tsx"
+      ]
+    },
+    {
+      "id": "settings.tab-advanced",
+      "route": "/settings",
+      "preconditions": [
+        "section:advanced"
+      ],
+      "description": "Advanced tab: DebugSettings (log level, dump diagnostics) and BetaSettings (beta-channel toggle, feature flags).",
+      "interactions": [
+        "select:log-level",
+        "toggle:beta",
+        "click:download-diagnostics"
+      ],
+      "transitions_to": [
+        "settings.tab-advanced"
+      ],
+      "source_refs": [
+        "web/src/components/settings/debug-settings.tsx",
+        "web/src/components/settings/beta-settings.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "carousels.list.loading",
+      "route": "/carousels",
+      "preconditions": [
+        "carousels-query:pending"
+      ],
+      "description": "Loading state shown while api.getCarousels resolves. PageLayout renders a 10-tall Skeleton title and a 64-tall list Skeleton.",
+      "interactions": [],
+      "transitions_to": [
+        "carousels.list.empty",
+        "carousels.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ]
+    },
+    {
+      "id": "carousels.list.empty",
+      "route": "/carousels",
+      "preconditions": [
+        "carousels:none"
+      ],
+      "description": "Empty state Card centered: GalleryHorizontalEnd icon (h-12 w-12), 'noCarouselsTitle', 'noCarouselsDescription', and a brand 'Create First Carousel' button that opens the new-carousel sheet.",
+      "interactions": [
+        "click:create-first",
+        "click:new-carousel-toolbar"
+      ],
+      "transitions_to": [
+        "carousels.form.sheet-create"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "carousels.list.with-entries",
+      "route": "/carousels",
+      "preconditions": [
+        "carousels:>=1"
+      ],
+      "description": "List view: one animated Card per carousel showing GalleryHorizontalEnd icon, name, description ('<n> pages \u00b7 <interval> per page'), and an Edit pencil button. Card body shows secondary badges for each page in order.",
+      "interactions": [
+        "click:edit",
+        "click:new-carousel"
+      ],
+      "transitions_to": [
+        "carousels.form.sheet-edit",
+        "carousels.form.sheet-create"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "carousels.form.sheet-create",
+      "route": "/carousels",
+      "preconditions": [
+        "editingCarousel:null",
+        "showForm:true"
+      ],
+      "description": "Right-side Sheet (max-w-xl) opened by 'New Carousel'. Title 'newCarousel', form inputs: name (max 100), pageDuration Select (preset intervals), selected-pages list (drag to reorder, remove), available-pages add-dropdown. Submit disabled until name + >=1 page. Footer 'Cancel' / 'Create Carousel'.",
+      "interactions": [
+        "type:name",
+        "select:interval",
+        "select:add-page",
+        "drag:reorder-page",
+        "click:remove-page",
+        "click:create",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "carousels.form.empty-pages-warning",
+        "carousels.form.creating",
+        "carousels.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "carousels.form.sheet-edit",
+      "route": "/carousels",
+      "preconditions": [
+        "editingCarousel:set"
+      ],
+      "description": "Sheet in edit mode. Title 'editCarousel'. Pre-populated with the carousel's name, pages, and interval. Delete button (destructive) appears at the left of the footer; primary action label switches to 'updateCarousel'.",
+      "interactions": [
+        "edit:any-field",
+        "click:update",
+        "click:delete",
+        "click:cancel"
+      ],
+      "transitions_to": [
+        "carousels.form.updating",
+        "carousels.delete-confirm",
+        "carousels.list.with-entries"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "carousels.form.empty-pages-warning",
+      "route": "/carousels",
+      "preconditions": [
+        "selectedPageIds:0"
+      ],
+      "description": "Selected-pages list area shows a dashed-bordered hint 'noPagesAdded'. The Create/Update button is disabled until at least one page is added.",
+      "interactions": [
+        "select:add-page"
+      ],
+      "transitions_to": [
+        "carousels.form.sheet-create",
+        "carousels.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "carousels.form.creating",
+      "route": "/carousels",
+      "preconditions": [
+        "create-mutation:pending"
+      ],
+      "description": "Create button shows Loader2 animate-spin and is disabled. On success: toast 'toastCreated', sheet closes, queries invalidated. On error: toast 'toastCreateFailed' and submitting resets.",
+      "interactions": [],
+      "transitions_to": [
+        "carousels.list.with-entries",
+        "carousels.form.create-error"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ]
+    },
+    {
+      "id": "carousels.form.create-error",
+      "route": "/carousels",
+      "preconditions": [
+        "create-mutation:error"
+      ],
+      "description": "createCarousel rejection. Destructive sonner toast surfaces err.message or 'toastCreateFailed'; sheet stays open with edits preserved.",
+      "interactions": [
+        "click:create"
+      ],
+      "transitions_to": [
+        "carousels.form.sheet-create"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ]
+    },
+    {
+      "id": "carousels.form.updating",
+      "route": "/carousels",
+      "preconditions": [
+        "update-mutation:pending"
+      ],
+      "description": "Update button shows spinner, disabled. On success: toast 'toastUpdated', sheet closes, editingCarousel cleared. On error: toast 'toastUpdateFailed' surfaces err.message.",
+      "interactions": [],
+      "transitions_to": [
+        "carousels.list.with-entries",
+        "carousels.form.update-error"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ]
+    },
+    {
+      "id": "carousels.form.update-error",
+      "route": "/carousels",
+      "preconditions": [
+        "update-mutation:error"
+      ],
+      "description": "updateCarousel rejection. Destructive toast; sheet stays open.",
+      "interactions": [
+        "click:update"
+      ],
+      "transitions_to": [
+        "carousels.form.sheet-edit"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ]
+    },
+    {
+      "id": "carousels.delete-confirm",
+      "route": "/carousels",
+      "preconditions": [
+        "deleteId:set"
+      ],
+      "description": "AlertDialog from the edit sheet's Delete button. Title 'deleteCarousel', body 'deleteConfirmation'. Cancel closes; Confirm deletes via api.deleteCarousel and toasts 'toastDeleted' / 'toastDeleteFailed'.",
+      "interactions": [
+        "click:confirm",
+        "click:cancel",
+        "keyboard:esc"
+      ],
+      "transitions_to": [
+        "carousels.list.with-entries",
+        "carousels.list.empty"
+      ],
+      "source_refs": [
+        "web/src/app/carousels/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "picks.grid.loading",
+      "route": "/picks",
+      "preconditions": [
+        "staff-picks-query:pending"
+      ],
+      "description": "Loading state for PicksGrid: a 2-column responsive grid of skeleton cards (aspect 17/8 preview Skeleton plus title/description/button Skeletons).",
+      "interactions": [],
+      "transitions_to": [
+        "picks.grid.populated",
+        "picks.grid.empty"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ]
+    },
+    {
+      "id": "picks.grid.empty",
+      "route": "/picks",
+      "preconditions": [
+        "picks:none-for-device"
+      ],
+      "description": "No picks for the active device. Centered muted text 'empty' i18n string. No buttons.",
+      "interactions": [],
+      "transitions_to": [
+        "picks.grid.populated"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "picks.grid.populated",
+      "route": "/picks",
+      "preconditions": [
+        "picks:>=1"
+      ],
+      "description": "2-column grid of PickCards. Each card shows a board screenshot (or skeleton fallback if no image / load error), title, description, required-plugin badges (green check or amber link), tags, and an Import button.",
+      "interactions": [
+        "click:import",
+        "click:plugin-link",
+        "click:tab-flagship",
+        "click:tab-note"
+      ],
+      "transitions_to": [
+        "picks.card.importing",
+        "integrations.installed.list",
+        "picks.tab-note"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "picks.card.missing-plugins",
+      "route": "/picks",
+      "preconditions": [
+        "pick.required_plugins:has-missing"
+      ],
+      "description": "Required-plugin row shows amber CircleAlert + plugin name as a Link to /integrations. Hover tooltip 'pluginNotEnabled' surfaces. The Import button still works but its tooltip 'importWithMissingPlugins' lists missing names.",
+      "interactions": [
+        "hover:plugin",
+        "click:plugin-link",
+        "click:import"
+      ],
+      "transitions_to": [
+        "integrations.installed.list",
+        "picks.card.importing"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "picks.card.importing",
+      "route": "/picks",
+      "preconditions": [
+        "import-mutation:pending"
+      ],
+      "description": "Import button shows 'importing' label and is disabled. On success: pages query invalidated, toast 'toastImported' with the new page name, slide-up view transition to /pages/edit/<id>.",
+      "interactions": [],
+      "transitions_to": [
+        "pages.edit.clean",
+        "picks.card.import-error"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ]
+    },
+    {
+      "id": "picks.card.import-error",
+      "route": "/picks",
+      "preconditions": [
+        "import-mutation:error"
+      ],
+      "description": "Staff-pick import failed (e.g. share-string rejected). Destructive sonner toast surfaces err.message; card returns to default state.",
+      "interactions": [
+        "click:import"
+      ],
+      "transitions_to": [
+        "picks.grid.populated"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ]
+    },
+    {
+      "id": "picks.tab-flagship",
+      "route": "/picks",
+      "preconditions": [
+        "boardSettings.devices:[flagship,note]",
+        "activeTab:flagship"
+      ],
+      "description": "When multiple devices are configured, the Picks page renders a Tabs widget. Flagship tab active: PicksGrid scoped to deviceType='flagship'.",
+      "interactions": [
+        "click:tab-note"
+      ],
+      "transitions_to": [
+        "picks.tab-note"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ]
+    },
+    {
+      "id": "picks.tab-note",
+      "route": "/picks",
+      "preconditions": [
+        "boardSettings.devices:[flagship,note]",
+        "activeTab:note"
+      ],
+      "description": "Note tab active: PicksGrid scoped to deviceType='note'.",
+      "interactions": [
+        "click:tab-flagship"
+      ],
+      "transitions_to": [
+        "picks.tab-flagship"
+      ],
+      "source_refs": [
+        "web/src/app/picks/page.tsx"
+      ]
+    },
+    {
+      "id": "login.loading",
+      "route": "/login",
+      "preconditions": [
+        "auth-status:in-flight"
+      ],
+      "description": "Initial /login render while fetchAuthStatus is pending. CenteredCard with Loader2 spinner, title 'loadingTitle', and helper text 'loadingDescription'.",
+      "interactions": [],
+      "transitions_to": [
+        "login.sign-in-form",
+        "login.setup-form",
+        "login.first-run-picker",
+        "login.api-unreachable",
+        "login.redirecting"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "login.api-unreachable",
+      "route": "/login",
+      "preconditions": [
+        "fetchAuthStatus:rejected"
+      ],
+      "description": "Auth-status request failed. CenteredCard with destructive ShieldAlert icon, title 'apiUnreachableTitle', and a destructive Alert reading the thrown error message.",
+      "interactions": [],
+      "transitions_to": [],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "login.redirecting",
+      "route": "/login",
+      "preconditions": [
+        "enabled:false|authenticated:true"
+      ],
+      "description": "Auth disabled or already signed in: a placeholder CenteredCard with spinning Loader2 ('redirectingTitle' / 'redirectingDescription') rendered while router.replace bounces the user to the redirect target.",
+      "interactions": [],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ]
+    },
+    {
+      "id": "login.first-run-picker",
+      "route": "/login",
+      "preconditions": [
+        "first_run:true",
+        "firstRunChoice:null"
+      ],
+      "description": "First-run picker: ShieldQuestion icon, title 'protectTitle'. Two buttons stacked: brand 'protectEnableButton' (drops into setup form) and outline 'protectSkipButton' (calls /auth/preference {enabled:false}). Footnote 'protectFootnote'.",
+      "interactions": [
+        "click:enable",
+        "click:skip",
+        "click:docs-link"
+      ],
+      "transitions_to": [
+        "login.setup-form",
+        "login.skip-pending",
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "login.skip-pending",
+      "route": "/login",
+      "preconditions": [
+        "skip-auth-mutation:pending"
+      ],
+      "description": "Skip button shows Loader2 + 'disablingButton' label, disabled. Success: router.replace(redirectTo). Failure: destructive Alert in the picker with 'couldNotDisableAuth' or 'networkError'.",
+      "interactions": [],
+      "transitions_to": [
+        "dashboard.home.live",
+        "login.first-run-picker"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ]
+    },
+    {
+      "id": "login.setup-form",
+      "route": "/login",
+      "preconditions": [
+        "setup_required:true"
+      ],
+      "description": "'Create administrator' form. Inputs: username, password (minLength 8, with 'passwordMinHint'), confirm. Submit label 'createButton' / 'creatingButton' during pending. 'changeLater' footer link to docs (opens in new tab; sr-only 'opensInNewTab').",
+      "interactions": [
+        "type:username",
+        "type:password",
+        "type:confirm",
+        "click:submit",
+        "click:docs-link"
+      ],
+      "transitions_to": [
+        "login.setup-validation-error",
+        "login.setup-submitting",
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "login.setup-submitting",
+      "route": "/login",
+      "preconditions": [
+        "setup-mutation:pending"
+      ],
+      "description": "Setup submit button shows Loader2 + 'creatingButton' label; all fields disabled. On 409: switches to a sign-in form with 'adminExists' error.",
+      "interactions": [],
+      "transitions_to": [
+        "dashboard.home.live",
+        "login.sign-in-form",
+        "login.setup-form"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ]
+    },
+    {
+      "id": "login.setup-validation-error",
+      "route": "/login",
+      "preconditions": [
+        "password:<8|mismatch"
+      ],
+      "description": "Client-side validation: password <8 chars or != confirm. Destructive Alert with 'passwordTooShort' or 'passwordsDontMatch'; focus is sent back to the password input for retry (WCAG 3.3.1).",
+      "interactions": [
+        "edit:password"
+      ],
+      "transitions_to": [
+        "login.setup-form"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "login.sign-in-form",
+      "route": "/login",
+      "preconditions": [
+        "enabled:true",
+        "authenticated:false",
+        "setup_required:false"
+      ],
+      "description": "Default sign-in form: Lock icon, title 'signInTitle'. Inputs: username (autofocus), password, 'Keep me logged in' Checkbox (default checked). Submit label 'submitButton' / 'submittingButton'.",
+      "interactions": [
+        "type:username",
+        "type:password",
+        "toggle:remember-me",
+        "click:submit",
+        "click:docs-link"
+      ],
+      "transitions_to": [
+        "login.sign-in-submitting",
+        "login.sign-in-invalid",
+        "login.sign-in-rate-limited",
+        "login.setup-form",
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "login.sign-in-submitting",
+      "route": "/login",
+      "preconditions": [
+        "login-mutation:pending"
+      ],
+      "description": "Submit button shows Loader2 + 'submittingButton' label. All fields disabled. On 409 the server reports an empty user store and the form swaps to setup mode.",
+      "interactions": [],
+      "transitions_to": [
+        "dashboard.home.live",
+        "login.sign-in-invalid",
+        "login.sign-in-rate-limited",
+        "login.setup-form"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ]
+    },
+    {
+      "id": "login.sign-in-invalid",
+      "route": "/login",
+      "preconditions": [
+        "status:401"
+      ],
+      "description": "Invalid credentials. Destructive Alert with res.detail or 'invalidCredentials' i18n. Focus is returned to the username input so the user can retry without re-tabbing past the skip link.",
+      "interactions": [
+        "edit:credentials"
+      ],
+      "transitions_to": [
+        "login.sign-in-form"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "login.sign-in-rate-limited",
+      "route": "/login",
+      "preconditions": [
+        "status:429"
+      ],
+      "description": "Too many failed attempts. Destructive Alert with res.detail or 'tooManyAttempts'. Focus restored to username.",
+      "interactions": [],
+      "transitions_to": [
+        "login.sign-in-form"
+      ],
+      "source_refs": [
+        "web/src/app/login/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "offline.disconnected",
+      "route": "/offline",
+      "preconditions": [
+        "navigator.onLine:false"
+      ],
+      "description": "PWA offline fallback. Centered WifiOff in a rounded muted circle, h1 'youreOffline', helper 'offlineDescription'. 'tryAgain' button reloads if network returns. Bulleted hint list: viewPreviouslyLoaded, accessCached, browseSaved.",
+      "interactions": [
+        "click:try-again",
+        "event:online"
+      ],
+      "transitions_to": [
+        "offline.reconnecting"
+      ],
+      "source_refs": [
+        "web/src/app/offline/page.tsx"
+      ],
+      "i18n_sensitive": true
+    },
+    {
+      "id": "offline.reconnecting",
+      "route": "/offline",
+      "preconditions": [
+        "navigator.onLine:true"
+      ],
+      "description": "Triggered by an 'online' window event. Headline switches to 'reconnecting', description to 'connectionRestored', and an animate-spin loader replaces the buttons. After ~1s the page reloads.",
+      "interactions": [],
+      "transitions_to": [
+        "dashboard.home.live"
+      ],
+      "source_refs": [
+        "web/src/app/offline/page.tsx"
+      ],
+      "i18n_sensitive": true
+    }
+  ]
+}

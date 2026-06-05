@@ -57,6 +57,10 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
   return (
     <div
       className="schedule-event-content h-full w-full overflow-hidden rounded px-1.5 py-1"
+      data-testid={`calendar-event-${resource.scheduleId}`}
+      data-schedule-id={resource.scheduleId}
+      data-enabled={resource.enabled ? "true" : "false"}
+      data-split={resource.isMidnightSplit ? resource.splitPart : "none"}
       style={{
         backgroundColor: resource.enabled ? scheduleColorLight : "var(--muted)",
         borderLeft: `2px solid ${resource.enabled ? scheduleColor : "color-mix(in oklch, var(--muted-foreground) 50%, transparent)"}`,
