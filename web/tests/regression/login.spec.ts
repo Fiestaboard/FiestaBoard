@@ -317,9 +317,22 @@ test.describe("regression: login", () => {
    * Coverage status: partial
    */
   test("login.sign-in-submitting — spinner+label and 409 setup swap", async ({ page }) => {
-    // Real /auth/status reports setup_required=false (an admin exists), so
-    // the sign-in form renders without a mock. We DO mock /auth/login to
-    // avoid submitting against the real admin password.
+    // CI's main e2e job runs with auth disabled, so /auth/status returns
+    // enabled:false and /login redirects to home. Mock it to keep the sign-in
+    // form rendered. We also mock /auth/login to avoid hitting the real admin password.
+    await page.route("**/api/auth/status", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          setup_required: false,
+          authenticated: false,
+          mode: "enabled",
+          first_run: false,
+        }),
+      }),
+    );
     let releaseLogin: () => void = () => {};
     const loginGate = new Promise<void>((resolve) => {
       releaseLogin = resolve;
@@ -365,6 +378,20 @@ test.describe("regression: login", () => {
    * Coverage status: uncovered
    */
   test("login.sign-in-rate-limited — 429 rate-limit messaging", async ({ page }) => {
+    // Mock /auth/status so the sign-in form renders in CI (auth-disabled by default).
+    await page.route("**/api/auth/status", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          setup_required: false,
+          authenticated: false,
+          mode: "enabled",
+          first_run: false,
+        }),
+      }),
+    );
     // Mock /auth/login to 429 so we don't trip the real rate limiter or
     // submit the admin's real password.
     await page.route("**/api/auth/login", async (route) => {
