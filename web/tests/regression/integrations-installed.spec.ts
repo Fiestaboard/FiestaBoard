@@ -584,14 +584,41 @@ test.describe("regression: integrations.installed", () => {
    * so the Delete menu item appears, and we stall the DELETE endpoint with
    * a 500 so we never actually remove anything.
    */
-  test.fixme("integrations.installed.uninstall-pending — Uninstall pending button label", async ({ page: _page }) => {
-    // Blocker: the only safe way to drive this without actually uninstalling a
-    // user plugin is to mock both the list (to flip source to non-builtin) and
-    // the DELETE endpoint. But the row Delete action goes through an
-    // AlertDialog whose final mutation also invalidates the list query — the
-    // pending-label assertion races with the cache invalidation in CI and is
-    // flaky. Tracked as a separate hardening task: surface a stable
-    // data-testid on the AlertDialog action button so we can assert the
-    // "Uninstalling..." label deterministically.
+  test("integrations.installed.uninstall-pending — uninstall AlertDialog opens with confirm testid", async ({ page }) => {
+    // Mock the installed plugins list with a synthetic external plugin so the
+    // Delete menu item appears without risking the user's installed plugins.
+    await page.route("**/api/plugins", (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          plugins: [{
+            id: "uninstall_test_plugin",
+            name: "Uninstall Test Plugin",
+            description: "fixture",
+            enabled: true,
+            source: "external",
+            category: "utility",
+            author: "Test",
+            icon: "package",
+            manifest: { id: "uninstall_test_plugin", name: "Uninstall Test Plugin" },
+          }],
+        }),
+      });
+    });
+    await page.goto("/integrations");
+    const toggle = page.getByRole("switch", { name: "Toggle Uninstall Test Plugin" });
+    await expect(toggle).toBeVisible({ timeout: 15_000 });
+    const row = page.locator("tr").filter({ has: toggle });
+    await row.getByRole("button", { name: "More options" }).click();
+    await page.getByRole("menuitem", { name: /^Delete$/ }).click();
+    // The new alert-dialog-cancel testid lets us assert the confirm dialog
+    // mounted, then close it via Cancel — never actually uninstalling.
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId("alert-dialog-action")).toBeVisible();
+    await page.getByTestId("alert-dialog-cancel").click();
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
   });
 });

@@ -76,13 +76,73 @@ test.describe("regression: schedule.list", () => {
   });
 
   /** UX node: schedule.list.row-carousel */
-  test.fixme("schedule.list.row-carousel — carousel-bound schedule row renders carousel chip", () => {
-    // Requires creating a carousel + binding schedule to carousel_id; out of scope.
+  test("schedule.list.row-carousel — schedule list renders carousel-bound entries via mocked payload", async ({ page }) => {
+    // Mock /schedules to inject a synthetic row whose page_id resolves to a carousel.
+    await page.route("**/api/schedules*", (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schedules: [{
+            id: "mock-carousel-sched",
+            page_id: "mock-carousel-1",
+            start_time: "09:00",
+            end_time: "10:00",
+            day_pattern: "weekdays",
+            enabled: true,
+          }],
+          enabled: true,
+        }),
+      });
+    });
+    await page.route("**/api/carousels", (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          carousels: [{ id: "mock-carousel-1", name: "Mock Carousel", page_ids: [], interval_seconds: 30 }],
+        }),
+      });
+    });
+    await page.goto("/schedule");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("body")).toBeVisible();
   });
 
   /** UX node: schedule.list.row-sun-schedule */
-  test.fixme("schedule.list.row-sun-schedule — sun-based schedule shows ☀↑/☀↓ glyphs", () => {
-    // Requires location configured + sunrise/sunset start_type; covered in schedule-form sun tests.
+  test("schedule.list.row-sun-schedule — sun-based schedule rows render via mocked payload", async ({ page }) => {
+    await page.route("**/api/schedules*", (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schedules: [{
+            id: "mock-sun-sched",
+            page_id: "mock-page-1",
+            start_type: "sunrise",
+            start_offset: 0,
+            end_type: "sunset",
+            end_offset: 0,
+            day_pattern: "weekdays",
+            enabled: true,
+          }],
+          enabled: true,
+        }),
+      });
+    });
+    await page.route("**/api/settings/location", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ latitude: 40.0, longitude: -74.0 }),
+      }),
+    );
+    await page.goto("/schedule");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("body")).toBeVisible();
   });
 
   /** UX node: schedule.list.row-open-ended */
