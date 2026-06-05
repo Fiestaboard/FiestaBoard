@@ -309,14 +309,15 @@ export async function createCollection(
   name: string,
   pageIds: string[],
   intervalSeconds = 30,
-): Promise<{ id: string; name: string; page_ids: string[]; interval_seconds: number }> {
+): Promise<{ id: string; name: string; page_ids: string[]; time: { interval_seconds: number } }> {
   const res = await fetch(`${API_URL}/collections`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
       name,
       page_ids: pageIds,
-      interval_seconds: intervalSeconds,
+      selection_mode: "time",
+      time: { interval_seconds: intervalSeconds },
     }),
   });
   if (!res.ok) {

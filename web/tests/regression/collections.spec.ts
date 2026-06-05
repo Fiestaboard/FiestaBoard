@@ -55,7 +55,8 @@ async function createCollectionApi(name: string, pageIds: string[], intervalSeco
     body: JSON.stringify({
       name,
       page_ids: pageIds,
-      interval_seconds: intervalSeconds,
+      selection_mode: "time",
+      time: { interval_seconds: intervalSeconds },
     }),
   });
   if (!res.ok) {
@@ -161,7 +162,11 @@ test.describe("regression: collections.list", () => {
     await expect(page.getByRole("heading", { name: "Collections", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText("No collections yet")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Collections automatically cycle through a collection of pages.")).toBeVisible();
+    await expect(
+      page.getByText(
+        "Collections group pages so the active page can be picked by time, by expression, or by other rules.",
+      ),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: "Create Your First Collection" })).toBeVisible();
   });
 

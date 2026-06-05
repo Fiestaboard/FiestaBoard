@@ -38,9 +38,7 @@ def _seed_data_dir(data_dir: Path) -> None:
             }
         )
     )
-    (data_dir / "collections.json").write_text(
-        json.dumps({"schema_version": 1, "collections": []})
-    )
+    (data_dir / "collections.json").write_text(json.dumps({"schema_version": 1, "collections": []}))
     (data_dir / "schedules.json").write_text(json.dumps({"schedules": [], "default_page_id": None}))
 
 

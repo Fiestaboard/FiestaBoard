@@ -661,6 +661,7 @@ class TestDeleteSchedule:
 # Collection tools
 # ---------------------------------------------------------------------------
 
+
 class TestListCollections:
     def test_returns_collection_list(self, mcp, mock_collection_service):
         with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):

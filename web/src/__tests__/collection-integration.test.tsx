@@ -6,11 +6,12 @@
  * - PagePickerDialog (collection section rendering)
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ScheduleEntryForm } from "@/components/schedule-entry-form";
+import { describe, expect, it, vi } from "vitest";
+
 import { PagePickerDialog } from "@/components/page-picker-dialog";
+import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import type { Collection } from "@/lib/api";
 
 const mockPages = [

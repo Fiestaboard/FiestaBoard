@@ -846,6 +846,7 @@ class TestGenericDataTestFetch:
 # Collection error paths (lines 3906-3940)
 # ---------------------------------------------------------------------------
 
+
 class TestCollectionErrors:
     def test_create_collection_value_error(self, client):
         mock_cs = Mock()

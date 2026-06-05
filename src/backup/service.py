@@ -156,9 +156,7 @@ class BackupService:
                     # first-run import migrates it into collections.json.
                     legacy = data_section.get("carousels")
                     if legacy is not None:
-                        self._write_json_with_backup(
-                            self.data_dir / "carousels.json", legacy, timestamp
-                        )
+                        self._write_json_with_backup(self.data_dir / "carousels.json", legacy, timestamp)
                         restored.append("carousels.json (legacy)")
                         continue
                 if payload is None:
