@@ -99,7 +99,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ## What Can You Display?
 
-FiestaBoard has **26 built-in plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
+FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
@@ -246,6 +246,8 @@ If you'd rather run Docker on a Pi you've already set up, the pre-built Docker i
 
 ## Stopping and Restarting
 
+Run these from the folder you originally started FiestaBoard in (the one with your `docker-compose.hub.yml` or cloned `docker-compose.yml` and your `./data` directory).
+
 ```bash
 # Stop FiestaBoard
 docker-compose down
@@ -257,7 +259,9 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-Then go to **http://localhost:4420** — the service starts automatically once the container is running.
+If you pulled the image with `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command (for example `docker-compose -f docker-compose.hub.yml down`).
+
+Then open **http://localhost:4420** — the service starts automatically once the container is running.
 
 ---
 
@@ -274,7 +278,7 @@ Then go to **http://localhost:4420** — the service starts automatically once t
 
 - Make sure Docker Desktop is running (look for the whale icon)
 - Check if the container is running: `docker ps`
-- Port conflict? Change the host port in `docker-compose.yml` (left side of `4420:3000`)
+- Port conflict? Change the host port in your compose file (left side of `4420:3000`)
 
 ### Plugin Issues
 
