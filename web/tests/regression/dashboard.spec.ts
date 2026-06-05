@@ -486,8 +486,8 @@ test.describe("regression: dashboard", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
     // Dashboard mounts; wizard rendering itself is gated by complex preconditions
-    // that vary between dev and CI. Stable signal: page loads.
-    await expect(page.locator("body")).toBeVisible();
+    // that vary between dev and CI. Stable signal: URL settles.
+    await expect(page).toHaveURL(/\/(login|pages|$)/, { timeout: 15_000 });
   });
 
   /**
