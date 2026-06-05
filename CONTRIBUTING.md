@@ -59,16 +59,16 @@ All tests run inside Docker:
 docker-compose -f docker-compose.dev.yml up -d
 
 # Platform/API tests
-docker-compose exec fiestaboard pytest
+docker-compose -f docker-compose.dev.yml exec fiestaboard pytest
 
-# Web UI tests
-docker-compose exec fiestaboard npm run test:run
+# Web UI tests (runs in a one-shot container with the test profile)
+docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
 
 # Plugin validation (if you changed plugins)
-docker-compose exec fiestaboard python scripts/validate_plugins.py --verbose
+docker-compose -f docker-compose.dev.yml exec fiestaboard python scripts/validate_plugins.py --verbose
 
 # Plugin tests (if you changed a specific plugin)
-docker-compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
+docker-compose -f docker-compose.dev.yml exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 ```
 
 CI runs on push/PR; make sure the same commands (or their CI equivalents) pass locally.
@@ -140,7 +140,7 @@ If you discover a security issue, do **not** open a public issue. See [SECURITY.
 
 ## Questions?
 
-- Open a GitHub Discussion or issue for general questions (use the project’s repository URL once it’s public or shared).
-- For bugs or feature ideas, use the issue tracker and try to keep one topic per issue.
+- Open a [GitHub issue](https://github.com/Fiestaboard/FiestaBoard/issues) or chat in [Discord](https://discord.gg/JvN8y6ahaf) for general questions.
+- For bugs or feature ideas, use the issue tracker and keep one topic per issue.
 
 Thanks for contributing.
