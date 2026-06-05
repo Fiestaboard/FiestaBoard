@@ -589,9 +589,14 @@ A few real examples of when a trigger is the right tool:
 
 If your plugin just polls and displays steady-state data (weather, transit, stocks), you don't need triggers — return data from `fetch_data()` and let users put it on a page.
 
+There are two ways to surface a trigger:
+
+1. **Poll**: override `check_triggers()` and the display loop evaluates it every tick.
+2. **Push**: call `self.fire_trigger(...)` from `receive_payload()` (or any other event handler) the moment something happens.
+
 ### 1. Declare trigger support in the manifest
 
-Set `supports_triggers: true` at the top level of `manifest.json`. Without this flag the trigger service skips your plugin entirely, even if you override `check_triggers()`.
+Set `supports_triggers: true` at the top level of `manifest.json`. Without this flag the trigger service skips your plugin entirely, even if you override `check_triggers()` or call `fire_trigger()`.
 
 ```json
 {
@@ -602,12 +607,6 @@ Set `supports_triggers: true` at the top level of `manifest.json`. Without this 
   "settings_schema": {
     "type": "object",
     "properties": {
-      "trigger_page_id": {
-        "type": "string",
-        "title": "Page to show when the doorbell rings",
-        "description": "Pick a template page. The trigger's data is exposed as {{doorbell.*}}.",
-        "ui:widget": "page-picker"
-      },
       "refresh_seconds": {
         "type": "integer",
         "default": 60,
@@ -618,7 +617,7 @@ Set `supports_triggers: true` at the top level of `manifest.json`. Without this 
 }
 ```
 
-The `trigger_page_id` field is a convention recognised by the display loop (see step 3). Using `"ui:widget": "page-picker"` makes the FiestaBoard settings UI render a page-chooser dropdown for that field instead of a raw text input.
+When `supports_triggers: true`, the manifest loader **auto-injects** a `trigger_page_id` field into the plugin's effective `settings_schema` so it shows up as a page-picker in the configuration UI. You no longer have to hand-roll the field. If you need a custom title or description, declare `trigger_page_id` explicitly in `settings_schema.properties` — your override wins and the auto-injection is suppressed.
 
 ### 2. Implement `check_triggers()` on your plugin
 
@@ -626,6 +625,7 @@ The `trigger_page_id` field is a convention recognised by the display loop (see 
 
 ```python
 from src.plugins.base import PluginBase, PluginResult, TriggerResult
+from src.triggers import TriggerPriority
 
 
 class DoorbellPlugin(PluginBase):
@@ -646,7 +646,7 @@ class DoorbellPlugin(PluginBase):
             TriggerResult(
                 triggered=True,
                 trigger_id=f"doorbell_ring_{ring.id}",   # stable per event — see dedup notes
-                priority=80,                              # higher beats lower; default 0
+                priority=TriggerPriority.URGENT,         # see priority scale below
                 duration_seconds=45,                      # auto-expires after this
                 data={
                     "visitor": ring.visitor_label,        # available as {{doorbell.visitor}}
@@ -662,14 +662,65 @@ The `TriggerResult` fields are defined in `src/plugins/base.py`:
 | Field | Type | Default | Purpose |
 |-------|------|---------|---------|
 | `triggered` | bool | (required) | Whether the trigger fires. `False` entries are ignored. |
-| `trigger_id` | str | `""` | Stable identifier. Same id replaces the prior trigger (dedup). |
-| `priority` | int | `0` | Higher wins when multiple triggers are active simultaneously. |
+| `trigger_id` | str | `""` | Stable identifier. Same id replaces the prior trigger (dedup). Defaults to the plugin id when omitted on a `fire_trigger()` call. |
+| `priority` | int \| `TriggerPriority` | `0` | Higher wins when multiple triggers are active simultaneously. Prefer the `TriggerPriority` enum (see below). |
 | `duration_seconds` | int | `30` | How long the trigger stays active before auto-expiring. |
 | `data` | dict \| None | `None` | Template context exposed as `{{<plugin_id>.*}}` when rendering `trigger_page_id`. |
 | `message` | str \| None | `None` | Plain-text fallback sent to the board if no `trigger_page_id` is configured. |
 | `formatted_lines` | list[str] \| None | `None` | Pre-formatted 6-line board content; takes precedence over `message`. |
 
-### 3. Lifecycle: when triggers fire and what they replace
+#### Priority scale: `TriggerPriority`
+
+Use the published `TriggerPriority` enum (`src/triggers/priority.py`) so triggers from different plugins compose predictably:
+
+| Tier       | Value | When to use                                                    |
+|------------|------:|----------------------------------------------------------------|
+| `AMBIENT`  |    10 | Passive surfacing (e.g. "now playing" updates).                |
+| `NOTABLE`  |    50 | Worth interrupting the current page (e.g. weather alert).      |
+| `URGENT`   |    80 | Must surface immediately (e.g. doorbell, garage left open).    |
+| `CRITICAL` |   100 | Safety / security override (e.g. smoke alarm, severe weather). |
+
+Raw integers still work for backwards compatibility (`priority=42`), but plugins **should prefer the enum** so the ecosystem stays predictable.
+
+### 3. Push pattern — `fire_trigger()` from `receive_payload`
+
+Webhook-driven plugins shouldn't have to wait for the next polling tick. Call `self.fire_trigger(...)` directly from `receive_payload`:
+
+```python
+from src.plugins.base import PluginBase, PluginResult, TriggerResult
+from src.triggers import TriggerPriority
+
+
+class WebhookDoorbellPlugin(PluginBase):
+    @property
+    def plugin_id(self) -> str:
+        return "doorbell"
+
+    def fetch_data(self) -> PluginResult:
+        return PluginResult(available=True, data={})
+
+    def receive_payload(self, payload, headers, raw_body=b""):
+        self.fire_trigger(
+            TriggerResult(
+                triggered=True,
+                trigger_id=f"ring_{payload['event_id']}",
+                message="DOORBELL",
+                priority=TriggerPriority.URGENT,
+                duration_seconds=60,
+                data={"who": payload.get("visitor")},
+            )
+        )
+```
+
+`fire_trigger()` resolves the active `TriggerService` singleton (the same one the display loop uses), so the board reflects the event on the next render — no waiting for the next polling tick. It is a no-op when:
+
+- the plugin's manifest doesn't set `supports_triggers: true`,
+- the passed `TriggerResult.triggered` is `False`, or
+- the trigger id has been user-dismissed (suppression is honoured exactly like `check_triggers()`).
+
+If `trigger_id` is omitted it defaults to the plugin id so simple fire-and-forget handlers don't collide on an empty key.
+
+### 4. Lifecycle: when triggers fire and what they replace
 
 The display loop ticks at the configured polling interval (see `src/main.py:683`). Each tick, **before** evaluating the scheduled or manual page, it calls `check_triggers()` on every enabled plugin where `supports_triggers` is `true`. The order of operations:
 
@@ -697,7 +748,7 @@ If the user manually changes the page (e.g. via the "Change Page" button on the 
 
 The trigger service does not rate-limit firing — that's your plugin's job. The simplest pattern is to track the last-fired timestamp per condition and return `[]` until enough time has passed.
 
-### 4. Inspecting and controlling triggers via the API
+### 5. Inspecting and controlling triggers via the API
 
 The platform exposes triggers over HTTP for the UI and external systems:
 
@@ -709,9 +760,9 @@ The platform exposes triggers over HTTP for the UI and external systems:
 | `POST` | `/triggers/clear` | Remove all active triggers. |
 | `POST` | `/triggers/check` | Force an immediate evaluation of every trigger-capable plugin. |
 
-`POST /triggers/check` is useful in tests and when wiring up webhook-driven plugins — call it from `receive_payload()` after queueing a new event so the trigger fires without waiting for the next polling tick.
+`POST /triggers/check` is useful in tests and for external systems that want to force an evaluation pass. For webhook-driven plugins, prefer `self.fire_trigger(...)` from `receive_payload()` — it's a direct in-process call and avoids the HTTP round-trip.
 
-### 5. Common patterns
+### 6. Common patterns
 
 **Event-on-state-change.** Compare the latest fetched state against the previous one and fire when something crosses a boundary. Don't fire on every tick the condition is true — track the transition.
 
@@ -734,7 +785,7 @@ def check_triggers(self) -> list[TriggerResult]:
 
 **Threshold alert.** Fire when a numeric value crosses a configured threshold and stay active until it recovers.
 
-**Webhook-driven.** Override `receive_payload()` (see `src/plugins/base.py:458`) to enqueue an event when an external system pushes to your plugin's webhook endpoint. Then `check_triggers()` consumes the queue. Hit `POST /triggers/check` from `receive_payload()` to fire immediately rather than waiting for the next tick.
+**Webhook-driven.** Override `receive_payload()` (see `src/plugins/base.py:458`) to handle an incoming webhook and call `self.fire_trigger(...)` directly — no need to wait for the next polling tick or hit `POST /triggers/check`.
 
 **Scheduled interrupt.** A countdown plugin can fire a high-priority trigger in the final minute before an event so the board interrupts whatever else is showing.
 
@@ -745,7 +796,7 @@ def check_triggers(self) -> list[TriggerResult]:
 - ❌ **Don't raise from `check_triggers()` and assume the loop handles it gracefully.** It does (`src/triggers/service.py:240-244`), but the error is silently logged — your trigger just stops firing. Catch and log inside the method if you need visibility.
 - ❌ **Don't store secrets or PII in `TriggerResult.data`.** It's exposed via `GET /triggers` and the page template engine.
 - ❌ **Don't expect triggers to fire during silence mode.** They're explicitly suppressed.
-- ⚠️ **`priority` is plugin-author choice.** There's no global scale, so coordinate with other trigger-capable plugins if you ship a registry plugin. As a rough convention so far: ambient/informational ~10, notable ~50, urgent/safety ~80+.
+- ⚠️ **Prefer `TriggerPriority` over raw integers.** Raw `priority=42` still works, but the enum (`AMBIENT`/`NOTABLE`/`URGENT`/`CRITICAL`) is the published scale and keeps triggers from different plugins composing predictably.
 
 ## Testing Your Plugin
 

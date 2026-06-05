@@ -9,6 +9,7 @@ The manifest.json file is the heart of each plugin, defining:
 - Color rules schema
 """
 
+import copy
 import json
 import logging
 from dataclasses import dataclass, field
@@ -16,6 +17,38 @@ from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+# Canonical settings-schema entry auto-injected for any plugin whose manifest
+# declares ``supports_triggers: true``.  Plugin authors can still override the
+# field by declaring their own ``trigger_page_id`` property — the override
+# wins, so they keep full control of label/description/default behaviour.
+TRIGGER_PAGE_ID_PROPERTY: dict[str, Any] = {
+    "type": "string",
+    "title": "Trigger Page",
+    "description": (
+        "Page rendered when this plugin fires a trigger. The trigger's "
+        "data is exposed to the template as the plugin's variables."
+    ),
+    "ui:widget": "page-picker",
+    "default": "",
+}
+
+
+def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of *settings_schema* with the canonical ``trigger_page_id``
+    field injected when the author has not declared their own.
+
+    The on-disk manifest is never mutated; the loader uses this enriched
+    schema so the configuration UI surfaces a page picker automatically for
+    every plugin that declares ``supports_triggers: true``.
+    """
+    enriched = copy.deepcopy(settings_schema) if settings_schema else {}
+    enriched.setdefault("type", "object")
+    properties = enriched.setdefault("properties", {})
+    if "trigger_page_id" not in properties:
+        properties["trigger_page_id"] = copy.deepcopy(TRIGGER_PAGE_ID_PROPERTY)
+    return enriched
 
 # JSON Schema for validating manifest.json files
 MANIFEST_SCHEMA = {
@@ -468,6 +501,22 @@ class PluginManifest:
                 if not demo:
                     demo = None
 
+        # Auto-inject `trigger_page_id` into the effective settings_schema
+        # for any plugin that declares `supports_triggers: true`.  This frees
+        # plugin authors from having to hand-roll the field while still
+        # letting them override it by declaring their own property.  The
+        # on-disk manifest is left untouched — only the in-memory copy used
+        # by the loader (and forwarded into `raw` so the plugin instance
+        # sees the same schema) is enriched.
+        supports_triggers = bool(data.get("supports_triggers", False))
+        settings_schema = data.get("settings_schema", {})
+        if supports_triggers:
+            settings_schema = _inject_trigger_page_id(settings_schema)
+            raw = dict(data)
+            raw["settings_schema"] = settings_schema
+        else:
+            raw = data
+
         return cls(
             id=data["id"],
             name=data["name"],
@@ -476,7 +525,7 @@ class PluginManifest:
             author=data.get("author", "Unknown"),
             repository=data.get("repository", ""),
             documentation=data.get("documentation", "README.md"),
-            settings_schema=data.get("settings_schema", {}),
+            settings_schema=settings_schema,
             env_vars=data.get("env_vars", []),
             variables=variables,
             max_lengths=top_max_lengths,
@@ -484,10 +533,10 @@ class PluginManifest:
             icon=data.get("icon", "puzzle"),
             category=data.get("category", "utility"),
             fiestaboard_version=data.get("fiestaboard_version", ""),
-            supports_triggers=bool(data.get("supports_triggers", False)),
+            supports_triggers=supports_triggers,
             screenshots=screenshots,
             demo=demo,
-            raw=data,
+            raw=raw,
         )
 
     def to_dict(self) -> dict[str, Any]:
