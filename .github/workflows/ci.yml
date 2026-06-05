@@ -42,6 +42,7 @@ jobs:
               - 'Dockerfile'
               - 'start-dev.sh'
               - 'tests/**'
+              - 'scripts/**'
               - 'pyproject.toml'
             ui:
               - 'web/**'
@@ -129,12 +130,12 @@ jobs:
       run: |
         ruff --version
         # Config is in pyproject.toml [tool.ruff].
-        ruff check src/ plugins/
+        ruff check src/ plugins/ tests/ scripts/
 
-    - name: Check code formatting (basic syntax check)
+    - name: Check formatting with ruff
       run: |
-        find src -name "*.py" -exec python -m py_compile {} \;
-        echo "✅ All Python files compile successfully"
+        # ruff format replaces black; same output, one tool.
+        ruff format --check src/ plugins/ tests/ scripts/
     
     - name: Run platform tests with coverage
       run: |
