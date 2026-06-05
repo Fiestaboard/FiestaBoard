@@ -73,8 +73,8 @@ COLOR: {{random.color}}
 ## Features
 
 - Pick a random item from any list of 2–10 strings you define
-- Built-in coin flip (Heads / Tails) always available as `random.coin_flip`
-- Built-in random board color (excludes `filled`) always available as `random.color`
+- Built-in coin flip (Heads / Tails) always available as `{{random.coin_flip}}`
+- Random board color as a rendered tile (`{{random.color}}`) or as a text name (`{{random.color_name}}`) — picks from red, orange, yellow, green, blue, violet
 - Configurable refresh interval — values change every N seconds
 
 ## Author

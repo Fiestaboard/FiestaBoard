@@ -1,80 +1,60 @@
 # Date & Time Plugin
 
-Display current date and time on your board with comprehensive formatting options.
+Display the current date and time on your board, with formats for every occasion.
 
 ![Date & Time Display](./docs/board-display.png)
 
-**→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
+**→ [Setup Guide](./docs/SETUP.md)**
 
 ## Overview
 
-The Date & Time plugin provides various date and time variables that update automatically based on your configured timezone. It supports multiple time formats (12-hour and 24-hour), US date formats, and flexible month representations.
+The Date & Time plugin exposes the current date and time in the timezone you configure. It offers 12-hour and 24-hour clocks, US and ISO date formats, individual date parts, and a spoken-English time expression you can put straight on the board.
 
 ## Template Variables
 
-### Time Variables
+### Time
 
-```jinja
-{{date_time.time}}          # 24-hour format (e.g., "14:30")
-{{date_time.time_24h}}      # 24-hour format (e.g., "14:30")
-{{date_time.time_12h}}      # 12-hour format with AM/PM (e.g., "2:30 PM")
-{{date_time.hour}}         # Hour 0-23 (e.g., "14")
-{{date_time.minute}}       # Minute 00-59 (e.g., "30")
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{date_time.time}}` | 24-hour time (`HH:MM`) | `14:30` |
+| `{{date_time.time_24h}}` | 24-hour time (explicit alias of `time`) | `14:30` |
+| `{{date_time.time_12h}}` | 12-hour time with AM/PM | `2:30 PM` |
+| `{{date_time.hour}}` | Hour, 0–23 | `14` |
+| `{{date_time.minute}}` | Minute, 00–59 (zero-padded) | `30` |
+| `{{date_time.timezone_abbr}}` | Timezone abbreviation | `PST` |
+| `{{date_time.timezone}}` | Full IANA timezone name | `America/Los_Angeles` |
 
-### Date Variables
+### Date
 
-```jinja
-{{date_time.date}}          # ISO format (e.g., "2025-01-15")
-{{date_time.date_us}}       # US format MM/DD/YYYY (e.g., "01/15/2025")
-{{date_time.date_us_short}} # US format MM/DD/YY (e.g., "01/15/25")
-{{date_time.datetime}}      # Full datetime (e.g., "2025-01-15 14:30")
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{date_time.date}}` | ISO date (`YYYY-MM-DD`) | `2025-03-21` |
+| `{{date_time.day_of_week}}` | Day name | `Friday` |
+| `{{date_time.day}}` | Day of month, 1–31 | `21` |
+| `{{date_time.month}}` | Full month name | `March` |
+| `{{date_time.month_abbr}}` | 3-letter month | `Mar` |
+| `{{date_time.month_number}}` | Month, 1–12 | `3` |
+| `{{date_time.month_number_padded}}` | Month, 01–12 | `03` |
+| `{{date_time.year}}` | 4-digit year | `2025` |
 
-### Day Variables
+### Formatted
 
-```jinja
-{{date_time.day_of_week}}   # Full day name (e.g., "Wednesday")
-{{date_time.day}}           # Day of month 1-31 (e.g., "15")
-```
-
-### Month Variables
-
-```jinja
-{{date_time.month}}              # Full month name (e.g., "January")
-{{date_time.month_abbr}}         # 3-letter abbreviation (e.g., "Jan")
-{{date_time.month_number}}        # Month number 1-12 (e.g., "1")
-{{date_time.month_number_padded}} # Month number 01-12 (e.g., "01")
-```
-
-### Year Variables
-
-```jinja
-{{date_time.year}}          # Year (e.g., "2025")
-```
-
-### Timezone Variables
-
-```jinja
-{{date_time.timezone}}      # Full timezone name (e.g., "America/Los_Angeles")
-{{date_time.timezone_abbr}} # Timezone abbreviation (e.g., "PST")
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{date_time.datetime}}` | Date + 24h time | `2025-03-21 14:30` |
+| `{{date_time.date_us}}` | US date (`MM/DD/YYYY`) | `03/21/2025` |
+| `{{date_time.date_us_short}}` | Short US date (`M/D/YY`) | `3/21/25` |
+| `{{date_time.time_english}}` | Spoken English time expression | `IT'S A QUARTER PAST ONE IN THE AFTERNOON.` |
 
 ## Example Templates
 
-### Simple 24-Hour Clock
+### Simple 24-hour clock
 
 ```jinja
 {center}{{date_time.time_24h}}
 ```
 
-### Simple 12-Hour Clock
-
-```jinja
-{center}{{date_time.time_12h}}
-```
-
-### Full Date Display
+### Day, date, and time
 
 ```jinja
 {center}{{date_time.day_of_week}}
@@ -82,59 +62,49 @@ The Date & Time plugin provides various date and time variables that update auto
 {{date_time.time_12h}}
 ```
 
-### US Date Format
+### US date format
 
 ```jinja
 {center}{{date_time.date_us}}
 {{date_time.time_12h}} {{date_time.timezone_abbr}}
 ```
 
-### Classic Format
+### Classic format
 
 ```jinja
 {center}{{date_time.month}} {{date_time.day}}, {{date_time.year}}
 {{date_time.time_12h}} {{date_time.timezone_abbr}}
 ```
 
-### Compact Format
+### Compact format
 
 ```jinja
 {center}{{date_time.month_abbr}} {{date_time.day}}
 {{date_time.time_12h}}
 ```
 
-### Date Components
+### Spoken English time
 
 ```jinja
-{center}{{date_time.month_number_padded}}/{{date_time.day}}/{{date_time.year}}
-{{date_time.day_of_week}}
+{{date_time.time_english}}
 ```
 
 ## Configuration
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| enabled | boolean | true | Enable/disable the plugin |
-| timezone | string | "America/Los_Angeles" | IANA timezone name |
-
-## Timezone Examples
-
-- `America/Los_Angeles` - Pacific Time
-- `America/New_York` - Eastern Time
-- `America/Chicago` - Central Time
-- `Europe/London` - UK Time
-- `Asia/Tokyo` - Japan Time
+| `enabled` | boolean | `true` | Enable or disable the plugin |
+| `timezone` | string | `America/Los_Angeles` | IANA timezone name |
 
 ## Features
 
-- **Multiple Time Formats**: 12-hour (with AM/PM) and 24-hour formats
-- **US Date Formats**: MM/DD/YYYY and MM/DD/YY formats
-- **Flexible Month Display**: Full name, abbreviation, or numeric (padded/unpadded)
-- **Timezone Support**: Configurable timezone with autocomplete picker
-- **Real-time Updates**: Automatically updates based on configured refresh interval
-- **No API Key Required**: Works out of the box with no external dependencies
+- 12-hour (with AM/PM) and 24-hour clocks
+- ISO, US, and short US date formats
+- Individual date parts: day, month (name, abbreviation, number, padded), year
+- Spoken English time expression — for example, `IT'S A QUARTER PAST ONE IN THE AFTERNOON.`
+- Timezone-aware with an autocomplete IANA picker in the UI
+- No API key required
 
 ## Author
 
 FiestaBoard Team
-

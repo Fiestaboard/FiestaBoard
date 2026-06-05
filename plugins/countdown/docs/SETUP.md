@@ -1,51 +1,40 @@
 # Countdown Plugin Setup Guide
 
-The Countdown plugin displays the remaining time until a target event on your board. It counts down in days, hours, minutes, and seconds.
+Configure a target date and time, then watch the days, hours, and minutes tick down on your board.
 
 ## Overview
 
 **What it does:**
-- Counts down to a specific date and time
-- Displays remaining days, hours, minutes, and seconds
-- Automatically detects when the event has passed
-- Supports configurable timezone
+
+- Counts down to a target date and time in days, hours, minutes, and seconds
+- Updates on every board refresh
+- Switches to "Event has passed" once the target is reached
+- Respects an IANA timezone of your choice
 
 **Prerequisites:**
-- ✅ None - works out of the box!
+
+- None. The plugin runs locally with no external service or API key.
 
 ## Quick Setup
 
-### 1. Enable the Plugin
+### 1. Enable the plugin
 
 In the FiestaBoard web UI:
-1. Go to **Integrations**
-2. Find **Countdown** and toggle it **On**
 
-![Countdown plugin in Integrations list](./integrations.png)
+1. Open **Integrations**.
+2. Find **Countdown** and toggle it on.
 
-### 2. Configure the Countdown
+### 2. Configure the countdown
 
-1. Go to **Integrations** → **Countdown**
-2. Click the **Configure** button
-3. Set the **Event Name** (e.g., "Last Day of School")
-4. Set the **Target Date & Time** in ISO format (e.g., `2025-06-15T00:00:00`)
-5. Optionally set the **Timezone** (defaults to America/Los_Angeles)
-6. Click **Save Changes**
+1. Click **Configure** on the Countdown card.
+2. Set the **Event Name** — for example, `Last Day of School`.
+3. Set the **Target Date & Time** in ISO 8601 format — for example, `2025-06-15T00:00:00`.
+4. Set the **Timezone** (defaults to `America/Los_Angeles`). The picker autocompletes IANA names.
+5. Click **Save Changes**.
 
-![Countdown plugin configuration dialog](./configuration.png)
+### 3. Add countdown variables to a page
 
-### 3. Create a Board Template
-
-Create or edit a page template to display the countdown:
-
-1. Go to **Pages** in the web UI
-2. Click **Create Page** or edit an existing page
-3. Use the template editor to add countdown variables (see below)
-4. Click **Save Changes**
-
-![Page editor with countdown template](./page-editor.png)
-
-Example classic countdown template:
+In **Pages**, create or edit a page template and add countdown variables. A minimal example:
 
 ```jinja
 {center}COUNTDOWN UNTIL
@@ -56,60 +45,42 @@ Example classic countdown template:
 {{countdown.minutes}} MINUTES
 ```
 
-### 4. View on Your Board
+### 4. View on your board
 
-Once configured, the countdown will display on your board when the page is active:
+Save the page. On the next refresh, your board will show the countdown.
 
-![Countdown displayed on Vestaboard](./board-display.png)
+![Countdown displayed on a Vestaboard](./board-display.png)
 
 ## Template Variables
 
-Available variables:
-
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{{countdown.event_name}}` | Event name | `Last Day of School` |
-| `{{countdown.target_datetime}}` | Target datetime | `2025-06-15T00:00:00` |
-| `{{countdown.days}}` | Remaining days | `22` |
-| `{{countdown.hours}}` | Remaining hours (0-23) | `3` |
-| `{{countdown.minutes}}` | Remaining minutes (0-59) | `10` |
-| `{{countdown.seconds}}` | Remaining seconds (0-59) | `45` |
-| `{{countdown.total_seconds}}` | Total remaining seconds | `1911045` |
-| `{{countdown.is_expired}}` | Whether event has passed | `false` |
-| `{{countdown.formatted}}` | Pre-formatted countdown | `22D 3H 10M` |
+| `{{countdown.event_name}}` | Configured event name | `Last Day of School` |
+| `{{countdown.target_datetime}}` | Target datetime (ISO 8601) | `2025-06-15T00:00:00` |
+| `{{countdown.days}}` | Whole days remaining | `86` |
+| `{{countdown.hours}}` | Hours remaining (0–23) | `14` |
+| `{{countdown.minutes}}` | Minutes remaining (0–59) | `30` |
+| `{{countdown.seconds}}` | Seconds remaining (0–59) | `45` |
+| `{{countdown.total_seconds}}` | Total seconds until target | `7473045` |
+| `{{countdown.is_expired}}` | `"true"` once the target has passed | `false` |
+| `{{countdown.formatted}}` | Pre-formatted summary | `86D 14H 30M` |
 
-## Example Templates
-
-### Classic Countdown
-
-```jinja
-{center}COUNTDOWN UNTIL
-{{countdown.event_name}}
-
-{{countdown.days}} DAYS
-{{countdown.hours}} HOURS
-{{countdown.minutes}} MINUTES
-```
-
-### Compact Countdown
-
-```jinja
-{center}{{countdown.event_name}}
-{{countdown.days}}D {{countdown.hours}}H {{countdown.minutes}}M
-```
+> **Note:** When `is_expired` is `"true"`, `formatted` becomes `Event has passed` and the day/hour/minute counters are `0`.
 
 ## Configuration Reference
 
+### Settings
+
 | Setting | Type | Required | Default | Description |
 |---------|------|----------|---------|-------------|
-| `enabled` | boolean | No | false | Enable/disable the plugin |
-| `event_name` | string | No | "Event" | Name of the event |
-| `target_datetime` | string | Yes | — | Target date/time in ISO format |
-| `timezone` | string | No | "America/Los_Angeles" | IANA timezone name |
+| `enabled` | boolean | No | `false` | Enable or disable the plugin |
+| `event_name` | string | No | `Event` | Name shown via `{{countdown.event_name}}` |
+| `target_datetime` | string | Yes | — | Target date/time in ISO 8601 format (e.g. `2025-06-15T00:00:00`) |
+| `timezone` | string | No | `America/Los_Angeles` | IANA timezone name |
 
-### Environment Variables
+### Environment variables
 
-You can also configure the plugin via environment variables:
+Each environment variable mirrors a setting and is used only when the corresponding UI field is empty:
 
 ```bash
 COUNTDOWN_TARGET=2025-06-15T00:00:00
@@ -119,13 +90,14 @@ TIMEZONE=America/Los_Angeles
 
 ## Troubleshooting
 
-**Issue: Plugin shows "Not Available"**
-- Ensure a target datetime is set
-- Verify the datetime format is ISO 8601 (e.g., `2025-06-15T00:00:00`)
+**Plugin shows "Not Available".**
+The target date/time is missing. Set `target_datetime` in the UI or `COUNTDOWN_TARGET` in the environment.
 
-**Issue: Wrong countdown displayed**
-- Check your timezone setting is correct
-- Ensure the target datetime is in the future
+**Countdown is off by several hours.**
+The configured timezone does not match the timezone you intended for the target. Verify the IANA name (for example, `America/Los_Angeles`, not `PST`).
 
-**Issue: Shows "Event has passed"**
-- The target datetime is in the past; update it to a future date/time
+**Board shows "Event has passed".**
+The target datetime is in the past. Update it to a future date and time.
+
+**Configuration save fails with "Invalid target datetime format".**
+The value must be ISO 8601 — `YYYY-MM-DDTHH:MM:SS`. For example, `2025-06-15T00:00:00`.
