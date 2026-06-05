@@ -6,29 +6,16 @@ This document tracks known technical debt in FiestaBoard, including deprecated A
 
 ## Deprecated API Endpoints
 
-### 1. Board Configuration Alias
-
-| Type | Path | Status |
-|------|------|--------|
-| **Canonical** | `GET /config/board` | Active |
-| **Canonical** | `PUT /config/board` | Active |
-| **Deprecated** | `GET /config/vestaboard` | Deprecated - returns `Deprecation: true` header |
-| **Deprecated** | `PUT /config/vestaboard` | Deprecated - returns `Deprecation: true` header |
-
-The `/config/vestaboard` paths are backward-compatibility aliases kept after the plugin architecture migration. They redirect to `/config/board` and will be removed in a future major release.
-
-**Migration:** Replace calls to `/config/vestaboard` with `/config/board`. See [API Migration Guide](./API_MIGRATION.md).
-
----
-
-### 2. Display Raw Data
+### Display Raw Data
 
 | Type | Path | Status |
 |------|------|--------|
 | **Canonical** | `GET /plugins/{plugin_id}/data` | Active |
-| **Deprecated** | `GET /displays/{display_type}/raw` | Deprecated - returns `Deprecation: true` header |
+| **Deprecated** | `GET /displays/{display_type}/raw` | Returns `Deprecation: true` header |
 
 After the plugin architecture migration, plugin data should be retrieved via `/plugins/{plugin_id}/data`. The old `/displays/{display_type}/raw` endpoint remains for backward compatibility and will be removed in a future major release.
+
+The new endpoint also changes failure mode: it returns HTTP **503** when plugin data is unavailable instead of `200 {"available": false}`. Callers that rely on the old success-with-flag behaviour need to handle the 503.
 
 **Migration:** Replace calls to `/displays/{type}/raw` with `/plugins/{plugin_id}/data`. See [API Migration Guide](./API_MIGRATION.md).
 
@@ -38,9 +25,17 @@ After the plugin architecture migration, plugin data should be retrieved via `/p
 
 | Endpoint | Deprecated Since | Planned Removal |
 |----------|-----------------|-----------------|
-| `GET /config/vestaboard` | v1.x | v2.0 |
-| `PUT /config/vestaboard` | v1.x | v2.0 |
 | `GET /displays/{type}/raw` | v1.x | v2.0 |
+
+---
+
+## Dead Code
+
+### Unregistered `/config/vestaboard` compat shims
+
+`src/api_server.py` defines `get_board_config_compat()` and `update_board_config_compat()` to redirect callers from the historical `/config/vestaboard` paths to `/config/board`, but neither function is registered as a FastAPI route — there's no `@app.get("/config/vestaboard")` or `@app.put(...)` binding. The functions are unreachable.
+
+**Cleanup:** Delete both functions. The historical paths already return 404 to clients, so no migration window is needed.
 
 ---
 

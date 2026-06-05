@@ -73,12 +73,12 @@ Your plugin shows up in Integrations and your variables appear in the editor.
 
 When your manifest has **no** `variables` section (or it's empty), FiestaBoard automatically:
 
-1. Calls your `fetch_data()` method
-2. Inspects the top-level keys in `data`
+1. Calls your `fetch_data()` method during startup
+2. Inspects the top-level keys in `PluginResult.data`
 3. Exposes every scalar value (strings, numbers, booleans) as a template variable
-4. Uses a default `max_length` of 22 (full board width)
+4. Leaves `max_length` unset, so the template engine truncates to the board width at render time
 
-This means beginners can skip the entire `variables` and `max_lengths` configuration and just focus on returning data.
+This means beginners can skip the entire `variables` and `max_lengths` configuration and just focus on returning data. Lists and dicts in `data` are skipped by auto-discovery — declare them under `variables.arrays` if you need them as template variables.
 
 ### When auto-discovery is active
 
@@ -535,30 +535,46 @@ Your plugin must inherit from `PluginBase`:
 
 | Method | Required | Description |
 |--------|----------|-------------|
-| `plugin_id` | Yes | Property returning plugin ID |
-| `fetch_data()` | Yes | Fetch and return data |
-| `validate_config(config)` | No | Validate configuration |
-| `cleanup()` | No | Clean up when disabled |
+| `plugin_id` | Yes | Property returning the plugin ID; must match `manifest.json` `id` |
+| `fetch_data()` | Yes | Return a `PluginResult` with the data dict for templates |
+| `validate_config(config)` | No | Return a list of error strings; empty list means valid |
+| `on_config_change(old, new)` | No | Hook called after settings are updated |
+| `get_formatted_display()` | No | Return six display lines for "single" page rendering |
+| `cleanup()` | No | Release resources when the plugin is disabled |
+| `check_triggers()` | No | Return a list of `TriggerResult` if `supports_triggers` is set |
+| `receive_payload(payload, headers, raw_body)` | No | Handle inbound webhooks (raise `PermissionError` → 403, `ValueError` → 400) |
 
-### Helper Methods
+### Properties and helpers
 
-| Method | Description |
-|--------|-------------|
-| `get_config(key, default=None)` | Get configuration value |
-| `get_manifest()` | Get plugin manifest |
-| `is_enabled` | Property: plugin enabled state |
+Access settings and metadata through these properties on `PluginBase`:
+
+| Member | Kind | Description |
+|--------|------|-------------|
+| `self.config` | property | Current settings dict (call `.get("key", default)` on it) |
+| `self.manifest` | property | Parsed `manifest.json` as a dict |
+| `self.info` | property | `PluginInfo` dataclass with `id`, `name`, `version`, `author`, etc. |
+| `self.enabled` | property | Whether the plugin is currently enabled |
+| `self.refresh_seconds` | property | Effective refresh interval (clamped to `min_refresh_seconds`) |
+| `self.resolve_config_variables(extra_variables=None, timezone=None)` | method | Resolved copy of config with `{{var}}` strings interpolated |
+| `self.get_resolved_config_value(key, default=None, ...)` | method | One resolved value from the config |
+| `self.get_url(key="url", default="", ...)` | method | Resolved string setting (for HTTP endpoint fields) |
+| `self.get_settings_schema()` | method | The `settings_schema` block from the manifest |
+| `self.get_env_vars()` | method | The `env_vars` array from the manifest |
+| `self.clear_cache()` | method | Force a fresh `fetch_data()` on the next `get_data()` |
+
+> **Heads up:** The base class does **not** expose a `self.get_config(...)` method — call `self.config.get(...)` instead. The bundled `plugins/_template/__init__.py` still calls `self.get_config()` and would raise `AttributeError` at runtime; treat it as pseudo-code until that template is fixed.
 
 ### PluginResult
 
-Return this from `fetch_data()`:
+Return this from `fetch_data()` (see `src/plugins/base.py`):
 
 ```python
 @dataclass
 class PluginResult:
-    available: bool                        # True if data fetched successfully
-    data: Optional[Dict] = None            # Template variables
-    error: Optional[str] = None            # Error message
-    formatted_lines: Optional[List[str]] = None  # Pre-formatted display lines
+    available: bool                              # True if data fetched successfully
+    data: dict[str, Any] | None = None           # Template variables
+    error: str | None = None                     # Error message
+    formatted_lines: list[str] | None = None     # Pre-formatted display (6 lines)
 ```
 
 ## Testing Your Plugin
@@ -627,12 +643,14 @@ def fetch_data(self) -> PluginResult:
 
 ### Configuration
 
-Prefer UI configuration over environment variables:
+Prefer UI configuration over environment variables. Settings live on `self.config`:
 
 ```python
 def fetch_data(self) -> PluginResult:
-    api_key = self.get_config("api_key") or os.getenv("MY_PLUGIN_API_KEY")
+    api_key = self.config.get("api_key") or os.getenv("MY_PLUGIN_API_KEY")
 ```
+
+For settings that contain `{{date}}` / `{{year}}` placeholders (e.g. dynamic URLs), use `self.get_resolved_config_value("api_url")` or the URL-specific shortcut `self.get_url("api_url")`.
 
 ### Logging
 
@@ -645,11 +663,11 @@ logger.error("Failed to fetch data")
 
 ## Plugin Updates
 
-External plugins installed from the registry or a git URL are updated automatically. FiestaBoard checks for new versions every hour and silently pulls the latest commit for any plugin that has changed.
+External plugins installed from the registry or a git URL are updated automatically. A background task in `src/api_server.py` polls every hour, calls `registry.check_for_updates()`, and — when the user's **Auto-update plugins** setting is on — silently pulls the latest commit for any plugin that has changed.
 
-This behaviour is controlled by the **Auto-update plugins** toggle in **Settings → Plugin Updates** (enabled by default). When disabled, users can update plugins manually from the Integrations page using the per-plugin update button or the bulk "Apply all updates" action.
+The behaviour is controlled by **Settings → Plugin Updates**. Users can choose between automatic application and a manual flow that surfaces the available update on the Integrations page (per-plugin update button or the bulk "Apply all updates" action).
 
-For plugin authors this means users will receive fixes and new variables automatically as soon as changes land on the plugin's default branch. Keep the default branch stable — breaking changes should be gated behind a version bump in `manifest.json`.
+For plugin authors this means users on the default settings will receive fixes and new variables shortly after changes land on the plugin's default branch. Keep the default branch stable — breaking changes should be gated behind a version bump in `manifest.json`.
 
 ## Contributing Plugins
 
