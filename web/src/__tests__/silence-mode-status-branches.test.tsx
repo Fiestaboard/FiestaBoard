@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { SilenceModeStatus, SilenceModeStatusCompact } from "@/components/silence-mode-status";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -15,11 +17,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 describe("SilenceModeStatus branch coverage", () => {
@@ -31,8 +29,8 @@ describe("SilenceModeStatus branch coverage", () => {
           timezone: "America/Los_Angeles",
           refresh_interval_seconds: 300,
           output_target: "board",
-        })
-      )
+        }),
+      ),
     );
   });
 
@@ -43,7 +41,7 @@ describe("SilenceModeStatus branch coverage", () => {
           refresh_interval_seconds: 300,
           output_target: "board",
           // timezone omitted - should fallback to America/Los_Angeles
-        })
+        }),
       ),
       http.get(`${API_BASE}/silence-status`, () =>
         HttpResponse.json({
@@ -53,8 +51,8 @@ describe("SilenceModeStatus branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<SilenceModeStatus showDetails={true} />, { wrapper: TestWrapper });
@@ -76,8 +74,8 @@ describe("SilenceModeStatus branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<SilenceModeStatus showDetails={true} />, { wrapper: TestWrapper });
@@ -98,8 +96,8 @@ describe("SilenceModeStatus branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<SilenceModeStatus showDetails={false} />, { wrapper: TestWrapper });
@@ -120,8 +118,8 @@ describe("SilenceModeStatus branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<SilenceModeStatus showDetails={true} />, { wrapper: TestWrapper });
@@ -142,8 +140,8 @@ describe("SilenceModeStatus branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<SilenceModeStatus showDetails={false} />, { wrapper: TestWrapper });
@@ -166,8 +164,8 @@ describe("SilenceModeStatusCompact branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     const { container } = render(<SilenceModeStatusCompact />, { wrapper: TestWrapper });
@@ -188,8 +186,8 @@ describe("SilenceModeStatusCompact branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<SilenceModeStatusCompact />, { wrapper: TestWrapper });
@@ -209,8 +207,8 @@ describe("SilenceModeStatusCompact branch coverage", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<SilenceModeStatusCompact />, { wrapper: TestWrapper });

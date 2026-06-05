@@ -42,11 +42,7 @@ export function ScaledBoardDisplay(props: BoardProps) {
       let el: HTMLElement | null = container.parentElement;
       while (el) {
         const cs = getComputedStyle(el);
-        if (
-          cs.overflowX === "hidden" ||
-          cs.overflowX === "scroll" ||
-          cs.overflowX === "auto"
-        ) {
+        if (cs.overflowX === "hidden" || cs.overflowX === "scroll" || cs.overflowX === "auto") {
           return el;
         }
         el = el.parentElement;
@@ -103,10 +99,7 @@ export function ScaledBoardDisplay(props: BoardProps) {
     //
     // Inner: the BoardDisplay itself, transformed from its top-left so
     // the visible content lines up with the middle box from x=0.
-    <div
-      ref={containerRef}
-      className="flex w-full min-w-0 justify-center overflow-hidden"
-    >
+    <div ref={containerRef} className="flex w-full min-w-0 justify-center overflow-hidden">
       <div
         style={{
           width: scaledWidth ?? undefined,

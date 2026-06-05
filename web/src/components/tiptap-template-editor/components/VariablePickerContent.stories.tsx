@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import type { PluginManifest, TemplateVariables } from "@/lib/api";
+
 import { VariablePickerContent } from "./VariablePickerContent";
-import type { TemplateVariables, PluginManifest } from "@/lib/api";
 
 const mockTemplateVariables: TemplateVariables = {
   variables: {
@@ -20,12 +22,7 @@ const mockTemplateVariables: TemplateVariables = {
     ],
     datetime: ["time", "date", "day"],
     stocks: ["price", "change", "change_percent", "symbol", "name"],
-    muni: [
-      "stops.0.name",
-      "stops.0.stop_code",
-      "stops.0.all_lines.formatted",
-      "stops.0.all_lines.next_arrival",
-    ],
+    muni: ["stops.0.name", "stops.0.stop_code", "stops.0.all_lines.formatted", "stops.0.all_lines.next_arrival"],
   },
   max_lengths: {
     "weather.temperature": 3,

@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { MAX_APP_WIDTH } from "@/lib/layout-constants";
-import { useSidebar } from "@/components/sidebar-context";
+
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
+import { useSidebar } from "@/components/sidebar-context";
+import { MAX_APP_WIDTH } from "@/lib/layout-constants";
+import { cn } from "@/lib/utils";
 
 export function MainContent({ children }: { children: React.ReactNode }) {
   const { collapsed, transitioning, onTransitionEnd } = useSidebar();
@@ -22,7 +23,7 @@ export function MainContent({ children }: { children: React.ReactNode }) {
         !isAuthScreen && "pt-[72px] lg:pt-0 sidebar-transition",
         !isAuthScreen && (collapsed ? "lg:pl-[76px]" : "lg:pl-[268px]"),
         !isAuthScreen && (aiPanelOpen ? "lg:pr-[384px]" : "lg:pr-0"),
-        !isAuthScreen && transitioning && "is-transitioning"
+        !isAuthScreen && transitioning && "is-transitioning",
       )}
       style={{ maxWidth: isAuthScreen ? undefined : MAX_APP_WIDTH }}
       onTransitionEnd={(e) => {

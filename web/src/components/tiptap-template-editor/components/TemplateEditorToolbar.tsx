@@ -4,22 +4,38 @@
  */
 "use client";
 
-import { Editor } from '@tiptap/react';
-import { useQuery } from '@tanstack/react-query';
-import { AlignLeft, AlignCenter, AlignRight, Code2, Palette, Type, WrapText, Undo2, Redo2, Scissors, Copy, ClipboardPaste, Download, SquareFunction } from 'lucide-react';
-import { api } from '@/lib/api';
-import { insertTemplateContent } from '../utils/insertion';
-import { ToolbarDropdown } from './ToolbarDropdown';
-import { VariablePickerContent } from './VariablePickerContent';
-import { ColorPickerContent } from './ColorPickerContent';
-import { FormattingPickerContent } from './FormattingPickerContent';
+import { useQuery } from "@tanstack/react-query";
+import type { Editor } from "@tiptap/react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ClipboardPaste,
+  Code2,
+  Copy,
+  Download,
+  Palette,
+  Redo2,
+  Scissors,
+  SquareFunction,
+  Type,
+  Undo2,
+  WrapText,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
 
-import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { LineAlignment } from '../TipTapTemplateEditor';
-import type { DeviceType } from '@/lib/api';
-import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { DeviceType } from "@/lib/api";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+import type { LineAlignment } from "../TipTapTemplateEditor";
+import { insertTemplateContent } from "../utils/insertion";
+import { ColorPickerContent } from "./ColorPickerContent";
+import { FormattingPickerContent } from "./FormattingPickerContent";
+import { ToolbarDropdown } from "./ToolbarDropdown";
+import { VariablePickerContent } from "./VariablePickerContent";
 
 interface TemplateEditorToolbarProps {
   editor: Editor | null;
@@ -35,7 +51,7 @@ interface TemplateEditorToolbarProps {
 
 export function TemplateEditorToolbar({
   editor,
-  currentAlignment = 'left',
+  currentAlignment = "left",
   currentWrapEnabled = false,
   onAlignmentChange,
   onWrapToggle,
@@ -96,12 +112,12 @@ export function TemplateEditorToolbar({
     updateEditorState();
 
     // Update on editor state changes
-    editor.on('update', updateEditorState);
-    editor.on('selectionUpdate', updateEditorState);
+    editor.on("update", updateEditorState);
+    editor.on("selectionUpdate", updateEditorState);
 
     return () => {
-      editor.off('update', updateEditorState);
-      editor.off('selectionUpdate', updateEditorState);
+      editor.off("update", updateEditorState);
+      editor.off("selectionUpdate", updateEditorState);
     };
   }, [editor]);
 
@@ -121,7 +137,7 @@ export function TemplateEditorToolbar({
       setHasClipboardContent(true);
     };
 
-    const checkClipboard = async () => {
+    const _checkClipboard = async () => {
       try {
         if (!navigator.clipboard?.readText) {
           setHasClipboardContent(false);
@@ -131,9 +147,9 @@ export function TemplateEditorToolbar({
         if (navigator.permissions?.query) {
           try {
             const permissionStatus = await navigator.permissions.query({
-              name: 'clipboard-read' as PermissionName,
+              name: "clipboard-read" as PermissionName,
             });
-            if (permissionStatus.state === 'denied') {
+            if (permissionStatus.state === "denied") {
               setHasClipboardContent(false);
               return;
             }
@@ -150,12 +166,11 @@ export function TemplateEditorToolbar({
       }
     };
 
-
-    document.addEventListener('copy', handleClipboardWrite);
-    document.addEventListener('cut', handleClipboardWrite);
+    document.addEventListener("copy", handleClipboardWrite);
+    document.addEventListener("cut", handleClipboardWrite);
     return () => {
-      document.removeEventListener('copy', handleClipboardWrite);
-      document.removeEventListener('cut', handleClipboardWrite);
+      document.removeEventListener("copy", handleClipboardWrite);
+      document.removeEventListener("cut", handleClipboardWrite);
     };
   }, []);
 
@@ -175,14 +190,14 @@ export function TemplateEditorToolbar({
     if (editor && hasSelection) {
       editor.view.focus();
       const { from, to } = editor.state.selection;
-      const selectedText = editor.state.doc.textBetween(from, to, '\n');
+      const selectedText = editor.state.doc.textBetween(from, to, "\n");
 
       try {
         await navigator.clipboard.writeText(selectedText);
         editor.chain().focus().deleteSelection().run();
       } catch {
         // Fallback for environments where Clipboard API write is unavailable/denied
-        document.execCommand('cut');
+        document.execCommand("cut");
       }
 
       setHasClipboardContent(true);
@@ -193,13 +208,13 @@ export function TemplateEditorToolbar({
     if (editor && hasSelection) {
       editor.view.focus();
       const { from, to } = editor.state.selection;
-      const selectedText = editor.state.doc.textBetween(from, to, '\n');
+      const selectedText = editor.state.doc.textBetween(from, to, "\n");
 
       try {
         await navigator.clipboard.writeText(selectedText);
       } catch {
         // Fallback for environments where Clipboard API write is unavailable/denied
-        document.execCommand('copy');
+        document.execCommand("copy");
       }
 
       setHasClipboardContent(true);
@@ -224,13 +239,7 @@ export function TemplateEditorToolbar({
     // adjacent buttons (e.g. the editor card's AI toggle) shifts the
     // layout and the cursor briefly hovers a different button.
     <TooltipProvider skipDelayDuration={0}>
-      <div
-        className={cn(
-          "flex items-center gap-1 p-2 border rounded-t-md bg-background",
-          "flex-wrap",
-          className
-        )}
-      >
+      <div className={cn("flex items-center gap-1 p-2 border rounded-t-md bg-background", "flex-wrap", className)}>
         {/* Undo/Redo Controls */}
         <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>
@@ -241,10 +250,8 @@ export function TemplateEditorToolbar({
                 disabled={!canUndo}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  canUndo
-                    ? "hover:bg-muted/50"
-                    : "opacity-60 cursor-not-allowed",
-                  "border-r border-border"
+                  canUndo ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                  "border-r border-border",
                 )}
                 aria-label="Undo"
               >
@@ -255,7 +262,7 @@ export function TemplateEditorToolbar({
               <p>{t("undo")}</p>
             </TooltipContent>
           </Tooltip>
-          
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -264,9 +271,7 @@ export function TemplateEditorToolbar({
                 disabled={!canRedo}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  canRedo
-                    ? "hover:bg-muted/50"
-                    : "opacity-60 cursor-not-allowed"
+                  canRedo ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                 )}
                 aria-label="Redo"
               >
@@ -292,10 +297,8 @@ export function TemplateEditorToolbar({
                 disabled={!hasSelection}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  hasSelection
-                    ? "hover:bg-muted/50"
-                    : "opacity-60 cursor-not-allowed",
-                  "border-r border-border"
+                  hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                  "border-r border-border",
                 )}
                 aria-label="Cut"
               >
@@ -315,10 +318,8 @@ export function TemplateEditorToolbar({
                 disabled={!hasSelection}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  hasSelection
-                    ? "hover:bg-muted/50"
-                    : "opacity-60 cursor-not-allowed",
-                  "border-r border-border"
+                  hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                  "border-r border-border",
                 )}
                 aria-label="Copy"
               >
@@ -338,9 +339,7 @@ export function TemplateEditorToolbar({
                 disabled={!hasClipboardContent}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  hasClipboardContent
-                    ? "hover:bg-muted/50"
-                    : "opacity-60 cursor-not-allowed"
+                  hasClipboardContent ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                 )}
                 aria-label="Paste"
               >
@@ -358,10 +357,7 @@ export function TemplateEditorToolbar({
 
         {/* Variables Dropdown */}
         {hasVariables ? (
-          <ToolbarDropdown
-            label={t("variables")}
-            icon={<Code2 className="w-4 h-4" />}
-          >
+          <ToolbarDropdown label={t("variables")} icon={<Code2 className="w-4 h-4" />}>
             {(close) => (
               <VariablePickerContent
                 onInsert={(variable) => {
@@ -380,7 +376,7 @@ export function TemplateEditorToolbar({
                 className={cn(
                   "flex items-center justify-center p-1.5 rounded-md",
                   "text-muted-foreground cursor-not-allowed opacity-60",
-                  "border border-transparent"
+                  "border border-transparent",
                 )}
                 aria-label={t("variablesNoVarsAvailable")}
               >
@@ -395,12 +391,9 @@ export function TemplateEditorToolbar({
 
         {/* Colors Dropdown */}
         {hasColors && (
-          <ToolbarDropdown
-            label={t("colors")}
-            icon={<Palette className="w-4 h-4" />}
-          >
+          <ToolbarDropdown label={t("colors")} icon={<Palette className="w-4 h-4" />}>
             {(close) => (
-              <ColorPickerContent 
+              <ColorPickerContent
                 onInsert={(color) => {
                   handleInsert(color);
                   close();
@@ -413,10 +406,7 @@ export function TemplateEditorToolbar({
 
         {/* Formatting Dropdown */}
         {hasFormatting && (
-          <ToolbarDropdown
-            label={t("formatting")}
-            icon={<Type className="w-4 h-4" />}
-          >
+          <ToolbarDropdown label={t("formatting")} icon={<Type className="w-4 h-4" />}>
             {(close) => (
               <FormattingPickerContent
                 formatting={templateVars?.formatting}
@@ -435,14 +425,18 @@ export function TemplateEditorToolbar({
             <button
               type="button"
               onClick={() => {
-                editor?.chain().focus().insertContent({
-                  type: 'formula',
-                  attrs: { expression: '', autoOpen: true },
-                }).run();
+                editor
+                  ?.chain()
+                  .focus()
+                  .insertContent({
+                    type: "formula",
+                    attrs: { expression: "", autoOpen: true },
+                  })
+                  .run();
               }}
               className={cn(
                 "flex items-center gap-1 px-2 py-1.5 rounded-md text-sm font-medium",
-                "hover:bg-muted/50 transition-colors"
+                "hover:bg-muted/50 transition-colors",
               )}
               aria-label={t("insertFormula")}
             >
@@ -463,9 +457,7 @@ export function TemplateEditorToolbar({
               className={cn(
                 "flex items-center justify-center p-1.5 rounded-md transition-colors",
                 "border border-transparent",
-                currentWrapEnabled
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted/50"
+                currentWrapEnabled ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
               )}
               aria-label={t("toggleWrap")}
             >
@@ -478,9 +470,7 @@ export function TemplateEditorToolbar({
         </Tooltip>
 
         {/* Divider */}
-        {(hasVariables || hasColors || hasFormatting) && (
-          <div className="h-6 w-px bg-border mx-1" />
-        )}
+        {(hasVariables || hasColors || hasFormatting) && <div className="h-6 w-px bg-border mx-1" />}
 
         {/* Alignment Controls */}
         <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
@@ -488,12 +478,10 @@ export function TemplateEditorToolbar({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={() => handleAlignmentClick('left')}
+                onClick={() => handleAlignmentClick("left")}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  currentAlignment === 'left'
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted/50"
+                  currentAlignment === "left" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
                 )}
                 aria-label={t("alignLeft")}
               >
@@ -502,17 +490,15 @@ export function TemplateEditorToolbar({
             </TooltipTrigger>
             <TooltipContent>{t("alignLeft")}</TooltipContent>
           </Tooltip>
-          
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={() => handleAlignmentClick('center')}
+                onClick={() => handleAlignmentClick("center")}
                 className={cn(
                   "px-2 py-1.5 border-x border-border transition-colors",
-                  currentAlignment === 'center'
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted/50"
+                  currentAlignment === "center" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
                 )}
                 aria-label={t("alignCenter")}
               >
@@ -521,17 +507,15 @@ export function TemplateEditorToolbar({
             </TooltipTrigger>
             <TooltipContent>{t("alignCenter")}</TooltipContent>
           </Tooltip>
-          
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={() => handleAlignmentClick('right')}
+                onClick={() => handleAlignmentClick("right")}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  currentAlignment === 'right'
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted/50"
+                  currentAlignment === "right" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
                 )}
                 aria-label={t("alignRight")}
               >
@@ -554,7 +538,7 @@ export function TemplateEditorToolbar({
                   className={cn(
                     "flex items-center justify-center p-1.5 rounded-md transition-colors",
                     "hover:bg-muted/50 border border-transparent",
-                    syncFromBoardPending && "opacity-60 cursor-not-allowed"
+                    syncFromBoardPending && "opacity-60 cursor-not-allowed",
                   )}
                   aria-label={t("syncFromBoard")}
                 >

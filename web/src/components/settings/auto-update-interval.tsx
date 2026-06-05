@@ -1,25 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type AutoUpdateInterval, AUTO_UPDATE_INTERVALS } from "@/lib/api";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { CalendarClock, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { api, AUTO_UPDATE_INTERVALS, type AutoUpdateInterval } from "@/lib/api";
 
 /**
  * Settings → System → "Check for updates" interval card.
@@ -69,8 +58,7 @@ export function AutoUpdateIntervalCard() {
   });
 
   const mutation = useMutation({
-    mutationFn: (interval: AutoUpdateInterval) =>
-      api.setAutoUpdateInterval(interval),
+    mutationFn: (interval: AutoUpdateInterval) => api.setAutoUpdateInterval(interval),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["update-status"] });
     },
@@ -93,9 +81,7 @@ export function AutoUpdateIntervalCard() {
       } else if (result.update_available && result.latest_version) {
         toast.info(t("updateAvailableToast", { version: result.latest_version }));
       } else {
-        toast.success(
-          t("upToDateToast", { version: result.current_version ?? "" })
-        );
+        toast.success(t("upToDateToast", { version: result.current_version ?? "" }));
       }
     },
     onError: (err: Error) => {
@@ -120,23 +106,18 @@ export function AutoUpdateIntervalCard() {
           {t("checkForUpdates")}
         </CardTitle>
         <CardDescription>
-          How often FiestaBoard should look for a new release in the
-          background. You&apos;ll see a banner here when one is found.
+          How often FiestaBoard should look for a new release in the background. You&apos;ll see a banner here when one
+          is found.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <Select
             value={current}
-            onValueChange={(v) =>
-              mutation.mutate(v as AutoUpdateInterval)
-            }
+            onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
             disabled={mutation.isPending}
           >
-            <SelectTrigger
-              className="w-[180px]"
-              aria-label="Update check frequency"
-            >
+            <SelectTrigger className="w-[180px]" aria-label="Update check frequency">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -147,9 +128,7 @@ export function AutoUpdateIntervalCard() {
               ))}
             </SelectContent>
           </Select>
-          <span className="text-xs text-muted-foreground">
-            Last checked: {formatLastCheck(status.last_check)}
-          </span>
+          <span className="text-xs text-muted-foreground">Last checked: {formatLastCheck(status.last_check)}</span>
           <Button
             variant="outline"
             size="sm"
@@ -157,19 +136,11 @@ export function AutoUpdateIntervalCard() {
             disabled={checkNowMutation.isPending}
             className="ml-auto"
           >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${
-                checkNowMutation.isPending ? "animate-spin" : ""
-              }`}
-            />
-            {checkNowMutation.isPending
-              ? t("checkingForUpdates")
-              : t("checkNow")}
+            <RefreshCw className={`h-4 w-4 mr-2 ${checkNowMutation.isPending ? "animate-spin" : ""}`} />
+            {checkNowMutation.isPending ? t("checkingForUpdates") : t("checkNow")}
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {INTERVAL_DESCRIPTIONS[current]}
-        </p>
+        <p className="text-sm text-muted-foreground">{INTERVAL_DESCRIPTIONS[current]}</p>
       </CardContent>
     </Card>
   );

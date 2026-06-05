@@ -1,22 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,20 +16,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { ScheduleEntryForm } from "@/components/schedule-entry-form";
-import { ScheduleListView } from "./components";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
+import { cn } from "@/lib/utils";
+
+import { ScheduleListView } from "./components";
 
 // Lazy load ScheduleCalendarView since it includes react-big-calendar (~150KB+)
 const ScheduleCalendarView = dynamic(
-  () => import("./components").then(mod => ({ default: mod.ScheduleCalendarView })),
+  () => import("./components").then((mod) => ({ default: mod.ScheduleCalendarView })),
   {
     ssr: false,
     loading: () => (
@@ -48,26 +44,37 @@ const ScheduleCalendarView = dynamic(
         <Skeleton className="h-96 w-full" />
       </div>
     ),
-  }
+  },
 );
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, AlertCircle, AlertTriangle, List, CalendarDays, Calendar as CalendarIcon, Power, MapPin } from "lucide-react";
+  AlertCircle,
+  AlertTriangle,
+  Calendar as CalendarIcon,
+  CalendarDays,
+  List,
+  MapPin,
+  Plus,
+  Power,
+} from "lucide-react";
 import Link from "next/link";
-import { api, type ScheduleEntry, type ScheduleCreate, type ScheduleUpdate, type DayPattern, isCarouselId } from "@/lib/api";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
-import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
-import { useCarousels } from "@/hooks/use-board";
-import { useTranslations } from "next-intl";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCarousels } from "@/hooks/use-board";
+import {
+  api,
+  type DayPattern,
+  isCarouselId,
+  type ScheduleCreate,
+  type ScheduleEntry,
+  type ScheduleUpdate,
+} from "@/lib/api";
+import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
 
 type ViewMode = "list" | "calendar";
 
@@ -78,7 +85,7 @@ export default function SchedulePage() {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
-  
+
   // Initialize viewMode from localStorage if available
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined") {
@@ -89,7 +96,7 @@ export default function SchedulePage() {
     }
     return "list";
   });
-  
+
   // Persist viewMode to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem(SCHEDULE_VIEW_MODE_KEY, viewMode);
@@ -201,10 +208,10 @@ export default function SchedulePage() {
   const toggleSchedule = useMutation({
     mutationFn: (enabled: boolean) => api.setScheduleEnabled(enabled, effectiveBoardId || undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
       toast.success(schedulesData?.enabled ? t("toastScheduleDisabled") : t("toastScheduleEnabled"));
     },
     onError: () => {
@@ -217,10 +224,10 @@ export default function SchedulePage() {
     mutationFn: (data: ScheduleCreate) =>
       api.createSchedule({ ...data, ...(effectiveBoardId && { board_id: effectiveBoardId }) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
       toast.success(t("toastCreated"));
       setShowForm(false);
       setPrefillData(null);
@@ -233,13 +240,12 @@ export default function SchedulePage() {
 
   // Update schedule
   const updateSchedule = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ScheduleUpdate }) =>
-      api.updateSchedule(id, data),
+    mutationFn: ({ id, data }: { id: string; data: ScheduleUpdate }) => api.updateSchedule(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
       toast.success(t("toastUpdated"));
       setShowForm(false);
       setEditingSchedule(null);
@@ -254,10 +260,10 @@ export default function SchedulePage() {
   const deleteSchedule = useMutation({
     mutationFn: (id: string) => api.deleteSchedule(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
       toast.success(t("toastDeleted"));
       setDeleteScheduleId(null);
     },
@@ -270,10 +276,10 @@ export default function SchedulePage() {
   const setDefaultPage = useMutation({
     mutationFn: (pageId: string | null) => api.setDefaultPage(pageId, effectiveBoardId || undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
       toast.success(t("toastDefaultPageUpdated"));
     },
     onError: () => {
@@ -316,7 +322,7 @@ export default function SchedulePage() {
     const startTime = extractTimeFromDate(start);
     const endTime = extractTimeFromDate(end);
     const dayName = getDayNameFromDate(start);
-    
+
     setPrefillData({
       startTime,
       endTime,
@@ -328,9 +334,12 @@ export default function SchedulePage() {
   }, []);
 
   // Handle calendar event click
-  const handleEventClick = useCallback((schedule: ScheduleEntry) => {
-    handleEdit(schedule);
-  }, [handleEdit]);
+  const handleEventClick = useCallback(
+    (schedule: ScheduleEntry) => {
+      handleEdit(schedule);
+    },
+    [handleEdit],
+  );
 
   // Handle calendar event time change (drag/resize)
   const handleEventTimeChange = useCallback(
@@ -340,7 +349,7 @@ export default function SchedulePage() {
         data: { start_time: startTime, end_time: endTime },
       });
     },
-    [updateSchedule]
+    [updateSchedule],
   );
 
   const getPageName = (pageId: string): string => {
@@ -353,22 +362,20 @@ export default function SchedulePage() {
 
   const formatDaysCompact = (days: string[]): string => {
     if (!days || days.length === 0) return "";
-    
+
     const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday"];
     const weekends = ["saturday", "sunday"];
     const allDays = [...weekdays, ...weekends];
-    
-    const hasAllWeekdays = weekdays.every(d => days.includes(d));
-    const hasAllWeekends = weekends.every(d => days.includes(d));
-    const hasAllDays = allDays.every(d => days.includes(d));
-    
+
+    const hasAllWeekdays = weekdays.every((d) => days.includes(d));
+    const hasAllWeekends = weekends.every((d) => days.includes(d));
+    const hasAllDays = allDays.every((d) => days.includes(d));
+
     if (hasAllDays) return t("everyDay");
     if (hasAllWeekdays && days.length === 5) return t("weekdays");
     if (hasAllWeekends && days.length === 2) return t("weekends");
-    
-    return days
-      .map(d => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3))
-      .join(", ");
+
+    return days.map((d) => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3)).join(", ");
   };
 
   if (isLoading) {
@@ -384,17 +391,13 @@ export default function SchedulePage() {
   const pages = pagesData?.pages || [];
   const defaultPageId = schedulesData?.default_page_id;
   const locationConfigured = locationData?.latitude != null && locationData?.longitude != null;
-  const hasSunSchedules = schedules.some(
-    (s) => s.start_type !== "fixed" || s.end_type !== "fixed"
-  );
+  const hasSunSchedules = schedules.some((s) => s.start_type !== "fixed" || s.end_type !== "fixed");
   const scheduleEnabled = schedulesData?.enabled || false;
   const hasOverlaps = (validation?.overlaps?.length || 0) > 0;
   const hasGaps = (validation?.gaps?.length || 0) > 0;
 
   const isCalendarMode = viewMode === "calendar";
-  const issueCount = hasOverlaps
-    ? (validation?.overlaps?.length ?? 0)
-    : (validation?.gaps?.length ?? 0);
+  const issueCount = hasOverlaps ? (validation?.overlaps?.length ?? 0) : (validation?.gaps?.length ?? 0);
 
   return (
     <PageLayout fillHeight={isCalendarMode}>
@@ -512,10 +515,14 @@ export default function SchedulePage() {
                 <SelectContent>
                   <SelectItem value={NO_DEFAULT_PAGE}>{t("noDefault")}</SelectItem>
                   {pagesData?.pages.map((page) => (
-                    <SelectItem key={page.id} value={page.id}>{page.name}</SelectItem>
+                    <SelectItem key={page.id} value={page.id}>
+                      {page.name}
+                    </SelectItem>
                   ))}
                   {carouselsData?.carousels?.map((carousel) => (
-                    <SelectItem key={carousel.id} value={carousel.id}>{carousel.name} {t("carouselSuffix")}</SelectItem>
+                    <SelectItem key={carousel.id} value={carousel.id}>
+                      {carousel.name} {t("carouselSuffix")}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -531,54 +538,66 @@ export default function SchedulePage() {
                           size="sm"
                           className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-yellow-500 hover:text-yellow-500"}`}
                         >
-                          {hasOverlaps
-                            ? <AlertCircle className="h-4 w-4" />
-                            : <AlertTriangle className="h-4 w-4" />}
-                          <span className={`absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-[9px] font-bold rounded-full flex items-center justify-center text-white ${hasOverlaps ? "bg-destructive" : "bg-yellow-500"}`}>
+                          {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                          <span
+                            className={`absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-[9px] font-bold rounded-full flex items-center justify-center text-white ${hasOverlaps ? "bg-destructive" : "bg-yellow-500"}`}
+                          >
                             {issueCount}
                           </span>
                         </Button>
                       </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      {hasOverlaps ? t("conflictsCountTooltip", { count: issueCount }) : t("gapsCountTooltip", { count: issueCount })}
+                      {hasOverlaps
+                        ? t("conflictsCountTooltip", { count: issueCount })
+                        : t("gapsCountTooltip", { count: issueCount })}
                     </TooltipContent>
                   </Tooltip>
                   <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}>
+                    <DropdownMenuLabel
+                      className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}
+                    >
                       {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {hasOverlaps
-                      ? validation?.overlaps?.map((overlap, i) => (
-                          <DropdownMenuItem key={i} className="text-xs whitespace-normal cursor-default focus:bg-transparent" variant="destructive">
-                            {overlap?.conflict_description || t("unknownConflict")}
-                          </DropdownMenuItem>
-                        ))
-                      : (
-                        <>
-                          <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
-                            {t("gapsInSchedule", { count: issueCount })}{" "}
-                            {defaultPageId
-                              ? <>{t("defaultLabel")} <span className="font-medium">{getPageName(defaultPageId)}</span></>
-                              : <span className="text-muted-foreground">{t("noDefaultPageSet")}</span>}
-                          </DropdownMenuItem>
-                          {validation?.gaps && validation.gaps.length > 0 && (
+                    {hasOverlaps ? (
+                      validation?.overlaps?.map((overlap, i) => (
+                        <DropdownMenuItem
+                          key={i}
+                          className="text-xs whitespace-normal cursor-default focus:bg-transparent"
+                          variant="destructive"
+                        >
+                          {overlap?.conflict_description || t("unknownConflict")}
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <>
+                        <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
+                          {t("gapsInSchedule", { count: issueCount })}{" "}
+                          {defaultPageId ? (
                             <>
-                              <DropdownMenuSeparator />
-                              {validation.gaps.map((gap, i) => {
-                                if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
-                                return (
-                                  <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
-                                    <span className="text-muted-foreground mr-2">{formatDaysCompact(gap.days)}</span>
-                                    {gap.start_time} – {gap.end_time}
-                                  </DropdownMenuItem>
-                                );
-                              })}
+                              {t("defaultLabel")} <span className="font-medium">{getPageName(defaultPageId)}</span>
                             </>
+                          ) : (
+                            <span className="text-muted-foreground">{t("noDefaultPageSet")}</span>
                           )}
-                        </>
-                      )}
+                        </DropdownMenuItem>
+                        {validation?.gaps && validation.gaps.length > 0 && (
+                          <>
+                            <DropdownMenuSeparator />
+                            {validation.gaps.map((gap, i) => {
+                              if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
+                              return (
+                                <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
+                                  <span className="text-muted-foreground mr-2">{formatDaysCompact(gap.days)}</span>
+                                  {gap.start_time} – {gap.end_time}
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </>
+                        )}
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -617,7 +636,10 @@ export default function SchedulePage() {
         />
       ) : (
         /* Calendar card: grows to fill remaining space in the pinned layout */
-        <Card className="flex-1 min-h-0 flex flex-col overflow-hidden animate-card-fade-in" style={{ animationDelay: "300ms" }}>
+        <Card
+          className="flex-1 min-h-0 flex flex-col overflow-hidden animate-card-fade-in"
+          style={{ animationDelay: "300ms" }}
+        >
           <CardHeader className="flex-shrink-0 py-3">
             <CardTitle className="text-base">{t("scheduleCalendar")}</CardTitle>
           </CardHeader>
@@ -635,56 +657,61 @@ export default function SchedulePage() {
         </Card>
       )}
 
-        {/* Form Tray */}
-        <Sheet open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
-          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{editingSchedule ? t("editScheduleTitle") : t("addScheduleTitle")}</SheetTitle>
-              <SheetDescription>
-                {editingSchedule ? t("editScheduleDescription") : t("addScheduleDescription")}
-              </SheetDescription>
-            </SheetHeader>
-            {pagesData && (
-              <ScheduleEntryForm
-                schedule={editingSchedule || undefined}
-                pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
-                carousels={carouselsData?.carousels}
-                onSubmit={handleSubmit}
-                onCancel={handleCloseForm}
-                onDelete={editingSchedule ? () => {
-                  const id = editingSchedule.id;
-                  handleCloseForm();
-                  setDeleteScheduleId(id);
-                } : undefined}
-                prefillPageId={prefillData?.pageId}
-                prefillStartTime={prefillData?.startTime}
-                prefillEndTime={prefillData?.endTime}
-                prefillDayPattern={prefillData?.dayPattern}
-                prefillCustomDays={prefillData?.customDays}
-              />
-            )}
-          </SheetContent>
-        </Sheet>
+      {/* Form Tray */}
+      <Sheet
+        open={showForm}
+        onOpenChange={(open) => {
+          if (!open) handleCloseForm();
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingSchedule ? t("editScheduleTitle") : t("addScheduleTitle")}</SheetTitle>
+            <SheetDescription>
+              {editingSchedule ? t("editScheduleDescription") : t("addScheduleDescription")}
+            </SheetDescription>
+          </SheetHeader>
+          {pagesData && (
+            <ScheduleEntryForm
+              schedule={editingSchedule || undefined}
+              pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
+              carousels={carouselsData?.carousels}
+              onSubmit={handleSubmit}
+              onCancel={handleCloseForm}
+              onDelete={
+                editingSchedule
+                  ? () => {
+                      const id = editingSchedule.id;
+                      handleCloseForm();
+                      setDeleteScheduleId(id);
+                    }
+                  : undefined
+              }
+              prefillPageId={prefillData?.pageId}
+              prefillStartTime={prefillData?.startTime}
+              prefillEndTime={prefillData?.endTime}
+              prefillDayPattern={prefillData?.dayPattern}
+              prefillCustomDays={prefillData?.customDays}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!deleteScheduleId} onOpenChange={() => setDeleteScheduleId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("deleteScheduleTitle")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("deleteScheduleConfirmation")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => deleteScheduleId && deleteSchedule.mutate(deleteScheduleId)}
-              >
-                {tCommon("delete")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteScheduleId} onOpenChange={() => setDeleteScheduleId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteScheduleTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteScheduleConfirmation")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteScheduleId && deleteSchedule.mutate(deleteScheduleId)}>
+              {tCommon("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 }

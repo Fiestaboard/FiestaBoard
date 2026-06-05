@@ -11,7 +11,7 @@
  * Or with docker-compose.ha.yml + FiestaBoard with MQTT_ENABLED=true,
  * create a token in HA (Profile → Long-Lived Access Tokens) and export it.
  */
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const HA_URL = process.env.HA_URL || "";
 const HA_ACCESS_TOKEN = process.env.HA_ACCESS_TOKEN || "";
@@ -29,18 +29,17 @@ test.describe("Home Assistant discovery", () => {
     expect(res.ok()).toBe(true);
     const states = await res.json();
     const fiestaEntities = states.filter(
-      (e: { entity_id: string }) =>
-        e.entity_id && e.entity_id.toLowerCase().includes("fiestaboard")
+      (e: { entity_id: string }) => e.entity_id && e.entity_id.toLowerCase().includes("fiestaboard"),
     );
     expect(
       fiestaEntities.length,
-      `Expected at least one FiestaBoard entity in HA; got ${fiestaEntities.length}. Ensure MQTT is enabled and discovery was published.`
+      `Expected at least one FiestaBoard entity in HA; got ${fiestaEntities.length}. Ensure MQTT is enabled and discovery was published.`,
     ).toBeGreaterThanOrEqual(1);
     // Optionally expect full set (14 entities from discovery)
     const entityIds = fiestaEntities.map((e: { entity_id: string }) => e.entity_id);
     expect(
       entityIds.some((id: string) => id.startsWith("switch.fiestaboard_") || id.startsWith("sensor.fiestaboard_")),
-      "Expected at least one switch or sensor FiestaBoard entity"
+      "Expected at least one switch or sensor FiestaBoard entity",
     ).toBe(true);
   });
 
@@ -52,15 +51,17 @@ test.describe("Home Assistant discovery", () => {
     expect(res.ok()).toBe(true);
     const states = await res.json();
     const fiestaEntities = states.filter(
-      (e: { entity_id: string }) =>
-        e.entity_id && e.entity_id.toLowerCase().includes("fiestaboard")
+      (e: { entity_id: string }) => e.entity_id && e.entity_id.toLowerCase().includes("fiestaboard"),
     );
     const types = new Set(fiestaEntities.map((e: { entity_id: string }) => e.entity_id.split(".")[0]));
     expect(types.size).toBeGreaterThanOrEqual(1);
     // We expect at least switch, sensor, or binary_sensor from our discovery
-    const hasExpected = ["switch", "sensor", "binary_sensor", "select", "button", "text", "number"].some(
-      (t) => types.has(t)
+    const hasExpected = ["switch", "sensor", "binary_sensor", "select", "button", "text", "number"].some((t) =>
+      types.has(t),
     );
-    expect(hasExpected, `Expected at least one of switch/sensor/binary_sensor/select/button/text/number; got ${[...types].join(", ")}`).toBe(true);
+    expect(
+      hasExpected,
+      `Expected at least one of switch/sensor/binary_sensor/select/button/text/number; got ${[...types].join(", ")}`,
+    ).toBe(true);
   });
 });

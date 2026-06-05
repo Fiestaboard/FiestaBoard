@@ -14,7 +14,18 @@
  * NOTE: Tests run sequentially. The wizard test runs first and configures
  * the board so subsequent tests have a working backend.
  */
-import { test, expect, getMockBoardState, clearBoardConfig, configureBoard, resetToSingleBoard, suppressWizard, waitForFirstRun, API_URL, BOARD_HOST } from "./helpers";
+import {
+  API_URL,
+  BOARD_HOST,
+  clearBoardConfig,
+  configureBoard,
+  expect,
+  getMockBoardState,
+  resetToSingleBoard,
+  suppressWizard,
+  test,
+  waitForFirstRun,
+} from "./helpers";
 
 // ---------------------------------------------------------------------------
 // 1. Mock Board API & Backend Health
@@ -56,14 +67,10 @@ test.describe("Setup Wizard", () => {
     await page.goto("/");
 
     // Wait for the wizard to render (it lazy-loads)
-    await expect(
-      page.getByRole("heading", { name: "Welcome to FiestaBoard" })
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
 
     // Step 1: Connect Your Board
-    await expect(
-      page.getByRole("heading", { name: "Connect Your Board" })
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible();
 
     // Select Local API mode
     await page.getByText("Local API").click();
@@ -80,9 +87,7 @@ test.describe("Setup Wizard", () => {
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Step 2: Add Data Sources — just proceed
-    await expect(
-      page.getByRole("heading", { name: "Add Data Sources" })
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add Data Sources" })).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Step 3: You're All Set — finish
@@ -95,9 +100,7 @@ test.describe("Setup Wizard", () => {
     await dashboardButton.click();
 
     // Should land on the Dashboard after reload
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Verify the wizard created a proper BoardInstance
     const res = await fetch(`${API_URL}/settings/board`);
@@ -125,33 +128,23 @@ test.describe("Navigation", () => {
     await suppressWizard(page);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Navigate to Pages
     await page.getByRole("link", { name: "Pages" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true })
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Navigate to Schedule
     await page.getByRole("link", { name: "Schedule" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Navigate to Settings
     await page.getByRole("link", { name: "Settings" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true })
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Navigate back to Dashboard
     await page.getByRole("link", { name: "Home" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" })
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
   });
 });
 
@@ -166,17 +159,13 @@ test.describe("Page Management", () => {
 
     // Navigate to the Pages section
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Click "New" button
     await page.getByRole("button", { name: /New/ }).click();
 
     // Wait for the page builder to appear
-    await expect(
-      page.getByText("Create Page").first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Create Page").first()).toBeVisible({ timeout: 10_000 });
 
     // Fill in page name
     const nameInput = page.getByPlaceholder("My Custom Page");
@@ -190,15 +179,11 @@ test.describe("Page Management", () => {
     }
 
     // Save the page
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(
-      page.getByRole("button", { name: /save/i })
-    );
+    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
     // After save, the app shows a toast and/or navigates to /pages
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -212,17 +197,13 @@ test.describe("Schedule Management", () => {
     await suppressWizard(page);
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Click "Add Schedule" button
     await page.getByRole("button", { name: "Add Schedule" }).first().click();
 
     // Wait for the schedule form dialog — title is "Add Schedule" in the dialog
-    await expect(
-      page.getByText("Add Schedule").first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Add Schedule").first()).toBeVisible({ timeout: 10_000 });
 
     // Select a page (the first available one) via the Radix select trigger
     const pageSelect = page.locator("#page");
@@ -264,8 +245,6 @@ test.describe("Schedule Management", () => {
     }
 
     // Verify the schedule page is still showing (no crash)
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 10_000 });
   });
 });

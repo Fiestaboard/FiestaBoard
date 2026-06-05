@@ -15,22 +15,22 @@
  * Issue: #507
  */
 import {
-  test,
-  expect,
+  API_URL,
+  BOARD_HOST,
   configureBoard,
-  suppressWizard,
-  createPage,
   createNotePage,
+  createPage,
   createSchedule,
   deleteAllPages,
   deleteAllSchedules,
   ensureTwoBoards,
-  openSettingsTab,
-  resetToSingleBoard,
-  API_URL,
-  BOARD_HOST,
+  expect,
   MOCK_BOARD_PORT,
   MOCK_BOARD_PORT_2,
+  openSettingsTab,
+  resetToSingleBoard,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 // Always reset to a single board before AND after each test to avoid
@@ -54,24 +54,24 @@ test.afterEach(async () => {
 test.describe("Device Mismatch — Flagship page on Note board", () => {
   test("API sends a Flagship page to a Note board without 500 error", async () => {
     // Create a 6-line Flagship page
-    const pageId = await createPage("Flagship Page", [
-      "LINE 1", "LINE 2", "LINE 3", "LINE 4", "LINE 5", "LINE 6",
-    ]);
+    const pageId = await createPage("Flagship Page", ["LINE 1", "LINE 2", "LINE 3", "LINE 4", "LINE 5", "LINE 6"]);
 
     // Configure board as Note
     await fetch(`${API_URL}/settings/board`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        boards: [{
-          name: "My Note Board",
-          device_type: "note",
-          board_color: "black",
-          enabled: true,
-          api_mode: "local",
-          host: BOARD_HOST,
-          local_api_key: "test-key",
-        }],
+        boards: [
+          {
+            name: "My Note Board",
+            device_type: "note",
+            board_color: "black",
+            enabled: true,
+            api_mode: "local",
+            host: BOARD_HOST,
+            local_api_key: "test-key",
+          },
+        ],
       }),
     });
 
@@ -95,15 +95,17 @@ test.describe("Device Mismatch — Flagship page on Note board", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        boards: [{
-          name: "Note Board",
-          device_type: "note",
-          board_color: "black",
-          enabled: true,
-          api_mode: "local",
-          host: BOARD_HOST,
-          local_api_key: "test-key",
-        }],
+        boards: [
+          {
+            name: "Note Board",
+            device_type: "note",
+            board_color: "black",
+            enabled: true,
+            api_mode: "local",
+            host: BOARD_HOST,
+            local_api_key: "test-key",
+          },
+        ],
       }),
     });
 
@@ -193,7 +195,7 @@ test.describe("Note Display — 3×15 Grid Enforcement", () => {
 
   test("Note page send delivers 3×15 array to backend", async () => {
     const pageId = await createNotePage("Note Send Test", [
-      "123456789012345",  // 15 chars
+      "123456789012345", // 15 chars
       "HELLO NOTE BOARD",
       "SHORT",
     ]);
@@ -225,9 +227,7 @@ test.describe("Multi-Board — One Board Offline", () => {
     const boardRes = await fetch(`${API_URL}/settings/board`);
     const boardData = await boardRes.json();
     const updatedBoards = boardData.boards.map((b: Record<string, unknown>) =>
-      b.id === board2Id
-        ? { ...b, host: "192.0.2.99", local_api_key: "bad-key" }
-        : b,
+      b.id === board2Id ? { ...b, host: "192.0.2.99", local_api_key: "bad-key" } : b,
     );
     await fetch(`${API_URL}/settings/board`, {
       method: "PUT",
@@ -236,9 +236,7 @@ test.describe("Multi-Board — One Board Offline", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -273,9 +271,7 @@ test.describe("Multi-Board — One Board Offline", () => {
     const boardRes = await fetch(`${API_URL}/settings/board`);
     const boardData = await boardRes.json();
     const updatedBoards = boardData.boards.map((b: Record<string, unknown>) =>
-      b.id === board2Id
-        ? { ...b, host: "192.0.2.1" }
-        : b,
+      b.id === board2Id ? { ...b, host: "192.0.2.1" } : b,
     );
     await fetch(`${API_URL}/settings/board`, {
       method: "PUT",
@@ -284,9 +280,7 @@ test.describe("Multi-Board — One Board Offline", () => {
     });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Should not show a full crash — just graceful degradation
     await expect(page.getByText(/unhandled error|uncaught exception/i)).not.toBeVisible({
@@ -310,9 +304,7 @@ test.describe("Multi-Board — Per-Board Schedule Isolation", () => {
     expect(res.ok).toBe(true);
     const data = await res.json();
 
-    const board1Schedules = data.schedules.filter(
-      (s: { board_id: string }) => s.board_id === board1Id,
-    );
+    const board1Schedules = data.schedules.filter((s: { board_id: string }) => s.board_id === board1Id);
     expect(board1Schedules.length).toBe(0);
   });
 
@@ -392,9 +384,7 @@ test.describe("Multi-Board UI — Board Switching", () => {
       .first();
 
     // Not all UI versions have an explicit selector — so just check the page renders
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
   });
 
   test("schedule page allows selecting schedule for each board", async ({ page }) => {
@@ -408,9 +398,7 @@ test.describe("Multi-Board UI — Board Switching", () => {
     await createSchedule(note, "07:00", "12:00", "weekdays", board2Id);
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The schedule page should render without error
     await expect(page.getByText(/unhandled|crash/i)).not.toBeVisible({ timeout: 3_000 });
@@ -434,9 +422,7 @@ test.describe("Note UI — Display Rendering", () => {
     await page.waitForLoadState("networkidle");
 
     // Preview grid or board display should show 3 rows
-    const rows = page.locator(
-      "[data-testid='board-row'], .board-row, [data-board-row]",
-    );
+    const rows = page.locator("[data-testid='board-row'], .board-row, [data-board-row]");
     const rowCount = await rows.count();
     if (rowCount > 0) {
       expect(rowCount).toBe(3);
@@ -470,9 +456,7 @@ test.describe("Note UI — Display Rendering", () => {
     await createNotePage("Note Page", ["ROW 1", "ROW 2", "ROW 3"]);
 
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Note tab should appear when a Note board is configured alongside a Flagship board
     const noteTab = page.getByRole("tab", { name: "Note" });

@@ -3,7 +3,7 @@
 // Mirrors src/ai/chat_ops.py — keep these in sync when changing
 // either side of the wire.
 
-import type { LineMetadata, DeviceType } from "./api";
+import type { DeviceType, LineMetadata } from "./api";
 
 export type Alignment = "left" | "center" | "right";
 
@@ -35,11 +35,7 @@ export interface UpdateLineMetadataOpArg {
   wrap?: boolean;
 }
 
-export type LineOp =
-  | ReplaceLineOpArg
-  | InsertLineOpArg
-  | DeleteLineOpArg
-  | UpdateLineMetadataOpArg;
+export type LineOp = ReplaceLineOpArg | InsertLineOpArg | DeleteLineOpArg | UpdateLineMetadataOpArg;
 
 export interface ReplacePageArgs {
   name: string;

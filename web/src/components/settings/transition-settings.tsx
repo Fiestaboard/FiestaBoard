@@ -1,17 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Info, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Info } from "lucide-react";
-import { api, TransitionSettings as TransitionSettingsType } from "@/lib/api";
 
-const STRATEGY_VALUES: { value: string | null; key: "none" | "column" | "reverseColumn" | "edgesToCenter" | "row" | "diagonal" | "random" }[] = [
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { TransitionSettings as TransitionSettingsType } from "@/lib/api";
+import { api } from "@/lib/api";
+
+const STRATEGY_VALUES: {
+  value: string | null;
+  key: "none" | "column" | "reverseColumn" | "edgesToCenter" | "row" | "diagonal" | "random";
+}[] = [
   { value: null, key: "none" },
   { value: "column", key: "column" },
   { value: "reverse-column", key: "reverseColumn" },
@@ -49,8 +54,7 @@ export function TransitionSettings() {
   }, [transitions]);
 
   const updateMutation = useMutation({
-    mutationFn: (settings: Partial<TransitionSettingsType>) =>
-      api.updateTransitionSettings(settings),
+    mutationFn: (settings: Partial<TransitionSettingsType>) => api.updateTransitionSettings(settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-settings"] });
       toast.success(t("toastSaved"));
@@ -123,9 +127,7 @@ export function TransitionSettings() {
           <Sparkles className="h-4 w-4" />
           {t("title")}
         </CardTitle>
-        <CardDescription>
-          {t("description")}
-        </CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Strategy Selector */}
@@ -178,9 +180,7 @@ export function TransitionSettings() {
                   onChange={(e) => handleStepIntervalChange(e.target.value)}
                   className="w-full"
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  {t("stepIntervalDescription")}
-                </p>
+                <p className="text-[11px] text-muted-foreground">{t("stepIntervalDescription")}</p>
               </div>
 
               {/* Step Size */}
@@ -197,9 +197,7 @@ export function TransitionSettings() {
                   onChange={(e) => handleStepSizeChange(e.target.value)}
                   className="w-full"
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  {t("stepSizeDescription")}
-                </p>
+                <p className="text-[11px] text-muted-foreground">{t("stepSizeDescription")}</p>
               </div>
             </div>
           </div>
@@ -208,9 +206,7 @@ export function TransitionSettings() {
         {/* Info note */}
         <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>
-            {t("localApiNote")}
-          </span>
+          <span>{t("localApiNote")}</span>
         </div>
 
         {/* Saving indicator */}

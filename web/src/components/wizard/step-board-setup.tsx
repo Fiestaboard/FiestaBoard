@@ -1,27 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useTranslations } from "next-intl";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
-import { 
-  CheckCircle, 
-  XCircle, 
-  Loader2, 
-  Wifi, 
-  Cloud, 
-  HelpCircle,
+import {
+  CheckCircle,
+  Cloud,
   Eye,
   EyeOff,
+  HelpCircle,
   Key,
   KeyRound,
+  Loader2,
   Search,
+  Wifi,
+  XCircle,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import { BoardDisplay } from "@/components/board-display";
-import type { DiscoveredBoard } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { BoardInstance, DiscoveredBoard } from "@/lib/api";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -69,10 +70,9 @@ export function StepBoardSetup({
 
   // Update validity when config or test status changes
   useEffect(() => {
-    const hasRequiredFields = config.api_mode === "cloud" 
-      ? !!config.cloud_key
-      : !!config.local_api_key && !!config.host;
-    
+    const hasRequiredFields =
+      config.api_mode === "cloud" ? !!config.cloud_key : !!config.local_api_key && !!config.host;
+
     onValidChange(hasRequiredFields && config.connectionVerified);
   }, [config, onValidChange]);
 
@@ -111,7 +111,7 @@ export function StepBoardSetup({
 
   const handleEnableLocalApi = async () => {
     if (!config.host || !enablementToken) return;
-    
+
     setEnablementStatus("loading");
     setEnablementMessage("");
     setIsLoading(true);
@@ -168,19 +168,21 @@ export function StepBoardSetup({
         setTestStatus("success");
         setTestMessage(result.message);
         setTroubleshootingSteps([]);
-        
+
         // Save per-board instance first (primary source of truth for settings page)
         await api.updateBoardSettings({
-          boards: [{
-            name: "My Board",
-            device_type: cfg.device_type,
-            board_color: cfg.board_color,
-            api_mode: cfg.api_mode,
-            host: cfg.host,
-            local_api_key: cfg.local_api_key,
-            cloud_key: cfg.cloud_key,
-            enabled: true,
-          } as import("@/lib/api").BoardInstance],
+          boards: [
+            {
+              name: "My Board",
+              device_type: cfg.device_type,
+              board_color: cfg.board_color,
+              api_mode: cfg.api_mode,
+              host: cfg.host,
+              local_api_key: cfg.local_api_key,
+              cloud_key: cfg.cloud_key,
+              enabled: true,
+            } as BoardInstance,
+          ],
         });
 
         // Then save global connection config (used by validation/first-run detection)
@@ -190,7 +192,7 @@ export function StepBoardSetup({
           cloud_key: cfg.cloud_key,
           host: cfg.host,
         });
-        
+
         onConfigChange({ ...cfg, connectionVerified: true });
       } else {
         setTestStatus("error");
@@ -208,30 +210,17 @@ export function StepBoardSetup({
     }
   };
 
-  const canTest = config.api_mode === "cloud" 
-    ? !!config.cloud_key
-    : !!config.local_api_key && !!config.host;
+  const canTest = config.api_mode === "cloud" ? !!config.cloud_key : !!config.local_api_key && !!config.host;
 
   const canEnableLocalApi = !!config.host && !!enablementToken;
 
   const previewMessage = useMemo(() => {
     if (config.device_type === "note") {
-      return [
-        "   WELCOME TO  ",
-        "  FIESTABOARD! ",
-        "",
-      ].join("\n");
+      return ["   WELCOME TO  ", "  FIESTABOARD! ", ""].join("\n");
     }
     const colorCodes = [64, 65, 63, 68];
     const colorRow = Array.from({ length: 22 }, (_, i) => `{${colorCodes[i % colorCodes.length]}}`).join("");
-    return [
-      colorRow,
-      "",
-      "      WELCOME TO      ",
-      "     FIESTABOARD!     ",
-      "",
-      colorRow,
-    ].join("\n");
+    return [colorRow, "", "      WELCOME TO      ", "     FIESTABOARD!     ", "", colorRow].join("\n");
   }, [config.device_type]);
 
   return (
@@ -245,19 +234,12 @@ export function StepBoardSetup({
             onClick={() => handleModeChange("cloud")}
             className={cn(
               "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-              config.api_mode === "cloud"
-                ? "border-primary bg-primary/5"
-                : "border-muted hover:border-border"
+              config.api_mode === "cloud" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
             )}
           >
-            <Cloud className={cn(
-              "h-8 w-8",
-              config.api_mode === "cloud" ? "text-primary" : "text-muted-foreground"
-            )} />
+            <Cloud className={cn("h-8 w-8", config.api_mode === "cloud" ? "text-primary" : "text-muted-foreground")} />
             <span className="font-medium">{t("cloudApi")}</span>
-            <span className="text-xs text-muted-foreground text-center">
-              {t("cloudApiEasiest")}
-            </span>
+            <span className="text-xs text-muted-foreground text-center">{t("cloudApiEasiest")}</span>
           </button>
 
           <button
@@ -265,19 +247,12 @@ export function StepBoardSetup({
             onClick={() => handleModeChange("local")}
             className={cn(
               "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-              config.api_mode === "local"
-                ? "border-primary bg-primary/5"
-                : "border-muted hover:border-border"
+              config.api_mode === "local" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
             )}
           >
-            <Wifi className={cn(
-              "h-8 w-8",
-              config.api_mode === "local" ? "text-primary" : "text-muted-foreground"
-            )} />
+            <Wifi className={cn("h-8 w-8", config.api_mode === "local" ? "text-primary" : "text-muted-foreground")} />
             <span className="font-medium">{t("localApi")}</span>
-            <span className="text-xs text-muted-foreground text-center">
-              {t("localApiFaster")}
-            </span>
+            <span className="text-xs text-muted-foreground text-center">{t("localApiFaster")}</span>
           </button>
         </div>
       </div>
@@ -375,9 +350,7 @@ export function StepBoardSetup({
           )}
           {scanStatus === "done" && discoveredBoards.length >= 1 && (
             <div className="space-y-2">
-              <p className="text-sm">
-                {t("foundBoards", { count: discoveredBoards.length })}
-              </p>
+              <p className="text-sm">{t("foundBoards", { count: discoveredBoards.length })}</p>
               <div className="space-y-1.5">
                 {discoveredBoards.map((board) => (
                   <button
@@ -388,13 +361,11 @@ export function StepBoardSetup({
                       "w-full flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors text-left",
                       config.host === board.ip
                         ? "border-primary bg-primary/5"
-                        : "border-muted hover:border-muted-foreground/30"
+                        : "border-muted hover:border-muted-foreground/30",
                     )}
                   >
                     <span className="font-mono">{board.ip}</span>
-                    {board.hostname && (
-                      <span className="text-xs text-muted-foreground">{board.hostname}</span>
-                    )}
+                    {board.hostname && <span className="text-xs text-muted-foreground">{board.hostname}</span>}
                   </button>
                 ))}
               </div>
@@ -418,7 +389,7 @@ export function StepBoardSetup({
                   "flex items-center justify-center gap-2 p-2.5 rounded-md border text-sm transition-all",
                   localKeyMode === "api_key"
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-muted hover:border-border text-muted-foreground"
+                    : "border-muted hover:border-border text-muted-foreground",
                 )}
               >
                 <Key className="h-4 w-4" />
@@ -431,7 +402,7 @@ export function StepBoardSetup({
                   "flex items-center justify-center gap-2 p-2.5 rounded-md border text-sm transition-all",
                   localKeyMode === "enablement_token"
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-muted hover:border-border text-muted-foreground"
+                    : "border-muted hover:border-border text-muted-foreground",
                 )}
               >
                 <KeyRound className="h-4 w-4" />
@@ -530,9 +501,9 @@ export function StepBoardSetup({
                 <div
                   className={cn(
                     "flex items-start gap-2 p-3 rounded-lg text-sm",
-                    enablementStatus === "success" 
+                    enablementStatus === "success"
                       ? "bg-success/10 text-success"
-                      : "bg-destructive/10 text-destructive"
+                      : "bg-destructive/10 text-destructive",
                   )}
                 >
                   {enablementStatus === "success" ? (
@@ -576,9 +547,7 @@ export function StepBoardSetup({
           <div
             className={cn(
               "flex items-start gap-2 p-3 rounded-lg text-sm",
-              testStatus === "success" 
-                ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-destructive"
+              testStatus === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
             {testStatus === "success" ? (
@@ -614,9 +583,7 @@ export function StepBoardSetup({
               aria-pressed={config.device_type === "flagship"}
               className={cn(
                 "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
-                config.device_type === "flagship"
-                  ? "border-primary bg-primary/5"
-                  : "border-muted hover:border-border"
+                config.device_type === "flagship" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
               )}
             >
               <span className="font-medium text-sm">{tc("flagship")}</span>
@@ -628,9 +595,7 @@ export function StepBoardSetup({
               aria-pressed={config.device_type === "note"}
               className={cn(
                 "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
-                config.device_type === "note"
-                  ? "border-primary bg-primary/5"
-                  : "border-muted hover:border-border"
+                config.device_type === "note" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
               )}
             >
               <span className="font-medium text-sm">{tc("note")}</span>
@@ -651,7 +616,7 @@ export function StepBoardSetup({
                 "h-8 w-8 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 config.board_color === "black"
                   ? "border-primary ring-2 ring-primary/30"
-                  : "border-border hover:border-muted-foreground"
+                  : "border-border hover:border-muted-foreground",
               )}
             />
             <button
@@ -663,7 +628,7 @@ export function StepBoardSetup({
                 "h-8 w-8 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 config.board_color === "white"
                   ? "border-primary ring-2 ring-primary/30"
-                  : "border-border hover:border-muted-foreground"
+                  : "border-border hover:border-muted-foreground",
               )}
             />
           </div>

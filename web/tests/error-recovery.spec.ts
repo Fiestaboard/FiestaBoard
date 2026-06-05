@@ -9,14 +9,7 @@
  *
  * Issue: #500 — E2E: add Playwright tests for critical user flows
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  suppressWizard,
-  clearBoardConfig,
-  API_URL,
-} from "./helpers";
+import { API_URL, clearBoardConfig, configureBoard, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -48,9 +41,7 @@ test.describe("Error Recovery — Board Unreachable", () => {
     await page.waitForLoadState("networkidle");
 
     // Dashboard should still render (graceful degradation)
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Some form of offline/error/disconnected indicator should appear
     // (could be a badge, banner, or status text)
@@ -96,9 +87,7 @@ test.describe("Error Recovery — Board Unreachable", () => {
 
     // Settings should still load — it's config, not board-dependent
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Restore
     await configureBoard();
@@ -217,31 +206,21 @@ test.describe("Error Recovery — Network Simulation", () => {
   test("pages list handles slow/empty API response without crashing", async ({ page }) => {
     // Navigate normally first to confirm page loads
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Simulate intermittent API slowness by reloading
     await page.reload();
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   test("dashboard reloads cleanly after navigation away and back", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
   });
 });

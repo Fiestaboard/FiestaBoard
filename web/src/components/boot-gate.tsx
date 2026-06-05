@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Image from "next/image";
-import { FiestaLogo } from "@/components/fiesta-logo";
 import { Loader2, WifiOff } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+
+import { FiestaLogo } from "@/components/fiesta-logo";
 
 /** How long to wait before showing the splash (avoids a flash for fast startups). */
 const SHOW_SPLASH_DELAY_MS = 600;
@@ -75,13 +76,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col items-center gap-6 text-center px-6 max-w-sm">
         {/* Branding */}
         <div className="flex items-center gap-3">
-          <Image
-            src="/icons/favicon-32x32.png"
-            alt=""
-            width={36}
-            height={36}
-            className="flex-shrink-0"
-          />
+          <Image src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
           <FiestaLogo className="text-2xl" />
         </div>
 

@@ -6,7 +6,7 @@
  *  - Encodes special characters in text mode
  *  - Validates board dimensions
  */
-import { test, expect, MOCK_BOARD_URL } from "./helpers";
+import { expect, MOCK_BOARD_URL, test } from "./helpers";
 
 test.beforeEach(async () => {
   await fetch(`${MOCK_BOARD_URL}/mock/reset`, { method: "POST" });
@@ -20,9 +20,9 @@ test.describe("Mock board – character code validation", () => {
   test("accepts valid character array (6x22 with codes 0-71)", async () => {
     const chars = Array.from({ length: 6 }, () => Array(22).fill(0));
     // Sprinkle valid codes
-    chars[0][0] = 1;   // A
-    chars[0][1] = 62;  // Degree/Heart
-    chars[0][2] = 71;  // Filled (max valid)
+    chars[0][0] = 1; // A
+    chars[0][1] = 62; // Degree/Heart
+    chars[0][2] = 71; // Filled (max valid)
 
     const res = await fetch(`${MOCK_BOARD_URL}/local-api/message`, {
       method: "POST",
@@ -36,8 +36,8 @@ test.describe("Mock board – character code validation", () => {
 
   test("accepts valid 3x15 Note array", async () => {
     const chars = Array.from({ length: 3 }, () => Array(15).fill(0));
-    chars[0][0] = 8;  // H
-    chars[0][1] = 9;  // I
+    chars[0][0] = 8; // H
+    chars[0][1] = 9; // I
 
     const res = await fetch(`${MOCK_BOARD_URL}/local-api/message`, {
       method: "POST",
@@ -102,9 +102,7 @@ test.describe("Mock board – text mode encoding", () => {
     });
     expect(res.status).toBe(200);
 
-    const state = await (
-      await fetch(`${MOCK_BOARD_URL}/mock/state`)
-    ).json();
+    const state = await (await fetch(`${MOCK_BOARD_URL}/mock/state`)).json();
     const row0 = state.history[0].characters[0];
     expect(row0[0]).toBe(1); // A
     expect(row0[1]).toBe(2); // B
@@ -120,9 +118,7 @@ test.describe("Mock board – text mode encoding", () => {
     });
     expect(res.status).toBe(200);
 
-    const state = await (
-      await fetch(`${MOCK_BOARD_URL}/mock/state`)
-    ).json();
+    const state = await (await fetch(`${MOCK_BOARD_URL}/mock/state`)).json();
     const row0 = state.history[0].characters[0];
     expect(row0[0]).toBe(27); // 1
     expect(row0[1]).toBe(35); // 9
@@ -137,9 +133,7 @@ test.describe("Mock board – text mode encoding", () => {
     });
     expect(res.status).toBe(200);
 
-    const state = await (
-      await fetch(`${MOCK_BOARD_URL}/mock/state`)
-    ).json();
+    const state = await (await fetch(`${MOCK_BOARD_URL}/mock/state`)).json();
     const row0 = state.history[0].characters[0];
     expect(row0[0]).toBe(37); // !
     expect(row0[1]).toBe(38); // @
@@ -155,9 +149,7 @@ test.describe("Mock board – text mode encoding", () => {
     });
     expect(res.status).toBe(200);
 
-    const state = await (
-      await fetch(`${MOCK_BOARD_URL}/mock/state`)
-    ).json();
+    const state = await (await fetch(`${MOCK_BOARD_URL}/mock/state`)).json();
     const row0 = state.history[0].characters[0];
     expect(row0[0]).toBe(44); // -
     expect(row0[1]).toBe(56); // .
@@ -187,9 +179,7 @@ test.describe("Mock board – text mode encoding", () => {
     });
     expect(res.status).toBe(200);
 
-    const state = await (
-      await fetch(`${MOCK_BOARD_URL}/mock/state`)
-    ).json();
+    const state = await (await fetch(`${MOCK_BOARD_URL}/mock/state`)).json();
     const chars = state.history[0].characters;
     expect(chars[0][0]).toBe(1); // A
     expect(chars[0][1]).toBe(2); // B

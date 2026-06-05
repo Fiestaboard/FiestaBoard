@@ -1,15 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { Puzzle, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export function PluginSettingsCard() {
   const t = useTranslations("pluginSettings");
@@ -21,8 +22,7 @@ export function PluginSettingsCard() {
   });
 
   const mutation = useMutation({
-    mutationFn: (auto_update: boolean) =>
-      api.updatePluginSettings({ auto_update }),
+    mutationFn: (auto_update: boolean) => api.updatePluginSettings({ auto_update }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "plugins"] });
       queryClient.invalidateQueries({ queryKey: ["settings", "all"] });
@@ -79,9 +79,7 @@ export function PluginSettingsCard() {
         <div className="flex items-start justify-between gap-4 rounded-md border p-4">
           <div className="space-y-1">
             <span className="font-medium">{t("autoUpdateLabel")}</span>
-            <p className="text-sm text-muted-foreground">
-              {t("autoUpdateDescription")}
-            </p>
+            <p className="text-sm text-muted-foreground">{t("autoUpdateDescription")}</p>
           </div>
           <Switch
             checked={data.settings.auto_update}
@@ -93,9 +91,7 @@ export function PluginSettingsCard() {
         <div className="flex items-start justify-between gap-4 rounded-md border p-4">
           <div className="space-y-1">
             <span className="font-medium">{t("checkForUpdates")}</span>
-            <p className="text-sm text-muted-foreground">
-              {t("checkDescription")}
-            </p>
+            <p className="text-sm text-muted-foreground">{t("checkDescription")}</p>
           </div>
           <Button
             variant="outline"

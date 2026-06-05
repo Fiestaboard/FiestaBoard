@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -26,11 +26,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 describe("GeneralSettings", () => {
@@ -99,10 +95,13 @@ describe("GeneralSettings", () => {
     await user.click(silenceToggle!);
 
     // Should show time pickers
-    await waitFor(() => {
-      expect(screen.getByText("Start Time")).toBeInTheDocument();
-      expect(screen.getByText("End Time")).toBeInTheDocument();
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Start Time")).toBeInTheDocument();
+        expect(screen.getByText("End Time")).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
   });
 
   it("shows polling interval value from API", async () => {
@@ -146,9 +145,7 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/How often the board checks for content updates/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/How often the board checks for content updates/i)).toBeInTheDocument();
     });
   });
 
@@ -156,19 +153,19 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(
-        screen.getAllByText(/Prevent board updates during specified hours/i).length
-      ).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Prevent board updates during specified hours/i).length).toBeGreaterThan(0);
     });
   });
 
   it("renders all sections in correct order", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
+      },
+      { timeout: 2000 },
+    );
   });
 });
-

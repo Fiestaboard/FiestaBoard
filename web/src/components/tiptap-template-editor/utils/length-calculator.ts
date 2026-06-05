@@ -3,8 +3,9 @@
  * Must match backend logic in src/templates/engine.py
  */
 
-import { JSONContent } from '@tiptap/react';
-import { BOARD_WIDTH } from './constants';
+import type { JSONContent } from "@tiptap/react";
+
+import { BOARD_WIDTH } from "./constants";
 
 /**
  * Calculate the rendered length of a line in characters/tiles
@@ -19,27 +20,27 @@ export function calculateLineLength(lineContent: JSONContent[]): number {
 
   for (const node of lineContent) {
     switch (node.type) {
-      case 'text':
+      case "text":
         // Regular text counts as actual length (exclude end-of-line cursor placeholder)
-        tileCount += (node.text || '').replace(/\u200B/g, '').length;
+        tileCount += (node.text || "").replace(/\u200B/g, "").length;
         break;
 
-      case 'variable':
+      case "variable":
         // Variables count as maxLength
         tileCount += node.attrs?.maxLength || 10;
         break;
 
-      case 'colorTile':
+      case "colorTile":
         // Color tiles count as 1 character
         tileCount += 1;
         break;
 
-      case 'fillSpace':
+      case "fillSpace":
         // fill_space is calculated dynamically, counts as 0 here
         tileCount += 0;
         break;
 
-      case 'formula':
+      case "formula":
         // Formula result length is dynamic; use a conservative estimate
         tileCount += node.attrs?.estimatedLength ?? 10;
         break;
@@ -67,4 +68,3 @@ export function getOverflowAmount(lineContent: JSONContent[]): number {
   const length = calculateLineLength(lineContent);
   return Math.max(0, length - BOARD_WIDTH);
 }
-

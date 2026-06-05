@@ -1,27 +1,17 @@
 import type { Meta } from "@storybook/react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, CheckCircle2, Info, Mail, Plus, Trash2 } from "lucide-react";
+
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { 
-  Select, 
-  SelectTrigger, 
-  SelectValue, 
-  SelectContent, 
-  SelectItem 
-} from "@/components/ui/select";
-import { 
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent
-} from "@/components/ui/accordion";
-import { Plus, Mail, Trash2, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const meta = {
   title: "Design System/Inventory",
@@ -65,25 +55,43 @@ export const AllComponents = () => (
               <Button size="sm">Small</Button>
               <Button size="default">Default</Button>
               <Button size="lg">Large</Button>
-              <Button size="icon" aria-label="Add"><Plus className="h-4 w-4" /></Button>
-              <Button size="icon-sm" aria-label="Add"><Plus className="h-4 w-4" /></Button>
-              <Button size="icon-lg" aria-label="Add"><Plus className="h-4 w-4" /></Button>
+              <Button size="icon" aria-label="Add">
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button size="icon-sm" aria-label="Add">
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button size="icon-lg" aria-label="Add">
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-3">With Icons</h3>
             <div className="flex flex-wrap gap-3">
-              <Button><Mail className="h-4 w-4 mr-2" />With Icon</Button>
-              <Button variant="destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</Button>
-              <Button variant="outline" size="icon" aria-label="Add"><Plus className="h-4 w-4" /></Button>
+              <Button>
+                <Mail className="h-4 w-4 mr-2" />
+                With Icon
+              </Button>
+              <Button variant="destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+              <Button variant="outline" size="icon" aria-label="Add">
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-3">States</h3>
             <div className="flex flex-wrap gap-3">
               <Button disabled>Disabled</Button>
-              <Button variant="outline" disabled>Disabled Outline</Button>
-              <Button variant="ghost" disabled>Disabled Ghost</Button>
+              <Button variant="outline" disabled>
+                Disabled Outline
+              </Button>
+              <Button variant="ghost" disabled>
+                Disabled Ghost
+              </Button>
             </div>
           </div>
         </div>
@@ -144,7 +152,9 @@ export const AllComponents = () => (
               <p className="text-sm">Content section</p>
             </CardContent>
             <CardFooter>
-              <Button size="sm" className="w-full">Action</Button>
+              <Button size="sm" className="w-full">
+                Action
+              </Button>
             </CardFooter>
           </Card>
           <Card className="border-primary">
@@ -262,21 +272,15 @@ export const AllComponents = () => (
         <Accordion type="single" collapsible className="max-w-2xl">
           <AccordionItem value="item-1">
             <AccordionTrigger>Section 1</AccordionTrigger>
-            <AccordionContent>
-              Content for the first accordion section
-            </AccordionContent>
+            <AccordionContent>Content for the first accordion section</AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-2">
             <AccordionTrigger>Section 2</AccordionTrigger>
-            <AccordionContent>
-              Content for the second accordion section
-            </AccordionContent>
+            <AccordionContent>Content for the second accordion section</AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-3">
             <AccordionTrigger>Section 3</AccordionTrigger>
-            <AccordionContent>
-              Content for the third accordion section
-            </AccordionContent>
+            <AccordionContent>Content for the third accordion section</AccordionContent>
           </AccordionItem>
         </Accordion>
       </section>
@@ -307,9 +311,7 @@ export const ColorTokens = () => (
     <div className="max-w-7xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Color Token Inventory</h1>
-        <p className="text-muted-foreground">
-          Test how color token changes affect all components
-        </p>
+        <p className="text-muted-foreground">Test how color token changes affect all components</p>
       </div>
 
       {/* Color Swatches */}
@@ -429,9 +431,7 @@ export const InteractiveComponents = () => (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Interactive Components</h1>
-        <p className="text-muted-foreground">
-          All interactive states and hover effects in one view
-        </p>
+        <p className="text-muted-foreground">All interactive states and hover effects in one view</p>
       </div>
 
       <Card>
@@ -490,15 +490,12 @@ export const InteractiveComponents = () => (
             <AccordionItem value="item-1">
               <AccordionTrigger>Expand to see content</AccordionTrigger>
               <AccordionContent>
-                This content can be expanded and collapsed. Notice the animation
-                and focus states.
+                This content can be expanded and collapsed. Notice the animation and focus states.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="item-2">
               <AccordionTrigger>Another section</AccordionTrigger>
-              <AccordionContent>
-                Multiple accordion items can be configured with different behaviors.
-              </AccordionContent>
+              <AccordionContent>Multiple accordion items can be configured with different behaviors.</AccordionContent>
             </AccordionItem>
           </Accordion>
         </CardContent>
@@ -542,10 +539,18 @@ export const CompactShowcase = () => (
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Button size="sm">Default</Button>
-            <Button size="sm" variant="secondary">Secondary</Button>
-            <Button size="sm" variant="destructive">Destructive</Button>
-            <Button size="sm" variant="outline">Outline</Button>
-            <Button size="sm" variant="ghost">Ghost</Button>
+            <Button size="sm" variant="secondary">
+              Secondary
+            </Button>
+            <Button size="sm" variant="destructive">
+              Destructive
+            </Button>
+            <Button size="sm" variant="outline">
+              Outline
+            </Button>
+            <Button size="sm" variant="ghost">
+              Ghost
+            </Button>
           </div>
         </CardContent>
       </Card>

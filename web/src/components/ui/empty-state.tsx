@@ -1,8 +1,9 @@
 "use client";
 
-import * as React from "react";
-import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import * as React from "react";
+
+import { cn } from "@/lib/utils";
 
 export interface EmptyStateProps {
   icon: LucideIcon;
@@ -18,27 +19,20 @@ export interface EmptyStateProps {
  * Consistent empty state for lists and grids (e.g. no pages, no carousels).
  * Use with an icon, title, optional description, optional CTA, and optional illustration.
  */
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  action,
-  illustration,
-  className,
-}: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action, illustration, className }: EmptyStateProps) {
   const titleId = React.useId();
   return (
     <div
-      className={cn(
-        "flex flex-col items-center justify-center text-center py-8 px-4",
-        className
-      )}
+      className={cn("flex flex-col items-center justify-center text-center py-8 px-4", className)}
       role="status"
       aria-live="polite"
       aria-labelledby={titleId}
     >
       {illustration ? (
-        <div className="mb-3 flex items-center justify-center [&_svg]:max-w-[120px] [&_svg]:max-h-[80px] [&_svg]:text-muted-foreground" aria-hidden>
+        <div
+          className="mb-3 flex items-center justify-center [&_svg]:max-w-[120px] [&_svg]:max-h-[80px] [&_svg]:text-muted-foreground"
+          aria-hidden
+        >
           {illustration}
         </div>
       ) : (
@@ -49,9 +43,7 @@ export function EmptyState({
       <h3 id={titleId} className="text-sm font-medium text-foreground">
         {title}
       </h3>
-      {description && (
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm leading-relaxed">{description}</p>
-      )}
+      {description && <p className="text-sm text-muted-foreground mt-1 max-w-sm leading-relaxed">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );

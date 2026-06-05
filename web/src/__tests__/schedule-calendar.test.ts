@@ -1,17 +1,29 @@
-import { describe, it, expect } from "vitest";
-import { startOfWeek, getDay } from "date-fns";
-import {
-  scheduleToCalendarEvents,
-  schedulesToCalendarEvents,
-} from "@/lib/schedule-calendar";
-import type { ScheduleEntry, Page } from "@/lib/api";
+import { getDay, startOfWeek } from "date-fns";
+import { describe, expect, it } from "vitest";
+
+import type { Page, ScheduleEntry } from "@/lib/api";
+import { schedulesToCalendarEvents, scheduleToCalendarEvents } from "@/lib/schedule-calendar";
 
 // Fixed reference date: a known Sunday
 const WEEK_START = startOfWeek(new Date(2025, 0, 5), { weekStartsOn: 0 }); // Sun Jan 5 2025
 
 const MOCK_PAGES: Page[] = [
-  { id: "page1", name: "Night Page", type: "template", device_type: "flagship", duration_seconds: 30, created_at: "2025-01-01T00:00:00Z" },
-  { id: "page2", name: "Day Page", type: "template", device_type: "flagship", duration_seconds: 30, created_at: "2025-01-01T00:00:00Z" },
+  {
+    id: "page1",
+    name: "Night Page",
+    type: "template",
+    device_type: "flagship",
+    duration_seconds: 30,
+    created_at: "2025-01-01T00:00:00Z",
+  },
+  {
+    id: "page2",
+    name: "Day Page",
+    type: "template",
+    device_type: "flagship",
+    duration_seconds: 30,
+    created_at: "2025-01-01T00:00:00Z",
+  },
 ];
 
 function makeSchedule(overrides: Partial<ScheduleEntry>): ScheduleEntry {
@@ -208,7 +220,7 @@ describe("scheduleToCalendarEvents", () => {
 
     // Sunday (weekStart) should have a morning event from Saturday's rollover
     const sundayMorning = morningEvents.find(
-      (e) => getDay(e.start) === 0 // Sunday
+      (e) => getDay(e.start) === 0, // Sunday
     );
     expect(sundayMorning).toBeDefined();
     expect(sundayMorning!.start.getHours()).toBe(0);

@@ -4,13 +4,7 @@
  * Tests navigation edge cases: mobile hamburger menu,
  * sidebar links, theme toggle, and version display.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  suppressWizard,
-  API_URL,
-} from "./helpers";
+import { API_URL, configureBoard, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -23,15 +17,18 @@ test.describe("Navigation", () => {
     await page.setViewportSize({ width: 375, height: 812 });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Find and click hamburger menu button
     const menuBtn = page
       .getByRole("button", { name: /menu|navigation/i })
       .first()
-      .or(page.locator("button").filter({ has: page.locator("svg") }).first());
+      .or(
+        page
+          .locator("button")
+          .filter({ has: page.locator("svg") })
+          .first(),
+      );
 
     if (await menuBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await menuBtn.click();
@@ -42,17 +39,13 @@ test.describe("Navigation", () => {
 
       // Click a link to navigate
       await pagesLink.click();
-      await expect(
-        page.getByRole("heading", { name: "Pages", exact: true }),
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 10_000 });
     }
   });
 
   test("all sidebar links navigate correctly", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const sections = [
       { link: "Pages", heading: "Pages" },
@@ -62,10 +55,7 @@ test.describe("Navigation", () => {
     ];
 
     for (const { link, heading } of sections) {
-      await page
-        .getByRole("link", { name: link })
-        .first()
-        .click();
+      await page.getByRole("link", { name: link }).first().click();
       await expect(
         page.getByRole("heading", {
           name: heading,
@@ -76,27 +66,17 @@ test.describe("Navigation", () => {
 
     // Navigate back home
     await page.getByRole("link", { name: "Home" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
   });
 
-  test("theme toggle switches between light and dark mode", async ({
-    page,
-  }) => {
+  test("theme toggle switches between light and dark mode", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Find theme toggle button
-    const themeToggle = page
-      .getByRole("button", { name: /theme|dark|light|toggle/i })
-      .first();
+    const themeToggle = page.getByRole("button", { name: /theme|dark|light|toggle/i }).first();
 
-    if (
-      await themeToggle.isVisible({ timeout: 5_000 }).catch(() => false)
-    ) {
+    if (await themeToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
       // Get initial state
       const htmlEl = page.locator("html");
       const initialClass = await htmlEl.getAttribute("class");
@@ -108,9 +88,7 @@ test.describe("Navigation", () => {
       // Class should have changed
       const newClass = await htmlEl.getAttribute("class");
       // At minimum the toggle should not crash the page
-      await expect(
-        page.getByRole("heading", { name: "Dashboard" }),
-      ).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
       // Toggle back
       await themeToggle.click();
@@ -124,15 +102,11 @@ test.describe("Navigation", () => {
 
   test("version is displayed in sidebar", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Look for a version string (e.g., "v1.2.3" or "1.2.3")
     const versionText = page.getByText(/v?\d+\.\d+\.\d+/).first();
-    const hasVersion = await versionText
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const hasVersion = await versionText.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!hasVersion) {
       // Version might be in a collapsed section or only on desktop
@@ -144,14 +118,10 @@ test.describe("Navigation", () => {
     }
   });
 
-  test("sidebar shows Fiesta gradient (red, orange, yellow, purple)", async ({
-    page,
-  }) => {
+  test("sidebar shows Fiesta gradient (red, orange, yellow, purple)", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const sidebar = page.locator("aside").first();
     await expect(sidebar).toBeVisible();
@@ -163,14 +133,10 @@ test.describe("Navigation", () => {
     });
   });
 
-  test("sidebar has primary and secondary navigation sections", async ({
-    page,
-  }) => {
+  test("sidebar has primary and secondary navigation sections", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Desktop sidebar is in <aside>; mobile menu also contains duplicate nav labels
     // (hidden when the menu is closed), so scope to the fixed sidebar.
@@ -189,9 +155,7 @@ test.describe("Navigation", () => {
   test("Carousels is a direct link in primary navigation", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const sidebar = page.locator("aside").first();
     const primaryNav = sidebar.getByLabel("Primary navigation");

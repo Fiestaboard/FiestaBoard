@@ -10,16 +10,18 @@
  *    over the normal page preview.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
-import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { http } from "msw";
-import { server } from "./mocks/server";
-import { ActivePageDisplay } from "@/components/active-page-display";
+import { ThemeProvider } from "next-themes";
 import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ActivePageDisplay } from "@/components/active-page-display";
+import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -61,7 +63,7 @@ describe("Live Output cache sharing (mechanism)", () => {
           staleTime: Infinity,
           initialData: null,
         }),
-      { wrapper }
+      { wrapper },
     );
 
     // Should immediately see the value set by page builder (synchronous read from cache)
@@ -85,7 +87,7 @@ describe("Live Output cache sharing (mechanism)", () => {
           staleTime: Infinity,
           initialData: null,
         }),
-      { wrapper }
+      { wrapper },
     );
 
     expect(result.current.data).toBeNull();
@@ -108,7 +110,7 @@ describe("Live Output cache sharing (mechanism)", () => {
           staleTime: Infinity,
           initialData: null,
         }),
-      { wrapper }
+      { wrapper },
     );
 
     expect(result.current.data).toBeNull();
@@ -149,7 +151,7 @@ describe("Live Output cache sharing (mechanism)", () => {
           staleTime: Infinity,
           initialData: null,
         }),
-      { wrapper }
+      { wrapper },
     );
 
     // Simulate rapid updates as user types
@@ -185,7 +187,7 @@ describe("Live Output cache sharing (mechanism)", () => {
           staleTime: Infinity,
           initialData: null,
         }),
-      { wrapper }
+      { wrapper },
     );
 
     expect(result.current.data).toBeNull();
@@ -257,7 +259,7 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
       http.post(`${API_BASE}/pages/:id/preview`, () => {
         // Deliberately delay — the board should show liveOutputMessage immediately
         return new Promise(() => {}); // Never resolves, simulates slow network
-      })
+      }),
     );
 
     const queryClient = new QueryClient({
@@ -279,7 +281,7 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
     // This test verifies the ?? priority logic:
     // displayMessage = liveOutputMessage ?? previewData?.message ?? null
     // When liveOutputMessage is set, it should be used instead of previewData.message.
-    
+
     // The MSW default mock returns previewData.message = "Preview content"
     // Our liveOutputMessage should override it.
     const queryClient = new QueryClient({
@@ -370,10 +372,7 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
     // Pre-populate live output (as if page builder had sent live content)
     queryClient.setQueryData(["liveOutputMessage"], "LIVE CONTENT");
     // Also seed localStorage so we can verify it gets cleared
-    window.localStorage.setItem(
-      "fiestaboard:liveOutputMessage",
-      JSON.stringify("LIVE CONTENT")
-    );
+    window.localStorage.setItem("fiestaboard:liveOutputMessage", JSON.stringify("LIVE CONTENT"));
 
     render(<ActivePageDisplay />, { wrapper: makeWrapper(queryClient) });
 

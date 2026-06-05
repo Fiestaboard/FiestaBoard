@@ -7,9 +7,11 @@
  *
  * NOTE: Tests run sequentially. The wizard must have completed.
  */
-import { test, expect, configureBoard, API_URL } from "./helpers";
+import { API_URL, configureBoard, expect, test } from "./helpers";
 
-function API() { return API_URL; }
+function API() {
+  return API_URL;
+}
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
@@ -65,14 +67,10 @@ test.describe("Schedule CRUD", () => {
 
     // Navigate to the schedule page
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify the schedule entry is visible (shows the full time range)
-    await expect(
-      page.getByText("10:00 - 14:00").first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("10:00 - 14:00").first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("can delete a schedule", async ({ page }) => {
@@ -111,8 +109,6 @@ test.describe("Schedule CRUD", () => {
 
     // Navigate to schedule page and verify it loads without errors
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 });

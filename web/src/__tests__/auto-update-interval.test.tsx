@@ -1,12 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { NextIntlClientProvider } from "next-intl";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { NextIntlClientProvider } from "next-intl";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interval";
+
 import en from "../../messages/en.json";
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -76,12 +78,11 @@ describe("AutoUpdateIntervalCard – manual Check now button", () => {
           current_version: "2.0.1",
           latest_version: "2.1.0",
           update_available: true,
-          package_url:
-            "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
           error: null,
           is_production: true,
         });
-      })
+      }),
     );
 
     render(<AutoUpdateIntervalCard />, { wrapper: TestWrapper });
@@ -103,12 +104,11 @@ describe("AutoUpdateIntervalCard – manual Check now button", () => {
           current_version: "2.0.1",
           latest_version: null,
           update_available: false,
-          package_url:
-            "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
           error: "network unreachable",
           is_production: true,
         });
-      })
+      }),
     );
 
     render(<AutoUpdateIntervalCard />, { wrapper: TestWrapper });

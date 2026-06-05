@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "fiestaboard_sidebar_collapsed";
 
@@ -44,21 +37,18 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  const setCollapsed = useCallback(
-    (value: boolean, opts?: { persist?: boolean }) => {
-      setCollapsedState((prev) => {
-        if (prev === value) return prev;
-        setTransitioning(true);
-        if (opts?.persist !== false) {
-          try {
-            localStorage.setItem(STORAGE_KEY, String(value));
-          } catch {}
-        }
-        return value;
-      });
-    },
-    [],
-  );
+  const setCollapsed = useCallback((value: boolean, opts?: { persist?: boolean }) => {
+    setCollapsedState((prev) => {
+      if (prev === value) return prev;
+      setTransitioning(true);
+      if (opts?.persist !== false) {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(value));
+        } catch {}
+      }
+      return value;
+    });
+  }, []);
 
   const toggle = useCallback(() => {
     setTransitioning(true);
@@ -83,11 +73,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     [collapsed, transitioning, toggle, setCollapsed, onTransitionEnd],
   );
 
-  return (
-    <SidebarContext.Provider value={value}>
-      {children}
-    </SidebarContext.Provider>
-  );
+  return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;
 }
 
 export function useSidebar() {

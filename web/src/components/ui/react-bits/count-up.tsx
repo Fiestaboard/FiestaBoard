@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface CountUpProps {
   to: number;
@@ -54,7 +54,7 @@ export default function CountUp({
       const formatted = Intl.NumberFormat("en-US", options).format(value);
       return separator ? formatted.replace(/,/g, separator) : formatted;
     },
-    [maxDecimals, separator]
+    [maxDecimals, separator],
   );
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function CountUp({
           observer.unobserve(el);
         }
       },
-      { threshold: 0.1, rootMargin: "0px" }
+      { threshold: 0.1, rootMargin: "0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();

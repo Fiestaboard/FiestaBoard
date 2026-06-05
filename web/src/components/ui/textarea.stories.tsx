@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Textarea } from "./textarea";
+
 import { Label } from "./label";
+import { Textarea } from "./textarea";
 
 const meta = {
   title: "UI/Textarea",
@@ -69,13 +70,7 @@ export const AllStates = () => (
     </div>
     <div className="grid gap-1.5">
       <Label htmlFor="long">Long content</Label>
-      <Textarea
-        id="long"
-        rows={5}
-        defaultValue={
-          "Line one\nLine two\nLine three\nLine four\nLine five\nLine six"
-        }
-      />
+      <Textarea id="long" rows={5} defaultValue={"Line one\nLine two\nLine three\nLine four\nLine five\nLine six"} />
     </div>
     <div className="grid gap-1.5">
       <Label htmlFor="disabled-filled">Disabled with content</Label>

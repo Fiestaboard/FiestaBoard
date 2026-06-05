@@ -2,9 +2,10 @@
  * VariableNode - Inline node for {{plugin.field}} variables
  * Supports filters like |pad:3, |wrap, etc.
  */
-import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer } from '@tiptap/react';
-import { VariableNodeView } from '../node-views/VariableNodeView';
+import { mergeAttributes, Node } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+
+import { VariableNodeView } from "../node-views/VariableNodeView";
 
 export interface VariableAttrs {
   pluginId: string;
@@ -14,9 +15,9 @@ export interface VariableAttrs {
 }
 
 export const VariableNode = Node.create({
-  name: 'variable',
+  name: "variable",
 
-  group: 'inline',
+  group: "inline",
 
   inline: true,
 
@@ -29,37 +30,37 @@ export const VariableNode = Node.create({
   addAttributes() {
     return {
       pluginId: {
-        default: '',
-        parseHTML: element => element.getAttribute('data-plugin-id'),
-        renderHTML: attributes => ({
-          'data-plugin-id': attributes.pluginId,
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-plugin-id"),
+        renderHTML: (attributes) => ({
+          "data-plugin-id": attributes.pluginId,
         }),
       },
       field: {
-        default: '',
-        parseHTML: element => element.getAttribute('data-field'),
-        renderHTML: attributes => ({
-          'data-field': attributes.field,
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-field"),
+        renderHTML: (attributes) => ({
+          "data-field": attributes.field,
         }),
       },
       filters: {
         default: [],
-        parseHTML: element => {
-          const filtersStr = element.getAttribute('data-filters');
+        parseHTML: (element) => {
+          const filtersStr = element.getAttribute("data-filters");
           return filtersStr ? JSON.parse(filtersStr) : [];
         },
-        renderHTML: attributes => ({
-          'data-filters': JSON.stringify(attributes.filters || []),
+        renderHTML: (attributes) => ({
+          "data-filters": JSON.stringify(attributes.filters || []),
         }),
       },
       maxLength: {
         default: 10,
-        parseHTML: element => {
-          const maxLen = element.getAttribute('data-max-length');
+        parseHTML: (element) => {
+          const maxLen = element.getAttribute("data-max-length");
           return maxLen ? parseInt(maxLen, 10) : 10;
         },
-        renderHTML: attributes => ({
-          'data-max-length': attributes.maxLength?.toString() || '10',
+        renderHTML: (attributes) => ({
+          "data-max-length": attributes.maxLength?.toString() || "10",
         }),
       },
     };
@@ -74,7 +75,7 @@ export const VariableNode = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['span', mergeAttributes({ 'data-type': 'variable' }, HTMLAttributes)];
+    return ["span", mergeAttributes({ "data-type": "variable" }, HTMLAttributes)];
   },
 
   addNodeView() {

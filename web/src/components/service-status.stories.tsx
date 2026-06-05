@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ServiceStatus } from "./service-status";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import { ServiceStatus } from "./service-status";
 
 const meta = {
   title: "Layout/ServiceStatus",
@@ -22,11 +23,11 @@ const createQueryClient = (running: boolean | null, error: boolean = false) => {
       },
     },
   });
-  
+
   if (!error && running !== null) {
     client.setQueryData(["status"], { running });
   }
-  
+
   return client;
 };
 

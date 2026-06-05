@@ -1,17 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { PagePickerDialog } from "./page-picker-dialog";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+
 import {
   AlertDialog,
+  AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogCancel,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import type { Carousel } from "@/lib/api";
+
+import { PagePickerDialog } from "./page-picker-dialog";
 
 const meta = {
   title: "Forms/PagePickerDialog",
@@ -111,12 +113,7 @@ export const Interactive = () => {
       <div className="text-sm text-muted-foreground">
         <strong>Selected page ID:</strong> {selectedId || "none"}
       </div>
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={selectedId}
-        onSelect={setSelectedId}
-        allowNone={true}
-      />
+      <PagePickerDialog pages={mockPages} selectedPageId={selectedId} onSelect={setSelectedId} allowNone={true} />
     </div>
   );
 };
@@ -174,25 +171,16 @@ export const InDialog = () => {
 
   return (
     <>
-      {!isOpen && (
-        <Button onClick={() => setIsOpen(true)}>Open Dialog</Button>
-      )}
+      {!isOpen && <Button onClick={() => setIsOpen(true)}>Open Dialog</Button>}
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Set Default Page</AlertDialogTitle>
-            <AlertDialogDescription>
-              This page will display during schedule gaps
-            </AlertDialogDescription>
+            <AlertDialogDescription>This page will display during schedule gaps</AlertDialogDescription>
           </AlertDialogHeader>
-          
-          <PagePickerDialog
-            pages={mockPages}
-            selectedPageId={selectedId}
-            onSelect={setSelectedId}
-            allowNone={true}
-          />
-          
+
+          <PagePickerDialog pages={mockPages} selectedPageId={selectedId} onSelect={setSelectedId} allowNone={true} />
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button

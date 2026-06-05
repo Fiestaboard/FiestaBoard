@@ -1,9 +1,10 @@
 import type { Meta } from "@storybook/react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, Info, Mail, Plus } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Mail, AlertCircle, Info } from "lucide-react";
 
 const meta = {
   title: "Design System/Variant Matrix",
@@ -24,9 +25,7 @@ export const ButtonMatrix = () => {
       <div className="max-w-6xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">Button Variant × Size Matrix</h1>
-          <p className="text-muted-foreground">
-            All button combinations in one view
-          </p>
+          <p className="text-muted-foreground">All button combinations in one view</p>
         </div>
 
         <div className="overflow-x-auto">
@@ -34,7 +33,7 @@ export const ButtonMatrix = () => {
             <thead>
               <tr>
                 <th className="border p-3 bg-muted text-left font-semibold">Variant / Size</th>
-                {sizes.map(size => (
+                {sizes.map((size) => (
                   <th key={size} className="border p-3 bg-muted text-center font-semibold">
                     {size}
                   </th>
@@ -42,10 +41,10 @@ export const ButtonMatrix = () => {
               </tr>
             </thead>
             <tbody>
-              {variants.map(variant => (
+              {variants.map((variant) => (
                 <tr key={variant}>
                   <td className="border p-3 bg-muted/50 font-medium">{variant}</td>
-                  {sizes.map(size => (
+                  {sizes.map((size) => (
                     <td key={size} className="border p-3 text-center">
                       <Button variant={variant} size={size}>
                         Button
@@ -71,7 +70,7 @@ export const ButtonMatrix = () => {
               </tr>
             </thead>
             <tbody>
-              {variants.map(variant => (
+              {variants.map((variant) => (
                 <tr key={variant}>
                   <td className="border p-3 bg-muted/50 font-medium">{variant}</td>
                   <td className="border p-3 text-center">
@@ -99,7 +98,7 @@ export const ButtonMatrix = () => {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Buttons with Icons</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {variants.map(variant => (
+            {variants.map((variant) => (
               <Button key={variant} variant={variant}>
                 <Mail className="h-4 w-4 mr-2" />
                 {variant}
@@ -112,7 +111,7 @@ export const ButtonMatrix = () => {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Disabled States</h2>
           <div className="flex flex-wrap gap-3">
-            {variants.map(variant => (
+            {variants.map((variant) => (
               <Button key={variant} variant={variant} disabled>
                 {variant}
               </Button>
@@ -127,20 +126,26 @@ export const ButtonMatrix = () => {
 export const BadgeMatrix = () => {
   const variants = ["default", "secondary", "destructive", "outline"] as const;
   const contexts = [
-    { label: "Text only", content: (v: typeof variants[number]) => <Badge variant={v}>{v}</Badge> },
-    { label: "With icon", content: (v: typeof variants[number]) => (
-      <Badge variant={v}>
-        <Info className="h-3 w-3 mr-1" />
-        {v}
-      </Badge>
-    )},
-    { label: "Count", content: (v: typeof variants[number]) => <Badge variant={v}>42</Badge> },
-    { label: "Status", content: (v: typeof variants[number]) => (
-      <Badge variant={v}>
-        <span className="h-2 w-2 rounded-full bg-current mr-1.5" />
-        Active
-      </Badge>
-    )},
+    { label: "Text only", content: (v: (typeof variants)[number]) => <Badge variant={v}>{v}</Badge> },
+    {
+      label: "With icon",
+      content: (v: (typeof variants)[number]) => (
+        <Badge variant={v}>
+          <Info className="h-3 w-3 mr-1" />
+          {v}
+        </Badge>
+      ),
+    },
+    { label: "Count", content: (v: (typeof variants)[number]) => <Badge variant={v}>42</Badge> },
+    {
+      label: "Status",
+      content: (v: (typeof variants)[number]) => (
+        <Badge variant={v}>
+          <span className="h-2 w-2 rounded-full bg-current mr-1.5" />
+          Active
+        </Badge>
+      ),
+    },
   ];
 
   return (
@@ -156,7 +161,7 @@ export const BadgeMatrix = () => {
             <thead>
               <tr>
                 <th className="border p-3 bg-muted text-left font-semibold">Context</th>
-                {variants.map(variant => (
+                {variants.map((variant) => (
                   <th key={variant} className="border p-3 bg-muted text-center font-semibold">
                     {variant}
                   </th>
@@ -164,10 +169,10 @@ export const BadgeMatrix = () => {
               </tr>
             </thead>
             <tbody>
-              {contexts.map(context => (
+              {contexts.map((context) => (
                 <tr key={context.label}>
                   <td className="border p-3 bg-muted/50 font-medium">{context.label}</td>
-                  {variants.map(variant => (
+                  {variants.map((variant) => (
                     <td key={variant} className="border p-3 text-center">
                       {context.content(variant)}
                     </td>
@@ -184,29 +189,29 @@ export const BadgeMatrix = () => {
 
 export const AlertMatrix = () => {
   const types = [
-    { 
-      title: "Default Info", 
+    {
+      title: "Default Info",
       variant: "default" as const,
       icon: <Info className="h-4 w-4" />,
-      message: "This is an informational alert with default styling."
+      message: "This is an informational alert with default styling.",
     },
-    { 
-      title: "Success", 
+    {
+      title: "Success",
       variant: "default" as const,
       icon: <Info className="h-4 w-4" />,
-      message: "Operation completed successfully."
+      message: "Operation completed successfully.",
     },
-    { 
-      title: "Warning", 
+    {
+      title: "Warning",
       variant: "default" as const,
       icon: <Info className="h-4 w-4" />,
-      message: "Please review this warning message."
+      message: "Please review this warning message.",
     },
-    { 
-      title: "Error", 
+    {
+      title: "Error",
       variant: "destructive" as const,
       icon: <AlertCircle className="h-4 w-4" />,
-      message: "An error occurred. Please try again."
+      message: "An error occurred. Please try again.",
     },
   ];
 
@@ -274,7 +279,7 @@ export const InputMatrix = () => {
             <thead>
               <tr>
                 <th className="border p-3 bg-muted text-left font-semibold">Type / State</th>
-                {states.map(state => (
+                {states.map((state) => (
                   <th key={state.label} className="border p-3 bg-muted text-center font-semibold">
                     {state.label}
                   </th>
@@ -282,16 +287,12 @@ export const InputMatrix = () => {
               </tr>
             </thead>
             <tbody>
-              {types.map(type => (
+              {types.map((type) => (
                 <tr key={type}>
                   <td className="border p-3 bg-muted/50 font-medium">{type}</td>
-                  {states.map(state => (
+                  {states.map((state) => (
                     <td key={state.label} className="border p-3">
-                      <Input
-                        type={type}
-                        placeholder={`${type} input`}
-                        {...state.props}
-                      />
+                      <Input type={type} placeholder={`${type} input`} {...state.props} />
                     </td>
                   ))}
                 </tr>

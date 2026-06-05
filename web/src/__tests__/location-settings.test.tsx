@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { server } from "./mocks/server";
 
 vi.mock("next/navigation", () => ({
@@ -29,11 +30,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 // Helper to create a mock geolocation object
@@ -92,9 +89,7 @@ describe("LocationSettingsCard", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Location")).toBeInTheDocument();
-      expect(
-        screen.getByText(/sunrise\/sunset-based schedules/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/sunrise\/sunset-based schedules/)).toBeInTheDocument();
     });
   });
 
@@ -120,9 +115,7 @@ describe("LocationSettingsCard", () => {
 
   it("pre-populates inputs when location is already saved", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/location`, () =>
-        HttpResponse.json({ latitude: 40.7128, longitude: -74.006 })
-      )
+      http.get(`${API_BASE}/settings/location`, () => HttpResponse.json({ latitude: 40.7128, longitude: -74.006 })),
     );
 
     render(<LocationSettingsCard />, { wrapper: TestWrapper });
@@ -139,9 +132,7 @@ describe("LocationSettingsCard", () => {
     render(<LocationSettingsCard />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /use my location/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /use my location/i })).toBeInTheDocument();
     });
   });
 
@@ -155,9 +146,7 @@ describe("LocationSettingsCard", () => {
 
   it("shows the Clear button when location is already configured", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/location`, () =>
-        HttpResponse.json({ latitude: 40.7128, longitude: -74.006 })
-      )
+      http.get(`${API_BASE}/settings/location`, () => HttpResponse.json({ latitude: 40.7128, longitude: -74.006 })),
     );
 
     render(<LocationSettingsCard />, { wrapper: TestWrapper });
@@ -371,7 +360,7 @@ describe("LocationSettingsCard", () => {
           status: "success",
           settings: { latitude: 51.5074, longitude: -0.1278 },
         });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -417,13 +406,11 @@ describe("LocationSettingsCard", () => {
   it("clears the location when Clear is clicked", async () => {
     let clearedPayload: Record<string, unknown> | undefined;
     server.use(
-      http.get(`${API_BASE}/settings/location`, () =>
-        HttpResponse.json({ latitude: 40.7128, longitude: -74.006 })
-      ),
+      http.get(`${API_BASE}/settings/location`, () => HttpResponse.json({ latitude: 40.7128, longitude: -74.006 })),
       http.put(`${API_BASE}/settings/location`, async ({ request }) => {
         clearedPayload = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ status: "success", settings: { latitude: null, longitude: null } });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -456,9 +443,7 @@ describe("LocationSettingsCard", () => {
     await user.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith(
-        "Latitude must be a number between -90 and 90"
-      );
+      expect(toastSpy).toHaveBeenCalledWith("Latitude must be a number between -90 and 90");
     });
 
     toastSpy.mockRestore();
@@ -480,9 +465,7 @@ describe("LocationSettingsCard", () => {
     await user.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith(
-        "Longitude must be a number between -180 and 180"
-      );
+      expect(toastSpy).toHaveBeenCalledWith("Longitude must be a number between -180 and 180");
     });
 
     toastSpy.mockRestore();
@@ -508,7 +491,7 @@ describe("LocationSettingsCard", () => {
     expect(geo.getCurrentPosition).toHaveBeenCalledWith(
       expect.any(Function),
       expect.any(Function),
-      expect.objectContaining({ timeout: 10000 })
+      expect.objectContaining({ timeout: 10000 }),
     );
   });
 });

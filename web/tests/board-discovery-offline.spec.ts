@@ -13,17 +13,17 @@
  * Issue: #507
  */
 import {
-  test,
-  expect,
+  API_URL,
+  BOARD_HOST,
   configureBoard,
-  createPage,
   createNotePage,
+  createPage,
   deleteAllPages,
   deleteAllSchedules,
   ensureTwoBoards,
+  expect,
   resetToSingleBoard,
-  API_URL,
-  BOARD_HOST,
+  test,
 } from "./helpers";
 
 /** RFC 5737 TEST-NET-1 address — guaranteed unreachable, used for offline board tests. */
@@ -160,9 +160,7 @@ test.describe("Per-Board Schedule — Active Page Resolution", () => {
   test("active page returns correct page per board when schedules differ", async () => {
     const { board1Id, board2Id } = await ensureTwoBoards();
 
-    const page1 = await createPage("Flagship Active", [
-      "FLAGSHIP", "", "", "", "", "",
-    ]);
+    const page1 = await createPage("Flagship Active", ["FLAGSHIP", "", "", "", "", ""]);
     const page2 = await createNotePage("Note Active", ["NOTE", "", ""]);
 
     // Enable schedule mode for both boards
@@ -190,18 +188,14 @@ test.describe("Per-Board Schedule — Active Page Resolution", () => {
     });
 
     // Query active page per board
-    const res1 = await fetch(
-      `${API_URL}/schedules/active/page?board_id=${board1Id}`,
-    );
+    const res1 = await fetch(`${API_URL}/schedules/active/page?board_id=${board1Id}`);
     expect(res1.ok).toBe(true);
     const data1 = await res1.json();
     expect(data1.schedule_enabled).toBe(true);
     // The default page for board1 should be page1
     expect(data1.default_page_id).toBe(page1);
 
-    const res2 = await fetch(
-      `${API_URL}/schedules/active/page?board_id=${board2Id}`,
-    );
+    const res2 = await fetch(`${API_URL}/schedules/active/page?board_id=${board2Id}`);
     expect(res2.ok).toBe(true);
     const data2 = await res2.json();
     expect(data2.schedule_enabled).toBe(true);
@@ -223,15 +217,11 @@ test.describe("Per-Board Schedule — Active Page Resolution", () => {
       body: JSON.stringify({ enabled: false, board_id: board2Id }),
     });
 
-    const res1 = await fetch(
-      `${API_URL}/schedules/active/page?board_id=${board1Id}`,
-    );
+    const res1 = await fetch(`${API_URL}/schedules/active/page?board_id=${board1Id}`);
     const data1 = await res1.json();
     expect(data1.schedule_enabled).toBe(true);
 
-    const res2 = await fetch(
-      `${API_URL}/schedules/active/page?board_id=${board2Id}`,
-    );
+    const res2 = await fetch(`${API_URL}/schedules/active/page?board_id=${board2Id}`);
     const data2 = await res2.json();
     expect(data2.schedule_enabled).toBe(false);
   });
@@ -328,21 +318,21 @@ test.describe("Board Offline — Send Error Handling", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        boards: [{
-          name: "Offline Board",
-          device_type: "flagship",
-          board_color: "black",
-          enabled: true,
-          api_mode: "local",
-          host: UNREACHABLE_HOST,
-          local_api_key: "test-key",
-        }],
+        boards: [
+          {
+            name: "Offline Board",
+            device_type: "flagship",
+            board_color: "black",
+            enabled: true,
+            api_mode: "local",
+            host: UNREACHABLE_HOST,
+            local_api_key: "test-key",
+          },
+        ],
       }),
     });
 
-    const pageId = await createPage("Offline Test", [
-      "OFFLINE", "", "", "", "", "",
-    ]);
+    const pageId = await createPage("Offline Test", ["OFFLINE", "", "", "", "", ""]);
 
     // Send to board target — should fail gracefully, not 500
     const res = await fetch(`${API_URL}/pages/${pageId}/send`, {
@@ -363,15 +353,17 @@ test.describe("Board Offline — Send Error Handling", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        boards: [{
-          name: "Unreachable Board",
-          device_type: "flagship",
-          board_color: "black",
-          enabled: true,
-          api_mode: "local",
-          host: UNREACHABLE_HOST,
-          local_api_key: "test-key",
-        }],
+        boards: [
+          {
+            name: "Unreachable Board",
+            device_type: "flagship",
+            board_color: "black",
+            enabled: true,
+            api_mode: "local",
+            host: UNREACHABLE_HOST,
+            local_api_key: "test-key",
+          },
+        ],
       }),
     });
 
@@ -397,21 +389,21 @@ test.describe("Board Offline — Send Error Handling", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        boards: [{
-          name: "Offline UI Board",
-          device_type: "flagship",
-          board_color: "black",
-          enabled: true,
-          api_mode: "local",
-          host: UNREACHABLE_HOST,
-          local_api_key: "test-key",
-        }],
+        boards: [
+          {
+            name: "Offline UI Board",
+            device_type: "flagship",
+            board_color: "black",
+            enabled: true,
+            api_mode: "local",
+            host: UNREACHABLE_HOST,
+            local_api_key: "test-key",
+          },
+        ],
       }),
     });
 
-    const pageId = await createPage("UI Only", [
-      "UI TARGET", "", "", "", "", "",
-    ]);
+    const pageId = await createPage("UI Only", ["UI TARGET", "", "", "", "", ""]);
 
     // Send with target=ui — should succeed regardless of board connectivity
     const res = await fetch(`${API_URL}/pages/${pageId}/send`, {
@@ -436,9 +428,8 @@ test.describe("Multi-Board — State Independence", () => {
     // Get current boards, disable board2
     const boardRes = await fetch(`${API_URL}/settings/board`);
     const boardData = await boardRes.json();
-    const updatedBoards = boardData.boards.map(
-      (b: Record<string, unknown>) =>
-        b.id === board2Id ? { ...b, enabled: false } : b,
+    const updatedBoards = boardData.boards.map((b: Record<string, unknown>) =>
+      b.id === board2Id ? { ...b, enabled: false } : b,
     );
 
     await fetch(`${API_URL}/settings/board`, {
@@ -450,12 +441,8 @@ test.describe("Multi-Board — State Independence", () => {
     // Verify board1 is still enabled, board2 is disabled
     const verifyRes = await fetch(`${API_URL}/settings/board`);
     const verifyData = await verifyRes.json();
-    const b1 = verifyData.boards.find(
-      (b: Record<string, unknown>) => b.id === board1Id,
-    );
-    const b2 = verifyData.boards.find(
-      (b: Record<string, unknown>) => b.id === board2Id,
-    );
+    const b1 = verifyData.boards.find((b: Record<string, unknown>) => b.id === board1Id);
+    const b2 = verifyData.boards.find((b: Record<string, unknown>) => b.id === board2Id);
     expect(b1?.enabled).toBe(true);
     expect(b2?.enabled).toBe(false);
   });
@@ -466,17 +453,12 @@ test.describe("Multi-Board — State Independence", () => {
     // Get current boards — board1 is flagship, board2 is note
     const boardRes = await fetch(`${API_URL}/settings/board`);
     const boardData = await boardRes.json();
-    const board1 = boardData.boards.find(
-      (b: Record<string, unknown>) => b.id === board1Id,
-    );
-    const board2 = boardData.boards.find(
-      (b: Record<string, unknown>) => b.id === board2Id,
-    );
+    const board1 = boardData.boards.find((b: Record<string, unknown>) => b.id === board1Id);
+    const board2 = boardData.boards.find((b: Record<string, unknown>) => b.id === board2Id);
 
     // Change board2 from note to flagship
-    const updatedBoards = boardData.boards.map(
-      (b: Record<string, unknown>) =>
-        b.id === board2Id ? { ...b, device_type: "flagship" } : b,
+    const updatedBoards = boardData.boards.map((b: Record<string, unknown>) =>
+      b.id === board2Id ? { ...b, device_type: "flagship" } : b,
     );
 
     await fetch(`${API_URL}/settings/board`, {
@@ -488,9 +470,7 @@ test.describe("Multi-Board — State Independence", () => {
     // Verify board1's device_type is unchanged
     const verifyRes = await fetch(`${API_URL}/settings/board`);
     const verifyData = await verifyRes.json();
-    const b1 = verifyData.boards.find(
-      (b: Record<string, unknown>) => b.id === board1Id,
-    );
+    const b1 = verifyData.boards.find((b: Record<string, unknown>) => b.id === board1Id);
     expect(b1?.device_type).toBe(board1?.device_type);
   });
 

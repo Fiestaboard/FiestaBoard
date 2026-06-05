@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, LocateFixed, MapPin } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { MapPin, Loader2, LocateFixed } from "lucide-react";
-import { api, LocationSettings } from "@/lib/api";
 import { queryKeys } from "@/hooks/use-board";
+import type { LocationSettings } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export function LocationSettingsCard() {
   const t = useTranslations("locationSettings");
@@ -36,8 +38,7 @@ export function LocationSettingsCard() {
   }, [location]);
 
   const mutation = useMutation({
-    mutationFn: (settings: Partial<LocationSettings>) =>
-      api.updateLocationSettings(settings),
+    mutationFn: (settings: Partial<LocationSettings>) => api.updateLocationSettings(settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.schedules("") });
@@ -105,7 +106,7 @@ export function LocationSettingsCard() {
           toast.error(t("locationUnavailable"));
         }
       },
-      { timeout: 10000 }
+      { timeout: 10000 },
     );
   };
 
@@ -118,9 +119,7 @@ export function LocationSettingsCard() {
           <MapPin className="h-4 w-4" />
           {t("title")}
         </CardTitle>
-        <CardDescription>
-          {t("description")}
-        </CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
@@ -158,9 +157,7 @@ export function LocationSettingsCard() {
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t("tip")}
-            </p>
+            <p className="text-xs text-muted-foreground">{t("tip")}</p>
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -175,21 +172,12 @@ export function LocationSettingsCard() {
                 )}
                 {isGeolocating ? t("locating") : t("useMyLocation")}
               </Button>
-              <Button
-                onClick={handleSave}
-                disabled={mutation.isPending || !isDirty}
-                size="sm"
-              >
+              <Button onClick={handleSave} disabled={mutation.isPending || !isDirty} size="sm">
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {tCommon("save")}
               </Button>
               {isConfigured && (
-                <Button
-                  variant="outline"
-                  onClick={handleClear}
-                  disabled={mutation.isPending}
-                  size="sm"
-                >
+                <Button variant="outline" onClick={handleClear} disabled={mutation.isPending} size="sm">
                   {t("clear")}
                 </Button>
               )}

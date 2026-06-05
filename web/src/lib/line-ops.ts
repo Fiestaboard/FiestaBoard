@@ -5,8 +5,8 @@
 // so it can render an inline preview without round-tripping the
 // editor.
 
-import type { LineAlignment, LineMetadata } from "./api";
 import type { LineOp } from "./ai-chat-types";
+import type { LineAlignment, LineMetadata } from "./api";
 
 /**
  * Apply one line-level op in place. Out-of-range indices are clamped
@@ -62,9 +62,7 @@ export function applyPatchToSnapshot(
   lineMetadata: LineMetadata[],
 ): { template: string[]; line_metadata: LineMetadata[] } {
   const nextTemplate = template.slice();
-  const nextAlign: LineAlignment[] = lineMetadata.map(
-    (m) => (m.alignment as LineAlignment) ?? "left",
-  );
+  const nextAlign: LineAlignment[] = lineMetadata.map((m) => (m.alignment as LineAlignment) ?? "left");
   const nextWrap: boolean[] = lineMetadata.map((m) => Boolean(m.wrap));
   for (const change of changes) {
     applyLineOpInPlace(change, nextTemplate, nextAlign, nextWrap);

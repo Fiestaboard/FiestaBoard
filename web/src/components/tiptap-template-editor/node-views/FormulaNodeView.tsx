@@ -9,14 +9,16 @@
  */
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { NodeViewWrapper } from '@tiptap/react';
-import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { SquareFunction } from 'lucide-react';
-import { FormulaEditorPanel } from '../components/FormulaEditorPanel';
-import { useTranslations } from 'next-intl';
+import { NodeViewWrapper } from "@tiptap/react";
+import { SquareFunction } from "lucide-react";
+import { useTranslations } from "next-intl";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+import { FormulaEditorPanel } from "../components/FormulaEditorPanel";
 
 interface FormulaNodeViewProps {
   node: {
@@ -39,9 +41,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
   const shouldAutoOpen = useRef(autoOpen);
 
   const preview =
-    expression.length > 0
-      ? expression.length > 20 ? expression.slice(0, 20) + '…' : expression
-      : t("newFormula");
+    expression.length > 0 ? (expression.length > 20 ? expression.slice(0, 20) + "…" : expression) : t("newFormula");
 
   // Auto-open on mount when freshly inserted via the toolbar.
   useEffect(() => {
@@ -60,14 +60,14 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         e.stopPropagation();
         setOpen(false);
-        if (node.attrs.expression === '') deleteNode();
+        if (node.attrs.expression === "") deleteNode();
       }
     };
-    document.addEventListener('keydown', handleKeyDown, true);
-    return () => document.removeEventListener('keydown', handleKeyDown, true);
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, [open, node.attrs.expression, deleteNode]);
 
   const handleConfirm = (newExpr: string) => {
@@ -77,7 +77,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
 
   const handleCancel = () => {
     setOpen(false);
-    if (node.attrs.expression === '') deleteNode();
+    if (node.attrs.expression === "") deleteNode();
   };
 
   return (
@@ -85,9 +85,9 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
       as="span"
       data-drag-handle
       style={{
-        display: 'inline-flex',
-        verticalAlign: 'baseline',
-        whiteSpace: 'nowrap',
+        display: "inline-flex",
+        verticalAlign: "baseline",
+        whiteSpace: "nowrap",
       }}
     >
       <TooltipProvider>
@@ -102,7 +102,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
               role="button"
               tabIndex={0}
               onKeyDown={(e: React.KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   openPanel(e as unknown as React.MouseEvent);
                 }
@@ -113,7 +113,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="font-mono text-xs">{'{{= ' + expression + ' }}'}</p>
+            <p className="font-mono text-xs">{"{{= " + expression + " }}"}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{t("clickToEditFormula")}</p>
           </TooltipContent>
         </Tooltip>
@@ -138,7 +138,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
               />
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </NodeViewWrapper>
   );

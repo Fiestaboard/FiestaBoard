@@ -7,15 +7,15 @@
  * Issue: #500 — E2E: add Playwright tests for critical user flows
  */
 import {
-  test,
-  expect,
+  API_URL,
   configureBoard,
-  suppressWizard,
   createPage,
   createSchedule,
-  deleteAllSchedules,
   deleteAllPages,
-  API_URL,
+  deleteAllSchedules,
+  expect,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -31,14 +31,7 @@ test.afterEach(async () => {
 
 test.describe("Schedule — Midnight Rollover", () => {
   test("API accepts a schedule entry spanning midnight (22:00–06:00)", async () => {
-    const pageId = await createPage("Night Owl Page", [
-      "NIGHT MODE",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const pageId = await createPage("Night Owl Page", ["NIGHT MODE", "", "", "", "", ""]);
 
     // Create a schedule that spans midnight: starts at 22:00, ends at 06:00
     const res = await fetch(`${API_URL}/schedules`, {
@@ -64,9 +57,7 @@ test.describe("Schedule — Midnight Rollover", () => {
     await createSchedule(pageId, "23:00", "05:00", "all");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The schedule should be visible in the list
     const scheduleList = page.locator("[data-testid='schedule-list'], .schedule-list, main");
@@ -88,9 +79,7 @@ test.describe("Schedule — Midnight Rollover", () => {
     await createSchedule(pageId2, "22:00", "08:00", "weekdays");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Both schedules should be fetchable from the API
     const res = await fetch(`${API_URL}/schedules`);
@@ -126,23 +115,18 @@ test.describe("Schedule — Midnight Rollover", () => {
     const data = await res.json();
 
     const overnight = data.schedules.find(
-      (s: { start_time: string; end_time: string }) =>
-        s.start_time === "21:30" && s.end_time === "07:30",
+      (s: { start_time: string; end_time: string }) => s.start_time === "21:30" && s.end_time === "07:30",
     );
     expect(overnight).toBeTruthy();
     expect(overnight.day_pattern).toBe("weekends");
   });
 
-  test("schedule calendar view renders without errors when overnight entries exist", async ({
-    page,
-  }) => {
+  test("schedule calendar view renders without errors when overnight entries exist", async ({ page }) => {
     const pageId = await createPage("Calendar Night", ["NIGHT", "", "", "", "", ""]);
     await createSchedule(pageId, "22:00", "06:00", "all");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Switch to calendar view if possible
     const calendarViewBtn = page

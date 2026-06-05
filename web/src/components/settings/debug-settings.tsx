@@ -1,52 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-import { 
-  Bug, 
-  Trash2, 
-  TestTube, 
-  Info, 
-  Wifi, 
-  Database, 
-  ChevronDown, 
-  ChevronUp,
-  Loader2,
-  XCircle,
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
   AlertCircle,
+  Bug,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Database,
   Globe,
+  Info,
+  Lightbulb,
+  Loader2,
   Server,
-  Lightbulb
+  TestTube,
+  Trash2,
+  Wifi,
+  XCircle,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { NetworkDiagnosticsResult } from "@/lib/api";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { api } from "@/lib/api";
 
 // Character code definitions matching board_chars.py
 const CHARACTER_GROUPS = {
   Letters: Array.from({ length: 26 }, (_, i) => ({
     code: i + 1,
     label: String.fromCharCode(65 + i),
-    display: `${String.fromCharCode(65 + i)} (${i + 1})`
+    display: `${String.fromCharCode(65 + i)} (${i + 1})`,
   })),
   Numbers: [
     { code: 27, label: "1", display: "1 (27)" },
@@ -74,7 +65,7 @@ const CHARACTER_GROUPS = {
     { code: 49, label: ";", display: "; (49)" },
     { code: 50, label: ":", display: ": (50)" },
     { code: 52, label: "'", display: "' (52)" },
-    { code: 53, label: '"', display: "\" (53)" },
+    { code: 53, label: '"', display: '" (53)' },
     { code: 54, label: "%", display: "% (54)" },
     { code: 55, label: ",", display: ", (55)" },
     { code: 56, label: ".", display: ". (56)" },
@@ -184,7 +175,7 @@ export function DebugSettings() {
     },
   });
 
-  const isAnyMutationLoading = 
+  const isAnyMutationLoading =
     blankMutation.isPending ||
     fillMutation.isPending ||
     debugInfoMutation.isPending ||
@@ -195,361 +186,348 @@ export function DebugSettings() {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-    <Card>
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-        <div className="flex items-center gap-2">
-          <Bug className="h-4 w-4 text-muted-foreground" />
-          <span className="text-base font-semibold">{t("title")}</span>
-          {!isBoardConfigured && (
-            <Badge variant="destructive" className="text-xs">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              {t("boardNotConfiguredTitle")}
-            </Badge>
-          )}
-        </div>
-        <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-      </CollapsibleTrigger>
-
-      <CollapsibleContent>
-        <div className="px-6 pb-4 pt-1 space-y-4">
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-          <div className="space-y-4">
-        {/* Network Diagnostics */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium">{t("networkDiagnosticsLabel")}</p>
-          <Button
-            onClick={() => networkDiagnosticsMutation.mutate()}
-            disabled={isAnyMutationLoading}
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2"
-          >
-            {networkDiagnosticsMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Wifi className="h-4 w-4" />
+      <Card>
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+          <div className="flex items-center gap-2">
+            <Bug className="h-4 w-4 text-muted-foreground" />
+            <span className="text-base font-semibold">{t("title")}</span>
+            {!isBoardConfigured && (
+              <Badge variant="destructive" className="text-xs">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                {t("boardNotConfiguredTitle")}
+              </Badge>
             )}
-            {networkDiagnosticsMutation.isPending ? t("runningDiagnostics") : t("runNetworkDiagnostics")}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {t("diagnosticsDescription")}
-          </p>
-
-          {/* Diagnostics Results */}
-          {networkDiagnosticsMutation.data && (
-            <div className="space-y-2 mt-2">
-              {/* Overall Status Banner */}
-              <div className={`flex items-center gap-2 text-sm font-medium p-2.5 rounded-md ${
-                networkDiagnosticsMutation.data.overall_ok
-                  ? "bg-success/10 text-success"
-                  : "bg-destructive/10 text-foreground"
-              }`}>
-                {networkDiagnosticsMutation.data.overall_ok ? (
-                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                )}
-                {networkDiagnosticsMutation.data.overall_ok
-                  ? t("allChecksPassed")
-                  : t("someChecksFailed")}
-              </div>
-
-              {/* Step-by-step results */}
-              <div className="rounded-md border divide-y">
-                {/* DNS Check */}
-                <DiagnosticRow
-                  icon={<Globe className="h-3.5 w-3.5" />}
-                  label={t("dnsResolution")}
-                  result={networkDiagnosticsMutation.data.dns}
-                  detail={networkDiagnosticsMutation.data.dns.ok
-                    ? t("resolved", { hostname: networkDiagnosticsMutation.data.dns.hostname ?? "google.com", ip: networkDiagnosticsMutation.data.dns.ip ?? "" })
-                    : networkDiagnosticsMutation.data.dns.error ?? t("couldNotResolve")
-                  }
-                />
-
-                {/* Internet Check */}
-                <DiagnosticRow
-                  icon={<Wifi className="h-3.5 w-3.5" />}
-                  label={t("internetAccess")}
-                  result={networkDiagnosticsMutation.data.internet}
-                  detail={networkDiagnosticsMutation.data.internet.ok
-                    ? t("reached", { url: networkDiagnosticsMutation.data.internet.url ?? "google.com" }) + (networkDiagnosticsMutation.data.internet.latency_ms != null ? ` (${networkDiagnosticsMutation.data.internet.latency_ms}ms)` : "")
-                    : networkDiagnosticsMutation.data.internet.error ?? t("couldNotReach")
-                  }
-                />
-
-                {/* Vestaboard Check */}
-                <VestaboardDiagnosticRow
-                  vestaboard={networkDiagnosticsMutation.data.vestaboard}
-                />
-              </div>
-
-              {/* Troubleshooting Recommendations */}
-              {networkDiagnosticsMutation.data.recommendations.length > 0 &&
-                !networkDiagnosticsMutation.data.overall_ok && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Lightbulb className="h-3.5 w-3.5" />
-                    {t("troubleshooting")}
-                  </div>
-                  {networkDiagnosticsMutation.data.recommendations.map((rec, i) => (
-                    <div key={i} className="rounded-md border p-3 space-y-1.5 bg-muted/30">
-                      <div className="text-xs font-medium">{rec.summary}</div>
-                      {rec.steps.length > 0 && (
-                        <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                          {rec.steps.map((step, j) => (
-                            <li key={j}>{step}</li>
-                          ))}
-                        </ol>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Blank Board */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium">{t("clearBoardLabel")}</p>
-          <Button
-            onClick={() => blankMutation.mutate()}
-            disabled={!isBoardConfigured || isAnyMutationLoading}
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2"
-          >
-            {blankMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-            {t("blankBoard")}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {t("blankBoardDescription")}
-          </p>
-        </div>
-
-        {/* Fill Board with Character */}
-        <div className="space-y-2">
-          <Label htmlFor="fill-character" className="text-xs font-medium">{t("fillWithCharacterLabel")}</Label>
-          <div className="flex gap-2">
-            <Select
-              value={selectedCharacter.toString()}
-              onValueChange={(value) => setSelectedCharacter(parseInt(value))}
-            >
-              <SelectTrigger id="fill-character" className="flex-1 h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-80">
-                {Object.entries(CHARACTER_GROUPS).map(([group, chars]) => (
-                  <div key={group}>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                      {t(`groups.${group}` as "groups.Letters")}
-                    </div>
-                    {chars.map((char) => (
-                      <SelectItem 
-                        key={char.code} 
-                        value={char.code.toString()}
-                        className="text-xs font-mono"
-                      >
-                        {char.display}
-                      </SelectItem>
-                    ))}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={() => fillMutation.mutate(selectedCharacter)}
-              disabled={!isBoardConfigured || isAnyMutationLoading}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {fillMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <TestTube className="h-4 w-4" />
-              )}
-              {t("fillButton")}
-            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {t("fillBoardDescription")}
-          </p>
-        </div>
+          <ChevronDown
+            className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
+        </CollapsibleTrigger>
 
-        {/* Show Debug Info */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium">{t("displaySystemInfoLabel")}</p>
-          <Button
-            onClick={() => debugInfoMutation.mutate()}
-            disabled={!isBoardConfigured || isAnyMutationLoading}
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2"
-          >
-            {debugInfoMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Info className="h-4 w-4" />
-            )}
-            Show Debug Info on Board
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {t("showDebugInfoDescription")}
-          </p>
-        </div>
+        <CollapsibleContent>
+          <div className="px-6 pb-4 pt-1 space-y-4">
+            <p className="text-sm text-muted-foreground">{t("description")}</p>
+            <div className="space-y-4">
+              {/* Network Diagnostics */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium">{t("networkDiagnosticsLabel")}</p>
+                <Button
+                  onClick={() => networkDiagnosticsMutation.mutate()}
+                  disabled={isAnyMutationLoading}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                >
+                  {networkDiagnosticsMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wifi className="h-4 w-4" />
+                  )}
+                  {networkDiagnosticsMutation.isPending ? t("runningDiagnostics") : t("runNetworkDiagnostics")}
+                </Button>
+                <p className="text-xs text-muted-foreground">{t("diagnosticsDescription")}</p>
 
-        {/* Clear Cache */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium">{t("cacheManagementLabel")}</p>
-          <Button
-            onClick={() => clearCacheMutation.mutate()}
-            disabled={!isBoardConfigured || isAnyMutationLoading}
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2"
-          >
-            {clearCacheMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="h-4 w-4" />
-            )}
-            Clear Message Cache
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {t("clearCacheDescription")}
-          </p>
-        </div>
-
-        {/* System Info Collapsible */}
-        <div className="pt-2 border-t">
-          <Collapsible open={showSystemInfo} onOpenChange={setShowSystemInfo}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-between text-xs font-medium"
-              >
-                <span>{t("systemInformation")}</span>
-                {showSystemInfo ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3 space-y-3">
-              {isLoadingSystemInfo ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              ) : systemInfo ? (
-                <div className="space-y-2 text-xs">
-                  <div className="grid grid-cols-2 gap-2 p-2 rounded bg-muted/50">
-                    <div className="font-medium text-muted-foreground">{t("boardIpLabel")}</div>
-                    <div className="font-mono">{systemInfo.board_ip || t("notSet")}</div>
-                    
-                    <div className="font-medium text-muted-foreground">{t("serverIpLabel")}</div>
-                    <div className="font-mono">{systemInfo.server_ip}</div>
-                    
-                    <div className="font-medium text-muted-foreground">{t("connectionLabel")}</div>
-                    <div className="font-mono">{systemInfo.connection_mode.toUpperCase()} {t("apiSuffix")}</div>
-                    
-                    <div className="font-medium text-muted-foreground">{t("uptimeLabel")}</div>
-                    <div className="font-mono">{systemInfo.uptime_formatted}</div>
-                    
-                    <div className="font-medium text-muted-foreground">{t("versionLabel")}</div>
-                    <div className="font-mono">v{systemInfo.version}</div>
-                    
-                    <div className="font-medium text-muted-foreground">{t("serviceLabel")}</div>
-                    <div className="flex items-center gap-1">
-                      {systemInfo.service_running ? (
-                        <>
-                          <div className="h-2 w-2 rounded-full bg-success" />
-                          <span>{t("serviceRunning")}</span>
-                        </>
+                {/* Diagnostics Results */}
+                {networkDiagnosticsMutation.data && (
+                  <div className="space-y-2 mt-2">
+                    {/* Overall Status Banner */}
+                    <div
+                      className={`flex items-center gap-2 text-sm font-medium p-2.5 rounded-md ${
+                        networkDiagnosticsMutation.data.overall_ok
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-foreground"
+                      }`}
+                    >
+                      {networkDiagnosticsMutation.data.overall_ok ? (
+                        <CheckCircle className="h-4 w-4 flex-shrink-0" />
                       ) : (
-                        <>
-                          <div className="h-2 w-2 rounded-full bg-destructive" />
-                          <span>{t("serviceStopped")}</span>
-                        </>
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
                       )}
+                      {networkDiagnosticsMutation.data.overall_ok ? t("allChecksPassed") : t("someChecksFailed")}
                     </div>
-                    
-                  </div>
 
-                  {/* Cache Status */}
-                  {systemInfo.cache_status && (
-                    <div className="p-2 rounded bg-muted/50">
-                      <div className="font-medium text-muted-foreground mb-2">{t("cacheStatusLabel")}</div>
-                      <div className="space-y-1 ml-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`h-2 w-2 rounded-full ${
-                            systemInfo.cache_status.has_cached_text || 
-                            systemInfo.cache_status.has_cached_characters 
-                              ? "bg-info" 
-                              : "bg-muted-foreground"
-                          }`} />
-                          <span>
-                            {systemInfo.cache_status.has_cached_text 
-                              ? t("textCached") 
-                              : systemInfo.cache_status.has_cached_characters
-                              ? "Characters cached"
-                              : t("noCache")}
-                          </span>
+                    {/* Step-by-step results */}
+                    <div className="rounded-md border divide-y">
+                      {/* DNS Check */}
+                      <DiagnosticRow
+                        icon={<Globe className="h-3.5 w-3.5" />}
+                        label={t("dnsResolution")}
+                        result={networkDiagnosticsMutation.data.dns}
+                        detail={
+                          networkDiagnosticsMutation.data.dns.ok
+                            ? t("resolved", {
+                                hostname: networkDiagnosticsMutation.data.dns.hostname ?? "google.com",
+                                ip: networkDiagnosticsMutation.data.dns.ip ?? "",
+                              })
+                            : (networkDiagnosticsMutation.data.dns.error ?? t("couldNotResolve"))
+                        }
+                      />
+
+                      {/* Internet Check */}
+                      <DiagnosticRow
+                        icon={<Wifi className="h-3.5 w-3.5" />}
+                        label={t("internetAccess")}
+                        result={networkDiagnosticsMutation.data.internet}
+                        detail={
+                          networkDiagnosticsMutation.data.internet.ok
+                            ? t("reached", { url: networkDiagnosticsMutation.data.internet.url ?? "google.com" }) +
+                              (networkDiagnosticsMutation.data.internet.latency_ms != null
+                                ? ` (${networkDiagnosticsMutation.data.internet.latency_ms}ms)`
+                                : "")
+                            : (networkDiagnosticsMutation.data.internet.error ?? t("couldNotReach"))
+                        }
+                      />
+
+                      {/* Vestaboard Check */}
+                      <VestaboardDiagnosticRow vestaboard={networkDiagnosticsMutation.data.vestaboard} />
+                    </div>
+
+                    {/* Troubleshooting Recommendations */}
+                    {networkDiagnosticsMutation.data.recommendations.length > 0 &&
+                      !networkDiagnosticsMutation.data.overall_ok && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                            <Lightbulb className="h-3.5 w-3.5" />
+                            {t("troubleshooting")}
+                          </div>
+                          {networkDiagnosticsMutation.data.recommendations.map((rec, i) => (
+                            <div key={i} className="rounded-md border p-3 space-y-1.5 bg-muted/30">
+                              <div className="text-xs font-medium">{rec.summary}</div>
+                              {rec.steps.length > 0 && (
+                                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                                  {rec.steps.map((step, j) => (
+                                    <li key={j}>{step}</li>
+                                  ))}
+                                </ol>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{t("skipUnchanged")}</span>
-                          <span>{systemInfo.cache_status.skip_unchanged_enabled ? tCommon("yes") : tCommon("no")}</span>
+                      )}
+                  </div>
+                )}
+              </div>
+
+              {/* Blank Board */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium">{t("clearBoardLabel")}</p>
+                <Button
+                  onClick={() => blankMutation.mutate()}
+                  disabled={!isBoardConfigured || isAnyMutationLoading}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                >
+                  {blankMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  {t("blankBoard")}
+                </Button>
+                <p className="text-xs text-muted-foreground">{t("blankBoardDescription")}</p>
+              </div>
+
+              {/* Fill Board with Character */}
+              <div className="space-y-2">
+                <Label htmlFor="fill-character" className="text-xs font-medium">
+                  {t("fillWithCharacterLabel")}
+                </Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedCharacter.toString()}
+                    onValueChange={(value) => setSelectedCharacter(parseInt(value))}
+                  >
+                    <SelectTrigger id="fill-character" className="flex-1 h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-80">
+                      {Object.entries(CHARACTER_GROUPS).map(([group, chars]) => (
+                        <div key={group}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                            {t(`groups.${group}` as "groups.Letters")}
+                          </div>
+                          {chars.map((char) => (
+                            <SelectItem key={char.code} value={char.code.toString()} className="text-xs font-mono">
+                              {char.display}
+                            </SelectItem>
+                          ))}
                         </div>
-                        {systemInfo.cache_status.cached_text_preview && (
-                          <div className="mt-2">
-                            <div className="text-muted-foreground">{t("cachePreviewLabel")}</div>
-                            <div className="font-mono text-xs mt-1 p-1 bg-background rounded">
-                              {systemInfo.cache_status.cached_text_preview}
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => fillMutation.mutate(selectedCharacter)}
+                    disabled={!isBoardConfigured || isAnyMutationLoading}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {fillMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <TestTube className="h-4 w-4" />
+                    )}
+                    {t("fillButton")}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">{t("fillBoardDescription")}</p>
+              </div>
+
+              {/* Show Debug Info */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium">{t("displaySystemInfoLabel")}</p>
+                <Button
+                  onClick={() => debugInfoMutation.mutate()}
+                  disabled={!isBoardConfigured || isAnyMutationLoading}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                >
+                  {debugInfoMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Info className="h-4 w-4" />
+                  )}
+                  Show Debug Info on Board
+                </Button>
+                <p className="text-xs text-muted-foreground">{t("showDebugInfoDescription")}</p>
+              </div>
+
+              {/* Clear Cache */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium">{t("cacheManagementLabel")}</p>
+                <Button
+                  onClick={() => clearCacheMutation.mutate()}
+                  disabled={!isBoardConfigured || isAnyMutationLoading}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                >
+                  {clearCacheMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Database className="h-4 w-4" />
+                  )}
+                  Clear Message Cache
+                </Button>
+                <p className="text-xs text-muted-foreground">{t("clearCacheDescription")}</p>
+              </div>
+
+              {/* System Info Collapsible */}
+              <div className="pt-2 border-t">
+                <Collapsible open={showSystemInfo} onOpenChange={setShowSystemInfo}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between text-xs font-medium">
+                      <span>{t("systemInformation")}</span>
+                      {showSystemInfo ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3 space-y-3">
+                    {isLoadingSystemInfo ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ) : systemInfo ? (
+                      <div className="space-y-2 text-xs">
+                        <div className="grid grid-cols-2 gap-2 p-2 rounded bg-muted/50">
+                          <div className="font-medium text-muted-foreground">{t("boardIpLabel")}</div>
+                          <div className="font-mono">{systemInfo.board_ip || t("notSet")}</div>
+
+                          <div className="font-medium text-muted-foreground">{t("serverIpLabel")}</div>
+                          <div className="font-mono">{systemInfo.server_ip}</div>
+
+                          <div className="font-medium text-muted-foreground">{t("connectionLabel")}</div>
+                          <div className="font-mono">
+                            {systemInfo.connection_mode.toUpperCase()} {t("apiSuffix")}
+                          </div>
+
+                          <div className="font-medium text-muted-foreground">{t("uptimeLabel")}</div>
+                          <div className="font-mono">{systemInfo.uptime_formatted}</div>
+
+                          <div className="font-medium text-muted-foreground">{t("versionLabel")}</div>
+                          <div className="font-mono">v{systemInfo.version}</div>
+
+                          <div className="font-medium text-muted-foreground">{t("serviceLabel")}</div>
+                          <div className="flex items-center gap-1">
+                            {systemInfo.service_running ? (
+                              <>
+                                <div className="h-2 w-2 rounded-full bg-success" />
+                                <span>{t("serviceRunning")}</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="h-2 w-2 rounded-full bg-destructive" />
+                                <span>{t("serviceStopped")}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Cache Status */}
+                        {systemInfo.cache_status && (
+                          <div className="p-2 rounded bg-muted/50">
+                            <div className="font-medium text-muted-foreground mb-2">{t("cacheStatusLabel")}</div>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`h-2 w-2 rounded-full ${
+                                    systemInfo.cache_status.has_cached_text ||
+                                    systemInfo.cache_status.has_cached_characters
+                                      ? "bg-info"
+                                      : "bg-muted-foreground"
+                                  }`}
+                                />
+                                <span>
+                                  {systemInfo.cache_status.has_cached_text
+                                    ? t("textCached")
+                                    : systemInfo.cache_status.has_cached_characters
+                                      ? "Characters cached"
+                                      : t("noCache")}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">{t("skipUnchanged")}</span>
+                                <span>
+                                  {systemInfo.cache_status.skip_unchanged_enabled ? tCommon("yes") : tCommon("no")}
+                                </span>
+                              </div>
+                              {systemInfo.cache_status.cached_text_preview && (
+                                <div className="mt-2">
+                                  <div className="text-muted-foreground">{t("cachePreviewLabel")}</div>
+                                  <div className="font-mono text-xs mt-1 p-1 bg-background rounded">
+                                    {systemInfo.cache_status.cached_text_preview}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
-                      </div>
-                    </div>
-                  )}
 
-                  <div className="text-xs text-muted-foreground text-center pt-1">
-                    {t("autoRefreshNote")}
+                        <div className="text-xs text-muted-foreground text-center pt-1">{t("autoRefreshNote")}</div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-center text-muted-foreground">{t("noSystemInfo")}</div>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+
+              {/* Warning message if not configured */}
+              {!isBoardConfigured && (
+                <div className="flex items-start gap-2 p-2 rounded-md bg-muted text-foreground text-xs">
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">{t("boardNotConfiguredTitle")}</div>
+                    <div className="text-xs mt-0.5">{t("boardNotConfiguredDescription")}</div>
                   </div>
                 </div>
-              ) : (
-                <div className="text-xs text-center text-muted-foreground">
-                  {t("noSystemInfo")}
-                </div>
               )}
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-
-        {/* Warning message if not configured */}
-        {!isBoardConfigured && (
-          <div className="flex items-start gap-2 p-2 rounded-md bg-muted text-foreground text-xs">
-            <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <div>
-              <div className="font-medium">{t("boardNotConfiguredTitle")}</div>
-              <div className="text-xs mt-0.5">
-                {t("boardNotConfiguredDescription")}
-              </div>
             </div>
           </div>
-        )}
-          </div>
-        </div>
-      </CollapsibleContent>
-    </Card>
+        </CollapsibleContent>
+      </Card>
     </Collapsible>
   );
 }
@@ -590,9 +568,7 @@ function DiagnosticRow({
             </Badge>
           )}
         </div>
-        <div className={`mt-0.5 ${result.ok ? "text-muted-foreground" : "text-destructive"}`}>
-          {detail}
-        </div>
+        <div className={`mt-0.5 ${result.ok ? "text-muted-foreground" : "text-destructive"}`}>{detail}</div>
       </div>
     </div>
   );
@@ -604,7 +580,17 @@ function VestaboardDiagnosticRow({
   vestaboard: {
     ok: boolean;
     mode: "local" | "cloud" | null;
-    steps: Record<string, { ok: boolean; latency_ms?: number; status_code?: number | null; error?: string; hostname?: string; port?: number }>;
+    steps: Record<
+      string,
+      {
+        ok: boolean;
+        latency_ms?: number;
+        status_code?: number | null;
+        error?: string;
+        hostname?: string;
+        port?: number;
+      }
+    >;
     error?: string;
   };
 }) {
@@ -618,9 +604,7 @@ function VestaboardDiagnosticRow({
             <Server className="h-3.5 w-3.5" />
             {t("vestaboardLabel")}
           </div>
-          <div className="mt-0.5 text-muted-foreground">
-            {vestaboard.error ?? t("noBoardConfigured")}
-          </div>
+          <div className="mt-0.5 text-muted-foreground">{vestaboard.error ?? t("noBoardConfigured")}</div>
         </div>
       </div>
     );
@@ -644,7 +628,7 @@ function VestaboardDiagnosticRow({
           <div className={`mt-0.5 ${vestaboard.ok ? "text-muted-foreground" : "text-destructive"}`}>
             {vestaboard.ok
               ? t("cloudApiReachable") + (cloud?.status_code ? ` (HTTP ${cloud.status_code})` : "")
-              : cloud?.error ?? (cloud?.status_code ? `HTTP ${cloud.status_code}` : t("cloudApiUnreachable"))}
+              : (cloud?.error ?? (cloud?.status_code ? `HTTP ${cloud.status_code}` : t("cloudApiUnreachable")))}
           </div>
         </div>
       </div>

@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { api } from "@/lib/api";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -9,18 +11,17 @@ describe("API Extended Tests", () => {
   describe("fetchApi error handling", () => {
     it("throws on non-ok response", async () => {
       server.use(
-        http.get(`${API_BASE}/status`, () =>
-          new HttpResponse(null, { status: 500, statusText: "Internal Server Error" })
-        )
+        http.get(
+          `${API_BASE}/status`,
+          () => new HttpResponse(null, { status: 500, statusText: "Internal Server Error" }),
+        ),
       );
       await expect(api.getStatus()).rejects.toThrow("API error: 500 Internal Server Error");
     });
 
     it("throws on 404", async () => {
       server.use(
-        http.get(`${API_BASE}/config`, () =>
-          new HttpResponse(null, { status: 404, statusText: "Not Found" })
-        )
+        http.get(`${API_BASE}/config`, () => new HttpResponse(null, { status: 404, statusText: "Not Found" })),
       );
       await expect(api.getConfig()).rejects.toThrow("API error: 404 Not Found");
     });
@@ -38,7 +39,6 @@ describe("API Extended Tests", () => {
       expect(result.status).toBe("stopped");
       expect(result.message).toContain("stopped");
     });
-
   });
 
   describe("Display endpoints", () => {
@@ -66,7 +66,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/displays/raw/batch`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ displays: {}, total: 0, successful: 0 });
-        })
+        }),
       );
 
       await api.getDisplaysRawBatch(["weather", "datetime"]);
@@ -82,7 +82,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/displays/:type/send`, ({ request }) => {
           capturedUrl = request.url;
           return HttpResponse.json({ status: "success", message: "sent" });
-        })
+        }),
       );
 
       await api.sendDisplay("weather", "board");
@@ -109,7 +109,7 @@ describe("API Extended Tests", () => {
             page_id: capturedBody.page_id,
             sent_to_board: true,
           });
-        })
+        }),
       );
 
       await api.setActivePage("page-1");
@@ -139,7 +139,7 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/pages/:id`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ status: "success", page: { ...capturedBody, id: "page-1" } });
-        })
+        }),
       );
 
       await api.updatePage("page-1", { name: "Updated", duration_seconds: 120 });
@@ -163,7 +163,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/pages/preview/batch`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ previews: {}, total: 0, successful: 0 });
-        })
+        }),
       );
 
       await api.previewPagesBatch(["page-1", "page-2"]);
@@ -176,10 +176,13 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/pages/:id/send`, ({ request }) => {
           capturedUrl = request.url;
           return HttpResponse.json({
-            status: "success", page_id: "page-1",
-            message: "sent", sent_to_board: true, target: "both",
+            status: "success",
+            page_id: "page-1",
+            message: "sent",
+            sent_to_board: true,
+            target: "both",
           });
-        })
+        }),
       );
 
       await api.sendPage("page-1", "both");
@@ -213,7 +216,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/templates/validate`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ valid: true, errors: [] });
-        })
+        }),
       );
 
       await api.validateTemplate("{{weather.temperature}}");
@@ -226,7 +229,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/templates/validate`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ valid: true, errors: [] });
-        })
+        }),
       );
 
       await api.validateTemplate(["Line 1", "Line 2"]);
@@ -245,10 +248,13 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/templates/render/live`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({
-            rendered: "", lines: [""], line_count: 1,
-            sent_to_board: true, board_id: capturedBody.board_id || null,
+            rendered: "",
+            lines: [""],
+            line_count: 1,
+            sent_to_board: true,
+            board_id: capturedBody.board_id || null,
           });
-        })
+        }),
       );
 
       await api.renderTemplateLive(["Test"], "board-1");
@@ -271,15 +277,18 @@ describe("API Extended Tests", () => {
           const url = new URL(request.url);
           const boardId = url.searchParams.get("board_id");
           return HttpResponse.json({
-            schedules: [], total: 0,
-            default_page_id: null, enabled: true,
+            schedules: [],
+            total: 0,
+            default_page_id: null,
+            enabled: true,
             ...(boardId && { board_id: boardId }),
           });
         }),
         http.post(`${API_BASE}/schedules`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({
-            id: "sched-1", ...body,
+            id: "sched-1",
+            ...body,
             enabled: body.enabled ?? true,
             created_at: new Date().toISOString(),
           });
@@ -287,44 +296,44 @@ describe("API Extended Tests", () => {
         http.get(`${API_BASE}/schedules/active/page`, ({ request }) => {
           const url = new URL(request.url);
           return HttpResponse.json({
-            page_id: "page-1", source: "schedule",
+            page_id: "page-1",
+            source: "schedule",
             schedule_enabled: true,
             ...(url.searchParams.get("board_id") && { board_id: url.searchParams.get("board_id") }),
           });
         }),
         http.post(`${API_BASE}/schedules/validate`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({ valid: true, overlaps: [], gaps: [], ...body });
         }),
-        http.get(`${API_BASE}/schedules/default-page`, () =>
-          HttpResponse.json({ default_page_id: null })
-        ),
+        http.get(`${API_BASE}/schedules/default-page`, () => HttpResponse.json({ default_page_id: null })),
         http.put(`${API_BASE}/schedules/default-page`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({ status: "success", default_page_id: body.page_id });
         }),
-        http.get(`${API_BASE}/schedules/enabled`, () =>
-          HttpResponse.json({ enabled: true })
-        ),
+        http.get(`${API_BASE}/schedules/enabled`, () => HttpResponse.json({ enabled: true })),
         http.put(`${API_BASE}/schedules/enabled`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({ status: "success", enabled: body.enabled, message: "ok" });
         }),
         http.get(`${API_BASE}/schedules/:id`, ({ params }) =>
           HttpResponse.json({
-            id: params.id, page_id: "page-1",
-            start_time: "09:00", end_time: "17:00",
-            day_pattern: "all", enabled: true,
+            id: params.id,
+            page_id: "page-1",
+            start_time: "09:00",
+            end_time: "17:00",
+            day_pattern: "all",
+            enabled: true,
             created_at: new Date().toISOString(),
-          })
+          }),
         ),
         http.put(`${API_BASE}/schedules/:id`, async ({ request, params }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({ id: params.id, ...body });
         }),
         http.delete(`${API_BASE}/schedules/:id`, () =>
-          HttpResponse.json({ status: "success", message: "Schedule deleted" })
-        )
+          HttpResponse.json({ status: "success", message: "Schedule deleted" }),
+        ),
       );
     });
 
@@ -382,7 +391,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/schedules/validate`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ valid: true, overlaps: [], gaps: [] });
-        })
+        }),
       );
 
       await api.validateSchedules("board-1");
@@ -403,7 +412,7 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/schedules/default-page`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ status: "success", default_page_id: capturedBody.page_id });
-        })
+        }),
       );
 
       await api.setDefaultPage("page-1");
@@ -427,7 +436,7 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/schedules/enabled`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ status: "success", enabled: capturedBody.enabled, message: "ok" });
-        })
+        }),
       );
 
       await api.setScheduleEnabled(false);
@@ -446,8 +455,8 @@ describe("API Extended Tests", () => {
             board: { api_mode: "local", local_api_key: "key", cloud_key: "", host: "192.168.1.1" },
             general: { timezone: "UTC", refresh_interval_seconds: 300, output_target: "board" },
             plugins: {},
-          })
-        )
+          }),
+        ),
       );
       const result = await api.getFullConfig();
       expect(result.board).toBeDefined();
@@ -460,8 +469,8 @@ describe("API Extended Tests", () => {
           HttpResponse.json({
             config: { api_mode: "local", local_api_key: "", cloud_key: "", host: "" },
             api_modes: ["local", "cloud"],
-          })
-        )
+          }),
+        ),
       );
       const result = await api.getBoardConfig();
       expect(result.config).toBeDefined();
@@ -474,7 +483,7 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/config/board`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ status: "success", config: capturedBody });
-        })
+        }),
       );
       await api.updateBoardConfig({ host: "192.168.1.100" });
       expect(capturedBody).toEqual({ host: "192.168.1.100" });
@@ -483,8 +492,8 @@ describe("API Extended Tests", () => {
     it("validateConfig returns validation result", async () => {
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
-          HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] })
-        )
+          HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] }),
+        ),
       );
       const result = await api.validateConfig();
       expect(result.valid).toBe(true);
@@ -496,8 +505,8 @@ describe("API Extended Tests", () => {
           HttpResponse.json({
             config: { api_mode: "local", local_api_key: "", cloud_key: "", host: "" },
             api_modes: ["local"],
-          })
-        )
+          }),
+        ),
       );
       const result = await api.getFiestaboardConfig();
       expect(result.config).toBeDefined();
@@ -507,9 +516,7 @@ describe("API Extended Tests", () => {
   describe("BayWheels endpoints", () => {
     beforeEach(() => {
       server.use(
-        http.get(`${API_BASE}/baywheels/stations`, () =>
-          HttpResponse.json({ stations: [], total: 0 })
-        ),
+        http.get(`${API_BASE}/baywheels/stations`, () => HttpResponse.json({ stations: [], total: 0 })),
         http.get(`${API_BASE}/baywheels/stations/nearby`, ({ request }) => {
           const url = new URL(request.url);
           return HttpResponse.json({
@@ -531,7 +538,7 @@ describe("API Extended Tests", () => {
             geocoded_location: { lat: 40.7128, lng: -74.006, display_name: "Test" },
             radius_km: 1,
           });
-        })
+        }),
       );
     });
 
@@ -554,9 +561,7 @@ describe("API Extended Tests", () => {
   describe("MUNI endpoints", () => {
     beforeEach(() => {
       server.use(
-        http.get(`${API_BASE}/muni/stops`, () =>
-          HttpResponse.json({ stops: [], total: 0 })
-        ),
+        http.get(`${API_BASE}/muni/stops`, () => HttpResponse.json({ stops: [], total: 0 })),
         http.get(`${API_BASE}/muni/stops/nearby`, ({ request }) => {
           const url = new URL(request.url);
           return HttpResponse.json({
@@ -578,7 +583,7 @@ describe("API Extended Tests", () => {
             geocoded_location: { lat: 40.7128, lng: -74.006, display_name: "Test" },
             radius_km: 1,
           });
-        })
+        }),
       );
     });
 
@@ -602,19 +607,21 @@ describe("API Extended Tests", () => {
     beforeEach(() => {
       server.use(
         http.post(`${API_BASE}/traffic/routes/geocode`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({
-            lat: 40.7128, lng: -74.006, formatted_address: body.address,
+            lat: 40.7128,
+            lng: -74.006,
+            formatted_address: body.address,
           });
         }),
         http.post(`${API_BASE}/traffic/routes/validate`, async ({ request }) => {
-          const _body = await request.json() as any;
+          const _body = (await request.json()) as any;
           return HttpResponse.json({
             valid: true,
             distance_km: 10,
             static_duration_minutes: 15,
           });
-        })
+        }),
       );
     });
 
@@ -630,7 +637,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/traffic/routes/validate`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ valid: true });
-        })
+        }),
       );
 
       await api.validateTrafficRoute("origin", "dest", "Work", "DRIVE");
@@ -655,11 +662,13 @@ describe("API Extended Tests", () => {
           });
         }),
         http.post(`${API_BASE}/stocks/validate`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({
-            valid: true, symbol: body.symbol, name: "Apple Inc.",
+            valid: true,
+            symbol: body.symbol,
+            name: "Apple Inc.",
           });
-        })
+        }),
       );
     });
 
@@ -694,7 +703,7 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/config/general`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ status: "success", general: capturedBody });
-        })
+        }),
       );
       await api.updateGeneralConfig({ timezone: "UTC" });
       expect(capturedBody).toEqual({ timezone: "UTC" });
@@ -730,7 +739,7 @@ describe("API Extended Tests", () => {
             status: "success",
             config: capturedBody,
           });
-        })
+        }),
       );
       const result = await api.updateSilenceSchedule({
         enabled: true,
@@ -778,10 +787,17 @@ describe("API Extended Tests", () => {
             transitions: { strategy: "column", step_interval_ms: 500, step_size: 2 },
             output: { target: "board", effective_target: "board", available_targets: [] },
             board: { board_type: "black", boards: [], devices: [] },
-            mqtt: { enabled: false, broker_host: "localhost", broker_port: 1883, username: "", password: "", external_url: "" },
+            mqtt: {
+              enabled: false,
+              broker_host: "localhost",
+              broker_port: 1883,
+              username: "",
+              password: "",
+              external_url: "",
+            },
             status: { running: true },
-          })
-        )
+          }),
+        ),
       );
       const result = await api.getAllSettings();
       expect(result.general).toBeDefined();
@@ -793,11 +809,7 @@ describe("API Extended Tests", () => {
 
   describe("Home Assistant endpoints", () => {
     it("getHomeAssistantEntities returns entities", async () => {
-      server.use(
-        http.get(`${API_BASE}/home-assistant/entities`, () =>
-          HttpResponse.json({ entities: [] })
-        )
-      );
+      server.use(http.get(`${API_BASE}/home-assistant/entities`, () => HttpResponse.json({ entities: [] })));
       const result = await api.getHomeAssistantEntities();
       expect(result.entities).toBeDefined();
     });
@@ -806,12 +818,10 @@ describe("API Extended Tests", () => {
   describe("Queue-Times endpoints", () => {
     beforeEach(() => {
       server.use(
-        http.get(`${API_BASE}/queue-times/parks`, () =>
-          HttpResponse.json([{ id: 1, name: "Test Park" }])
-        ),
+        http.get(`${API_BASE}/queue-times/parks`, () => HttpResponse.json([{ id: 1, name: "Test Park" }])),
         http.get(`${API_BASE}/queue-times/parks/:parkId/rides`, () =>
-          HttpResponse.json([{ id: 10, name: "Test Ride" }])
-        )
+          HttpResponse.json([{ id: 10, name: "Test Ride" }]),
+        ),
       );
     });
 
@@ -832,8 +842,8 @@ describe("API Extended Tests", () => {
     it("listPlugins returns plugin list", async () => {
       server.use(
         http.get(`${API_BASE}/plugins`, () =>
-          HttpResponse.json({ plugins: [], plugin_system_enabled: true, total: 0, enabled_count: 0 })
-        )
+          HttpResponse.json({ plugins: [], plugin_system_enabled: true, total: 0, enabled_count: 0 }),
+        ),
       );
       const result = await api.listPlugins();
       expect(result.plugins).toBeDefined();
@@ -856,7 +866,7 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/plugins/:pluginId/config`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ status: "success", plugin_id: "test", config: {} });
-        })
+        }),
       );
       await api.updatePluginConfig("test", { key: "value" });
       expect(capturedBody).toEqual({ config: { key: "value" } });
@@ -865,8 +875,8 @@ describe("API Extended Tests", () => {
     it("enablePlugin sends POST", async () => {
       server.use(
         http.post(`${API_BASE}/plugins/:pluginId/enable`, () =>
-          HttpResponse.json({ status: "success", plugin_id: "test", enabled: true })
-        )
+          HttpResponse.json({ status: "success", plugin_id: "test", enabled: true }),
+        ),
       );
       const result = await api.enablePlugin("test");
       expect(result.enabled).toBe(true);
@@ -875,8 +885,8 @@ describe("API Extended Tests", () => {
     it("disablePlugin sends POST", async () => {
       server.use(
         http.post(`${API_BASE}/plugins/:pluginId/disable`, () =>
-          HttpResponse.json({ status: "success", plugin_id: "test", enabled: false })
-        )
+          HttpResponse.json({ status: "success", plugin_id: "test", enabled: false }),
+        ),
       );
       const result = await api.disablePlugin("test");
       expect(result.enabled).toBe(false);
@@ -885,8 +895,8 @@ describe("API Extended Tests", () => {
     it("getPluginData returns data", async () => {
       server.use(
         http.get(`${API_BASE}/plugins/:pluginId/data`, () =>
-          HttpResponse.json({ plugin_id: "test", available: true, data: { foo: "bar" } })
-        )
+          HttpResponse.json({ plugin_id: "test", available: true, data: { foo: "bar" } }),
+        ),
       );
       const result = await api.getPluginData("test");
       expect(result.available).toBe(true);
@@ -895,8 +905,8 @@ describe("API Extended Tests", () => {
     it("getPluginVariables returns variables", async () => {
       server.use(
         http.get(`${API_BASE}/plugins/:pluginId/variables`, () =>
-          HttpResponse.json({ plugin_id: "test", variables: {}, max_lengths: {}, color_rules_schema: {} })
-        )
+          HttpResponse.json({ plugin_id: "test", variables: {}, max_lengths: {}, color_rules_schema: {} }),
+        ),
       );
       const result = await api.getPluginVariables("test");
       expect(result.plugin_id).toBe("test");
@@ -905,8 +915,8 @@ describe("API Extended Tests", () => {
     it("getAllPluginVariables returns all variables", async () => {
       server.use(
         http.get(`${API_BASE}/plugins/variables/all`, () =>
-          HttpResponse.json({ variables: {}, max_lengths: {}, plugin_system_enabled: true })
-        )
+          HttpResponse.json({ variables: {}, max_lengths: {}, plugin_system_enabled: true }),
+        ),
       );
       const result = await api.getAllPluginVariables();
       expect(result.plugin_system_enabled).toBe(true);
@@ -914,9 +924,7 @@ describe("API Extended Tests", () => {
 
     it("getPluginErrors returns errors", async () => {
       server.use(
-        http.get(`${API_BASE}/plugins/errors`, () =>
-          HttpResponse.json({ errors: {}, plugin_system_enabled: true })
-        )
+        http.get(`${API_BASE}/plugins/errors`, () => HttpResponse.json({ errors: {}, plugin_system_enabled: true })),
       );
       const result = await api.getPluginErrors();
       expect(result.plugin_system_enabled).toBe(true);
@@ -927,8 +935,13 @@ describe("API Extended Tests", () => {
     it("validateSetup returns validation", async () => {
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
-          HttpResponse.json({ valid: false, is_first_run: true, errors: ["missing board config"], missing_fields: ["host"] })
-        )
+          HttpResponse.json({
+            valid: false,
+            is_first_run: true,
+            errors: ["missing board config"],
+            missing_fields: ["host"],
+          }),
+        ),
       );
       const result = await api.validateSetup();
       expect(result.is_first_run).toBe(true);
@@ -940,7 +953,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/config/board/test`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ success: true, message: "Connected" });
-        })
+        }),
       );
       await api.testBoardConnection({ api_mode: "local", local_api_key: "test-key", host: "192.168.1.1" });
       expect(capturedBody.api_mode).toBe("local");
@@ -950,8 +963,8 @@ describe("API Extended Tests", () => {
     it("sendWelcomeMessage sends POST", async () => {
       server.use(
         http.post(`${API_BASE}/send-welcome-message`, () =>
-          HttpResponse.json({ status: "success", message: "Welcome sent" })
-        )
+          HttpResponse.json({ status: "success", message: "Welcome sent" }),
+        ),
       );
       const result = await api.sendWelcomeMessage();
       expect(result.status).toBe("success");
@@ -963,7 +976,7 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/config/board/enable-local-api`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ success: true, api_key: "new-key", message: "Enabled" });
-        })
+        }),
       );
       await api.enableLocalApi({ host: "192.168.1.1", enablement_token: "token-123" });
       expect(capturedBody).toEqual({ host: "192.168.1.1", enablement_token: "token-123" });
@@ -973,38 +986,45 @@ describe("API Extended Tests", () => {
   describe("Debug endpoints", () => {
     beforeEach(() => {
       server.use(
-        http.post(`${API_BASE}/debug/blank`, () =>
-          HttpResponse.json({ status: "success", message: "Board blanked" })
-        ),
+        http.post(`${API_BASE}/debug/blank`, () => HttpResponse.json({ status: "success", message: "Board blanked" })),
         http.post(`${API_BASE}/debug/fill`, async ({ request }) => {
-          const body = await request.json() as any;
+          const body = (await request.json()) as any;
           return HttpResponse.json({ status: "success", message: `Filled with ${body.character_code}` });
         }),
         http.post(`${API_BASE}/debug/info`, () =>
-          HttpResponse.json({ status: "success", message: "Debug info shown" })
+          HttpResponse.json({ status: "success", message: "Debug info shown" }),
         ),
         http.post(`${API_BASE}/debug/test-connection`, () =>
-          HttpResponse.json({ status: "success", message: "Connected", connected: true, latency_ms: 5 })
+          HttpResponse.json({ status: "success", message: "Connected", connected: true, latency_ms: 5 }),
         ),
         http.post(`${API_BASE}/debug/clear-cache`, () =>
-          HttpResponse.json({ status: "success", message: "Cache cleared" })
+          HttpResponse.json({ status: "success", message: "Cache cleared" }),
         ),
         http.get(`${API_BASE}/debug/cache-status`, () =>
           HttpResponse.json({
             status: "success",
-            cache: { has_cached_text: true, has_cached_characters: false, skip_unchanged_enabled: true, cached_text_preview: "Hello" },
-          })
+            cache: {
+              has_cached_text: true,
+              has_cached_characters: false,
+              skip_unchanged_enabled: true,
+              cached_text_preview: "Hello",
+            },
+          }),
         ),
         http.get(`${API_BASE}/debug/system-info`, () =>
           HttpResponse.json({
-            board_ip: "192.168.1.1", server_ip: "192.168.1.2",
-            uptime_seconds: 3600, uptime_formatted: "1h 0m",
-            connection_mode: "local", version: "2.0.0",
+            board_ip: "192.168.1.1",
+            server_ip: "192.168.1.2",
+            uptime_seconds: 3600,
+            uptime_formatted: "1h 0m",
+            connection_mode: "local",
+            version: "2.0.0",
             timestamp: new Date().toISOString(),
-            cache_status: null, board_configured: true,
+            cache_status: null,
+            board_configured: true,
             service_running: true,
-          })
-        )
+          }),
+        ),
       );
     });
 
@@ -1069,11 +1089,16 @@ describe("API Extended Tests", () => {
               overall_ok: true,
               dns: { ok: true, ip: "142.250.80.46", hostname: "google.com" },
               internet: { ok: true, url: "https://google.com", latency_ms: 42 },
-              vestaboard: { ok: true, mode: "cloud", steps: { cloud_api: { ok: true, latency_ms: 120, status_code: 200 } }, error: null },
+              vestaboard: {
+                ok: true,
+                mode: "cloud",
+                steps: { cloud_api: { ok: true, latency_ms: 120, status_code: 200 } },
+                error: null,
+              },
               recommendations: [],
             },
-          })
-        )
+          }),
+        ),
       );
       const result = await api.getNetworkDiagnostics();
       expect(result.diagnostics.overall_ok).toBe(true);

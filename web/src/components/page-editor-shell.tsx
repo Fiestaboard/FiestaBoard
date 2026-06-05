@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
@@ -25,41 +21,23 @@ export interface PageEditorShellProps {
  * so the AI assistant can read and edit the current page from anywhere
  * in the app.
  */
-export function PageEditorShell({
-  pageId,
-  deviceType,
-  skipDraft,
-  onClose,
-  onSave,
-}: PageEditorShellProps) {
+export function PageEditorShell({ pageId, deviceType, skipDraft, onClose, onSave }: PageEditorShellProps) {
   const builderRef = useRef<PageBuilderHandle>(null);
   const { register, unregister } = usePageEditorBridge();
 
-  const getSnapshot = useCallback(
-    () => builderRef.current?.getCurrentPage() ?? null,
-    [],
-  );
+  const getSnapshot = useCallback(() => builderRef.current?.getCurrentPage() ?? null, []);
 
-  const applyOp = useCallback(
-    (call: Parameters<NonNullable<PageBuilderHandle["applyToolCall"]>>[0]) => {
-      builderRef.current?.applyToolCall(call);
-    },
-    [],
-  );
+  const applyOp = useCallback((call: Parameters<NonNullable<PageBuilderHandle["applyToolCall"]>>[0]) => {
+    builderRef.current?.applyToolCall(call);
+  }, []);
 
-  const getCanUndo = useCallback(
-    () => builderRef.current?.canUndo() ?? false,
-    [],
-  );
+  const getCanUndo = useCallback(() => builderRef.current?.canUndo() ?? false, []);
 
   const undo = useCallback(() => {
     builderRef.current?.undo();
   }, []);
 
-  const save = useCallback(
-    () => builderRef.current?.save() ?? Promise.resolve(null),
-    [],
-  );
+  const save = useCallback(() => builderRef.current?.save() ?? Promise.resolve(null), []);
 
   useEffect(() => {
     register({ getSnapshot, applyOp, save, getCanUndo, undo });

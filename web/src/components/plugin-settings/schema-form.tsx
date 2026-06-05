@@ -1,24 +1,20 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import { Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Loader2, MapPin, Plus, Trash2, Zap } from "lucide-react";
+import { useTranslations } from "next-intl";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
-import { PagePickerField } from "./page-picker-field";
-import { cn } from "@/lib/utils";
 import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
-import { Plus, Trash2, Eye, EyeOff, MapPin, Loader2, ChevronRight, ChevronDown, Zap, Copy, Check } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
+
+import { PagePickerField } from "./page-picker-field";
 
 // JSON Schema types (simplified for our use case)
 interface SchemaProperty {
@@ -63,6 +59,69 @@ interface FieldProps {
   disabled?: boolean;
 }
 
+interface EnumSelectFieldProps {
+  name: string;
+  property: SchemaProperty;
+  enumArray: string[];
+  allOptions: string[];
+  selectValue: string;
+  capitalizeDisplay: (str: string) => string;
+  onChange: (value: unknown) => void;
+  disabled?: boolean;
+}
+
+function EnumSelectField({
+  name,
+  property,
+  enumArray,
+  allOptions,
+  selectValue,
+  capitalizeDisplay,
+  onChange,
+  disabled,
+}: EnumSelectFieldProps) {
+  const enumNames = property.enumNames;
+  const selectItems = React.useMemo(() => {
+    return allOptions.map((option, idx) => {
+      const itemKey = `${name}-option-${idx}-${option}`;
+      // Look up custom label from enumNames if provided. Use the
+      // original enum index (not the deduped one) so labels stay
+      // aligned with their values.
+      let displayLabel = capitalizeDisplay(option);
+      if (enumNames && Array.isArray(enumNames)) {
+        const originalIdx = enumArray.indexOf(option);
+        if (originalIdx >= 0 && enumNames[originalIdx]) {
+          displayLabel = enumNames[originalIdx];
+        }
+      }
+      return (
+        <SelectItem key={itemKey} value={option}>
+          {displayLabel}
+        </SelectItem>
+      );
+    });
+  }, [name, allOptions, enumNames, enumArray, capitalizeDisplay]);
+
+  // Stable onChange handler to prevent re-renders
+  const handleValueChange = React.useCallback(
+    (newValue: string) => {
+      onChange(newValue);
+    },
+    [onChange],
+  );
+
+  return (
+    <Select value={selectValue} onValueChange={handleValueChange} disabled={disabled} modal={false}>
+      <SelectTrigger id={name}>
+        <SelectValue placeholder={property["ui:placeholder"] || `Select ${property.title || name}`} />
+      </SelectTrigger>
+      <SelectContent className="max-h-[300px] z-[120]" disableHeightConstraint={allOptions.length > 1}>
+        {selectItems}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [_timezoneValid, setTimezoneValid] = useState(true);
@@ -70,100 +129,65 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
   const isTextarea = property["ui:widget"] === "textarea";
   const isTimezone = property["ui:widget"] === "timezone";
   const isPagePicker = property["ui:widget"] === "page-picker";
-  
+
   if (property.enum) {
     // Normalize enum to array of strings - handle all possible formats
     let enumArray: string[] = [];
-    
+
     // Handle array format
     if (Array.isArray(property.enum)) {
       enumArray = property.enum
-        .map(opt => {
-          if (opt === null || opt === undefined) return '';
+        .map((opt) => {
+          if (opt === null || opt === undefined) return "";
           return String(opt).trim();
         })
-        .filter(opt => opt.length > 0);
-    } 
+        .filter((opt) => opt.length > 0);
+    }
     // Handle single string (shouldn't happen but be defensive)
-    else if (typeof property.enum === 'string') {
-      enumArray = [property.enum.trim()].filter(opt => opt.length > 0);
+    else if (typeof property.enum === "string") {
+      enumArray = [property.enum.trim()].filter((opt) => opt.length > 0);
     }
     // Handle object with array property (defensive)
-    else if (typeof property.enum === 'object' && property.enum !== null) {
+    else if (typeof property.enum === "object" && property.enum !== null) {
       const enumObj = property.enum as Record<string, unknown>;
       if (Array.isArray(enumObj.values)) {
-        enumArray = enumObj.values
-          .map((opt: unknown) => String(opt).trim())
-          .filter(opt => opt.length > 0);
+        enumArray = enumObj.values.map((opt: unknown) => String(opt).trim()).filter((opt) => opt.length > 0);
       }
     }
-    
+
     if (enumArray.length > 0) {
       // Use default value if value is undefined, or ensure value matches an enum option
       const defaultValue = property.default !== undefined ? String(property.default) : enumArray[0];
       const currentValue = value !== undefined && value !== null ? String(value) : defaultValue;
       // Ensure value matches one of the enum options, fallback to default or first option
-      const selectValue = currentValue && enumArray.includes(currentValue) 
-        ? currentValue 
-        : (defaultValue && enumArray.includes(defaultValue) ? defaultValue : enumArray[0]);
-      
+      const selectValue =
+        currentValue && enumArray.includes(currentValue)
+          ? currentValue
+          : defaultValue && enumArray.includes(defaultValue)
+            ? defaultValue
+            : enumArray[0];
+
       // Ensure we have all enum options - remove duplicates
       const allOptions = [...new Set(enumArray)];
-      
+
       // Helper to capitalize first letter for display
       const capitalizeDisplay = (str: string): string => {
         if (!str) return str;
         return str.charAt(0).toUpperCase() + str.slice(1);
       };
-      
+
       // Render all enum options
-      const enumNames = property.enumNames;
-      const selectItems = React.useMemo(() => {
-        return allOptions.map((option, idx) => {
-          const itemKey = `${name}-option-${idx}-${option}`;
-          // Look up custom label from enumNames if provided. Use the
-          // original enum index (not the deduped one) so labels stay
-          // aligned with their values.
-          let displayLabel = capitalizeDisplay(option);
-          if (enumNames && Array.isArray(enumNames)) {
-            const originalIdx = enumArray.indexOf(option);
-            if (originalIdx >= 0 && enumNames[originalIdx]) {
-              displayLabel = enumNames[originalIdx];
-            }
-          }
-          return (
-            <SelectItem
-              key={itemKey}
-              value={option}
-            >
-              {displayLabel}
-            </SelectItem>
-          );
-        });
-      }, [name, allOptions, enumNames, enumArray]);
-      
-      // Stable onChange handler to prevent re-renders
-      const handleValueChange = React.useCallback((newValue: string) => {
-        onChange(newValue);
-      }, [onChange]);
-      
       return (
-        <Select
-          value={selectValue}
-          onValueChange={handleValueChange}
+        <EnumSelectField
+          name={name}
+          property={property}
+          enumArray={enumArray}
+          allOptions={allOptions}
+          selectValue={selectValue}
+          capitalizeDisplay={capitalizeDisplay}
+          onChange={onChange}
           disabled={disabled}
-          modal={false}
-        >
-          <SelectTrigger id={name}>
-            <SelectValue placeholder={property["ui:placeholder"] || `Select ${property.title || name}`} />
-          </SelectTrigger>
-          <SelectContent 
-            className="max-h-[300px] z-[120]"
-            disableHeightConstraint={allOptions.length > 1}
-          >
-            {selectItems}
-          </SelectContent>
-        </Select>
+        />
       );
     }
   }
@@ -181,7 +205,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
           "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2",
           "text-sm ring-offset-background placeholder:text-muted-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:cursor-not-allowed disabled:opacity-50"
+          "disabled:cursor-not-allowed disabled:opacity-50",
         )}
       />
     );
@@ -200,14 +224,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
   }
 
   if (isPagePicker) {
-    return (
-      <PagePickerField
-        id={name}
-        value={String(value || "")}
-        onChange={onChange}
-        disabled={disabled}
-      />
-    );
+    return <PagePickerField id={name} value={String(value || "")} onChange={onChange} disabled={disabled} />;
   }
 
   return (
@@ -250,32 +267,19 @@ interface NumberFieldProps extends FieldProps {
 
 function NumberEnumField({ name, property, value, onChange, disabled }: FieldProps) {
   const rawEnum = property.enum as unknown[];
-  const numericEnum = rawEnum
-    .map((opt) => Number(opt))
-    .filter((n) => Number.isFinite(n));
+  const numericEnum = rawEnum.map((opt) => Number(opt)).filter((n) => Number.isFinite(n));
   const enumNames = property.enumNames;
   const defaultNum =
     property.default !== undefined && Number.isFinite(Number(property.default))
       ? Number(property.default)
       : numericEnum[0];
   const currentNum =
-    value !== undefined && value !== null && Number.isFinite(Number(value))
-      ? Number(value)
-      : defaultNum;
-  const selectValue = numericEnum.includes(currentNum)
-    ? String(currentNum)
-    : String(defaultNum);
+    value !== undefined && value !== null && Number.isFinite(Number(value)) ? Number(value) : defaultNum;
+  const selectValue = numericEnum.includes(currentNum) ? String(currentNum) : String(defaultNum);
   return (
-    <Select
-      value={selectValue}
-      onValueChange={(v) => onChange(Number(v))}
-      disabled={disabled}
-      modal={false}
-    >
+    <Select value={selectValue} onValueChange={(v) => onChange(Number(v))} disabled={disabled} modal={false}>
       <SelectTrigger id={name}>
-        <SelectValue
-          placeholder={property["ui:placeholder"] || `Select ${property.title || name}`}
-        />
+        <SelectValue placeholder={property["ui:placeholder"] || `Select ${property.title || name}`} />
       </SelectTrigger>
       <SelectContent className="max-h-[300px] z-[120]">
         {numericEnum.map((option, idx) => (
@@ -289,7 +293,17 @@ function NumberEnumField({ name, property, value, onChange, disabled }: FieldPro
 }
 
 function NumberField(props: NumberFieldProps) {
-  const { name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading } = props;
+  const {
+    name,
+    property,
+    value,
+    onChange,
+    required,
+    disabled,
+    onLocationRequest,
+    showLocationButton,
+    isLocationLoading,
+  } = props;
   const t = useTranslations("schemaForm");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
@@ -298,9 +312,7 @@ function NumberField(props: NumberFieldProps) {
   // Delegated to a sub-component so the hook order is stable when a field
   // switches between enum and free-number variants.
   const hasNumericEnum =
-    property.enum &&
-    Array.isArray(property.enum) &&
-    property.enum.some((opt) => Number.isFinite(Number(opt)));
+    property.enum && Array.isArray(property.enum) && property.enum.some((opt) => Number.isFinite(Number(opt)));
 
   // Local text buffer so the user can freely edit the field (delete the
   // existing value, paste a new one, type intermediate states like "-" or
@@ -308,9 +320,7 @@ function NumberField(props: NumberFieldProps) {
   // input back to a previous or default value. We only commit a parsed
   // numeric value upstream when the input is in a valid intermediate state
   // (or empty), and we finalize/validate on blur.
-  const [text, setText] = useState<string>(
-    value !== undefined && value !== null ? String(value) : ""
-  );
+  const [text, setText] = useState<string>(value !== undefined && value !== null ? String(value) : "");
   const [isFocused, setIsFocused] = useState(false);
 
   // Keep the local text in sync with external value changes (e.g. the
@@ -333,11 +343,11 @@ function NumberField(props: NumberFieldProps) {
 
     const errorCode = error.code;
     let message = t("geoErrorPrefix") + " ";
-    
+
     if (errorCode === 1) {
       message += t("geoErrorPermissionDenied");
     } else if (errorCode === 2) {
-      const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMacOS = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       if (isMacOS) {
         message += t("geoErrorUnavailableMac");
       } else {
@@ -348,18 +358,21 @@ function NumberField(props: NumberFieldProps) {
     } else {
       message += t("geoErrorOther");
     }
-    
+
     return message;
   };
 
   const handleLocationClick = async () => {
     // Check if we're on HTTPS or localhost (required for Safari)
-    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isSecure =
+      window.location.protocol === "https:" ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
     if (!isSecure) {
       toast.error(t("geoRequiresHttps"));
       return;
     }
-    
+
     if (!navigator.geolocation) {
       toast.error(t("geoNotSupported"));
       return;
@@ -371,7 +384,7 @@ function NumberField(props: NumberFieldProps) {
     }
 
     setIsGettingLocation(true);
-    
+
     // Use native geolocation API directly for better control
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -384,24 +397,30 @@ function NumberField(props: NumberFieldProps) {
       (error: GeolocationPositionError) => {
         // Safari-compatible error handling - try multiple ways to access error code
         let errorCode: number | undefined;
-        
+
         // Try direct access first
         try {
           errorCode = error.code;
         } catch {
           // If direct access fails, try alternative methods
           try {
-            const err = error as any;
-            if (typeof err === 'object' && err !== null) {
+            const err = error as Record<string, unknown> & {
+              code?: number;
+              message?: string;
+              PERMISSION_DENIED?: number;
+              POSITION_UNAVAILABLE?: number;
+              TIMEOUT?: number;
+            };
+            if (typeof err === "object" && err !== null) {
               // Try accessing code property
               errorCode = err.code;
               // If that doesn't work, try PERMISSION_DENIED, POSITION_UNAVAILABLE, TIMEOUT constants
               if (errorCode === undefined) {
-                if (err.PERMISSION_DENIED === 1 || err.message?.toLowerCase().includes('permission')) {
+                if (err.PERMISSION_DENIED === 1 || err.message?.toLowerCase().includes("permission")) {
                   errorCode = 1;
-                } else if (err.POSITION_UNAVAILABLE === 2 || err.message?.toLowerCase().includes('unavailable')) {
+                } else if (err.POSITION_UNAVAILABLE === 2 || err.message?.toLowerCase().includes("unavailable")) {
                   errorCode = 2;
-                } else if (err.TIMEOUT === 3 || err.message?.toLowerCase().includes('timeout')) {
+                } else if (err.TIMEOUT === 3 || err.message?.toLowerCase().includes("timeout")) {
                   errorCode = 3;
                 }
               }
@@ -411,22 +430,21 @@ function NumberField(props: NumberFieldProps) {
             console.error("Could not extract error code:", e2);
           }
         }
-        
+
         console.error("Geolocation error - code:", errorCode, "error object:", error);
         setIsGettingLocation(false);
-        
+
         // Create a proper error object with the code we extracted
-        const errorWithCode = errorCode !== undefined 
-          ? { ...error, code: errorCode } as GeolocationPositionError
-          : error;
-        
+        const errorWithCode =
+          errorCode !== undefined ? ({ ...error, code: errorCode } as GeolocationPositionError) : error;
+
         toast.error(getErrorMessage(errorWithCode));
       },
       {
         enableHighAccuracy: false,
         timeout: 15000, // Increased timeout for Safari
-        maximumAge: 300000 // 5 minutes - Safari works better with cached positions
-      }
+        maximumAge: 300000, // 5 minutes - Safari works better with cached positions
+      },
     );
   };
 
@@ -489,7 +507,7 @@ function NumberField(props: NumberFieldProps) {
           tabIndex={-1}
           title={t("useMyCurrentLocation")}
         >
-          {(isGettingLocation || isLocationLoading) ? (
+          {isGettingLocation || isLocationLoading ? (
             <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
           ) : (
             <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -501,14 +519,7 @@ function NumberField(props: NumberFieldProps) {
 }
 
 function BooleanField({ name, value, onChange, disabled }: FieldProps) {
-  return (
-    <Switch
-      id={name}
-      checked={Boolean(value)}
-      onCheckedChange={onChange}
-      disabled={disabled}
-    />
-  );
+  return <Switch id={name} checked={Boolean(value)} onCheckedChange={onChange} disabled={disabled} />;
 }
 
 /** WSF route options for the route picker (id matches WSDOT API route_id) */
@@ -528,10 +539,19 @@ interface WsdotRoutePickerProps extends FieldProps {
   maxItems?: number;
 }
 
-function WsdotRoutePicker({ name, property: _property, value, onChange, disabled, maxItems = 4 }: WsdotRoutePickerProps) {
+function WsdotRoutePicker({
+  name,
+  property: _property,
+  value,
+  onChange,
+  disabled,
+  maxItems = 4,
+}: WsdotRoutePickerProps) {
   const t = useTranslations("schemaForm");
   const items = Array.isArray(value) ? value : [];
-  const routeEntries = items.map((item) => (item && typeof item === "object" && "route_id" in item ? Number((item as { route_id: number }).route_id) : 0));
+  const routeEntries = items.map((item) =>
+    item && typeof item === "object" && "route_id" in item ? Number((item as { route_id: number }).route_id) : 0,
+  );
 
   const setRouteAt = (index: number, routeId: number) => {
     const next = [...routeEntries];
@@ -557,7 +577,11 @@ function WsdotRoutePicker({ name, property: _property, value, onChange, disabled
       {routeEntries.map((routeId, index) => (
         <div key={index} className="flex gap-2 items-center">
           <Select
-            value={routeId && WSDOT_FERRY_ROUTES.some((r) => r.id === routeId) ? String(routeId) : String(WSDOT_FERRY_ROUTES[0]?.id ?? "")}
+            value={
+              routeId && WSDOT_FERRY_ROUTES.some((r) => r.id === routeId)
+                ? String(routeId)
+                : String(WSDOT_FERRY_ROUTES[0]?.id ?? "")
+            }
             onValueChange={(val) => setRouteAt(index, parseInt(val, 10))}
             disabled={disabled}
           >
@@ -588,14 +612,7 @@ function WsdotRoutePicker({ name, property: _property, value, onChange, disabled
         </div>
       ))}
       {canAdd && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleAdd}
-          disabled={disabled}
-          className="w-full"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
           {t("addFerryRoute")}
         </Button>
@@ -610,7 +627,7 @@ interface ParkRideEntry {
   ride_ids: number[];
 }
 
-interface DisneyParksTimesPickerProps extends FieldProps {}
+type DisneyParksTimesPickerProps = FieldProps;
 
 function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParksTimesPickerProps) {
   const t = useTranslations("schemaForm");
@@ -623,26 +640,34 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
   const ensureRidesForPark = useCallback((parkId: number) => {
     setRidesByParkId((prev) => {
       if (prev[parkId] !== undefined) return prev;
-      api.getQueueTimesRides(parkId).then((data) => {
-        setRidesByParkId((p) => ({ ...p, [parkId]: data }));
-      }).catch(() => {
-        setRidesByParkId((p) => ({ ...p, [parkId]: [] }));
-      });
+      api
+        .getQueueTimesRides(parkId)
+        .then((data) => {
+          setRidesByParkId((p) => ({ ...p, [parkId]: data }));
+        })
+        .catch(() => {
+          setRidesByParkId((p) => ({ ...p, [parkId]: [] }));
+        });
       return prev;
     });
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    api.getQueueTimesParks().then((data) => {
-      if (!cancelled) {
-        setParks(data);
-        setParksLoading(false);
-      }
-    }).catch(() => {
-      if (!cancelled) setParksLoading(false);
-    });
-    return () => { cancelled = true; };
+    api
+      .getQueueTimesParks()
+      .then((data) => {
+        if (!cancelled) {
+          setParks(data);
+          setParksLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setParksLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -740,10 +765,7 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
               <div className="text-xs text-muted-foreground">{t("ridesByName")}</div>
               <div className="flex flex-wrap gap-1">
                 {(entry.ride_ids || []).map((rid, rideIndex) => (
-                  <span
-                    key={rid}
-                    className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-sm"
-                  >
+                  <span key={rid} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-sm">
                     {rideName(entry.park_id, rid)}
                     <button
                       type="button"
@@ -757,36 +779,25 @@ function DisneyParksTimesPicker({ name, value, onChange, disabled }: DisneyParks
                   </span>
                 ))}
               </div>
-              <Select
-                value=""
-                onValueChange={(val) => addRideAt(index, parseInt(val, 10))}
-                disabled={disabled}
-              >
+              <Select value="" onValueChange={(val) => addRideAt(index, parseInt(val, 10))} disabled={disabled}>
                 <SelectTrigger className="w-full max-w-xs">
                   <SelectValue placeholder={t("addRide")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {(ridesByParkId[entry.park_id] ?? []).filter(
-                    (r) => !(entry.ride_ids || []).includes(r.id)
-                  ).map((r) => (
-                    <SelectItem key={r.id} value={String(r.id)}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
+                  {(ridesByParkId[entry.park_id] ?? [])
+                    .filter((r) => !(entry.ride_ids || []).includes(r.id))
+                    .map((r) => (
+                      <SelectItem key={r.id} value={String(r.id)}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </>
           )}
         </div>
       ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={handleAddPark}
-        disabled={disabled}
-        className="w-full"
-      >
+      <Button type="button" variant="outline" size="sm" onClick={handleAddPark} disabled={disabled} className="w-full">
         <Plus className="h-4 w-4 mr-2" />
         {t("addPark")}
       </Button>
@@ -817,9 +828,7 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
   };
 
   if (data === null || data === undefined) {
-    return (
-      <span className="text-muted-foreground italic text-xs">null</span>
-    );
+    return <span className="text-muted-foreground italic text-xs">null</span>;
   }
 
   if (typeof data === "object" && !Array.isArray(data)) {
@@ -857,7 +866,11 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
                         className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-muted"
                         title={`Use path: ${childPath}`}
                       >
-                        {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+                        {copied ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-muted-foreground" />
+                        )}
                       </button>
                     </div>
                   ) : (
@@ -890,7 +903,9 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
               const isLeaf = item === null || item === undefined || typeof item !== "object";
               return (
                 <div key={idx} className="flex items-start gap-1">
-                  <span className="text-xs font-medium text-purple-600 dark:text-purple-400 shrink-0 pt-0.5">[{idx}]:</span>
+                  <span className="text-xs font-medium text-purple-600 dark:text-purple-400 shrink-0 pt-0.5">
+                    [{idx}]:
+                  </span>
                   {isLeaf ? (
                     <div className="flex items-center gap-1 group min-w-0">
                       <span className="text-xs truncate">{String(item ?? "null")}</span>
@@ -931,7 +946,14 @@ interface GenericDataMappingHelperProps extends FieldProps {
   allValues: Record<string, unknown>;
 }
 
-function GenericDataMappingHelper({ name: _name, property: _property, value, onChange, disabled, allValues }: GenericDataMappingHelperProps) {
+function GenericDataMappingHelper({
+  name: _name,
+  property: _property,
+  value,
+  onChange,
+  disabled,
+  allValues,
+}: GenericDataMappingHelperProps) {
   const t = useTranslations("schemaForm");
   const [previewData, setPreviewData] = useState<unknown>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -969,8 +991,16 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
   };
 
   const handlePathSelect = (path: string, _val: unknown) => {
-    const varName = path.split(".").pop()?.replace(/\[\d+\]/g, "") || "value";
-    const sanitised = varName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "") || "value";
+    const varName =
+      path
+        .split(".")
+        .pop()
+        ?.replace(/\[\d+\]/g, "") || "value";
+    const sanitised =
+      varName
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, "_")
+        .replace(/^_+|_+$/g, "") || "value";
     const existing = new Set(mappings.map((m) => m.variable));
     let finalVar = sanitised;
     let counter = 2;
@@ -1040,31 +1070,19 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
           disabled={disabled || previewLoading}
           className="gap-1.5"
         >
-          {previewLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Zap className="h-4 w-4" />
-          )}
+          {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
           {t("testAndPreview")}
         </Button>
-        <p className="text-xs text-muted-foreground self-center">
-          {t("testAndPreviewHelp")}
-        </p>
+        <p className="text-xs text-muted-foreground self-center">{t("testAndPreviewHelp")}</p>
       </div>
 
       {/* Preview error */}
-      {previewError && (
-        <div className="text-xs text-destructive bg-destructive/10 rounded-md p-2">
-          {previewError}
-        </div>
-      )}
+      {previewError && <div className="text-xs text-destructive bg-destructive/10 rounded-md p-2">{previewError}</div>}
 
       {/* Response tree browser */}
       {previewData && (
         <div className="border rounded-lg p-3 bg-muted/20 sm:max-h-64 sm:overflow-auto">
-          <div className="text-xs font-medium text-muted-foreground mb-2">
-            {t("responseClickToAdd")}
-          </div>
+          <div className="text-xs font-medium text-muted-foreground mb-2">{t("responseClickToAdd")}</div>
           <JsonTreeNode data={previewData} path="" onSelect={handlePathSelect} defaultExpanded={true} />
         </div>
       )}
@@ -1077,7 +1095,9 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
             <div className="flex-1 grid gap-2 p-3 border rounded-lg bg-muted/30">
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
-                  <Label htmlFor={`mapping-${index}-variable`} className="text-xs">{t("variableName")}</Label>
+                  <Label htmlFor={`mapping-${index}-variable`} className="text-xs">
+                    {t("variableName")}
+                  </Label>
                   <Input
                     id={`mapping-${index}-variable`}
                     value={mapping.variable || ""}
@@ -1088,7 +1108,9 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label htmlFor={`mapping-${index}-path`} className="text-xs">{t("dataPath")}</Label>
+                  <Label htmlFor={`mapping-${index}-path`} className="text-xs">
+                    {t("dataPath")}
+                  </Label>
                   <Input
                     id={`mapping-${index}-path`}
                     value={mapping.path || ""}
@@ -1101,7 +1123,9 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
-                  <Label htmlFor={`mapping-${index}-default`} className="text-xs">{t("defaultValue")}</Label>
+                  <Label htmlFor={`mapping-${index}-default`} className="text-xs">
+                    {t("defaultValue")}
+                  </Label>
                   <Input
                     id={`mapping-${index}-default`}
                     value={mapping.default || ""}
@@ -1121,7 +1145,11 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                {t("useInTemplates")} <code className="bg-muted px-1 rounded">{"{{"}generic_data.{mapping.variable || "..."}{"}}"}</code>
+                {t("useInTemplates")}{" "}
+                <code className="bg-muted px-1 rounded">
+                  {"{{"}generic_data.{mapping.variable || "..."}
+                  {"}}"}
+                </code>
               </p>
             </div>
             <Button
@@ -1139,14 +1167,7 @@ function GenericDataMappingHelper({ name: _name, property: _property, value, onC
         );
       })}
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={handleAdd}
-        disabled={disabled}
-        className="w-full"
-      >
+      <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
         <Plus className="h-4 w-4 mr-2" />
         {t("addMapping")}
       </Button>
@@ -1167,7 +1188,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
   // cleanup to call removeChild on a detached node.
   const nextId = useRef(0);
   const [keyed, setKeyed] = useState<{ id: number; value: unknown }[]>(() =>
-    rawItems.map((v) => ({ id: nextId.current++, value: v }))
+    rawItems.map((v) => ({ id: nextId.current++, value: v })),
   );
 
   // Keep keyed list in sync when the parent value changes from outside
@@ -1177,10 +1198,8 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
     if (rawItems.length !== keyed.length) {
       setKeyed(rawItems.map((v) => ({ id: nextId.current++, value: v })));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawItems.length]);
-
-  const items = keyed.map((k) => k.value);
 
   const handleAdd = () => {
     let defaultValue: unknown;
@@ -1269,16 +1288,9 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
           )}
         </div>
       ))}
-      
+
       {canAdd && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleAdd}
-          disabled={disabled}
-          className="w-full"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
           Add {property.title || name}
         </Button>
@@ -1294,7 +1306,18 @@ interface FormFieldProps extends FieldProps {
   allValues?: Record<string, unknown>;
 }
 
-function FormField({ name, property, value, onChange, required, disabled, onLocationRequest, showLocationButton, isLocationLoading, allValues }: FormFieldProps) {
+function FormField({
+  name,
+  property,
+  value,
+  onChange,
+  required,
+  disabled,
+  onLocationRequest,
+  showLocationButton,
+  isLocationLoading,
+  allValues,
+}: FormFieldProps) {
   const t = useTranslations("schemaForm");
   switch (property.type) {
     case "string":
@@ -1395,9 +1418,7 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
               <div key={key} className="grid gap-1.5">
                 <Label htmlFor={`${name}-${key}`}>
                   {propSchema.title || key}
-                  {property.required?.includes(key) && (
-                    <span className="text-destructive ml-1">*</span>
-                  )}
+                  {property.required?.includes(key) && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 <FormField
                   name={`${name}-${key}`}
@@ -1413,9 +1434,7 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
                   showLocationButton={false}
                   isLocationLoading={false}
                 />
-                {propSchema.description && (
-                  <p className="text-xs text-muted-foreground">{propSchema.description}</p>
-                )}
+                {propSchema.description && <p className="text-xs text-muted-foreground">{propSchema.description}</p>}
               </div>
             ))}
           </div>
@@ -1429,7 +1448,7 @@ function FormField({ name, property, value, onChange, required, disabled, onLoca
 
 /**
  * SchemaForm - Renders a form from a JSON Schema
- * 
+ *
  * This component takes a JSON Schema and renders appropriate form fields
  * for each property. It supports:
  * - String fields (text, password, select, textarea)
@@ -1444,7 +1463,7 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
     (fieldName: string, fieldValue: unknown) => {
       onChange({ ...values, [fieldName]: fieldValue });
     },
-    [values, onChange]
+    [values, onChange],
   );
 
   // Check if both latitude and longitude fields exist
@@ -1460,15 +1479,11 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
         longitude: lon,
       });
     },
-    [values, onChange]
+    [values, onChange],
   );
 
   if (!schema.properties) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        {t("noSchemaProperties")}
-      </div>
-    );
+    return <div className="text-sm text-muted-foreground">{t("noSchemaProperties")}</div>;
   }
 
   return (
@@ -1476,17 +1491,17 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
       {Object.entries(schema.properties).map(([name, property]) => {
         // Skip the 'enabled' field as it's handled separately
         if (name === "enabled") return null;
-        
+
         const isRequired = schema.required?.includes(name);
         const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
         const showLocationButton = isLocationField && !!navigator.geolocation;
-        
+
         // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
         const isDigitColorField = name === "digit_color";
         const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
         const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
         const fieldDisabled = disabled || shouldDisableDigitColor;
-        
+
         return (
           <div key={name} className="grid gap-1.5">
             <Label htmlFor={name} className="flex items-center gap-1">
@@ -1505,19 +1520,9 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
               isLocationLoading={false}
               allValues={values}
             />
-            {property.description && (
-              <p className="text-xs text-muted-foreground">{property.description}</p>
-            )}
-            {showLocationButton && (
-              <p className="text-xs text-muted-foreground">
-                {t("clickLocationIcon")}
-              </p>
-            )}
-            {shouldDisableDigitColor && (
-              <p className="text-xs text-muted-foreground">
-                {t("digitColorNotUsed")}
-              </p>
-            )}
+            {property.description && <p className="text-xs text-muted-foreground">{property.description}</p>}
+            {showLocationButton && <p className="text-xs text-muted-foreground">{t("clickLocationIcon")}</p>}
+            {shouldDisableDigitColor && <p className="text-xs text-muted-foreground">{t("digitColorNotUsed")}</p>}
           </div>
         );
       })}
@@ -1526,4 +1531,3 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
 }
 
 export type { JSONSchema, SchemaProperty };
-

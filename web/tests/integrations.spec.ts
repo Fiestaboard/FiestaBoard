@@ -9,7 +9,7 @@
  *
  * NOTE: Tests run sequentially. The wizard must have completed.
  */
-import { test, expect, configureBoard } from "./helpers";
+import { configureBoard, expect, test } from "./helpers";
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
@@ -28,9 +28,7 @@ test.describe("Integrations Page", () => {
     await page.goto("/integrations");
 
     // Wait for the page to load
-    await expect(
-      page.getByRole("heading", { name: /integrations/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // Both tabs should be present
     await expect(page.getByRole("tab", { name: /installed/i })).toBeVisible({ timeout: 5_000 });
@@ -71,7 +69,10 @@ test.describe("Integrations Page", () => {
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
     // Open the Add from Git dialog
-    await page.getByRole("button", { name: /add from git/i }).first().click();
+    await page
+      .getByRole("button", { name: /add from git/i })
+      .first()
+      .click();
 
     // Dialog should open
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
@@ -95,7 +96,10 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /marketplace/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
-    await page.getByRole("button", { name: /add from git/i }).first().click();
+    await page
+      .getByRole("button", { name: /add from git/i })
+      .first()
+      .click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
 
     const urlInput = page.getByLabel(/repository url/i);
@@ -116,7 +120,10 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /marketplace/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
-    await page.getByRole("button", { name: /add from git/i }).first().click();
+    await page
+      .getByRole("button", { name: /add from git/i })
+      .first()
+      .click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
 
     // Security warning should be visible inside the dialog
@@ -131,7 +138,10 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /marketplace/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
-    await page.getByRole("button", { name: /add from git/i }).first().click();
+    await page
+      .getByRole("button", { name: /add from git/i })
+      .first()
+      .click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
 
     // Cancel closes the dialog
@@ -147,13 +157,9 @@ test.describe("Integrations Page", () => {
 test.describe("Check for Updates", () => {
   test("shows the Check for Updates button on the Installed tab", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    await expect(
-      page.getByRole("button", { name: /check for updates/i })
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: /check for updates/i })).toBeVisible({ timeout: 5_000 });
   });
 
   test("shows all-up-to-date toast when no updates are found", async ({ page }) => {
@@ -166,15 +172,11 @@ test.describe("Check for Updates", () => {
     });
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: /check for updates/i }).click();
 
-    await expect(
-      page.getByText("All plugins are up to date")
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("All plugins are up to date")).toBeVisible({ timeout: 5_000 });
   });
 
   test("shows update count toast when updates are found", async ({ page }) => {
@@ -187,15 +189,11 @@ test.describe("Check for Updates", () => {
     });
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: /check for updates/i }).click();
 
-    await expect(
-      page.getByText("1 plugin update available")
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("1 plugin update available")).toBeVisible({ timeout: 5_000 });
   });
 
   test("shows error toast and still refreshes plugin list when check fails", async ({ page }) => {
@@ -218,9 +216,7 @@ test.describe("Check for Updates", () => {
     });
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // Wait for the initial plugin list load to complete
     await page.waitForLoadState("networkidle").catch(() => {});
@@ -229,13 +225,9 @@ test.describe("Check for Updates", () => {
     await page.getByRole("button", { name: /check for updates/i }).click();
 
     // Error toast should appear
-    await expect(
-      page.getByText(/Couldn't check for updates/)
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/Couldn't check for updates/)).toBeVisible({ timeout: 5_000 });
 
     // The finally block must trigger a plugin list refresh even on error
-    await expect
-      .poll(() => pluginsRequestCount, { timeout: 5_000 })
-      .toBeGreaterThan(countAfterLoad);
+    await expect.poll(() => pluginsRequestCount, { timeout: 5_000 }).toBeGreaterThan(countAfterLoad);
   });
 });

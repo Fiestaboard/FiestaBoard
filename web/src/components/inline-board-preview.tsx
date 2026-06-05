@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
-import { api, type DeviceType } from "@/lib/api";
 import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
+import { api, type DeviceType } from "@/lib/api";
 
 export interface InlineBoardPreviewProps {
   snapshot: CurrentPageSnapshot;
@@ -39,25 +39,10 @@ export interface InlineBoardPreviewProps {
  * TanStack Query caches by template+metadata+deviceType, so identical
  * snapshots dedupe across multiple tool calls in the same session.
  */
-export function InlineBoardPreview({
-  snapshot,
-  deviceType,
-  size = "sm",
-  className,
-}: InlineBoardPreviewProps) {
+export function InlineBoardPreview({ snapshot, deviceType, size = "sm", className }: InlineBoardPreviewProps) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: [
-      "inline-preview-render",
-      deviceType,
-      snapshot.template,
-      snapshot.line_metadata,
-    ],
-    queryFn: () =>
-      api.renderTemplate(
-        snapshot.template,
-        snapshot.line_metadata,
-        deviceType,
-      ),
+    queryKey: ["inline-preview-render", deviceType, snapshot.template, snapshot.line_metadata],
+    queryFn: () => api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType),
     // Renders are deterministic for a given input — keep them
     // around so quickly switching tool-call cards is instant.
     staleTime: 5 * 60 * 1000,
@@ -68,11 +53,7 @@ export function InlineBoardPreview({
   if (isError) {
     // Don't crash the chat panel if the render API hiccups — fall
     // back to a quiet hint. The card still has a useful summary.
-    return (
-      <div className="text-[10px] text-muted-foreground italic">
-        (preview unavailable)
-      </div>
-    );
+    return <div className="text-[10px] text-muted-foreground italic">(preview unavailable)</div>;
   }
 
   // Pass `null` while loading so BoardDisplay shows its empty grid

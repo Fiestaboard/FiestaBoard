@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import FadeContent from "./fade-content";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../card";
+
 import { Button } from "../button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../card";
+import FadeContent from "./fade-content";
 
 const meta = {
   title: "UI/React Bits/FadeContent",
@@ -10,9 +11,7 @@ const meta = {
     layout: "padded",
     a11y: {
       config: {
-        rules: [
-          { id: "color-contrast", enabled: false },
-        ],
+        rules: [{ id: "color-contrast", enabled: false }],
       },
     },
   },
@@ -53,9 +52,7 @@ export const Default: Story = {
           <CardDescription>Appears when scrolled into view</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            This content fades in with a smooth slide-up animation.
-          </p>
+          <p className="text-sm text-muted-foreground">This content fades in with a smooth slide-up animation.</p>
         </CardContent>
       </Card>
     ),
@@ -131,9 +128,7 @@ export const LargeTranslation: Story = {
           <CardTitle>Large Slide Distance</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Slides up from 80px below
-          </p>
+          <p className="text-sm text-muted-foreground">Slides up from 80px below</p>
         </CardContent>
       </Card>
     ),

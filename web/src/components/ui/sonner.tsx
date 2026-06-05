@@ -1,15 +1,9 @@
-"use client"
+"use client";
 
-import {
-  CircleCheckIcon,
-  InfoIcon,
-  Loader2Icon,
-  OctagonXIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
-import { useTheme } from "next-themes"
-import { useTranslations } from "next-intl"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
+import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 /**
  * App-wide Sonner wrapper.
@@ -31,9 +25,9 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
  * more specific label for a particular Toaster instance.
  */
 const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
-  const t = useTranslations("common")
-  const ariaLabel = containerAriaLabel ?? t("notificationsRegionLabel")
+  const { theme = "system" } = useTheme();
+  const t = useTranslations("common");
+  const ariaLabel = containerAriaLabel ?? t("notificationsRegionLabel");
 
   return (
     <Sonner
@@ -57,7 +51,7 @@ const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
       }
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };

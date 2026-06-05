@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
+  fetchPluginManifest,
+  fetchPluginReadme,
   getGitHubRawBaseUrl,
   parseGitHubRepoPath,
   resolveGitHubRawUrl,
-  fetchPluginReadme,
-  fetchPluginManifest,
   resolveHeroImageUrl,
   rewriteMarkdownImageUrls,
   rewriteMarkdownRepoLinks,
@@ -16,40 +17,23 @@ import {
 
 describe("getGitHubRawBaseUrl", () => {
   it("converts a standard github.com URL to raw.githubusercontent.com", () => {
-    const result = getGitHubRawBaseUrl(
-      "https://github.com/Fiestaboard/fiestaboard-plugin--weather"
-    );
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Fiestaboard/fiestaboard-plugin--weather/main"
-    );
+    const result = getGitHubRawBaseUrl("https://github.com/Fiestaboard/fiestaboard-plugin--weather");
+    expect(result).toBe("https://raw.githubusercontent.com/Fiestaboard/fiestaboard-plugin--weather/main");
   });
 
   it("uses a custom branch when provided", () => {
-    const result = getGitHubRawBaseUrl(
-      "https://github.com/Org/my-repo",
-      "develop"
-    );
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/my-repo/develop"
-    );
+    const result = getGitHubRawBaseUrl("https://github.com/Org/my-repo", "develop");
+    expect(result).toBe("https://raw.githubusercontent.com/Org/my-repo/develop");
   });
 
   it("strips a trailing .git suffix", () => {
-    const result = getGitHubRawBaseUrl(
-      "https://github.com/Org/my-repo.git"
-    );
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/my-repo/main"
-    );
+    const result = getGitHubRawBaseUrl("https://github.com/Org/my-repo.git");
+    expect(result).toBe("https://raw.githubusercontent.com/Org/my-repo/main");
   });
 
   it("strips a trailing slash", () => {
-    const result = getGitHubRawBaseUrl(
-      "https://github.com/Org/my-repo/"
-    );
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/my-repo/main"
-    );
+    const result = getGitHubRawBaseUrl("https://github.com/Org/my-repo/");
+    expect(result).toBe("https://raw.githubusercontent.com/Org/my-repo/main");
   });
 
   it("returns an empty string for non-GitHub URLs", () => {
@@ -61,12 +45,8 @@ describe("getGitHubRawBaseUrl", () => {
   });
 
   it("handles nested org/repo paths", () => {
-    const result = getGitHubRawBaseUrl(
-      "https://github.com/SomeOrg/some-repo"
-    );
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/SomeOrg/some-repo/main"
-    );
+    const result = getGitHubRawBaseUrl("https://github.com/SomeOrg/some-repo");
+    expect(result).toBe("https://raw.githubusercontent.com/SomeOrg/some-repo/main");
   });
 });
 
@@ -93,38 +73,27 @@ describe("resolveGitHubRawUrl", () => {
 
   it("resolves a ./relative path to a full raw URL", () => {
     const result = resolveGitHubRawUrl(REPO, "./docs/board-display.png");
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
   });
 
   it("resolves a bare relative path (no leading ./) to a full raw URL", () => {
     const result = resolveGitHubRawUrl(REPO, "docs/board-display.png");
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
   });
 
   it("returns the relative path unchanged when the repo URL is not a GitHub URL", () => {
-    const result = resolveGitHubRawUrl(
-      "https://gitlab.com/Org/repo",
-      "./docs/image.png"
-    );
+    const result = resolveGitHubRawUrl("https://gitlab.com/Org/repo", "./docs/image.png");
     expect(result).toBe("./docs/image.png");
   });
 
   it("uses the custom branch in the resolved URL", () => {
     const result = resolveGitHubRawUrl(REPO, "README.md", "v2");
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/v2/README.md"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/v2/README.md");
   });
 
   it("handles a file at the repo root", () => {
     const result = resolveGitHubRawUrl(REPO, "manifest.json");
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/manifest.json"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/manifest.json");
   });
 });
 
@@ -145,7 +114,7 @@ describe("fetchPluginReadme", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         text: async () => "# My Plugin\nThis is the README.",
-      })
+      }),
     );
 
     const result = await fetchPluginReadme(REPO);
@@ -206,20 +175,14 @@ describe("fetchPluginReadme", () => {
   });
 
   it("returns null when the response is not ok on both main and master", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 404 })
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
 
     const result = await fetchPluginReadme(REPO);
     expect(result).toBeNull();
   });
 
   it("returns null on network error", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("Network error"))
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
 
     const result = await fetchPluginReadme(REPO);
     expect(result).toBeNull();
@@ -249,7 +212,7 @@ describe("fetchPluginManifest", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => manifest,
-      })
+      }),
     );
 
     const result = await fetchPluginManifest(REPO);
@@ -271,20 +234,14 @@ describe("fetchPluginManifest", () => {
   });
 
   it("returns null when the response is not ok", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 404 })
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
 
     const result = await fetchPluginManifest(REPO);
     expect(result).toBeNull();
   });
 
   it("returns null on network error", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     const result = await fetchPluginManifest(REPO);
     expect(result).toBeNull();
@@ -305,15 +262,10 @@ describe("resolveHeroImageUrl", () => {
 
   it("uses the primary screenshot src when present", () => {
     const manifest = {
-      screenshots: [
-        { src: "docs/board-display.png", primary: true },
-        { src: "docs/configuration.png" },
-      ],
+      screenshots: [{ src: "docs/board-display.png", primary: true }, { src: "docs/configuration.png" }],
     };
     const result = resolveHeroImageUrl(REPO, manifest);
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
   });
 
   it("falls back to the first screenshot when none is primary", () => {
@@ -321,30 +273,22 @@ describe("resolveHeroImageUrl", () => {
       screenshots: [{ src: "docs/other.png" }],
     };
     const result = resolveHeroImageUrl(REPO, manifest);
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/other.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/other.png");
   });
 
   it("falls back to docs/board-display.png when screenshots array is empty", () => {
     const result = resolveHeroImageUrl(REPO, { screenshots: [] });
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
   });
 
   it("falls back to docs/board-display.png when manifest is null", () => {
     const result = resolveHeroImageUrl(REPO, null);
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
   });
 
   it("falls back to docs/board-display.png when manifest has no screenshots field", () => {
     const result = resolveHeroImageUrl(REPO, { name: "Plugin" });
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
   });
 
   it("resolves ./relative paths in screenshot src", () => {
@@ -352,9 +296,7 @@ describe("resolveHeroImageUrl", () => {
       screenshots: [{ src: "./docs/board-display.png", primary: true }],
     };
     const result = resolveHeroImageUrl(REPO, manifest);
-    expect(result).toBe(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
+    expect(result).toBe("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
   });
 });
 
@@ -368,22 +310,17 @@ describe("rewriteMarkdownImageUrls", () => {
   it("rewrites a ./relative image URL to a full raw GitHub URL", () => {
     const markdown = "![Display](./docs/board-display.png)";
     const result = rewriteMarkdownImageUrls(markdown, REPO);
-    expect(result).toBe(
-      "![Display](https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png)"
-    );
+    expect(result).toBe("![Display](https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png)");
   });
 
   it("rewrites a bare relative image URL (no leading ./)", () => {
     const markdown = "![Display](docs/board-display.png)";
     const result = rewriteMarkdownImageUrls(markdown, REPO);
-    expect(result).toBe(
-      "![Display](https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png)"
-    );
+    expect(result).toBe("![Display](https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png)");
   });
 
   it("does NOT rewrite already-absolute https URLs", () => {
-    const markdown =
-      "![Display](https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png)";
+    const markdown = "![Display](https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png)";
     const result = rewriteMarkdownImageUrls(markdown, REPO);
     expect(result).toBe(markdown);
   });
@@ -405,12 +342,8 @@ Some text.
 ![Config](./docs/configuration.png)
     `.trim();
     const result = rewriteMarkdownImageUrls(markdown, REPO);
-    expect(result).toContain(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png"
-    );
-    expect(result).toContain(
-      "https://raw.githubusercontent.com/Org/plugin-name/main/docs/configuration.png"
-    );
+    expect(result).toContain("https://raw.githubusercontent.com/Org/plugin-name/main/docs/board-display.png");
+    expect(result).toContain("https://raw.githubusercontent.com/Org/plugin-name/main/docs/configuration.png");
   });
 
   it("leaves non-image markdown links untouched", () => {
@@ -448,25 +381,19 @@ describe("rewriteMarkdownRepoLinks", () => {
   it("rewrites a relative .md link to a GitHub blob URL", () => {
     const markdown = "[Setup guide](./docs/SETUP.md)";
     const result = rewriteMarkdownRepoLinks(markdown, REPO, "main");
-    expect(result).toBe(
-      "[Setup guide](https://github.com/Org/plugin-name/blob/main/docs/SETUP.md)"
-    );
+    expect(result).toBe("[Setup guide](https://github.com/Org/plugin-name/blob/main/docs/SETUP.md)");
   });
 
   it("uses the resolved branch in the blob path", () => {
     const markdown = "[Readme](README.md)";
     const result = rewriteMarkdownRepoLinks(markdown, REPO, "master");
-    expect(result).toBe(
-      "[Readme](https://github.com/Org/plugin-name/blob/master/README.md)"
-    );
+    expect(result).toBe("[Readme](https://github.com/Org/plugin-name/blob/master/README.md)");
   });
 
   it("preserves hash fragments on relative paths", () => {
     const markdown = "[Section](./docs/SETUP.md#troubleshooting)";
     const result = rewriteMarkdownRepoLinks(markdown, REPO, "main");
-    expect(result).toBe(
-      "[Section](https://github.com/Org/plugin-name/blob/main/docs/SETUP.md#troubleshooting)"
-    );
+    expect(result).toBe("[Section](https://github.com/Org/plugin-name/blob/main/docs/SETUP.md#troubleshooting)");
   });
 
   it("does not rewrite https links", () => {

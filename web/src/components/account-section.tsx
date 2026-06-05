@@ -14,11 +14,12 @@
  * signed in.
  */
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+import { toast } from "sonner";
+
 import {
   AlertDialog,
   AlertDialogContent,
@@ -28,10 +29,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 
@@ -96,8 +97,7 @@ export function AccountSection() {
             Signed in
           </CardTitle>
           <CardDescription>
-            You&apos;re currently signed in as{" "}
-            <span className="font-mono text-foreground">{username}</span>.
+            You&apos;re currently signed in as <span className="font-mono text-foreground">{username}</span>.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -108,9 +108,7 @@ export function AccountSection() {
             <UserCog className="h-4 w-4 text-muted-foreground" />
             Change username
           </CardTitle>
-          <CardDescription>
-            Pick a new sign-in name. Requires your current password.
-          </CardDescription>
+          <CardDescription>Pick a new sign-in name. Requires your current password.</CardDescription>
         </CardHeader>
         <CardContent>
           <ChangeUsernameForm currentUsername={username} />
@@ -124,8 +122,7 @@ export function AccountSection() {
             Change password
           </CardTitle>
           <CardDescription>
-            Rotate your password. Any other sessions signed in with the old
-            password will be signed out.
+            Rotate your password. Any other sessions signed in with the old password will be signed out.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -139,10 +136,7 @@ export function AccountSection() {
             <LogOut className="h-4 w-4 text-muted-foreground" />
             Sign out
           </CardTitle>
-          <CardDescription>
-            End your current session. You&apos;ll be sent back to the sign-in
-            page.
-          </CardDescription>
+          <CardDescription>End your current session. You&apos;ll be sent back to the sign-in page.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button type="button" variant="outline" onClick={handleSignOut}>
@@ -158,10 +152,8 @@ export function AccountSection() {
             Disable login
           </CardTitle>
           <CardDescription>
-            Turn off authentication entirely. Anyone who can reach this
-            FiestaBoard on the network will be able to change settings and
-            read API keys. Not recommended unless this device is on a fully
-            trusted private network.
+            Turn off authentication entirely. Anyone who can reach this FiestaBoard on the network will be able to
+            change settings and read API keys. Not recommended unless this device is on a fully trusted private network.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -368,31 +360,25 @@ function DisableAuthDialog({ username }: { username: string }) {
           <AlertDialogDescription asChild>
             <div className="space-y-3 text-sm">
               <p>
-                Turning off login removes the{" "}
-                <span className="font-mono">{username}</span> account and
-                opens this FiestaBoard up to anyone who can reach it on the
-                network — they&apos;ll be able to read your API keys, change
-                your board configuration, and modify any settings.
+                Turning off login removes the <span className="font-mono">{username}</span> account and opens this
+                FiestaBoard up to anyone who can reach it on the network — they&apos;ll be able to read your API keys,
+                change your board configuration, and modify any settings.
               </p>
               <p>
-                Only do this if this device is on a fully trusted private
-                network (no roommates, no guests, no smart-home devices
-                you don&apos;t control). Strongly{" "}
-                <strong>not recommended</strong> if this FiestaBoard is
-                reachable from the internet.
+                Only do this if this device is on a fully trusted private network (no roommates, no guests, no
+                smart-home devices you don&apos;t control). Strongly <strong>not recommended</strong> if this
+                FiestaBoard is reachable from the internet.
               </p>
               <p>
-                Your board keeps displaying as normal either way — this
-                only controls who can sign in to change settings.
+                Your board keeps displaying as normal either way — this only controls who can sign in to change
+                settings.
               </p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={onConfirm} className="space-y-3">
           <div className="space-y-2">
-            <Label htmlFor="disable-auth-password">
-              Confirm your current password to continue
-            </Label>
+            <Label htmlFor="disable-auth-password">Confirm your current password to continue</Label>
             <Input
               id="disable-auth-password"
               type="password"
@@ -413,19 +399,10 @@ function DisableAuthDialog({ username }: { username: string }) {
             {/* Plain buttons rather than AlertDialogCancel /
                 AlertDialogAction so the Radix primitives don't
                 pre-close the dialog and shadow the form submit. */}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={submitting}
-              onClick={() => setOpen(false)}
-            >
+            <Button type="button" variant="outline" disabled={submitting} onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="destructive"
-              disabled={submitting || !password}
-            >
+            <Button type="submit" variant="destructive" disabled={submitting || !password}>
               {submitting ? "Disabling…" : "Yes, disable login"}
             </Button>
           </AlertDialogFooter>
@@ -450,9 +427,7 @@ function EnableLoginCard() {
       queryClient.removeQueries({ queryKey: ["auth-status"] });
       router.push("/login");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Could not enable login"
-      );
+      toast.error(err instanceof Error ? err.message : "Could not enable login");
       setSubmitting(false);
     }
   };
@@ -465,25 +440,17 @@ function EnableLoginCard() {
           Turn on login
         </CardTitle>
         <CardDescription>
-          Login is currently <strong>off</strong>. Anyone who can reach this
-          FiestaBoard on the network can read your API keys, change your
-          board configuration, and modify any settings.
+          Login is currently <strong>off</strong>. Anyone who can reach this FiestaBoard on the network can read your
+          API keys, change your board configuration, and modify any settings.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Strongly recommended if you share Wi-Fi with people you don&apos;t
-          fully trust (roommates, guests, smart-home devices), or if this
-          FiestaBoard is reachable from the internet. Your board keeps
-          displaying as normal either way — login only controls who can
-          sign in to change settings.
+          Strongly recommended if you share Wi-Fi with people you don&apos;t fully trust (roommates, guests, smart-home
+          devices), or if this FiestaBoard is reachable from the internet. Your board keeps displaying as normal either
+          way — login only controls who can sign in to change settings.
         </p>
-        <Button
-          type="button"
-          variant="brand"
-          onClick={onEnable}
-          disabled={submitting}
-        >
+        <Button type="button" variant="brand" onClick={onEnable} disabled={submitting}>
           <ShieldCheck className="h-4 w-4" />
           {submitting ? "Enabling…" : "Set up a username & password"}
         </Button>

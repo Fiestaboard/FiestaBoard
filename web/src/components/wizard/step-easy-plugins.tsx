@@ -1,27 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import { Clock, Cloud, Laugh, Rocket, Star, Timer, TrendingUp, Trophy, Waves, Wifi } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import {
-  Clock,
-  Timer,
-  Cloud,
-  TrendingUp,
-  Trophy,
-  Laugh,
-  Wifi,
-  Star,
-  Waves,
-  Rocket,
-  LucideIcon,
-} from "lucide-react";
-import Link from "next/link";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -135,11 +125,7 @@ const CURATED_PLUGINS: CuratedPlugin[] = [
 // Component
 // ---------------------------------------------------------------------------
 
-export function StepEasyPlugins({
-  config,
-  onConfigChange,
-  onValidChange,
-}: StepEasyPluginsProps) {
+export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepEasyPluginsProps) {
   const t = useTranslations("wizard.easyPlugins");
   const [currentTime, setCurrentTime] = useState("");
 
@@ -158,7 +144,7 @@ export function StepEasyPlugins({
             hour: "numeric",
             minute: "2-digit",
             hour12: true,
-          })
+          }),
         );
       } catch {
         setCurrentTime("--:--");
@@ -188,9 +174,7 @@ export function StepEasyPlugins({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground mb-1">
-        {t("description")}
-      </p>
+      <p className="text-sm text-muted-foreground mb-1">{t("description")}</p>
       <p className="text-xs text-muted-foreground mb-4">
         You can add more from the{" "}
         <Link href="/integrations" className="underline hover:text-foreground">
@@ -206,27 +190,14 @@ export function StepEasyPlugins({
           return (
             <Card
               key={plugin.id}
-              className={cn(
-                "transition-all cursor-pointer select-none",
-                selected && "ring-2 ring-primary"
-              )}
+              className={cn("transition-all cursor-pointer select-none", selected && "ring-2 ring-primary")}
               onClick={() => handleToggle(plugin, !selected)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "p-2 rounded-lg",
-                        selected ? "bg-primary/10" : "bg-muted"
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "h-5 w-5",
-                          selected ? "text-primary" : "text-muted-foreground"
-                        )}
-                      />
+                    <div className={cn("p-2 rounded-lg", selected ? "bg-primary/10" : "bg-muted")}>
+                      <Icon className={cn("h-5 w-5", selected ? "text-primary" : "text-muted-foreground")} />
                     </div>
                     <div>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -258,7 +229,9 @@ export function StepEasyPlugins({
               {plugin.id === "date_time" && selected && (
                 <CardContent className="pt-2 space-y-3" onClick={(e) => e.stopPropagation()}>
                   <div className="space-y-2">
-                    <Label htmlFor="wizard-timezone" className="text-sm">{t("timezoneLabel")}</Label>
+                    <Label htmlFor="wizard-timezone" className="text-sm">
+                      {t("timezoneLabel")}
+                    </Label>
                     <TimezonePicker
                       id="wizard-timezone"
                       value={config.date_time.timezone}

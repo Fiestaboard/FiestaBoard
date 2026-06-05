@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, memo } from "react";
-import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
-import type { DeviceType } from "@/lib/api";
 import { useTranslations } from "next-intl";
+import { memo, useMemo } from "react";
+
+import type { DeviceType } from "@/lib/api";
+import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
 
 const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
   flagship: { rows: 6, cols: 22 },
@@ -11,17 +12,83 @@ const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
 };
 
 const _BOARD_CHARS = [
-  ' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-  '!', '@', '#', '$', '(', ')', ' ', '-', ' ', '+', '&', '=', ';', ':',
-  ' ', "'", '"', '%', ',', '.', ' ', ' ', '/', '?', ' ', '°',
-  '63', '64', '65', '66', '67', '68', '69', '70', '71',
+  " ",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+  "U",
+  "V",
+  "W",
+  "X",
+  "Y",
+  "Z",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "0",
+  "!",
+  "@",
+  "#",
+  "$",
+  "(",
+  ")",
+  " ",
+  "-",
+  " ",
+  "+",
+  "&",
+  "=",
+  ";",
+  ":",
+  " ",
+  "'",
+  '"',
+  "%",
+  ",",
+  ".",
+  " ",
+  " ",
+  "/",
+  "?",
+  " ",
+  "°",
+  "63",
+  "64",
+  "65",
+  "66",
+  "67",
+  "68",
+  "69",
+  "70",
+  "71",
 ];
 
 type Token = { type: "char"; value: string } | { type: "color"; code: string };
 
-const _COLOR_CODES = new Set(['63', '64', '65', '66', '67', '68', '69', '70', '71']);
+const _COLOR_CODES = new Set(["63", "64", "65", "66", "67", "68", "69", "70", "71"]);
 
 function resolveColorCode(code: string, isWhiteBoard: boolean): string {
   if (isWhiteBoard) {
@@ -39,12 +106,19 @@ function parseLine(line: string): Token[] {
       const closingBrace = line.indexOf("}", i);
       if (closingBrace !== -1) {
         const content = line.substring(i + 1, closingBrace);
-        if (content.startsWith("/")) { i = closingBrace + 1; continue; }
+        if (content.startsWith("/")) {
+          i = closingBrace + 1;
+          continue;
+        }
         const contentLower = content.toLowerCase();
         let colorCode: string | null = null;
         if (ALL_COLOR_CODES[content]) colorCode = content;
         else if (ALL_COLOR_CODES[contentLower]) colorCode = contentLower;
-        if (colorCode) { tokens.push({ type: "color", code: colorCode }); i = closingBrace + 1; continue; }
+        if (colorCode) {
+          tokens.push({ type: "color", code: colorCode });
+          i = closingBrace + 1;
+          continue;
+        }
       }
     }
     tokens.push({ type: "char", value: line[i].toUpperCase() });
@@ -132,24 +206,25 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
   const borderColor = isWhiteBoard ? "var(--color-board-bezel-border-light)" : "var(--color-board-bezel-border-dark)";
   // Simplified shadows for sm previews (14×18px tiles) — complex multi-layer
   // shadows are invisible at that scale and expensive to paint across 132+ tiles.
-  const boxShadow = size === "sm"
-    ? (isWhiteBoard
-      ? "0 2px 8px rgba(0,0,0,0.1), inset 0 1px 2px rgba(255,255,255,0.9)"
-      : "0 2px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.06)")
-    : (isWhiteBoard
-      ? "0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.5)"
-      : "0 8px 32px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.03)");
-  const tileBoxShadow = size === "sm"
-    ? (isWhiteBoard
-      ? "0 1px 2px rgba(0,0,0,0.15)"
-      : "0 1px 2px rgba(0,0,0,0.4)")
-    : (isWhiteBoard
-      ? "0 2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1), inset 0 -1px 2px rgba(255,255,255,0.5), inset 1px 0 1px rgba(0,0,0,0.08), inset -1px 0 1px rgba(255,255,255,0.4)"
-      : "0 2px 4px rgba(0,0,0,0.5), inset 0 1px 2px rgba(0,0,0,0.8), inset 0 -1px 1px rgba(255,255,255,0.08), inset 1px 0 1px rgba(0,0,0,0.5), inset -1px 0 1px rgba(255,255,255,0.05)");
+  const boxShadow =
+    size === "sm"
+      ? isWhiteBoard
+        ? "0 2px 8px rgba(0,0,0,0.1), inset 0 1px 2px rgba(255,255,255,0.9)"
+        : "0 2px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.06)"
+      : isWhiteBoard
+        ? "0 8px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.5)"
+        : "0 8px 32px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.03)";
+  const tileBoxShadow =
+    size === "sm"
+      ? isWhiteBoard
+        ? "0 1px 2px rgba(0,0,0,0.15)"
+        : "0 1px 2px rgba(0,0,0,0.4)"
+      : isWhiteBoard
+        ? "0 2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1), inset 0 -1px 2px rgba(255,255,255,0.5), inset 1px 0 1px rgba(0,0,0,0.08), inset -1px 0 1px rgba(255,255,255,0.4)"
+        : "0 2px 4px rgba(0,0,0,0.5), inset 0 1px 2px rgba(0,0,0,0.8), inset 0 -1px 1px rgba(255,255,255,0.08), inset 1px 0 1px rgba(0,0,0,0.5), inset -1px 0 1px rgba(255,255,255,0.05)";
 
-  const borderClasses = size === "sm"
-    ? "rounded-lg border-[3px]"
-    : "rounded-lg sm:rounded-xl border-[3px] sm:border-[4px] lg:border-[5px]";
+  const borderClasses =
+    size === "sm" ? "rounded-lg border-[3px]" : "rounded-lg sm:rounded-xl border-[3px] sm:border-[4px] lg:border-[5px]";
 
   return (
     <div className="w-full flex justify-center">
@@ -194,9 +269,13 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                         <div
                           className="absolute rounded-[3px] overflow-hidden"
                           style={{
-                            top: "3px", bottom: "4px", left: "1px", right: "1px",
+                            top: "3px",
+                            bottom: "4px",
+                            left: "1px",
+                            right: "1px",
                             backgroundColor: bgColor,
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.15), inset 0 -1px 1px rgba(0,0,0,0.25)",
+                            boxShadow:
+                              "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.15), inset 0 -1px 1px rgba(0,0,0,0.25)",
                           }}
                         >
                           <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />

@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { useUpdate } from "@/components/update-context";
+import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -20,14 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ArrowUpCircle,
-  Loader2,
-  Power,
-  RefreshCw,
-  Cpu,
-} from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useUpdate } from "@/components/update-context";
+import { api } from "@/lib/api";
 
 /**
  * Settings → System Controls card.
@@ -59,12 +48,8 @@ export function SystemControls() {
     retry: false,
   });
 
-  const [confirmAction, setConfirmAction] = useState<
-    "update" | "restart" | "shutdown" | null
-  >(null);
-  const [activeOverlay, setActiveOverlay] = useState<
-    "restart" | "shutdown" | null
-  >(null);
+  const [confirmAction, setConfirmAction] = useState<"update" | "restart" | "shutdown" | null>(null);
+  const [activeOverlay, setActiveOverlay] = useState<"restart" | "shutdown" | null>(null);
 
   const { startUpdate } = useUpdate();
 
@@ -89,10 +74,7 @@ export function SystemControls() {
 
   const updateAvailable = !!updateCheck?.update_available;
   const anyPending =
-    updateMutation.isPending ||
-    restartMutation.isPending ||
-    shutdownMutation.isPending ||
-    !!activeOverlay;
+    updateMutation.isPending || restartMutation.isPending || shutdownMutation.isPending || !!activeOverlay;
 
   return (
     <>
@@ -102,9 +84,7 @@ export function SystemControls() {
             <Cpu className="h-4 w-4" />
             {t("title")}
           </CardTitle>
-          <CardDescription>
-            {t("description")}
-          </CardDescription>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -122,12 +102,7 @@ export function SystemControls() {
               {updateAvailable ? t("updateNow") : t("rePullLatest")}
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmAction("restart")}
-              disabled={anyPending}
-            >
+            <Button variant="outline" size="sm" onClick={() => setConfirmAction("restart")} disabled={anyPending}>
               {restartMutation.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -155,15 +130,10 @@ export function SystemControls() {
       </Card>
 
       {/* Update confirmation */}
-      <Dialog
-        open={confirmAction === "update"}
-        onOpenChange={(open) => !open && setConfirmAction(null)}
-      >
+      <Dialog open={confirmAction === "update"} onOpenChange={(open) => !open && setConfirmAction(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {updateAvailable ? t("updateDialogTitle") : t("rePullDialogTitle")}
-            </DialogTitle>
+            <DialogTitle>{updateAvailable ? t("updateDialogTitle") : t("rePullDialogTitle")}</DialogTitle>
             <DialogDescription>
               {updateAvailable
                 ? t("updateDialogDescription", { version: updateCheck?.latest_version ?? "" })
@@ -188,16 +158,11 @@ export function SystemControls() {
       </Dialog>
 
       {/* Restart confirmation */}
-      <Dialog
-        open={confirmAction === "restart"}
-        onOpenChange={(open) => !open && setConfirmAction(null)}
-      >
+      <Dialog open={confirmAction === "restart"} onOpenChange={(open) => !open && setConfirmAction(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("restartDialogTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("restartDialogDescription")}
-            </DialogDescription>
+            <DialogDescription>{t("restartDialogDescription")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
@@ -217,16 +182,11 @@ export function SystemControls() {
       </Dialog>
 
       {/* Shutdown confirmation */}
-      <Dialog
-        open={confirmAction === "shutdown"}
-        onOpenChange={(open) => !open && setConfirmAction(null)}
-      >
+      <Dialog open={confirmAction === "shutdown"} onOpenChange={(open) => !open && setConfirmAction(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("shutdownDialogTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("shutdownDialogDescription")}
-            </DialogDescription>
+            <DialogDescription>{t("shutdownDialogDescription")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
@@ -247,14 +207,10 @@ export function SystemControls() {
       </Dialog>
 
       {/* Restarting overlay for plain container restart (not update). */}
-      {activeOverlay === "restart" && (
-        <RestartingOverlay />
-      )}
+      {activeOverlay === "restart" && <RestartingOverlay />}
 
       {/* Shutdown overlay */}
-      {activeOverlay === "shutdown" && (
-        <ShutdownOverlay />
-      )}
+      {activeOverlay === "shutdown" && <ShutdownOverlay />}
     </>
   );
 }
@@ -279,11 +235,7 @@ const RESTART_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
  * A 5-minute timeout surfaces an error state with a manual refresh button
  * so the user is never stuck in an infinite spinner.
  */
-function RestartingOverlay({
-  currentVersion,
-}: {
-  currentVersion?: string;
-}) {
+function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
   const t = useTranslations("systemControls");
   const [phase, setPhase] = useState<"restarting" | "ready" | "error">("restarting");
 
@@ -310,11 +262,7 @@ function RestartingOverlay({
         }
         // Container is still running.  If a version change is detected
         // (e.g. image was swapped without a visible down period), reload.
-        if (
-          currentVersion &&
-          v.package_version &&
-          v.package_version !== currentVersion
-        ) {
+        if (currentVersion && v.package_version && v.package_version !== currentVersion) {
           if (!cancelled) {
             setPhase("ready");
             setTimeout(() => window.location.reload(), 800);
@@ -343,9 +291,7 @@ function RestartingOverlay({
       <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
         <div className="text-center space-y-4 max-w-sm mx-auto px-4">
           <h2 className="text-xl font-semibold">{t("takingLonger")}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t("takingLongerDescription")}
-          </p>
+          <p className="text-sm text-muted-foreground">{t("takingLongerDescription")}</p>
           <Button variant="outline" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t("refreshPage")}
@@ -363,9 +309,7 @@ function RestartingOverlay({
           {phase === "restarting" ? t("restartingFiestaboard") : t("backOnline")}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {phase === "restarting"
-            ? t("restartingDuration")
-            : t("almostThere")}
+          {phase === "restarting" ? t("restartingDuration") : t("almostThere")}
         </p>
       </div>
     </div>
@@ -383,9 +327,7 @@ function ShutdownOverlay() {
       <div className="text-center space-y-4">
         <Power className="h-12 w-12 mx-auto text-muted-foreground" />
         <h2 className="text-xl font-semibold">{t("shuttingDown")}</h2>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-          {t("shuttingDownDescription")}
-        </p>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto">{t("shuttingDownDescription")}</p>
       </div>
     </div>
   );

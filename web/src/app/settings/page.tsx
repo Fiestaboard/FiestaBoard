@@ -1,34 +1,17 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
-import {
-  Cog,
-  MonitorCog,
-  Plug,
-  Settings,
-  ShieldCheck,
-  User,
-  Wand2,
-  Waves,
-  Wifi,
-  Wrench,
-} from "lucide-react";
+import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useCallback, useMemo } from "react";
 
-import { api } from "@/lib/api";
-
+import { AccountSection } from "@/components/account-section";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
 import { AboutCard } from "@/components/settings/about-card";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
-import { AccountSection } from "@/components/account-section";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { AnimationSettings } from "@/components/settings/animation-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
@@ -50,17 +33,13 @@ import { SystemUpdate } from "@/components/settings/system-update";
 import { TimeAndDateCard } from "@/components/settings/time-and-date";
 import { TransitionSettings } from "@/components/settings/transition-settings";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWizard } from "@/components/wizard-provider";
+import { api } from "@/lib/api";
 
-type SectionId =
-  | "general"
-  | "account"
-  | "hardware"
-  | "network"
-  | "behavior"
-  | "integrations"
-  | "system"
-  | "advanced";
+type SectionId = "general" | "account" | "hardware" | "network" | "behavior" | "integrations" | "system" | "advanced";
 
 const SECTION_IDS: readonly SectionId[] = [
   "general",
@@ -104,9 +83,7 @@ export default function SettingsPage() {
     staleTime: 30_000,
     retry: false,
   });
-  const showAccount =
-    (!!authStatus?.enabled && !!authStatus.authenticated) ||
-    authStatus?.mode === "disabled";
+  const showAccount = (!!authStatus?.enabled && !!authStatus.authenticated) || authStatus?.mode === "disabled";
 
   // The Network tab is gated on the backend capability probe — it only
   // appears on the FiestaPi (or any deployment where the API container
@@ -121,9 +98,7 @@ export default function SettingsPage() {
   const showNetwork = !!wifiCapability?.available;
 
   const requested = searchParams.get("section");
-  let activeSection: SectionId = isSectionId(requested)
-    ? requested
-    : DEFAULT_SECTION;
+  let activeSection: SectionId = isSectionId(requested) ? requested : DEFAULT_SECTION;
   // If the URL asks for a tab that isn't currently visible (e.g.
   // ?section=account when auth is off), fall back to the default
   // instead of rendering an empty tab body.
@@ -141,29 +116,26 @@ export default function SettingsPage() {
       params.set("section", id);
       router.replace(`/settings?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams]
+    [router, searchParams],
   );
 
-  const sections = useMemo<SectionMeta[]>(
-    () => {
-      const all: SectionMeta[] = [
-        { id: "general", label: t("sectionGeneral"), icon: User },
-        { id: "account", label: t("sectionAccount"), icon: ShieldCheck },
-        { id: "hardware", label: t("sectionHardware"), icon: MonitorCog },
-        { id: "network", label: t("sectionNetwork"), icon: Wifi },
-        { id: "behavior", label: t("sectionBehavior"), icon: Waves },
-        { id: "integrations", label: t("sectionIntegrations"), icon: Plug },
-        { id: "system", label: t("sectionSystem"), icon: Cog },
-        { id: "advanced", label: t("sectionAdvanced"), icon: Wrench },
-      ];
-      return all.filter((s) => {
-        if (s.id === "account") return showAccount;
-        if (s.id === "network") return showNetwork;
-        return true;
-      });
-    },
-    [t, showAccount, showNetwork]
-  );
+  const sections = useMemo<SectionMeta[]>(() => {
+    const all: SectionMeta[] = [
+      { id: "general", label: t("sectionGeneral"), icon: User },
+      { id: "account", label: t("sectionAccount"), icon: ShieldCheck },
+      { id: "hardware", label: t("sectionHardware"), icon: MonitorCog },
+      { id: "network", label: t("sectionNetwork"), icon: Wifi },
+      { id: "behavior", label: t("sectionBehavior"), icon: Waves },
+      { id: "integrations", label: t("sectionIntegrations"), icon: Plug },
+      { id: "system", label: t("sectionSystem"), icon: Cog },
+      { id: "advanced", label: t("sectionAdvanced"), icon: Wrench },
+    ];
+    return all.filter((s) => {
+      if (s.id === "account") return showAccount;
+      if (s.id === "network") return showNetwork;
+      return true;
+    });
+  }, [t, showAccount, showNetwork]);
 
   return (
     <PageLayout>
@@ -177,11 +149,7 @@ export default function SettingsPage() {
         <div className="mb-5 -mx-3 sm:-mx-4 md:mx-0 overflow-x-auto px-3 sm:px-4 md:px-0">
           <TabsList className="w-fit h-auto p-1">
             {sections.map(({ id, label, icon: Icon }) => (
-              <TabsTrigger
-                key={id}
-                value={id}
-                className="gap-1.5 px-3 py-1.5 data-[state=active]:shadow-sm"
-              >
+              <TabsTrigger key={id} value={id} className="gap-1.5 px-3 py-1.5 data-[state=active]:shadow-sm">
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 <span className="whitespace-nowrap">{label}</span>
               </TabsTrigger>

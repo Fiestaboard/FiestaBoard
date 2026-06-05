@@ -1,26 +1,52 @@
 "use client";
 
-import { useEffect, useMemo, useTransition, useRef, useDeferredValue, useCallback, useState } from "react";
-import { useTranslations } from "next-intl";
-import { useActivePage, useSetActivePage, usePages, useBoardSettings, getEffectiveBoardColor, getEffectiveDeviceType } from "@/hooks/use-board";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { Moon, ArrowLeftRight, Calendar, AlertTriangle, GalleryHorizontalEnd, Radio, X, RefreshCw, UploadCloud, Loader2, Timer, CalendarOff } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { BoardDisplay } from "@/components/board-display";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  Calendar,
+  CalendarOff,
+  GalleryHorizontalEnd,
+  Loader2,
+  Moon,
+  Radio,
+  Timer,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { SilenceStatus, Carousel, BoardCurrentMessageResponse } from "@/lib/api";
-import { api, isCarouselId } from "@/lib/api";
-import { PageGridSelector } from "@/components/page-grid-selector";
-import { ForceSetDialog } from "@/components/force-set-dialog";
-import { readLiveOutputMessage, onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { useTranslations } from "next-intl";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 
+import { BoardDisplay } from "@/components/board-display";
+import { ForceSetDialog } from "@/components/force-set-dialog";
+import { PageGridSelector } from "@/components/page-grid-selector";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  getEffectiveBoardColor,
+  getEffectiveDeviceType,
+  useActivePage,
+  useBoardSettings,
+  usePages,
+  useSetActivePage,
+} from "@/hooks/use-board";
+import type { BoardCurrentMessageResponse, Carousel, SilenceStatus } from "@/lib/api";
+import { api, isCarouselId } from "@/lib/api";
+import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
@@ -84,15 +110,11 @@ export function ActivePageDisplay() {
   // Derive temporary override info from the active-schedule response (no extra API call)
   const temporaryOverride = activeScheduleData?.temporary_override ?? null;
   const overrideActive = temporaryOverride?.active === true;
-  const overrideRemainingMinutes = overrideActive && temporaryOverride?.remaining_seconds
-    ? Math.floor(temporaryOverride.remaining_seconds / 60)
-    : 0;
+  const overrideRemainingMinutes =
+    overrideActive && temporaryOverride?.remaining_seconds ? Math.floor(temporaryOverride.remaining_seconds / 60) : 0;
 
   // Fetch manual active page setting
-  const {
-    data: activePageData,
-    isLoading: isLoadingActivePage
-  } = useActivePage();
+  const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage();
 
   // Fetch silence mode status to show snoozing indicator
   const { data: silenceStatus } = useQuery<SilenceStatus>({
@@ -206,9 +228,7 @@ export function ActivePageDisplay() {
   const setActivePageMutation = useSetActivePage();
 
   // Get the active page ID based on mode
-  const activePageId = scheduleEnabled
-    ? (activeScheduleData?.page_id || null)
-    : (activePageData?.page_id || null);
+  const activePageId = scheduleEnabled ? activeScheduleData?.page_id || null : activePageData?.page_id || null;
 
   const activeCarousel = useMemo(() => {
     if (!activePageId || !isCarouselId(activePageId)) return null;
@@ -235,7 +255,7 @@ export function ActivePageDisplay() {
         },
         onError: () => {
           toast.error(t("toastSetDefaultFailed"));
-        }
+        },
       });
     }
   }, [scheduleEnabled, isLoadingActivePage, isLoadingPages, activePageId, pages, setActivePageMutation]);
@@ -246,48 +266,51 @@ export function ActivePageDisplay() {
   const lastPageIdRef = useRef<string | null>(null);
 
   // Handle page selection with debouncing and optimistic updates
-  const handleSelectPage = useCallback((pageId: string) => {
-    if (pageId === activePageId && !scheduleEnabled && !overrideActive) {
-      // Close sheet if re-selecting same page in manual mode with no override
-      setIsSheetOpen(false);
-      return;
-    }
-
-    // Debounce rapid clicks (within 200ms) to prevent spam
-    const now = Date.now();
-    if (pageId === lastPageIdRef.current && now - lastClickTimeRef.current < 200) {
-      return;
-    }
-    lastClickTimeRef.current = now;
-    lastPageIdRef.current = pageId;
-
-    if ((scheduleEnabled || overrideActive) && !openSheetAsManual) {
-      // In schedule mode (or while an override is already active), show the
-      // Force Set dialog so the user can pick a duration and revert mode.
-      setForceSetPageId(pageId);
-      setForceSetDialogOpen(true);
-      setIsSheetOpen(false);
-      return;
-    }
-
-    // Manual mode (or after the user chose to disable schedule): switch immediately.
-    setOpenSheetAsManual(false);
-    setActivePageMutation.mutate(pageId, {
-      onSuccess: (_result) => {
+  const handleSelectPage = useCallback(
+    (pageId: string) => {
+      if (pageId === activePageId && !scheduleEnabled && !overrideActive) {
+        // Close sheet if re-selecting same page in manual mode with no override
         setIsSheetOpen(false);
-        startTransition(() => {
-          toast.success(t("toastSwitchSuccess"));
-        });
-      },
-      onError: () => {
-        toast.error(t("toastSwitchFailed"));
+        return;
       }
-    });
-  }, [activePageId, scheduleEnabled, overrideActive, openSheetAsManual, setActivePageMutation]);
+
+      // Debounce rapid clicks (within 200ms) to prevent spam
+      const now = Date.now();
+      if (pageId === lastPageIdRef.current && now - lastClickTimeRef.current < 200) {
+        return;
+      }
+      lastClickTimeRef.current = now;
+      lastPageIdRef.current = pageId;
+
+      if ((scheduleEnabled || overrideActive) && !openSheetAsManual) {
+        // In schedule mode (or while an override is already active), show the
+        // Force Set dialog so the user can pick a duration and revert mode.
+        setForceSetPageId(pageId);
+        setForceSetDialogOpen(true);
+        setIsSheetOpen(false);
+        return;
+      }
+
+      // Manual mode (or after the user chose to disable schedule): switch immediately.
+      setOpenSheetAsManual(false);
+      setActivePageMutation.mutate(pageId, {
+        onSuccess: (_result) => {
+          setIsSheetOpen(false);
+          startTransition(() => {
+            toast.success(t("toastSwitchSuccess"));
+          });
+        },
+        onError: () => {
+          toast.error(t("toastSwitchFailed"));
+        },
+      });
+    },
+    [activePageId, scheduleEnabled, overrideActive, openSheetAsManual, setActivePageMutation],
+  );
 
   // Get the active page for name resolution
   const activePage = useMemo(() => {
-    return pages.find(p => p.id === activePageId) || null;
+    return pages.find((p) => p.id === activePageId) || null;
   }, [pages, activePageId]);
 
   // Get the active page name for display
@@ -349,7 +372,7 @@ export function ActivePageDisplay() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => scheduleEnabled ? setChangeModeOpen(true) : setIsSheetOpen(true)}
+                onClick={() => (scheduleEnabled ? setChangeModeOpen(true) : setIsSheetOpen(true))}
                 className="gap-2"
               >
                 <ArrowLeftRight className="h-4 w-4" />
@@ -381,10 +404,7 @@ export function ActivePageDisplay() {
                 </button>
               </Badge>
             ) : overrideActive ? (
-              <Badge
-                variant="outline"
-                className="text-xs gap-1 border-primary/50 text-primary pr-1"
-              >
+              <Badge variant="outline" className="text-xs gap-1 border-primary/50 text-primary pr-1">
                 <Timer className="h-3 w-3" aria-hidden="true" />
                 {overrideRemainingMinutes > 0
                   ? t("overrideBadge", { minutes: overrideRemainingMinutes })
@@ -458,11 +478,7 @@ export function ActivePageDisplay() {
                   disabled={isSyncing}
                   className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
                 >
-                  {isSyncing ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <UploadCloud className="h-3 w-3" />
-                  )}
+                  {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
                   {t("resendToBoard")}
                 </Button>
               </AlertDescription>
@@ -497,13 +513,17 @@ export function ActivePageDisplay() {
       )}
 
       {/* Page Selector Sheet - grid is already cached so opens instantly */}
-      <Sheet open={isSheetOpen} onOpenChange={(open) => { setIsSheetOpen(open); if (!open) setOpenSheetAsManual(false); }}>
+      <Sheet
+        open={isSheetOpen}
+        onOpenChange={(open) => {
+          setIsSheetOpen(open);
+          if (!open) setOpenSheetAsManual(false);
+        }}
+      >
         <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t("selectPageTitle")}</SheetTitle>
-            <SheetDescription>
-              {t("selectPageDescription")}
-            </SheetDescription>
+            <SheetDescription>{t("selectPageDescription")}</SheetDescription>
           </SheetHeader>
 
           <div className="mt-6">
@@ -524,9 +544,7 @@ export function ActivePageDisplay() {
                 label=""
               />
             ) : (
-              <div className="text-center text-sm text-muted-foreground py-8">
-                {t("loadingPages")}
-              </div>
+              <div className="text-center text-sm text-muted-foreground py-8">{t("loadingPages")}</div>
             )}
           </div>
         </SheetContent>
@@ -552,7 +570,10 @@ export function ActivePageDisplay() {
             {/* Override temporarily */}
             <button
               type="button"
-              onClick={() => { setChangeModeOpen(false); setIsSheetOpen(true); }}
+              onClick={() => {
+                setChangeModeOpen(false);
+                setIsSheetOpen(true);
+              }}
               className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
@@ -560,7 +581,9 @@ export function ActivePageDisplay() {
               </div>
               <div className="min-w-0">
                 <div className="font-semibold text-sm text-foreground">{t("changeModeOverrideTitle")}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("changeModeOverrideDescription")}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {t("changeModeOverrideDescription")}
+                </div>
               </div>
             </button>
 
@@ -572,14 +595,17 @@ export function ActivePageDisplay() {
               className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-muted/80 transition-colors">
-                {disableScheduleMutation.isPending
-                  ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  : <CalendarOff className="h-5 w-5 text-muted-foreground" />
-                }
+                {disableScheduleMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <CalendarOff className="h-5 w-5 text-muted-foreground" />
+                )}
               </div>
               <div className="min-w-0">
                 <div className="font-semibold text-sm text-foreground">{t("changeModeDisableTitle")}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("changeModeDisableDescription")}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {t("changeModeDisableDescription")}
+                </div>
               </div>
             </button>
           </div>

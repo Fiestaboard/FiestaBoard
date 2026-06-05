@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
 import { TimePicker } from "@/components/ui/time-picker";
 
 describe("TimePicker", () => {
@@ -128,4 +129,3 @@ describe("TimePicker", () => {
     expect(onChange).toHaveBeenCalledWith("18:00");
   });
 });
-

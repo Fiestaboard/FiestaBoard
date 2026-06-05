@@ -1,13 +1,15 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
+import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
-import { ServiceStatus } from "@/components/service-status";
-import { ServiceControls } from "@/components/service-controls";
+import { ThemeProvider } from "next-themes";
+import { describe, expect, it } from "vitest";
+
 import { ConfigDisplay } from "@/components/config-display";
+import { ServiceControls } from "@/components/service-controls";
+import { ServiceStatus } from "@/components/service-status";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -36,35 +38,40 @@ describe("ServiceStatus", () => {
     render(<ServiceStatus />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Display service is sending content to the board on a schedule.")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Display service is sending content to the board on a schedule."),
+      ).toBeInTheDocument();
     });
   });
 
   it("shows disconnected status on API error", async () => {
-    server.use(
-      http.get(`${API_BASE}/status`, () =>
-        new HttpResponse(null, { status: 500 })
-      )
-    );
+    server.use(http.get(`${API_BASE}/status`, () => new HttpResponse(null, { status: 500 })));
 
     render(<ServiceStatus />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByLabelText("Cannot reach the app. Check your network or that FiestaBoard is running.")).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(
+          screen.getByLabelText("Cannot reach the app. Check your network or that FiestaBoard is running."),
+        ).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
   });
 
   it("shows stopped status when service is not running", async () => {
     server.use(
       http.get(`${API_BASE}/status`, () =>
-        HttpResponse.json({ running: false, initialized: true, config_summary: {} })
-      )
+        HttpResponse.json({ running: false, initialized: true, config_summary: {} }),
+      ),
     );
 
     render(<ServiceStatus />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Display service is paused. Content is not being sent to the board.")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Display service is paused. Content is not being sent to the board."),
+      ).toBeInTheDocument();
     });
   });
 });
@@ -85,8 +92,8 @@ describe("ServiceControls", () => {
           running: false,
           initialized: true,
           config_summary: {},
-        })
-      )
+        }),
+      ),
     );
 
     render(<ServiceControls />, { wrapper: TestWrapper });
@@ -119,4 +126,3 @@ describe("ConfigDisplay", () => {
     });
   });
 });
-

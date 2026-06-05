@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 
 function currentLAOffset(): string {
@@ -13,12 +14,7 @@ function currentLAOffset(): string {
 
 describe("TimezonePicker", () => {
   it("renders with default value", () => {
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     expect(input).toBeInTheDocument();
@@ -27,12 +23,7 @@ describe("TimezonePicker", () => {
   });
 
   it("displays input field for searching", () => {
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     expect(input).toBeInTheDocument();
@@ -41,80 +32,72 @@ describe("TimezonePicker", () => {
 
   it("filters timezones as user types", async () => {
     const user = userEvent.setup();
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
-    
+
     // Wait for initial dropdown to appear
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC")
-      );
-      expect(timezoneButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
+        expect(timezoneButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
 
     // Type to filter
     await user.clear(input);
     await user.type(input, "New York");
 
     // Wait for filtered results to appear - look for New York in any button
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const filteredButtons = buttons.filter(
-        (btn) => btn.textContent && /New York/i.test(btn.textContent)
-      );
-      expect(filteredButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const filteredButtons = buttons.filter((btn) => btn.textContent && /New York/i.test(btn.textContent));
+        expect(filteredButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("calls onChange when timezone is selected from dropdown", async () => {
     const user = userEvent.setup();
     const handleChange = vi.fn();
 
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={handleChange}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={handleChange} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
-    
+
     // Wait for dropdown to appear
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC")
-      );
-      expect(timezoneButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
+        expect(timezoneButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
 
     // Type to filter for New York
     await user.clear(input);
     await user.type(input, "New York");
-    
+
     // Wait for filtered results
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const newYorkButton = buttons.find(
-        (btn) => btn.textContent && /New York/i.test(btn.textContent)
-      );
-      expect(newYorkButton).toBeDefined();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const newYorkButton = buttons.find((btn) => btn.textContent && /New York/i.test(btn.textContent));
+        expect(newYorkButton).toBeDefined();
+      },
+      { timeout: 3000 },
+    );
 
     // Find and click New York option
     const buttons = screen.queryAllByRole("button");
-    const newYorkButton = buttons.find(
-      (btn) => btn.textContent && /New York/i.test(btn.textContent)
-    );
+    const newYorkButton = buttons.find((btn) => btn.textContent && /New York/i.test(btn.textContent));
     expect(newYorkButton).toBeDefined();
     if (newYorkButton) {
       await user.click(newYorkButton);
@@ -123,13 +106,7 @@ describe("TimezonePicker", () => {
   });
 
   it("can be disabled", () => {
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-        disabled
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} disabled />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     expect(input).toBeDisabled();
@@ -137,11 +114,7 @@ describe("TimezonePicker", () => {
 
   it("applies custom className", () => {
     const { container } = render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-        className="custom-class"
-      />
+      <TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} className="custom-class" />,
     );
 
     const wrapper = container.querySelector(".custom-class");
@@ -150,12 +123,7 @@ describe("TimezonePicker", () => {
 
   it("shows validation error for invalid timezone", async () => {
     const user = userEvent.setup();
-    render(
-      <TimezonePicker
-        value="Invalid/Timezone"
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="Invalid/Timezone" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
@@ -170,28 +138,24 @@ describe("TimezonePicker", () => {
     const user = userEvent.setup();
     const handleChange = vi.fn();
 
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={handleChange}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={handleChange} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
 
     // Wait for dropdown to appear
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC")
-      );
-      expect(timezoneButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
+        expect(timezoneButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
 
     // Press Arrow Down to navigate
     await user.keyboard("{ArrowDown}");
-    
+
     // Press Enter to select
     await user.keyboard("{Enter}");
 
@@ -201,24 +165,20 @@ describe("TimezonePicker", () => {
 
   it("closes dropdown on Escape key", async () => {
     const user = userEvent.setup();
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
 
     // Wait for dropdown to appear
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC")
-      );
-      expect(timezoneButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
+        expect(timezoneButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
 
     // Press Escape
     await user.keyboard("{Escape}");
@@ -227,7 +187,7 @@ describe("TimezonePicker", () => {
     await waitFor(() => {
       const buttons = screen.queryAllByRole("button");
       const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC") && !btn.textContent.includes("Showing first")
+        (btn) => btn.textContent && btn.textContent.includes("UTC") && !btn.textContent.includes("Showing first"),
       );
       expect(timezoneButtons.length).toBe(0);
     });
@@ -235,65 +195,57 @@ describe("TimezonePicker", () => {
 
   it("filters timezones by name, value, or offset", async () => {
     const user = userEvent.setup();
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
-    
+
     // Wait for initial dropdown
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC")
-      );
-      expect(timezoneButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
-    
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
+        expect(timezoneButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
+
     // Search by city name
     await user.clear(input);
     await user.type(input, "Tokyo");
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const tokyoButtons = buttons.filter(
-        (btn) => btn.textContent && /Tokyo/i.test(btn.textContent)
-      );
-      expect(tokyoButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const tokyoButtons = buttons.filter((btn) => btn.textContent && /Tokyo/i.test(btn.textContent));
+        expect(tokyoButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
 
     // Clear and search by region
     await user.clear(input);
     await user.type(input, "Europe");
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const europeButtons = buttons.filter(
-        (btn) => btn.textContent && /Europe/i.test(btn.textContent)
-      );
-      expect(europeButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const europeButtons = buttons.filter((btn) => btn.textContent && /Europe/i.test(btn.textContent));
+        expect(europeButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("calls onValidationChange when validation state changes", async () => {
     const user = userEvent.setup();
     const onValidationChange = vi.fn();
 
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-        onValidationChange={onValidationChange}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} onValidationChange={onValidationChange} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
-    
+
     // Type an invalid timezone
     await user.type(input, "InvalidTimezone123");
-    
+
     // Should notify about invalid state
     await waitFor(() => {
       expect(onValidationChange).toHaveBeenCalled();
@@ -301,12 +253,7 @@ describe("TimezonePicker", () => {
   });
 
   it("handles empty value gracefully", () => {
-    render(
-      <TimezonePicker
-        value=""
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     expect(input).toBeInTheDocument();
@@ -315,49 +262,45 @@ describe("TimezonePicker", () => {
 
   it("shows dropdown when input is focused", async () => {
     const user = userEvent.setup();
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
 
     // Dropdown should appear
-    await waitFor(() => {
-      const dropdown = screen.queryByText(/America\/Los Angeles/i);
-      expect(dropdown).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const dropdown = screen.queryByText(/America\/Los Angeles/i);
+        expect(dropdown).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("limits displayed results to 50 items", async () => {
     const user = userEvent.setup();
-    render(
-      <TimezonePicker
-        value=""
-        onChange={vi.fn()}
-      />
-    );
+    render(<TimezonePicker value="" onChange={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
 
     // Wait for dropdown - look for any timezone button
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC")
-      );
-      expect(timezoneButtons.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const buttons = screen.queryAllByRole("button");
+        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
+        expect(timezoneButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
 
     // Count visible timezone options (excluding the "Showing first 50" message if present)
-    const timezoneButtons = screen.queryAllByRole("button").filter(
-      (btn) => btn.textContent && !btn.textContent.includes("Showing first") && btn.textContent.includes("UTC")
-    );
-    
+    const timezoneButtons = screen
+      .queryAllByRole("button")
+      .filter(
+        (btn) => btn.textContent && !btn.textContent.includes("Showing first") && btn.textContent.includes("UTC"),
+      );
+
     // Should show at most 50 items plus the message if there are more
     expect(timezoneButtons.length).toBeLessThanOrEqual(50);
   });
@@ -368,12 +311,7 @@ describe("TimezonePicker", () => {
     const user = userEvent.setup();
     const handleChange = vi.fn();
 
-    render(
-      <TimezonePicker
-        value="America/Los_Angeles"
-        onChange={handleChange}
-      />
-    );
+    render(<TimezonePicker value="America/Los_Angeles" onChange={handleChange} />);
 
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
@@ -383,9 +321,7 @@ describe("TimezonePicker", () => {
     await user.type(input, "Los Ang");
 
     // onChange should NOT have been called with any partial/invalid value
-    const invalidCalls = handleChange.mock.calls.filter(
-      ([v]) => v !== "America/Los_Angeles" && v !== ""
-    );
+    const invalidCalls = handleChange.mock.calls.filter(([v]) => v !== "America/Los_Angeles" && v !== "");
     expect(invalidCalls).toHaveLength(0);
   });
 });

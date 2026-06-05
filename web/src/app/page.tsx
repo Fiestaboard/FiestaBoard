@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ActivePageDisplay } from "@/components/active-page-display";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Info, Home as HomeIcon } from "lucide-react";
-import { getSetupStatus } from "@/lib/setup-detection";
-import { useWizard } from "@/components/wizard-provider";
+import { Home as HomeIcon, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+
+import { ActivePageDisplay } from "@/components/active-page-display";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { useWizard } from "@/components/wizard-provider";
+import { getSetupStatus } from "@/lib/setup-detection";
 
 export default function Home() {
   const [boardNotConfigured, setBoardNotConfigured] = useState(false);
@@ -38,11 +39,14 @@ export default function Home() {
             <Info className="h-4 w-4 text-info" />
             <div className="flex-1 min-w-0">
               <AlertTitle>{t("noBoardConfigured")}</AlertTitle>
-              <AlertDescription>
-                {t("noBoardDescription")}
-              </AlertDescription>
+              <AlertDescription>{t("noBoardDescription")}</AlertDescription>
             </div>
-            <Button variant="brand" size="sm" onClick={triggerWizard} className="w-fit btn-lift shrink-0 self-center sm:self-center">
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={triggerWizard}
+              className="w-fit btn-lift shrink-0 self-center sm:self-center"
+            >
               {t("runSetupWizard")}
             </Button>
           </Alert>

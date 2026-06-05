@@ -11,15 +11,15 @@
  *  - Alignment: center/right justify uses 15-column width (not 22)
  */
 import {
-  test,
-  expect,
+  API_URL,
   configureBoard,
   createNotePage,
   createPage,
   deleteAllPages,
+  expect,
   getMockBoardState,
-  API_URL,
   MOCK_BOARD_URL,
+  test,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -74,11 +74,7 @@ test.describe("Note pages – API", () => {
   });
 
   test("GET single Note page preserves device_type and template length", async () => {
-    const id = await createNotePage(`GET Note ${Date.now()}`, [
-      "GET TEST",
-      "",
-      "",
-    ]);
+    const id = await createNotePage(`GET Note ${Date.now()}`, ["GET TEST", "", ""]);
     const res = await fetch(`${API_URL}/pages/${id}`);
     expect(res.ok).toBe(true);
     const data = await res.json();
@@ -137,9 +133,7 @@ test.describe("Note pages – UI", () => {
     await page.waitForTimeout(2_000);
     const listRes = await fetch(`${API_URL}/pages`);
     const listData = await listRes.json();
-    const created = listData.pages.find(
-      (p: { name: string }) => p.name === pageName,
-    );
+    const created = listData.pages.find((p: { name: string }) => p.name === pageName);
     expect(created).toBeDefined();
     expect(created.device_type).toBe("note");
     expect(created.template).toHaveLength(3);
@@ -206,9 +200,7 @@ test.describe("Note pages – UI", () => {
     await createNotePage(noteName);
 
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Both tabs should be visible since we configured flagship + note
     const flagshipTab = page.getByRole("tab", { name: "Flagship" });
@@ -239,11 +231,7 @@ test.describe("Note pages – Send to Board", () => {
     // Reset mock board
     await fetch(`${MOCK_BOARD_URL}/mock/reset`, { method: "POST" });
 
-    const id = await createNotePage(`Send Note ${Date.now()}`, [
-      "HELLO",
-      "",
-      "",
-    ]);
+    const id = await createNotePage(`Send Note ${Date.now()}`, ["HELLO", "", ""]);
 
     // Send the page to the board (force target=board to bypass output target settings)
     const sendRes = await fetch(`${API_URL}/pages/${id}/send?target=board`, {
@@ -269,14 +257,7 @@ test.describe("Note pages – Send to Board", () => {
     // Reset mock board
     await fetch(`${MOCK_BOARD_URL}/mock/reset`, { method: "POST" });
 
-    const id = await createPage(`Send Flagship ${Date.now()}`, [
-      "FLAGSHIP TEST",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const id = await createPage(`Send Flagship ${Date.now()}`, ["FLAGSHIP TEST", "", "", "", "", ""]);
 
     const sendRes = await fetch(`${API_URL}/pages/${id}/send?target=board`, {
       method: "POST",
@@ -312,10 +293,12 @@ test.describe("Note pages – Send to Board", () => {
     const state = await getMockBoardState();
     const history = state.history ?? [];
     // Prefer the Note-sized payload — another send (e.g. active page) may append a Flagship message after ours.
-    const noteMsg = [...history].reverse().find(
-      (h: { dimensions?: number[]; characters?: number[][] }) =>
-        Array.isArray(h.dimensions) && h.dimensions[0] === 3 && h.dimensions[1] === 15,
-    );
+    const noteMsg = [...history]
+      .reverse()
+      .find(
+        (h: { dimensions?: number[]; characters?: number[][] }) =>
+          Array.isArray(h.dimensions) && h.dimensions[0] === 3 && h.dimensions[1] === 15,
+      );
     expect(noteMsg, "expected a 3×15 (note) message in mock history").toBeDefined();
     if (!noteMsg?.characters) {
       throw new Error("mock history entry missing characters");
@@ -349,10 +332,10 @@ test.describe("Note pages – Send to Board", () => {
 
     const state = await getMockBoardState();
     const row0 = state.history[state.history.length - 1].characters[0];
-    expect(row0[0]).toBe(1);   // A
-    expect(row0[1]).toBe(37);  // !
-    expect(row0[2]).toBe(38);  // @
-    expect(row0[3]).toBe(46);  // +
+    expect(row0[0]).toBe(1); // A
+    expect(row0[1]).toBe(37); // !
+    expect(row0[2]).toBe(38); // @
+    expect(row0[3]).toBe(46); // +
   });
 });
 
@@ -375,9 +358,9 @@ test.describe("Note pages – Heart / Degree character", () => {
 
     const state = await getMockBoardState();
     const row0 = state.history[state.history.length - 1].characters[0];
-    expect(row0[0]).toBe(1);   // A
-    expect(row0[1]).toBe(62);  // ° -> code 62 (heart on Note)
-    expect(row0[2]).toBe(2);   // B
+    expect(row0[0]).toBe(1); // A
+    expect(row0[1]).toBe(62); // ° -> code 62 (heart on Note)
+    expect(row0[2]).toBe(2); // B
   });
 
   test("UI preview renders code 62 as heart on Note device", async ({ page }) => {
@@ -516,10 +499,7 @@ test.describe("Note pages – Alignment", () => {
     const { page: created } = await createRes.json();
 
     // Send it to the mock board
-    const sendRes = await fetch(
-      `${API_URL}/pages/${created.id}/send?target=board`,
-      { method: "POST" },
-    );
+    const sendRes = await fetch(`${API_URL}/pages/${created.id}/send?target=board`, { method: "POST" });
     expect(sendRes.ok).toBe(true);
     expect((await sendRes.json()).sent_to_board).toBe(true);
 
@@ -531,12 +511,7 @@ test.describe("Note pages – Alignment", () => {
     }>;
     const noteMsg = [...history]
       .reverse()
-      .find(
-        (h) =>
-          Array.isArray(h.dimensions) &&
-          h.dimensions[0] === 3 &&
-          h.dimensions[1] === 15,
-      );
+      .find((h) => Array.isArray(h.dimensions) && h.dimensions[0] === 3 && h.dimensions[1] === 15);
     expect(noteMsg, "expected a 3×15 (note) message in mock history").toBeDefined();
 
     const row0 = noteMsg!.characters![0];
@@ -579,10 +554,7 @@ test.describe("Note pages – Alignment", () => {
     expect(createRes.ok).toBe(true);
     const { page: created } = await createRes.json();
 
-    const sendRes = await fetch(
-      `${API_URL}/pages/${created.id}/send?target=board`,
-      { method: "POST" },
-    );
+    const sendRes = await fetch(`${API_URL}/pages/${created.id}/send?target=board`, { method: "POST" });
     expect(sendRes.ok).toBe(true);
     expect((await sendRes.json()).sent_to_board).toBe(true);
 
@@ -593,12 +565,7 @@ test.describe("Note pages – Alignment", () => {
     }>;
     const noteMsg = [...history]
       .reverse()
-      .find(
-        (h) =>
-          Array.isArray(h.dimensions) &&
-          h.dimensions[0] === 3 &&
-          h.dimensions[1] === 15,
-      );
+      .find((h) => Array.isArray(h.dimensions) && h.dimensions[0] === 3 && h.dimensions[1] === 15);
     expect(noteMsg, "expected a 3×15 (note) message").toBeDefined();
 
     const row0 = noteMsg!.characters![0];

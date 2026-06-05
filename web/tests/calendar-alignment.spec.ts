@@ -12,16 +12,18 @@
  * With screenshots saved to playwright-test-results/:
  *   npx playwright test tests/calendar-alignment.spec.ts --reporter=list
  */
+import type { Page } from "@playwright/test";
+
 import {
-  test,
-  expect,
+  API_URL,
   configureBoard,
-  suppressWizard,
   createPage,
   createSchedule,
-  deleteAllSchedules,
   deleteAllPages,
-  API_URL,
+  deleteAllSchedules,
+  expect,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 /** Pixel tolerance for alignment (subpixel rounding, borders) */
@@ -39,15 +41,13 @@ interface AlignmentResult {
   details: string[];
 }
 
-async function measureCalendarAlignment(page: import("@playwright/test").Page): Promise<AlignmentResult> {
+async function measureCalendarAlignment(page: Page): Promise<AlignmentResult> {
   return page.evaluate(
     ({ sampleHours, tolerance }) => {
       const gutterGroups = document.querySelectorAll(
-        ".schedule-calendar-container .rbc-time-gutter .rbc-timeslot-group"
+        ".schedule-calendar-container .rbc-time-gutter .rbc-timeslot-group",
       );
-      const daySlots = document.querySelectorAll(
-        ".schedule-calendar-container .rbc-time-content > .rbc-day-slot"
-      );
+      const daySlots = document.querySelectorAll(".schedule-calendar-container .rbc-time-content > .rbc-day-slot");
       let daySlot: Element | null = null;
       for (const ds of daySlots) {
         const style = window.getComputedStyle(ds);
@@ -82,7 +82,7 @@ async function measureCalendarAlignment(page: import("@playwright/test").Page): 
         const drift = Math.abs(gr.top - dr.top);
         maxDrift = Math.max(maxDrift, drift);
         details.push(
-          `Hour ${i}: gutter top=${gr.top.toFixed(1)} day top=${dr.top.toFixed(1)} drift=${drift.toFixed(1)}px`
+          `Hour ${i}: gutter top=${gr.top.toFixed(1)} day top=${dr.top.toFixed(1)} drift=${drift.toFixed(1)}px`,
         );
       }
 
@@ -96,11 +96,11 @@ async function measureCalendarAlignment(page: import("@playwright/test").Page): 
         details,
       };
     },
-    { sampleHours: SAMPLE_HOURS, tolerance: ALIGNMENT_TOLERANCE_PX }
+    { sampleHours: SAMPLE_HOURS, tolerance: ALIGNMENT_TOLERANCE_PX },
   );
 }
 
-async function setupScheduleWithData(page: import("@playwright/test").Page) {
+async function setupScheduleWithData(page: Page) {
   await configureBoard();
   await suppressWizard(page);
   await deleteAllSchedules();
@@ -145,9 +145,7 @@ test.describe("Calendar alignment", () => {
   test("time labels align with grid ticks on desktop", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Calendar" }).click();
     await page.waitForTimeout(500);
@@ -161,15 +159,16 @@ test.describe("Calendar alignment", () => {
       // eslint-disable-next-line no-console
       console.log(`  ${d}`);
     }
-    expect(result.passed, `Desktop alignment failed: max drift ${result.maxDrift.toFixed(1)}px > ${ALIGNMENT_TOLERANCE_PX}px. ${result.details.join("; ")}`).toBe(true);
+    expect(
+      result.passed,
+      `Desktop alignment failed: max drift ${result.maxDrift.toFixed(1)}px > ${ALIGNMENT_TOLERANCE_PX}px. ${result.details.join("; ")}`,
+    ).toBe(true);
   });
 
   test("time labels align with grid ticks on mobile", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Calendar" }).click();
     await page.waitForTimeout(500);
@@ -183,7 +182,10 @@ test.describe("Calendar alignment", () => {
       // eslint-disable-next-line no-console
       console.log(`  ${d}`);
     }
-    expect(result.passed, `Mobile alignment failed: max drift ${result.maxDrift.toFixed(1)}px > ${ALIGNMENT_TOLERANCE_PX}px. ${result.details.join("; ")}`).toBe(true);
+    expect(
+      result.passed,
+      `Mobile alignment failed: max drift ${result.maxDrift.toFixed(1)}px > ${ALIGNMENT_TOLERANCE_PX}px. ${result.details.join("; ")}`,
+    ).toBe(true);
   });
 
   test("captures screenshots for visual inspection", async ({ page }) => {
@@ -191,9 +193,7 @@ test.describe("Calendar alignment", () => {
 
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Calendar" }).click();
     await page.waitForTimeout(1500);
@@ -219,9 +219,7 @@ test.describe("Calendar alignment", () => {
   test("overnight event evening block appears in correct day column", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 960 });
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Calendar" }).click();
     await page.waitForTimeout(1500);
@@ -230,11 +228,15 @@ test.describe("Calendar alignment", () => {
     await expect(calendar).toBeVisible({ timeout: 10_000 });
 
     const placement = await page.evaluate(() => {
-      const daySlots = document.querySelectorAll(
-        ".schedule-calendar-container .rbc-time-content > .rbc-day-slot"
-      );
+      const daySlots = document.querySelectorAll(".schedule-calendar-container .rbc-time-content > .rbc-day-slot");
 
-      const results: { dayIndex: number; eventCount: number; eventTitles: string[]; eventTops: number[]; eventBottoms: number[] }[] = [];
+      const results: {
+        dayIndex: number;
+        eventCount: number;
+        eventTitles: string[];
+        eventTops: number[];
+        eventBottoms: number[];
+      }[] = [];
       daySlots.forEach((slot, idx) => {
         const events = slot.querySelectorAll(".rbc-event");
         const titles: string[] = [];
@@ -247,11 +249,17 @@ test.describe("Calendar alignment", () => {
           tops.push(Math.round(rect.top));
           bottoms.push(Math.round(rect.bottom));
         });
-        results.push({ dayIndex: idx, eventCount: events.length, eventTitles: titles, eventTops: tops, eventBottoms: bottoms });
+        results.push({
+          dayIndex: idx,
+          eventCount: events.length,
+          eventTitles: titles,
+          eventTops: tops,
+          eventBottoms: bottoms,
+        });
       });
 
       const gutterGroups = document.querySelectorAll(
-        ".schedule-calendar-container .rbc-time-gutter .rbc-timeslot-group"
+        ".schedule-calendar-container .rbc-time-gutter .rbc-timeslot-group",
       );
       const hourTops: number[] = [];
       gutterGroups.forEach((g) => {
@@ -281,13 +289,16 @@ test.describe("Calendar alignment", () => {
     console.log(`  midnight gutter line top: ${placement.hourTops[0]}`);
 
     // Find "Overnight" events by proximity to expected gutter lines
-    function findOvernightNearest(slot: typeof placement.daySlots[0], targetTop: number) {
+    function findOvernightNearest(slot: (typeof placement.daySlots)[0], targetTop: number) {
       let bestIdx = -1;
       let bestDrift = Infinity;
       for (let i = 0; i < slot.eventTitles.length; i++) {
         if (slot.eventTitles[i] === "Overnight") {
           const drift = Math.abs(slot.eventTops[i] - targetTop);
-          if (drift < bestDrift) { bestDrift = drift; bestIdx = i; }
+          if (drift < bestDrift) {
+            bestDrift = drift;
+            bestIdx = i;
+          }
         }
       }
       return { idx: bestIdx, drift: bestDrift };
@@ -298,8 +309,13 @@ test.describe("Calendar alignment", () => {
     const sundayEvening = findOvernightNearest(sundaySlot, hour22Top);
     expect(sundayEvening.idx, "Sunday should have an Overnight evening block near 10pm").toBeGreaterThanOrEqual(0);
     // eslint-disable-next-line no-console
-    console.log(`  Sunday Overnight evening block: top=${sundaySlot.eventTops[sundayEvening.idx]}, expected ~${hour22Top}, drift=${sundayEvening.drift}px`);
-    expect(sundayEvening.drift, `Sunday evening block should be near 10pm line (drift=${sundayEvening.drift}px)`).toBeLessThan(30);
+    console.log(
+      `  Sunday Overnight evening block: top=${sundaySlot.eventTops[sundayEvening.idx]}, expected ~${hour22Top}, drift=${sundayEvening.drift}px`,
+    );
+    expect(
+      sundayEvening.drift,
+      `Sunday evening block should be near 10pm line (drift=${sundayEvening.drift}px)`,
+    ).toBeLessThan(30);
 
     // Monday should have a morning "Overnight" block near midnight
     const mondaySlot = placement.daySlots[1];
@@ -307,8 +323,13 @@ test.describe("Calendar alignment", () => {
     const mondayMorning = findOvernightNearest(mondaySlot, midnightTop);
     expect(mondayMorning.idx, "Monday should have an Overnight morning block near midnight").toBeGreaterThanOrEqual(0);
     // eslint-disable-next-line no-console
-    console.log(`  Monday Overnight morning block: top=${mondaySlot.eventTops[mondayMorning.idx]}, expected ~${midnightTop}, drift=${mondayMorning.drift}px`);
-    expect(mondayMorning.drift, `Monday morning block should be near midnight line (drift=${mondayMorning.drift}px)`).toBeLessThan(30);
+    console.log(
+      `  Monday Overnight morning block: top=${mondaySlot.eventTops[mondayMorning.idx]}, expected ~${midnightTop}, drift=${mondayMorning.drift}px`,
+    );
+    expect(
+      mondayMorning.drift,
+      `Monday morning block should be near midnight line (drift=${mondayMorning.drift}px)`,
+    ).toBeLessThan(30);
   });
 
   test("captures full calendar with cross-day (10pm-6am) events", async ({ page }) => {
@@ -335,9 +356,7 @@ test.describe("Calendar alignment", () => {
     // Desktop: larger viewport to show full calendar
     await page.setViewportSize({ width: 1440, height: 960 });
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Calendar" }).click();
     await page.waitForTimeout(1500);
@@ -369,6 +388,9 @@ test.describe("Calendar alignment", () => {
     });
 
     const result = await measureCalendarAlignment(page);
-    expect(result.passed, `Cross-day screenshots captured but alignment check failed: ${result.details.join("; ")}`).toBe(true);
+    expect(
+      result.passed,
+      `Cross-day screenshots captured but alignment check failed: ${result.details.join("; ")}`,
+    ).toBe(true);
   });
 });

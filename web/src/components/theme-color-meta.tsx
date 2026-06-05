@@ -21,11 +21,7 @@ function cssColorToHex(cssColor: string): string {
     "#" +
     m
       .slice(0, 3)
-      .map((n) =>
-        Math.round(Number(n))
-          .toString(16)
-          .padStart(2, "0")
-      )
+      .map((n) => Math.round(Number(n)).toString(16).padStart(2, "0"))
       .join("")
   );
 }
@@ -45,9 +41,7 @@ export function ThemeColorMeta() {
   useEffect(() => {
     if (!resolvedTheme) return;
 
-    const bgRaw = getComputedStyle(document.documentElement)
-      .getPropertyValue("--background")
-      .trim();
+    const bgRaw = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
     if (!bgRaw) return;
 
     const hex = cssColorToHex(bgRaw);

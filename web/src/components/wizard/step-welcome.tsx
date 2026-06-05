@@ -1,20 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { CheckCircle, Clock, Loader2, PartyPopper, Puzzle, Send, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
-import { 
-  PartyPopper, 
-  CheckCircle, 
-  XCircle, 
-  Loader2, 
-  Send,
-  Clock,
-  Puzzle,
-} from "lucide-react";
 import DecryptedText from "@/components/ui/react-bits/decrypted-text";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
 import type { WizardPluginConfig } from "./step-easy-plugins";
 
 interface BoardConfig {
@@ -35,13 +29,7 @@ interface StepWelcomeProps {
   setIsLoading: (loading: boolean) => void;
 }
 
-export function StepWelcome({
-  boardConfig,
-  pluginConfig,
-  onComplete,
-  isLoading,
-  setIsLoading,
-}: StepWelcomeProps) {
+export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, setIsLoading }: StepWelcomeProps) {
   const t = useTranslations("wizard.welcome");
   const tc = useTranslations("common");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -119,37 +107,28 @@ export function StepWelcome({
           <PartyPopper className="h-8 w-8 text-primary" />
         </div>
         <h3 className="text-xl font-semibold">
-          <DecryptedText
-            text={t("setupComplete")}
-            speed={60}
-            sequential
-            animateOn="view"
-            revealDirection="start"
-          />
+          <DecryptedText text={t("setupComplete")} speed={60} sequential animateOn="view" revealDirection="start" />
         </h3>
-        <p className="text-muted-foreground">
-          {t("boardReady")}
-        </p>
+        <p className="text-muted-foreground">{t("boardReady")}</p>
       </div>
 
       {/* Summary */}
       <div className="space-y-3 bg-muted/50 rounded-lg p-4">
         <h4 className="font-medium text-sm">{t("summaryTitle")}</h4>
-        
+
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-success" />
             <span>
-              {boardConfig.api_mode === "local" 
-                ? t("boardConnectedLocal", { 
+              {boardConfig.api_mode === "local"
+                ? t("boardConnectedLocal", {
                     deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
-                    host: boardConfig.host 
+                    host: boardConfig.host,
                   })
-                : t("boardConnected", { 
+                : t("boardConnected", {
                     deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
-                    apiMode: boardConfig.api_mode === "cloud" ? "Cloud" : "Local"
-                  })
-              }
+                    apiMode: boardConfig.api_mode === "cloud" ? "Cloud" : "Local",
+                  })}
             </span>
           </div>
 
@@ -175,18 +154,13 @@ export function StepWelcome({
       {/* Send Welcome Message */}
       <div className="space-y-3">
         <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-3">
-            {t("sendWelcomeDescription")}
-          </p>
-          
+          <p className="text-sm text-muted-foreground mb-3">{t("sendWelcomeDescription")}</p>
+
           <Button
             onClick={handleSendWelcome}
             disabled={isLoading || sendStatus === "success"}
             size="lg"
-            className={cn(
-              "w-full transition-all",
-              sendStatus === "success" && "bg-success hover:bg-success/90"
-            )}
+            className={cn("w-full transition-all", sendStatus === "success" && "bg-success hover:bg-success/90")}
           >
             {sendStatus === "sending" ? (
               <>
@@ -212,9 +186,7 @@ export function StepWelcome({
           <div
             className={cn(
               "flex items-start gap-2 p-3 rounded-lg text-sm",
-              sendStatus === "success" 
-                ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-destructive"
+              sendStatus === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
             {sendStatus === "success" ? (
@@ -241,4 +213,3 @@ export function StepWelcome({
     </div>
   );
 }
-

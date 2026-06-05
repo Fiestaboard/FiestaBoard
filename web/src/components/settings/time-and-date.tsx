@@ -1,22 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone } from "date-fns-tz";
 import { Clock } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { api } from "@/lib/api";
 
@@ -70,15 +64,9 @@ export function TimeAndDateCard() {
     try {
       const now = new Date();
       const timeStr =
-        timeFormat === "24h"
-          ? formatInTimeZone(now, timezone, "HH:mm")
-          : formatInTimeZone(now, timezone, "h:mm a");
+        timeFormat === "24h" ? formatInTimeZone(now, timezone, "HH:mm") : formatInTimeZone(now, timezone, "h:mm a");
       const dateFmt =
-        dateFormat === "DD/MM/YYYY"
-          ? "dd/MM/yyyy"
-          : dateFormat === "YYYY-MM-DD"
-            ? "yyyy-MM-dd"
-            : "MM/dd/yyyy";
+        dateFormat === "DD/MM/YYYY" ? "dd/MM/yyyy" : dateFormat === "YYYY-MM-DD" ? "yyyy-MM-dd" : "MM/dd/yyyy";
       const dateStr = formatInTimeZone(now, timezone, dateFmt);
       return t("dateFormatPreview", { time: timeStr, date: dateStr });
     } catch {

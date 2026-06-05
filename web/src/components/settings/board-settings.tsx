@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Check, Eye, EyeOff, Key, KeyRound, Loader2, Monitor, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Monitor, Eye, EyeOff, AlertCircle, Check, Key, KeyRound, Loader2, Search } from "lucide-react";
-import { api, BoardConfig } from "@/lib/api";
-import type { DiscoveredBoard } from "@/lib/api";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { BoardConfig, DiscoveredBoard } from "@/lib/api";
+import { api } from "@/lib/api";
 
 type LocalKeyMode = "api_key" | "enablement_token";
 
@@ -44,8 +45,7 @@ export function BoardSettings() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<BoardConfig>) =>
-      api.updateBoardConfig(data),
+    mutationFn: (data: Partial<BoardConfig>) => api.updateBoardConfig(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["board-config"] });
       queryClient.invalidateQueries({ queryKey: ["config"] });
@@ -139,9 +139,7 @@ export function BoardSettings() {
   const hasCloudKey = formData.cloud_key === "***" || (formData.cloud_key && formData.cloud_key.length > 0);
   const hasHost = formData.host && formData.host.length > 0;
 
-  const isConfigValid =
-    (apiMode === "local" && hasLocalKey && hasHost) ||
-    (apiMode === "cloud" && hasCloudKey);
+  const isConfigValid = (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
   if (isLoading) {
     return (
@@ -180,9 +178,7 @@ export function BoardSettings() {
                   </Badge>
                 )}
               </CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                {t("configureDescription")}
-              </CardDescription>
+              <CardDescription className="text-xs mt-0.5">{t("configureDescription")}</CardDescription>
             </div>
           </div>
         </div>
@@ -190,326 +186,298 @@ export function BoardSettings() {
 
       <CardContent className="space-y-4">
         <TooltipProvider>
-        {/* API Mode */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium">{t("connectionMode")}</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => handleChange("api_mode", "local")}
-              className={`p-3 rounded-md border text-left transition-colors ${
-                apiMode === "local"
-                  ? "border-primary bg-primary/10"
-                  : "border-muted hover:border-primary/50"
-              }`}
-            >
-              <div className="text-sm font-medium">{t("localApi")}</div>
-              <div className="text-xs text-muted-foreground">
-                {t("localApiDescription")}
-              </div>
-            </button>
-            <button
-              onClick={() => handleChange("api_mode", "cloud")}
-              className={`p-3 rounded-md border text-left transition-colors ${
-                apiMode === "cloud"
-                  ? "border-primary bg-primary/10"
-                  : "border-muted hover:border-primary/50"
-              }`}
-            >
-              <div className="text-sm font-medium">{t("cloudApi")}</div>
-              <div className="text-xs text-muted-foreground">
-                {t("cloudApiDescription")}
-              </div>
-            </button>
+          {/* API Mode */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">{t("connectionMode")}</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleChange("api_mode", "local")}
+                className={`p-3 rounded-md border text-left transition-colors ${
+                  apiMode === "local" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
+                }`}
+              >
+                <div className="text-sm font-medium">{t("localApi")}</div>
+                <div className="text-xs text-muted-foreground">{t("localApiDescription")}</div>
+              </button>
+              <button
+                onClick={() => handleChange("api_mode", "cloud")}
+                className={`p-3 rounded-md border text-left transition-colors ${
+                  apiMode === "cloud" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
+                }`}
+              >
+                <div className="text-sm font-medium">{t("cloudApi")}</div>
+                <div className="text-xs text-muted-foreground">{t("cloudApiDescription")}</div>
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Local API Fields */}
-        {apiMode === "local" && (
-          <>
-            {/* Board Host - always needed for local */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium">
-                {t("boardHost")} <span className="text-destructive">*</span>
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={formData.host ?? ""}
-                  onChange={(e) => handleChange("host", e.target.value)}
-                  placeholder="192.168.1.100"
-                  className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleScanForBoards}
-                  disabled={scanStatus === "scanning"}
-                  className="h-9 w-9 p-0"
-                  title={t("scanTooltip")}
-                  aria-label={t("scanTooltip")}
-                >
-                  {scanStatus === "scanning" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Search className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t("boardHostHint")}
-              </p>
-            </div>
-
-            {/* Scan results */}
-            {scanStatus === "done" && discoveredBoards.length >= 1 && (
+          {/* Local API Fields */}
+          {apiMode === "local" && (
+            <>
+              {/* Board Host - always needed for local */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">
-                  {t("foundBoards", { count: discoveredBoards.length })}
-                </label>
-                <div className="space-y-1">
-                  {discoveredBoards.map((board) => (
-                    <button
-                      key={board.ip}
-                      type="button"
-                      onClick={() => {
-                        handleChange("host", board.ip);
-                      }}
-                      className={`w-full flex items-center justify-between p-2 rounded-md border text-xs transition-colors text-left ${
-                        formData.host === board.ip
-                          ? "border-primary bg-primary/10"
-                          : "border-muted hover:border-primary/50"
-                      }`}
-                    >
-                      <span className="font-mono">{board.ip}</span>
-                      {board.hostname && (
-                        <span className="text-muted-foreground">{board.hostname}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Local Key Mode Toggle */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium">{t("authMethod")}</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLocalKeyMode("api_key")}
-                  className={`flex items-center justify-center gap-1.5 p-2 rounded-md border text-xs transition-colors ${
-                    localKeyMode === "api_key"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-muted hover:border-primary/50 text-muted-foreground"
-                  }`}
-                >
-                  <Key className="h-3.5 w-3.5" />
-                  <span>{t("apiKey")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLocalKeyMode("enablement_token")}
-                  className={`flex items-center justify-center gap-1.5 p-2 rounded-md border text-xs transition-colors ${
-                    localKeyMode === "enablement_token"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-muted hover:border-primary/50 text-muted-foreground"
-                  }`}
-                >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  <span>{t("enablementToken")}</span>
-                </button>
-              </div>
-            </div>
-
-            {localKeyMode === "api_key" ? (
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium">
-                  {t("localApiKey")} <span className="text-destructive">*</span>
+                  {t("boardHost")} <span className="text-destructive">*</span>
                 </label>
                 <div className="flex gap-2">
                   <input
-                    type={showSecrets.local_api_key ? "text" : "password"}
-                    value={
-                      formData.local_api_key === "***"
-                        ? ""
-                        : (formData.local_api_key ?? "")
-                    }
-                    onChange={(e) => handleChange("local_api_key", e.target.value)}
-                    placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
+                    type="text"
+                    value={formData.host ?? ""}
+                    onChange={(e) => handleChange("host", e.target.value)}
+                    placeholder="192.168.1.100"
                     className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
                   />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={showSecrets.local_api_key ? t("hideApiKey") : t("showApiKey")}
-                        onClick={() =>
-                          setShowSecrets((prev) => ({
-                            ...prev,
-                            local_api_key: !prev.local_api_key,
-                          }))
-                        }
-                        className="h-9 w-9 p-0"
-                        disabled={formData.local_api_key === "***"}
-                      >
-                        {showSecrets.local_api_key ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{formData.local_api_key === "***" ? t("cannotReveal") : t("toggleVisibility")}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t.rich("localApiSetupGuideHint", {
-                    link: (chunks) => (
-                      <a href="https://fiestaboard.app/docs/setup/api-keys" target="_blank" rel="noopener noreferrer" className="underline">{chunks}</a>
-                    ),
-                  })}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium">
-                    {t("enablementToken")}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type={showSecrets.enablement_token ? "text" : "password"}
-                      value={enablementToken}
-                      onChange={(e) => setEnablementToken(e.target.value)}
-                      placeholder={t("enablementTokenPlaceholder")}
-                      className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label={showSecrets.enablement_token ? t("hideToken") : t("showToken")}
-                      onClick={() =>
-                        setShowSecrets((prev) => ({
-                          ...prev,
-                          enablement_token: !prev.enablement_token,
-                        }))
-                      }
-                      className="h-9 w-9 p-0"
-                    >
-                      {showSecrets.enablement_token ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {t.rich("enablementTokenHint", {
-                      link: (chunks) => (
-                        <a href="https://www.vestaboard.com/local-api" target="_blank" rel="noopener noreferrer" className="underline">{chunks}</a>
-                      ),
-                    })}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleEnableLocalApi}
-                  disabled={!formData.host || !enablementToken || isEnabling}
-                  className="w-full"
-                >
-                  {isEnabling ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      {t("enabling")}
-                    </>
-                  ) : (
-                    t("getApiKey")
-                  )}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Cloud API Fields */}
-        {apiMode === "cloud" && (
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">
-              {t("readWriteApiKey")} <span className="text-destructive">*</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type={showSecrets.cloud_key ? "text" : "password"}
-                value={
-                  formData.cloud_key === "***"
-                    ? ""
-                    : (formData.cloud_key ?? "")
-                }
-                onChange={(e) => handleChange("cloud_key", e.target.value)}
-                placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
-                className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
-              />
-              <Tooltip>
-                <TooltipTrigger asChild>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    aria-label={showSecrets.cloud_key ? t("hideCloudKey") : t("showCloudKey")}
-                    onClick={() =>
-                      setShowSecrets((prev) => ({
-                        ...prev,
-                        cloud_key: !prev.cloud_key,
-                      }))
-                    }
+                    onClick={handleScanForBoards}
+                    disabled={scanStatus === "scanning"}
                     className="h-9 w-9 p-0"
-                    disabled={formData.cloud_key === "***"}
+                    title={t("scanTooltip")}
+                    aria-label={t("scanTooltip")}
                   >
-                    {showSecrets.cloud_key ? (
-                      <EyeOff className="h-4 w-4" />
+                    {scanStatus === "scanning" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <Search className="h-3.5 w-3.5" />
                     )}
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{formData.cloud_key === "***" ? t("cannotReveal") : t("toggleVisibility")}</p>
-                </TooltipContent>
-              </Tooltip>
+                </div>
+                <p className="text-xs text-muted-foreground">{t("boardHostHint")}</p>
+              </div>
+
+              {/* Scan results */}
+              {scanStatus === "done" && discoveredBoards.length >= 1 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">{t("foundBoards", { count: discoveredBoards.length })}</label>
+                  <div className="space-y-1">
+                    {discoveredBoards.map((board) => (
+                      <button
+                        key={board.ip}
+                        type="button"
+                        onClick={() => {
+                          handleChange("host", board.ip);
+                        }}
+                        className={`w-full flex items-center justify-between p-2 rounded-md border text-xs transition-colors text-left ${
+                          formData.host === board.ip
+                            ? "border-primary bg-primary/10"
+                            : "border-muted hover:border-primary/50"
+                        }`}
+                      >
+                        <span className="font-mono">{board.ip}</span>
+                        {board.hostname && <span className="text-muted-foreground">{board.hostname}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Local Key Mode Toggle */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">{t("authMethod")}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLocalKeyMode("api_key")}
+                    className={`flex items-center justify-center gap-1.5 p-2 rounded-md border text-xs transition-colors ${
+                      localKeyMode === "api_key"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-muted hover:border-primary/50 text-muted-foreground"
+                    }`}
+                  >
+                    <Key className="h-3.5 w-3.5" />
+                    <span>{t("apiKey")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocalKeyMode("enablement_token")}
+                    className={`flex items-center justify-center gap-1.5 p-2 rounded-md border text-xs transition-colors ${
+                      localKeyMode === "enablement_token"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-muted hover:border-primary/50 text-muted-foreground"
+                    }`}
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    <span>{t("enablementToken")}</span>
+                  </button>
+                </div>
+              </div>
+
+              {localKeyMode === "api_key" ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">
+                    {t("localApiKey")} <span className="text-destructive">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type={showSecrets.local_api_key ? "text" : "password"}
+                      value={formData.local_api_key === "***" ? "" : (formData.local_api_key ?? "")}
+                      onChange={(e) => handleChange("local_api_key", e.target.value)}
+                      placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
+                      className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
+                    />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-label={showSecrets.local_api_key ? t("hideApiKey") : t("showApiKey")}
+                          onClick={() =>
+                            setShowSecrets((prev) => ({
+                              ...prev,
+                              local_api_key: !prev.local_api_key,
+                            }))
+                          }
+                          className="h-9 w-9 p-0"
+                          disabled={formData.local_api_key === "***"}
+                        >
+                          {showSecrets.local_api_key ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{formData.local_api_key === "***" ? t("cannotReveal") : t("toggleVisibility")}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t.rich("localApiSetupGuideHint", {
+                      link: (chunks) => (
+                        <a
+                          href="https://fiestaboard.app/docs/setup/api-keys"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                        >
+                          {chunks}
+                        </a>
+                      ),
+                    })}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">{t("enablementToken")}</label>
+                    <div className="flex gap-2">
+                      <input
+                        type={showSecrets.enablement_token ? "text" : "password"}
+                        value={enablementToken}
+                        onChange={(e) => setEnablementToken(e.target.value)}
+                        placeholder={t("enablementTokenPlaceholder")}
+                        className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={showSecrets.enablement_token ? t("hideToken") : t("showToken")}
+                        onClick={() =>
+                          setShowSecrets((prev) => ({
+                            ...prev,
+                            enablement_token: !prev.enablement_token,
+                          }))
+                        }
+                        className="h-9 w-9 p-0"
+                      >
+                        {showSecrets.enablement_token ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t.rich("enablementTokenHint", {
+                        link: (chunks) => (
+                          <a
+                            href="https://www.vestaboard.com/local-api"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline"
+                          >
+                            {chunks}
+                          </a>
+                        ),
+                      })}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleEnableLocalApi}
+                    disabled={!formData.host || !enablementToken || isEnabling}
+                    className="w-full"
+                  >
+                    {isEnabling ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        {t("enabling")}
+                      </>
+                    ) : (
+                      t("getApiKey")
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Cloud API Fields */}
+          {apiMode === "cloud" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">
+                {t("readWriteApiKey")} <span className="text-destructive">*</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type={showSecrets.cloud_key ? "text" : "password"}
+                  value={formData.cloud_key === "***" ? "" : (formData.cloud_key ?? "")}
+                  onChange={(e) => handleChange("cloud_key", e.target.value)}
+                  placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
+                  className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label={showSecrets.cloud_key ? t("hideCloudKey") : t("showCloudKey")}
+                      onClick={() =>
+                        setShowSecrets((prev) => ({
+                          ...prev,
+                          cloud_key: !prev.cloud_key,
+                        }))
+                      }
+                      className="h-9 w-9 p-0"
+                      disabled={formData.cloud_key === "***"}
+                    >
+                      {showSecrets.cloud_key ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{formData.cloud_key === "***" ? t("cannotReveal") : t("toggleVisibility")}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-xs text-muted-foreground">{t("cloudKeyHint")}</p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t("cloudKeyHint")}
-            </p>
-          </div>
-        )}
+          )}
 
-        {/* Validation message */}
-        {!isConfigValid && (
-          <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-foreground text-xs">
-            <AlertCircle className="h-4 w-4" />
-            <span>
-              {apiMode === "local"
-                ? t("localApiRequired")
-                : t("cloudApiRequired")}
-            </span>
-          </div>
-        )}
+          {/* Validation message */}
+          {!isConfigValid && (
+            <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-foreground text-xs">
+              <AlertCircle className="h-4 w-4" />
+              <span>{apiMode === "local" ? t("localApiRequired") : t("cloudApiRequired")}</span>
+            </div>
+          )}
 
-        {/* Auto-save indicator */}
-        {updateMutation.isPending && (
-          <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
-            <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span>{tCommon("saving")}</span>
-          </div>
-        )}
+          {/* Auto-save indicator */}
+          {updateMutation.isPending && (
+            <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span>{tCommon("saving")}</span>
+            </div>
+          )}
         </TooltipProvider>
       </CardContent>
     </Card>
@@ -518,4 +486,3 @@ export function BoardSettings() {
 
 // Backward compatibility alias
 export const FiestaboardSettings = BoardSettings;
-

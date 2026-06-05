@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
   Calendar,
   CheckCircle,
@@ -14,6 +13,8 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type {
@@ -32,10 +33,7 @@ import type {
   UpdateSettingArgs,
 } from "@/lib/ai-chat-types";
 
-type ConfirmableOp = Exclude<
-  ToolCall["op"],
-  "replace_page" | "apply_patch" | "suggest_variables" | "navigate_to_page"
->;
+type ConfirmableOp = Exclude<ToolCall["op"], "replace_page" | "apply_patch" | "suggest_variables" | "navigate_to_page">;
 
 type ActionState = "pending" | "running" | "done" | "denied";
 
@@ -179,12 +177,7 @@ function ActionIcon({ op }: { op: ConfirmableOp }) {
   }
 }
 
-export function AiActionConfirmation({
-  call,
-  onAllow,
-  onDeny,
-  autoAllow = false,
-}: AiActionConfirmationProps) {
+export function AiActionConfirmation({ call, onAllow, onDeny, autoAllow = false }: AiActionConfirmationProps) {
   const [state, setState] = useState<ActionState>("pending");
 
   const handleAllow = async () => {
@@ -205,9 +198,7 @@ export function AiActionConfirmation({
   const isSettled = state === "done" || state === "denied";
 
   const isDestructive =
-    call.op === "delete_schedule" ||
-    call.op === "trigger_system_update" ||
-    call.op === "uninstall_plugin";
+    call.op === "delete_schedule" || call.op === "trigger_system_update" || call.op === "uninstall_plugin";
 
   // Autonomous mode: auto-fire on mount for non-destructive ops.
   const hasAutoFired = useRef(false);
@@ -225,9 +216,7 @@ export function AiActionConfirmation({
         <ActionIcon op={call.op} />
         <div className="flex-1 min-w-0">
           <p className="font-medium leading-tight">{actionLabel(call)}</p>
-          <p className="text-muted-foreground mt-0.5 leading-snug">
-            {actionDescription(call)}
-          </p>
+          <p className="text-muted-foreground mt-0.5 leading-snug">{actionDescription(call)}</p>
         </div>
       </div>
 

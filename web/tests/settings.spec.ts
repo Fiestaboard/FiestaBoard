@@ -9,7 +9,7 @@
  * NOTE: Tests run sequentially and depend on the board being
  * configured (Setup Wizard must have completed in an earlier suite).
  */
-import { test, expect, configureBoard } from "./helpers";
+import { configureBoard, expect, test } from "./helpers";
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
@@ -26,22 +26,11 @@ test.beforeEach(async ({ page }) => {
 test.describe("Settings Page", () => {
   test("loads settings page with all tab sections visible", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Tab strip exposes all six sections
-    for (const section of [
-      "General",
-      "Hardware",
-      "Behavior",
-      "Integrations",
-      "System",
-      "Advanced",
-    ]) {
-      await expect(
-        page.getByRole("tab", { name: section, exact: true })
-      ).toBeVisible({ timeout: 5_000 });
+    for (const section of ["General", "Hardware", "Behavior", "Integrations", "System", "Advanced"]) {
+      await expect(page.getByRole("tab", { name: section, exact: true })).toBeVisible({ timeout: 5_000 });
     }
 
     // Behavior tab contains the Update Intervals and Silence Schedule cards
@@ -70,9 +59,7 @@ test.describe("Settings Page", () => {
 
   test("can navigate to integrations from settings", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Click the integrations link/button
     const integrationsLink = page
@@ -81,8 +68,6 @@ test.describe("Settings Page", () => {
 
     await expect(integrationsLink.first()).toBeVisible({ timeout: 5_000 });
     await integrationsLink.first().click();
-    await expect(
-      page.getByRole("heading", { name: /integrations/i })
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 10_000 });
   });
 });

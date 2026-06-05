@@ -14,21 +14,21 @@
  * unit tests (which instantiate a bare Editor with this extension but
  * without editorProps) still get correct Enter-as-hardBreak behavior.
  */
-import { Extension } from '@tiptap/core';
+import { Extension } from "@tiptap/core";
 
 export const LineNavigation = Extension.create({
-  name: 'lineNavigation',
+  name: "lineNavigation",
 
   priority: 1000,
 
   addKeyboardShortcuts() {
     return {
-      'Enter': () => {
+      Enter: () => {
         this.editor.commands.setHardBreak();
         return true;
       },
 
-      'Shift-Enter': () => true,
+      "Shift-Enter": () => true,
     };
   },
 });

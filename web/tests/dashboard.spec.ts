@@ -5,17 +5,17 @@
  * and provides controls for switching pages and viewing schedule state.
  */
 import {
-  test,
-  expect,
+  API_URL,
   configureBoard,
-  suppressWizard,
   createPage,
+  createSchedule,
   deleteAllPages,
   deleteAllSchedules,
-  setActivePage,
-  createSchedule,
+  expect,
   resetToSingleBoard,
-  API_URL,
+  setActivePage,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -30,9 +30,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("Dashboard", () => {
   test("shows the dashboard with board display", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText("Active Display").first()).toBeVisible({
       timeout: 10_000,
@@ -44,9 +42,7 @@ test.describe("Dashboard", () => {
     await setActivePage(pageId);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText("Manual Mode").first()).toBeVisible({
       timeout: 10_000,
@@ -59,9 +55,7 @@ test.describe("Dashboard", () => {
     await setActivePage(pageA);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const changeBtn = page.getByRole("button", { name: /Change Page/i });
     if (await changeBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
@@ -87,14 +81,10 @@ test.describe("Dashboard", () => {
     await deleteAllPages();
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // The dashboard should show some kind of empty/welcome state
-    const welcome = page
-      .getByText(/welcome|get started|no pages|create/i)
-      .first();
+    const welcome = page.getByText(/welcome|get started|no pages|create/i).first();
     await expect(welcome).toBeVisible({ timeout: 10_000 });
   });
 
@@ -126,15 +116,11 @@ test.describe("Dashboard", () => {
     expect(enabled).toBe(true);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Wait for Active Display card to be visible (ensures component is mounted)
-    await expect(
-      page.getByText("Active Display", { exact: true })
-    ).toBeVisible({ timeout: 10_000 });
-    
+    await expect(page.getByText("Active Display", { exact: true })).toBeVisible({ timeout: 10_000 });
+
     // Verify schedule mode badge is displayed
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
       timeout: 10_000,
@@ -148,13 +134,9 @@ test.describe("Dashboard", () => {
     });
   });
 
-  test("silence status API is accessible from dashboard context", async ({
-    page,
-  }) => {
+  test("silence status API is accessible from dashboard context", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Verify the silence-status endpoint is reachable and returns expected shape
     const res = await fetch(`${API_URL}/silence-status`);

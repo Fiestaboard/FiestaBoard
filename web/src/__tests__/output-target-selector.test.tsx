@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
+import { describe, expect, it } from "vitest";
+
 import { OutputTargetSelector } from "@/components/output-target-selector";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -70,5 +71,4 @@ describe("OutputTargetSelector", () => {
       expect(screen.getByText("Output Target")).toBeInTheDocument();
     });
   });
-
 });

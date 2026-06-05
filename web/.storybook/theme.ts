@@ -31,4 +31,3 @@ export default create({
   inputTextColor: "#f0f0f0",
   inputBorderRadius: 6,
 });
-

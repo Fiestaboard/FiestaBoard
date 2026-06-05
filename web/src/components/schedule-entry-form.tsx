@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { AlertCircle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+
+import { DaySelector } from "@/components/day-selector";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DaySelector } from "@/components/day-selector";
-import { AlertCircle, Loader2, Trash2, GalleryHorizontalEnd, Sunrise, Sunset } from "lucide-react";
-import type { ScheduleEntry, ScheduleCreate, ScheduleUpdate, DayPattern, TimeType, Carousel } from "@/lib/api";
+import { Switch } from "@/components/ui/switch";
+import type { Carousel, DayPattern, ScheduleCreate, ScheduleEntry, ScheduleUpdate, TimeType } from "@/lib/api";
 
 interface ScheduleEntryFormProps {
   schedule?: ScheduleEntry;
@@ -59,24 +60,14 @@ export function ScheduleEntryForm({
   const t = useTranslations("schedule");
   const tc = useTranslations("common");
   const isEdit = Boolean(schedule);
-  
+
   // Use schedule values if editing, prefill values if creating from calendar, or defaults
   const [pageId, setPageId] = useState(schedule?.page_id || prefillPageId || "");
-  const [startTime, setStartTime] = useState(
-    schedule?.start_time || prefillStartTime || "09:00"
-  );
-  const [endTime, setEndTime] = useState(
-    schedule?.end_time || prefillEndTime || "17:00"
-  );
-  const [hasEndTime, setHasEndTime] = useState(
-    schedule ? schedule.end_time != null : true
-  );
-  const [dayPattern, setDayPattern] = useState<DayPattern>(
-    schedule?.day_pattern || prefillDayPattern || "all"
-  );
-  const [customDays, setCustomDays] = useState<string[]>(
-    schedule?.custom_days || prefillCustomDays || []
-  );
+  const [startTime, setStartTime] = useState(schedule?.start_time || prefillStartTime || "09:00");
+  const [endTime, setEndTime] = useState(schedule?.end_time || prefillEndTime || "17:00");
+  const [hasEndTime, setHasEndTime] = useState(schedule ? schedule.end_time != null : true);
+  const [dayPattern, setDayPattern] = useState<DayPattern>(schedule?.day_pattern || prefillDayPattern || "all");
+  const [customDays, setCustomDays] = useState<string[]>(schedule?.custom_days || prefillCustomDays || []);
   const [enabled, setEnabled] = useState(schedule?.enabled !== false);
 
   // Sun schedule state
@@ -84,20 +75,20 @@ export function ScheduleEntryForm({
   const [startSunOffset, setStartSunOffset] = useState<number>(schedule?.start_sun_offset || 0);
   const [endType, setEndType] = useState<TimeType>(schedule?.end_type || "fixed");
   const [endSunOffset, setEndSunOffset] = useState<number>(schedule?.end_sun_offset || 0);
-  
+
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Validation
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  
+
   useEffect(() => {
     const errors: string[] = [];
-    
+
     if (!pageId) {
       errors.push(t("scheduleEntryForm.validationSelectPage"));
     }
-    
+
     // Validate times are not identical (zero-duration schedule)
     // Note: endMinutes < startMinutes is valid (midnight rollover, e.g. 23:00-03:00)
     // Only check when both times are fixed and end time is set
@@ -108,12 +99,12 @@ export function ScheduleEntryForm({
         errors.push(t("scheduleEntryForm.validationEndTimeDifferent"));
       }
     }
-    
+
     // Validate custom days
     if (dayPattern === "custom" && customDays.length === 0) {
       errors.push(t("scheduleEntryForm.validationSelectDay"));
     }
-    
+
     setValidationErrors(errors);
   }, [pageId, startTime, endTime, hasEndTime, dayPattern, customDays, startType, endType]);
 
@@ -124,22 +115,25 @@ export function ScheduleEntryForm({
 
   const getTimeTypeLabel = (type: TimeType): string => {
     switch (type) {
-      case "fixed": return t("scheduleEntryForm.timeTypeFixed");
-      case "sunrise": return t("scheduleEntryForm.timeTypeSunrise");
-      case "sunset": return t("scheduleEntryForm.timeTypeSunset");
+      case "fixed":
+        return t("scheduleEntryForm.timeTypeFixed");
+      case "sunrise":
+        return t("scheduleEntryForm.timeTypeSunrise");
+      case "sunset":
+        return t("scheduleEntryForm.timeTypeSunset");
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validationErrors.length > 0) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       const data = {
         page_id: pageId,
@@ -153,7 +147,7 @@ export function ScheduleEntryForm({
         end_type: endType,
         end_sun_offset: endType !== "fixed" ? endSunOffset : 0,
       };
-      
+
       await onSubmit(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("scheduleEntryForm.submitError"));
@@ -176,7 +170,7 @@ export function ScheduleEntryForm({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       {/* Page / Carousel Selection */}
       <div className="space-y-2">
         <Label htmlFor="page">{t("scheduleEntryForm.pageOrCarousel")}</Label>
@@ -187,7 +181,9 @@ export function ScheduleEntryForm({
           <SelectContent>
             {carousels.length > 0 && (
               <>
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t("scheduleEntryForm.carouselsGroup")}</div>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  {t("scheduleEntryForm.carouselsGroup")}
+                </div>
                 {carousels.map((carousel) => (
                   <SelectItem key={carousel.id} value={carousel.id}>
                     <span className="flex items-center gap-2">
@@ -196,7 +192,9 @@ export function ScheduleEntryForm({
                     </span>
                   </SelectItem>
                 ))}
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t("scheduleEntryForm.pagesGroup")}</div>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  {t("scheduleEntryForm.pagesGroup")}
+                </div>
               </>
             )}
             {pages.map((page) => (
@@ -332,28 +330,18 @@ export function ScheduleEntryForm({
 
         {/* End time toggle */}
         <div className="flex items-center gap-2">
-          <Switch
-            id="has-end-time"
-            checked={hasEndTime}
-            onCheckedChange={setHasEndTime}
-          />
+          <Switch id="has-end-time" checked={hasEndTime} onCheckedChange={setHasEndTime} />
           <Label htmlFor="has-end-time" className="text-sm text-muted-foreground">
             {t("scheduleEntryForm.setEndTime")}
           </Label>
           {!hasEndTime && (
-            <span className="text-xs text-muted-foreground">
-              ({t("scheduleEntryForm.openEndedHint")})
-            </span>
+            <span className="text-xs text-muted-foreground">({t("scheduleEntryForm.openEndedHint")})</span>
           )}
         </div>
       </div>
 
       {/* Day Pattern Selection */}
-      <DaySelector
-        value={dayPattern}
-        customDays={customDays}
-        onChange={handleDayChange}
-      />
+      <DaySelector value={dayPattern} customDays={customDays} onChange={handleDayChange} />
 
       {/* Enabled Toggle */}
       <div className="flex items-center justify-between rounded-lg border p-4">
@@ -361,15 +349,9 @@ export function ScheduleEntryForm({
           <Label htmlFor="enabled" className="text-base">
             Enabled
           </Label>
-          <div className="text-sm text-muted-foreground">
-            Schedule will be active when enabled
-          </div>
+          <div className="text-sm text-muted-foreground">Schedule will be active when enabled</div>
         </div>
-        <Switch
-          id="enabled"
-          checked={enabled}
-          onCheckedChange={setEnabled}
-        />
+        <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
       </div>
 
       {/* Validation Errors */}
@@ -390,12 +372,7 @@ export function ScheduleEntryForm({
       <div className="flex justify-between gap-2">
         <div>
           {isEdit && onDelete && (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={onDelete}
-              disabled={isSubmitting}
-            >
+            <Button type="button" variant="destructive" onClick={onDelete} disabled={isSubmitting}>
               <Trash2 className="mr-2 h-4 w-4" />
               {tc("delete")}
             </Button>
@@ -405,10 +382,7 @@ export function ScheduleEntryForm({
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             {tc("cancel")}
           </Button>
-          <Button
-            type="submit"
-            disabled={validationErrors.length > 0 || isSubmitting}
-          >
+          <Button type="submit" disabled={validationErrors.length > 0 || isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEdit ? t("scheduleEntryForm.updateSchedule") : t("scheduleEntryForm.createSchedule")}
           </Button>

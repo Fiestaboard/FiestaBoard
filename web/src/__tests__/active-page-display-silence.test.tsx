@@ -1,12 +1,14 @@
 // ActivePageDisplay shows the Moon "Silence mode active" badge when silence is
 // active (regardless of mode). The old snoozing indicator overlay was removed
 // when Active Display was refactored to show the polled board state directly.
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, waitFor, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -91,39 +93,29 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(screen.getByText("Silence mode active")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
   });
 
   it("shows silence badge when active and mode === 'freeze'", async () => {
     server.use(
-      http.get(`${API_BASE}/silence-status`, () =>
-        HttpResponse.json(silenceStatus({ active: true, mode: "freeze" })),
-      ),
+      http.get(`${API_BASE}/silence-status`, () => HttpResponse.json(silenceStatus({ active: true, mode: "freeze" }))),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(screen.getByText("Silence mode active")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
   });
 
   it("shows silence badge when active and mode === 'page'", async () => {
     server.use(
       http.get(`${API_BASE}/silence-status`, () =>
-        HttpResponse.json(
-          silenceStatus({ active: true, mode: "page", page_id: "page-night" }),
-        ),
+        HttpResponse.json(silenceStatus({ active: true, mode: "page", page_id: "page-night" })),
       ),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(screen.getByText("Silence mode active")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
   });
 
   it("shows silence badge even when indicator_text/position are missing", async () => {
@@ -145,8 +137,6 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(screen.getByText("Silence mode active")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
   });
 });

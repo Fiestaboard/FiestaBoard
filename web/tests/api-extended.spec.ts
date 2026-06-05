@@ -10,10 +10,12 @@
  *   - Templates (render)
  *   - Service control (status, start/stop)
  */
-import { test, expect, configureBoard, API_URL, BOARD_HOST } from "./helpers";
+import { API_URL, BOARD_HOST, configureBoard, expect, test } from "./helpers";
 
 /** Use API_URL directly (not a copy) so per-worker URL updates from the workerBackend fixture are visible. */
-function API() { return API_URL; }
+function API() {
+  return API_URL;
+}
 
 // Ensure the board is configured before each API test
 test.beforeEach(async () => {
@@ -418,9 +420,7 @@ test.describe("API – Settings (extended)", () => {
     expect(addRes.ok).toBe(true);
     const addData = await addRes.json();
     expect(addData.status).toBe("success");
-    const noteBoard = addData.settings.boards.find(
-      (b: { device_type: string }) => b.device_type === "note",
-    );
+    const noteBoard = addData.settings.boards.find((b: { device_type: string }) => b.device_type === "note");
     expect(noteBoard).toBeDefined();
     expect(noteBoard.name).toBe("My Note");
     const boardId = noteBoard.id;
@@ -431,9 +431,7 @@ test.describe("API – Settings (extended)", () => {
     expect(delRes.ok).toBe(true);
     const delData = await delRes.json();
     expect(delData.status).toBe("success");
-    const stillThere = delData.settings.boards.find(
-      (b: { id: string }) => b.id === boardId,
-    );
+    const stillThere = delData.settings.boards.find((b: { id: string }) => b.id === boardId);
     expect(stillThere).toBeUndefined();
   });
 

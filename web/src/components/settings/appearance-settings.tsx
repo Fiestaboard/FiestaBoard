@@ -1,8 +1,8 @@
 "use client";
 
+import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { Check, Monitor, Moon, Sun } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,7 @@ export function AppearanceSettings() {
                   "relative flex flex-col items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-border hover:border-primary/50 hover:bg-accent"
+                    : "border-border hover:border-primary/50 hover:bg-accent",
                 )}
               >
                 {isActive && (

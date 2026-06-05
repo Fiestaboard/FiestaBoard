@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
 
 const meta = {
   title: "UI/Tabs",
@@ -24,14 +25,10 @@ export const Default: Story = {
           <TabsTrigger value="password">Password</TabsTrigger>
         </TabsList>
         <TabsContent value="account">
-          <p className="text-sm text-muted-foreground">
-            Make changes to your account settings here.
-          </p>
+          <p className="text-sm text-muted-foreground">Make changes to your account settings here.</p>
         </TabsContent>
         <TabsContent value="password">
-          <p className="text-sm text-muted-foreground">
-            Change your password here.
-          </p>
+          <p className="text-sm text-muted-foreground">Change your password here.</p>
         </TabsContent>
       </>
     ),
@@ -46,19 +43,13 @@ export const ThreeTabs = () => (
       <TabsTrigger value="reports">Reports</TabsTrigger>
     </TabsList>
     <TabsContent value="overview">
-      <p className="text-sm text-muted-foreground pt-2">
-        Your project overview and summary information.
-      </p>
+      <p className="text-sm text-muted-foreground pt-2">Your project overview and summary information.</p>
     </TabsContent>
     <TabsContent value="analytics">
-      <p className="text-sm text-muted-foreground pt-2">
-        View detailed analytics and insights.
-      </p>
+      <p className="text-sm text-muted-foreground pt-2">View detailed analytics and insights.</p>
     </TabsContent>
     <TabsContent value="reports">
-      <p className="text-sm text-muted-foreground pt-2">
-        Download and view your reports.
-      </p>
+      <p className="text-sm text-muted-foreground pt-2">Download and view your reports.</p>
     </TabsContent>
   </Tabs>
 );
@@ -108,11 +99,21 @@ export const AllVariations = () => (
           <TabsTrigger value="tab4">Four</TabsTrigger>
           <TabsTrigger value="tab5">Five</TabsTrigger>
         </TabsList>
-        <TabsContent value="tab1" className="pt-3">Tab 1 content</TabsContent>
-        <TabsContent value="tab2" className="pt-3">Tab 2 content</TabsContent>
-        <TabsContent value="tab3" className="pt-3">Tab 3 content</TabsContent>
-        <TabsContent value="tab4" className="pt-3">Tab 4 content</TabsContent>
-        <TabsContent value="tab5" className="pt-3">Tab 5 content</TabsContent>
+        <TabsContent value="tab1" className="pt-3">
+          Tab 1 content
+        </TabsContent>
+        <TabsContent value="tab2" className="pt-3">
+          Tab 2 content
+        </TabsContent>
+        <TabsContent value="tab3" className="pt-3">
+          Tab 3 content
+        </TabsContent>
+        <TabsContent value="tab4" className="pt-3">
+          Tab 4 content
+        </TabsContent>
+        <TabsContent value="tab5" className="pt-3">
+          Tab 5 content
+        </TabsContent>
       </Tabs>
     </div>
     <div>
@@ -120,11 +121,17 @@ export const AllVariations = () => (
       <Tabs defaultValue="tab1">
         <TabsList>
           <TabsTrigger value="tab1">Active</TabsTrigger>
-          <TabsTrigger value="tab2" disabled>Disabled</TabsTrigger>
+          <TabsTrigger value="tab2" disabled>
+            Disabled
+          </TabsTrigger>
           <TabsTrigger value="tab3">Available</TabsTrigger>
         </TabsList>
-        <TabsContent value="tab1" className="pt-3">Active tab content</TabsContent>
-        <TabsContent value="tab3" className="pt-3">Available tab content</TabsContent>
+        <TabsContent value="tab1" className="pt-3">
+          Active tab content
+        </TabsContent>
+        <TabsContent value="tab3" className="pt-3">
+          Available tab content
+        </TabsContent>
       </Tabs>
     </div>
   </div>

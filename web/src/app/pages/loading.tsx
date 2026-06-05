@@ -1,7 +1,8 @@
-import { Skeleton } from "@/components/ui/skeleton";
 import { FileText } from "lucide-react";
-import { PageLayout } from "@/components/page-layout";
 import { useTranslations } from "next-intl";
+
+import { PageLayout } from "@/components/page-layout";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PagesLoading() {
   const t = useTranslations("pages");
@@ -14,9 +15,7 @@ export default function PagesLoading() {
               <FileText className="h-7 w-7 text-brand-emphasis" />
               {t("title")}
             </h1>
-            <p className="page-description">
-              {t("description")}
-            </p>
+            <p className="page-description">{t("description")}</p>
           </div>
           <div className="flex items-center gap-3 pt-1">
             <Skeleton className="h-8 w-[68px] rounded-md" />

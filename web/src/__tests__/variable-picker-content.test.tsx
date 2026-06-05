@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { VariablePickerContent } from "@/components/tiptap-template-editor/components/VariablePickerContent";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -12,11 +13,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 describe("VariablePickerContent", () => {
@@ -27,10 +24,7 @@ describe("VariablePickerContent", () => {
   });
 
   it("renders search input with auto-focus", async () => {
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const searchInput = screen.getByPlaceholderText("Search variables...");
@@ -40,10 +34,7 @@ describe("VariablePickerContent", () => {
   });
 
   it("shows all variables without truncation", async () => {
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const weatherCategory = screen.getByText(/weather/i);
@@ -61,10 +52,7 @@ describe("VariablePickerContent", () => {
 
   it("filters variables by search query", async () => {
     const user = userEvent.setup();
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("Search variables...")).toBeInTheDocument();
@@ -81,10 +69,7 @@ describe("VariablePickerContent", () => {
 
   it("shows all variables when category name matches search", async () => {
     const user = userEvent.setup();
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("Search variables...")).toBeInTheDocument();
@@ -107,10 +92,7 @@ describe("VariablePickerContent", () => {
 
   it("shows no results message when search has no matches", async () => {
     const user = userEvent.setup();
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("Search variables...")).toBeInTheDocument();
@@ -125,10 +107,7 @@ describe("VariablePickerContent", () => {
   });
 
   it("calls onInsert when variable is clicked", async () => {
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const temperaturePill = screen.getByText("temperature");
@@ -143,10 +122,7 @@ describe("VariablePickerContent", () => {
 
   it("filters case-insensitively", async () => {
     const user = userEvent.setup();
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("Search variables...")).toBeInTheDocument();
@@ -163,10 +139,7 @@ describe("VariablePickerContent", () => {
 
   it("matches partial strings in variable names", async () => {
     const user = userEvent.setup();
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("Search variables...")).toBeInTheDocument();
@@ -182,10 +155,7 @@ describe("VariablePickerContent", () => {
   });
 
   it("renders preview values from metadata", async () => {
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("temperature")).toBeInTheDocument();
@@ -198,10 +168,7 @@ describe("VariablePickerContent", () => {
   });
 
   it("renders variable groups when defined", async () => {
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("temperature")).toBeInTheDocument();
@@ -214,10 +181,7 @@ describe("VariablePickerContent", () => {
   });
 
   it("renders group headings for datetime plugin", async () => {
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       // datetime mock has groups "Time" and "Date"
@@ -228,10 +192,7 @@ describe("VariablePickerContent", () => {
 
   it("works with no metadata (backward compat)", async () => {
     // Even without metadata, the component should still render variable pills
-    render(
-      <VariablePickerContent onInsert={mockOnInsert} />,
-      { wrapper: TestWrapper }
-    );
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       // datetime variables should still render

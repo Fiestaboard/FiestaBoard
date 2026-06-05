@@ -1,20 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  Bot,
-  Check,
-  Copy,
-  KeyRound,
-  Loader2,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { api } from "@/lib/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/api";
 
 /**
  * Build the Claude Desktop config snippet the user will paste into
@@ -58,10 +49,7 @@ function buildClaudeDesktopConfig(token: string): string {
   if (typeof window !== "undefined" && window.location?.host) {
     host = window.location.host;
   }
-  const proto =
-    typeof window !== "undefined" && window.location?.protocol === "https:"
-      ? "https"
-      : "http";
+  const proto = typeof window !== "undefined" && window.location?.protocol === "https:" ? "https" : "http";
   const url = `${proto}://${host}/api/mcp/`;
   const args = ["-y", "mcp-remote", url];
   if (proto === "http") args.push("--allow-http");
@@ -125,10 +113,7 @@ export function McpSettings() {
     }
   };
 
-  const configSnippet = useMemo(
-    () => (revealedToken ? buildClaudeDesktopConfig(revealedToken) : ""),
-    [revealedToken],
-  );
+  const configSnippet = useMemo(() => (revealedToken ? buildClaudeDesktopConfig(revealedToken) : ""), [revealedToken]);
 
   if (isLoading || !status) {
     return (
@@ -154,10 +139,10 @@ export function McpSettings() {
             MCP / external clients
           </CardTitle>
           <CardDescription>
-            A pre-shared token that lets Claude Desktop, Claude Code, and other MCP
-            clients talk to this FiestaBoard. The token authenticates as a single
-            principal — scoped to the <code className="font-mono text-xs">/api/mcp</code>{" "}
-            endpoint only — so it can&apos;t edit pages or other settings. See{" "}
+            A pre-shared token that lets Claude Desktop, Claude Code, and other MCP clients talk to this FiestaBoard.
+            The token authenticates as a single principal — scoped to the{" "}
+            <code className="font-mono text-xs">/api/mcp</code> endpoint only — so it can&apos;t edit pages or other
+            settings. See{" "}
             <a
               href="https://github.com/Fiestaboard/FiestaBoard/blob/main/docs/setup/MCP_CLIENTS.md"
               target="_blank"
@@ -166,9 +151,8 @@ export function McpSettings() {
             >
               MCP client setup
             </a>{" "}
-            for client-specific quirks (Desktop needs an stdio proxy; claude.ai web
-            Connectors require public HTTPS and OAuth, so they won&apos;t reach a LAN
-            host).
+            for client-specific quirks (Desktop needs an stdio proxy; claude.ai web Connectors require public HTTPS and
+            OAuth, so they won&apos;t reach a LAN host).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -191,27 +175,24 @@ export function McpSettings() {
 
           {isPinnedByEnv && (
             <p className="text-sm text-muted-foreground">
-              The active token is set by the{" "}
-              <code className="font-mono text-xs">FIESTABOARD_MCP_TOKEN</code> environment
-              variable. Unset it in your{" "}
-              <code className="font-mono text-xs">.env</code> and restart the container
-              before managing the token from this UI.
+              The active token is set by the <code className="font-mono text-xs">FIESTABOARD_MCP_TOKEN</code>{" "}
+              environment variable. Unset it in your <code className="font-mono text-xs">.env</code> and restart the
+              container before managing the token from this UI.
             </p>
           )}
 
           {!isPinnedByEnv && !hasToken && (
             <p className="text-sm text-muted-foreground">
-              No token is configured. External MCP clients will fall back to cookie auth,
-              which Claude Desktop / Claude Code don&apos;t support — they&apos;ll fail
-              registration with an opaque error. Generate a token to unblock them.
+              No token is configured. External MCP clients will fall back to cookie auth, which Claude Desktop / Claude
+              Code don&apos;t support — they&apos;ll fail registration with an opaque error. Generate a token to unblock
+              them.
             </p>
           )}
 
           {!isPinnedByEnv && hasToken && (
             <p className="text-sm text-muted-foreground">
-              A token is configured and active. Rotate it to invalidate the previous one
-              (any client still using the old token will start receiving 401), or revoke
-              it entirely to fall back to cookie-only auth.
+              A token is configured and active. Rotate it to invalidate the previous one (any client still using the old
+              token will start receiving 401), or revoke it entirely to fall back to cookie-only auth.
             </p>
           )}
 
@@ -252,15 +233,10 @@ export function McpSettings() {
 
       {/* "Are you sure you want to rotate?" — only shown when there's an
           existing token whose rotation would invalidate something. */}
-      <AlertDialog
-        open={confirmingRotate}
-        onOpenChange={(open) => !open && setConfirmingRotate(false)}
-      >
+      <AlertDialog open={confirmingRotate} onOpenChange={(open) => !open && setConfirmingRotate(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {hasToken ? "Rotate MCP token?" : "Generate MCP token?"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{hasToken ? "Rotate MCP token?" : "Generate MCP token?"}</AlertDialogTitle>
             <AlertDialogDescription>
               {hasToken
                 ? "Any client still using the previous token will be denied with a 401 + Bearer challenge on its next request. You'll see the new token once — store it somewhere safe (it's not readable from the UI again)."
@@ -269,29 +245,21 @@ export function McpSettings() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={rotateMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => rotateMutation.mutate()}
-              disabled={rotateMutation.isPending}
-            >
-              {rotateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : null}
+            <AlertDialogAction onClick={() => rotateMutation.mutate()} disabled={rotateMutation.isPending}>
+              {rotateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {hasToken ? "Rotate" : "Generate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={confirmingClear}
-        onOpenChange={(open) => !open && setConfirmingClear(false)}
-      >
+      <AlertDialog open={confirmingClear} onOpenChange={(open) => !open && setConfirmingClear(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke MCP token?</AlertDialogTitle>
             <AlertDialogDescription>
-              External MCP clients will start receiving 401 on their next request. You
-              can always generate a new token later.
+              External MCP clients will start receiving 401 on their next request. You can always generate a new token
+              later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -301,9 +269,7 @@ export function McpSettings() {
               disabled={clearMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {clearMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : null}
+              {clearMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Revoke
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -324,9 +290,8 @@ export function McpSettings() {
             <DialogDescription className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
               <span>
-                FiestaBoard stores only what&apos;s needed to verify future requests —
-                this is the only time the plaintext value is shown. Copy it into your MCP
-                client now.
+                FiestaBoard stores only what&apos;s needed to verify future requests — this is the only time the
+                plaintext value is shown. Copy it into your MCP client now.
               </span>
             </DialogDescription>
           </DialogHeader>
@@ -341,11 +306,7 @@ export function McpSettings() {
                   onClick={() => revealedToken && handleCopy(revealedToken, "token")}
                   className="h-7 gap-1.5"
                 >
-                  {copied === "token" ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
+                  {copied === "token" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied === "token" ? "Copied" : "Copy"}
                 </Button>
               </div>
@@ -356,32 +317,23 @@ export function McpSettings() {
 
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  Claude Desktop config snippet
-                </span>
+                <span className="text-sm font-medium">Claude Desktop config snippet</span>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => handleCopy(configSnippet, "config")}
                   className="h-7 gap-1.5"
                 >
-                  {copied === "config" ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
+                  {copied === "config" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied === "config" ? "Copied" : "Copy"}
                 </Button>
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
                 Paste this into{" "}
-                <code className="font-mono">
-                  ~/Library/Application Support/Claude/claude_desktop_config.json
-                </code>
-                , merging with anything that&apos;s already there, then fully quit and
-                relaunch Claude Desktop (⌘Q — closing the window isn&apos;t enough).
-                Claude Desktop only supports stdio MCP servers, so this snippet shells
-                out to{" "}
+                <code className="font-mono">~/Library/Application Support/Claude/claude_desktop_config.json</code>,
+                merging with anything that&apos;s already there, then fully quit and relaunch Claude Desktop (⌘Q —
+                closing the window isn&apos;t enough). Claude Desktop only supports stdio MCP servers, so this snippet
+                shells out to{" "}
                 <a
                   href="https://www.npmjs.com/package/mcp-remote"
                   target="_blank"
@@ -390,16 +342,13 @@ export function McpSettings() {
                 >
                   mcp-remote
                 </a>{" "}
-                via <code className="font-mono">npx</code> as a proxy — Node 18+ must
-                be installed and <code className="font-mono">npx</code> reachable from
-                Claude Desktop&apos;s PATH. If it errors with{" "}
+                via <code className="font-mono">npx</code> as a proxy — Node 18+ must be installed and{" "}
+                <code className="font-mono">npx</code> reachable from Claude Desktop&apos;s PATH. If it errors with{" "}
                 <code className="font-mono">command not found</code>, replace{" "}
-                <code className="font-mono">&quot;npx&quot;</code> with the absolute
-                path from <code className="font-mono">which npx</code>.
+                <code className="font-mono">&quot;npx&quot;</code> with the absolute path from{" "}
+                <code className="font-mono">which npx</code>.
               </p>
-              <pre className="max-h-64 overflow-auto rounded bg-muted px-3 py-2 font-mono text-xs">
-                {configSnippet}
-              </pre>
+              <pre className="max-h-64 overflow-auto rounded bg-muted px-3 py-2 font-mono text-xs">{configSnippet}</pre>
             </div>
 
             <p className="text-xs text-muted-foreground">
@@ -414,10 +363,9 @@ export function McpSettings() {
               </code>
             </p>
             <p className="text-xs text-muted-foreground">
-              <strong>claude.ai web (Connectors):</strong> not supported for self-hosted
-              FiestaBoard. The Connectors flow requires a public HTTPS URL and OAuth
-              2.1 dynamic client registration, neither of which a LAN host can provide.
-              Use Desktop or Code instead.
+              <strong>claude.ai web (Connectors):</strong> not supported for self-hosted FiestaBoard. The Connectors
+              flow requires a public HTTPS URL and OAuth 2.1 dynamic client registration, neither of which a LAN host
+              can provide. Use Desktop or Code instead.
             </p>
           </div>
 

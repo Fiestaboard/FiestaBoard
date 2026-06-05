@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -94,8 +96,8 @@ describe("ActivePageDisplay", () => {
           page_id: null,
           source: "schedule",
           schedule_enabled: true,
-        })
-      )
+        }),
+      ),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
@@ -113,8 +115,8 @@ describe("ActivePageDisplay", () => {
           page_id: null,
           source: "none",
           schedule_enabled: true,
-        })
-      )
+        }),
+      ),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
@@ -142,8 +144,8 @@ describe("ActivePageDisplay", () => {
           schedule_enabled: true,
           current_time: "09:00",
           current_day: "monday",
-        })
-      )
+        }),
+      ),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
@@ -163,8 +165,8 @@ describe("ActivePageDisplay", () => {
           end_time_utc: "15:00+00:00",
           current_time_utc: "2025-12-26T18:30:00+00:00",
           next_change_utc: "2025-12-27T04:00:00+00:00",
-        })
-      )
+        }),
+      ),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
@@ -176,21 +178,21 @@ describe("ActivePageDisplay", () => {
 
   it("shows Carousel badge when active page is a carousel", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/active-page`, () =>
-        HttpResponse.json({ page_id: "carousel:test-carousel-id" })
-      ),
+      http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: "carousel:test-carousel-id" })),
       http.get(`${API_BASE}/carousels`, () =>
         HttpResponse.json({
-          carousels: [{
-            id: "carousel:test-carousel-id",
-            name: "Test Carousel",
-            page_ids: ["page-1"],
-            interval_seconds: 30,
-            created_at: "2025-01-01T00:00:00Z",
-          }],
+          carousels: [
+            {
+              id: "carousel:test-carousel-id",
+              name: "Test Carousel",
+              page_ids: ["page-1"],
+              interval_seconds: 30,
+              created_at: "2025-01-01T00:00:00Z",
+            },
+          ],
           total: 1,
-        })
-      )
+        }),
+      ),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
@@ -214,8 +216,8 @@ describe("ActivePageDisplay", () => {
           expected_characters: expectedChars,
           cached_at: null,
           api_mode: "local",
-        })
-      )
+        }),
+      ),
     );
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
@@ -240,8 +242,8 @@ describe("ActivePageDisplay", () => {
           expected_characters: expectedChars,
           cached_at: null,
           api_mode: "local",
-        })
-      )
+        }),
+      ),
     );
 
     const user = userEvent.setup();
@@ -263,9 +265,7 @@ describe("ActivePageDisplay", () => {
   it("handles set active page error", async () => {
     const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
     server.use(
-      http.put(`${API_BASE}/settings/active-page`, () =>
-        HttpResponse.json({ error: "Failed" }, { status: 500 })
-      )
+      http.put(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ error: "Failed" }, { status: 500 })),
     );
 
     const user = userEvent.setup();
@@ -282,16 +282,22 @@ describe("ActivePageDisplay", () => {
     });
 
     // Wait for sheet content and page grid to load (420ms animation + data fetch)
-    await waitFor(() => {
-      const page2 = screen.queryByText("Custom Template");
-      expect(page2).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const page2 = screen.queryByText("Custom Template");
+        expect(page2).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
 
     await user.click(screen.getByText("Custom Template"));
 
-    await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith("Failed to switch page");
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(toastSpy).toHaveBeenCalledWith("Failed to switch page");
+      },
+      { timeout: 3000 },
+    );
 
     toastSpy.mockRestore();
   });

@@ -1,9 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
-import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SchemaForm, type JSONSchema } from "@/components/plugin-settings";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+import { type JSONSchema, SchemaForm } from "@/components/plugin-settings";
+import type * as apiModule from "@/lib/api";
 
 /**
  * Regression tests for the bug reported in
@@ -103,21 +105,13 @@ describe("SchemaForm - array fields (issue #739)", () => {
   });
 
   it("renders remove buttons for pre-populated items without crashing", () => {
-    const { getAllByRole } = render(
-      <ArrayHarness initial={{ symbols: ["AAPL", "MSFT"] }} />
-    );
+    const { getAllByRole } = render(<ArrayHarness initial={{ symbols: ["AAPL", "MSFT"] }} />);
     expect(getAllByRole("button", { name: "Remove item" })).toHaveLength(2);
   });
 });
 
 describe("SchemaForm - editing fields with schema defaults", () => {
-  function Harness({
-    schema,
-    initial,
-  }: {
-    schema: JSONSchema;
-    initial: Record<string, unknown>;
-  }) {
+  function Harness({ schema, initial }: { schema: JSONSchema; initial: Record<string, unknown> }) {
     const [values, setValues] = useState<Record<string, unknown>>(initial);
     return <SchemaForm schema={schema} values={values} onChange={setValues} />;
   }
@@ -161,39 +155,41 @@ describe("SchemaForm - editing fields with schema defaults", () => {
     expect(input.value).toBe("40.7128");
   });
 
-  it("does not snap back to the previous value while the user is mid-edit "
-    + "in a negative number (e.g. deleting the digits of '-1')", async () => {
-    const user = userEvent.setup();
-    const negativeSchema: JSONSchema = {
-      type: "object",
-      properties: {
-        latitude: {
-          type: "number",
-          title: "Airport Latitude",
-          default: -1,
+  it(
+    "does not snap back to the previous value while the user is mid-edit " +
+      "in a negative number (e.g. deleting the digits of '-1')",
+    async () => {
+      const user = userEvent.setup();
+      const negativeSchema: JSONSchema = {
+        type: "object",
+        properties: {
+          latitude: {
+            type: "number",
+            title: "Airport Latitude",
+            default: -1,
+          },
         },
-      },
-    };
-    render(<Harness schema={negativeSchema} initial={{ latitude: -1 }} />);
+      };
+      render(<Harness schema={negativeSchema} initial={{ latitude: -1 }} />);
 
-    const input = screen.getByLabelText("Airport Latitude") as HTMLInputElement;
-    expect(input.value).toBe("-1");
+      const input = screen.getByLabelText("Airport Latitude") as HTMLInputElement;
+      expect(input.value).toBe("-1");
 
-    // Delete the trailing digit; the field is now in an intermediate state
-    // that is not yet a valid number. Previously this would snap back to -1.
-    await user.click(input);
-    await user.keyboard("{End}{Backspace}");
+      // Delete the trailing digit; the field is now in an intermediate state
+      // that is not yet a valid number. Previously this would snap back to -1.
+      await user.click(input);
+      await user.keyboard("{End}{Backspace}");
 
-    expect(input.value).not.toBe("-1");
+      expect(input.value).not.toBe("-1");
 
-    // Finish typing a new value; the input should accept it cleanly.
-    await user.type(input, "2");
-    await user.tab();
-    expect(input.value).toBe("-2");
-  });
+      // Finish typing a new value; the input should accept it cleanly.
+      await user.type(input, "2");
+      await user.tab();
+      expect(input.value).toBe("-2");
+    },
+  );
 
-  it("treats an entirely-cleared numeric field as undefined on blur "
-    + "(commit-on-blur)", async () => {
+  it("treats an entirely-cleared numeric field as undefined on blur " + "(commit-on-blur)", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
 
@@ -253,7 +249,7 @@ describe("SchemaForm - editing fields with schema defaults", () => {
  * writes back the chosen page UUID, instead of a raw text input.
  */
 vi.mock("@/lib/api", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  const actual = await vi.importActual<typeof apiModule>("@/lib/api");
   return {
     ...actual,
     api: {

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act } from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { act } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -123,23 +124,17 @@ describe("GeneralSettings — board read intervals", () => {
     fireEvent.change(input, { target: { value: "30" } });
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/excessive load on Vestaboard/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/excessive load on Vestaboard/i)).toBeInTheDocument();
     });
   });
 
   it("does not show warning when cloud interval is 60 or above", async () => {
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-cloud")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(document.getElementById("board-read-cloud")).toBeInTheDocument());
 
     // Default is 180 — warning should not be visible
-    expect(
-      screen.queryByText(/excessive load on Vestaboard/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/excessive load on Vestaboard/i)).not.toBeInTheDocument();
   });
 
   it("onBlur for local input triggers update mutation", async () => {
@@ -190,9 +185,7 @@ describe("GeneralSettings — board read intervals", () => {
 
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-cloud")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(document.getElementById("board-read-cloud")).toBeInTheDocument());
 
     const input = document.getElementById("board-read-cloud") as HTMLInputElement;
     await waitFor(() => expect(parseInt(input.value, 10)).toBe(180));
@@ -223,9 +216,7 @@ describe("GeneralSettings — board read intervals", () => {
 
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
-    await waitFor(() =>
-      expect(document.getElementById("board-read-local")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(document.getElementById("board-read-local")).toBeInTheDocument());
 
     const input = document.getElementById("board-read-local") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "5" } });

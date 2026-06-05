@@ -1,12 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  buildFormatters,
-  FormatPreferencesProvider,
-  useFormatPreferences,
-} from "@/hooks/use-format-preferences";
+import { describe, expect, it } from "vitest";
+
+import { buildFormatters, FormatPreferencesProvider, useFormatPreferences } from "@/hooks/use-format-preferences";
 
 // ---------------------------------------------------------------------------
 // buildFormatters — pure helper, no React needed
@@ -14,10 +11,7 @@ import {
 
 describe("buildFormatters", () => {
   describe("12h time format with MM/DD/YYYY dates", () => {
-    const { formatTime, formatDate, formatDateTime } = buildFormatters(
-      "12h",
-      "MM/DD/YYYY"
-    );
+    const { formatTime, formatDate, formatDateTime } = buildFormatters("12h", "MM/DD/YYYY");
 
     it("formats a Date object as 12h time", () => {
       const d = new Date(2024, 0, 15, 14, 30, 0); // 2:30 PM
@@ -71,10 +65,7 @@ describe("buildFormatters", () => {
   });
 
   describe("24h time format", () => {
-    const { formatTime, formatTimeLong, formatDateTime } = buildFormatters(
-      "24h",
-      "MM/DD/YYYY"
-    );
+    const { formatTime, formatTimeLong, formatDateTime } = buildFormatters("24h", "MM/DD/YYYY");
 
     it("formats a Date object as 24h time", () => {
       const d = new Date(2024, 0, 15, 14, 30, 0);
@@ -137,17 +128,14 @@ describe("buildFormatters", () => {
 // ---------------------------------------------------------------------------
 
 function Consumer() {
-  const { timeFormat, dateFormat, formatTime, formatDate, formatDateTime } =
-    useFormatPreferences();
+  const { timeFormat, dateFormat, formatTime, formatDate, formatDateTime } = useFormatPreferences();
   return (
     <div>
       <span data-testid="time-format">{timeFormat}</span>
       <span data-testid="date-format">{dateFormat}</span>
       <span data-testid="formatted-time">{formatTime("14:30")}</span>
       <span data-testid="formatted-date">{formatDate("2024-01-15")}</span>
-      <span data-testid="formatted-datetime">
-        {formatDateTime(new Date(2024, 0, 15, 9, 0, 0))}
-      </span>
+      <span data-testid="formatted-datetime">{formatDateTime(new Date(2024, 0, 15, 9, 0, 0))}</span>
     </div>
   );
 }

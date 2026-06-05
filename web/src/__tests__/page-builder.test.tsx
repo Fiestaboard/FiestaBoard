@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -47,9 +49,7 @@ describe("PageBuilder — Sync from Board", () => {
     render(<PageBuilder onClose={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Sync from current board display" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sync from current board display" })).toBeInTheDocument();
     });
   });
 
@@ -64,16 +64,11 @@ describe("PageBuilder — Sync from Board", () => {
     });
 
     // The button must not be present in edit mode
-    expect(
-      screen.queryByRole("button", { name: "Sync from current board display" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sync from current board display" })).not.toBeInTheDocument();
   });
 
   it("populates template lines and shows a success toast on successful sync", async () => {
-    const toastSpy = vi.spyOn(
-      (await import("sonner")).toast,
-      "success",
-    );
+    const toastSpy = vi.spyOn((await import("sonner")).toast, "success");
     const user = userEvent.setup();
 
     render(<PageBuilder onClose={vi.fn()} />, { wrapper: TestWrapper });
@@ -84,9 +79,7 @@ describe("PageBuilder — Sync from Board", () => {
     await user.click(syncBtn);
 
     await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Weather Page"),
-      );
+      expect(toastSpy).toHaveBeenCalledWith(expect.stringContaining("Weather Page"));
     });
   });
 
@@ -96,10 +89,7 @@ describe("PageBuilder — Sync from Board", () => {
 
     server.use(
       http.get(`${API_BASE}/pages/current-display`, () => {
-        return HttpResponse.json(
-          { detail: "No active page set" },
-          { status: 404 },
-        );
+        return HttpResponse.json({ detail: "No active page set" }, { status: 404 });
       }),
     );
 
@@ -115,4 +105,3 @@ describe("PageBuilder — Sync from Board", () => {
     });
   });
 });
-

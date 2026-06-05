@@ -1,14 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-  CardAction,
-} from "./card";
+
 import { Button } from "./button";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./card";
 import { Input } from "./input";
 import { Label } from "./label";
 
@@ -97,7 +90,7 @@ export const MultipleCards = () => (
     <Card>
       <CardHeader>
         <CardTitle>Today</CardTitle>
-        <CardDescription>Overview of today's activity</CardDescription>
+        <CardDescription>Overview of today&apos;s activity</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-2xl font-bold">12</p>
@@ -139,7 +132,9 @@ export const AllLayouts = () => (
           <p className="text-sm">Content with footer below</p>
         </CardContent>
         <CardFooter>
-          <Button size="sm" className="w-full">Action</Button>
+          <Button size="sm" className="w-full">
+            Action
+          </Button>
         </CardFooter>
       </Card>
 
@@ -148,7 +143,9 @@ export const AllLayouts = () => (
           <CardTitle>With Action</CardTitle>
           <CardDescription>Header with inline action button</CardDescription>
           <CardAction>
-            <Button variant="outline" size="sm">Edit</Button>
+            <Button variant="outline" size="sm">
+              Edit
+            </Button>
           </CardAction>
         </CardHeader>
         <CardContent>

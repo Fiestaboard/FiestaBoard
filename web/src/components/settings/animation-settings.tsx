@@ -1,20 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  api,
-  type BoardAnimationsMode,
-  type DisplaySettings,
-  type SiteAnimationsMode,
-} from "@/lib/api";
+import { api, type BoardAnimationsMode, type DisplaySettings, type SiteAnimationsMode } from "@/lib/api";
 
 const BOARD_OPTIONS: BoardAnimationsMode[] = ["on", "desktop", "off"];
 const SITE_OPTIONS: SiteAnimationsMode[] = ["on", "off"];
@@ -57,8 +52,7 @@ export function AnimationSettings() {
   }, [allSettings?.display]);
 
   const updateMutation = useMutation({
-    mutationFn: (settings: Partial<DisplaySettings>) =>
-      api.updateDisplaySettings(settings),
+    mutationFn: (settings: Partial<DisplaySettings>) => api.updateDisplaySettings(settings),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["all-settings"] }),
     onError: (error: Error) => toast.error(error.message),
   });
@@ -92,15 +86,9 @@ export function AnimationSettings() {
             <div className="space-y-2">
               <div>
                 <Label className="text-sm font-medium">{t("boardAnimationsLabel")}</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("boardAnimationsHint")}
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("boardAnimationsHint")}</p>
               </div>
-              <div
-                role="radiogroup"
-                aria-label={t("boardAnimationsLabel")}
-                className="flex flex-wrap gap-2"
-              >
+              <div role="radiogroup" aria-label={t("boardAnimationsLabel")} className="flex flex-wrap gap-2">
                 {BOARD_OPTIONS.map((option) => {
                   const selected = boardMode === option;
                   return (
@@ -122,23 +110,15 @@ export function AnimationSettings() {
                   );
                 })}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t(BOARD_HINT_KEY[boardMode])}
-              </p>
+              <p className="text-xs text-muted-foreground">{t(BOARD_HINT_KEY[boardMode])}</p>
             </div>
 
             <div className="space-y-2 pt-2 border-t">
               <div>
                 <Label className="text-sm font-medium">{t("siteAnimationsLabel")}</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("siteAnimationsHint")}
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("siteAnimationsHint")}</p>
               </div>
-              <div
-                role="radiogroup"
-                aria-label={t("siteAnimationsLabel")}
-                className="flex flex-wrap gap-2"
-              >
+              <div role="radiogroup" aria-label={t("siteAnimationsLabel")} className="flex flex-wrap gap-2">
                 {SITE_OPTIONS.map((option) => {
                   const selected = siteMode === option;
                   return (
@@ -163,9 +143,7 @@ export function AnimationSettings() {
             </div>
 
             {reduceMotion && (
-              <p className="text-xs text-muted-foreground italic">
-                {t("animationsReduceMotionOverride")}
-              </p>
+              <p className="text-xs text-muted-foreground italic">{t("animationsReduceMotionOverride")}</p>
             )}
           </>
         )}

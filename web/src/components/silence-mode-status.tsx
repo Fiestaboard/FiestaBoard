@@ -1,11 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Clock, Loader2 } from "lucide-react";
-import { api } from "@/lib/api";
-import { utcToLocalTime, getTimezoneAbbreviation } from "@/lib/timezone-utils";
+import { Clock, Loader2, Moon, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { Badge } from "@/components/ui/badge";
+import { api } from "@/lib/api";
+import { getTimezoneAbbreviation, utcToLocalTime } from "@/lib/timezone-utils";
 
 interface SilenceModeStatusProps {
   className?: string;
@@ -105,10 +106,7 @@ export function SilenceModeStatusCompact({ className }: { className?: string }) 
   }
 
   return (
-    <Badge 
-      variant={silenceStatus.active ? "destructive" : "secondary"} 
-      className={className}
-    >
+    <Badge variant={silenceStatus.active ? "destructive" : "secondary"} className={className}>
       {silenceStatus.active ? (
         <>
           <Moon className="h-3 w-3 mr-1" />
@@ -123,6 +121,3 @@ export function SilenceModeStatusCompact({ className }: { className?: string }) 
     </Badge>
   );
 }
-
-
-

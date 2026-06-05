@@ -9,12 +9,13 @@
  * Account — this is just the always-visible escape hatch.
  */
 
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface SidebarAccountProps {
   /** Whether the parent sidebar is in its collapsed (icon-only) state. */
@@ -23,10 +24,7 @@ interface SidebarAccountProps {
   variant?: "desktop" | "mobile";
 }
 
-export function SidebarAccount({
-  collapsed = false,
-  variant = "desktop",
-}: SidebarAccountProps) {
+export function SidebarAccount({ collapsed = false, variant = "desktop" }: SidebarAccountProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -58,25 +56,16 @@ export function SidebarAccount({
   const className = cn(
     "flex w-full items-center gap-3 rounded-lg font-medium transition-colors",
     "text-sidebar-foreground nav-active-hover",
-    variant === "mobile"
-      ? "px-4 py-3 text-base min-h-[48px]"
-      : "py-2 pl-[14px] pr-3 text-sm",
+    variant === "mobile" ? "px-4 py-3 text-base min-h-[48px]" : "py-2 pl-[14px] pr-3 text-sm",
   );
 
   const button = (
-    <button
-      type="button"
-      onClick={handleSignOut}
-      aria-label="Sign out"
-      className={className}
-    >
+    <button type="button" onClick={handleSignOut} aria-label="Sign out" className={className}>
       <LogOut className="h-5 w-5 flex-shrink-0" />
       <span
         className={cn(
           "whitespace-nowrap overflow-hidden transition-opacity duration-100",
-          collapsed
-            ? "opacity-0 max-w-0"
-            : "opacity-100 max-w-48 delay-150",
+          collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
         )}
       >
         Sign out

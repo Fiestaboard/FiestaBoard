@@ -1,11 +1,12 @@
 /**
  * Setup detection utilities for the FiestaBoard onboarding wizard.
- * 
+ *
  * Detects first-run state, manages wizard completion status,
  * and provides utilities for the setup flow.
  */
 
-import { api, ConfigValidationResponse } from "./api";
+import type { ConfigValidationResponse } from "./api";
+import { api } from "./api";
 
 const WIZARD_COMPLETE_KEY = "fiestaboard_wizard_complete";
 const WIZARD_PROGRESS_KEY = "fiestaboard_wizard_progress";
@@ -42,20 +43,20 @@ export interface WizardProgress {
  * Returns true if:
  * - Config validation fails (first run)
  * - Wizard has never been completed
- * 
+ *
  * @returns Promise resolving to whether wizard should show
  */
 export async function shouldShowWizard(): Promise<boolean> {
   try {
     const validation = await api.validateSetup();
-    
+
     // If first run (missing board config), always show wizard.
     // Server truth wins — localStorage completion flag from a previous Pi
     // must not suppress the wizard on a fresh device.
     if (validation.is_first_run) {
       return true;
     }
-    
+
     // If config is invalid, show wizard
     if (!validation.valid) {
       // But check if user has previously completed wizard and explicitly skipped
@@ -65,7 +66,7 @@ export async function shouldShowWizard(): Promise<boolean> {
       }
       return true;
     }
-    
+
     return false;
   } catch (error) {
     console.error("Failed to check setup status:", error);
@@ -173,4 +174,3 @@ export function clearWizardProgress(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(WIZARD_PROGRESS_KEY);
 }
-

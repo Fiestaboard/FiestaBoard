@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { server } from "./mocks/server";
 
 // Mock next/navigation. ``currentPathname`` is mutable so individual tests
@@ -26,7 +27,7 @@ vi.mock("@/components/wizard", () => ({
   SetupWizard: () => <div data-testid="wizard" />,
 }));
 
-import { WizardProvider, useWizard } from "@/components/wizard-provider";
+import { useWizard, WizardProvider } from "@/components/wizard-provider";
 
 function Probe() {
   const { isWizardActive } = useWizard();

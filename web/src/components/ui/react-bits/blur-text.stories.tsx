@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import BlurText from "./blur-text";
 
 const meta = {
@@ -102,23 +103,8 @@ export const ColoredText: Story = {
 
 export const MultipleLines = () => (
   <div className="space-y-4 text-center">
-    <BlurText
-      text="First line appears"
-      delay={150}
-      animateBy="words"
-      className="text-2xl font-bold"
-    />
-    <BlurText
-      text="Then the second line"
-      delay={150}
-      animateBy="words"
-      className="text-xl text-muted-foreground"
-    />
-    <BlurText
-      text="And finally the third"
-      delay={150}
-      animateBy="words"
-      className="text-lg"
-    />
+    <BlurText text="First line appears" delay={150} animateBy="words" className="text-2xl font-bold" />
+    <BlurText text="Then the second line" delay={150} animateBy="words" className="text-xl text-muted-foreground" />
+    <BlurText text="And finally the third" delay={150} animateBy="words" className="text-lg" />
   </div>
 );

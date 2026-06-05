@@ -13,7 +13,7 @@
  */
 
 import { Bot, Hand, Zap } from "lucide-react";
-import type { ChainingMode } from "@/lib/ai-chat-types";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { ChainingMode } from "@/lib/ai-chat-types";
 
 interface ModeConfig {
   label: string;
@@ -73,38 +74,22 @@ export function ChainingModePicker({ mode, onChange }: ChainingModePickerProps) 
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="text-xs font-medium">
-          AI chaining mode
-        </DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs font-medium">AI chaining mode</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {MODES.map((key) => {
           const cfg = MODE_CONFIG[key];
           const ItemIcon = cfg.Icon;
           const isActive = key === mode;
           return (
-            <DropdownMenuItem
-              key={key}
-              onClick={() => onChange(key)}
-              className="flex items-start gap-2.5 py-2 text-xs"
-            >
+            <DropdownMenuItem key={key} onClick={() => onChange(key)} className="flex items-start gap-2.5 py-2 text-xs">
               <ItemIcon
-                className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
-                  isActive ? "text-brand-emphasis" : "text-muted-foreground"
-                }`}
+                className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isActive ? "text-brand-emphasis" : "text-muted-foreground"}`}
               />
               <div className="flex-1 min-w-0">
-                <div
-                  className={`font-medium ${isActive ? "text-brand-emphasis" : ""}`}
-                >
-                  {cfg.label}
-                </div>
-                <div className="text-muted-foreground leading-tight">
-                  {cfg.description}
-                </div>
+                <div className={`font-medium ${isActive ? "text-brand-emphasis" : ""}`}>{cfg.label}</div>
+                <div className="text-muted-foreground leading-tight">{cfg.description}</div>
               </div>
-              {isActive && (
-                <div className="ml-auto mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-emphasis" />
-              )}
+              {isActive && <div className="ml-auto mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-emphasis" />}
             </DropdownMenuItem>
           );
         })}

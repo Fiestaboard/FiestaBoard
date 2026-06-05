@@ -4,15 +4,7 @@
  * Tests plugin listing, enable/disable, configuration,
  * variable display, and error states on the Integrations page.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  suppressWizard,
-  enablePlugin,
-  disablePlugin,
-  API_URL,
-} from "./helpers";
+import { API_URL, configureBoard, disablePlugin, enablePlugin, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -22,18 +14,10 @@ test.beforeEach(async ({ page }) => {
 test.describe("Plugin Management", () => {
   test("lists all plugins grouped by category", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // Check for category groupings
-    const categories = [
-      "Weather",
-      "Utilities",
-      "Transportation",
-      "Data",
-      "Entertainment",
-    ];
+    const categories = ["Weather", "Utilities", "Transportation", "Data", "Entertainment"];
 
     let foundCategories = 0;
     for (const cat of categories) {
@@ -61,9 +45,7 @@ test.describe("Plugin Management", () => {
 
     // Verify the UI reflects the enabled state
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // The plugin should show a "Configured" or enabled-state badge
     const configuredBadge = page.getByText(/configured|setup required/i).first();
@@ -88,24 +70,16 @@ test.describe("Plugin Management", () => {
     await enablePlugin("date_time");
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // Find and click the Configure button for date_time
-    const configureBtn = page
-      .getByRole("button", { name: /configure/i })
-      .first();
+    const configureBtn = page.getByRole("button", { name: /configure/i }).first();
 
-    if (
-      await configureBtn.isVisible({ timeout: 5_000 }).catch(() => false)
-    ) {
+    if (await configureBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await configureBtn.click();
 
       // The configuration sheet should open — look for the Save button
-      await expect(
-        page.getByRole("button", { name: "Save Changes" }),
-      ).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByRole("button", { name: "Save Changes" })).toBeVisible({ timeout: 5_000 });
     }
   });
 
@@ -148,9 +122,7 @@ test.describe("Plugin Management", () => {
     await enablePlugin("weather").catch(() => {});
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // Identify the weather plugin card by its unique toggle aria-label, then
     // scope the Configure button lookup to that card so we never accidentally
@@ -158,32 +130,22 @@ test.describe("Plugin Management", () => {
     const weatherToggle = page.getByRole("switch", { name: "Toggle Weather" });
     if (await weatherToggle.isVisible({ timeout: 10_000 }).catch(() => false)) {
       // Find the plugin card that contains the weather toggle
-      const weatherCard = page
-        .locator('[class*="card-interactive"]')
-        .filter({ has: weatherToggle });
+      const weatherCard = page.locator('[class*="card-interactive"]').filter({ has: weatherToggle });
 
-      const configBtn = weatherCard
-        .getByRole("button", { name: /configure/i })
-        .first();
+      const configBtn = weatherCard.getByRole("button", { name: /configure/i }).first();
 
-      if (
-        await configBtn.isVisible({ timeout: 5_000 }).catch(() => false)
-      ) {
+      if (await configBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
         await configBtn.click();
 
         // Wait for the sheet to fully open: the "Save Changes" button only
         // appears once the plugin-details query has resolved and the schema
         // form has rendered – no hardcoded sleep needed.
         const saveBtn = page.getByRole("button", { name: "Save Changes" });
-        if (
-          await saveBtn.isVisible({ timeout: 10_000 }).catch(() => false)
-        ) {
+        if (await saveBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
           // Weather plugin requires an API key – the field must be a
           // password-type input (ui:widget "password" in the manifest).
           const apiKeyField = page.locator('input[type="password"]').first();
-          const hasApiKeyField = await apiKeyField
-            .isVisible({ timeout: 5_000 })
-            .catch(() => false);
+          const hasApiKeyField = await apiKeyField.isVisible({ timeout: 5_000 }).catch(() => false);
           expect(hasApiKeyField).toBe(true);
         }
       }
@@ -194,9 +156,7 @@ test.describe("Plugin Management", () => {
     await disablePlugin("date_time").catch(() => {});
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // Disabled plugins should show a "Disabled" badge
     const disabledBadge = page.getByText("Disabled").first();

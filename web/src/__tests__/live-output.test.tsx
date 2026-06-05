@@ -1,11 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { PageBuilder } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
-import { api, BoardSettings } from "@/lib/api";
+import type { BoardSettings } from "@/lib/api";
+import { api } from "@/lib/api";
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual("@/lib/api");
@@ -46,15 +48,47 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 const defaultBoardSettings: BoardSettings = {
   board_type: "black",
-  boards: [{ id: "board-1", name: "Living Room", device_type: "flagship", board_color: "black", enabled: true, api_mode: "local", host: "192.168.1.100", local_api_key: "test-key", cloud_key: "" }],
+  boards: [
+    {
+      id: "board-1",
+      name: "Living Room",
+      device_type: "flagship",
+      board_color: "black",
+      enabled: true,
+      api_mode: "local",
+      host: "192.168.1.100",
+      local_api_key: "test-key",
+      cloud_key: "",
+    },
+  ],
   devices: ["flagship"],
 };
 
 const multiBoardSettings: BoardSettings = {
   board_type: "black",
   boards: [
-    { id: "board-1", name: "Living Room", device_type: "flagship", board_color: "black", enabled: true, api_mode: "local", host: "192.168.1.100", local_api_key: "test-key", cloud_key: "" },
-    { id: "board-2", name: "Kitchen Note", device_type: "note", board_color: "white", enabled: true, api_mode: "cloud", host: "", local_api_key: "", cloud_key: "cloud-key-123" },
+    {
+      id: "board-1",
+      name: "Living Room",
+      device_type: "flagship",
+      board_color: "black",
+      enabled: true,
+      api_mode: "local",
+      host: "192.168.1.100",
+      local_api_key: "test-key",
+      cloud_key: "",
+    },
+    {
+      id: "board-2",
+      name: "Kitchen Note",
+      device_type: "note",
+      board_color: "white",
+      enabled: true,
+      api_mode: "cloud",
+      host: "",
+      local_api_key: "",
+      cloud_key: "cloud-key-123",
+    },
   ],
   devices: ["flagship", "note"],
 };
@@ -99,7 +133,10 @@ describe("Live Output Mode", () => {
       },
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
-    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
+    vi.mocked(api.forceRefresh).mockResolvedValue({
+      status: "success",
+      message: "Display force-refreshed successfully",
+    });
   });
 
   afterEach(() => {
@@ -107,10 +144,7 @@ describe("Live Output Mode", () => {
   });
 
   it("renders the live output toggle", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("Live Output")).toBeInTheDocument();
@@ -118,10 +152,7 @@ describe("Live Output Mode", () => {
   });
 
   it("renders the toggle switch with correct aria-label", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
@@ -130,10 +161,7 @@ describe("Live Output Mode", () => {
   });
 
   it("toggle is off by default", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
@@ -143,10 +171,7 @@ describe("Live Output Mode", () => {
 
   it("toggle can be turned on", async () => {
     const user = userEvent.setup();
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -162,10 +187,7 @@ describe("Live Output Mode", () => {
 
   it("toggle can be turned off after being turned on", async () => {
     const user = userEvent.setup();
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -186,10 +208,7 @@ describe("Live Output Mode", () => {
 
   it("calls forceRefresh immediately when live output is toggled off", async () => {
     const user = userEvent.setup();
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -218,10 +237,7 @@ describe("Live Output Mode", () => {
   it("does not show board selector when only one board is configured", async () => {
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
 
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("Live Output")).toBeInTheDocument();
@@ -233,10 +249,7 @@ describe("Live Output Mode", () => {
   it("shows board selector when multiple boards are configured", async () => {
     vi.mocked(api.getBoardSettings).mockResolvedValue(multiBoardSettings);
 
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("combobox", { name: /select board for live output/i })).toBeInTheDocument();
@@ -244,26 +257,20 @@ describe("Live Output Mode", () => {
   });
 
   it("does not call renderTemplateLive when toggle is off", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("Live Output")).toBeInTheDocument();
     });
 
     // Wait a bit for any debounced calls
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     expect(vi.mocked(api.renderTemplateLive)).not.toHaveBeenCalled();
   });
 
   it("shows preview label alongside live output controls", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("Preview")).toBeInTheDocument();
@@ -272,10 +279,7 @@ describe("Live Output Mode", () => {
   });
 
   it("shows board color toggle alongside live output", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("Board color")).toBeInTheDocument();
@@ -287,7 +291,7 @@ describe("Live Output Mode", () => {
 
 describe("Live Output API Client", () => {
   it("renderTemplateLive is a function on the api object", async () => {
-    const { api: realApi } = await vi.importActual("@/lib/api") as { api: Record<string, unknown> };
+    const { api: realApi } = (await vi.importActual("@/lib/api")) as { api: Record<string, unknown> };
     expect(typeof realApi.renderTemplateLive).toBe("function");
   });
 });
@@ -320,7 +324,10 @@ describe("Live Output - Board Selector Interaction", () => {
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(multiBoardSettings);
-    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
+    vi.mocked(api.forceRefresh).mockResolvedValue({
+      status: "success",
+      message: "Display force-refreshed successfully",
+    });
     vi.mocked(api.createPage).mockResolvedValue({
       status: "success",
       page: {
@@ -340,10 +347,7 @@ describe("Live Output - Board Selector Interaction", () => {
   });
 
   it("board selector is present with correct aria-label when multiple boards", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const selector = screen.getByRole("combobox", { name: /select board for live output/i });
@@ -352,10 +356,7 @@ describe("Live Output - Board Selector Interaction", () => {
   });
 
   it("live output controls are within a bordered container", async () => {
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const liveLabel = screen.getByText("Live Output");
@@ -394,7 +395,10 @@ describe("Live Output - Auto-timeout", () => {
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
-    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
+    vi.mocked(api.forceRefresh).mockResolvedValue({
+      status: "success",
+      message: "Display force-refreshed successfully",
+    });
     vi.mocked(api.createPage).mockResolvedValue({
       status: "success",
       page: {
@@ -418,10 +422,7 @@ describe("Live Output - Auto-timeout", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const { act } = await import("@testing-library/react");
 
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -447,10 +448,7 @@ describe("Live Output - Auto-timeout", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const { act } = await import("@testing-library/react");
 
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -477,10 +475,7 @@ describe("Live Output - Auto-timeout", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const { act } = await import("@testing-library/react");
 
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -534,15 +529,15 @@ describe("Live Output - Cleanup on unmount", () => {
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
-    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
+    vi.mocked(api.forceRefresh).mockResolvedValue({
+      status: "success",
+      message: "Display force-refreshed successfully",
+    });
   });
 
   it("live mode state is destroyed when component unmounts (navigating away)", async () => {
     const user = userEvent.setup();
-    const { unmount } = render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -558,27 +553,24 @@ describe("Live Output - Cleanup on unmount", () => {
     unmount();
 
     // Re-render - live mode should start as off (state was destroyed)
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(
       () => {
         const newToggle = screen.getByRole("switch", { name: /toggle live output to board/i });
         expect(newToggle).toHaveAttribute("data-state", "unchecked");
       },
-      { timeout: 10000 }
+      { timeout: 10000 },
     );
   }, 15000);
 
   it("calls forceRefresh on unmount when live output was enabled", async () => {
-    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
+    vi.mocked(api.forceRefresh).mockResolvedValue({
+      status: "success",
+      message: "Display force-refreshed successfully",
+    });
     const user = userEvent.setup();
-    const { unmount } = render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -597,11 +589,11 @@ describe("Live Output - Cleanup on unmount", () => {
   });
 
   it("does not call forceRefresh on unmount when live output was not enabled", async () => {
-    vi.mocked(api.forceRefresh).mockResolvedValue({ status: "success", message: "Display force-refreshed successfully" });
-    const { unmount } = render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    vi.mocked(api.forceRefresh).mockResolvedValue({
+      status: "success",
+      message: "Display force-refreshed successfully",
+    });
+    const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -614,10 +606,7 @@ describe("Live Output - Cleanup on unmount", () => {
 
   it("turns off live toggle when another tab clears the live-output channel", async () => {
     const user = userEvent.setup();
-    render(
-      <PageBuilder onClose={mockOnClose} onSave={mockOnSave} />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
@@ -638,7 +627,7 @@ describe("Live Output - Cleanup on unmount", () => {
       new StorageEvent("storage", {
         key: "fiestaboard:liveOutputMessage",
         newValue: null,
-      })
+      }),
     );
 
     await waitFor(() => {

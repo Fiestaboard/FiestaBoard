@@ -1,17 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
-import { AiChatPanel } from "@/components/ai-chat-panel";
 import { AiActionConfirmation } from "@/components/ai-action-confirmation";
+import { AiChatPanel } from "@/components/ai-chat-panel";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
-import { api, type AISettings } from "@/lib/api";
 import type {
   ChainingMode,
   ChatTurnContext,
@@ -30,6 +28,8 @@ import type {
   UpdateScheduleArgs,
   UpdateSettingArgs,
 } from "@/lib/ai-chat-types";
+import { type AISettings, api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Helpers for building tool-result chain messages
@@ -85,14 +85,16 @@ function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string
     case "navigate_to_page": {
       if (!success) return `[Tool result: navigate_to_page → ${status}.]`;
       const isNew = call.args.page_id === "new";
-      return `[Tool result: navigate_to_page → Success. ${isNew
-        ? "Blank page editor is now mounted. Surface is 'editor' — use replace_page to ship the template you described, then continue with any remaining steps (schedules, integrations, etc.)."
-        : "Page editor is now mounted. Use apply_patch for incremental edits or replace_page to rewrite, then continue with any remaining steps."}]`;
+      return `[Tool result: navigate_to_page → Success. ${
+        isNew
+          ? "Blank page editor is now mounted. Surface is 'editor' — use replace_page to ship the template you described, then continue with any remaining steps (schedules, integrations, etc.)."
+          : "Page editor is now mounted. Use apply_patch for incremental edits or replace_page to rewrite, then continue with any remaining steps."
+      }]`;
     }
     case "navigate_to_schedule":
       return `[Tool result: navigate_to_schedule → ${status}.${success ? " Schedule form is open. Continue with create_schedule (or update_schedule) to commit the change." : ""}]`;
     case "replace_page":
-      return `[Tool result: replace_page → ${status}.${success ? " Page template applied. Continue with any remaining steps." : " Hint: emit navigate_to_page with page_id=\"new\" first if no editor is mounted."}]`;
+      return `[Tool result: replace_page → ${status}.${success ? " Page template applied. Continue with any remaining steps." : ' Hint: emit navigate_to_page with page_id="new" first if no editor is mounted.'}]`;
     case "apply_patch":
       return `[Tool result: apply_patch → ${status}.${success ? " Patch applied. Continue with any remaining steps." : " Hint: emit navigate_to_page first if no editor is mounted."}]`;
     case "suggest_variables":
@@ -106,15 +108,8 @@ export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const {
-    getEditorSnapshot,
-    applyEditorOp,
-    saveEditor,
-    hasEditor,
-    canEditorUndo,
-    editorUndo,
-    waitForEditor,
-  } = usePageEditorBridge();
+  const { getEditorSnapshot, applyEditorOp, saveEditor, hasEditor, canEditorUndo, editorUndo, waitForEditor } =
+    usePageEditorBridge();
   const { hasScheduleEditor, openScheduleForm } = useScheduleEditorBridge();
 
   // ---------------------------------------------------------------------------
@@ -465,7 +460,20 @@ export function GlobalAiChatDrawer() {
           break;
       }
     },
-    [router, close, hasEditor, applyEditorOp, saveEditor, waitForEditor, hasScheduleEditor, openScheduleForm, handleCreateSchedule, handleUpdateSchedule, handleDeleteSchedule, chainAfter],
+    [
+      router,
+      close,
+      hasEditor,
+      applyEditorOp,
+      saveEditor,
+      waitForEditor,
+      hasScheduleEditor,
+      openScheduleForm,
+      handleCreateSchedule,
+      handleUpdateSchedule,
+      handleDeleteSchedule,
+      chainAfter,
+    ],
   );
 
   const handleInstallPlugin = useCallback(
@@ -560,9 +568,7 @@ export function GlobalAiChatDrawer() {
           await queryClient.invalidateQueries({ queryKey: ["location-settings"] });
           break;
         case "silence_schedule":
-          await api.updateSilenceSchedule(
-            args.values as Parameters<typeof api.updateSilenceSchedule>[0],
-          );
+          await api.updateSilenceSchedule(args.values as Parameters<typeof api.updateSilenceSchedule>[0]);
           await queryClient.invalidateQueries({ queryKey: ["silence-schedule"] });
           break;
         case "active_page": {
@@ -616,9 +622,7 @@ export function GlobalAiChatDrawer() {
       if (call.op === "replace_page" || call.op === "apply_patch" || call.op === "suggest_variables") return null;
 
       const isDestructive =
-        call.op === "delete_schedule" ||
-        call.op === "trigger_system_update" ||
-        call.op === "uninstall_plugin";
+        call.op === "delete_schedule" || call.op === "trigger_system_update" || call.op === "uninstall_plugin";
 
       const autoAllow = chainingMode === "autonomous" && !isDestructive;
 

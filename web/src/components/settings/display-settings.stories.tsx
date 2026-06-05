@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { DisplaySettings } from "./display-settings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { BoardSettings, BoardInstance } from "@/lib/api";
+
+import type { BoardInstance, BoardSettings } from "@/lib/api";
+
+import { DisplaySettings } from "./display-settings";
 
 const flagshipBoard: BoardInstance = {
   id: "board-1",
@@ -88,9 +90,7 @@ export const SingleBoard: Story = {
 export const MultipleBoards: Story = {
   decorators: [
     (Story) => (
-      <QueryClientProvider
-        client={createQueryClient([flagshipBoard, noteBoard, disabledBoard])}
-      >
+      <QueryClientProvider client={createQueryClient([flagshipBoard, noteBoard, disabledBoard])}>
         <div className="max-w-lg">
           <Story />
         </div>
@@ -103,9 +103,7 @@ export const UnconfiguredBoard: Story = {
   decorators: [
     (Story) => (
       <QueryClientProvider
-        client={createQueryClient([
-          { ...flagshipBoard, host: "", local_api_key: "", name: "New Board" },
-        ])}
+        client={createQueryClient([{ ...flagshipBoard, host: "", local_api_key: "", name: "New Board" }])}
       >
         <div className="max-w-lg">
           <Story />
@@ -131,9 +129,7 @@ export const WhiteBoard: Story = {
   decorators: [
     (Story) => (
       <QueryClientProvider
-        client={createQueryClient([
-          { ...flagshipBoard, board_color: "white", name: "White Flagship" },
-        ])}
+        client={createQueryClient([{ ...flagshipBoard, board_color: "white", name: "White Flagship" }])}
       >
         <div className="max-w-lg">
           <Story />

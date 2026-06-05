@@ -1,15 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
 import { act, render, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-import {
-  ScheduleEditorBridgeProvider,
-  useScheduleEditorBridge,
-} from "@/components/schedule-editor-bridge-context";
+import { ScheduleEditorBridgeProvider, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <ScheduleEditorBridgeProvider>{children}</ScheduleEditorBridgeProvider>
-  );
+  return <ScheduleEditorBridgeProvider>{children}</ScheduleEditorBridgeProvider>;
 }
 
 describe("ScheduleEditorBridgeProvider", () => {
@@ -86,12 +81,8 @@ describe("ScheduleEditorBridgeProvider", () => {
   });
 
   it("throws when used outside the provider", () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    expect(() =>
-      render(<TestConsumer />),
-    ).toThrow(/must be used within ScheduleEditorBridgeProvider/);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => render(<TestConsumer />)).toThrow(/must be used within ScheduleEditorBridgeProvider/);
     consoleError.mockRestore();
   });
 });

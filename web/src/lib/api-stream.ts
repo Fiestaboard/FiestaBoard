@@ -68,9 +68,7 @@ export async function streamChat(
         if (response.ok) {
           const ct = response.headers.get("content-type") || "";
           if (!ct.includes("text/event-stream")) {
-            handlers.onError?.(
-              `Unexpected response type: ${ct || "(none)"}`,
-            );
+            handlers.onError?.(`Unexpected response type: ${ct || "(none)"}`);
             ctrl.abort();
           }
           return;
@@ -85,9 +83,7 @@ export async function streamChat(
         } catch {
           /* ignore — fall through */
         }
-        handlers.onError?.(
-          detail ?? `Server returned ${response.status}.`,
-        );
+        handlers.onError?.(detail ?? `Server returned ${response.status}.`);
         ctrl.abort();
       },
       onmessage(ev) {
@@ -127,8 +123,7 @@ export async function streamChat(
       onerror(err) {
         // The default behavior reconnects forever; we want to surface
         // and stop. Throw to terminate the stream.
-        const msg =
-          err instanceof Error ? err.message : "Stream connection failed.";
+        const msg = err instanceof Error ? err.message : "Stream connection failed.";
         // AbortError is expected when we close cleanly — don't surface.
         if (err instanceof DOMException && err.name === "AbortError") {
           throw err;

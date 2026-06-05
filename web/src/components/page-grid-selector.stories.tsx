@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { PageGridSelector } from "./page-grid-selector";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Page, PagesResponse, PagePreviewBatchResponse, Carousel, CarouselsResponse } from "@/lib/api";
+
+import type { Carousel, CarouselsResponse, Page, PagePreviewBatchResponse, PagesResponse } from "@/lib/api";
+
+import { PageGridSelector } from "./page-grid-selector";
 
 const meta = {
   title: "Layout/PageGridSelector",
@@ -111,9 +113,9 @@ const createQueryClient = (pages: Page[], activePageId?: string, carousels?: Car
       },
     },
   });
-  
+
   client.setQueryData(["pages"], { pages } as PagesResponse);
-  client.setQueryData(["pagePreviewBatch", pages.map(p => p.id)], mockPreviews);
+  client.setQueryData(["pagePreviewBatch", pages.map((p) => p.id)], mockPreviews);
   client.setQueryData(["board-settings"], {
     board_color: "black",
     devices: ["flagship"],
@@ -121,7 +123,7 @@ const createQueryClient = (pages: Page[], activePageId?: string, carousels?: Car
   if (carousels) {
     client.setQueryData(["carousels"], { carousels, total: carousels.length } as CarouselsResponse);
   }
-  
+
   return client;
 };
 
@@ -236,7 +238,7 @@ export const ManyPages = () => {
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   }));
-  
+
   return (
     <QueryClientProvider client={createQueryClient(manyPages, "page-3")}>
       <div className="max-w-6xl">

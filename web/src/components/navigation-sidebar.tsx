@@ -1,24 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Award,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  GalleryHorizontalEnd,
+  HelpCircle,
+  Home,
+  Menu,
+  Puzzle,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
-import { Home, FileText, Settings, Calendar, Menu, Puzzle, GalleryHorizontalEnd, ChevronLeft, ChevronRight, HelpCircle, Sparkles, Award } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { VersionDisplay } from "@/components/version-display";
-import { Button } from "@/components/ui/button";
-import { ViewTransitionLink } from "@/components/view-transition-link";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { usePrefetchPagesData } from "@/hooks/use-board";
+import { useEffect, useState } from "react";
+
 import { FiestaLogo } from "@/components/fiesta-logo";
+import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { SidebarAccount } from "@/components/sidebar-account";
 import { useSidebar } from "@/components/sidebar-context";
-import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
-import { api, type AISettings } from "@/lib/api";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { VersionDisplay } from "@/components/version-display";
+import { ViewTransitionLink } from "@/components/view-transition-link";
+import { usePrefetchPagesData } from "@/hooks/use-board";
+import { type AISettings, api } from "@/lib/api";
+import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
+import { cn } from "@/lib/utils";
 
 interface NavItem {
   key: string;
@@ -95,9 +109,7 @@ export function NavigationSidebar() {
     const name = t(item.key);
     const mobileClassName = cn(
       "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
-      active
-        ? "nav-active font-semibold"
-        : "text-sidebar-foreground nav-active-hover"
+      active ? "nav-active font-semibold" : "text-sidebar-foreground nav-active-hover",
     );
 
     if (item.external) {
@@ -138,9 +150,7 @@ export function NavigationSidebar() {
     const name = t(item.key);
     const linkClassName = cn(
       "flex items-center gap-3 py-2 pl-[14px] pr-3 rounded-lg text-sm font-medium transition-colors",
-      active
-        ? "nav-active font-semibold"
-        : "text-sidebar-foreground nav-active-hover"
+      active ? "nav-active font-semibold" : "text-sidebar-foreground nav-active-hover",
     );
 
     let link: React.ReactElement;
@@ -155,10 +165,14 @@ export function NavigationSidebar() {
           aria-label={collapsed ? name : undefined}
         >
           <Icon className="h-5 w-5 flex-shrink-0" />
-          <span className={cn(
-            "whitespace-nowrap overflow-hidden transition-opacity duration-100",
-            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-          )}>{name}</span>
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+              collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+            )}
+          >
+            {name}
+          </span>
         </a>
       );
     } else {
@@ -171,19 +185,21 @@ export function NavigationSidebar() {
           aria-label={collapsed ? name : undefined}
         >
           <Icon className="h-5 w-5 flex-shrink-0" />
-          <span className={cn(
-            "whitespace-nowrap overflow-hidden transition-opacity duration-100",
-            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-          )}>{name}</span>
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+              collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+            )}
+          >
+            {name}
+          </span>
         </ViewTransitionLink>
       );
     }
 
     return (
       <Tooltip key={item.key}>
-        <TooltipTrigger asChild>
-          {link}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
         {collapsed && (
           <TooltipContent side="right" className="font-medium">
             {name}
@@ -214,35 +230,27 @@ export function NavigationSidebar() {
             )}
           </Button>
           <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
-            <Image
-              src="/icons/favicon-32x32.png"
-              alt=""
-              width={32}
-              height={32}
-              className="flex-shrink-0"
-            />
+            <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
             <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
           </div>
         </div>
       </header>
 
       {/* Mobile Menu Backdrop */}
-      <div 
+      <div
         className={cn(
           "lg:hidden fixed inset-0 z-[90] bg-black/25 backdrop-blur-[2px] transition-opacity duration-200 pointer-events-none",
-          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0"
+          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0",
         )}
         onClick={() => setMobileMenuOpen(false)}
         aria-hidden="true"
       />
 
       {/* Mobile Menu */}
-      <div 
+      <div
         className={cn(
           "lg:hidden fixed top-[72px] left-3 right-3 z-[95] flex max-h-[calc(100dvh-5.5rem)] flex-col overflow-hidden sidebar-gradient-horizontal",
-          mobileMenuOpen
-            ? "opacity-100"
-            : "opacity-0 pointer-events-none"
+          mobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
         role={mobileMenuOpen ? "dialog" : undefined}
         aria-modal={mobileMenuOpen ? true : undefined}
@@ -250,8 +258,8 @@ export function NavigationSidebar() {
         aria-hidden={!mobileMenuOpen}
         inert={!mobileMenuOpen ? true : undefined}
         style={{
-          clipPath: mobileMenuOpen ? 'inset(0 0 0 0 round 16px)' : 'inset(0 0 100% 0 round 16px)',
-          transition: 'clip-path 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 250ms ease',
+          clipPath: mobileMenuOpen ? "inset(0 0 0 0 round 16px)" : "inset(0 0 100% 0 round 16px)",
+          transition: "clip-path 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 250ms ease",
         }}
       >
         <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -259,12 +267,13 @@ export function NavigationSidebar() {
           {hasAiProviders && (
             <button
               type="button"
-              onClick={() => { openAiPanel(); setMobileMenuOpen(false); }}
+              onClick={() => {
+                openAiPanel();
+                setMobileMenuOpen(false);
+              }}
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-base font-medium min-h-[48px]",
-                aiPanelOpen
-                  ? "nav-active font-semibold"
-                  : "text-sidebar-foreground nav-active-hover",
+                aiPanelOpen ? "nav-active font-semibold" : "text-sidebar-foreground nav-active-hover",
               )}
             >
               <Sparkles className="h-5 w-5" />
@@ -292,7 +301,7 @@ export function NavigationSidebar() {
           className={cn(
             "hidden lg:fixed lg:top-3 lg:bottom-3 lg:z-50 lg:block sidebar-gradient sidebar-transition",
             collapsed ? "lg:w-16" : "lg:w-64",
-            transitioning && "is-transitioning"
+            transitioning && "is-transitioning",
           )}
           style={{ left: appInset + SIDEBAR_INSET }}
           onTransitionEnd={(e) => {
@@ -309,32 +318,22 @@ export function NavigationSidebar() {
                 aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
                 className="absolute -right-3.5 top-[51px] z-[51] flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-background text-gray-500 dark:text-gray-400 shadow-md hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
               >
-                {collapsed ? (
-                  <ChevronRight className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                )}
+                {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">
-              {collapsed ? t("expandSidebar") : t("collapseSidebar")}
-            </TooltipContent>
+            <TooltipContent side="right">{collapsed ? t("expandSidebar") : t("collapseSidebar")}</TooltipContent>
           </Tooltip>
 
           <div className="flex h-full flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-2 overflow-hidden px-4 py-4">
-              <Image
-                src="/icons/favicon-32x32.png"
-                alt=""
-                width={32}
-                height={32}
-                className="flex-shrink-0"
+              <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+              <FiestaLogo
+                className={cn(
+                  "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                  collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+                )}
               />
-              <FiestaLogo className={cn(
-                "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
-                collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-              )} />
             </div>
 
             <div className="mx-2 border-t border-sidebar-border" />
@@ -356,16 +355,18 @@ export function NavigationSidebar() {
                         aria-label={t("aiAssistant")}
                         className={cn(
                           "flex w-full items-center gap-3 py-2 pl-[14px] pr-3 rounded-lg text-sm font-medium transition-colors",
-                          aiPanelOpen
-                            ? "nav-active font-semibold"
-                            : "text-sidebar-foreground nav-active-hover",
+                          aiPanelOpen ? "nav-active font-semibold" : "text-sidebar-foreground nav-active-hover",
                         )}
                       >
                         <Sparkles className="h-5 w-5 flex-shrink-0" />
-                        <span className={cn(
-                          "whitespace-nowrap overflow-hidden transition-opacity duration-100",
-                          collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-                        )}>{t("aiAssistant")}</span>
+                        <span
+                          className={cn(
+                            "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+                          )}
+                        >
+                          {t("aiAssistant")}
+                        </span>
                       </button>
                     </TooltipTrigger>
                     {collapsed && (
@@ -386,17 +387,22 @@ export function NavigationSidebar() {
                 <SidebarAccount collapsed={collapsed} />
               </nav>
               <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/80 py-2 pl-[14px] pr-3">
-                <div className={cn(
-                  "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-100",
-                  collapsed ? "max-w-0 opacity-0" : "max-w-[min(200px,100%)] opacity-100 delay-150",
-                )}><VersionDisplay /></div>
-                <div className="flex-shrink-0"><ThemeToggle /></div>
+                <div
+                  className={cn(
+                    "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-100",
+                    collapsed ? "max-w-0 opacity-0" : "max-w-[min(200px,100%)] opacity-100 delay-150",
+                  )}
+                >
+                  <VersionDisplay />
+                </div>
+                <div className="flex-shrink-0">
+                  <ThemeToggle />
+                </div>
               </div>
             </div>
           </div>
         </aside>
       </TooltipProvider>
-
     </>
   );
 }

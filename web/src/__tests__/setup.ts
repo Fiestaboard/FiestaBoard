@@ -1,9 +1,11 @@
 import "@testing-library/jest-dom/vitest";
+
 import { cleanup } from "@testing-library/react";
-import { afterEach, beforeAll, afterAll, vi } from "vitest";
 import React from "react";
-import { server } from "./mocks/server";
+import { afterAll, afterEach, beforeAll, vi } from "vitest";
+
 import enMessages from "../../messages/en.json";
+import { server } from "./mocks/server";
 
 // Mock next-intl: resolve translation keys from English messages
 function getNestedRaw(obj: unknown, path: string): unknown {
@@ -22,16 +24,14 @@ function getNestedRaw(obj: unknown, path: string): unknown {
 
 vi.mock("next-intl", () => ({
   useTranslations: (namespace?: string) => {
-    const ns = namespace
-      ? getNestedRaw(enMessages, namespace)
-      : enMessages;
+    const ns = namespace ? getNestedRaw(enMessages, namespace) : enMessages;
     const lookup = (key: string): unknown => {
       const v = getNestedRaw(ns, key);
       return v === undefined ? (namespace ? `${namespace}.${key}` : key) : v;
     };
     const t = (key: string, params?: Record<string, unknown>) => {
       const raw = lookup(key);
-      let rawStr = typeof raw === "string" ? raw : (namespace ? `${namespace}.${key}` : key);
+      let rawStr = typeof raw === "string" ? raw : namespace ? `${namespace}.${key}` : key;
       if (!params) return rawStr;
       // Handle ICU plural: {name, plural, one {...} other {...}}
       rawStr = rawStr.replace(
@@ -48,16 +48,14 @@ vi.mock("next-intl", () => ({
           if (`=${value}` in branchMap) chosen = branchMap[`=${value}`];
           else if (value === 1 && branchMap.one) chosen = branchMap.one;
           return chosen.replace(/#/g, String(value));
-        }
+        },
       );
-      return rawStr.replace(/\{(\w+)\}/g, (_: string, k: string) =>
-        params[k] != null ? String(params[k]) : `{${k}}`
-      );
+      return rawStr.replace(/\{(\w+)\}/g, (_: string, k: string) => (params[k] != null ? String(params[k]) : `{${k}}`));
     };
     // Mock t.rich: render the message, replacing <tag>...</tag> and {placeholder} with React elements
     (t as unknown as { rich: (key: string, values?: Record<string, unknown>) => React.ReactNode }).rich = (
       key: string,
-      values?: Record<string, unknown>
+      values?: Record<string, unknown>,
     ) => {
       const rawVal = lookup(key);
       const raw = typeof rawVal === "string" ? rawVal : key;
@@ -74,7 +72,13 @@ vi.mock("next-intl", () => ({
         if (match[1]) {
           const fn = values[match[1]];
           if (typeof fn === "function") {
-            parts.push(React.createElement(React.Fragment, { key: nodeKey++ }, (fn as (chunks: string) => React.ReactNode)(match[2])));
+            parts.push(
+              React.createElement(
+                React.Fragment,
+                { key: nodeKey++ },
+                (fn as (chunks: string) => React.ReactNode)(match[2]),
+              ),
+            );
           } else {
             parts.push(match[2]);
           }
@@ -107,11 +111,11 @@ vi.mock("next-intl", () => ({
 // These are internal to jsdom and don't affect our tests
 const originalEmitWarning = process.emitWarning;
 process.emitWarning = (warning: string | Error, ...args: unknown[]) => {
-  const warningString = typeof warning === 'string' ? warning : warning.message;
-  if (warningString.includes('--localstorage-file')) {
+  const warningString = typeof warning === "string" ? warning : warning.message;
+  if (warningString.includes("--localstorage-file")) {
     return; // Suppress this specific warning
   }
-  return originalEmitWarning.call(process, warning, ...args as [never, never]);
+  return originalEmitWarning.call(process, warning, ...(args as [never, never]));
 };
 
 // Mock localStorage to avoid jsdom warnings
@@ -179,14 +183,14 @@ vi.mock("next/dynamic", () => ({
 }));
 
 // Mock DOM APIs needed by ProseMirror/TipTap
-if (typeof document !== 'undefined') {
+if (typeof document !== "undefined") {
   // Mock elementFromPoint for ProseMirror position calculations
   document.elementFromPoint = vi.fn(() => null);
   document.elementsFromPoint = vi.fn(() => []);
-  
+
   // Mock caretPositionFromPoint (alternative to caretRangeFromPoint)
   (document as any).caretPositionFromPoint = vi.fn(() => null);
-  
+
   // Mock caretRangeFromPoint for position calculations
   if (!document.caretRangeFromPoint) {
     (document as any).caretRangeFromPoint = vi.fn(() => null);
@@ -208,18 +212,18 @@ const mockRect = {
 
 const mockDOMRect = () => mockRect;
 
-if (typeof Element !== 'undefined') {
+if (typeof Element !== "undefined") {
   Element.prototype.getClientRects = vi.fn(() => [mockRect] as any);
   Element.prototype.getBoundingClientRect = vi.fn(mockDOMRect);
 }
 
-if (typeof Range !== 'undefined') {
+if (typeof Range !== "undefined") {
   Range.prototype.getClientRects = vi.fn(() => [mockRect] as any);
   Range.prototype.getBoundingClientRect = vi.fn(mockDOMRect);
 }
 
 // Mock scrollIntoView and pointer capture (needed by Radix UI)
-if (typeof Element !== 'undefined') {
+if (typeof Element !== "undefined") {
   Element.prototype.scrollIntoView = vi.fn();
   Element.prototype.hasPointerCapture = vi.fn(() => false);
   Element.prototype.setPointerCapture = vi.fn();
@@ -241,4 +245,3 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
 });
-

@@ -1,9 +1,6 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  writeLiveOutputMessage,
-  readLiveOutputMessage,
-  onLiveOutputMessageChange,
-} from "@/lib/live-output-channel";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 const STORAGE_KEY = "fiestaboard:liveOutputMessage";
 

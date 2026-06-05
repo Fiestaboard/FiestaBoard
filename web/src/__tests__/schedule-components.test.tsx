@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { PagePickerDialog } from "@/components/page-picker-dialog";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
 import { DaySelector } from "@/components/day-selector";
+import { PagePickerDialog } from "@/components/page-picker-dialog";
 
 describe("PagePickerDialog", () => {
   const mockPages = [
@@ -12,13 +13,7 @@ describe("PagePickerDialog", () => {
 
   it("renders all pages", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
 
     expect(screen.getByText("Morning Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Afternoon Dashboard")).toBeInTheDocument();
@@ -27,13 +22,7 @@ describe("PagePickerDialog", () => {
 
   it("shows selected page with check mark", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId="page2"
-        onSelect={onSelect}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId="page2" onSelect={onSelect} />);
 
     const page2Button = screen.getByText("Afternoon Dashboard").closest("button");
     expect(page2Button).toHaveClass("border-brand");
@@ -41,13 +30,7 @@ describe("PagePickerDialog", () => {
 
   it("calls onSelect when page is clicked", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
 
     fireEvent.click(screen.getByText("Morning Dashboard"));
 
@@ -57,61 +40,34 @@ describe("PagePickerDialog", () => {
 
   it("does NOT navigate to edit page when clicked (regression test)", () => {
     const onSelect = vi.fn();
-    const { container } = render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-      />
-    );
+    const { container } = render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
 
     fireEvent.click(screen.getByText("Morning Dashboard"));
 
     // Ensure it called onSelect and not a navigation function
     expect(onSelect).toHaveBeenCalledWith("page1");
-    
+
     // Verify no anchor tags are present (which would indicate navigation)
     expect(container.querySelector("a")).toBeNull();
   });
 
   it("shows 'None' option when allowNone is true", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-        allowNone={true}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} allowNone={true} />);
 
     expect(screen.getByText("None (no default)")).toBeInTheDocument();
   });
 
   it("does not show 'None' option when allowNone is false", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-        allowNone={false}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} allowNone={false} />);
 
     expect(screen.queryByText("None (no default)")).not.toBeInTheDocument();
   });
 
   it("calls onSelect with null when 'None' is clicked", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId="page1"
-        onSelect={onSelect}
-        allowNone={true}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId="page1" onSelect={onSelect} allowNone={true} />);
 
     fireEvent.click(screen.getByText("None (no default)"));
 
@@ -120,14 +76,7 @@ describe("PagePickerDialog", () => {
 
   it("shows check mark on 'None' when selectedPageId is null", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-        allowNone={true}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} allowNone={true} />);
 
     const noneButton = screen.getByText("None (no default)").closest("button");
     expect(noneButton).toHaveClass("border-brand");
@@ -135,13 +84,7 @@ describe("PagePickerDialog", () => {
 
   it("displays page types as badges", () => {
     const onSelect = vi.fn();
-    render(
-      <PagePickerDialog
-        pages={mockPages}
-        selectedPageId={null}
-        onSelect={onSelect}
-      />
-    );
+    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
 
     // Use getAllByText since there are multiple pages with "template" type
     const templateBadges = screen.getAllByText("template");
@@ -153,13 +96,7 @@ describe("PagePickerDialog", () => {
 describe("DaySelector", () => {
   it("renders all day pattern options", () => {
     const onChange = vi.fn();
-    render(
-      <DaySelector
-        value="all"
-        onChange={onChange}
-        customDays={[]}
-      />
-    );
+    render(<DaySelector value="all" onChange={onChange} customDays={[]} />);
 
     expect(screen.getByText("All Days")).toBeInTheDocument();
     expect(screen.getByText("Weekdays (Mon-Fri)")).toBeInTheDocument();
@@ -169,13 +106,7 @@ describe("DaySelector", () => {
 
   it("calls onChange when day pattern is selected", () => {
     const onChange = vi.fn();
-    render(
-      <DaySelector
-        value="all"
-        onChange={onChange}
-        customDays={[]}
-      />
-    );
+    render(<DaySelector value="all" onChange={onChange} customDays={[]} />);
 
     fireEvent.click(screen.getByText("Weekdays (Mon-Fri)"));
 
@@ -184,13 +115,7 @@ describe("DaySelector", () => {
 
   it("shows custom day checkboxes when 'Custom' is selected", () => {
     const onChange = vi.fn();
-    render(
-      <DaySelector
-        value="custom"
-        onChange={onChange}
-        customDays={["monday", "wednesday"]}
-      />
-    );
+    render(<DaySelector value="custom" onChange={onChange} customDays={["monday", "wednesday"]} />);
 
     // Day labels should be visible (as checkbox labels)
     expect(screen.getByLabelText("Monday")).toBeInTheDocument();
@@ -204,13 +129,7 @@ describe("DaySelector", () => {
 
   it("does not show custom day checkboxes when 'Custom' is not selected", () => {
     const onChange = vi.fn();
-    render(
-      <DaySelector
-        value="weekdays"
-        onChange={onChange}
-        customDays={[]}
-      />
-    );
+    render(<DaySelector value="weekdays" onChange={onChange} customDays={[]} />);
 
     // Day checkboxes should not be visible
     expect(screen.queryByLabelText("Monday")).not.toBeInTheDocument();
@@ -218,13 +137,7 @@ describe("DaySelector", () => {
 
   it("checks the correct custom days", () => {
     const onChange = vi.fn();
-    render(
-      <DaySelector
-        value="custom"
-        onChange={onChange}
-        customDays={["monday", "friday"]}
-      />
-    );
+    render(<DaySelector value="custom" onChange={onChange} customDays={["monday", "friday"]} />);
 
     const mondayCheckbox = screen.getByLabelText("Monday") as HTMLInputElement;
     const fridayCheckbox = screen.getByLabelText("Friday") as HTMLInputElement;
@@ -237,13 +150,7 @@ describe("DaySelector", () => {
 
   it("calls onChange when a day is checked", () => {
     const onChange = vi.fn();
-    render(
-      <DaySelector
-        value="custom"
-        onChange={onChange}
-        customDays={["monday"]}
-      />
-    );
+    render(<DaySelector value="custom" onChange={onChange} customDays={["monday"]} />);
 
     const tuesdayCheckbox = screen.getByLabelText("Tuesday");
     fireEvent.click(tuesdayCheckbox);
@@ -253,13 +160,7 @@ describe("DaySelector", () => {
 
   it("calls onChange when a day is unchecked", () => {
     const onChange = vi.fn();
-    render(
-      <DaySelector
-        value="custom"
-        onChange={onChange}
-        customDays={["monday", "tuesday", "friday"]}
-      />
-    );
+    render(<DaySelector value="custom" onChange={onChange} customDays={["monday", "tuesday", "friday"]} />);
 
     const tuesdayCheckbox = screen.getByLabelText("Tuesday");
     fireEvent.click(tuesdayCheckbox);
@@ -271,17 +172,9 @@ describe("DaySelector", () => {
 describe("Schedule Component Integration", () => {
   it("PagePickerDialog works independently without PageSelector navigation", () => {
     const onSelect = vi.fn();
-    const pages = [
-      { id: "page1", name: "Test Page" }
-    ];
+    const pages = [{ id: "page1", name: "Test Page" }];
 
-    render(
-      <PagePickerDialog
-        pages={pages}
-        selectedPageId={null}
-        onSelect={onSelect}
-      />
-    );
+    render(<PagePickerDialog pages={pages} selectedPageId={null} onSelect={onSelect} />);
 
     const pageButton = screen.getByText("Test Page");
     fireEvent.click(pageButton);

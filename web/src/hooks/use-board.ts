@@ -1,7 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+
 import { api } from "@/lib/api";
 
 // Query keys for cache management
@@ -58,13 +59,13 @@ export function useSetActivePage() {
     onMutate: async (newPageId) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: queryKeys.activePage });
-      
+
       // Snapshot the previous value
       const previousActivePage = queryClient.getQueryData(queryKeys.activePage);
-      
+
       // Optimistically update to the new value
       queryClient.setQueryData(queryKeys.activePage, { page_id: newPageId });
-      
+
       // Return context with the snapshotted value
       return { previousActivePage };
     },
@@ -101,7 +102,7 @@ export function usePagePreview(pageId: string | null, options?: { enabled?: bool
   return useQuery({
     queryKey: queryKeys.pagePreview(pageId || ""),
     queryFn: () => (pageId ? api.previewPage(pageId) : Promise.reject("No page ID")),
-    enabled: !!pageId && (options?.enabled !== false),
+    enabled: !!pageId && options?.enabled !== false,
     retry: 1,
     refetchInterval: options?.refetchInterval,
     staleTime: 60 * 1000,
@@ -155,7 +156,9 @@ export function usePrefetchPagesData() {
  * Prefers the first board instance's board_color over the legacy board_type field.
  */
 export function getEffectiveBoardColor(
-  boardSettings: { board_type?: "black" | "white" | null; boards?: Array<{ board_color?: "black" | "white" }> } | undefined
+  boardSettings:
+    | { board_type?: "black" | "white" | null; boards?: Array<{ board_color?: "black" | "white" }> }
+    | undefined,
 ): "black" | "white" {
   const firstBoard = boardSettings?.boards?.[0];
   if (firstBoard?.board_color) return firstBoard.board_color;
@@ -167,10 +170,9 @@ export function getEffectiveBoardColor(
  * Returns the first board instance's device_type, defaulting to "flagship".
  */
 export function getEffectiveDeviceType(
-  boardSettings: { boards?: Array<{ device_type?: string }> } | undefined
+  boardSettings: { boards?: Array<{ device_type?: string }> } | undefined,
 ): "flagship" | "note" {
   const firstBoard = boardSettings?.boards?.[0];
   if (firstBoard?.device_type === "note") return "note";
   return "flagship";
 }
-

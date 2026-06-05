@@ -1,48 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import {
-  Sparkles,
-  Plus,
-  Trash2,
+  CheckCircle2,
+  ChevronDown,
   Eye,
   EyeOff,
-  Loader2,
-  CheckCircle2,
-  XCircle,
   KeyRound,
-  ChevronDown,
+  Loader2,
+  Plus,
+  Sparkles,
+  Trash2,
+  XCircle,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import type { AIProvider, AISettings } from "@/lib/api";
+import { api } from "@/lib/api";
 
 type ProviderPreset = {
   label: string;
@@ -109,9 +94,7 @@ function ProviderRow({
   const [showKey, setShowKey] = useState(false);
   const [modelInput, setModelInput] = useState("");
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<
-    { ok: boolean; message: string } | null
-  >(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const addModel = () => {
     const trimmed = modelInput.trim();
@@ -134,10 +117,7 @@ function ProviderRow({
     const next: AIProvider = {
       ...provider,
       models: nextModels,
-      default_model:
-        provider.default_model === model
-          ? nextModels[0]
-          : provider.default_model,
+      default_model: provider.default_model === model ? nextModels[0] : provider.default_model,
     };
     onChange(next);
   };
@@ -165,11 +145,7 @@ function ProviderRow({
   const modelCount = provider.models.length;
 
   return (
-    <Collapsible
-      open={expanded}
-      onOpenChange={onToggleExpanded}
-      className="rounded-md border"
-    >
+    <Collapsible open={expanded} onOpenChange={onToggleExpanded} className="rounded-md border">
       <div className="flex items-center justify-between gap-2 p-2">
         <CollapsibleTrigger className="flex flex-1 items-center gap-2 min-w-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <ChevronDown
@@ -189,9 +165,7 @@ function ProviderRow({
             </Badge>
           )}
           <span className="text-[11px] text-muted-foreground shrink-0">
-            {modelCount === 0
-              ? "no models"
-              : `${modelCount} model${modelCount === 1 ? "" : "s"}`}
+            {modelCount === 0 ? "no models" : `${modelCount} model${modelCount === 1 ? "" : "s"}`}
           </span>
         </CollapsibleTrigger>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -203,11 +177,7 @@ function ProviderRow({
               className="h-7"
               onClick={onMakeDefault}
               disabled={provider.models.length === 0}
-              title={
-                provider.models.length === 0
-                  ? "Add at least one model first"
-                  : "Make this the default provider"
-              }
+              title={provider.models.length === 0 ? "Add at least one model first" : "Make this the default provider"}
             >
               Make default
             </Button>
@@ -234,235 +204,193 @@ function ProviderRow({
             <Input
               id={`name-${provider.id}`}
               value={provider.name}
-              onChange={(e) =>
-                onChange({ ...provider, name: e.target.value })
-              }
+              onChange={(e) => onChange({ ...provider, name: e.target.value })}
               placeholder="OpenRouter"
               className="h-8"
             />
           </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor={`protocol-${provider.id}`} className="text-xs">
-          Protocol
-        </Label>
-        <Select
-          value={provider.protocol ?? "openai"}
-          onValueChange={(value) =>
-            onChange({
-              ...provider,
-              protocol: value as "openai" | "anthropic",
-            })
-          }
-        >
-          <SelectTrigger id={`protocol-${provider.id}`} className="h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="openai">
-              OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek,
-              Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)
-            </SelectItem>
-            <SelectItem value="anthropic">
-              Anthropic (Messages API)
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`url-${provider.id}`} className="text-xs">
-          Base URL
-        </Label>
-        <Input
-          id={`url-${provider.id}`}
-          value={provider.base_url}
-          onChange={(e) =>
-            onChange({ ...provider, base_url: e.target.value })
-          }
-          placeholder="https://openrouter.ai/api/v1"
-          className="h-8 font-mono text-xs"
-        />
-        <div className="rounded-md border border-dashed bg-muted/30 p-2 space-y-1">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-            Quick presets
+          <div className="space-y-1.5">
+            <Label htmlFor={`protocol-${provider.id}`} className="text-xs">
+              Protocol
+            </Label>
+            <Select
+              value={provider.protocol ?? "openai"}
+              onValueChange={(value) =>
+                onChange({
+                  ...provider,
+                  protocol: value as "openai" | "anthropic",
+                })
+              }
+            >
+              <SelectTrigger id={`protocol-${provider.id}`} className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">
+                  OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM
+                  Studio, vLLM, …)
+                </SelectItem>
+                <SelectItem value="anthropic">Anthropic (Messages API)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          {(["cloud", "local"] as const).map((group) => {
-            const presets = PROVIDER_PRESETS.filter((p) => p.group === group);
-            return (
-              <div key={group} className="flex flex-wrap items-center gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground pr-1 w-10">
-                  {group === "cloud" ? "Cloud" : "Local"}
-                </span>
-                {presets.map((preset) => (
-                  <Button
-                    key={preset.label}
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-[11px]"
-                    onClick={() =>
-                      onChange({
-                        ...provider,
-                        base_url: preset.base_url,
-                        protocol: preset.protocol,
-                        // Only fill the name if the user hasn't typed one
-                        // — don't clobber a custom label on a re-click.
-                        name: provider.name.trim()
-                          ? provider.name
-                          : preset.label,
-                      })
-                    }
-                  >
-                    {preset.label}
-                  </Button>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`url-${provider.id}`} className="text-xs">
+              Base URL
+            </Label>
+            <Input
+              id={`url-${provider.id}`}
+              value={provider.base_url}
+              onChange={(e) => onChange({ ...provider, base_url: e.target.value })}
+              placeholder="https://openrouter.ai/api/v1"
+              className="h-8 font-mono text-xs"
+            />
+            <div className="rounded-md border border-dashed bg-muted/30 p-2 space-y-1">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Quick presets</div>
+              {(["cloud", "local"] as const).map((group) => {
+                const presets = PROVIDER_PRESETS.filter((p) => p.group === group);
+                return (
+                  <div key={group} className="flex flex-wrap items-center gap-1">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground pr-1 w-10">
+                      {group === "cloud" ? "Cloud" : "Local"}
+                    </span>
+                    {presets.map((preset) => (
+                      <Button
+                        key={preset.label}
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[11px]"
+                        onClick={() =>
+                          onChange({
+                            ...provider,
+                            base_url: preset.base_url,
+                            protocol: preset.protocol,
+                            // Only fill the name if the user hasn't typed one
+                            // — don't clobber a custom label on a re-click.
+                            name: provider.name.trim() ? provider.name : preset.label,
+                          })
+                        }
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`key-${provider.id}`} className="text-xs">
+              API Key
+            </Label>
+            <div className="relative">
+              <KeyRound className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                id={`key-${provider.id}`}
+                type={showKey ? "text" : "password"}
+                value={provider.api_key}
+                onChange={(e) => onChange({ ...provider, api_key: e.target.value })}
+                placeholder="sk-..."
+                className="h-8 pl-7 pr-8 font-mono text-xs"
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="absolute right-0 top-0 h-8 w-8"
+                onClick={() => setShowKey((v) => !v)}
+                aria-label={showKey ? "Hide API key" : "Show API key"}
+              >
+                {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Models</Label>
+            <div className="flex gap-1.5">
+              <Input
+                value={modelInput}
+                onChange={(e) => setModelInput(e.target.value)}
+                placeholder="openai/gpt-4o-mini"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addModel();
+                  }
+                }}
+                onBlur={addModel}
+                className="h-8 font-mono text-xs"
+              />
+              <Button type="button" size="sm" variant="outline" className="h-8" onClick={addModel}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            {provider.models.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {provider.models.map((m) => (
+                  <Badge key={m} variant="secondary" className="font-mono text-[11px] gap-1">
+                    {m}
+                    <button
+                      type="button"
+                      onClick={() => removeModel(m)}
+                      className="hover:text-destructive"
+                      aria-label={`Remove model ${m}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </Badge>
                 ))}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`key-${provider.id}`} className="text-xs">
-          API Key
-        </Label>
-        <div className="relative">
-          <KeyRound className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            id={`key-${provider.id}`}
-            type={showKey ? "text" : "password"}
-            value={provider.api_key}
-            onChange={(e) =>
-              onChange({ ...provider, api_key: e.target.value })
-            }
-            placeholder="sk-..."
-            className="h-8 pl-7 pr-8 font-mono text-xs"
-          />
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="absolute right-0 top-0 h-8 w-8"
-            onClick={() => setShowKey((v) => !v)}
-            aria-label={showKey ? "Hide API key" : "Show API key"}
-          >
-            {showKey ? (
-              <EyeOff className="h-3.5 w-3.5" />
-            ) : (
-              <Eye className="h-3.5 w-3.5" />
             )}
-          </Button>
-        </div>
-      </div>
+          </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-xs">Models</Label>
-        <div className="flex gap-1.5">
-          <Input
-            value={modelInput}
-            onChange={(e) => setModelInput(e.target.value)}
-            placeholder="openai/gpt-4o-mini"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addModel();
-              }
-            }}
-            onBlur={addModel}
-            className="h-8 font-mono text-xs"
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8"
-            onClick={addModel}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        {provider.models.length > 0 && (
-          <div className="flex flex-wrap gap-1 pt-1">
-            {provider.models.map((m) => (
-              <Badge
-                key={m}
-                variant="secondary"
-                className="font-mono text-[11px] gap-1"
+          {provider.models.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`default-${provider.id}`} className="text-xs">
+                Default model
+              </Label>
+              <Select
+                value={provider.default_model || provider.models[0]}
+                onValueChange={(value) => onChange({ ...provider, default_model: value })}
               >
-                {m}
-                <button
-                  type="button"
-                  onClick={() => removeModel(m)}
-                  className="hover:text-destructive"
-                  aria-label={`Remove model ${m}`}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {provider.models.length > 0 && (
-        <div className="space-y-1.5">
-          <Label htmlFor={`default-${provider.id}`} className="text-xs">
-            Default model
-          </Label>
-          <Select
-            value={provider.default_model || provider.models[0]}
-            onValueChange={(value) =>
-              onChange({ ...provider, default_model: value })
-            }
-          >
-            <SelectTrigger id={`default-${provider.id}`} className="h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {provider.models.map((m) => (
-                <SelectItem key={m} value={m} className="font-mono text-xs">
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 gap-1.5"
-          onClick={runTest}
-          disabled={
-            testing || provider.models.length === 0 || !provider.base_url
-          }
-        >
-          {testing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
+                <SelectTrigger id={`default-${provider.id}`} className="h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {provider.models.map((m) => (
+                    <SelectItem key={m} value={m} className="font-mono text-xs">
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
-          <span className="text-xs">Test connection</span>
-        </Button>
-        {testResult && (
-          <div
-            className={`flex items-center gap-1 text-xs ${
-              testResult.ok ? "text-success" : "text-destructive"
-            }`}
-          >
-            {testResult.ok ? (
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            ) : (
-              <XCircle className="h-3.5 w-3.5" />
+
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5"
+              onClick={runTest}
+              disabled={testing || provider.models.length === 0 || !provider.base_url}
+            >
+              {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              <span className="text-xs">Test connection</span>
+            </Button>
+            {testResult && (
+              <div className={`flex items-center gap-1 text-xs ${testResult.ok ? "text-success" : "text-destructive"}`}>
+                {testResult.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                <span className="line-clamp-2">{testResult.message}</span>
+              </div>
             )}
-            <span className="line-clamp-2">{testResult.message}</span>
           </div>
-        )}
-      </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -494,8 +422,7 @@ export function AiSettings() {
     });
   };
 
-  const current: AISettings = draft ??
-    data ?? { enabled: false, providers: [], default_provider_id: null };
+  const current: AISettings = draft ?? data ?? { enabled: false, providers: [], default_provider_id: null };
 
   const saveMutation = useMutation({
     mutationFn: (next: AISettings) => api.updateAiSettings(next),
@@ -568,8 +495,8 @@ export function AiSettings() {
               AI Providers
             </CardTitle>
             <CardDescription>
-              Configure OpenAI-compatible LLMs for the &ldquo;Gen AI&rdquo;
-              page generator. BYO-LLM: FiestaBoard never bundles a key.
+              Configure OpenAI-compatible LLMs for the &ldquo;Gen AI&rdquo; page generator. BYO-LLM: FiestaBoard never
+              bundles a key.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 pt-1">
@@ -588,9 +515,8 @@ export function AiSettings() {
       <CardContent className="space-y-3">
         <Alert>
           <AlertDescription className="text-xs">
-            Your prompts and the variable list of your enabled plugins are
-            sent directly to the provider you configure. API keys are stored
-            on this device and never sent anywhere else.
+            Your prompts and the variable list of your enabled plugins are sent directly to the provider you configure.
+            API keys are stored on this device and never sent anywhere else.
           </AlertDescription>
         </Alert>
 
@@ -616,24 +542,13 @@ export function AiSettings() {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={addProvider}
-          >
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
             <Plus className="h-3.5 w-3.5" />
             Add provider
           </Button>
           {hasDraft && (
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setDraft(null)}
-              >
+              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
                 Discard
               </Button>
               <Button

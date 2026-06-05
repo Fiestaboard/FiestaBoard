@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, GalleryHorizontalEnd, GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
+import { PageToolbar } from "@/components/page-toolbar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,22 +19,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, GalleryHorizontalEnd, Trash2, GripVertical, FileText, Loader2, Pencil } from "lucide-react";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
-import type { Carousel, CarouselCreate, CarouselUpdate, Page } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { queryKeys } from "@/hooks/use-board";
-import { useTranslations } from "next-intl";
+import type { Carousel, CarouselCreate, CarouselUpdate, Page } from "@/lib/api";
+import { api } from "@/lib/api";
 
 const INTERVAL_PRESETS = [
   { labelKey: "interval5s", value: 5 },
@@ -79,10 +68,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
-  const availablePages = useMemo(
-    () => pages.filter((p) => !selectedPageIds.includes(p.id)),
-    [pages, selectedPageIds]
-  );
+  const availablePages = useMemo(() => pages.filter((p) => !selectedPageIds.includes(p.id)), [pages, selectedPageIds]);
 
   const handleAddPage = useCallback(
     (pageId: string) => {
@@ -90,7 +76,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
         setSelectedPageIds((prev) => [...prev, pageId]);
       }
     },
-    [selectedPageIds]
+    [selectedPageIds],
   );
 
   const handleRemovePage = useCallback((index: number) => {
@@ -113,7 +99,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
       });
       setDragIndex(targetIndex);
     },
-    [dragIndex]
+    [dragIndex],
   );
 
   const handleDragEnd = useCallback(() => {
@@ -155,11 +141,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
       <div className="space-y-2">
         <Label htmlFor="carousel-interval">{t("pageDurationLabel")}</Label>
         <p className="text-xs text-muted-foreground">{t("pageDurationDescription")}</p>
-        <Select
-          value={String(intervalSeconds)}
-          onValueChange={(v) => setIntervalSeconds(Number(v))}
-          modal={false}
-        >
+        <Select value={String(intervalSeconds)} onValueChange={(v) => setIntervalSeconds(Number(v))} modal={false}>
           <SelectTrigger id="carousel-interval">
             <SelectValue />
           </SelectTrigger>
@@ -176,9 +158,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
       {/* Selected Pages (reorderable) */}
       <div className="space-y-2">
         <Label>{t("pagesInCarousel")}</Label>
-        <p className="text-xs text-muted-foreground">
-          {t("dragToReorder")}
-        </p>
+        <p className="text-xs text-muted-foreground">{t("dragToReorder")}</p>
 
         {selectedPageIds.length === 0 ? (
           <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
@@ -204,9 +184,7 @@ function CarouselForm({ carousel, pages, onSubmit, onCancel, onDelete }: Carouse
                     {index + 1}
                   </Badge>
                   <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm truncate flex-1">
-                    {page?.name || pid}
-                  </span>
+                  <span className="text-sm truncate flex-1">{page?.name || pid}</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -300,8 +278,7 @@ export default function CarouselsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: CarouselUpdate }) =>
-      api.updateCarousel(id, data),
+    mutationFn: ({ id, data }: { id: string; data: CarouselUpdate }) => api.updateCarousel(id, data),
     onSuccess: () => {
       invalidateAll();
       toast.success(t("toastUpdated"));
@@ -345,8 +322,7 @@ export default function CarouselsPage() {
   const carousels = carouselsData?.carousels || [];
   const pages = pagesData?.pages || [];
 
-  const getPageName = (pageId: string) =>
-    pages.find((p) => p.id === pageId)?.name || pageId.slice(0, 8);
+  const getPageName = (pageId: string) => pages.find((p) => p.id === pageId)?.name || pageId.slice(0, 8);
 
   if (isLoadingCarousels) {
     return (
@@ -360,11 +336,32 @@ export default function CarouselsPage() {
   return (
     <PageLayout>
       <PageHeader icon={GalleryHorizontalEnd} title={t("title")} description={t("description")} />
-        <PageToolbar
-          right={
+      <PageToolbar
+        right={
+          <Button
+            variant="brand"
+            size="sm"
+            onClick={() => {
+              setEditingCarousel(null);
+              setShowForm(true);
+            }}
+            className="btn-lift"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            {t("newCarousel")}
+          </Button>
+        }
+      />
+
+      {/* Carousels list */}
+      {carousels.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <GalleryHorizontalEnd className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-2">{t("noCarouselsTitle")}</p>
+            <p className="text-sm text-muted-foreground mb-4">{t("noCarouselsDescription")}</p>
             <Button
               variant="brand"
-              size="sm"
               onClick={() => {
                 setEditingCarousel(null);
                 setShowForm(true);
@@ -372,126 +369,95 @@ export default function CarouselsPage() {
               className="btn-lift"
             >
               <Plus className="h-4 w-4 mr-1" />
-              {t("newCarousel")}
+              {t("createFirstCarousel")}
             </Button>
-          }
-        />
-
-        {/* Carousels list */}
-        {carousels.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <GalleryHorizontalEnd className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-2">{t("noCarouselsTitle")}</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                {t("noCarouselsDescription")}
-              </p>
-              <Button
-                variant="brand"
-                onClick={() => {
-                  setEditingCarousel(null);
-                  setShowForm(true);
-                }}
-                className="btn-lift"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {t("createFirstCarousel")}
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {carousels.map((carousel, idx) => (
-              <Card
-                key={carousel.id}
-                className="animate-card-fade-in card-interactive"
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <GalleryHorizontalEnd className="h-5 w-5 text-primary flex-shrink-0" />
-                      <div className="min-w-0">
-                        <CardTitle className="text-base truncate">{carousel.name}</CardTitle>
-                        <CardDescription className="text-xs">
-                          {carousel.page_ids.length} page{carousel.page_ids.length !== 1 ? "s" : ""}{" "}
-                          &middot; {formatInterval(carousel.interval_seconds)} per page
-                        </CardDescription>
-                      </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {carousels.map((carousel, idx) => (
+            <Card
+              key={carousel.id}
+              className="animate-card-fade-in card-interactive"
+              style={{ animationDelay: `${idx * 50}ms` }}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <GalleryHorizontalEnd className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <CardTitle className="text-base truncate">{carousel.name}</CardTitle>
+                      <CardDescription className="text-xs">
+                        {carousel.page_ids.length} page{carousel.page_ids.length !== 1 ? "s" : ""} &middot;{" "}
+                        {formatInterval(carousel.interval_seconds)} per page
+                      </CardDescription>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex-shrink-0"
-                      onClick={() => handleEdit(carousel)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex flex-wrap gap-1.5">
-                    {carousel.page_ids.map((pid, i) => (
-                      <Badge key={pid} variant="secondary" className="text-xs">
-                        <span className="text-muted-foreground mr-1">{i + 1}.</span>
-                        {getPageName(pid)}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                  <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => handleEdit(carousel)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex flex-wrap gap-1.5">
+                  {carousel.page_ids.map((pid, i) => (
+                    <Badge key={pid} variant="secondary" className="text-xs">
+                      <span className="text-muted-foreground mr-1">{i + 1}.</span>
+                      {getPageName(pid)}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-        {/* Form Sheet */}
-        <Sheet open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
-          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>
-                {editingCarousel ? t("editCarousel") : t("newCarousel")}
-              </SheetTitle>
-              <SheetDescription>
-                {editingCarousel
-                  ? t("editDescription")
-                  : t("createDescription")}
-              </SheetDescription>
-            </SheetHeader>
-            <CarouselForm
-              carousel={editingCarousel || undefined}
-              pages={pages}
-              onSubmit={handleSubmit}
-              onCancel={handleCloseForm}
-              onDelete={
-                editingCarousel
-                  ? () => {
-                      const id = editingCarousel.id;
-                      handleCloseForm();
-                      setDeleteId(id);
-                    }
-                  : undefined
-              }
-            />
-          </SheetContent>
-        </Sheet>
+      {/* Form Sheet */}
+      <Sheet
+        open={showForm}
+        onOpenChange={(open) => {
+          if (!open) handleCloseForm();
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingCarousel ? t("editCarousel") : t("newCarousel")}</SheetTitle>
+            <SheetDescription>{editingCarousel ? t("editDescription") : t("createDescription")}</SheetDescription>
+          </SheetHeader>
+          <CarouselForm
+            carousel={editingCarousel || undefined}
+            pages={pages}
+            onSubmit={handleSubmit}
+            onCancel={handleCloseForm}
+            onDelete={
+              editingCarousel
+                ? () => {
+                    const id = editingCarousel.id;
+                    handleCloseForm();
+                    setDeleteId(id);
+                  }
+                : undefined
+            }
+          />
+        </SheetContent>
+      </Sheet>
 
-        {/* Delete Confirmation */}
-        <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("deleteCarousel")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("deleteConfirmation")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>
-                {tc("delete")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteCarousel")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>
+              {tc("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 }

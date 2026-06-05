@@ -6,11 +6,12 @@
  * - PagePickerDialog (carousel section rendering)
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ScheduleEntryForm } from "@/components/schedule-entry-form";
+import { describe, expect, it, vi } from "vitest";
+
 import { PagePickerDialog } from "@/components/page-picker-dialog";
+import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import type { Carousel } from "@/lib/api";
 
 const mockPages = [
@@ -41,52 +42,25 @@ const mockCarousels: Carousel[] = [
 
 describe("ScheduleEntryForm - Carousel Integration", () => {
   it("renders carousel section label when carousels are provided", async () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        carousels={mockCarousels}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} carousels={mockCarousels} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Page or Carousel")).toBeInTheDocument();
   });
 
   it("renders without carousel section when carousels array is empty", () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        carousels={[]}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} carousels={[]} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Page or Carousel")).toBeInTheDocument();
   });
 
   it("renders without carousel section when carousels prop is undefined", () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Page or Carousel")).toBeInTheDocument();
   });
 
   it("shows placeholder text that references carousels when carousels exist", () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        carousels={mockCarousels}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} carousels={mockCarousels} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Select a page or carousel")).toBeInTheDocument();
   });
@@ -110,7 +84,7 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText("Update Schedule")).toBeInTheDocument();
@@ -135,7 +109,7 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
         carousels={mockCarousels}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText("Update Schedule")).toBeInTheDocument();
@@ -152,11 +126,11 @@ describe("PagePickerDialog - Carousel Integration", () => {
 
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         carousels={mockCarousels}
         selectedPageId={null}
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
@@ -170,11 +144,11 @@ describe("PagePickerDialog - Carousel Integration", () => {
   it("does not render carousel section when no carousels", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         carousels={[]}
         selectedPageId={null}
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.queryByRole("tab", { name: /Carousels/i })).not.toBeInTheDocument();
@@ -185,11 +159,11 @@ describe("PagePickerDialog - Carousel Integration", () => {
   it("highlights selected carousel", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         carousels={mockCarousels}
         selectedPageId="carousel:c1"
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     // When a carousel is selected, the carousels tab is default
@@ -204,11 +178,11 @@ describe("PagePickerDialog - Carousel Integration", () => {
 
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         carousels={mockCarousels}
         selectedPageId={null}
         onSelect={onSelect}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("tab", { name: /Carousels/i }));
@@ -221,11 +195,11 @@ describe("PagePickerDialog - Carousel Integration", () => {
 
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         carousels={mockCarousels}
         selectedPageId={null}
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("tab", { name: /Carousels/i }));
@@ -236,12 +210,12 @@ describe("PagePickerDialog - Carousel Integration", () => {
   it("renders with allowNone and carousels", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         carousels={mockCarousels}
         selectedPageId={null}
         onSelect={vi.fn()}
         allowNone={true}
-      />
+      />,
     );
 
     expect(screen.getByText("None (no default)")).toBeInTheDocument();
@@ -252,10 +226,10 @@ describe("PagePickerDialog - Carousel Integration", () => {
   it("renders without carousels prop (undefined)", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         selectedPageId="page-1"
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.queryByRole("tab", { name: /Carousels/i })).not.toBeInTheDocument();
@@ -267,12 +241,12 @@ describe("PagePickerDialog - Carousel Integration", () => {
     const user = userEvent.setup();
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         carousels={mockCarousels}
         selectedPageId="carousel:c1"
         onSelect={onSelect}
         allowNone={true}
-      />
+      />,
     );
 
     await user.click(screen.getByText("None (no default)"));

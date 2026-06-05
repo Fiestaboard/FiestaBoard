@@ -1,22 +1,23 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CircleAlert, CircleCheck, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, CircleCheck, CircleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { api, type StaffPick, type DeviceType } from "@/lib/api";
-import { queryKeys, useBoardSettings } from "@/hooks/use-board";
-import { useViewTransition } from "@/hooks/use-view-transition";
+
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { queryKeys, useBoardSettings } from "@/hooks/use-board";
+import { useViewTransition } from "@/hooks/use-view-transition";
+import { api, type DeviceType, type StaffPick } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Pick card
@@ -195,9 +196,7 @@ function PicksGrid({ deviceType }: { deviceType: DeviceType }) {
   }
 
   if (filtered.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground text-center py-16">{t("empty")}</p>
-    );
+    return <p className="text-sm text-muted-foreground text-center py-16">{t("empty")}</p>;
   }
 
   return (
@@ -222,11 +221,7 @@ export default function PicksPage() {
 
   return (
     <PageLayout>
-      <PageHeader
-        icon={Sparkles}
-        title={t("title")}
-        description={t("description")}
-      />
+      <PageHeader icon={Sparkles} title={t("title")} description={t("description")} />
 
       <div className="flex items-center gap-2 mb-6 -mt-2">
         <span className="text-xs text-muted-foreground italic">{t("byline")}</span>
@@ -235,12 +230,8 @@ export default function PicksPage() {
       {hasMultipleDevices ? (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
           <TabsList className="mb-6">
-            {configuredDevices.includes("flagship") && (
-              <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>
-            )}
-            {configuredDevices.includes("note") && (
-              <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>
-            )}
+            {configuredDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
+            {configuredDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
           </TabsList>
           {configuredDevices.includes("flagship") && (
             <TabsContent value="flagship">

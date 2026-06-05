@@ -1,14 +1,10 @@
 "use client";
 
-import { useStatus } from "@/hooks/use-board";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useTranslations } from "next-intl";
+
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useStatus } from "@/hooks/use-board";
 
 export function ServiceStatus() {
   const { data, isLoading, isError } = useStatus();
@@ -18,29 +14,21 @@ export function ServiceStatus() {
     return <Skeleton className="h-3 w-3 rounded-full" />;
   }
 
-  const statusText = isError || !data 
-    ? t("disconnectedTooltip") 
-    : data.running 
-    ? t("runningTooltip") 
-    : t("stoppedTooltip");
+  const statusText =
+    isError || !data ? t("disconnectedTooltip") : data.running ? t("runningTooltip") : t("stoppedTooltip");
 
-  const ariaLabel = isError || !data
-    ? t("disconnectedAriaLabel")
-    : data.running
-    ? t("runningAriaLabel")
-    : t("stoppedAriaLabel");
+  const ariaLabel =
+    isError || !data ? t("disconnectedAriaLabel") : data.running ? t("runningAriaLabel") : t("stoppedAriaLabel");
 
-  const statusClass = isError || !data
-    ? "bg-board-red animate-pulse"
-    : data.running
-    ? "bg-board-green"
-    : "bg-muted-foreground";
+  const statusClass =
+    isError || !data ? "bg-board-red animate-pulse" : data.running ? "bg-board-green" : "bg-muted-foreground";
 
-  const glowStyle = isError || !data
-    ? { boxShadow: "0 0 6px color-mix(in oklch, var(--color-board-red) 50%, transparent)" }
-    : data.running
-    ? { boxShadow: "0 0 6px color-mix(in oklch, var(--color-board-green) 50%, transparent)" }
-    : undefined;
+  const glowStyle =
+    isError || !data
+      ? { boxShadow: "0 0 6px color-mix(in oklch, var(--color-board-red) 50%, transparent)" }
+      : data.running
+        ? { boxShadow: "0 0 6px color-mix(in oklch, var(--color-board-green) 50%, transparent)" }
+        : undefined;
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -60,5 +48,3 @@ export function ServiceStatus() {
     </TooltipProvider>
   );
 }
-
-

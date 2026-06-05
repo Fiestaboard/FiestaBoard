@@ -6,15 +6,15 @@
  * view modes, and day patterns.
  */
 import {
-  test,
-  expect,
+  API_URL,
   configureBoard,
-  suppressWizard,
   createPage,
   createSchedule,
-  deleteAllSchedules,
   deleteAllPages,
-  API_URL,
+  deleteAllSchedules,
+  expect,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -26,36 +26,26 @@ test.beforeEach(async ({ page }) => {
 test.describe("Schedule Management", () => {
   test("shows empty state with no schedules", async ({ page }) => {
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(
-      page.getByText("No schedules created yet"),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("No schedules created yet")).toBeVisible({ timeout: 10_000 });
   });
 
   test("can toggle schedule mode on and off", async ({ page }) => {
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Find the schedule enabled toggle pill in the toolbar
     const toggleEl = page.getByTestId("schedule-enabled-toggle");
     await expect(toggleEl).toBeVisible({ timeout: 10_000 });
 
     // Toggle on
-    const apiResponse = page.waitForResponse(
-      (r) => r.url().includes("/schedules/enabled") && r.status() === 200,
-    );
+    const apiResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
     await toggleEl.click();
     await apiResponse;
 
     // Toggle back off
-    const revertResponse = page.waitForResponse(
-      (r) => r.url().includes("/schedules/enabled") && r.status() === 200,
-    );
+    const revertResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
     await toggleEl.click();
     await revertResponse;
   });
@@ -64,17 +54,13 @@ test.describe("Schedule Management", () => {
     const pageId = await createPage("Schedule Form Test");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Click "Add Schedule"
     await page.getByRole("button", { name: "Add Schedule" }).first().click();
 
     // Wait for dialog
-    await expect(
-      page.getByText("Add Schedule").first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Add Schedule").first()).toBeVisible({ timeout: 10_000 });
 
     // Select the page we just created (by name) so we can later assert it on the schedule
     const pageSelect = page.locator("#page");
@@ -126,11 +112,7 @@ test.describe("Schedule Management", () => {
     const createdSchedule = schedules.find((s: any) => {
       const start = String(s?.start_time ?? "");
       const end = String(s?.end_time ?? "");
-      return (
-        String(s?.page_id) === String(pageId) &&
-        start.startsWith("08:00") &&
-        end.startsWith("17:00")
-      );
+      return String(s?.page_id) === String(pageId) && start.startsWith("08:00") && end.startsWith("17:00");
     });
     expect(createdSchedule).toBeTruthy();
   });
@@ -140,9 +122,7 @@ test.describe("Schedule Management", () => {
     const scheduleId = await createSchedule(pageId, "09:00", "12:00");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Wait for schedule entries to load
     await expect(page.getByText("09:00").first()).toBeVisible({
@@ -155,17 +135,13 @@ test.describe("Schedule Management", () => {
       await editBtn.click();
 
       // Wait for edit dialog
-      await expect(
-        page.getByText("Edit Schedule").first(),
-      ).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByText("Edit Schedule").first()).toBeVisible({ timeout: 5_000 });
 
       // Verify the dialog is showing
       const updateBtn = page.getByRole("button", {
         name: /update schedule/i,
       });
-      const hasUpdateBtn = await updateBtn
-        .isVisible({ timeout: 3_000 })
-        .catch(() => false);
+      const hasUpdateBtn = await updateBtn.isVisible({ timeout: 3_000 }).catch(() => false);
       expect(hasUpdateBtn).toBe(true);
     }
   });
@@ -175,9 +151,7 @@ test.describe("Schedule Management", () => {
     await createSchedule(pageId, "10:00", "15:00");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Ensure list view (view can be calendar from prior test)
     const listBtn = page.getByRole("button", { name: /list/i }).first();
@@ -193,15 +167,11 @@ test.describe("Schedule Management", () => {
     await editBtn.click();
 
     // Wait for edit dialog to open
-    await expect(
-      page.getByText("Edit Schedule").first(),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Edit Schedule").first()).toBeVisible({ timeout: 5_000 });
 
     // Close the edit modal (Cancel), then delete from the list row
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(
-      page.getByText("Edit Schedule").first(),
-    ).toBeHidden({ timeout: 5_000 });
+    await expect(page.getByText("Edit Schedule").first()).toBeHidden({ timeout: 5_000 });
 
     // Click the Delete button (aria-label includes "Delete schedule for")
     const rowDeleteBtn = page.getByRole("button", { name: /delete schedule for/i }).first();
@@ -225,9 +195,7 @@ test.describe("Schedule Management", () => {
     await createSchedule(pageId, "14:00", "18:00");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText("14:00").first()).toBeVisible({
       timeout: 10_000,
@@ -254,9 +222,7 @@ test.describe("Schedule Management", () => {
     await createPage("Default Page Candidate");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Find the gap-default select in the toolbar
     const gapDefaultSelect = page.getByTestId("gap-default-select");
@@ -292,35 +258,20 @@ test.describe("Schedule Management", () => {
 
     // The validator should detect and report the overlap.
     const serialized = JSON.stringify(data).toLowerCase();
-    const hasExplicitOverlapFlag =
-      data?.overlap === true ||
-      data?.has_overlap === true ||
-      data?.hasOverlaps === true;
+    const hasExplicitOverlapFlag = data?.overlap === true || data?.has_overlap === true || data?.hasOverlaps === true;
     const hasOverlapCollection =
       (Array.isArray(data?.overlaps) && data.overlaps.length > 0) ||
-      (Array.isArray(data?.errors) &&
-        data.errors.some((e: unknown) =>
-          String(e).toLowerCase().includes("overlap"),
-        )) ||
+      (Array.isArray(data?.errors) && data.errors.some((e: unknown) => String(e).toLowerCase().includes("overlap"))) ||
       (Array.isArray(data?.warnings) &&
-        data.warnings.some((w: unknown) =>
-          String(w).toLowerCase().includes("overlap"),
-        ));
+        data.warnings.some((w: unknown) => String(w).toLowerCase().includes("overlap")));
     const mentionsOverlapText = serialized.includes("overlap");
 
-    expect(
-      hasExplicitOverlapFlag || hasOverlapCollection || mentionsOverlapText,
-    ).toBe(true);
+    expect(hasExplicitOverlapFlag || hasOverlapCollection || mentionsOverlapText).toBe(true);
   });
 
   test("schedule respects day patterns", async () => {
     const pageId = await createPage("Day Pattern Page");
-    const scheduleId = await createSchedule(
-      pageId,
-      "08:00",
-      "17:00",
-      "weekdays",
-    );
+    const scheduleId = await createSchedule(pageId, "08:00", "17:00", "weekdays");
 
     const res = await fetch(`${API_URL}/schedules/${scheduleId}`);
     expect(res.ok).toBe(true);
@@ -333,15 +284,11 @@ test.describe("Schedule Management", () => {
     await createSchedule(pageId, "08:00", "12:00");
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Look for view toggle buttons
     const listBtn = page.getByRole("button", { name: /list/i }).first();
-    const calendarBtn = page
-      .getByRole("button", { name: /calendar/i })
-      .first();
+    const calendarBtn = page.getByRole("button", { name: /calendar/i }).first();
 
     const hasViewToggle =
       (await listBtn.isVisible({ timeout: 5_000 }).catch(() => false)) &&
@@ -355,9 +302,7 @@ test.describe("Schedule Management", () => {
     }
 
     // Page should still be intact
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible();
   });
 
   test("active schedule shows in the UI", async ({ page }) => {
@@ -372,9 +317,7 @@ test.describe("Schedule Management", () => {
     });
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // When schedule mode is enabled the toggle pill shows "On"
     const scheduleToggle = page.getByTestId("schedule-enabled-toggle");

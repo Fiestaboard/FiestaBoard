@@ -1,15 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
 import { format } from "date-fns";
+import { useMemo } from "react";
 import type { EventProps } from "react-big-calendar";
+
 import { Badge } from "@/components/ui/badge";
-import {
-  type CalendarEvent,
-  getPageColor,
-  getPageColorLight,
-  formatDayPattern,
-} from "@/lib/schedule-calendar";
+import { type CalendarEvent, formatDayPattern, getPageColor, getPageColorLight } from "@/lib/schedule-calendar";
 
 interface ScheduleEventProps extends EventProps<CalendarEvent> {
   event: CalendarEvent;
@@ -17,23 +13,14 @@ interface ScheduleEventProps extends EventProps<CalendarEvent> {
 
 export function ScheduleEvent({ event }: ScheduleEventProps) {
   const { resource } = event;
-  
+
   // Generate consistent color based on schedule ID (so each schedule entry has unique color)
-  const scheduleColor = useMemo(
-    () => getPageColor(resource.scheduleId),
-    [resource.scheduleId]
-  );
-  
-  const scheduleColorLight = useMemo(
-    () => getPageColorLight(resource.scheduleId),
-    [resource.scheduleId]
-  );
+  const scheduleColor = useMemo(() => getPageColor(resource.scheduleId), [resource.scheduleId]);
+
+  const scheduleColorLight = useMemo(() => getPageColorLight(resource.scheduleId), [resource.scheduleId]);
 
   // Day pattern display
-  const dayPatternDisplay = useMemo(
-    () => formatDayPattern(resource.originalSchedule),
-    [resource.originalSchedule]
-  );
+  const dayPatternDisplay = useMemo(() => formatDayPattern(resource.originalSchedule), [resource.originalSchedule]);
 
   // Format time range with segment-specific labels for split events
   const { timeRange, continuationHint } = useMemo(() => {
@@ -80,45 +67,28 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
     >
       <div className="flex flex-col gap-0">
         {isMorningSplit && continuationHint && (
-          <span
-            className="text-[8px] leading-tight truncate opacity-85"
-            style={{ color: activeColor }}
-          >
+          <span className="text-[8px] leading-tight truncate opacity-85" style={{ color: activeColor }}>
             {continuationHint}
           </span>
         )}
-        <div
-          className="font-medium text-[10px] leading-tight truncate"
-          style={{ color: activeColor }}
-        >
+        <div className="font-medium text-[10px] leading-tight truncate" style={{ color: activeColor }}>
           {event.title}
         </div>
-        <span 
-          className="text-[9px] font-medium truncate"
-          style={{ color: activeColor }}
-        >
+        <span className="text-[9px] font-medium truncate" style={{ color: activeColor }}>
           {timeRange}
         </span>
         {isEveningSplit && continuationHint && (
-          <span
-            className="text-[8px] leading-tight truncate opacity-85"
-            style={{ color: activeColor }}
-          >
+          <span className="text-[8px] leading-tight truncate opacity-85" style={{ color: activeColor }}>
             {continuationHint}
           </span>
         )}
         {!resource.enabled && (
-          <Badge
-            variant="secondary"
-            className="w-fit text-[10px] px-1 py-0 h-3.5"
-          >
+          <Badge variant="secondary" className="w-fit text-[10px] px-1 py-0 h-3.5">
             Off
           </Badge>
         )}
         {resource.dayPattern !== "all" && (
-          <span className="text-[10px] text-muted-foreground truncate">
-            {dayPatternDisplay}
-          </span>
+          <span className="text-[10px] text-muted-foreground truncate">{dayPatternDisplay}</span>
         )}
       </div>
     </div>

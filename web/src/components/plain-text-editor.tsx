@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
-import { cn } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface PlainTextEditorProps {
   value: string;
@@ -49,11 +50,11 @@ export function PlainTextEditor({
     mirror.style.paddingLeft = style.paddingLeft;
     mirror.style.paddingRight = style.paddingRight;
 
-    const lines = value.split('\n');
+    const lines = value.split("\n");
 
     // Reuse existing child divs; add or remove to match line count
     while (mirror.children.length < lines.length) {
-      mirror.appendChild(document.createElement('div'));
+      mirror.appendChild(document.createElement("div"));
     }
     while (mirror.children.length > lines.length) {
       mirror.removeChild(mirror.lastChild!);
@@ -63,14 +64,14 @@ export function PlainTextEditor({
     for (let i = 0; i < lines.length; i++) {
       const div = mirror.children[i] as HTMLDivElement;
       // Use non-breaking space for empty lines so they render with full line height
-      div.textContent = lines[i] || ' ';
+      div.textContent = lines[i] || " ";
       heights.push(div.offsetHeight);
     }
 
     setLineHeights(heights);
 
     // Auto-resize textarea height
-    textarea.style.height = 'auto';
+    textarea.style.height = "auto";
     textarea.style.height = `${Math.max(textarea.scrollHeight, boardLines * 24)}px`;
   }, [value, boardLines]);
 
@@ -97,12 +98,13 @@ export function PlainTextEditor({
     }
   };
 
-  const lineCount = value.split('\n').length;
+  const lineCount = value.split("\n").length;
   const isOverLimit = lineCount > boardLines;
 
-  const gutterNumbers = lineHeights.length === lineCount
-    ? lineHeights.map((h, i) => ({ height: h, label: i + 1 }))
-    : Array.from({ length: lineCount }, (_, i) => ({ height: 24, label: i + 1 }));
+  const gutterNumbers =
+    lineHeights.length === lineCount
+      ? lineHeights.map((h, i) => ({ height: h, label: i + 1 }))
+      : Array.from({ length: lineCount }, (_, i) => ({ height: 24, label: i + 1 }));
 
   return (
     <div className={cn("relative", className)}>
@@ -111,38 +113,40 @@ export function PlainTextEditor({
         ref={mirrorRef}
         aria-hidden="true"
         style={{
-          position: 'absolute',
-          top: '-9999px',
-          left: '-9999px',
-          visibility: 'hidden',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          overflowWrap: 'anywhere',
-          overflow: 'hidden',
-          boxSizing: 'border-box',
+          position: "absolute",
+          top: "-9999px",
+          left: "-9999px",
+          visibility: "hidden",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          overflowWrap: "anywhere",
+          overflow: "hidden",
+          boxSizing: "border-box",
         }}
       />
 
       {/* Editor with line numbers */}
-      <div className={cn(
-        "flex rounded-md border overflow-hidden bg-background",
-        "focus-within:outline-none focus-within:ring-1 focus-within:ring-ring",
-        isOverLimit && "border-warning focus-within:ring-warning"
-      )}>
+      <div
+        className={cn(
+          "flex rounded-md border overflow-hidden bg-background",
+          "focus-within:outline-none focus-within:ring-1 focus-within:ring-ring",
+          isOverLimit && "border-warning focus-within:ring-warning",
+        )}
+      >
         {/* Line numbers gutter */}
         <div
           ref={lineNumbersRef}
           className="select-none overflow-hidden bg-muted/40 border-r shrink-0 text-right"
           style={{
-            fontSize: '0.75rem',
-            lineHeight: '1.5rem',
-            color: 'var(--muted-foreground)',
+            fontSize: "0.75rem",
+            lineHeight: "1.5rem",
+            color: "var(--muted-foreground)",
             opacity: 0.7,
-            paddingTop: '0.5rem',
-            paddingBottom: '0.5rem',
-            paddingLeft: '0.375rem',
-            paddingRight: '0.375rem',
-            minWidth: '2rem',
+            paddingTop: "0.5rem",
+            paddingBottom: "0.5rem",
+            paddingLeft: "0.375rem",
+            paddingRight: "0.375rem",
+            minWidth: "2rem",
           }}
           aria-hidden="true"
         >
@@ -151,10 +155,10 @@ export function PlainTextEditor({
               key={label}
               style={{
                 height: `${height}px`,
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'flex-end',
-                paddingTop: '0.15rem',
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "flex-end",
+                paddingTop: "0.15rem",
               }}
             >
               {label}
@@ -178,16 +182,13 @@ export function PlainTextEditor({
           rows={boardLines}
           style={{
             minHeight: `${boardLines * 1.5}rem`,
-            lineHeight: '1.5rem',
+            lineHeight: "1.5rem",
           }}
         />
       </div>
 
       {/* Line counter */}
-      <div className={cn(
-        "mt-1 text-xs",
-        isOverLimit ? "text-warning font-medium" : "text-muted-foreground"
-      )}>
+      <div className={cn("mt-1 text-xs", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}>
         {t("lineCount", { current: lineCount, total: boardLines })}
         {isOverLimit && ` ${t("exceedsLimit", { limit: boardLines })}`}
       </div>
@@ -195,9 +196,15 @@ export function PlainTextEditor({
       {/* Helper text */}
       <div className="mt-2 text-xs text-muted-foreground space-y-1">
         <p>• {t("charsPerLine", { width: boardWidth })}</p>
-        <p>• {t("templateSyntaxIntro")} {'{{variable}}'}, {'{{red}}'}, {'{{fill_space}}'}</p>
-        <p>• {t("alignmentPrefixesIntro")} {'{left}'}, {'{center}'}, {'{right}'}</p>
-        <p>• {t("wrapPrefixIntro")} {'{wrap}'}</p>
+        <p>
+          • {t("templateSyntaxIntro")} {"{{variable}}"}, {"{{red}}"}, {"{{fill_space}}"}
+        </p>
+        <p>
+          • {t("alignmentPrefixesIntro")} {"{left}"}, {"{center}"}, {"{right}"}
+        </p>
+        <p>
+          • {t("wrapPrefixIntro")} {"{wrap}"}
+        </p>
       </div>
     </div>
   );

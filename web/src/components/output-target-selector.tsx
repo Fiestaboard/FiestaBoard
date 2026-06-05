@@ -1,13 +1,14 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Monitor, Smartphone, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
-import { toast } from "sonner";
-import { Monitor, Smartphone, Zap } from "lucide-react";
 
 const OUTPUT_OPTIONS = [
   {
@@ -52,8 +53,7 @@ export function OutputTargetSelector() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (target: "ui" | "board" | "both") =>
-      api.updateOutputSettings(target),
+    mutationFn: (target: "ui" | "board" | "both") => api.updateOutputSettings(target),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["output-settings"] });
       queryClient.invalidateQueries({ queryKey: ["status"] });
@@ -69,9 +69,7 @@ export function OutputTargetSelector() {
       <Card>
         <CardHeader className="px-4 sm:px-6">
           <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            {t("description")}
-          </CardDescription>
+          <CardDescription className="text-xs sm:text-sm">{t("description")}</CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
           <Skeleton className="h-32 w-full" />
@@ -86,9 +84,7 @@ export function OutputTargetSelector() {
     <Card>
       <CardHeader className="px-4 sm:px-6">
         <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
-        <CardDescription className="text-xs sm:text-sm">
-          {t("description")}
-        </CardDescription>
+        <CardDescription className="text-xs sm:text-sm">{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 px-4 sm:px-6">
         {OUTPUT_OPTIONS.map((option) => {
@@ -102,9 +98,7 @@ export function OutputTargetSelector() {
               onClick={() => updateMutation.mutate(option.value)}
               disabled={updateMutation.isPending}
               className={`w-full p-4 rounded-lg border-2 text-left transition-all active:scale-[0.98] min-h-[64px] ${
-                isActive
-                  ? "border-brand bg-brand/5"
-                  : "border-muted hover:border-brand/50 active:bg-muted/50"
+                isActive ? "border-brand bg-brand/5" : "border-muted hover:border-brand/50 active:bg-muted/50"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -129,17 +123,13 @@ export function OutputTargetSelector() {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {getOptionDescription(option.value)}
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{getOptionDescription(option.value)}</p>
                 </div>
               </div>
             </button>
           );
         })}
-
       </CardContent>
     </Card>
   );
 }
-

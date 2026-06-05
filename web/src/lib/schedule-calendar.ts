@@ -3,18 +3,19 @@
  */
 
 import {
-  startOfWeek,
-  endOfWeek,
+  addDays,
   eachDayOfInterval,
   endOfDay,
-  addDays,
-  setHours,
-  setMinutes,
+  endOfWeek,
   format,
   getDay,
   isSameDay,
+  setHours,
+  setMinutes,
+  startOfWeek,
 } from "date-fns";
-import type { ScheduleEntry, Page, Carousel } from "./api";
+
+import type { Carousel, Page, ScheduleEntry } from "./api";
 import { isCarouselId } from "./api";
 
 /**
@@ -96,7 +97,7 @@ function resolveTimeForDay(
   offset: number,
   fallback: string,
   dateStr: string,
-  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>
+  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): { hours: number; minutes: number } {
   if ((type === "sunrise" || type === "sunset") && sunTimesMap?.[dateStr]) {
     const base = type === "sunrise" ? sunTimesMap[dateStr].sunrise : sunTimesMap[dateStr].sunset;
@@ -145,7 +146,7 @@ export function scheduleToCalendarEvents(
   weekStart: Date,
   pages: Page[],
   carousels?: Carousel[],
-  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>
+  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const applicableDays = getApplicableDays(schedule);
@@ -166,25 +167,17 @@ export function scheduleToCalendarEvents(
       schedule.start_sun_offset ?? 0,
       schedule.resolved_start_time || schedule.start_time,
       dateStr,
-      sunTimesMap
+      sunTimesMap,
     );
 
-    const rawEndFallback = schedule.resolved_end_time !== undefined
-      ? (schedule.resolved_end_time ?? null)
-      : (schedule.end_time ?? null);
+    const rawEndFallback =
+      schedule.resolved_end_time !== undefined ? (schedule.resolved_end_time ?? null) : (schedule.end_time ?? null);
     const endTime = rawEndFallback
-      ? resolveTimeForDay(
-          schedule.end_type,
-          schedule.end_sun_offset ?? 0,
-          rawEndFallback,
-          dateStr,
-          sunTimesMap
-        )
+      ? resolveTimeForDay(schedule.end_type, schedule.end_sun_offset ?? 0, rawEndFallback, dateStr, sunTimesMap)
       : null;
 
     const isMidnightRollover = endTime
-      ? (endTime.hours < startTime.hours ||
-         (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes))
+      ? endTime.hours < startTime.hours || (endTime.hours === startTime.hours && endTime.minutes <= startTime.minutes)
       : false;
 
     const eventStart = setMinutes(setHours(day, startTime.hours), startTime.minutes);
@@ -220,10 +213,7 @@ export function scheduleToCalendarEvents(
 
       // Morning part: midnight → end_time
       const morningStart = setMinutes(setHours(morningDay, 0), 0);
-      const morningEnd = setMinutes(
-        setHours(morningDay, endTime.hours),
-        endTime.minutes
-      );
+      const morningEnd = setMinutes(setHours(morningDay, endTime.hours), endTime.minutes);
       events.push({
         id: `${schedule.id}-${format(morningDay, "yyyy-MM-dd")}-morning`,
         title: pageName,
@@ -242,9 +232,7 @@ export function scheduleToCalendarEvents(
       });
     } else {
       // Normal same-day event (or open-ended — use end-of-day when no end_time)
-      const eventEnd = endTime
-        ? setMinutes(setHours(day, endTime.hours), endTime.minutes)
-        : endOfDay(day);
+      const eventEnd = endTime ? setMinutes(setHours(day, endTime.hours), endTime.minutes) : endOfDay(day);
       events.push({
         id: `${schedule.id}-${format(day, "yyyy-MM-dd")}`,
         title: pageName,
@@ -273,7 +261,7 @@ export function schedulesToCalendarEvents(
   weekStart: Date,
   pages: Page[],
   carousels?: Carousel[],
-  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>
+  sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): CalendarEvent[] {
   const allEvents: CalendarEvent[] = [];
 
@@ -323,9 +311,7 @@ export function formatDayPattern(schedule: ScheduleEntry): string {
       if (!schedule.custom_days || schedule.custom_days.length === 0) {
         return "No days selected";
       }
-      return schedule.custom_days
-        .map((d) => d.charAt(0).toUpperCase() + d.slice(1, 3))
-        .join(", ");
+      return schedule.custom_days.map((d) => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(", ");
     default:
       return "";
   }
@@ -345,7 +331,7 @@ function hashString(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
@@ -390,14 +376,6 @@ export function extractTimeFromDate(date: Date): string {
  * Get the day name from a date
  */
 export function getDayNameFromDate(date: Date): string {
-  const dayNames = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ];
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   return dayNames[getDay(date)];
 }

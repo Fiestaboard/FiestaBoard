@@ -87,11 +87,7 @@ function highlightTokens(children: React.ReactNode): React.ReactNode {
   }
   if (Array.isArray(children)) {
     return children.map((child, i) =>
-      typeof child === "string" ? (
-        <React.Fragment key={i}>{splitWithTokens(child)}</React.Fragment>
-      ) : (
-        child
-      ),
+      typeof child === "string" ? <React.Fragment key={i}>{splitWithTokens(child)}</React.Fragment> : child,
     );
   }
   return children;
@@ -182,10 +178,7 @@ export function ChatMarkdown({ children, className }: ChatMarkdownProps) {
           </h3>
         ),
         h3: ({ children, ...props }) => (
-          <h4
-            className="mt-2.5 mb-1 text-[13px] font-semibold first:mt-0"
-            {...props}
-          >
+          <h4 className="mt-2.5 mb-1 text-[13px] font-semibold first:mt-0" {...props}>
             {highlightTokens(children)}
           </h4>
         ),
@@ -198,24 +191,16 @@ export function ChatMarkdown({ children, className }: ChatMarkdownProps) {
           </h5>
         ),
         ul: ({ children, ...props }) => (
-          <ul
-            className="my-1 list-disc space-y-0.5 pl-5 text-sm leading-relaxed first:mt-0 last:mb-0"
-            {...props}
-          >
+          <ul className="my-1 list-disc space-y-0.5 pl-5 text-sm leading-relaxed first:mt-0 last:mb-0" {...props}>
             {children}
           </ul>
         ),
         ol: ({ children, ...props }) => (
-          <ol
-            className="my-1 list-decimal space-y-0.5 pl-5 text-sm leading-relaxed first:mt-0 last:mb-0"
-            {...props}
-          >
+          <ol className="my-1 list-decimal space-y-0.5 pl-5 text-sm leading-relaxed first:mt-0 last:mb-0" {...props}>
             {children}
           </ol>
         ),
-        li: ({ children, ...props }) => (
-          <li {...props}>{highlightTokens(children)}</li>
-        ),
+        li: ({ children, ...props }) => <li {...props}>{highlightTokens(children)}</li>,
         a: ({ href, children, ...props }) => (
           <a
             href={href}
@@ -241,10 +226,7 @@ export function ChatMarkdown({ children, className }: ChatMarkdownProps) {
             );
           }
           return (
-            <code
-              className="rounded-sm bg-muted px-1 py-0 font-mono text-[11px]"
-              {...props}
-            >
+            <code className="rounded-sm bg-muted px-1 py-0 font-mono text-[11px]" {...props}>
               {highlightTokens(children)}
             </code>
           );
@@ -279,10 +261,7 @@ export function ChatMarkdown({ children, className }: ChatMarkdownProps) {
           </thead>
         ),
         th: ({ children, ...props }) => (
-          <th
-            className="border border-border/60 px-1.5 py-1 text-left font-medium"
-            {...props}
-          >
+          <th className="border border-border/60 px-1.5 py-1 text-left font-medium" {...props}>
             {highlightTokens(children)}
           </th>
         ),

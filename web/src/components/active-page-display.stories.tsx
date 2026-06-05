@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ActivePageDisplay } from "./active-page-display";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Page, PagesResponse, SilenceStatus, Carousel, CarouselsResponse } from "@/lib/api";
+
+import type { Carousel, CarouselsResponse, Page, PagesResponse, SilenceStatus } from "@/lib/api";
+
+import { ActivePageDisplay } from "./active-page-display";
 
 const meta = {
   title: "Layout/ActivePageDisplay",
@@ -68,21 +70,21 @@ const createQueryClient = (
       },
     },
   });
-  
+
   client.setQueryData(["pages"], { pages: mockPages } as PagesResponse);
   client.setQueryData(["activePage"], { page_id: activePageId });
-  client.setQueryData(["schedules", "default"], { 
+  client.setQueryData(["schedules", "default"], {
     enabled: scheduleEnabled,
     schedules: [],
   });
-  
+
   if (scheduleEnabled && activePageId) {
     client.setQueryData(["schedules", "active"], {
       page_id: activePageId,
       schedule_id: "sched-1",
     });
   }
-  
+
   if (activePageId) {
     client.setQueryData(["pagePreview", activePageId], {
       page_id: activePageId,
@@ -105,7 +107,7 @@ const createQueryClient = (
       });
     }
   }
-  
+
   client.setQueryData(["silenceStatus"], {
     enabled: true,
     active: silenceActive,
@@ -114,7 +116,7 @@ const createQueryClient = (
     current_time_utc: "2024-01-01T04:00:00Z",
     next_change_utc: "2024-01-01T08:00:00Z",
   } as SilenceStatus);
-  
+
   client.setQueryData(["boardSettings"], {
     board_type: "black",
     boards: [],
@@ -125,7 +127,7 @@ const createQueryClient = (
     carousels: carousels ?? [],
     total: carousels?.length ?? 0,
   } as CarouselsResponse);
-  
+
   return client;
 };
 
@@ -176,9 +178,9 @@ export const ScheduleGap: Story = {
           },
         },
       });
-      
+
       client.setQueryData(["pages"], { pages: mockPages } as PagesResponse);
-      client.setQueryData(["schedules", "default"], { 
+      client.setQueryData(["schedules", "default"], {
         enabled: true,
         schedules: [],
         default_page_id: null,
@@ -190,7 +192,7 @@ export const ScheduleGap: Story = {
         boards: [],
         devices: ["flagship"],
       });
-      
+
       return (
         <QueryClientProvider client={client}>
           <div className="max-w-4xl">

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import SpotlightCard from "./spotlight-card";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../card";
+
 import { Badge } from "../badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../card";
+import SpotlightCard from "./spotlight-card";
 
 const meta = {
   title: "UI/React Bits/SpotlightCard",
@@ -50,9 +51,7 @@ export const BlueSpotlight: Story = {
           <CardDescription>Custom spotlight color</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            This card uses a blue spotlight effect on hover.
-          </p>
+          <p className="text-sm text-muted-foreground">This card uses a blue spotlight effect on hover.</p>
         </CardContent>
       </Card>
     ),
@@ -71,9 +70,7 @@ export const GreenSpotlight: Story = {
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Spotlight effect can be customized to match your theme.
-          </p>
+          <p className="text-sm text-muted-foreground">Spotlight effect can be customized to match your theme.</p>
         </CardContent>
       </Card>
     ),
@@ -88,9 +85,7 @@ export const MultipleCards = () => (
           <CardTitle className="text-base">Card 1</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Red spotlight effect
-          </p>
+          <p className="text-sm text-muted-foreground">Red spotlight effect</p>
         </CardContent>
       </Card>
     </SpotlightCard>
@@ -100,9 +95,7 @@ export const MultipleCards = () => (
           <CardTitle className="text-base">Card 2</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Blue spotlight effect
-          </p>
+          <p className="text-sm text-muted-foreground">Blue spotlight effect</p>
         </CardContent>
       </Card>
     </SpotlightCard>
@@ -112,9 +105,7 @@ export const MultipleCards = () => (
           <CardTitle className="text-base">Card 3</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Green spotlight effect
-          </p>
+          <p className="text-sm text-muted-foreground">Green spotlight effect</p>
         </CardContent>
       </Card>
     </SpotlightCard>
@@ -124,9 +115,7 @@ export const MultipleCards = () => (
           <CardTitle className="text-base">Card 4</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Yellow spotlight effect
-          </p>
+          <p className="text-sm text-muted-foreground">Yellow spotlight effect</p>
         </CardContent>
       </Card>
     </SpotlightCard>

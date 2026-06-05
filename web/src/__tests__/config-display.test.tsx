@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
 import { ConfigDisplay } from "@/components/config-display";
+import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -20,9 +21,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 describe("ConfigDisplay", () => {
   it("renders without crashing", () => {
-    expect(() =>
-      render(<ConfigDisplay />, { wrapper: TestWrapper })
-    ).not.toThrow();
+    expect(() => render(<ConfigDisplay />, { wrapper: TestWrapper })).not.toThrow();
   });
 
   it("shows a loading skeleton when data is still fetching", () => {

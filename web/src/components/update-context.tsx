@@ -1,19 +1,12 @@
 "use client";
 
-import {
-  createContext,
-  Fragment,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,10 +54,7 @@ function readPersisted(): { fromVersion?: string; startedAt: number } | null {
 
 function writePersisted(fromVersion?: string) {
   try {
-    localStorage.setItem(
-      LS_KEY,
-      JSON.stringify({ fromVersion, startedAt: Date.now() }),
-    );
+    localStorage.setItem(LS_KEY, JSON.stringify({ fromVersion, startedAt: Date.now() }));
   } catch {}
 }
 
@@ -80,9 +70,7 @@ function clearPersisted() {
 
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const [currentVersion, setCurrentVersion] = useState<string | undefined>(
-    undefined,
-  );
+  const [currentVersion, setCurrentVersion] = useState<string | undefined>(undefined);
 
   // On mount: resume an in-progress update if a recent entry exists in localStorage.
   useEffect(() => {
@@ -107,9 +95,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   return (
     <UpdateContext.Provider value={{ isUpdating, startUpdate }}>
       {children}
-      {isUpdating && (
-        <UpdateOverlay currentVersion={currentVersion} onDone={handleDone} />
-      )}
+      {isUpdating && <UpdateOverlay currentVersion={currentVersion} onDone={handleDone} />}
     </UpdateContext.Provider>
   );
 }
@@ -144,13 +130,7 @@ const UPDATE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
  * A 10-minute deadline surfaces an error state with a manual refresh
  * button so the user can never be stuck in an infinite spinner.
  */
-function UpdateOverlay({
-  currentVersion,
-  onDone,
-}: {
-  currentVersion?: string;
-  onDone: () => void;
-}) {
+function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; onDone: () => void }) {
   const t = useTranslations("updateOverlay");
   const [phase, setPhase] = useState<UpdatePhase>("pulling");
   const everWentDown = useRef(false);
@@ -180,11 +160,7 @@ function UpdateOverlay({
         }
         // Container still running. Detect version change (fast swap without
         // a visible down period).
-        if (
-          currentVersion &&
-          v.package_version &&
-          v.package_version !== currentVersion
-        ) {
+        if (currentVersion && v.package_version && v.package_version !== currentVersion) {
           if (!cancelled) {
             setPhase("ready");
             clearPersisted();
@@ -216,9 +192,7 @@ function UpdateOverlay({
           <h2 className="text-xl font-semibold">{t("takingLonger")}</h2>
           <p className="text-sm text-white/70">
             {t.rich("takingLongerDescription", {
-              code: (chunks) => (
-                <code className="text-xs bg-white/10 px-1 rounded">{chunks}</code>
-              ),
+              code: (chunks) => <code className="text-xs bg-white/10 px-1 rounded">{chunks}</code>,
             })}
           </p>
           <Button
@@ -304,9 +278,7 @@ function UpdateOverlay({
           })}
         </div>
 
-        <p className="text-xs text-white/40">
-          {t("dontCloseTab")}
-        </p>
+        <p className="text-xs text-white/40">{t("dontCloseTab")}</p>
       </div>
     </div>
   );

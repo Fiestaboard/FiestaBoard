@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
+
 import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
 
 interface EditorHandlers {
@@ -76,49 +71,37 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
     setMutationPulse(0);
   }, []);
 
-  const waitForEditor = useCallback(
-    (timeoutMs: number = 3000): Promise<boolean> => {
-      if (handlersRef.current) return Promise.resolve(true);
-      return new Promise<boolean>((resolve) => {
-        let settled = false;
-        const onReady = (ok: boolean) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(ok);
-        };
-        const timer = setTimeout(() => {
-          // Remove this waiter so a late register() doesn't double-resolve.
-          pendingWaitersRef.current = pendingWaitersRef.current.filter(
-            (w) => w !== onReady,
-          );
-          onReady(false);
-        }, timeoutMs);
-        pendingWaitersRef.current.push(onReady);
-      });
-    },
-    [],
-  );
+  const waitForEditor = useCallback((timeoutMs: number = 3000): Promise<boolean> => {
+    if (handlersRef.current) return Promise.resolve(true);
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const onReady = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      const timer = setTimeout(() => {
+        // Remove this waiter so a late register() doesn't double-resolve.
+        pendingWaitersRef.current = pendingWaitersRef.current.filter((w) => w !== onReady);
+        onReady(false);
+      }, timeoutMs);
+      pendingWaitersRef.current.push(onReady);
+    });
+  }, []);
 
-  const getEditorSnapshot = useCallback(
-    () => handlersRef.current?.getSnapshot() ?? null,
-    [],
-  );
+  const getEditorSnapshot = useCallback(() => handlersRef.current?.getSnapshot() ?? null, []);
 
   const applyEditorOp = useCallback((call: ToolCall) => {
     handlersRef.current?.applyOp(call);
     setMutationPulse((p) => p + 1);
   }, []);
 
-  const saveEditor = useCallback(
-    () => handlersRef.current?.save() ?? Promise.resolve(null),
-    [],
-  );
+  const saveEditor = useCallback(() => handlersRef.current?.save() ?? Promise.resolve(null), []);
 
   // mutationPulse is listed as a dep so callers re-read this after
   // each AI mutation.
   const canEditorUndo = useCallback(
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     () => handlersRef.current?.getCanUndo() ?? false,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mutationPulse],

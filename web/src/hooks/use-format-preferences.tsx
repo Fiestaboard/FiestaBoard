@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, parse, parseISO, isValid } from "date-fns";
+import { format, isValid, parse, parseISO } from "date-fns";
+import { createContext, useContext, useMemo } from "react";
+
 import { api } from "@/lib/api";
 
 export type TimeFormat = "12h" | "24h";
@@ -48,11 +49,7 @@ function buildFormatters(timeFormat: TimeFormat, dateFormat: DateFormat) {
   const timePatternLong = timeFormat === "24h" ? "HH:mm:ss" : "h:mm:ss a";
 
   const dateFnsPattern =
-    dateFormat === "DD/MM/YYYY"
-      ? "dd/MM/yyyy"
-      : dateFormat === "YYYY-MM-DD"
-        ? "yyyy-MM-dd"
-        : "MM/dd/yyyy";
+    dateFormat === "DD/MM/YYYY" ? "dd/MM/yyyy" : dateFormat === "YYYY-MM-DD" ? "yyyy-MM-dd" : "MM/dd/yyyy";
 
   function formatTime(value: Date | string): string {
     const d = toDate(value);
@@ -96,11 +93,7 @@ export function FormatPreferencesProvider({ children }: { children: React.ReactN
     return { timeFormat, dateFormat, formatTime, formatDate, formatDateTime };
   }, [timeFormat, dateFormat]);
 
-  return (
-    <FormatPreferencesContext.Provider value={value}>
-      {children}
-    </FormatPreferencesContext.Provider>
-  );
+  return <FormatPreferencesContext.Provider value={value}>{children}</FormatPreferencesContext.Provider>;
 }
 
 export function useFormatPreferences() {

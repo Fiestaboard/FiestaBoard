@@ -11,21 +11,16 @@
  *   npx playwright test --config playwright-screenshots.config.ts
  */
 
-import { test, expect, type Page } from "@playwright/test";
-import * as path from "path";
+import { expect, type Page, test } from "@playwright/test";
 import * as fs from "fs";
+import * as path from "path";
 
-const API_URL = process.env.BASE_URL
-  ? `${process.env.BASE_URL}/api`
-  : "http://localhost:4420/api";
+const API_URL = process.env.BASE_URL ? `${process.env.BASE_URL}/api` : "http://localhost:4420/api";
 const BOARD_HOST = process.env.MOCK_BOARD_HOST || "fiestaboard-mock-board";
 
 const DOCS_IMG = path.resolve(__dirname, "../../docs-site/static/img");
 const GUIDES_IMG = path.resolve(__dirname, "../../docs-site/static/img/guides");
-const FEATURES_IMG = path.resolve(
-  __dirname,
-  "../../docs-site/static/img/features",
-);
+const FEATURES_IMG = path.resolve(__dirname, "../../docs-site/static/img/features");
 const PLUGINS_DIR = path.resolve(__dirname, "../../plugins");
 const ROOT_IMG = path.resolve(__dirname, "../../images");
 
@@ -82,10 +77,7 @@ async function setBoardColor(color: "black" | "white") {
   await resetToSingleBoard(color);
 }
 
-async function createPage(
-  name: string,
-  template: string[],
-): Promise<string> {
+async function createPage(name: string, template: string[]): Promise<string> {
   const res = await fetch(`${API_URL}/pages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -96,11 +88,7 @@ async function createPage(
   return data.page.id;
 }
 
-async function createCarousel(
-  name: string,
-  pageIds: string[],
-  intervalSeconds = 30,
-): Promise<string> {
+async function createCarousel(name: string, pageIds: string[], intervalSeconds = 30): Promise<string> {
   const res = await fetch(`${API_URL}/carousels`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -151,12 +139,7 @@ async function deleteAllSchedules() {
   }
 }
 
-async function createSchedule(
-  pageId: string,
-  startTime: string,
-  endTime: string,
-  dayPattern: string,
-): Promise<string> {
+async function createSchedule(pageId: string, startTime: string, endTime: string, dayPattern: string): Promise<string> {
   const res = await fetch(`${API_URL}/schedules`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -244,9 +227,7 @@ async function waitForBoard(page: Page) {
   // Then poll until no tiles are still transitioning
   const maxPoll = 10;
   for (let i = 0; i < maxPoll; i++) {
-    const transitioning = await page
-      .locator('[data-is-transitioning="true"]')
-      .count();
+    const transitioning = await page.locator('[data-is-transitioning="true"]').count();
     if (transitioning === 0) break;
     await page.waitForTimeout(500);
   }
@@ -275,11 +256,7 @@ async function screenshotPage(page: Page, baseFilePath: string) {
 /**
  * Take an element-level screenshot saved into a theme-specific subdirectory.
  */
-async function screenshotElement(
-  page: Page,
-  selector: string,
-  baseFilePath: string,
-) {
+async function screenshotElement(page: Page, selector: string, baseFilePath: string) {
   const theme = currentTheme();
   const dir = path.dirname(baseFilePath);
   const file = path.basename(baseFilePath);
@@ -713,14 +690,7 @@ const DEMO_PAGES = {
   },
   eveningWindDown: {
     name: "Evening Wind Down",
-    template: [
-      "GOOD EVENING",
-      "",
-      "SUNSET AT 6:12 PM",
-      "{blue}OCEAN BEACH 4-6 FT{/blue}",
-      "",
-      "MAKE IT SO  - PICARD",
-    ],
+    template: ["GOOD EVENING", "", "SUNSET AT 6:12 PM", "{blue}OCEAN BEACH 4-6 FT{/blue}", "", "MAKE IT SO  - PICARD"],
   },
   weekendFun: {
     name: "Weekend Fun",
@@ -769,10 +739,7 @@ test.describe("Plugin Board Display Screenshots", () => {
         localStorage.setItem("theme", "dark");
       });
 
-      const pageId = await createPage(
-        `Screenshot - ${plugin.name}`,
-        plugin.template,
-      );
+      const pageId = await createPage(`Screenshot - ${plugin.name}`, plugin.template);
       await setActivePage(pageId);
 
       const fileName = `${plugin.id.replace(/_/g, "-")}-display.png`;
@@ -782,9 +749,7 @@ test.describe("Plugin Board Display Screenshots", () => {
         await setBoardColor(boardColor);
 
         await page.goto("/");
-        await expect(
-          page.getByRole("heading", { name: "Dashboard" }),
-        ).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
         await waitForBoard(page);
 
@@ -805,9 +770,7 @@ test.describe("Plugin Board Display Screenshots", () => {
 
         const screenshotOpts = boardColor === "white" ? { omitBackground: true } : {};
 
-        const boardEl = page
-          .locator('[class*="rounded-lg"][style*="background"]')
-          .first();
+        const boardEl = page.locator('[class*="rounded-lg"][style*="background"]').first();
         if (await boardEl.isVisible()) {
           const docsColorDir = path.join(DOCS_IMG, boardColor);
           ensureDir(docsColorDir);
@@ -858,9 +821,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
     await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
     await waitForBoard(page);
 
     await screenshotPage(page, path.join(DOCS_IMG, "web-ui-home.png"));
@@ -883,10 +844,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
     await page.goto(`/pages/edit/${pageId}`);
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(DOCS_IMG, "page-editor-wysiwyg.png"),
-    );
+    await screenshotPage(page, path.join(DOCS_IMG, "page-editor-wysiwyg.png"));
     copyToRootImages("page-editor-wysiwyg.png");
     await deleteAllPages();
   });
@@ -907,11 +865,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
 
     const pages = await createDemoPages();
 
-    const carouselId = await createCarousel(
-      "Work Rotation",
-      [pages.stockTicker, pages.weatherReport],
-      30,
-    );
+    const carouselId = await createCarousel("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
 
     await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
     await createSchedule(`carousel:${carouselId}`, "09:00", "17:00", "weekdays");
@@ -924,10 +878,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(DOCS_IMG, "schedule-calendar.png"),
-    );
+    await screenshotPage(page, path.join(DOCS_IMG, "schedule-calendar.png"));
     copyToRootImages("schedule-calendar.png");
 
     await setScheduleEnabled(false);
@@ -943,10 +894,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(DOCS_IMG, "integrations-page.png"),
-    );
+    await screenshotPage(page, path.join(DOCS_IMG, "integrations-page.png"));
 
     await disableDemoPlugins();
   });
@@ -981,10 +929,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
       await page.waitForTimeout(1000);
     }
 
-    await screenshotPage(
-      page,
-      path.join(DOCS_IMG, "schedule-list-view.png"),
-    );
+    await screenshotPage(page, path.join(DOCS_IMG, "schedule-list-view.png"));
 
     await setScheduleEnabled(false);
     await deleteAllSchedules();
@@ -1009,15 +954,10 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
     await waitForBoard(page);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "dashboard-running.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "dashboard-running.png"));
     await deleteAllPages();
   });
 
@@ -1027,10 +967,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/settings");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "settings-board-config.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "settings-board-config.png"));
   });
 
   test("settings silence schedule", async ({ page }) => {
@@ -1045,10 +982,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
       await page.waitForTimeout(500);
     }
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "settings-silence-schedule.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "settings-silence-schedule.png"));
   });
 
   test("integrations full page", async ({ page }) => {
@@ -1058,10 +992,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "integrations-full.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "integrations-full.png"));
 
     await disableDemoPlugins();
   });
@@ -1079,10 +1010,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
       await page.waitForTimeout(1500);
     }
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "integrations-plugin-config.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "integrations-plugin-config.png"));
 
     await disablePlugin("weather");
   });
@@ -1098,10 +1026,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "integrations-plugin-enabled.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "integrations-plugin-enabled.png"));
 
     await disablePlugin("date_time");
     await disablePlugin("star_trek_quotes");
@@ -1116,10 +1041,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/pages");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "pages-new-button.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "pages-new-button.png"));
     await deleteAllPages();
   });
 
@@ -1129,10 +1051,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/pages/new");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "page-editor-grid.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "page-editor-grid.png"));
   });
 
   test("page editor with variables", async ({ page }) => {
@@ -1153,10 +1072,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto(`/pages/edit/${pageId}`);
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "page-editor-with-variables.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "page-editor-with-variables.png"));
 
     await disablePlugin("weather");
     await disablePlugin("date_time");
@@ -1173,20 +1089,13 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/pages/new");
     await page.waitForTimeout(3000);
 
-    const varPickerBtn = page
-      .getByRole("button", { name: /variable/i })
-      .first();
-    if (
-      await varPickerBtn.isVisible({ timeout: 3000 }).catch(() => false)
-    ) {
+    const varPickerBtn = page.getByRole("button", { name: /variable/i }).first();
+    if (await varPickerBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await varPickerBtn.click();
       await page.waitForTimeout(1000);
     }
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "page-editor-variable-picker-open.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "page-editor-variable-picker-open.png"));
 
     await disablePlugin("weather");
     await disablePlugin("date_time");
@@ -1208,10 +1117,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto(`/pages/edit/${pageId}`);
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "page-editor-preview.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "page-editor-preview.png"));
     await deleteAllPages();
   });
 
@@ -1230,10 +1136,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto(`/pages/edit/${pageId}`);
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "page-editor-colors.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "page-editor-colors.png"));
     await deleteAllPages();
   });
 
@@ -1248,10 +1151,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "schedule-mode-toggle.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "schedule-mode-toggle.png"));
 
     await deleteAllSchedules();
     await deleteAllPages();
@@ -1267,18 +1167,13 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
 
-    const addBtn = page
-      .getByRole("button", { name: /add|new|create/i })
-      .first();
+    const addBtn = page.getByRole("button", { name: /add|new|create/i }).first();
     if (await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await addBtn.click();
       await page.waitForTimeout(1500);
     }
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "schedule-entry-form.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "schedule-entry-form.png"));
 
     await setScheduleEnabled(false);
     await deleteAllSchedules();
@@ -1290,11 +1185,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
 
     const pages = await createDemoPages();
 
-    const carouselId = await createCarousel(
-      "Work Rotation",
-      [pages.stockTicker, pages.weatherReport],
-      30,
-    );
+    const carouselId = await createCarousel("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
 
     await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
     await createSchedule(`carousel:${carouselId}`, "09:00", "17:00", "weekdays");
@@ -1307,10 +1198,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "schedule-calendar-populated.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "schedule-calendar-populated.png"));
 
     await setScheduleEnabled(false);
     await deleteAllSchedules();
@@ -1325,15 +1213,10 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await setActivePage(null);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(3000);
 
-    await screenshotPage(
-      page,
-      path.join(GUIDES_IMG, "start-service-button.png"),
-    );
+    await screenshotPage(page, path.join(GUIDES_IMG, "start-service-button.png"));
   });
 });
 
@@ -1356,11 +1239,7 @@ test.describe("Homepage Feature Icon Screenshots", () => {
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
 
-    await screenshotElement(
-      page,
-      "main .grid",
-      path.join(FEATURES_IMG, "plugin-architecture.png"),
-    );
+    await screenshotElement(page, "main .grid", path.join(FEATURES_IMG, "plugin-architecture.png"));
 
     await disableDemoPlugins();
   });
@@ -1380,11 +1259,7 @@ test.describe("Homepage Feature Icon Screenshots", () => {
     await page.goto(`/pages/edit/${pageId}`);
     await page.waitForTimeout(3000);
 
-    await screenshotElement(
-      page,
-      ".ProseMirror",
-      path.join(FEATURES_IMG, "wysiwyg-editor.png"),
-    );
+    await screenshotElement(page, ".ProseMirror", path.join(FEATURES_IMG, "wysiwyg-editor.png"));
 
     await deleteAllPages();
   });
@@ -1412,17 +1287,10 @@ test.describe("Homepage Feature Icon Screenshots", () => {
 
     if (calendarVisible) {
       await page.waitForTimeout(1000);
-      await screenshotElement(
-        page,
-        ".schedule-calendar-container",
-        path.join(FEATURES_IMG, "schedule-mode.png"),
-      );
+      await screenshotElement(page, ".schedule-calendar-container", path.join(FEATURES_IMG, "schedule-mode.png"));
     } else {
       await page.waitForTimeout(3000);
-      await screenshotPage(
-        page,
-        path.join(FEATURES_IMG, "schedule-mode.png"),
-      );
+      await screenshotPage(page, path.join(FEATURES_IMG, "schedule-mode.png"));
     }
 
     await setScheduleEnabled(false);
@@ -1439,16 +1307,9 @@ test.describe("Homepage Feature Icon Screenshots", () => {
     // Capture the board connection / display settings area
     const displayCard = page.locator(".animate-card-fade-in").nth(1);
     if (await displayCard.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await screenshotElement(
-        page,
-        ".animate-card-fade-in >> nth=1",
-        path.join(FEATURES_IMG, "docker-ready.png"),
-      );
+      await screenshotElement(page, ".animate-card-fade-in >> nth=1", path.join(FEATURES_IMG, "docker-ready.png"));
     } else {
-      await screenshotPage(
-        page,
-        path.join(FEATURES_IMG, "docker-ready.png"),
-      );
+      await screenshotPage(page, path.join(FEATURES_IMG, "docker-ready.png"));
     }
   });
 
@@ -1461,16 +1322,9 @@ test.describe("Homepage Feature Icon Screenshots", () => {
     // Capture the general settings area (first animated card)
     const generalCard = page.locator(".animate-card-fade-in").first();
     if (await generalCard.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await screenshotElement(
-        page,
-        ".animate-card-fade-in >> nth=0",
-        path.join(FEATURES_IMG, "customizable.png"),
-      );
+      await screenshotElement(page, ".animate-card-fade-in >> nth=0", path.join(FEATURES_IMG, "customizable.png"));
     } else {
-      await screenshotPage(
-        page,
-        path.join(FEATURES_IMG, "customizable.png"),
-      );
+      await screenshotPage(page, path.join(FEATURES_IMG, "customizable.png"));
     }
   });
 
@@ -1481,24 +1335,15 @@ test.describe("Homepage Feature Icon Screenshots", () => {
     await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
     await waitForBoard(page);
 
     // Capture the sidebar / navigation area as the "open-source" feature icon
     const sidebar = page.locator("nav").first();
     if (await sidebar.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await screenshotElement(
-        page,
-        "nav",
-        path.join(FEATURES_IMG, "open-source.png"),
-      );
+      await screenshotElement(page, "nav", path.join(FEATURES_IMG, "open-source.png"));
     } else {
-      await screenshotPage(
-        page,
-        path.join(FEATURES_IMG, "open-source.png"),
-      );
+      await screenshotPage(page, path.join(FEATURES_IMG, "open-source.png"));
     }
 
     await deleteAllPages();

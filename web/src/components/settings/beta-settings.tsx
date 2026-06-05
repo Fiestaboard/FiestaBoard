@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -16,15 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import {
-  AlertTriangle,
-  FlaskConical,
-  Loader2,
-  Lock,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 
 /**
@@ -152,16 +146,11 @@ export function BetaSettings() {
         </CardContent>
       </Card>
 
-      <Dialog
-        open={restartPrompt !== null}
-        onOpenChange={(open) => !open && !restarting && setRestartPrompt(null)}
-      >
+      <Dialog open={restartPrompt !== null} onOpenChange={(open) => !open && !restarting && setRestartPrompt(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {restartPrompt === "enabled"
-                ? t("restartDialogTitleEnabled")
-                : t("restartDialogTitleDisabled")}
+              {restartPrompt === "enabled" ? t("restartDialogTitleEnabled") : t("restartDialogTitleDisabled")}
             </DialogTitle>
             <DialogDescription>
               {restartPrompt === "enabled"
@@ -177,18 +166,11 @@ export function BetaSettings() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRestartPrompt(null)}
-              disabled={restarting}
-            >
+            <Button variant="outline" onClick={() => setRestartPrompt(null)} disabled={restarting}>
               {tCommon("cancel")}
             </Button>
             {updaterAvailable && (
-              <Button
-                onClick={() => restartMutation.mutate()}
-                disabled={restarting || restartMutation.isPending}
-              >
+              <Button onClick={() => restartMutation.mutate()} disabled={restarting || restartMutation.isPending}>
                 {restarting || restartMutation.isPending ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (

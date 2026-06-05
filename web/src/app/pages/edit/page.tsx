@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { PageBuilder } from "@/components/page-builder";
 import { PageLayout } from "@/components/page-layout";
 import { useViewTransition } from "@/hooks/use-view-transition";
@@ -41,12 +42,7 @@ export default function EditPage() {
 
   return (
     <PageLayout outerClassName="flex flex-col" className="flex-1 flex flex-col min-h-0">
-      <PageBuilder
-        pageId={pageId}
-        onClose={handleClose}
-        onSave={handleSave}
-      />
+      <PageBuilder pageId={pageId} onClose={handleClose} onSave={handleSave} />
     </PageLayout>
   );
 }
-

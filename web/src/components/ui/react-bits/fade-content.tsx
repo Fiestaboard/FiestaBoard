@@ -34,7 +34,7 @@ export default function FadeContent({
           observer.unobserve(el);
         }
       },
-      { threshold }
+      { threshold },
     );
     observer.observe(el);
     return () => observer.disconnect();

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -11,8 +11,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function InstallPrompt() {
   const t = useTranslations("installPrompt");
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
@@ -28,7 +27,7 @@ export function InstallPrompt() {
     if (dismissed) {
       const dismissedTime = parseInt(dismissed, 10);
       const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
-      
+
       // Don't show again if dismissed within the last 7 days
       if (daysSinceDismissed < 7) {
         return;
@@ -38,10 +37,10 @@ export function InstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      
+
       // Stash the event so it can be triggered later
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
+
       // Show the install prompt after a short delay
       setTimeout(() => {
         setIsVisible(true);
@@ -58,10 +57,7 @@ export function InstallPrompt() {
     window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
-      );
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
@@ -104,15 +100,11 @@ export function InstallPrompt() {
           <div className="flex-shrink-0 rounded-full bg-primary/10 p-2">
             <Download className="h-5 w-5 text-primary" />
           </div>
-          
+
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm mb-1">
-              {t("title")}
-            </h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              {t("description")}
-            </p>
-            
+            <h3 className="font-semibold text-sm mb-1">{t("title")}</h3>
+            <p className="text-xs text-muted-foreground mb-3">{t("description")}</p>
+
             <div className="flex gap-2">
               <button
                 onClick={handleInstallClick}
@@ -129,7 +121,7 @@ export function InstallPrompt() {
               </button>
             </div>
           </div>
-          
+
           <button
             onClick={handleDismiss}
             className="flex-shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -142,4 +134,3 @@ export function InstallPrompt() {
     </div>
   );
 }
-
