@@ -8,15 +8,7 @@
  * change) intercept the relevant /api/auth/* endpoints and assert on the
  * resulting UI rather than the server state.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
-  authHeaders,
-} from "../helpers";
+import { API_URL, authHeaders, configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -42,9 +34,7 @@ test.describe("regression: settings.general", () => {
    */
   test("settings.tab-general — instance name, theme, language, timezone, a11y, animation cards", async ({ page }) => {
     await page.goto("/settings?section=general");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Instance Name card — the input is keyed by id="instance-name".
     await expect(page.locator("#instance-name")).toBeVisible({ timeout: 10_000 });
@@ -81,7 +71,10 @@ test.describe("regression: settings.general", () => {
    *   1) PUT /config/general fires with the new instance_name, and
    *   2) the value is restored after we put the original back.
    */
-  test("settings.general.instance-name-saved — name edit persists via PUT /config/general", async ({ page, request }) => {
+  test("settings.general.instance-name-saved — name edit persists via PUT /config/general", async ({
+    page,
+    request,
+  }) => {
     // Snapshot the current value so we can restore it.
     const before = await request.get(`${API_URL}/config/general`, {
       headers: authHeaders(),
@@ -95,7 +88,9 @@ test.describe("regression: settings.general", () => {
     await expect(input).toBeVisible({ timeout: 15_000 });
 
     // Wait for initial load before mutating.
-    await expect(input).not.toHaveValue("", { timeout: 5_000 }).catch(() => {});
+    await expect(input)
+      .not.toHaveValue("", { timeout: 5_000 })
+      .catch(() => {});
 
     const putPromise = page.waitForResponse(
       (r) => r.url().includes("/api/config/general") && r.request().method() === "PUT",
@@ -171,10 +166,7 @@ test.describe("regression: settings.general", () => {
       Object.defineProperty(navigator, "geolocation", {
         configurable: true,
         value: {
-          getCurrentPosition: (
-            _success: PositionCallback,
-            error?: PositionErrorCallback,
-          ) => {
+          getCurrentPosition: (_success: PositionCallback, error?: PositionErrorCallback) => {
             // Build a PositionError-shaped object. The component reads
             // .code and compares against error.PERMISSION_DENIED (1).
             const err = {
@@ -199,9 +191,7 @@ test.describe("regression: settings.general", () => {
     await useLocationBtn.click();
 
     // Toast error surfaces with the "denied" copy from messages/en.json.
-    await expect(
-      page.getByText(/location access was denied/i),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/location access was denied/i)).toBeVisible({ timeout: 5_000 });
 
     // Manual inputs remain editable after the failure.
     const lat = page.locator("#latitude");
@@ -231,9 +221,7 @@ test.describe("regression: settings.account", () => {
     // We assert the Settings page itself renders cleanly — the loading branch
     // of AccountSection is exercised by its unit tests in `__tests__/`.
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -248,7 +236,9 @@ test.describe("regression: settings.account", () => {
    * See also: web/tests/auth.spec.ts:228,246
    * Coverage status: partial
    */
-  test("settings.tab-account.signed-in — change username/password forms, sign out, disable login card render", async ({ page }) => {
+  test("settings.tab-account.signed-in — change username/password forms, sign out, disable login card render", async ({
+    page,
+  }) => {
     // Pretend auth is on and we're signed in regardless of the actual
     // server mode, so the test is hermetic.
     await page.route("**/api/auth/status", async (route) => {
@@ -266,9 +256,7 @@ test.describe("regression: settings.account", () => {
 
     await page.goto("/settings?section=account");
 
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Account-section content (use the form field ids — most stable contract).
     await expect(page.locator("#account-username")).toHaveValue("admin", { timeout: 10_000 });
@@ -280,9 +268,7 @@ test.describe("regression: settings.account", () => {
     await expect(page.getByText(/disable login/i).first()).toBeVisible();
 
     // Sign-out button inside the Account section card (not the sidebar's).
-    await expect(
-      page.getByLabel("Account").getByRole("button", { name: /^sign out$/i }),
-    ).toBeEnabled();
+    await expect(page.getByLabel("Account").getByRole("button", { name: /^sign out$/i })).toBeEnabled();
   });
 
   /**
@@ -307,17 +293,11 @@ test.describe("regression: settings.account", () => {
     });
 
     await page.goto("/settings?section=account");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // EnableLoginCard surfaces "Turn on login" heading + CTA button.
-    await expect(
-      page.getByRole("heading", { name: /turn on login/i }),
-    ).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.getByRole("button", { name: /set up a username/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /turn on login/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /set up a username/i })).toBeVisible();
   });
 
   /**
@@ -490,9 +470,7 @@ test.describe("regression: settings.account", () => {
 
     await page.goto("/settings?section=account");
     // Click the trigger button in the Disable-login card.
-    const triggerBtn = page
-      .getByRole("button", { name: /^disable login$/i })
-      .first();
+    const triggerBtn = page.getByRole("button", { name: /^disable login$/i }).first();
     await expect(triggerBtn).toBeVisible({ timeout: 15_000 });
     await triggerBtn.click();
 
@@ -500,9 +478,7 @@ test.describe("regression: settings.account", () => {
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     await expect(dialog).toContainText(/disable login for this fiestaboard/i);
-    await expect(
-      dialog.getByLabel(/confirm your current password/i),
-    ).toBeVisible();
+    await expect(dialog.getByLabel(/confirm your current password/i)).toBeVisible();
 
     // Cancel closes the dialog without touching state.
     await dialog.getByRole("button", { name: /^cancel$/i }).click();

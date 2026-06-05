@@ -14,18 +14,18 @@
  *   4. sheet-create-from-ai
  */
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
+  authHeaders,
+  configureBoard,
   createPage,
   createSchedule,
   deleteAllPages,
   deleteAllSchedules,
-  loginIfNeeded,
   ensureAuthForFetch,
-  authHeaders,
+  expect,
+  loginIfNeeded,
   slowRoute,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -94,12 +94,12 @@ test.describe("regression: schedule.form", () => {
    * Source refs: web/src/components/schedule-entry-form.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("schedule.form.sun-start — sunrise/sunset start type swaps to offset input with resolved time hint", async ({ page }) => {
+  test("schedule.form.sun-start — sunrise/sunset start type swaps to offset input with resolved time hint", async ({
+    page,
+  }) => {
     await createPage("Sun Start Page");
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Open the Add Schedule sheet.
     await page.getByRole("button", { name: "Add Schedule" }).first().click();
@@ -120,9 +120,7 @@ test.describe("regression: schedule.form", () => {
     await expect(offsetInput).toBeVisible({ timeout: 5_000 });
     await expect(offsetInput).toHaveAttribute("type", "number");
     // Hint text: en.json `sunOffsetHint` ("minutes (+ after, − before)").
-    await expect(
-      sheet.getByText(/after.*before/i).first(),
-    ).toBeVisible();
+    await expect(sheet.getByText(/after.*before/i).first()).toBeVisible();
 
     // Negative values are accepted.
     await offsetInput.fill("-30");
@@ -148,12 +146,12 @@ test.describe("regression: schedule.form", () => {
    * Source refs: web/src/components/schedule-entry-form.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("schedule.form.sun-end — sunrise/sunset end type swaps to offset input mirroring start behavior", async ({ page }) => {
+  test("schedule.form.sun-end — sunrise/sunset end type swaps to offset input mirroring start behavior", async ({
+    page,
+  }) => {
     await createPage("Sun End Page");
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Add Schedule" }).first().click();
     const sheet = page.getByRole("dialog");
@@ -194,9 +192,7 @@ test.describe("regression: schedule.form", () => {
     await createPage(pageName);
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Add Schedule" }).first().click();
     const sheet = page.getByRole("dialog");
@@ -238,9 +234,7 @@ test.describe("regression: schedule.form", () => {
       await listBtn.click();
     }
     // The row displays "<start> - open" (en.json `openLabel: "open"`).
-    await expect(
-      page.getByText(/09:00\s*-\s*open/i).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/09:00\s*-\s*open/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -293,9 +287,7 @@ test.describe("regression: schedule.form", () => {
     await createPage(pageName);
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Add Schedule" }).first().click();
     const sheet = page.getByRole("dialog");
@@ -343,7 +335,10 @@ test.describe("regression: schedule.form", () => {
       return route.continue();
     });
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /Add Schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Add Schedule/i })
+      .first()
+      .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
     const createBtn = sheet.getByRole("button", { name: /Create Schedule/i });
@@ -377,7 +372,10 @@ test.describe("regression: schedule.form", () => {
       return route.continue();
     });
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /Edit schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Edit schedule/i })
+      .first()
+      .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
     const updateBtn = sheet.getByRole("button", { name: /Update Schedule/i });
@@ -410,7 +408,10 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.sheet-create — Add Schedule sheet renders and closes via Esc", async ({ page }) => {
     await createPage("Sched Default", ["A", "", "", "", "", ""]);
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /Add Schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Add Schedule/i })
+      .first()
+      .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
     await expect(sheet.getByText(/Add Schedule/i).first()).toBeVisible();
@@ -436,7 +437,10 @@ test.describe("regression: schedule.form", () => {
     const pageId = await createPage("Edit Sched", ["A", "", "", "", "", ""]);
     await createSchedule(pageId, "09:30", "10:30", "weekdays");
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /Edit schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Edit schedule/i })
+      .first()
+      .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
     // start-time is a Radix SelectTrigger that shows the selected time as text.
@@ -465,12 +469,17 @@ test.describe("regression: schedule.form", () => {
     let release: () => void = () => {};
     await page.route("**/api/schedules", async (route) => {
       if (route.request().method() === "POST") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /Add Schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Add Schedule/i })
+      .first()
+      .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
     const createBtn = sheet.getByRole("button", { name: /Create Schedule/i });
@@ -499,7 +508,10 @@ test.describe("regression: schedule.form", () => {
     const schedId = await createSchedule(pageId, "09:00", "10:00", "weekdays");
     const release = await slowRoute(page, `**/api/schedules/${schedId}`, ["PUT"]);
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /Edit schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Edit schedule/i })
+      .first()
+      .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
     const updateBtn = sheet.getByRole("button", { name: /Update Schedule/i });

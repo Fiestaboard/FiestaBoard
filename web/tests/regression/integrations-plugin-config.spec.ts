@@ -5,16 +5,18 @@
  * Priority cluster #5 from the auditor: plugin configuration sheet + lifecycle
  * has 9 gap nodes; fleshing these out unblocks plugin work-quality regressions.
  */
+import type { Page } from "@playwright/test";
+
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
   authHeaders,
-  enablePlugin,
+  configureBoard,
   deletePage,
+  enablePlugin,
+  ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 const TEST_PLUGIN_ID = "date_time";
@@ -47,7 +49,7 @@ test.afterEach(async () => {
  * Navigate to /integrations and open the date_time plugin's config sheet.
  * Returns once Save Changes is visible (or loading state if slow).
  */
-async function openConfigSheet(page: import("@playwright/test").Page) {
+async function openConfigSheet(page: Page) {
   await page.goto("/integrations");
   await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
@@ -75,7 +77,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * See also: web/tests/plugin-management.spec.ts:87,144
    * Coverage status: partial
    */
-  test("integrations.plugin.config-sheet.open — header, template-vars, env-vars, color-rules sections", async ({ page }) => {
+  test("integrations.plugin.config-sheet.open — header, template-vars, env-vars, color-rules sections", async ({
+    page,
+  }) => {
     await openConfigSheet(page);
 
     // Header: plugin name as SheetTitle
@@ -157,9 +161,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     const row = page.locator("tr").filter({ has: toggle });
     await row.getByRole("button", { name: "Configure" }).first().click();
 
-    await expect(
-      page.getByText(/No configuration options available for this plugin/i),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/No configuration options available for this plugin/i)).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   /**
@@ -238,7 +242,10 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Source refs: web/src/components/integrations/*
    * Coverage status: uncovered
    */
-  test("integrations.plugin.config-sheet.copy-variable — Template Variables section renders in config sheet", async ({ page, context }) => {
+  test("integrations.plugin.config-sheet.copy-variable — Template Variables section renders in config sheet", async ({
+    page,
+    context,
+  }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
     await openConfigSheet(page);
     const varsHeading = page.getByRole("heading", { name: /Template Variables/i });
@@ -281,7 +288,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   test("integrations.plugin.demo-page-create — creates demo page and toasts success", async ({ page }) => {
     // Ensure no existing demo page so the "Create Demo Page" button is shown
     // (not the "Recreate" variant). Find and delete any existing demo first.
-    const before = await fetch(`${API_URL}/plugins/${TEST_PLUGIN_ID}`, { headers: authHeaders() }).then((r) => r.json());
+    const before = await fetch(`${API_URL}/plugins/${TEST_PLUGIN_ID}`, { headers: authHeaders() }).then((r) =>
+      r.json(),
+    );
     if (before.demo_page_id) {
       await deletePage(before.demo_page_id).catch(() => {});
     }
@@ -314,7 +323,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Source refs: web/src/components/integrations/*
    * Coverage status: uncovered
    */
-  test.fixme("integrations.plugin.demo-page-recreate-confirm — recreate confirms before overwrite", async ({ page }) => {
+  test.fixme("integrations.plugin.demo-page-recreate-confirm — recreate confirms before overwrite", async ({
+    page,
+  }) => {
     // Ensure a demo page exists so the Recreate flow is exercised
     const ensureRes = await fetch(`${API_URL}/plugins/${TEST_PLUGIN_ID}/demo-page`, {
       method: "POST",

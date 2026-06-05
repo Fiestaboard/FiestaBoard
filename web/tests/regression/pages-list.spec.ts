@@ -3,15 +3,15 @@
  * Subarea: pages.list
  */
 import {
-  test,
-  expect,
   configureBoard,
   createPage,
   deleteAllPages,
   ensureAuthForFetch,
   ensureTwoBoards,
+  expect,
   loginIfNeeded,
   resetToSingleBoard,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -29,7 +29,9 @@ test.afterEach(async () => {
 
 test.describe("regression: pages.list", () => {
   /** UX node: pages.list.list-view */
-  test("pages.list.list-view — List view toggle persists preference and renders compact rows that navigate to editor", async ({ page }) => {
+  test("pages.list.list-view — List view toggle persists preference and renders compact rows that navigate to editor", async ({
+    page,
+  }) => {
     const id = await createPage("List View Test", ["HELLO", "", "", "", "", ""]);
     await page.goto("/pages");
 
@@ -38,9 +40,7 @@ test.describe("regression: pages.list", () => {
     await listBtn.click();
     await expect(listBtn).toHaveAttribute("aria-pressed", "true");
 
-    const stored = await page.evaluate(() =>
-      localStorage.getItem("fiestaboard_pages_view_mode"),
-    );
+    const stored = await page.evaluate(() => localStorage.getItem("fiestaboard_pages_view_mode"));
     expect(stored).toBe("list");
 
     const row = page.getByRole("button", { name: /List View Test/i }).first();
@@ -49,7 +49,9 @@ test.describe("regression: pages.list", () => {
   });
 
   /** UX node: pages.list.carousels-tab */
-  test("pages.list.carousels-tab — /pages route renders the page-grid surface (carousels live elsewhere)", async ({ page }) => {
+  test("pages.list.carousels-tab — /pages route renders the page-grid surface (carousels live elsewhere)", async ({
+    page,
+  }) => {
     await page.goto("/pages");
     await page.waitForLoadState("networkidle");
     // The Carousels tab variant of PageGridSelector renders on the dashboard
@@ -77,11 +79,15 @@ test.describe("regression: pages.list", () => {
   });
 
   /** UX node: pages.list.loading */
-  test("pages.list.loading — route-level loading.tsx shows skeleton while pages query is in flight", async ({ page }) => {
+  test("pages.list.loading — route-level loading.tsx shows skeleton while pages query is in flight", async ({
+    page,
+  }) => {
     let release: () => void = () => {};
     await page.route("**/api/pages", async (route) => {
       if (route.request().method() === "GET") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });
@@ -100,7 +106,9 @@ test.describe("regression: pages.list", () => {
     let release: () => void = () => {};
     await page.route("**/api/pages", async (route) => {
       if (route.request().method() === "GET") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });
@@ -118,7 +126,9 @@ test.describe("regression: pages.list", () => {
     let release: () => void = () => {};
     await page.route("**/api/pages", async (route) => {
       if (route.request().method() === "GET") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });

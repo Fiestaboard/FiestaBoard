@@ -2,13 +2,7 @@
  * Auto-generated regression stubs from .claude/ux-coverage.json.
  * Subarea: settings.tab-advanced
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  loginIfNeeded,
-  ensureAuthForFetch,
-} from "../helpers";
+import { configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -38,12 +32,12 @@ test.describe("regression: settings.advanced", () => {
    * the missing controls (log-level / download-diagnostics) are added
    * later, extend this test rather than create a new one.
    */
-  test("settings.tab-advanced — debug collapsible, fill-board select, and beta HTTPS toggle render", async ({ page }) => {
+  test("settings.tab-advanced — debug collapsible, fill-board select, and beta HTTPS toggle render", async ({
+    page,
+  }) => {
     await page.goto("/settings?section=advanced");
 
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The Advanced tab should already be selected via the URL param,
     // but click it defensively in case the default falls back.
@@ -69,8 +63,6 @@ test.describe("regression: settings.advanced", () => {
 
     // Network Diagnostics button is the other always-enabled action on
     // this tab (it doesn't require a configured board).
-    await expect(
-      page.getByRole("button", { name: /run network diagnostics/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /run network diagnostics/i })).toBeVisible();
   });
 });

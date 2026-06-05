@@ -2,14 +2,7 @@
  * Regression coverage for /pages/new.
  * Subarea: pages.new
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  deleteAllPages,
-  ensureAuthForFetch,
-  loginIfNeeded,
-} from "../helpers";
+import { configureBoard, deleteAllPages, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -31,13 +24,13 @@ test.describe("regression: pages.new", () => {
     await page.getByRole("button", { name: "Plain Text", exact: true }).click();
     const textarea = page.locator("textarea").first();
     await textarea.fill("L1\nL2\nL3\nL4\nL5\nL6\nL7");
-    await expect(
-      page.getByText(/Template has \d+ lines but the board only displays \d+/),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/Template has \d+ lines but the board only displays \d+/)).toBeVisible({
+      timeout: 5_000,
+    });
     await textarea.fill("L1\nL2\nL3");
-    await expect(
-      page.getByText(/Template has \d+ lines but the board only displays \d+/),
-    ).toBeHidden({ timeout: 5_000 });
+    await expect(page.getByText(/Template has \d+ lines but the board only displays \d+/)).toBeHidden({
+      timeout: 5_000,
+    });
   });
 
   /** UX node: pages.new.wrap-budget-warning */
@@ -78,9 +71,7 @@ test.describe("regression: pages.new", () => {
       localStorage.setItem("fiestaboard-page-draft-new", JSON.stringify(draft));
     });
     await page.goto("/pages/new");
-    await expect(
-      page.getByText(/Draft restored from your previous session/),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Draft restored from your previous session/)).toBeVisible({ timeout: 10_000 });
   });
 
   /** UX node: pages.new.fresh-skips-draft */
@@ -96,9 +87,7 @@ test.describe("regression: pages.new", () => {
       localStorage.setItem("fiestaboard-page-draft-new", JSON.stringify(draft));
     });
     await page.goto("/pages/new?fresh=1");
-    await expect(
-      page.getByText(/Draft restored from your previous session/),
-    ).toBeHidden({ timeout: 5_000 });
+    await expect(page.getByText(/Draft restored from your previous session/)).toBeHidden({ timeout: 5_000 });
   });
 
   /** UX node: pages.new.live-output-on */

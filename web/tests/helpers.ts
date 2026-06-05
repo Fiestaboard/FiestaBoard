@@ -172,7 +172,7 @@ export async function slowRoute(
     release = resolve;
   });
   await page.route(urlPattern, async (route) => {
-    if (methods.includes(route.request().method() as typeof methods[number])) {
+    if (methods.includes(route.request().method() as (typeof methods)[number])) {
       await gate;
     }
     await route.continue();
@@ -184,17 +184,13 @@ export async function slowRoute(
  * Scope a locator to the Sonner toast region. Avoids strict-mode collisions with
  * the Next.js dev runtime-error overlay, which also surfaces via role="alert".
  */
-export function getToastsRegion(
-  page: Page,
-): Locator {
+export function getToastsRegion(page: Page): Locator {
   return page.locator("[data-sonner-toast]").first();
 }
 
 /** Auth header pair to attach to fetch() calls when auth is on. Empty when off. */
 export function authHeaders(): Record<string, string> {
-  return _cachedSessionCookie
-    ? { Cookie: `fiestaboard_session=${_cachedSessionCookie}` }
-    : {};
+  return _cachedSessionCookie ? { Cookie: `fiestaboard_session=${_cachedSessionCookie}` } : {};
 }
 
 /**
@@ -212,9 +208,7 @@ export async function ensureAuthForFetch(): Promise<void> {
 
 async function _mintSessionCookie(): Promise<void> {
   const { execSync } = await import("node:child_process");
-  const composeFile =
-    process.env.COMPOSE_FILE ||
-    "/Users/jeffrey/workspace/FiestaBoard/docker-compose.dev.yml";
+  const composeFile = process.env.COMPOSE_FILE || "/Users/jeffrey/workspace/FiestaBoard/docker-compose.dev.yml";
   const script = `
 import time
 from src.auth.service import get_auth_service, SessionToken, _remember_me_ttl_seconds
@@ -228,16 +222,14 @@ tok = SessionToken(
 )
 print(svc._sign(tok.encode()))
 `;
-  const out = execSync(
-    `docker compose -f ${composeFile} exec -T fiestaboard python -`,
-    { encoding: "utf8", input: script },
-  );
+  const out = execSync(`docker compose -f ${composeFile} exec -T fiestaboard python -`, {
+    encoding: "utf8",
+    input: script,
+  });
   _cachedSessionCookie = out.trim().split("\n").pop()!.trim();
 }
 
-export async function loginIfNeeded(
-  context: BrowserContext,
-): Promise<void> {
+export async function loginIfNeeded(context: BrowserContext): Promise<void> {
   const baseUrl = (process.env.BASE_URL || "http://localhost:4420").replace(/\/$/, "");
   const status = await fetch(`${baseUrl}/api/auth/status`)
     .then((r) => r.json() as Promise<{ enabled: boolean; authenticated: boolean }>)
@@ -524,15 +516,7 @@ export function suppressWizard(page: Page) {
  */
 export async function openSettingsTab(
   page: Page,
-  tab:
-    | "General"
-    | "Account"
-    | "Hardware"
-    | "Network"
-    | "Behavior"
-    | "Integrations"
-    | "System"
-    | "Advanced",
+  tab: "General" | "Account" | "Hardware" | "Network" | "Behavior" | "Integrations" | "System" | "Advanced",
 ) {
   const trigger = page.getByRole("tab", { name: tab, exact: true });
   await trigger.waitFor({ state: "visible", timeout: 15_000 });

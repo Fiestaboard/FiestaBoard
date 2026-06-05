@@ -2,16 +2,18 @@
  * Regression coverage for the schedule delete confirmation flow.
  * Subarea: schedule.delete-confirm
  */
+import type { Page } from "@playwright/test";
+
 import {
-  test,
-  expect,
   configureBoard,
   createPage,
   createSchedule,
   deleteAllPages,
   deleteAllSchedules,
-  loginIfNeeded,
   ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -28,7 +30,7 @@ test.afterEach(async () => {
   await deleteAllPages();
 });
 
-async function seedScheduleAndOpen(page: import("@playwright/test").Page) {
+async function seedScheduleAndOpen(page: Page) {
   const pageId = await createPage("Sched Page", ["A", "", "", "", "", ""]);
   const schedId = await createSchedule(pageId, "09:00", "10:00", "weekdays");
   await page.goto("/schedule");
@@ -39,14 +41,20 @@ test.describe("regression: schedule.delete-confirm", () => {
   /** UX node: schedule.delete-confirm.open */
   test("schedule.delete-confirm.open — dialog has title, Cancel and Esc close", async ({ page }) => {
     await seedScheduleAndOpen(page);
-    await page.getByRole("button", { name: /Delete schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Delete schedule/i })
+      .first()
+      .click();
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await expect(dialog.getByText(/Delete Schedule/i)).toBeVisible();
     await dialog.getByRole("button", { name: /Cancel/i }).click();
     await expect(dialog).toBeHidden({ timeout: 5_000 });
 
-    await page.getByRole("button", { name: /Delete schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Delete schedule/i })
+      .first()
+      .click();
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden({ timeout: 5_000 });
@@ -55,7 +63,10 @@ test.describe("regression: schedule.delete-confirm", () => {
   /** UX node: schedule.delete-confirm.deleting */
   test("schedule.delete-confirm.deleting — confirm dismisses the dialog", async ({ page }) => {
     await seedScheduleAndOpen(page);
-    await page.getByRole("button", { name: /Delete schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Delete schedule/i })
+      .first()
+      .click();
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.getByTestId("alert-dialog-action").click();
@@ -71,7 +82,10 @@ test.describe("regression: schedule.delete-confirm", () => {
       }
       return route.continue();
     });
-    await page.getByRole("button", { name: /Delete schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Delete schedule/i })
+      .first()
+      .click();
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.getByTestId("alert-dialog-action").click();
@@ -86,7 +100,10 @@ test.describe("regression: schedule.delete-confirm", () => {
     const pageId = await createPage("Open-from-form Page");
     await createSchedule(pageId, "09:00", "10:00", "weekdays");
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /Edit schedule/i }).first().click();
+    await page
+      .getByRole("button", { name: /Edit schedule/i })
+      .first()
+      .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
     // The edit sheet exposes a destructive Delete action. Asserting visibility

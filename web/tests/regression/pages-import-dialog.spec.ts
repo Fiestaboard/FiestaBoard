@@ -11,16 +11,16 @@
  * auditor flagged it as the highest-value gap. Fill these first.
  */
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
+  authHeaders,
+  configureBoard,
   createPage,
   deleteAllPages,
-  loginIfNeeded,
   ensureAuthForFetch,
-  authHeaders,
+  expect,
+  loginIfNeeded,
   slowRoute,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -61,7 +61,9 @@ test.describe("regression: pages.import-dialog", () => {
    * Source refs: web/src/app/pages/page.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("pages.import-dialog.open — import dialog opens with empty textarea and disabled Import button", async ({ page }) => {
+  test("pages.import-dialog.open — import dialog opens with empty textarea and disabled Import button", async ({
+    page,
+  }) => {
     await page.goto("/pages");
 
     // Open the dialog via the toolbar "Import" button.
@@ -106,7 +108,9 @@ test.describe("regression: pages.import-dialog", () => {
    * Source refs: web/src/app/pages/page.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("pages.import-dialog.importing — Import button shows pending state while mutation in flight", async ({ page }) => {
+  test("pages.import-dialog.importing — Import button shows pending state while mutation in flight", async ({
+    page,
+  }) => {
     const release = await slowRoute(page, "**/api/pages/import", ["POST"]);
     await page.goto("/pages");
     await page.getByRole("button", { name: "Import", exact: true }).click();
@@ -137,7 +141,9 @@ test.describe("regression: pages.import-dialog", () => {
    * Source refs: web/src/app/pages/page.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("pages.import-dialog.error — failed import surfaces toast and keeps dialog open with input preserved", async ({ page }) => {
+  test("pages.import-dialog.error — failed import surfaces toast and keeps dialog open with input preserved", async ({
+    page,
+  }) => {
     await page.goto("/pages");
     await page.getByRole("button", { name: "Import", exact: true }).click();
 
@@ -186,7 +192,9 @@ test.describe("regression: pages.import-dialog", () => {
    * Source refs: web/src/app/pages/page.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("pages.import-dialog.success — successful import toasts, closes dialog, navigates to /pages/edit/[id]", async ({ page }) => {
+  test("pages.import-dialog.success — successful import toasts, closes dialog, navigates to /pages/edit/[id]", async ({
+    page,
+  }) => {
     // Seed a source page and pull a valid share string from the backend.
     const { shareString } = await getShareString();
 

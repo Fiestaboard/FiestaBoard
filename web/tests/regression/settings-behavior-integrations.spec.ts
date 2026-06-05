@@ -5,15 +5,7 @@
  * Priority cluster #2 from the auditor: integrations cards (AI / MCP / MQTT)
  * — 6 nodes ranked high-value.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
-  authHeaders,
-} from "../helpers";
+import { API_URL, authHeaders, configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -35,9 +27,7 @@ test.describe("regression: settings.behavior", () => {
    * See also: web/tests/settings.spec.ts:48; settings-full.spec.ts:152,174
    * Coverage status: partial
    */
-  test("settings.tab-behavior — transitions, update intervals, silence schedule UI edits", async ({
-    page,
-  }) => {
+  test("settings.tab-behavior — transitions, update intervals, silence schedule UI edits", async ({ page }) => {
     // Snapshot transitions so we can restore the user's strategy after the
     // test. (UpdateIntervals + SilenceSchedule are read-only-asserted here.)
     const beforeRes = await fetch(`${API_URL}/settings/transitions`, {
@@ -46,16 +36,12 @@ test.describe("regression: settings.behavior", () => {
     const before = beforeRes.ok ? await beforeRes.json() : null;
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("tab", { name: "Behavior", exact: true }).click();
 
     // All three Behavior cards render.
-    await expect(
-      page.getByRole("heading", { name: "Board Transitions" }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Board Transitions" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("Update intervals", { exact: false })).toBeVisible();
     await expect(page.getByLabel("Silence Schedule")).toBeVisible();
 
@@ -76,9 +62,7 @@ test.describe("regression: settings.behavior", () => {
     // Wait for the debounced auto-save (1s) and any in-flight transition
     // PUT so we don't leave the page mid-write.
     await page.waitForResponse(
-      (resp) =>
-        resp.url().includes("/settings/transitions") &&
-        resp.request().method() === "PUT",
+      (resp) => resp.url().includes("/settings/transitions") && resp.request().method() === "PUT",
       { timeout: 10_000 },
     );
 
@@ -105,9 +89,7 @@ test.describe("regression: settings.behavior", () => {
    * See also: web/tests/settings-full.spec.ts:174
    * Coverage status: partial
    */
-  test("settings.behavior.silence-saved — toast text and hasChanges reset", async ({
-    page,
-  }) => {
+  test("settings.behavior.silence-saved — toast text and hasChanges reset", async ({ page }) => {
     // Snapshot original silence config so we can put it back.
     const originalRes = await fetch(`${API_URL}/silence-status`, {
       headers: authHeaders(),
@@ -116,18 +98,14 @@ test.describe("regression: settings.behavior", () => {
     const originalEnabled: boolean = original.enabled;
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "Behavior", exact: true }).click();
 
     const silenceToggle = page.locator("#silence-enabled");
     await expect(silenceToggle).toBeVisible({ timeout: 10_000 });
 
     const savePromise = page.waitForResponse(
-      (resp) =>
-        resp.url().includes("/settings/silence-schedule") &&
-        resp.request().method() === "PUT",
+      (resp) => resp.url().includes("/settings/silence-schedule") && resp.request().method() === "PUT",
       { timeout: 10_000 },
     );
 
@@ -144,10 +122,7 @@ test.describe("regression: settings.behavior", () => {
     // trigger fresh PUTs, but here we just confirm the toggle reflects the
     // newly-saved value (hasChanges flipped back: no Save button hanging
     // around because save is auto-debounced).
-    await expect(silenceToggle).toHaveAttribute(
-      "data-state",
-      !originalEnabled ? "checked" : "unchecked",
-    );
+    await expect(silenceToggle).toHaveAttribute("data-state", !originalEnabled ? "checked" : "unchecked");
 
     // Restore original state through the same endpoint.
     await fetch(`${API_URL}/settings/silence-schedule`, {
@@ -170,13 +145,9 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
    * Source refs: web/src/components/settings/integrations/*
    * Coverage status: uncovered
    */
-  test("settings.tab-integrations — AI / MCP / MQTT cards render with expected controls", async ({
-    page,
-  }) => {
+  test("settings.tab-integrations — AI / MCP / MQTT cards render with expected controls", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("tab", { name: "Integrations", exact: true }).click();
 
@@ -184,9 +155,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(
-      page.getByRole("button", { name: "Add provider" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add provider" })).toBeVisible();
 
     // MCP card. The action buttons (Generate / Rotate / Revoke) are hidden
     // when FIESTABOARD_MCP_TOKEN is set in env (the dev container's case),
@@ -206,9 +175,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
    * Source refs: web/src/components/settings/integrations/*
    * Coverage status: uncovered
    */
-  test("settings.integrations.ai-test — Test connection pending → success/error result", async ({
-    page,
-  }) => {
+  test("settings.integrations.ai-test — Test connection pending → success/error result", async ({ page }) => {
     // Stub GET /settings/ai so a provider with a model is already configured
     // and the Test button is enabled without requiring real provider setup.
     // Stub POST /settings/ai/test with a hold + success result so we can
@@ -255,9 +222,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("tab", { name: "Integrations", exact: true }).click();
     await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({
@@ -315,9 +280,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "Integrations", exact: true }).click();
 
     await expect(page.getByText("MCP / external clients")).toBeVisible({
@@ -329,9 +292,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible();
-    await expect(
-      dialog.getByRole("heading", { name: "Rotate MCP token?" }),
-    ).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "Rotate MCP token?" })).toBeVisible();
     // Warning copy: previous clients will 401.
     await expect(dialog.getByText(/401/i)).toBeVisible();
     // Confirm + Cancel both rendered; we only click Cancel (destructive
@@ -355,7 +316,9 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
    * wouldn't touch the user's real token). We click Revoke → assert the
    * AlertDialog copy → click Cancel.
    */
-  test("settings.integrations.mcp-revoke-confirm — revoke confirm dialog opens and Cancel dismisses", async ({ page }) => {
+  test("settings.integrations.mcp-revoke-confirm — revoke confirm dialog opens and Cancel dismisses", async ({
+    page,
+  }) => {
     // Force the MCP card into the "configured, file-source" state so the
     // Revoke button renders.
     await page.route("**/api/auth/mcp-token", async (route) => {
@@ -377,9 +340,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("tab", { name: "Integrations", exact: true }).click();
 
@@ -394,12 +355,8 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     // AlertDialog with expected revoke copy.
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible();
-    await expect(
-      dialog.getByRole("heading", { name: "Revoke MCP token?" }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByText(/401 on their next request/i),
-    ).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "Revoke MCP token?" })).toBeVisible();
+    await expect(dialog.getByText(/401 on their next request/i)).toBeVisible();
     // Both buttons present; we never click "Revoke".
     await expect(dialog.getByRole("button", { name: "Revoke" })).toBeVisible();
     await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -445,9 +402,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "Integrations", exact: true }).click();
 
     await expect(page.getByText("MCP / external clients")).toBeVisible({
@@ -460,9 +415,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     await page.getByRole("button", { name: "Generate token" }).click();
     const generateDialog = page.getByRole("alertdialog");
     await expect(generateDialog).toBeVisible();
-    await expect(
-      generateDialog.getByRole("heading", { name: "Generate MCP token?" }),
-    ).toBeVisible();
+    await expect(generateDialog.getByRole("heading", { name: "Generate MCP token?" })).toBeVisible();
     await generateDialog.getByRole("button", { name: "Generate" }).click();
 
     // Reveal-once dialog (note: this is a Dialog, role=dialog, not alertdialog).
@@ -474,9 +427,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     // Both Copy affordances (token + config snippet) plus dismiss button.
     const copyButtons = revealDialog.getByRole("button", { name: /Copy/ });
     await expect(copyButtons.first()).toBeVisible();
-    await expect(
-      revealDialog.getByRole("button", { name: "I've saved it" }),
-    ).toBeVisible();
+    await expect(revealDialog.getByRole("button", { name: "I've saved it" })).toBeVisible();
 
     // Dismiss without actually clicking Copy (browser clipboard perms vary
     // in CI; the affordance presence is what this node tests).
@@ -491,9 +442,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
    * Source refs: web/src/components/settings/integrations/*
    * Coverage status: uncovered
    */
-  test("settings.integrations.mqtt-saved — MQTT config save shows toast", async ({
-    page,
-  }) => {
+  test("settings.integrations.mqtt-saved — MQTT config save shows toast", async ({ page }) => {
     // Snapshot current MQTT settings so we can restore after the test.
     const beforeRes = await fetch(`${API_URL}/settings/mqtt`, {
       headers: authHeaders(),
@@ -501,9 +450,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     const before = beforeRes.ok ? await beforeRes.json() : null;
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "Integrations", exact: true }).click();
 
     await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({
@@ -522,9 +469,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     await hostInput.fill(testHost);
 
     const savePromise = page.waitForResponse(
-      (resp) =>
-        resp.url().includes("/settings/mqtt") &&
-        resp.request().method() === "PUT",
+      (resp) => resp.url().includes("/settings/mqtt") && resp.request().method() === "PUT",
       { timeout: 10_000 },
     );
 
@@ -539,9 +484,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
     // The Save button should disappear (hasDraft flips to false after
     // mutation success).
-    await expect(
-      page.getByRole("button", { name: "Save", exact: true }),
-    ).toBeHidden();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
 
     // Restore prior settings.
     if (before) {

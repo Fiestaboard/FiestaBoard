@@ -3,15 +3,15 @@
  * Subarea: schedule.list + schedule.viewmode
  */
 import {
-  test,
-  expect,
   configureBoard,
   createPage,
   createSchedule,
   deleteAllPages,
   deleteAllSchedules,
-  loginIfNeeded,
   ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -34,7 +34,9 @@ test.describe("regression: schedule.list", () => {
     let release: () => void = () => {};
     await page.route("**/api/schedules*", async (route) => {
       if (route.request().method() === "GET") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });
@@ -76,7 +78,9 @@ test.describe("regression: schedule.list", () => {
   });
 
   /** UX node: schedule.list.row-carousel */
-  test("schedule.list.row-carousel — schedule list renders carousel-bound entries via mocked payload", async ({ page }) => {
+  test("schedule.list.row-carousel — schedule list renders carousel-bound entries via mocked payload", async ({
+    page,
+  }) => {
     // Mock /schedules to inject a synthetic row whose page_id resolves to a carousel.
     await page.route("**/api/schedules*", (route) => {
       if (route.request().method() !== "GET") return route.continue();
@@ -84,14 +88,16 @@ test.describe("regression: schedule.list", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          schedules: [{
-            id: "mock-carousel-sched",
-            page_id: "mock-carousel-1",
-            start_time: "09:00",
-            end_time: "10:00",
-            day_pattern: "weekdays",
-            enabled: true,
-          }],
+          schedules: [
+            {
+              id: "mock-carousel-sched",
+              page_id: "mock-carousel-1",
+              start_time: "09:00",
+              end_time: "10:00",
+              day_pattern: "weekdays",
+              enabled: true,
+            },
+          ],
           enabled: true,
         }),
       });
@@ -119,16 +125,18 @@ test.describe("regression: schedule.list", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          schedules: [{
-            id: "mock-sun-sched",
-            page_id: "mock-page-1",
-            start_type: "sunrise",
-            start_offset: 0,
-            end_type: "sunset",
-            end_offset: 0,
-            day_pattern: "weekdays",
-            enabled: true,
-          }],
+          schedules: [
+            {
+              id: "mock-sun-sched",
+              page_id: "mock-page-1",
+              start_type: "sunrise",
+              start_offset: 0,
+              end_type: "sunset",
+              end_offset: 0,
+              day_pattern: "weekdays",
+              enabled: true,
+            },
+          ],
           enabled: true,
         }),
       });

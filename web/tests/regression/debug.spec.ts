@@ -2,13 +2,7 @@
  * Auto-generated regression stubs from .claude/ux-coverage.json.
  * Subarea: debug
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  loginIfNeeded,
-  ensureAuthForFetch,
-} from "../helpers";
+import { configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -38,9 +32,7 @@ test.describe("regression: debug", () => {
     await page.goto("/debug");
 
     // Tombstone heading is visible.
-    await expect(
-      page.getByRole("heading", { name: /monitoring removed/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /monitoring removed/i })).toBeVisible({ timeout: 15_000 });
 
     // The replacement guidance points to docker logs — load-bearing.
     await expect(page.getByText(/docker logs fiestaboard/i)).toBeVisible();

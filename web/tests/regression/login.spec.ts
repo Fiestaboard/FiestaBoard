@@ -9,12 +9,7 @@
  * any helper that needs an authenticated fetch (e.g. configureBoard) works,
  * then clearCookies() so the browser is unauthenticated when it visits /login.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  ensureAuthForFetch,
-} from "../helpers";
+import { configureBoard, ensureAuthForFetch, expect, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -50,12 +45,8 @@ test.describe("regression: login", () => {
     await page.goto("/login", { waitUntil: "commit" });
 
     // Loading card: title + description copy come straight from login.* i18n.
-    await expect(
-      page.getByRole("heading", { name: "Loading…", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.getByText("Checking authentication status…"),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Loading…", level: 1 })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Checking authentication status…")).toBeVisible();
 
     // Release the stalled request so test teardown is clean.
     release();
@@ -78,13 +69,11 @@ test.describe("regression: login", () => {
     await page.goto("/login");
 
     // "Couldn't reach the API" title + the underlying error surfaced in an alert.
-    await expect(
-      page.getByRole("heading", { name: "Couldn't reach the API", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Couldn't reach the API", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
     // Filter past Next's empty route announcer (also role="alert").
-    await expect(
-      page.getByRole("alert").filter({ hasText: /Auth status request failed/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: /Auth status request failed/i })).toBeVisible();
   });
 
   /**
@@ -123,9 +112,7 @@ test.describe("regression: login", () => {
     await page.goto("/login?redirect=%2Flogin");
 
     // The redirecting card uses the i18n "redirectingTitle" + "redirectingDescription".
-    await expect(
-      page.getByRole("heading", { name: "Redirecting…", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Redirecting…", level: 1 })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("One moment…")).toBeVisible();
   });
 
@@ -156,16 +143,12 @@ test.describe("regression: login", () => {
 
     await page.goto("/login");
 
-    await expect(
-      page.getByRole("heading", { name: "Protect this FiestaBoard?", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Protect this FiestaBoard?", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
     // Both picker buttons are present and enabled.
-    await expect(
-      page.getByRole("button", { name: /Set up a username/i }),
-    ).toBeEnabled();
-    await expect(
-      page.getByRole("button", { name: /Skip — anyone on my network/i }),
-    ).toBeEnabled();
+    await expect(page.getByRole("button", { name: /Set up a username/i })).toBeEnabled();
+    await expect(page.getByRole("button", { name: /Skip — anyone on my network/i })).toBeEnabled();
   });
 
   /**
@@ -223,12 +206,8 @@ test.describe("regression: login", () => {
     await expect(page.getByRole("button", { name: /Disabling…/i })).toBeVisible({
       timeout: 5_000,
     });
-    await expect(
-      page.getByRole("button", { name: /Disabling…/i }),
-    ).toBeDisabled();
-    await expect(
-      page.getByRole("button", { name: /Set up a username/i }),
-    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Disabling…/i })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Set up a username/i })).toBeDisabled();
 
     release();
   });
@@ -243,9 +222,7 @@ test.describe("regression: login", () => {
    * See also: web/tests/auth.spec.ts:100
    * Coverage status: partial
    */
-  test("login.setup-submitting — creating pending label + 409 swap to sign-in", async ({
-    page,
-  }) => {
+  test("login.setup-submitting — creating pending label + 409 swap to sign-in", async ({ page }) => {
     // Pretend an admin doesn't exist yet so the setup form renders.
     await page.route("**/api/auth/status", async (route) => {
       await route.fulfill({
@@ -281,9 +258,9 @@ test.describe("regression: login", () => {
     });
 
     await page.goto("/login");
-    await expect(
-      page.getByRole("heading", { name: "Create administrator", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Create administrator", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.getByLabel("Username").fill("e2e-stub-admin");
     await page.getByLabel("Password", { exact: true }).fill("e2e-password-12345");
@@ -298,12 +275,12 @@ test.describe("regression: login", () => {
     // Release the 409 — the page should swap to sign-in mode and show the alert.
     releaseSetup();
 
-    await expect(
-      page.getByRole("heading", { name: "Sign in to FiestaBoard", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.getByRole("alert").filter({ hasText: /administrator account already exists/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Sign in to FiestaBoard", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("alert").filter({ hasText: /administrator account already exists/i })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   /**
@@ -348,9 +325,9 @@ test.describe("regression: login", () => {
     });
 
     await page.goto("/login");
-    await expect(
-      page.getByRole("heading", { name: "Sign in to FiestaBoard", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Sign in to FiestaBoard", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.getByLabel("Username").fill("any-user");
     await page.getByLabel("Password", { exact: true }).fill("any-password");
@@ -364,9 +341,9 @@ test.describe("regression: login", () => {
     // Release the 409 — sign-in handler flips status.setup_required=true,
     // swapping the form over to "Create administrator".
     releaseLogin();
-    await expect(
-      page.getByRole("heading", { name: "Create administrator", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Create administrator", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   /**
@@ -405,24 +382,22 @@ test.describe("regression: login", () => {
     });
 
     await page.goto("/login");
-    await expect(
-      page.getByRole("heading", { name: "Sign in to FiestaBoard", level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Sign in to FiestaBoard", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.getByLabel("Username").fill("any-user");
     await page.getByLabel("Password", { exact: true }).fill("any-password");
     await page.getByRole("button", { name: "Sign in" }).click();
 
     // Rate-limit alert is surfaced from the 429 detail body.
-    await expect(
-      page.getByRole("alert").filter({ hasText: /too many failed login attempts/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("alert").filter({ hasText: /too many failed login attempts/i })).toBeVisible({
+      timeout: 15_000,
+    });
     // After the request resolves, the button returns to its idle "Sign in"
     // label (submitting flag clears) but the alert remains visible — which
     // is the user-facing signal that this submission was rejected.
-    await expect(
-      page.getByRole("button", { name: "Sign in", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
     // Still on /login.
     await expect(page).toHaveURL(/\/login/);
   });

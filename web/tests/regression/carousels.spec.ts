@@ -12,16 +12,17 @@
  * into helpers.ts.
  */
 import type { Locator, Page } from "@playwright/test";
+
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
   authHeaders,
+  configureBoard,
   createPage,
   deleteAllPages,
+  ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 // ---------------------------------------------------------------------------
@@ -47,11 +48,7 @@ async function deleteAllCarousels(): Promise<void> {
   }
 }
 
-async function createCarouselApi(
-  name: string,
-  pageIds: string[],
-  intervalSeconds = 30,
-): Promise<CarouselApi> {
+async function createCarouselApi(name: string, pageIds: string[], intervalSeconds = 30): Promise<CarouselApi> {
   const res = await fetch(`${API_URL}/carousels`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -149,9 +146,7 @@ test.describe("regression: carousels.list", () => {
 
     release!();
     await nav;
-    await expect(
-      page.getByRole("heading", { name: "Carousels", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Carousels", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -163,17 +158,11 @@ test.describe("regression: carousels.list", () => {
    */
   test("carousels.list.empty — empty state shows the create-first CTA", async ({ page }) => {
     await page.goto("/carousels");
-    await expect(
-      page.getByRole("heading", { name: "Carousels", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Carousels", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText("No carousels yet")).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.getByText("Carousels automatically cycle through a collection of pages."),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Create Your First Carousel" }),
-    ).toBeVisible();
+    await expect(page.getByText("Carousels automatically cycle through a collection of pages.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create Your First Carousel" })).toBeVisible();
   });
 
   /**
@@ -192,9 +181,7 @@ test.describe("regression: carousels.list", () => {
     await createCarouselApi(name, [pageIdA, pageIdB], 15);
 
     await page.goto("/carousels");
-    await expect(
-      page.getByRole("heading", { name: "Carousels", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Carousels", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const card = carouselCard(page, name);
     await expect(card).toBeVisible({ timeout: 10_000 });
@@ -237,9 +224,7 @@ test.describe("regression: carousels.form", () => {
     await createPage(`E2E Page ${Date.now()}`);
 
     await page.goto("/carousels");
-    await expect(
-      page.getByRole("heading", { name: "Carousels", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Carousels", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const dialog = await openCreateSheet(page);
     await expect(dialog.getByRole("heading", { name: "New Carousel" })).toBeVisible();
@@ -290,7 +275,9 @@ test.describe("regression: carousels.form", () => {
    * Expected: inline placeholder copy ('No pages added yet'); Submit disabled
    * Source refs: web/src/app/carousels/page.tsx (selectedPageIds.length === 0)
    */
-  test("carousels.form.empty-pages-warning — empty pages placeholder is shown and Submit stays disabled", async ({ page }) => {
+  test("carousels.form.empty-pages-warning — empty pages placeholder is shown and Submit stays disabled", async ({
+    page,
+  }) => {
     await createPage(`E2E Page ${Date.now()}`);
 
     await page.goto("/carousels");
@@ -348,7 +335,9 @@ test.describe("regression: carousels.form", () => {
    * Expected: error toast; sheet remains open; input preserved
    * Source refs: web/src/app/carousels/page.tsx (createMutation onError)
    */
-  test("carousels.form.create-error — failed POST shows error toast, leaves sheet open with input preserved", async ({ page }) => {
+  test("carousels.form.create-error — failed POST shows error toast, leaves sheet open with input preserved", async ({
+    page,
+  }) => {
     const pageName = `E2E Page ${Date.now()}`;
     await createPage(pageName);
 
@@ -391,7 +380,9 @@ test.describe("regression: carousels.form", () => {
    * Expected: Update Carousel button disabled + spinner while PUT in flight
    * Source refs: web/src/app/carousels/page.tsx (isSubmitting branch)
    */
-  test("carousels.form.updating — Update Carousel button shows pending state while PUT is in flight", async ({ page }) => {
+  test("carousels.form.updating — Update Carousel button shows pending state while PUT is in flight", async ({
+    page,
+  }) => {
     const pageId = await createPage(`E2E Page ${Date.now()}`);
     const name = `E2E Updating Carousel ${Date.now()}`;
     const carousel = await createCarouselApi(name, [pageId], 30);
@@ -498,9 +489,7 @@ test.describe("regression: carousels.delete-confirm", () => {
     // The sheet closes and the AlertDialog opens.
     const alert = page.getByRole("alertdialog");
     await expect(alert).toBeVisible({ timeout: 10_000 });
-    await expect(
-      alert.getByRole("heading", { name: "Delete Carousel" }),
-    ).toBeVisible();
+    await expect(alert.getByRole("heading", { name: "Delete Carousel" })).toBeVisible();
 
     // ---- Cancel path: dialog closes, row remains ----
     await alert.getByRole("button", { name: "Cancel" }).click();

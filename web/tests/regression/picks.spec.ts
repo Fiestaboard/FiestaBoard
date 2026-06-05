@@ -9,16 +9,18 @@
  * the on-disk picks.json. The two tab tests exercise the real multi-board
  * tab UI and rely on ensureTwoBoards + the real (or fixture) picks catalog.
  */
+import type { Page } from "@playwright/test";
+
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
   authHeaders,
-  deleteAllPages,
   BOARD_HOST,
+  configureBoard,
+  deleteAllPages,
+  ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 // ---------------------------------------------------------------------------
@@ -50,7 +52,7 @@ function makePick(overrides: Partial<Pick> & { id: string; name: string }): Pick
 }
 
 /** Stub the /api/staff-picks list endpoint with a fixture array. */
-async function stubPicks(page: import("@playwright/test").Page, picks: Pick[]) {
+async function stubPicks(page: Page, picks: Pick[]) {
   await page.route("**/api/staff-picks", async (route) => {
     if (route.request().method() !== "GET") return route.fallback();
     await route.fulfill({
@@ -81,15 +83,17 @@ async function ensureTwoBoardsAuthed(): Promise<void> {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({
-        boards: [{
-          name: "My Board",
-          device_type: "flagship",
-          board_color: "black",
-          enabled: true,
-          api_mode: "local",
-          host: BOARD_HOST,
-          local_api_key: "test-key",
-        }],
+        boards: [
+          {
+            name: "My Board",
+            device_type: "flagship",
+            board_color: "black",
+            enabled: true,
+            api_mode: "local",
+            host: BOARD_HOST,
+            local_api_key: "test-key",
+          },
+        ],
       }),
     });
   }
@@ -105,15 +109,17 @@ async function resetToSingleBoardAuthed(): Promise<void> {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
-      boards: [{
-        name: "My Board",
-        device_type: "flagship",
-        board_color: "black",
-        enabled: true,
-        api_mode: "local",
-        host: BOARD_HOST,
-        local_api_key: "test-key",
-      }],
+      boards: [
+        {
+          name: "My Board",
+          device_type: "flagship",
+          board_color: "black",
+          enabled: true,
+          api_mode: "local",
+          host: BOARD_HOST,
+          local_api_key: "test-key",
+        },
+      ],
     }),
   });
 }
@@ -182,9 +188,7 @@ test.describe("regression: picks.grid", () => {
   test("picks.grid.empty — empty catalog state", async ({ page }) => {
     await stubPicks(page, []);
     await page.goto("/picks");
-    await expect(
-      page.getByText("No picks available for this board type yet."),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("No picks available for this board type yet.")).toBeVisible({ timeout: 10_000 });
   });
 
   /**
@@ -263,9 +267,7 @@ test.describe("regression: picks.card", () => {
    * Coverage status: covered
    */
   test("picks.card.importing — Import pending state on card", async ({ page }) => {
-    await stubPicks(page, [
-      makePick({ id: "import-pending", name: "Import Pending Pick" }),
-    ]);
+    await stubPicks(page, [makePick({ id: "import-pending", name: "Import Pending Pick" })]);
 
     // Stub the share endpoint to be fast, but stall the actual import POST so
     // we can observe the "Importing..." button text and disabled state.
@@ -313,9 +315,7 @@ test.describe("regression: picks.card", () => {
    * Coverage status: covered
    */
   test("picks.card.import-error — error toast and retry-able state", async ({ page }) => {
-    await stubPicks(page, [
-      makePick({ id: "import-fail", name: "Import Fail Pick" }),
-    ]);
+    await stubPicks(page, [makePick({ id: "import-fail", name: "Import Fail Pick" })]);
     await page.route("**/api/staff-picks/import-fail/share", async (route) => {
       await route.fulfill({
         status: 200,
@@ -337,9 +337,7 @@ test.describe("regression: picks.card", () => {
     await importBtn.click();
 
     // Sonner toast contains the error message.
-    await expect(
-      page.getByText(/Bad share string from regression test/),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/Bad share string from regression test/)).toBeVisible({ timeout: 5_000 });
 
     // Card returns to idle — Import button visible, enabled, and re-clickable.
     await expect(importBtn).toBeVisible();

@@ -15,17 +15,17 @@
  *   6. loading / empty skeletons
  */
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
+  authHeaders,
+  configureBoard,
   createPage,
   createSchedule,
   deleteAllPages,
   deleteAllSchedules,
-  loginIfNeeded,
   ensureAuthForFetch,
-  authHeaders,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -127,7 +127,9 @@ test.describe("regression: schedule.calendar", () => {
    * Source refs: web/src/app/schedule/components/schedule-calendar-view.tsx, web/src/lib/api.ts
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("schedule.calendar.sun-markers — calendar renders sun-time markers when location is configured", async ({ page }) => {
+  test("schedule.calendar.sun-markers — calendar renders sun-time markers when location is configured", async ({
+    page,
+  }) => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
@@ -289,7 +291,9 @@ test.describe("regression: schedule.calendar", () => {
    * Source refs: web/src/app/schedule/components/schedule-event.tsx, web/src/lib/schedule-calendar.ts
    * Coverage status: partial  (from .claude/ux-coverage.json)
    */
-  test("schedule.calendar.event-midnight-split-evening — evening half tagged with data-split=evening", async ({ page }) => {
+  test("schedule.calendar.event-midnight-split-evening — evening half tagged with data-split=evening", async ({
+    page,
+  }) => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
@@ -297,9 +301,7 @@ test.describe("regression: schedule.calendar", () => {
     const schedId = await createSchedule(pageId, "22:00", "02:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    const evening = page.locator(
-      `[data-testid="calendar-event-${schedId}"][data-split="evening"]`,
-    ).first();
+    const evening = page.locator(`[data-testid="calendar-event-${schedId}"][data-split="evening"]`).first();
     await expect(evening).toBeVisible({ timeout: 15_000 });
   });
 
@@ -317,7 +319,9 @@ test.describe("regression: schedule.calendar", () => {
    *              web/src/app/schedule/components/schedule-calendar-view.tsx
    * Coverage status: partial  (from .claude/ux-coverage.json)
    */
-  test("schedule.calendar.event-midnight-split-morning — morning half tagged with data-split=morning", async ({ page }) => {
+  test("schedule.calendar.event-midnight-split-morning — morning half tagged with data-split=morning", async ({
+    page,
+  }) => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
@@ -325,9 +329,7 @@ test.describe("regression: schedule.calendar", () => {
     const schedId = await createSchedule(pageId, "22:00", "02:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    const morning = page.locator(
-      `[data-testid="calendar-event-${schedId}"][data-split="morning"]`,
-    ).first();
+    const morning = page.locator(`[data-testid="calendar-event-${schedId}"][data-split="morning"]`).first();
     await expect(morning).toBeVisible({ timeout: 15_000 });
   });
 

@@ -3,13 +3,13 @@
  * Subarea: pages.edit
  */
 import {
-  test,
-  expect,
   configureBoard,
   createPage,
   deleteAllPages,
   ensureAuthForFetch,
+  expect,
   loginIfNeeded,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -99,7 +99,9 @@ test.describe("regression: pages.edit", () => {
     let release: () => void = () => {};
     await page.route(`**/api/pages/${id}`, async (route) => {
       if (route.request().method() === "PUT") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });
@@ -193,7 +195,9 @@ test.describe("regression: pages.edit", () => {
     let release: () => void = () => {};
     await page.route(`**/api/pages/${id}`, async (route) => {
       if (route.request().method() === "GET") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });

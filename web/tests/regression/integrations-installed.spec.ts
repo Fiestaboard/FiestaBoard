@@ -6,15 +6,15 @@
  * uninstall/update) is under-tested and ranks high-value. Fill these early.
  */
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
   authHeaders,
-  enablePlugin,
+  configureBoard,
   disablePlugin,
+  enablePlugin,
+  ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 // Stable always-installed builtin plugins. We never uninstall these.
@@ -69,9 +69,7 @@ test.describe("regression: integrations.installed", () => {
 
     const nav = page.goto("/integrations");
 
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i }).first()).toBeVisible({ timeout: 15_000 });
 
     // Skeleton placeholders are rendered as data-slot="skeleton" in the loading branch.
     await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({
@@ -81,9 +79,7 @@ test.describe("regression: integrations.installed", () => {
     release!();
     await nav;
     // Loading finished → real toggle rendered.
-    await expect(
-      page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -105,9 +101,7 @@ test.describe("regression: integrations.installed", () => {
     });
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i }).first()).toBeVisible({ timeout: 15_000 });
 
     // Error alert from i18n: "Failed to load plugins: <error>"
     await expect(page.getByText(/Failed to load plugins:/i)).toBeVisible({
@@ -116,14 +110,10 @@ test.describe("regression: integrations.installed", () => {
 
     // The header-level "Check for updates" button acts as the retry affordance
     // (it invalidates the plugins query when run).
-    await expect(
-      page.getByRole("button", { name: /Check for updates/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Check for updates/i })).toBeVisible();
 
     // No plugin toggle rows should be rendered in error state.
-    await expect(
-      page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
   });
 
   /**
@@ -150,16 +140,12 @@ test.describe("regression: integrations.installed", () => {
     });
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i }).first()).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText(/No plugins installed yet/i)).toBeVisible({
       timeout: 15_000,
     });
-    await expect(
-      page.getByRole("button", { name: /Browse Marketplace/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Browse Marketplace/i })).toBeVisible();
   });
 
   /**
@@ -172,22 +158,18 @@ test.describe("regression: integrations.installed", () => {
    */
   test("integrations.installed.empty-search — 'no results' state when search misses", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
 
     const search = page.getByPlaceholder(/Search installed plugins/i);
     await search.fill("zzz_no_match_query_xyz");
 
     // i18n: 'No installed plugins match "{query}"'
-    await expect(
-      page.getByText(/No installed plugins match "zzz_no_match_query_xyz"/i),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/No installed plugins match "zzz_no_match_query_xyz"/i)).toBeVisible({
+      timeout: 10_000,
+    });
 
     // The real plugin row should be hidden by the filter.
-    await expect(
-      page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
   });
 
   /**
@@ -203,9 +185,7 @@ test.describe("regression: integrations.installed", () => {
    */
   test("integrations.installed.list — column sort, overflow menu, search input", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
 
     // -- Column sort: clicking the Name header should flip chevron direction.
     const nameHeaderTh = page.locator("th").filter({ hasText: /^Name/ }).first();
@@ -230,13 +210,9 @@ test.describe("regression: integrations.installed", () => {
     // -- Search input: filtering to a non-matching string hides the row.
     const search = page.getByPlaceholder(/Search installed plugins/i);
     await search.fill("countdown");
-    await expect(
-      page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
     await search.fill("");
-    await expect(
-      page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 10_000 });
   });
 
   /**
@@ -264,9 +240,7 @@ test.describe("regression: integrations.installed", () => {
     });
 
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i }).first()).toBeVisible({ timeout: 15_000 });
 
     // Banner text from i18n: "{count} plugin update available"
     await expect(page.getByText(/plugin update available/i)).toBeVisible({
@@ -274,9 +248,7 @@ test.describe("regression: integrations.installed", () => {
     });
 
     // Update All button with the count, e.g. "Update All (1)"
-    await expect(
-      page.getByRole("button", { name: /Update All \(\d+\)/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Update All \(\d+\)/i })).toBeVisible();
   });
 
   /**
@@ -334,7 +306,9 @@ test.describe("regression: integrations.installed", () => {
    * See also: web/tests/plugin-management.spec.ts:48,144
    * Coverage status: partial
    */
-  test("integrations.installed.toggle-pending — optimistic flip, disabled switch, rollback on error", async ({ page }) => {
+  test("integrations.installed.toggle-pending — optimistic flip, disabled switch, rollback on error", async ({
+    page,
+  }) => {
     const initiallyEnabled = await getPluginEnabled(STABLE_PLUGIN_ID);
     // Force a known starting state of "enabled" so the toggle action is "disable".
     if (!initiallyEnabled) await enablePlugin(STABLE_PLUGIN_ID);
@@ -397,9 +371,7 @@ test.describe("regression: integrations.installed", () => {
 
       // Error toast appears (Sonner Notifications region). i18n template:
       // "Failed to toggle {pluginId}: {error}" — we match the prefix loosely.
-      const toast = page
-        .getByRole("region", { name: /Notifications/i })
-        .getByText(/Failed to toggle/i);
+      const toast = page.getByRole("region", { name: /Notifications/i }).getByText(/Failed to toggle/i);
       await expect(toast).toBeVisible({ timeout: 15_000 });
 
       // Switch reverts to its prior (enabled) state.
@@ -433,9 +405,7 @@ test.describe("regression: integrations.installed", () => {
       timeout: 5_000,
     });
     await expect(page.getByRole("menuitem", { name: /Add Instance/i })).toBeVisible();
-    await expect(
-      page.getByRole("menuitem", { name: /Enable|Disable/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /Enable|Disable/i })).toBeVisible();
   });
 
   /**
@@ -457,9 +427,7 @@ test.describe("regression: integrations.installed", () => {
 
     // The Add Instance row is an inline form. Verify the label + input + buttons.
     await expect(page.getByText(/Instance name:/i)).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.getByPlaceholder(/e\.g\. sf, prod, api-2/i),
-    ).toBeVisible();
+    await expect(page.getByPlaceholder(/e\.g\. sf, prod, api-2/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Create$/ })).toBeVisible();
 
     // Cancel without submitting — we DO NOT actually create an instance.
@@ -526,9 +494,7 @@ test.describe("regression: integrations.installed", () => {
       if (route.request().method() !== "GET") return route.fallback();
       const response = await route.fetch();
       const data = await response.json();
-      const target = data.plugins.find(
-        (p: { id: string }) => p.id === STABLE_PLUGIN_ID,
-      );
+      const target = data.plugins.find((p: { id: string }) => p.id === STABLE_PLUGIN_ID);
       if (target) target.update_available = true;
       await route.fulfill({
         status: 200,
@@ -565,9 +531,7 @@ test.describe("regression: integrations.installed", () => {
 
     // Reopening the dropdown should now show "Updating..." in place of "Update".
     await row.getByRole("button", { name: "More options" }).click();
-    await expect(
-      page.getByRole("menuitem", { name: /Updating/i }),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("menuitem", { name: /Updating/i })).toBeVisible({ timeout: 5_000 });
   });
 
   /**
@@ -584,7 +548,9 @@ test.describe("regression: integrations.installed", () => {
    * so the Delete menu item appears, and we stall the DELETE endpoint with
    * a 500 so we never actually remove anything.
    */
-  test("integrations.installed.uninstall-pending — uninstall AlertDialog opens with confirm testid", async ({ page }) => {
+  test("integrations.installed.uninstall-pending — uninstall AlertDialog opens with confirm testid", async ({
+    page,
+  }) => {
     // Mock the installed plugins list with a synthetic external plugin so the
     // Delete menu item appears without risking the user's installed plugins.
     await page.route("**/api/plugins", (route) => {
@@ -593,17 +559,19 @@ test.describe("regression: integrations.installed", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          plugins: [{
-            id: "uninstall_test_plugin",
-            name: "Uninstall Test Plugin",
-            description: "fixture",
-            enabled: true,
-            source: "external",
-            category: "utility",
-            author: "Test",
-            icon: "package",
-            manifest: { id: "uninstall_test_plugin", name: "Uninstall Test Plugin" },
-          }],
+          plugins: [
+            {
+              id: "uninstall_test_plugin",
+              name: "Uninstall Test Plugin",
+              description: "fixture",
+              enabled: true,
+              source: "external",
+              category: "utility",
+              author: "Test",
+              icon: "package",
+              manifest: { id: "uninstall_test_plugin", name: "Uninstall Test Plugin" },
+            },
+          ],
         }),
       });
     });

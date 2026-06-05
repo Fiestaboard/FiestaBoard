@@ -9,15 +9,7 @@
  * Auth pattern: this dev container has auth enabled. Every test must run
  * after ensureAuthForFetch + loginIfNeeded so cookies/headers are valid.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
-  authHeaders,
-} from "../helpers";
+import { API_URL, authHeaders, configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -95,9 +87,7 @@ test.describe("regression: dashboard", () => {
     await page.goto("/");
 
     // Header/nav remain mounted while body shows loading
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
     // Active Display card mounts immediately with its title
     await expect(page.getByText("Active Display", { exact: true })).toBeVisible({ timeout: 10_000 });
 
@@ -119,7 +109,9 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: partial
    */
-  test("dashboard.home.live — Change Page button opens sheet, active page name and Manual Mode badge render", async ({ page }) => {
+  test("dashboard.home.live — Change Page button opens sheet, active page name and Manual Mode badge render", async ({
+    page,
+  }) => {
     await deleteAllPagesAuthed();
     const pageId = await createPageAuthed(`Live E2E ${Date.now()}`);
     await setActivePageAuthed(pageId);
@@ -153,7 +145,9 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: partial
    */
-  test("dashboard.home.live-empty — board configured but no pages renders Active Display with no-page state", async ({ page }) => {
+  test("dashboard.home.live-empty — board configured but no pages renders Active Display with no-page state", async ({
+    page,
+  }) => {
     await deleteAllPagesAuthed();
     // Ensure no active page is set
     await fetch(`${API_URL}/settings/active-page`, {
@@ -213,9 +207,7 @@ test.describe("regression: dashboard", () => {
 
     // Click triggers the wizard → "Welcome to FiestaBoard" heading appears
     await cta.click();
-    await expect(
-      page.getByRole("heading", { name: "Welcome to FiestaBoard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -265,11 +257,16 @@ test.describe("regression: dashboard", () => {
     await page.getByText(nameB, { exact: true }).first().click();
 
     // Verify the API switched the active page
-    await expect.poll(async () => {
-      const res = await fetch(`${API_URL}/settings/active-page`, { headers: authHeaders() });
-      const data = await res.json();
-      return data.page_id;
-    }, { timeout: 10_000 }).toBe(pageB);
+    await expect
+      .poll(
+        async () => {
+          const res = await fetch(`${API_URL}/settings/active-page`, { headers: authHeaders() });
+          const data = await res.json();
+          return data.page_id;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(pageB);
   });
 
   /**
@@ -285,7 +282,9 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: uncovered
    */
-  test("dashboard.actions.change-mode-dialog — schedule mode opens dialog; Cancel closes without changing mode", async ({ page }) => {
+  test("dashboard.actions.change-mode-dialog — schedule mode opens dialog; Cancel closes without changing mode", async ({
+    page,
+  }) => {
     // Set up: a page + a schedule + schedule mode enabled, so clicking "Change Page"
     // surfaces the change-mode dialog (override-vs-disable) rather than the sheet.
     await deleteAllPagesAuthed();
@@ -352,7 +351,8 @@ test.describe("regression: dashboard", () => {
     // so `characters` !== `expected_characters`. This is the only path that
     // surfaces the "Restore" button.
     await page.route("**/api/board/current-message", async (route) => {
-      const rows = 6, cols = 22;
+      const rows = 6,
+        cols = 22;
       const chars = Array.from({ length: rows }, () => Array(cols).fill(0));
       const expected = Array.from({ length: rows }, () => Array(cols).fill(1));
       await route.fulfill({
@@ -399,7 +399,9 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: uncovered
    */
-  test("dashboard.actions.cancel-override — override badge visible, Cancel clears it and shows toast", async ({ page }) => {
+  test("dashboard.actions.cancel-override — override badge visible, Cancel clears it and shows toast", async ({
+    page,
+  }) => {
     await deleteAllPagesAuthed();
     const schedulePage = await createPageAuthed(`Sched ${Date.now()}`);
     const overridePage = await createPageAuthed(`Override ${Date.now()}`);

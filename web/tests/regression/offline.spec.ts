@@ -2,13 +2,7 @@
  * Auto-generated regression stubs from .claude/ux-coverage.json.
  * Subarea: offline (disconnected / reconnecting indicators)
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  loginIfNeeded,
-  ensureAuthForFetch,
-} from "../helpers";
+import { configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -40,15 +34,11 @@ test.describe("regression: offline", () => {
     });
     await page.goto("/offline");
 
-    await expect(
-      page.getByRole("heading", { name: /you're offline/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /you're offline/i })).toBeVisible({ timeout: 15_000 });
 
     // Try Again CTA only appears in the disconnected state — verifies we
     // aren't accidentally seeing the reconnecting state.
-    await expect(
-      page.getByRole("button", { name: /try again/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /try again/i })).toBeVisible();
   });
 
   /**
@@ -72,9 +62,7 @@ test.describe("regression: offline", () => {
     });
     await page.goto("/offline");
 
-    await expect(
-      page.getByRole("heading", { name: /you're offline/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /you're offline/i })).toBeVisible({ timeout: 15_000 });
 
     // Flip to online and fire the event the listener is bound to.
     await page.evaluate(() => {
@@ -85,13 +73,9 @@ test.describe("regression: offline", () => {
       window.dispatchEvent(new Event("online"));
     });
 
-    await expect(
-      page.getByRole("heading", { name: /reconnecting/i }),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("heading", { name: /reconnecting/i })).toBeVisible({ timeout: 5_000 });
 
     // Try Again button is gone in the reconnecting state.
-    await expect(
-      page.getByRole("button", { name: /try again/i }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /try again/i })).toHaveCount(0);
   });
 });

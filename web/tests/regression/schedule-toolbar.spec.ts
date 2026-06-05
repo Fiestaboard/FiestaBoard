@@ -3,15 +3,15 @@
  * Subarea: schedule.toolbar
  */
 import {
-  test,
-  expect,
   configureBoard,
   createPage,
   createSchedule,
   deleteAllPages,
   deleteAllSchedules,
-  loginIfNeeded,
   ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -47,7 +47,9 @@ test.describe("regression: schedule.toolbar", () => {
     let release: () => void = () => {};
     await page.route("**/api/schedules/enabled", async (route) => {
       if (route.request().method() === "PUT") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });

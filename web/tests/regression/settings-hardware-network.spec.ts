@@ -2,17 +2,19 @@
  * Auto-generated regression stubs from .claude/ux-coverage.json.
  * Subarea: settings.tab-hardware + settings.tab-network
  */
+import type { Page } from "@playwright/test";
+
 import {
-  test,
-  expect,
-  configureBoard,
   API_URL,
-  loginIfNeeded,
-  ensureAuthForFetch,
   authHeaders,
+  configureBoard,
+  ensureAuthForFetch,
   ensureTwoBoards,
-  resetToSingleBoard,
+  expect,
+  loginIfNeeded,
   openSettingsTab,
+  resetToSingleBoard,
+  test,
 } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
@@ -36,9 +38,7 @@ test.describe("regression: settings.hardware", () => {
    */
   test("settings.tab-hardware — enablement token mode + cloud registry boards", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -51,9 +51,7 @@ test.describe("regression: settings.hardware", () => {
     await tokenToggle.click();
 
     // "Get API Key from Board" button appears in token mode
-    await expect(
-      page.getByRole("button", { name: /Get API Key from Board/i }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /Get API Key from Board/i })).toBeVisible({ timeout: 10_000 });
 
     // Now switch to cloud API mode (the FiestaBoard cloud registry path).
     // The mode-picker buttons contain the label "Cloud API" plus a description,
@@ -81,9 +79,7 @@ test.describe("regression: settings.hardware", () => {
     await ensureTwoBoards();
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -134,16 +130,17 @@ test.describe("regression: settings.hardware", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await openSettingsTab(page, "Hardware");
 
     // Expand the board card
     await page.getByText("My Board").first().click();
 
     // Switch to enablement_token mode
-    await page.getByRole("button", { name: /Enablement Token/i }).first().click();
+    await page
+      .getByRole("button", { name: /Enablement Token/i })
+      .first()
+      .click();
 
     // Fill the token field (board host is already set by configureBoard)
     const tokenInput = page.locator("input[placeholder*='vestaboard.com/local-api']").first();
@@ -175,7 +172,9 @@ test.describe("regression: settings.network", () => {
    * web/src/app/settings/page.tsx:121,133). There is no separate
    * "unavailable info card" rendered. Assert tab absence instead.
    */
-  test("settings.tab-network.unavailable — Network tab is hidden when wifi capability is unavailable", async ({ page }) => {
+  test("settings.tab-network.unavailable — Network tab is hidden when wifi capability is unavailable", async ({
+    page,
+  }) => {
     // Force capability to unavailable (matches the default dev container behavior)
     await page.route("**/api/network/wifi/capability", (route) =>
       route.fulfill({
@@ -186,9 +185,7 @@ test.describe("regression: settings.network", () => {
     );
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Hardware tab is always present; Network tab must NOT be present.
     await expect(page.getByRole("tab", { name: "Hardware", exact: true })).toBeVisible();
@@ -207,9 +204,7 @@ test.describe("regression: settings.network", () => {
     await mockWifiAvailable(page);
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Network");
 
@@ -250,7 +245,10 @@ test.describe("regression: settings.network", () => {
     await expect(connectBtn).toBeDisabled();
 
     // Cancel closes the dialog
-    await page.getByRole("dialog").getByRole("button", { name: /^Cancel$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^Cancel$/i })
+      .click();
     await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 });
   });
 
@@ -291,12 +289,8 @@ test.describe("regression: settings.network", () => {
     await connectBtn.click();
 
     // While in-flight: Connecting... label visible and button disabled
-    await expect(
-      page.getByRole("dialog").getByRole("button", { name: /Connecting/i }),
-    ).toBeVisible({ timeout: 5_000 });
-    await expect(
-      page.getByRole("dialog").getByRole("button", { name: /Connecting/i }),
-    ).toBeDisabled();
+    await expect(page.getByRole("dialog").getByRole("button", { name: /Connecting/i })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("dialog").getByRole("button", { name: /Connecting/i })).toBeDisabled();
   });
 
   /**
@@ -323,7 +317,10 @@ test.describe("regression: settings.network", () => {
     await expect(page.getByText(/Disconnect from HomeNet/i)).toBeVisible();
 
     // Cancel preserves connection (no API call asserted; just close the dialog)
-    await page.getByRole("dialog").getByRole("button", { name: /^Cancel$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^Cancel$/i })
+      .click();
     await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 });
   });
 
@@ -351,7 +348,10 @@ test.describe("regression: settings.network", () => {
     await expect(page.getByText(/Forget HomeNet/i)).toBeVisible();
 
     // Cancel closes without forgetting
-    await page.getByRole("dialog").getByRole("button", { name: /^Cancel$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^Cancel$/i })
+      .click();
     await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 });
 
     // The saved entry is still present
@@ -380,9 +380,7 @@ test.describe("regression: settings.network", () => {
         return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify([
-            { ssid: "CoffeeShopWiFi", signal: 72, security: "WPA2", in_use: false },
-          ]),
+          body: JSON.stringify([{ ssid: "CoffeeShopWiFi", signal: 72, security: "WPA2", in_use: false }]),
         });
       }
       // Subsequent rescan triggered by the user fails.
@@ -420,10 +418,7 @@ test.describe("regression: settings.network", () => {
  * Mock the wifi-related backend endpoints so the Network tab renders
  * predictably on dev hosts (which don't actually have nmcli/D-Bus).
  */
-async function mockWifiAvailable(
-  page: import("@playwright/test").Page,
-  opts: { connected?: boolean } = {},
-) {
+async function mockWifiAvailable(page: Page, opts: { connected?: boolean } = {}) {
   const connected = !!opts.connected;
 
   await page.route("**/api/network/wifi/capability", (route) =>

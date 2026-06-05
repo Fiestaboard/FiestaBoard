@@ -2,13 +2,7 @@
  * Regression coverage for /integrations marketplace + plugin detail page.
  * Subarea: integrations.marketplace + integrations.detail
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  loginIfNeeded,
-  ensureAuthForFetch,
-} from "../helpers";
+import { configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -73,9 +67,7 @@ test.describe("regression: integrations.marketplace", () => {
       await marketplaceTab.click();
     }
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    const gitBtn = page
-      .getByRole("button", { name: /install from git|git url|add from git|add custom/i })
-      .first();
+    const gitBtn = page.getByRole("button", { name: /install from git|git url|add from git|add custom/i }).first();
     if (!(await gitBtn.isVisible().catch(() => false))) {
       test.skip(true, "Git install button not present in this UI variant");
       return;
@@ -127,7 +119,9 @@ test.describe("regression: integrations.detail", () => {
     let release: () => void = () => {};
     await page.route("**/api/plugins/date_time", async (route) => {
       if (route.request().method() === "GET") {
-        await new Promise<void>((r) => { release = r; });
+        await new Promise<void>((r) => {
+          release = r;
+        });
       }
       await route.continue();
     });

@@ -5,13 +5,7 @@
  * Priority cluster #1 from the auditor: system controls + backup/update flows
  * — 10 nodes ranked highest-value. Fill these FIRST.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  loginIfNeeded,
-  ensureAuthForFetch,
-} from "../helpers";
+import { configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -62,9 +56,7 @@ test.describe("regression: settings.system", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
     // System Controls card (Restart + Shutdown buttons).
@@ -121,9 +113,7 @@ test.describe("regression: settings.system", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
@@ -135,12 +125,8 @@ test.describe("regression: settings.system", () => {
     // AlertDialog with expected title and body copy.
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(
-      dialog.getByRole("heading", { name: "Restart FiestaBoard?" }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByText(/will restart the FiestaBoard container/i),
-    ).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "Restart FiestaBoard?" })).toBeVisible();
+    await expect(dialog.getByText(/will restart the FiestaBoard container/i)).toBeVisible();
 
     // Confirm and Cancel buttons are present. We intentionally click Cancel
     // so we never actually post to /api/restart in the user's dev container.
@@ -187,9 +173,7 @@ test.describe("regression: settings.system", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
     const shutdownButton = page.getByRole("button", { name: /^Shutdown$/ });
@@ -198,12 +182,8 @@ test.describe("regression: settings.system", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(
-      dialog.getByRole("heading", { name: /Shut Down Host\?/i }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByText(/stop all FiestaBoard services and power off/i),
-    ).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: /Shut Down Host\?/i })).toBeVisible();
+    await expect(dialog.getByText(/stop all FiestaBoard services and power off/i)).toBeVisible();
 
     // Destructive confirm button is present but we intentionally Cancel —
     // never click "Shut down" in tests against the dev container.
@@ -226,11 +206,11 @@ test.describe("regression: settings.system", () => {
   // Shutdown. A repo-wide search ("factory") finds only unrelated Lucide icon
   // imports. This UX node appears to be aspirational rather than implemented.
   // Leaving as test.fixme until a Factory Reset card is added.
-  test("settings.system.factory-reset-dialog — System tab renders without crashing when factory-reset is absent", async ({ page }) => {
+  test("settings.system.factory-reset-dialog — System tab renders without crashing when factory-reset is absent", async ({
+    page,
+  }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     const sysTab = page.getByRole("tab", { name: /System/i });
     if (await sysTab.isVisible().catch(() => false)) {
       await sysTab.click();
@@ -293,9 +273,7 @@ test.describe("regression: settings.system", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
     await page.getByRole("button", { name: /^Restart$/ }).click();
@@ -306,12 +284,8 @@ test.describe("regression: settings.system", () => {
     await dialog.getByRole("button", { name: "Restart now" }).click();
 
     // Overlay copy from messages/en.json -> systemControls.restartingFiestaboard.
-    await expect(
-      page.getByRole("heading", { name: /Restarting FiestaBoard/i }),
-    ).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.getByText(/This will take about 5.10 seconds/i),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Restarting FiestaBoard/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/This will take about 5.10 seconds/i)).toBeVisible();
 
     expect(restartCalled).toBe(true);
   });
@@ -326,14 +300,10 @@ test.describe("regression: settings.system", () => {
    */
   test("settings.system.import-confirm — backup import overwrite confirm dialog", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
-    await expect(
-      page.getByRole("heading", { name: /Backup & Restore/i }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: /Backup & Restore/i })).toBeVisible({ timeout: 10_000 });
 
     // BackupSettings uses a hidden <input type="file"> triggered by the
     // "Import backup…" button. Set files directly on the input to avoid
@@ -353,16 +323,12 @@ test.describe("regression: settings.system", () => {
     // AlertDialog confirms the overwrite.
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
-    await expect(
-      dialog.getByRole("heading", { name: /Replace current configuration\?/i }),
-    ).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: /Replace current configuration\?/i })).toBeVisible();
     await expect(dialog.getByText(/fiestaboard-backup\.json/)).toBeVisible();
     await expect(dialog.getByText(/overwritten/i)).toBeVisible();
 
     // Confirm action present but we Cancel to avoid actually overwriting state.
-    await expect(
-      dialog.getByRole("button", { name: /Restore backup/i }),
-    ).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Restore backup/i })).toBeVisible();
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
     await expect(dialog).toBeHidden();
@@ -378,14 +344,10 @@ test.describe("regression: settings.system", () => {
    */
   test("settings.system.import-error — invalid backup file surfaces error toast", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
-    await expect(
-      page.getByRole("heading", { name: /Backup & Restore/i }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: /Backup & Restore/i })).toBeVisible({ timeout: 10_000 });
 
     const fileInput = page.locator('input[type="file"][accept*="json"]');
     // Valid JSON but missing the fiestaboard_backup marker — triggers the
@@ -451,9 +413,7 @@ test.describe("regression: settings.system", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
     // Banner copy: "Update Available", version badge, "View Release" link.
@@ -465,15 +425,10 @@ test.describe("regression: settings.system", () => {
 
     const viewRelease = page.getByRole("link", { name: /View Release/i });
     await expect(viewRelease).toBeVisible();
-    await expect(viewRelease).toHaveAttribute(
-      "href",
-      "https://example.com/releases/v6.99.0",
-    );
+    await expect(viewRelease).toHaveAttribute("href", "https://example.com/releases/v6.99.0");
 
     // No sidecar -> no in-place Update Now button on the banner.
-    await expect(
-      page.getByRole("button", { name: /Update Now/i }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Update Now/i })).toHaveCount(0);
   });
 
   /**
@@ -484,7 +439,9 @@ test.describe("regression: settings.system", () => {
    * Source refs: web/src/components/settings/system/*
    * Coverage status: uncovered
    */
-  test("settings.system.update-confirm — install update confirm dialog opens and Cancel dismisses", async ({ page }) => {
+  test("settings.system.update-confirm — install update confirm dialog opens and Cancel dismisses", async ({
+    page,
+  }) => {
     await page.route("**/api/system/update-check", async (route) => {
       await route.fulfill({
         status: 200,
@@ -519,9 +476,7 @@ test.describe("regression: settings.system", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
     // Use the banner's Update Now button (SystemUpdate) — System Controls also
@@ -532,17 +487,13 @@ test.describe("regression: settings.system", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(
-      dialog.getByRole("heading", { name: /Update FiestaBoard\?/i }),
-    ).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: /Update FiestaBoard\?/i })).toBeVisible();
     await expect(dialog.getByText(/v6\.99\.0/)).toBeVisible();
     await expect(dialog.getByText(/restart FiestaBoard/i)).toBeVisible();
 
     // Confirm button is present but we Cancel — never actually trigger
     // applyUpdate() against the dev container.
-    await expect(
-      dialog.getByRole("button", { name: /Update Now/i }),
-    ).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Update Now/i })).toBeVisible();
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
     await expect(dialog).toBeHidden();
