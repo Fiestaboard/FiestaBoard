@@ -43,7 +43,7 @@ class MyPlugin(PluginBase):
             - error: Error message if fetch failed
         """
         # Get configuration
-        api_key = self.get_config("api_key")
+        api_key = self.config.get("api_key")
 
         # Can also check environment variable
         if not api_key:
