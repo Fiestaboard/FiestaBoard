@@ -4,57 +4,6 @@ This guide helps developers migrate from deprecated FiestaBoard API endpoints to
 
 ---
 
-## Board Configuration: `/config/vestaboard` → `/config/board`
-
-The `/config/vestaboard` endpoints are deprecated. Use `/config/board` instead.
-
-### GET - Retrieve board configuration
-
-**Deprecated (returns `Deprecation: true` header):**
-```http
-GET /config/vestaboard
-```
-
-**Canonical:**
-```http
-GET /config/board
-```
-
-**Example response (both endpoints return the same shape):**
-```json
-{
-  "config": {
-    "api_mode": "local",
-    "host": "192.168.1.100",
-    "local_api_key": "***"
-  },
-  "api_modes": ["local", "cloud"]
-}
-```
-
-### PUT - Update board configuration
-
-**Deprecated (returns `Deprecation: true` header):**
-```http
-PUT /config/vestaboard
-```
-
-**Canonical:**
-```http
-PUT /config/board
-```
-
-**Example request body:**
-```json
-{
-  "api_mode": "local",
-  "local_api_key": "your-key",
-  "host": "192.168.1.100"
-}
-```
-
----
-
 ## Display Raw Data: `/displays/{type}/raw` → `/plugins/{plugin_id}/data`
 
 The `/displays/{display_type}/raw` endpoint is deprecated. Use `/plugins/{plugin_id}/data` instead.
@@ -62,21 +11,25 @@ The `/displays/{display_type}/raw` endpoint is deprecated. Use `/plugins/{plugin
 ### GET - Retrieve plugin/display data
 
 **Deprecated (returns `Deprecation: true` header):**
+
 ```http
 GET /displays/{display_type}/raw
 ```
 
 **Canonical:**
+
 ```http
 GET /plugins/{plugin_id}/data
 ```
 
-The `display_type` and `plugin_id` values are the same identifiers (e.g., `weather`, `datetime`, `stocks`).
+The `display_type` and `plugin_id` values are the same identifiers (e.g., `weather`, `date_time`, `stocks`).
 
-**Example - old endpoint:**
+**Example — old endpoint:**
+
 ```http
 GET /displays/weather/raw
 ```
+
 ```json
 {
   "display_type": "weather",
@@ -86,21 +39,25 @@ GET /displays/weather/raw
 }
 ```
 
-**Example - new endpoint:**
+**Example — new endpoint:**
+
 ```http
 GET /plugins/weather/data
 ```
+
 ```json
 {
   "plugin_id": "weather",
   "available": true,
   "data": { "temperature": 72, "condition": "Sunny" },
-  "formatted": "Sunny, 72°F\nSan Francisco",
+  "formatted_lines": ["Sunny, 72F", "San Francisco", "", "", "", ""],
   "error": null
 }
 ```
 
-> **Note:** The new endpoint also returns a `formatted` field with the pre-formatted display output.
+> **Note:** The new endpoint also returns `formatted_lines` — an array of up to six pre-formatted display lines from the plugin's `PluginResult.formatted_lines`. This is `null` when the plugin does not pre-format its output.
+
+The new endpoint returns **HTTP 503** instead of `"available": false` when plugin data is unavailable (not configured, auth failure, network error). The error detail message comes from `PluginResult.error`. The old endpoint returned a 200 with `available: false`.
 
 ---
 
@@ -110,14 +67,14 @@ Deprecated endpoints include the following HTTP response headers:
 
 ```http
 Deprecation: true
-Link: </config/board>; rel="successor-version"
+Link: </plugins/{plugin_id}/data>; rel="successor-version"
 ```
 
-You can use these headers to detect and log warnings in your integration code.
+The `Link` header value points at the canonical successor for that specific request — e.g. a call to `/displays/weather/raw` returns `Link: </plugins/weather/data>; rel="successor-version"`. Use these headers to detect deprecated calls in your integration code.
 
 ---
 
 ## See Also
 
-- [Technical Debt](./TECHNICAL_DEBT.md) - full list of deprecated endpoints and removal timeline
+- [Technical Debt](./TECHNICAL_DEBT.md) — full list of deprecated endpoints and removal timeline
 - [Plugin Development Guide](./PLUGIN_DEVELOPMENT.md)
