@@ -113,6 +113,7 @@ plugins/my_plugin/
 | `documentation` | string | Path to documentation file |
 | `env_vars` | array | Environment variables the plugin can use |
 | `color_rules_schema` | object | Schema for dynamic color rules |
+| `supports_triggers` | boolean | Enable event-based triggers (see [Triggering Pages from a Plugin](../../docs/development/PLUGIN_DEVELOPMENT.md#triggering-pages-from-a-plugin)) |
 
 #### Screenshots Field
 
@@ -167,6 +168,8 @@ class MyPlugin(PluginBase):
 | `validate_config(config)` | Validate configuration. Return list of errors |
 | `cleanup()` | Called when plugin is disabled. Clean up resources |
 | `on_config_change(old, new)` | Called when configuration is updated |
+| `check_triggers()` | Return event-based `TriggerResult` list (requires `supports_triggers: true` — see [Triggering Pages from a Plugin](../../docs/development/PLUGIN_DEVELOPMENT.md#triggering-pages-from-a-plugin)) |
+| `receive_payload(payload, headers, raw_body)` | Handle a pushed webhook payload (raise `PermissionError` / `ValueError` for 403 / 400) |
 | `config` | Property. The current configuration dictionary |
 | `manifest` | Property. The raw manifest dictionary |
 
