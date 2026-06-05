@@ -39,11 +39,12 @@ section).
 
 ## Quick setup with preset pills
 
-In **Settings → AI Providers**, the **Quick presets** row gives you
-one-click pills for every supported provider, grouped into **Cloud**
-and **Local**. Clicking a pill auto-fills the **Name**, **Base
-URL**, and **Protocol** for that provider — you only have to paste
-your API key and add the model ids you want.
+In **Settings → AI Providers**, the **Quick presets** row gives you one-click pills for every supported provider, grouped into **Cloud** and **Local**. Clicking a pill auto-fills the **Name**, **Base URL**, and **Protocol** for that provider — you only have to paste your API key and add the model ids you want.
+
+The current preset list, sourced from `web/src/components/settings/ai-settings.tsx`:
+
+- **Cloud:** OpenAI, OpenRouter, Anthropic, Groq, DeepSeek, Mistral, Together AI, Fireworks AI.
+- **Local:** Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), llama.cpp (`http://localhost:8080/v1`), vLLM (`http://localhost:8000/v1`).
 
 ## Configuration
 
@@ -72,20 +73,18 @@ using the **Make default** button.
 
 ## Recommended models
 
-These all work well with the FiestaBoard prompt format:
+These all work well with the FiestaBoard prompt format. Any current chat-completion model the provider exposes will work — these are just sensible defaults.
 
 | Provider     | Protocol  | Model                                  | Notes                              |
 | ------------ | --------- | -------------------------------------- | ---------------------------------- |
 | OpenRouter   | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output. |
-| OpenRouter   | OpenAI    | `anthropic/claude-3.5-sonnet`          | High-quality, slower.              |
+| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4`            | High-quality, slower.              |
 | OpenAI       | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.            |
-| Anthropic    | Anthropic | `claude-3-5-sonnet-20241022`           | Direct, no OpenRouter markup.      |
-| Anthropic    | Anthropic | `claude-3-5-haiku-20241022`            | Cheaper, fast.                     |
+| Anthropic    | Anthropic | `claude-sonnet-4-20250514`             | Direct, no OpenRouter markup.      |
+| Anthropic    | Anthropic | `claude-haiku-4-20250514`              | Cheaper, fast.                     |
 | Local Ollama | OpenAI    | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.   |
 
-Smaller (≤ 7B) local models often struggle to emit valid JSON for
-the FiestaBoard schema; if you see frequent "Could not parse JSON"
-errors, switch to a larger or instruction-tuned model.
+The Anthropic protocol pins a stable `anthropic-version` header in `src/ai/protocols.py`, so any model ID Anthropic accepts on that version works — earlier IDs like `claude-3-5-sonnet-20241022` are still valid if you've configured them. Smaller (≤ 7B) local models often struggle to emit valid JSON for the FiestaBoard schema; if you see frequent "Could not parse JSON" errors, switch to a larger or instruction-tuned model.
 
 ## Privacy
 
