@@ -90,10 +90,12 @@ def fix_repo(name, stem):
             "git",
             "commit",
             "-m",
-            "fix: rename board screenshots to board-display.png\n\n"
-            "The docs-site pluginBoardImagePath() now expects\n"
-            "docs/black/board-display.png and docs/white/board-display.png.\n"
-            "Rename from the legacy {plugin-name}-display.png convention.",
+            (
+                "fix: rename board screenshots to board-display.png\n\n"
+                + "The docs-site pluginBoardImagePath() now expects\n"
+                + "docs/black/board-display.png and docs/white/board-display.png.\n"
+                + "Rename from the legacy {plugin-name}-display.png convention."
+            ),
         ],
         cwd=repo_dir,
     )
