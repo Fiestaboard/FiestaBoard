@@ -287,7 +287,8 @@ class TestCollectionStorage:
 
     def test_delete(self, storage):
         created = storage.create(Collection(name="Del", page_ids=["p1"]))
-        assert storage.delete(created.id) is True
+        deleted = storage.delete(created.id)
+        assert deleted is True
         assert storage.count() == 0
 
     def test_list_all_sorted_by_name(self, storage):
