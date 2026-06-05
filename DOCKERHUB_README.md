@@ -53,7 +53,7 @@ Then open **http://localhost:4420** to connect your board and start the service.
 
 ## What You Can Display
 
-FiestaBoard includes **26 built-in plugins**. Many work without any API key at all:
+FiestaBoard has a catalog of **50+ plugins**. Many work without any API key at all:
 
 | Plugin | Description | API Key? |
 |--------|-------------|----------|
@@ -64,11 +64,11 @@ FiestaBoard includes **26 built-in plugins**. Many work without any API key at a
 | Home Assistant | Smart home status display | Yes (self-hosted) |
 | Surf Conditions | Wave height and quality | No |
 | Date & Time | Multiple formats with timezone support | No |
-| Disney Parks | Wait times from Queue-Times.com | No |
+| Disney Park Queue Times | Wait times from Queue-Times.com | No |
 | Last.fm | Currently playing music | Yes (free) |
 | Visual Clock | Large pixel-art clock | No |
 | Star Trek Quotes | Quotes from TNG, Voyager, DS9 | No |
-| And 15 more... | Transit, aircraft, ferries, WiFi, sun art, countdown, etc. | Varies |
+| And 40+ more... | Transit, aircraft, ferries, WiFi, sun art, countdown, etc. | Varies |
 
 ## Key Features
 
