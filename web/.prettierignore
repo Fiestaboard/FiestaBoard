@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+storybook-static/
+public/
+next-env.d.ts
+package-lock.json
+*.snap
+.vercel/
+test-results/
+playwright-report/
