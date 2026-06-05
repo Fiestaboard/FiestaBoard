@@ -9,6 +9,8 @@ This guide is for **contributors and plugin developers** who want to work on Fie
 - Docker and Docker Compose installed
 - A `.env` file with your board API key (copy from `env.example`)
 
+> **Important:** Do not run the API (`src/api_server.py`) or the web UI (`npm run dev`) directly on the host. All commands here run **inside** the dev container — no local `pip install` or `npm install` required.
+
 ## Development Workflow
 
 ### Starting Development Environment
@@ -24,6 +26,8 @@ docker-compose -f docker-compose.dev.yml up -d
 docker-compose -f docker-compose.dev.yml logs -f
 ```
 
+If you're working in Claude Code, the project ships matching slash commands: `/start` (up -d), `/stop` (down), and `/restart` (down + `--no-cache` rebuild + up -d).
+
 **Access:**
 - Web UI and API: http://localhost:4420 (single container, same as production)
 - API base path: http://localhost:4420/api/
@@ -31,10 +35,10 @@ docker-compose -f docker-compose.dev.yml logs -f
 
 ### Hot Reload
 
-The development Docker Compose mounts source code as volumes:
+The development Docker Compose mounts source code as volumes (`./src`, `./plugins`, `./web`, `./tests`, `./scripts`, plus `./data`):
 
-- **Python API**: Changes to `src/` and `plugins/` trigger uvicorn auto-reload
-- **Next.js Web UI**: Requires image rebuild to see changes (same unified container as production)
+- **Python API**: Changes to `src/` and `plugins/` trigger uvicorn `--reload` automatically — no restart needed.
+- **Next.js Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker-compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive UI work, run Storybook with `docker-compose -f docker-compose.dev.yml up fiestaboard-storybook` (port 6006) instead.
 
 ### Stopping Services
 
@@ -65,17 +69,19 @@ docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm 
 # Health check
 curl http://localhost:4420/api/health
 
-# Status
+# Service status
 curl http://localhost:4420/api/status
 
-# Start service
+# Start the carousel
 curl -X POST http://localhost:4420/api/start
 
-# Send message
+# Send an ad-hoc message
 curl -X POST http://localhost:4420/api/send-message \
   -H "Content-Type: application/json" \
   -d '{"text": "Test message"}'
 ```
+
+For the full schema, open the interactive docs at `http://localhost:4420/api/docs`.
 
 ## Environment Variables
 
@@ -114,11 +120,11 @@ docker-compose -f docker-compose.dev.yml ps
 
 ## VS Code / Dev Container
 
-If using VS Code with Dev Containers:
+The repo ships a `.devcontainer/` with `devcontainer.json`, a build `Dockerfile`, and a `post-create.sh` hook. To use it:
 
-1. The `.devcontainer/devcontainer.json` is configured
-2. Open in container: VS Code → "Reopen in Container"
-3. Dependencies are installed automatically
+1. Install the **Dev Containers** extension in VS Code.
+2. Open the repo folder, then run **Dev Containers: Reopen in Container** from the command palette.
+3. Dependencies install automatically via `post-create.sh`. When the build finishes, VS Code is attached to the container with the same toolchain CI uses.
 
 ## Quick Reference
 
@@ -166,9 +172,9 @@ docker-compose -f docker-compose.dev.yml up --build
 
 ### API Can't Connect to Board
 
-- Check `/status` endpoint for service status
-- Verify `.env` file has valid API keys
-- Check network connectivity to board
+- Check `http://localhost:4420/api/status` for service status.
+- Verify `.env` has valid board credentials (see `env.example`).
+- Confirm the container can reach your board's network. The default dev compose seeds `BOARD_API_MODE=local`, `BOARD_HOST=fiestaboard-mock-board`, and `BOARD_LOCAL_API_KEY=mock-dev-key` so a fresh install talks to the bundled mock board instead of stranding the UI on a spinner. Real-board settings in `data/config.json` always win over those seeds.
 
 ### UI Can't Connect to API
 
